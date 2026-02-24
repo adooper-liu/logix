@@ -1,0 +1,15 @@
+# 构建忽略文件
+node_modules
+npm-debug.log
+dist
+.env
+.git
+.gitignore
+README.md
+docs
+*.md
+.vscode
+.idea
+coverage
+.nyc_output
+logs

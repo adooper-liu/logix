@@ -1,0 +1,16 @@
+# Grafana 仪表板自动导入配置
+# Grafana Dashboard Auto-Import Configuration
+
+apiVersion: 1
+
+providers:
+  - name: 'TimescaleDB Dashboards'
+    orgId: 1
+    folder: 'TimescaleDB'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 10
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: true

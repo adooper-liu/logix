@@ -1,0 +1,165 @@
+version: '3.9'
+
+# TimescaleDB 开发环境配置
+# TimescaleDB Development Environment Configuration
+#
+# 使用方法:
+# Usage:
+#   docker-compose -f docker-compose.timescaledb.yml up -d
+#
+# 说明:
+# Description:
+#   - 使用 TimescaleDB 替代标准 PostgreSQL
+#   - Use TimescaleDB instead of standard PostgreSQL
+#   - 包含自动初始化脚本
+#   - Includes automatic initialization scripts
+#   - 支持数据压缩和连续聚合
+#   - Supports data compression and continuous aggregation
+
+services:
+  # TimescaleDB 数据库
+  # TimescaleDB Database
+  postgres:
+    image: timescale/timescaledb:latest-pg15
+    container_name: logix-timescaledb-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: logix_db
+      PGDATA: /var/lib/postgresql/data/pgdata
+      # TimescaleDB 配置
+      TS_TUNE_MEMORY: 2GB
+      TS_TUNE_NUM_CPUS: 4
+    volumes:
+      - timescaledb_dev_data:/var/lib/postgresql/data
+      - ./backend/scripts:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - logix-timescaledb-network
+    command: >
+      postgres
+      -c shared_buffers=512MB
+      -c effective_cache_size=2GB
+      -c maintenance_work_mem=128MB
+      -c max_worker_processes=8
+      -c max_parallel_workers_per_gather=4
+
+  # Redis 缓存
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: logix-redis-dev
+    restart: unless-stopped
+    volumes:
+      - redis_dev_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - logix-timescaledb-network
+
+  # 后端 API 服务 (开发模式 - 热重载)
+  # Backend API Service (Development Mode - Hot Reload)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: logix-backend-timescaledb-dev
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_DATABASE: logix_db
+      DB_POOL_MIN: 2
+      DB_POOL_MAX: 10
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD:
+      REDIS_DB: 0
+      FEITUO_API_ENDPOINT: https://api.feituo.com/v1
+      FEITUO_API_KEY: ${FEITUO_API_KEY}
+      LOG_LEVEL: debug
+      LOG_FILE_PATH: ./logs
+    volumes:
+      - ./backend/src:/app/src
+      - ./backend/package.json:/app/package.json
+      - ./backend/tsconfig.json:/app/tsconfig.json
+    ports:
+      - "3001:3001"
+      - "9229:9229"  # Node.js debugger
+    networks:
+      - logix-timescaledb-network
+
+  # Prometheus - 监控 TimescaleDB 指标
+  # Prometheus - Monitor TimescaleDB metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: logix-prometheus-dev
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - logix-timescaledb-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+
+  # Grafana - 可视化监控面板
+  # Grafana - Monitoring Dashboard Visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: logix-grafana-dev
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_INSTALL_PLUGINS: timescale-timescaledb-visualization
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - logix-timescaledb-network
+    depends_on:
+      - prometheus
+
+volumes:
+  timescaledb_dev_data:
+    driver: local
+  redis_dev_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  logix-timescaledb-network:
+    driver: bridge

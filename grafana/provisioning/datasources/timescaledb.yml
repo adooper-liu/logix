@@ -1,0 +1,21 @@
+# Grafana TimescaleDB 数据源配置
+# Grafana TimescaleDB Datasource Configuration
+
+apiVersion: 1
+
+datasources:
+  - name: TimescaleDB
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    database: logix_db
+    user: postgres
+    password: postgres
+    sslmode: disable
+    isDefault: false
+    editable: true
+    jsonData:
+      postgresVersion: 1500
+      timescaledb: true
+    secureJsonData:
+      password: postgres
