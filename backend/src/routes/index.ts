@@ -11,6 +11,7 @@ import countryRoutes from './country.routes.js';
 import customerRoutes from './customer.routes.js';
 import customerTypeRoutes from './customerType.routes.js';
 import importRoutes from './import.routes.js';
+import externalDataRoutes from './externalData.routes.js';
 
 const router = Router();
 
@@ -28,7 +29,8 @@ router.get('/', (_req, res) => {
       countries: '国别字典',
       customers: '客户管理',
       customerTypes: '客户类型字典',
-      import: 'Excel数据导入'
+      import: 'Excel数据导入',
+      external: '外部数据同步'
     }
   });
 });
@@ -41,5 +43,6 @@ router.use('/countries', countryRoutes);
 router.use('/customers', customerRoutes);
 router.use('/customer-types', customerTypeRoutes);
 router.use('/import', importRoutes);
+router.use('/external', externalDataRoutes);
 
 export default router;

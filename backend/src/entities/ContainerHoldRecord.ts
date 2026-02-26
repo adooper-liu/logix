@@ -5,49 +5,42 @@
 
 import {
   Entity,
-  PrimaryColumn,
+  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
   ManyToOne,
   JoinColumn
 } from 'typeorm';
 import { Container } from './Container';
 
-@Entity('container_hold_records')
+@Entity('ext_container_hold_records')
 export class ContainerHoldRecord {
-  @PrimaryColumn({ type: 'varchar', length: 50 })
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
 
   @Column({ type: 'varchar', length: 50 })
   containerNumber: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  billOfLadingNumber?: string;
-
-  @Column({ type: 'varchar', length: 50 })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   holdType: string; // CUSTOMS/CARRIER/TERMINAL/CHARGES
 
-  @Column({ type: 'varchar', length: 20 })
-  holdStatus: string; // ACTIVE/RELEASED
-
-  @Column({ type: 'date', nullable: true })
-  holdDate?: Date;
-
   @Column({ type: 'text', nullable: true })
-  holdDescription?: string;
+  holdReason: string;
 
   @Column({ type: 'timestamp', nullable: true })
-  releasedAt?: Date;
+  holdDate: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  releaseDate: Date;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  status: string;
 
   @Column({ type: 'text', nullable: true })
-  releaseReason?: string;
+  remarks: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
-
-  @UpdateDateColumn({ name: 'updated_at' })
-  updatedAt: Date;
 
   // 关联关系
   @ManyToOne(() => Container)

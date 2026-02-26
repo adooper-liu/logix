@@ -5,6 +5,7 @@
 
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { databaseConfig } from '../config/database.config';
+import { SnakeNamingStrategy } from '../config/SnakeNamingStrategy';
 import { Country } from '../entities/Country';
 import { CustomerType } from '../entities/CustomerType';
 import { Customer } from '../entities/Customer';
@@ -26,6 +27,7 @@ import { ShippingCompany } from '../entities/ShippingCompany';
 import { FreightForwarder } from '../entities/FreightForwarder';
 import { CustomsBroker } from '../entities/CustomsBroker';
 import { TruckingCompany } from '../entities/TruckingCompany';
+import { OverseasCompany } from '../entities/OverseasCompany';
 import { logger } from '../utils/logger';
 
 export const dataSourceOptions: DataSourceOptions = {
@@ -35,6 +37,7 @@ export const dataSourceOptions: DataSourceOptions = {
   username: databaseConfig.username,
   password: databaseConfig.password,
   database: databaseConfig.database,
+  naming: new SnakeNamingStrategy(),
   entities: [
     // 字典表 (Dictionary Tables)
     Country,
@@ -46,6 +49,7 @@ export const dataSourceOptions: DataSourceOptions = {
     TruckingCompany,
     ContainerType,
     Warehouse,
+    OverseasCompany,
 
     // 业务表 (Business Tables)
     Customer,
@@ -88,6 +92,16 @@ export const initDatabase = async (): Promise<void> => {
       port: databaseConfig.port,
       database: databaseConfig.database
     });
+
+    // 验证命名策略是否生效
+    const namingStrategy = AppDataSource.options.naming;
+    if (namingStrategy) {
+      const testColumnName = namingStrategy.columnName('orderNumber', '', []);
+      logger.info('✅ Naming strategy verified', {
+        testField: 'orderNumber',
+        mappedColumn: testColumnName
+      });
+    }
   } catch (error) {
     logger.error('❌ Database connection failed', error);
     throw error;

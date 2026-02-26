@@ -92,6 +92,12 @@ const formatDateOnly = (date: string | Date | null | undefined): string => {
   })
 }
 
+// 获取目的港操作信息
+const getDestinationPortOperation = () => {
+  if (!containerData.value?.portOperations) return null
+  return containerData.value.portOperations.find((po: any) => po.portType === 'destination')
+}
+
 onMounted(() => {
   loadContainerDetail()
 })
@@ -146,15 +152,15 @@ onMounted(() => {
           </div>
           <div class="info-item">
             <span class="label">总重</span>
-            <span class="value">{{ containerData.grossWeight || '-' }} KG</span>
+            <span class="value">{{ (containerData.order?.totalGrossWeight || containerData.grossWeight) ? (containerData.order?.totalGrossWeight || containerData.grossWeight) : '-' }} KG</span>
           </div>
           <div class="info-item">
             <span class="label">体积</span>
-            <span class="value">{{ containerData.cbm || '-' }} CBM</span>
+            <span class="value">{{ (containerData.order?.totalCbm || containerData.cbm) ? (containerData.order?.totalCbm || containerData.cbm) : '-' }} CBM</span>
           </div>
           <div class="info-item">
             <span class="label">箱数</span>
-            <span class="value">{{ containerData.packages || '-' }}</span>
+            <span class="value">{{ (containerData.order?.totalBoxes || containerData.packages) ? (containerData.order?.totalBoxes || containerData.packages) : '-' }}</span>
           </div>
         </div>
       </el-card>
@@ -185,10 +191,10 @@ onMounted(() => {
 
               <h3>货物信息</h3>
               <el-descriptions :column="2" border>
-                <el-descriptions-item label="毛重">{{ containerData.grossWeight || '-' }} KG</el-descriptions-item>
-                <el-descriptions-item label="净重">{{ containerData.netWeight || '-' }} KG</el-descriptions-item>
-                <el-descriptions-item label="体积">{{ containerData.cbm || '-' }} CBM</el-descriptions-item>
-                <el-descriptions-item label="箱数">{{ containerData.packages || '-' }}</el-descriptions-item>
+                <el-descriptions-item label="毛重">{{ containerData.grossWeight !== null && containerData.grossWeight !== undefined ? containerData.grossWeight : '-' }} KG</el-descriptions-item>
+                <el-descriptions-item label="净重">{{ containerData.netWeight !== null && containerData.netWeight !== undefined ? containerData.netWeight : '-' }} KG</el-descriptions-item>
+                <el-descriptions-item label="体积">{{ containerData.cbm !== null && containerData.cbm !== undefined ? containerData.cbm : '-' }} CBM</el-descriptions-item>
+                <el-descriptions-item label="箱数">{{ containerData.packages !== null && containerData.packages !== undefined ? containerData.packages : '-' }}</el-descriptions-item>
               </el-descriptions>
 
               <h3>状态信息</h3>
@@ -278,8 +284,12 @@ onMounted(() => {
                     <el-descriptions-item label="目的港">{{ sf.portOfDischarge || '-' }}</el-descriptions-item>
                     <el-descriptions-item label="中转港">{{ sf.portOfTransit || '-' }}</el-descriptions-item>
                     <el-descriptions-item label="装船日期">{{ formatDateOnly(sf.shippingDate) }}</el-descriptions-item>
-                    <el-descriptions-item label="预计到港日期">{{ formatDateOnly(sf.eta) }}</el-descriptions-item>
-                    <el-descriptions-item label="实际到港日期">{{ formatDateOnly(sf.ata) }}</el-descriptions-item>
+                    <el-descriptions-item label="预计到港日期">
+                      {{ formatDateOnly(sf.eta || getDestinationPortOperation()?.etaDestPort) }}
+                    </el-descriptions-item>
+                    <el-descriptions-item label="实际到港日期">
+                      {{ formatDateOnly(sf.ata || getDestinationPortOperation()?.ataDestPort) }}
+                    </el-descriptions-item>
                     <el-descriptions-item label="货代公司">{{ sf.freightForwarder || '-' }}</el-descriptions-item>
                     <el-descriptions-item label="订舱号">{{ sf.bookingNumber || '-' }}</el-descriptions-item>
                   </el-descriptions>

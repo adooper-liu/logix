@@ -19,13 +19,13 @@ const importController = new ImportController();
  * @desc    导入Excel数据到数据库（单条记录）
  * @access  Public
  */
-router.post('/excel', importController.importExcelData);
+router.post('/excel', importController.importExcelData.bind(importController));
 
 /**
  * @route   POST /api/v1/import/excel/batch
  * @desc    批量导入Excel数据到数据库
  * @access  Public
  */
-router.post('/excel/batch', importController.importBatchExcelData);
+router.post('/excel/batch', importController.importBatchExcelData.bind(importController));
 
 export default router;

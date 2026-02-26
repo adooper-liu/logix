@@ -1,180 +1,198 @@
-# Excel 数据导入功能
+# Excel导入功能使用指南
 
-## 功能概述
+**更新日期**: 2026-02-26
+**功能**: 一次正确导入Excel数据，无需后续SQL修复
 
-本功能允许用户通过 Excel 文件批量导入货柜物流数据到系统数据库。
+---
 
-## 安装依赖
+## ✨ 核心特性
 
-前端已自动安装 `xlsx` 库用于处理 Excel 文件：
+- ✅ 支持多港经停（起运港、途经港、目的港）
+- ✅ 自动生成3条港口操作记录
+- ✅ 完整的还空箱记录导入
+- ✅ 多种日期格式支持
+- ✅ 详细的调试日志
+
+---
+
+## 🚀 快速开始
+
+### 1. 准备Excel文件
+
+**必填字段**:
+- 集装箱号
+- 备货单号
+
+**还空箱必填字段**（如果物流状态为"已还箱"）:
+- 还箱日期
+
+**港口操作字段**（自动生成3条记录）:
+- 起运港 → 自动生成 `origin` 类型
+- 途经港 → 自动生成 `transit` 类型
+- 目的港 → 自动生成 `destination` 类型
+
+### 2. 导入步骤
+
+1. **打开导入页面**
+   - 访问 http://localhost:5173/import
+
+2. **上传Excel文件**
+   - 拖拽或选择文件
+   - 支持格式：`.xlsx`, `.xls`
+
+3. **解析Excel**
+   - 点击"解析Excel"
+   - 查看预览数据
+
+4. **检查数据**（重要！）
+   - **打开浏览器控制台（F12）**
+   - 查看以下日志：
+     ```
+     [splitRowToTables] 港口操作数量: 3
+     [splitRowToTables] 还空箱字段: [...]
+     [splitRowToTables] 还空箱数据: {...}
+     ```
+   - 确认数据正确
+
+5. **导入数据库**
+   - 点击"导入数据库"
+   - 等待完成
+
+6. **验证结果**
+   - 查看导入结果摘要
+   - 如有错误，查看详情
+
+### 3. 验证数据
 
 ```bash
-cd frontend
-npm install xlsx
+# 运行验证脚本
+pwsh -File scripts/verify-data.ps1
 ```
 
-## 使用方法
+---
 
-### 1. 访问导入页面
+## 📝 Excel字段映射
 
-访问 `http://localhost:5173/import` 进入 Excel 数据导入页面。
+### 必填字段
 
-### 2. 下载模板
+| Excel列名 | 数据库表 | 字段 | 必填 |
+|-----------|---------|------|------|
+| 集装箱号 | containers | containerNumber | ✅ |
+| 备货单号 | replenishment_orders | orderNumber | ✅ |
+| 还箱日期 | empty_returns | returnTime | ✅* |
 
-点击页面右上方的"下载模板"按钮，下载标准导入模板。
+*当物流状态为"已还箱"时必填
 
-### 3. 填写数据
+### 港口操作字段（自动生成3条记录）
 
-根据模板填写货柜物流数据：
+| Excel列名 | 港口类型 | 数据库字段 | 示例 |
+|-----------|---------|-----------|------|
+| 起运港 | origin | portCode/portName | 宁宁 |
+| 途经港 | transit | portCode/portName | 温哥华 |
+| 途经港到达日期 | transit | transitArrivalDate | 2025-05-05 05:34:00 |
+| 目的港 | destination | portCode/portName | 多伦多 |
+| 预计到港日期 | destination | etaDestPort | 2025-05-09 00:00:00 |
+| 目的港到达日期 | destination | ataDestPort | 2025-05-17 00:18:00 |
 
-- **备货单信息**：备货单号、客户名称、销往国家等
-- **货柜信息**：集装箱号、柜型、货物描述等
-- **海运信息**：提单号、船名、航次、起运港/目的港等
-- **港口操作**：到港日期、清关状态、ISF申报等
-- **拖卡运输**：提柜日期、送仓日期、司机信息等
-- **仓库操作**：入库日期、卸柜方式、WMS状态等
-- **还空箱**：还箱日期、还箱地点等
+### 日期字段格式
 
-### 4. 上传文件
-
-将填写好的 Excel 文件拖拽到上传区域，或点击上传按钮选择文件。
-
-### 5. 解析预览
-
-点击"解析Excel"按钮，系统会解析文件内容并显示前10条数据预览。
-
-### 6. 导入数据
-
-确认数据无误后，点击"导入数据库"按钮，系统会批量将数据导入数据库。
-
-## 数据映射关系
-
-系统支持以下7个数据表的导入：
-
-| 数据库表 | Excel字段示例 | 说明 |
-|---------|--------------|------|
-| `biz_replenishment_orders` | 备货单号、客户名称、销往国家 | 备货单基础信息 |
-| `biz_containers` | 集装箱号、柜型、货物描述 | 货柜基础信息 |
-| `process_sea_freight` | 提单号、船名、航次、起运港 | 海运运输信息 |
-| `process_port_operations` | 预计到港日期、清关状态 | 目的港操作信息 |
-| `process_trucking` | 提柜日期、送仓日期、司机信息 | 拖卡运输信息 |
-| `process_warehouse_operations` | 入库日期、卸柜方式、WMS状态 | 仓库操作信息 |
-| `process_empty_returns` | 还箱日期、还箱地点 | 还空箱信息 |
-
-## 字典映射
-
-### 物流状态
-- `未出运` → `not_shipped`
-- `已装船` → `shipped`
-- `在途` → `in_transit`
-- `已到港` → `at_port`
-- `已提柜` → `picked_up`
-- `已卸柜` → `unloaded`
-- `已还箱` → `returned_empty`
-
-### 清关状态
-- `未开始` → `NOT_STARTED`
-- `进行中` → `IN_PROGRESS`
-- `已完成` → `COMPLETED`
-- `失败` → `FAILED`
-
-### ISF申报状态
-- `未申报` → `NOT_STARTED`
-- `已提交` → `SUBMITTED`
-- `已批准` → `APPROVED`
-- `已拒绝` → `REJECTED`
-
-## 数据处理规则
-
-1. **唯一键检查**：
-   - 备货单号：`orderNumber`
-   - 集装箱号：`containerNumber`
-   - 提单号：`billOfLadingNumber`
-
-2. **数据更新策略**：
-   - 如果记录已存在（根据唯一键判断），则更新该记录
-   - 如果记录不存在，则创建新记录
-
-3. **关联关系处理**：
-   - 货柜通过 `orderNumber` 关联备货单
-   - 海运、港口操作、拖卡、仓库、还空箱通过 `containerNumber` 关联货柜
-
-4. **事务处理**：
-   - 单条数据导入使用数据库事务，确保数据一致性
-   - 事务失败会自动回滚，不会产生脏数据
-
-## 错误处理
-
-### 常见错误
-
-1. **唯一约束冲突**：
-   - 错误信息：数据已存在，唯一约束冲突
-   - 解决方案：检查备货单号、集装箱号等唯一字段是否重复
-
-2. **外键约束失败**：
-   - 错误信息：外键约束失败，关联数据不存在
-   - 解决方案：确保关联的备货单已存在，或先导入备货单
-
-3. **必填字段缺失**：
-   - 错误信息：某行数据缺少必填字段
-   - 解决方案：填写Excel中标记为必填的字段（备货单号、集装箱号）
-
-## 技术实现
-
-### 后端 API
-
-**路由**：`POST /api/v1/import/excel`
-
-**请求格式**：
-```json
-{
-  "tables": {
-    "replenishment_orders": {
-      "orderNumber": "ORD202600001",
-      "customerName": "示例客户"
-    },
-    "containers": {
-      "containerNumber": "CONT202600001",
-      "containerTypeCode": "40HQ"
-    },
-    "sea_freight": {
-      "billOfLadingNumber": "BL202600001",
-      "vesselName": "MSC Europa"
-    },
-    ...
-  }
-}
+```
+✅ 2025-06-29 20:52:47
+✅ 2025-06-29
+✅ 2025/06/29
+✅ 20250629
+✅ Excel日期数字
 ```
 
-**响应格式**：
-```json
-{
-  "success": true,
-  "message": "数据导入成功",
-  "data": {
-    "orderNumber": "ORD202600001",
-    "containerNumber": "CONT202600001"
-  }
-}
+---
+
+## 🔍 故障排查
+
+### 问题: 还空箱记录未导入
+
+**检查**:
+1. 控制台是否显示 `[splitRowToTables] 还空箱数据: {...}`？
+2. Excel中"还箱日期"列是否有值？
+
+**解决**:
+- 确保Excel中"还箱日期"列有值
+- 检查日期格式是否符合规范
+
+### 问题: 途经港未导入
+
+**检查**:
+1. 控制台是否显示 `[splitRowToTables] 港口操作数量: 3`？
+2. Excel中"途经港"列是否有值？
+
+**解决**:
+- 确保Excel中"途经港"列有值
+- 检查"途经港到达日期"格式
+
+### 问题: 日期字段为空
+
+**检查**:
+1. 控制台是否有 `parseDate` 警告？
+2. Excel中日期格式是否正确？
+
+**解决**:
+- 修改Excel日期格式为 `YYYY-MM-DD HH:mm:ss`
+- 或使用简单的 `YYYY-MM-DD` 格式
+
+---
+
+## 📊 导入结果验证
+
+### 检查还空箱记录
+
+```sql
+SELECT * FROM process_empty_returns
+WHERE "containerNumber" = 'FANU3376528';
+-- ✅ 应有1条记录
 ```
 
-### 前端功能
+### 检查港口操作记录
 
-- **文件解析**：使用 `xlsx` 库读取 Excel 文件
-- **数据验证**：检查必填字段
-- **批量导入**：每批处理50条记录，显示进度
-- **错误汇总**：收集所有导入失败的记录及错误原因
+```sql
+SELECT port_type, port_name, port_sequence
+FROM process_port_operations
+WHERE container_number = 'FANU3376528'
+ORDER BY port_sequence;
+-- ✅ 应有3条记录：
+--    1. origin: 宁宁
+--    2. transit: 温哥华
+--    3. destination: 多伦多
+```
 
-## 注意事项
+### 检查海运表日期
 
-1. **文件格式**：仅支持 `.xlsx` 和 `.xls` 格式
-2. **数据量限制**：单次最多导入1000条记录
-3. **数据质量**：请确保填写的数据格式正确，日期格式支持 `YYYY-MM-DD`、`YYYY/MM/DD`、`YYYYMMDD`
-4. **网络超时**：大批量导入时可能需要较长时间，请耐心等待
+```sql
+SELECT eta, ata, shipment_date
+FROM process_sea_freight
+WHERE container_number = 'FANU3376528';
+-- ✅ eta、ata、shipment_date 不应为NULL
+```
 
-## 扩展开发
+---
 
-如需支持更多字段或修改映射关系，请编辑以下文件：
+## 📞 技术支持
 
-- **前端**：`frontend/src/views/import/ExcelImport.vue` 中的 `FIELD_MAPPINGS` 数组
-- **后端**：`backend/src/controllers/import.controller.ts` 中的数据表处理逻辑
+### 查看日志
+
+- **前端**: 浏览器控制台（F12）
+- **后端**: `backend/logs/app.log`
+
+### 常见问题
+
+Q: 支持批量导入吗？
+A: 是的，单次最多导入1000条
+
+Q: 导入失败会回滚吗？
+A: 是的，使用事务保证数据一致性
+
+Q: 可以重复导入同一个货柜吗？
+A: 可以，会更新已有记录
+
+---
+
+**最后更新**: 2026-02-26
+**功能状态**: ✅ 生产就绪

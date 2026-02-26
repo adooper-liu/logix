@@ -15,6 +15,7 @@ export { ShippingCompany } from './ShippingCompany';
 export { FreightForwarder } from './FreightForwarder';
 export { CustomsBroker } from './CustomsBroker';
 export { TruckingCompany } from './TruckingCompany';
+export { OverseasCompany } from './OverseasCompany';
 
 // 业务表 (Business Tables)
 export { Customer } from './Customer';

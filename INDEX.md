@@ -6,14 +6,53 @@
 
 ---
 
+## 📚 核心文档导航（必读）
+
+### 1. 开发规范与流程 ⭐⭐⭐
+> 📄 [查看开发规范](./DEVELOPMENT_STANDARDS.md)
+>
+> **核心原则**: 数据库表结构是唯一不变基准
+>
+> **内容包括**:
+> - 失败案例总结（外键约束、表名不统一、字段名混用）
+> - 开发流程规范（数据库→实体→API→前端）
+> - 命名规范（snake_case/camelCase分离）
+> - 关键开发步骤（新增表/字段的完整流程）
+> - 常用映射参考（表名、字段名、API参数）
+
+### 2. 核心映射参考 ⭐⭐⭐
+> 📄 [查看核心映射参考](./docs/CORE_MAPPINGS_REFERENCE.md)
+>
+> **快速查询**:
+> - 完整表名映射（数据库↔实体↔API）
+> - 11张核心表的完整字段映射
+> - 外键关系速查
+> - 主键字段速查
+> - API接口映射示例
+> - 常见错误速查
+
+**开发必读顺序**: 开发规范 → 核心映射参考 → 开始编码
+
+---
+
 ## 🚀 快速开始
 
-### 我想快速启动开发环境
-> 📄 [查看开发环境指南](./DEV_ENVIRONMENT_GUIDE.md)
+### 我第一次使用 LogiX（5分钟快速启动）
+> 📄 [查看快速启动指南](./QUICK_START.md) ⭐⭐⭐
 >
-> **操作**: 双击 `start-logix-dev.bat`
+> **操作**: 双击 `start-logix-dev.ps1`
 >
-> **效果**: 一键启动数据库、管理工具、前端、后端
+> **效果**: 一键启动 TimescaleDB、前端、后端
+
+### 我想启动开发环境
+> 📄 [查看开发环境指南](./DEV_ENVIRONMENT_GUIDE.md) ⭐⭐
+>
+> **操作**: 双击 `start-logix-dev.ps1`
+>
+> **服务地址**:
+> - 前端: http://localhost:5173
+> - 后端: http://localhost:3001
+> - Adminer: http://localhost:8080
 
 ### 我想查看前端项目
 > 📄 [查看前端文档](./frontend/README.md)
@@ -25,7 +64,7 @@
 ### 我想查看后端项目
 > 📄 [查看后端文档](./backend/README.md)
 >
-> **技术**: Node.js + Express
+> **技术**: Node.js + Express + TypeORM
 >
 > **访问**: http://localhost:3001
 
@@ -33,27 +72,40 @@
 
 ## 🗄️ 数据库管理
 
-### 使用数据库管理工具
-> 📄 [查看管理工具指南](./ADMIN_TOOLS_GUIDE.md)
+### 数据库管理完整指南 ⭐⭐⭐
+> 📄 [查看数据库管理指南](./backend/DATABASE_MANAGEMENT_GUIDE.md)
+>
+> **核心策略**: SQL 脚本管理表结构 + TypeORM 操作数据
+>
+> **内容包括**:
+> - 核心SQL脚本说明（5个核心脚本）
+> - 数据库初始化完整流程
+> - 表结构变更流程
+> - Entity 定义与 SQL 表结构对齐
+> - 开发环境配置
+
+### TimescaleDB 快速参考 ⭐⭐
+> 📄 [查看快速参考](./TIMESCALEDB_QUICK_REFERENCE.md)
+>
+> **常用命令**:
+> ```bash
+> tsdb-start      # 启动TimescaleDB
+> tsdb-stop       # 停止TimescaleDB
+> tsdb-logs       # 查看日志
+> tsdb-db         # 连接数据库
+> tsdb-info       # 查看统计
+> ```
+
+### TimescaleDB 完整指南 ⭐
+> 📄 [查看完整指南](./TIMESCALEDB_GUIDE.md)
+>
+> **内容**: 安装、配置、时序表、超表、函数、优化
+
+### 数据库管理工具
 >
 > **Adminer**: http://localhost:8080 (轻量级）
 >
 > **pgAdmin**: http://localhost:5050 (功能完整）
-
-### TimescaleDB 完整学习
-> 📄 [查看 TimescaleDB 完整指南](./TIMESCALEDB_GUIDE.md)
->
-> **内容**: 安装、配置、时序表、超表、函数、优化
-
-### TimescaleDB 快速参考
-> 📄 [查看快速参考](./TIMESCALEDB_QUICK_REFERENCE.md)
->
-> **内容**: 常用命令、查询模板、最佳实践
-
-### Docker 数据库操作
-> 📄 [查看 Docker 指南](./README_DOCKER.md)
->
-> **内容**: Docker Compose 配置、启动、停止、备份
 
 ---
 
@@ -105,49 +157,51 @@ tsdb-clean.bat
 
 ## 📦 服务访问地址
 
-| 服务 | 地址 | 用途 |
-|------|------|------|
-| **前端应用** | http://localhost:5173 | Vue 3 前端界面 |
-| **后端 API** | http://localhost:3001 | Node.js 后端服务 |
-| **TimescaleDB** | localhost:5432 | PostgreSQL + TimescaleDB |
-| **Redis** | localhost:6379 | 缓存服务 |
-| **Adminer** | http://localhost:8080 | 轻量级数据库管理 |
-| **pgAdmin** | http://localhost:5050 | PostgreSQL 官方管理工具 |
-| **Grafana** | http://localhost:3000 | 监控可视化面板 |
-| **Prometheus** | http://localhost:9090 | 监控数据采集 |
+|| 服务 | 地址 | 用途 |
+||------|------|------|
+|| **前端应用** | http://localhost:5173 | Vue 3 前端界面 |
+|| **后端 API** | http://localhost:3001 | Node.js 后端服务 |
+|| **TimescaleDB** | localhost:5432 | PostgreSQL + TimescaleDB |
+|| **Redis** | localhost:6379 | 缓存服务 |
+|| **Adminer** | http://localhost:8080 | 轻量级数据库管理 |
+|| **pgAdmin** | http://localhost:5050 | PostgreSQL 官方管理工具 |
+|| **Grafana** | http://localhost:3000 | 监控可视化面板 |
+|| **Prometheus** | http://localhost:9090 | 监控数据采集 |
 
 ---
 
 ## 📚 文档分类
 
 ### 🚀 快速入门
-| 文档 | 说明 |
-|------|------|
-| [DEV_ENVIRONMENT_GUIDE.md](./DEV_ENVIRONMENT_GUIDE.md) | 开发环境完整指南 ⭐ |
-| [README_DOCKER.md](./README_DOCKER.md) | Docker 部署指南 |
+|| 文档 | 说明 |
+||------|------|
+|| [DEV_ENVIRONMENT_GUIDE.md](./DEV_ENVIRONMENT_GUIDE.md) | 开发环境完整指南 ⭐ |
+|| [README_DOCKER.md](./README_DOCKER.md) | Docker 部署指南 |
 
 ### 💻 前后端开发
-| 文档 | 说明 |
-|------|------|
-| [frontend/README.md](./frontend/README.md) | 前端技术栈和架构 |
-| [backend/README.md](./backend/README.md) | 后端 API 开发文档 |
+|| 文档 | 说明 |
+||------|------|
+|| [frontend/README.md](./frontend/README.md) | 前端技术栈和架构 |
+|| [backend/README.md](./backend/README.md) | 后端 API 开发文档 |
 
 ### 🗄️ 数据库
-| 文档 | 说明 |
-|------|------|
-| [TIMESCALEDB_GUIDE.md](./TIMESCALEDB_GUIDE.md) | TimescaleDB 完整指南 ⭐ |
-| [TIMESCALEDB_QUICK_REFERENCE.md](./TIMESCALEDB_QUICK_REFERENCE.md) | TimescaleDB 快速参考 ⭐ |
-| [ADMIN_TOOLS_GUIDE.md](./ADMIN_TOOLS_GUIDE.md) | 数据库管理工具指南 ⭐ |
+|| 文档 | 说明 |
+||------|------|
+|| [DATABASE_MANAGEMENT_GUIDE.md](./backend/DATABASE_MANAGEMENT_GUIDE.md) | 数据库管理完整指南 ⭐ |
+|| [TIMESCALEDB_GUIDE.md](./TIMESCALEDB_GUIDE.md) | TimescaleDB 完整指南 ⭐ |
+|| [TIMESCALEDB_QUICK_REFERENCE.md](./TIMESCALEDB_QUICK_REFERENCE.md) | TimescaleDB 快速参考 ⭐ |
+|| [ADMIN_TOOLS_GUIDE.md](./ADMIN_TOOLS_GUIDE.md) | 数据库管理工具指南 ⭐ |
 
 ### 🛠️ 管理工具
-| 文档 | 说明 |
-|------|------|
-| [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) | 迁移指南 |
+|| 文档 | 说明 |
+||------|------|
+|| [MIGRATION_GUIDE.md](./MIGRATION_GUIDE.md) | 迁移指南 |
 
 ### 📖 参考手册
-| 文档 | 说明 |
-|------|------|
-| [WINDOWS_DOCKER_GUIDE.md](./WINDOWS_DOCKER_GUIDE.md) | Windows Docker 配置 |
+|| 文档 | 说明 |
+||------|------|
+|| [NAMING_CONVENTIONS.md](./NAMING_CONVENTIONS.md) | 字段命名规范 ⭐ |
+|| [WINDOWS_DOCKER_GUIDE.md](./WINDOWS_DOCKER_GUIDE.md) | Windows Docker 配置 |
 
 ---
 
@@ -347,6 +401,8 @@ docker-compose -f docker-compose.admin-tools.yml down
 
 ### 项目文档
 - [开发环境指南](./DEV_ENVIRONMENT_GUIDE.md) ⭐
+- [数据库管理指南](./backend/DATABASE_MANAGEMENT_GUIDE.md) ⭐
+- [字段命名规范](./NAMING_CONVENTIONS.md) ⭐
 - [数据库管理工具指南](./ADMIN_TOOLS_GUIDE.md) ⭐
 - [TimescaleDB 完整指南](./TIMESCALEDB_GUIDE.md) ⭐
 - [TimescaleDB 快速参考](./TIMESCALEDB_QUICK_REFERENCE.md) ⭐

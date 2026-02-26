@@ -20,14 +20,21 @@ export class EmptyReturn {
   containerNumber: string;
 
   // 还箱时间计划
-  @Column({ type: 'date', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   lastReturnDate?: Date;
 
-  @Column({ type: 'date', nullable: true })
+  @Column({ type: 'timestamp', nullable: true })
   plannedReturnDate?: Date;
 
   @Column({ type: 'timestamp', nullable: true })
   returnTime?: Date;
+
+  // 还箱通知时间 - Excel映射字段 - 新增
+  @Column({ type: 'date', nullable: true })
+  notificationReturnDate?: Date; // 通知取空日期
+
+  @Column({ type: 'timestamp', nullable: true })
+  notificationReturnTime?: Date; // 取空时间
 
   // 还箱地点
   @Column({ type: 'varchar', length: 50, nullable: true })
@@ -51,6 +58,9 @@ export class EmptyReturn {
 
   // 关联关系
   @ManyToOne(() => Container)
-  @JoinColumn({ name: 'container_number' })
+  @JoinColumn({
+    name: 'containerNumber',
+    referencedColumnName: 'containerNumber'
+  })
   container: Container;
 }

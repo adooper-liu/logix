@@ -376,6 +376,9 @@ DB_USERNAME=postgres
 DB_PASSWORD=your_password
 DB_DATABASE=logix_db
 
+# 数据库同步策略（重要！）
+DB_SYNCHRONIZE=false  # false: SQL脚本管理（推荐）；true: TypeORM自动同步
+
 # 服务配置
 NODE_ENV=development
 PORT=3001
@@ -410,7 +413,45 @@ RATE_LIMIT_MAX_REQUESTS=100
 HEALTH_CHECK_INTERVAL=60000
 ```
 
-### 3. 初始化数据库
+### 3. 初始化数据库（Docker环境）
+
+如果使用Docker容器运行TimescaleDB：
+
+```bash
+# Windows PowerShell
+.\reinit_database_docker.ps1
+
+# Linux/Mac
+./reinit_database_docker.sh
+```
+
+这个脚本会自动完成：
+1. 创建所有表结构（28张表）
+2. 初始化字典数据（国别、客户类型、港口、海外公司、货柜类型）
+3. 初始化仓库数据（149个仓库）
+4. 添加外键约束和索引
+5. 数据一致性检查
+
+**详细说明请参考：** [数据库管理指南](./DATABASE_MANAGEMENT_GUIDE.md)
+
+### 4. 切换数据库同步模式
+
+```bash
+# 检查当前模式
+.\switch-sync-mode.ps1 check
+
+# 启用TypeORM自动同步（快速开发）
+.\switch-sync-mode.ps1 true
+
+# 禁用自动同步（使用SQL脚本，推荐）
+.\switch-sync-mode.ps1 false
+```
+
+**说明：**
+- `DB_SYNCHRONIZE=false`: 使用SQL脚本管理表结构，更安全（推荐）
+- `DB_SYNCHRONIZE=true`: 实体修改后自动同步表结构，快速开发
+
+### 5. 启动服务
 
 ```bash
 # 执行初始化脚本 (如果存在)
@@ -889,7 +930,7 @@ export class AdapterManager {
 
 ### 详细文档
 
-完整的数据库设计文档请参考：[backend/docs/LogiX 数据库完整指南.md](docs/LogiX%20数据库完整指南.md)
+完整的数据库管理指南请参考：[DATABASE_MANAGEMENT_GUIDE.md](./DATABASE_MANAGEMENT_GUIDE.md)
 
 ---
 
