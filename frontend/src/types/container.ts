@@ -170,6 +170,7 @@ export interface PortOperation {
   etaCorrection?: Date;
   ataDestPort?: Date;
   ataTransit?: Date;
+  transitArrivalDate?: Date;
   destPortUnloadDate?: Date;
   plannedCustomsDate?: Date;
   actualCustomsDate?: Date;

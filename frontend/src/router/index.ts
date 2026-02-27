@@ -7,7 +7,7 @@ import Layout from '@/components/layout/Layout.vue'
 // 页面组件
 const Dashboard = () => import('@/views/dashboard/Dashboard.vue')
 const Shipments = () => import('@/views/shipments/Shipments.vue')
-const ContainerDetail = () => import('@/views/shipments/ContainerDetail.vue')
+const ContainerDetail = () => import('@/views/shipments/ContainerDetailRefactored.vue')
 const ExcelImport = () => import('@/views/import/ExcelImport.vue')
 const Monitoring = () => import('@/views/monitoring/Monitoring.vue')
 const DictMapping = () => import('@/views/system/DictMapping.vue')
