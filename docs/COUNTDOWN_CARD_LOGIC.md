@@ -2,11 +2,73 @@
 
 ## 概述
 
-LogiX 集装箱管理系统包含 4 个倒计时卡片，每个卡片显示不同维度的货柜统计信息。用户可以点击卡片中的数字来过滤表格数据。
+LogiX 集装箱管理系统包含 5 个倒计时卡片，每个卡片显示不同维度的货柜统计信息。用户可以点击卡片中的数字来过滤表格数据。
+
+**卡片列表**：
+1. **按状态** - 显示所有物流状态（未出运、已出运、在途、已到港、已提柜、已卸柜、已还箱）的货柜分布
+2. **按到港** - 统计已出运、在途、已到港状态的货柜到港情况
+3. **按提柜** - 统计待提柜货柜的计划和实际提柜情况
+4. **最晚提柜** - 显示即将超过最后免费日期的货柜
+5. **最晚还箱** - 显示即将超过最后还箱日期的货柜
+
+## UI 布局设计
+
+### 卡片样式特性
+
+倒计时卡片采用**标签化紧凑布局**设计：
+
+1. **标签式筛选项**：
+   - 每个统计维度以小标签形式展示
+   - 使用 `flex-wrap` 自动换行排列
+   - 标签背景色采用浅色半透明（颜色 + 15% 透明度）
+   - 边框颜色与数字颜色一致
+   - hover 时有轻微上浮和阴影效果
+
+2. **紧凑间距**：
+   - 卡片内边距：`12px`
+   - 标签间距：`6px`
+   - 头部边距：`10px`
+
+3. **字体大小**：
+   - 标题：`14px`
+   - 标签文本：`12px`
+   - 子标题：`10px`
+   - 统计数字：`13px`（加粗）
+
+4. **响应式设计**：
+   - 网格布局：`grid-template-columns: repeat(auto-fit, minmax(200px, 1fr))`
+   - 移动端自适应为单列
+   - 移动端标签字号缩小至 `11px`
 
 ---
 
-## 1. 按到港倒计时卡片
+## 1. 按状态卡片
+
+### 数据来源
+- `container.logisticsStatus`: 物流状态（状态机）
+- 状态类型：`NOT_SHIPPED`、`SHIPPED`、`IN_TRANSIT`、`AT_PORT`、`PICKED_UP`、`UNLOADED`、`RETURNED_EMPTY`
+
+### 统计逻辑
+
+显示所有 7 个物流状态的货柜分布：
+
+| 状态 | 编码 | 说明 | 颜色 |
+|------|------|------|------|
+| 未出运 | NOT_SHIPPED | 货柜尚未出运 | 灰色 #909399 |
+| 已出运 | SHIPPED | 货柜已装船 | 蓝色 #409eff |
+| 在途 | IN_TRANSIT | 货柜在运输中 | 蓝色 #409eff |
+| 已到港 | AT_PORT | 货柜已到港但未提柜 | 绿色 #67c23a |
+| 已提柜 | PICKED_UP | 货柜已提柜 | 绿色 #67c23a |
+| 已卸柜 | UNLOADED | 货柜已卸柜 | 绿色 #67c23a |
+| 已还箱 | RETURNED_EMPTY | 货柜已还空箱 | 绿色 #67c23a |
+
+### 统计汇总
+- `count`: 所有货柜总数
+- `urgent`: 0（此卡片不使用紧急状态）
+- `expired`: 0（此卡片不使用逾期状态）
+- `filterItems`: 包含 7 个状态的详细分布
+
+---
 
 ### 数据来源
 - `container.etaDestPort`: 集装箱表中的预计到港时间
@@ -151,15 +213,9 @@ if (!isShippedButNotArrived(logisticsStatus)) {
 
 ---
 
-## 2. 按提柜倒计时卡片
+## 3. 按提柜倒计时卡片
 
 ### 数据来源
-- `portOperations` 数组中 `portType === 'destination'` 的记录
-  - `ataDestPort`: 实际到港时间
-  - `lastFreeDate`: 最后免费日期
-- `truckingTransports` 数组中的拖卡运输记录
-  - `plannedPickupDate`: 计划提柜日期
-  - `pickupDate`: 实际提柜日期
 
 ### 统计逻辑
 
@@ -199,13 +255,9 @@ if (!isShippedButNotArrived(logisticsStatus)) {
 
 ---
 
-## 3. 最晚提柜倒计时卡片
+## 4. 最晚提柜倒计时卡片
 
 ### 数据来源
-- `portOperations` 数组中 `portType === 'destination'` 的记录
-  - `lastFreeDate`: 最后免费日期
-- `truckingTransports` 数组
-  - `pickupDate`: 实际提柜日期
 
 ### 统计逻辑
 
@@ -237,10 +289,9 @@ if (!isShippedButNotArrived(logisticsStatus)) {
 
 ---
 
-## 4. 最晚还箱倒计时卡片
+## 5. 最晚还箱倒计时卡片
 
 ### 数据来源
-- `emptyReturns` 数组
   - `lastReturnDate`: 最后还箱日期
   - `returnTime`: 实际还箱时间
 
@@ -357,9 +408,81 @@ const getRemainingTime = (targetDate: string | Date | null | undefined) => {
 
 ---
 
+## 组件 Props 接口
+
+### CountdownCard 组件
+
+```typescript
+interface CountdownData {
+  count: number              // 总数
+  urgent: number             // 紧急数量
+  expired: number            // 逾期数量
+  filterItems?: FilterItem[] // 筛选项列表
+}
+
+interface FilterItem {
+  label: string   // 标签文本（如"已逾期未到港"）
+  count: number   // 该项数量
+  color: string   // 标签颜色（如"#f56c6c"）
+  days: string    // 过滤键值（如"overdue"）
+}
+
+interface Props {
+  title: string           // 卡片标题
+  data: CountdownData     // 统计数据
+  label?: string          // 底部标签文字（单卡片模式）
+  subtitle?: string       // 子标题（如统计范围说明）
+}
+```
+
+## 样式变量
+
+### 卡片样式
+```scss
+.countdown-card {
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 3px solid;
+  min-height: auto;
+}
+
+.card-header {
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.card-subtitle {
+  font-size: 10px;
+  color: #909399;
+}
+```
+
+### 标签样式
+```scss
+.filter-tag {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid;
+  font-size: 12px;
+
+  &.clickable:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+}
+```
+
 ## 相关文件
 
 - 前端组件: `frontend/src/components/CountdownCard.vue`
 - 计算逻辑: `frontend/src/composables/useContainerCountdown.ts`
 - 页面组件: `frontend/src/views/shipments/Shipments.vue`
 - 类型定义: `frontend/src/types/container.ts`
+- 状态机工具: `frontend/src/utils/logisticsStatusMachine.ts`

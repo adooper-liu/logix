@@ -156,25 +156,33 @@ const filterContainersByCondition = (allData: any[], filterType: string, filterD
 
     // 按到港过滤
     if (filterType === '按到港') {
+      // 先处理已到目的港的货柜
+      if (ataDate && c.currentPortType !== 'transit') {
+        const arrivalDate = new Date(ataDate)
+        arrivalDate.setHours(0, 0, 0, 0)
+        if (filterDays === 'today') {
+          return arrivalDate.getTime() === today.getTime()
+        } else if (filterDays === 'arrived-before-today') {
+          return arrivalDate.getTime() < today.getTime()
+        }
+        return false
+      }
+
+      // 已到中转港的货柜
+      if (c.currentPortType === 'transit' && c.ataDestPort) {
+        if (filterDays === 'transit') return true
+        return false
+      }
+
+      // 只统计已出运但未到港之后状态的货柜
       if (!isShippedButNotArrived(c.logisticsStatus)) return false
 
       if (filterDays === 'overdue') {
-        if (!etaDate || ataDate) return false
+        if (!etaDate) return false
         const time = getRemainingTime(etaDate)
         return time?.isExpired === true
-      } else if (filterDays === 'transit') {
-        // 到达中转港：当前港口类型为 transit 且有 ataDestPort
-        // 注意：后端API返回时，当 currentPortType === 'transit'，ataDestPort 字段实际存储的是 transitArrivalDate
-        return c.currentPortType === 'transit' && c.ataDestPort
-      } else if (filterDays === 'today') {
-        if (ataDate && c.logisticsStatus === SimplifiedStatus.AT_PORT) {
-          const arrivalDate = new Date(ataDate)
-          arrivalDate.setHours(0, 0, 0, 0)
-          return arrivalDate.getTime() === today.getTime()
-        }
-        return false
       } else if (filterDays === '0-3' || filterDays === '4-7' || filterDays === '7+') {
-        if (!etaDate || ataDate) return false
+        if (!etaDate) return false
         const time = getRemainingTime(etaDate)
         if (!time) return false
         if (time.isExpired) return false
@@ -182,63 +190,66 @@ const filterContainersByCondition = (allData: any[], filterType: string, filterD
         if (filterDays === '4-7') return time.days > 3 && time.days <= 7
         if (filterDays === '7+') return time.days > 7
       } else if (filterDays === 'other') {
-        // 其他记录：符合状态条件但不属于上述任何分类
-
-        // 检查AT_PORT状态
-        if (ataDate && c.logisticsStatus === SimplifiedStatus.AT_PORT) {
-          const arrivalDate = new Date(ataDate)
-          arrivalDate.setHours(0, 0, 0, 0)
-          // 今日到港则排除（已归类）
-          if (arrivalDate.getTime() === today.getTime()) {
-            return false
-          }
-          // 非今日到港但状态是AT_PORT → 其他记录
-          return true
-        }
-
-        // 检查已出运或在途
-        if (c.logisticsStatus === SimplifiedStatus.SHIPPED || c.logisticsStatus === SimplifiedStatus.IN_TRANSIT) {
-          // 已有ETA且无ATA → 已被其他分类覆盖
-          if (etaDate && !ataDate) {
-            const time = getRemainingTime(etaDate)
-            if (time) {
-              // 已被逾期、3天、7天、>7天分类覆盖
-              return false
-            }
-          }
-
-          // 无ETA或既有ETA又有ATA → 其他记录
-          return true
-        }
-
+        // 其他记录：已出运/在途/AT_PORT，但无ETA或已过期
+        if (!etaDate) return true  // 无ETA
+        const time = getRemainingTime(etaDate)
+        if (time?.isExpired) return false  // 已逾期被归类到overdue
         return false
       }
     }
 
     // 按提柜过滤
     if (filterType === '按提柜') {
-      if (!ataDate) return false
-      const portOpLastFree = destPortOp?.lastFreeDate
+      // 统计范围：已到港且未提柜及之后状态没有任一发生
+      const arrivedAtDestination = ataDate && c.currentPortType !== 'transit'
+      const notPickedUp = isNotPickedUp(c.logisticsStatus)
 
-      if (filterDays === '0-actual') {
-        if (firstTrucking?.pickupDate) {
-          const pickupDate = new Date(firstTrucking.pickupDate)
-          pickupDate.setHours(0, 0, 0, 0)
-          return pickupDate.getTime() === today.getTime()
+      // 如果没有到港或已经提柜，则不参与统计
+      if (!arrivedAtDestination || !notPickedUp) {
+        return false
+      }
+
+      // 无拖卡运输记录
+      if (!firstTrucking) {
+        // 待安排提柜（已到港但无拖卡运输记录）
+        return filterDays === 'pending'
+      }
+
+      const plannedPickupDate = firstTrucking.plannedPickupDate
+      const pickupDate = firstTrucking.pickupDate
+
+      if (filterDays === 'today-actual') {
+        // 今日实际提柜
+        if (pickupDate) {
+          const pickupDateObj = new Date(pickupDate)
+          pickupDateObj.setHours(0, 0, 0, 0)
+          return pickupDateObj.getTime() === today.getTime()
         }
         return false
-      } else if (filterDays === '0') {
-        if (firstTrucking?.plannedPickupDate) {
-          const plannedDate = new Date(firstTrucking.plannedPickupDate)
+      } else if (filterDays === 'today-planned') {
+        // 今日计划提柜（未提柜）
+        if (pickupDate) return false  // 已提柜
+        if (plannedPickupDate) {
+          const plannedDate = new Date(plannedPickupDate)
           plannedDate.setHours(0, 0, 0, 0)
           return plannedDate.getTime() === today.getTime()
         }
         return false
-      } else {
-        if (!portOpLastFree || firstTrucking?.pickupDate) return false
-        const time = getRemainingTime(portOpLastFree)
+      } else if (filterDays === 'overdue') {
+        // 计划提柜逾期（未提柜）
+        if (pickupDate) return false  // 已提柜
+        if (plannedPickupDate) {
+          const time = getRemainingTime(plannedPickupDate)
+          return time?.isExpired === true
+        }
+        return false
+      } else if (filterDays === '0-3' || filterDays === '4-7') {
+        // 3天/7天内预计提柜（未提柜）
+        if (pickupDate) return false  // 已提柜
+        if (!plannedPickupDate) return false
+        const time = getRemainingTime(plannedPickupDate)
         if (!time) return false
-        if (time.isExpired) return filterDays === '0'
+        if (time.isExpired) return false
         if (filterDays === '0-3') return time.days <= 3
         if (filterDays === '4-7') return time.days > 3 && time.days <= 7
       }
@@ -385,13 +396,17 @@ const getFilterLabel = (days: string): string => {
   const labels: Record<string, string> = {
     'all': '全部',
     'overdue': '已逾期未到港',
+    'transit': '到达中转港',
     'today': '今日到港',
+    'arrived-before-today': '今日之前到港',
     'other': '其他记录',
     '0': '已超时/今日',
     '0-3': '3天内',
     '4-7': '7天内',
     '7+': '7天以上',
-    '0-actual': '今日实际',
+    'today-actual': '今日实际提柜',
+    'today-planned': '今日计划提柜',
+    'pending': '待安排提柜',
     '1-3': '1-3天'
   }
   return labels[days] || days
@@ -438,6 +453,22 @@ const isShippedButNotArrived = (status: string) => {
   // 已出运（SHIPPED、IN_TRANSIT、AT_PORT）
   const isShipped = statusIndex >= 1 && statusIndex <= 3
   return isShipped
+}
+
+// 状态判断函数：是否未提柜及之后状态没有任一发生
+const isNotPickedUp = (status: string) => {
+  const statusIndex = [
+    SimplifiedStatus.NOT_SHIPPED,
+    SimplifiedStatus.SHIPPED,
+    SimplifiedStatus.IN_TRANSIT,
+    SimplifiedStatus.AT_PORT,
+    SimplifiedStatus.PICKED_UP,
+    SimplifiedStatus.UNLOADED,
+    SimplifiedStatus.RETURNED_EMPTY
+  ].indexOf(status as SimplifiedStatus)
+
+  // 未提柜及之后状态（NOT_SHIPPED、SHIPPED、IN_TRANSIT、AT_PORT）
+  return statusIndex >= 0 && statusIndex <= 3
 }
 
 // 前端分页计算属性（用于过滤后的数据）
