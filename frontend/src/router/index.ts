@@ -10,6 +10,7 @@ const Shipments = () => import('@/views/shipments/Shipments.vue')
 const ContainerDetail = () => import('@/views/shipments/ContainerDetail.vue')
 const ExcelImport = () => import('@/views/import/ExcelImport.vue')
 const Monitoring = () => import('@/views/monitoring/Monitoring.vue')
+const DictMapping = () => import('@/views/system/DictMapping.vue')
 const Settings = () => import('@/views/settings/Settings.vue')
 const About = () => import('@/views/About.vue')
 const Login = () => import('@/views/Login.vue')
@@ -73,8 +74,18 @@ const routes: RouteRecordRaw[] = [
         name: 'Monitoring',
         component: Monitoring,
         meta: {
-          title: '监控中心',
-          icon: 'Monitor',
+          title: '看板',
+          icon: 'DataBoard',
+          requiresAuth: true
+        }
+      },
+      {
+        path: 'dict-mapping',
+        name: 'DictMapping',
+        component: DictMapping,
+        meta: {
+          title: '通用字典映射',
+          icon: 'Document',
           requiresAuth: true
         }
       },

@@ -21,7 +21,8 @@ import {
   Upload,
   House,
   Monitor,
-  InfoFilled
+  InfoFilled,
+  DocumentCopy
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -42,17 +43,6 @@ const menuGroups = computed(() => [
     ]
   },
   {
-    title: '监控',
-    icon: 'Monitor',
-    items: [
-      {
-        path: '/monitoring',
-        name: 'Monitoring',
-        meta: { title: '监控中心', icon: 'Monitor' }
-      }
-    ]
-  },
-  {
     title: '系统',
     icon: 'Setting',
     items: [
@@ -60,6 +50,16 @@ const menuGroups = computed(() => [
         path: '/import',
         name: 'ExcelImport',
         meta: { title: 'Excel数据导入', icon: 'Upload' }
+      },
+      {
+        path: '/monitoring',
+        name: 'Monitoring',
+        meta: { title: '系统监控', icon: 'DataBoard' }
+      },
+      {
+        path: '/dict-mapping',
+        name: 'DictMapping',
+        meta: { title: '通用字典映射', icon: 'DocumentCopy' }
       },
       {
         path: '/settings',
@@ -92,7 +92,8 @@ const iconMap: Record<string, unknown> = {
   House,
   Monitor,
   Setting,
-  InfoFilled
+  InfoFilled,
+  DocumentCopy
 }
 
 // 当前激活的路由

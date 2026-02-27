@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Document, Download, Loading } from '@element-plus/icons-vue'
 import * as XLSX from 'xlsx'
 import axios from 'axios'
+import { getPortCodeCached, preloadPortMappings } from '../../services/dictMapping'
 
 // ==================== 类型定义 ====================
 
@@ -47,7 +48,7 @@ const FIELD_MAPPINGS: FieldMapping[] = [
   { excelField: '主备货单号', table: 'biz_replenishment_orders', field: 'main_order_number', required: false },
   { excelField: '销往国家', table: 'biz_replenishment_orders', field: 'sell_to_country', required: false },
   { excelField: '客户名称', table: 'biz_replenishment_orders', field: 'customer_name', required: false },
-  { excelField: '备货单状态', table: 'biz_replenishment_orders', field: 'order_status', required: false },
+  { excelField: '备货单状态', table: 'biz_replenishment_orders', field: 'order_status', required: false, transform: transformOrderStatus },
   { excelField: '是否查验', table: 'biz_replenishment_orders', field: 'inspection_required', required: false, transform: transformBoolean },
   { excelField: '是否装配件', table: 'biz_replenishment_orders', field: 'is_assembly', required: false, transform: transformBoolean },
   { excelField: '采购贸易模式', table: 'biz_replenishment_orders', field: 'procurement_trade_mode', required: false },
@@ -181,10 +182,43 @@ function transformLogisticsStatus(value: string): string {
     '已装船': 'shipped',
     '在途': 'in_transit',
     '已到港': 'at_port',
+    '已到中转港': 'at_port',          // 新增：已到中转港映射到已到港
     '已提柜': 'picked_up',
     '已卸柜': 'unloaded',
     '已还箱': 'returned_empty',
     '已取消': 'cancelled',
+    // 其他可能的状态变体
+    '待出运': 'not_shipped',
+    '已发货': 'shipped',
+    '运输途中': 'in_transit',
+    '到达中转港': 'at_port',
+    '到达目的港': 'at_port',
+    '已提货': 'picked_up',
+    '已卸货': 'unloaded',
+    '已还空箱': 'returned_empty',
+    '已完结': 'returned_empty'
+  }
+  return map[value] || value
+}
+
+/**
+ * 订单状态映射
+ */
+function transformOrderStatus(value: string): string {
+  const map: Record<string, string> = {
+    '草稿': 'DRAFT',
+    '已确认': 'CONFIRMED',
+    '已出运': 'SHIPPED',
+    '运输中': 'IN_TRANSIT',
+    '已交付': 'DELIVERED',
+    '已取消': 'CANCELLED',
+    // 英文状态直接返回
+    'DRAFT': 'DRAFT',
+    'CONFIRMED': 'CONFIRMED',
+    'SHIPPED': 'SHIPPED',
+    'IN_TRANSIT': 'IN_TRANSIT',
+    'DELIVERED': 'DELIVERED',
+    'CANCELLED': 'CANCELLED'
   }
   return map[value] || value
 }
@@ -393,10 +427,26 @@ const parseExcel = async () => {
 }
 
 /**
+ * 将中文港口名称转换为标准 port_code
+ */
+const convertPortNameToCode = async (portName: string): Promise<string> => {
+  if (!portName) return portName
+
+  // 如果已经是标准代码格式(如 CNSHG、USLAX),直接返回
+  if (/^[A-Z]{2}[A-Z]{3}$/.test(portName)) {
+    return portName
+  }
+
+  // 否则尝试从缓存或API获取标准代码
+  const portCode = await getPortCodeCached(portName)
+  return portCode || portName // 如果找不到映射,返回原名称
+}
+
+/**
  * 将Excel行数据拆分到各数据库表
  * 支持多港经停场景，生成多条港口操作记录
  */
-const splitRowToTables = (row: any): Record<string, any> => {
+const splitRowToTables = async (row: any): Promise<Record<string, any>> => {
   const tables: Record<string, any> = {
     biz_replenishment_orders: {},
     biz_containers: {},
@@ -438,17 +488,22 @@ const splitRowToTables = (row: any): Record<string, any> => {
   const portOperations: any[] = []
   let portSequence = 1
 
+  // 转换港口名称为标准代码
+  const originPortCode = await convertPortNameToCode(row['起运港'])
+  const transitPortCode = await convertPortNameToCode(row['途经港'])
+  const destPortCode = await convertPortNameToCode(row['目的港'])
+
   // 1. 起运港 (origin)
   const originPort = row['起运港']
   if (originPort) {
     portOperations.push({
       container_number: containerNumber,
       port_type: 'origin',
-      port_code: originPort,
+      port_code: originPortCode,
       port_name: originPort,
       port_sequence: portSequence++
     })
-    console.log('[splitRowToTables] 添加起运港:', originPort)
+    console.log('[splitRowToTables] 添加起运港:', originPort, '代码:', originPortCode)
   }
 
   // 2. 途经港 (transit)
@@ -457,12 +512,12 @@ const splitRowToTables = (row: any): Record<string, any> => {
     portOperations.push({
       container_number: containerNumber,
       port_type: 'transit',
-      port_code: transitPort,
+      port_code: transitPortCode,
       port_name: transitPort,
       port_sequence: portSequence++,
       transit_arrival_date: parseDate(row['途经港到达日期'])
     })
-    console.log('[splitRowToTables] 添加途经港:', transitPort, '到达日期:', row['途经港到达日期'])
+    console.log('[splitRowToTables] 添加途经港:', transitPort, '代码:', transitPortCode, '到达日期:', row['途经港到达日期'])
   }
 
   // 3. 目的港 (destination)
@@ -471,7 +526,7 @@ const splitRowToTables = (row: any): Record<string, any> => {
     const destPortOp: any = {
       container_number: containerNumber,
       port_type: 'destination',
-      port_code: destPort,
+      port_code: destPortCode,
       port_name: destPort,
       port_sequence: portSequence++
     }
@@ -493,10 +548,23 @@ const splitRowToTables = (row: any): Record<string, any> => {
     if (row['异常原因(清关信息表）']) destPortOp.customs_remarks = row['异常原因(清关信息表）']
 
     portOperations.push(destPortOp)
-    console.log('[splitRowToTables] 添加目的港:', destPort)
+    console.log('[splitRowToTables] 添加目的港:', destPort, '代码:', destPortCode)
   }
 
   tables.process_port_operations = portOperations
+
+  // ===== 更新海运表的港口字段为标准代码 =====
+  if (tables.process_sea_freight) {
+    if (originPortCode) {
+      tables.process_sea_freight.port_of_loading = originPortCode
+    }
+    if (destPortCode) {
+      tables.process_sea_freight.port_of_discharge = destPortCode
+    }
+    if (transitPortCode) {
+      tables.process_sea_freight.transit_port_code = transitPortCode
+    }
+  }
 
   // ===== 添加关联关系 =====
   if (orderNumber) {
@@ -559,11 +627,13 @@ const uploadAndImport = async () => {
     for (let i = 0; i < previewData.value.length; i += batchSize) {
       const batch = previewData.value.slice(i, i + batchSize)
 
-      // 将批次数据转换为批量导入格式
-      const batchData = batch.map(row => {
-        const tables = splitRowToTables(row)
-        return { tables }
-      })
+      // 将批次数据转换为批量导入格式(异步,因为splitRowToTables现在是async)
+      const batchData = await Promise.all(
+        batch.map(async row => {
+          const tables = await splitRowToTables(row)
+          return { tables }
+        })
+      )
 
       console.log(`[ExcelImport] 准备导入批次 ${i}-${i + batch.length}，共 ${batchData.length} 条数据`)
       console.log(`[ExcelImport] 第一条数据示例:`, JSON.stringify(batchData[0], null, 2))
@@ -700,6 +770,11 @@ const downloadTemplate = () => {
   XLSX.writeFile(workbook, '物流数据导入模板.xlsx')
   ElMessage.success('模板下载成功')
 }
+
+// 组件挂载时预加载端口映射
+onMounted(async () => {
+  await preloadPortMappings()
+})
 </script>
 
 <template>

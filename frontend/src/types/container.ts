@@ -33,6 +33,18 @@ export interface Container {
   currentStatusDescEn?: string;
   createdAt: Date;
   updatedAt: Date;
+  // 多个备货单支持
+  allOrders?: ReplenishmentOrder[];
+  summary?: {
+    totalGrossWeight: number;
+    totalCbm: number;
+    totalBoxes: number;
+    shipmentTotalValue: number;
+    fobAmount: number;
+    cifAmount: number;
+    negotiationAmount: number;
+    orderCount: number;
+  };
   // 关联数据
   order?: ReplenishmentOrder;
   seaFreight?: SeaFreight;
@@ -325,4 +337,14 @@ export interface StatusEvent {
   locationNameEn?: string;
   locationNameCn?: string;
   description?: string;
+}
+
+// 导出所有类型供外部使用
+export type {
+  PortOperation,
+  SeaFreight,
+  TruckingTransport,
+  WarehouseOperation,
+  EmptyReturn,
+  StatusEvent
 }

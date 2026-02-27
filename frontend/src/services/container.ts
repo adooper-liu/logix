@@ -10,7 +10,8 @@ import type {
   ContainerFilters,
   ContainerResponse,
   ContainerStats
-} from '@/types';
+} from '@/types/container';
+import type { PaginationParams } from '@/types';
 
 class ContainerService {
   private api: AxiosInstance;

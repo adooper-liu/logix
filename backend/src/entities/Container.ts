@@ -23,7 +23,7 @@ export class Container {
   @PrimaryColumn({ type: 'varchar', length: 50, name: 'container_number' })
   containerNumber!: string;
 
-  @Column({ type: 'varchar', length: 50, name: 'order_number' })
+  @Column({ type: 'varchar', length: 50, nullable: true, name: 'order_number' })
   orderNumber!: string;
 
   @Column({ type: 'varchar', length: 20, name: 'container_type_code' })
@@ -113,9 +113,15 @@ export class Container {
   updatedAt!: Date;
 
   // 关联关系
+  // 注意：一个货柜可以有多个备货单，所以这里应该是 @OneToMany
+  // 但为了向后兼容，保留 order_number 字段作为主备货单的引用
   @ManyToOne(() => ReplenishmentOrder, { nullable: true })
   @JoinColumn({ name: 'order_number', referencedColumnName: 'orderNumber' })
   order?: ReplenishmentOrder;
+
+  // 一个货柜可以关联多个备货单（通过备货单的 container_number 字段）
+  @OneToMany(() => ReplenishmentOrder, (replenishmentOrder) => replenishmentOrder.container, { nullable: true })
+  orders?: ReplenishmentOrder[];
 
   @ManyToOne(() => ContainerType, { nullable: false })
   @JoinColumn({ name: 'container_type_code', referencedColumnName: 'typeCode' })

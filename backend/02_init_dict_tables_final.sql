@@ -43,31 +43,19 @@ INSERT INTO dict_countries (code, name_cn, name_en, region, continent, currency,
 ('ID', '印度尼西亚', 'Indonesia', 'ASIA', 'Asia', 'IDR', '+62', 25, true, NULL, NOW(), NOW()),
 ('AU', '澳大利亚', 'Australia', 'OCEANIA', 'Oceania', 'AUD', '+61', 26, true, NULL, NOW(), NOW()),
 ('NZ', '新西兰', 'New Zealand', 'OCEANIA', 'Oceania', 'NZD', '+64', 27, true, NULL, NOW(), NOW()),
+('IE', '爱尔兰', 'Ireland', 'EU', 'Europe', 'EUR', '+353', 28, true, NULL, NOW(), NOW()),
+('RO', '罗马尼亚', 'Romania', 'EU', 'Europe', 'RON', '+40', 29, true, NULL, NOW(), NOW()),
 ('CN', '中国', 'China', 'ASIA', 'Asia', 'CNY', '+86', 99, true, NULL, NOW(), NOW());
 
 -- ============================================================
 -- 客户类型字典 (dict_customer_types)
--- 说明: 客户类型包括平台客户和集团内部子公司
+-- 说明: 客户类型只包括三种：平台客户、集团内部子公司、其他客户
 -- ============================================================
 INSERT INTO dict_customer_types (type_code, type_name_cn, type_name_en, sort_order, is_active, remarks, created_at, updated_at) VALUES
 -- 平台客户 (PLATFORM)
-('WAYFAIR', 'Wayfair', 'Wayfair', 1, true, '平台客户', NOW(), NOW()),
-('OVERSTOCK', 'Overstock', 'Overstock', 2, true, '平台客户', NOW(), NOW()),
-('AMAZON', 'Amazon', 'Amazon', 3, true, '平台客户', NOW(), NOW()),
-('TARGET', 'Target', 'Target', 4, true, '平台客户', NOW(), NOW()),
-('WALMART', 'Walmart', 'Walmart', 5, true, '平台客户', NOW(), NOW()),
-('HOME_DEPOT', 'Home Depot', 'Home Depot', 6, true, '平台客户', NOW(), NOW()),
-('LOWES', 'Lowe''s', 'Lowe''s', 7, true, '平台客户', NOW(), NOW()),
+('PLATFORM', '平台客户', 'Platform Customers', 1, true, '电商客户：Wayfair、Amazon、Target等', NOW(), NOW()),
 -- 集团内部子公司 (SUBSIDIARY)
-('AOSOM_US', 'AOSOM US', 'AOSOM LLC (US)', 11, true, 'AoSOM/MH集团子公司', NOW(), NOW()),
-('AOSOM_CA', 'AOSOM CA', 'AOSOM Canada Inc.', 12, true, 'AoSOM/MH集团子公司', NOW(), NOW()),
-('MH_UK', 'MH UK', 'MH Star UK Ltd', 13, true, 'AoSOM/MH集团子公司', NOW(), NOW()),
-('MH_FR', 'MH FR', 'MH France', 14, true, 'AoSOM/MH集团子公司', NOW(), NOW()),
-('MH_DE', 'MH DE', 'MH Handel GmbH', 15, true, 'AoSOM/MH集团子公司', NOW(), NOW()),
-('AOSOM_IT', 'AOSOM IT', 'AOSOM Italy Srl', 16, true, 'AoSOM/MH集团子公司', NOW(), NOW()),
-('AOSOM_IE', 'AOSOM IE', 'AOSOM Ireland Ltd', 17, true, 'AoSOM/MH集团子公司', NOW(), NOW()),
-('AOSOM_ES', 'AOSOM ES', 'Spanish Aosom S.L.', 18, true, 'AoSOM/MH集团子公司', NOW(), NOW()),
-('AOSOM_RO', 'AOSOM RO', 'AOSOM Romania S.R.L.', 19, true, 'AoSOM/MH集团子公司', NOW(), NOW()),
+('SUBSIDIARY', '集团内部子公司', 'Group Subsidiaries', 2, true, 'AoSOM/MH集团9个海外子公司', NOW(), NOW()),
 -- 其他客户 (OTHER)
 ('OTHER', '其他客户', 'Other Customers', 99, true, '其他客户', NOW(), NOW());
 
@@ -370,12 +358,41 @@ INSERT INTO dict_overseas_companies (company_code, company_name, company_name_en
 ('AOSOM_ES', 'SPANISH AOSOM, S.L.', 'Spanish Aosom S.L.', 'ES', NULL, '+34-XXX-XXXX', 'contact@aosom-es.com', 'EUR', 8, true, NULL, NOW(), NOW()),
 ('AOSOM_RO', 'AOSOM ROMANIA S.R.L.', 'AOSOM Romania S.R.L.', 'RO', NULL, '+40-XXX-XXXX', 'contact@aosom-ro.com', 'RON', 9, true, NULL, NOW(), NOW());
 
-\echo '字典表数据初始化完成'
+-- ============================================================
+-- 客户表 (biz_customers) 初始化
+-- ============================================================
+\echo '开始初始化客户表数据...'
+\echo 'Starting to initialize biz_customers data...'
+
+-- 1. 平台客户 (PLATFORM)
+INSERT INTO biz_customers (customer_code, customer_name, customer_type_code, country, customer_category, status, sort_order, remarks, created_at, updated_at) VALUES
+('WAYFAIR', 'Wayfair LLC', 'PLATFORM', 'US', 'PLATFORM', 'ACTIVE', 1, NULL, NOW(), NOW()),
+('AMAZON', 'Amazon.com, Inc.', 'PLATFORM', 'US', 'PLATFORM', 'ACTIVE', 2, NULL, NOW(), NOW()),
+('TARGET', 'Target Corporation', 'PLATFORM', 'US', 'PLATFORM', 'ACTIVE', 3, NULL, NOW(), NOW()),
+('WALMART', 'Walmart Inc.', 'PLATFORM', 'US', 'PLATFORM', 'ACTIVE', 4, NULL, NOW(), NOW()),
+('OVERSTOCK', 'Overstock.com', 'PLATFORM', 'US', 'PLATFORM', 'ACTIVE', 5, NULL, NOW(), NOW()),
+('HOMEGOODS', 'HomeGoods', 'PLATFORM', 'US', 'PLATFORM', 'ACTIVE', 6, NULL, NOW(), NOW()),
+('BESTBUY', 'Best Buy Co., Inc.', 'PLATFORM', 'US', 'PLATFORM', 'ACTIVE', 7, NULL, NOW(), NOW());
+
+-- 2. 集团内部子公司 (SUBSIDIARY) - 关联海外公司字典
+INSERT INTO biz_customers (customer_code, customer_name, customer_type_code, country, overseas_company_code, customer_category, status, sort_order, remarks, created_at, updated_at) VALUES
+('AOSOM_US', 'AOSOM LLC', 'SUBSIDIARY', 'US', 'AOSOM_US', 'SUBSIDIARY', 'ACTIVE', 11, NULL, NOW(), NOW()),
+('AOSOM_CA', 'AOSOM CANADA INC.', 'SUBSIDIARY', 'CA', 'AOSOM_CA', 'SUBSIDIARY', 'ACTIVE', 12, NULL, NOW(), NOW()),
+('MH_UK', 'MH STAR UK LTD', 'SUBSIDIARY', 'GB', 'MH_UK', 'SUBSIDIARY', 'ACTIVE', 13, NULL, NOW(), NOW()),
+('MH_FR', 'MH FRANCE', 'SUBSIDIARY', 'FR', 'MH_FR', 'SUBSIDIARY', 'ACTIVE', 14, NULL, NOW(), NOW()),
+('MH_DE', 'MH HANDEL GMBH', 'SUBSIDIARY', 'DE', 'MH_DE', 'SUBSIDIARY', 'ACTIVE', 15, NULL, NOW(), NOW()),
+('AOSOM_IT', 'AOSOM ITALY SRL', 'SUBSIDIARY', 'IT', 'AOSOM_IT', 'SUBSIDIARY', 'ACTIVE', 16, NULL, NOW(), NOW()),
+('AOSOM_IE', 'AOSOM IRELAND LIMITED', 'SUBSIDIARY', 'IE', 'AOSOM_IE', 'SUBSIDIARY', 'ACTIVE', 17, NULL, NOW(), NOW()),
+('AOSOM_ES', 'SPANISH AOSOM, S.L.', 'SUBSIDIARY', 'ES', 'AOSOM_ES', 'SUBSIDIARY', 'ACTIVE', 18, NULL, NOW(), NOW()),
+('AOSOM_RO', 'AOSOM ROMANIA S.R.L.', 'SUBSIDIARY', 'RO', 'AOSOM_RO', 'SUBSIDIARY', 'ACTIVE', 19, NULL, NOW(), NOW());
+
+\echo '客户表数据初始化完成'
 \echo 'Dictionary table data initialized successfully'
 \echo ''
 \echo '初始化统计:'
 \echo '国别: ' || (SELECT COUNT(*) FROM dict_countries)
 \echo '客户类型: ' || (SELECT COUNT(*) FROM dict_customer_types)
+\echo '客户: ' || (SELECT COUNT(*) FROM biz_customers)
 \echo '港口: ' || (SELECT COUNT(*) FROM dict_ports)
 \echo '船公司: ' || (SELECT COUNT(*) FROM dict_shipping_companies)
 \echo '货代公司: ' || (SELECT COUNT(*) FROM dict_freight_forwarders)

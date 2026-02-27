@@ -12,7 +12,8 @@ const containerNumber = computed(() => route.params.containerNumber as string)
 // 数据加载
 const loading = ref(false)
 const containerData = ref<any>(null)
-const activeTab = ref('info')
+const activeTab = ref('order')
+const timelineSortOrder = ref<'asc' | 'desc'>('desc') // 时间轴排序方式：升序/降序
 
 // 状态映射
 const statusMap: Record<string, { text: string; type: '' | 'success' | 'warning' | 'danger' | 'info' }> = {
@@ -23,8 +24,19 @@ const statusMap: Record<string, { text: string; type: '' | 'success' | 'warning'
   'picked_up': { text: '已提柜', type: 'warning' },
   'unloaded': { text: '已卸柜', type: 'warning' },
   'returned_empty': { text: '已还箱', type: 'success' },
+  'cancelled': { text: '已取消', type: 'danger' },
   'hold': { text: '扣留', type: 'danger' },
-  'completed': { text: '已完成', type: 'success' }
+  'completed': { text: '已完成', type: 'success' },
+  // 兼容未转换的中文状态（历史数据）
+  '未出运': { text: '未出运', type: 'info' },
+  '已装船': { text: '已装船', type: 'success' },
+  '在途': { text: '在途', type: 'success' },
+  '已到港': { text: '已到港', type: 'success' },
+  '已到中转港': { text: '已到中转港', type: 'success' },
+  '已提柜': { text: '已提柜', type: 'warning' },
+  '已卸柜': { text: '已卸柜', type: 'warning' },
+  '已还箱': { text: '已还箱', type: 'success' },
+  '已取消': { text: '已取消', type: 'danger' }
 }
 
 const customsStatusMap: Record<string, { text: string; type: '' | 'success' | 'warning' | 'danger' | 'info' }> = {
@@ -92,10 +104,260 @@ const formatDateOnly = (date: string | Date | null | undefined): string => {
   })
 }
 
+// 计算时间条相关数据
+const timelineData = computed(() => {
+  if (!containerData.value) return []
+
+  const seaFreight = Array.isArray(containerData.value.seaFreight)
+    ? containerData.value.seaFreight[0]
+    : containerData.value.seaFreight
+  const portOp = getDestinationPortOperation()
+  const trucking = containerData.value.truckingTransports?.[0]
+  const emptyReturn = Array.isArray(containerData.value.emptyReturns)
+    ? containerData.value.emptyReturns[0]
+    : containerData.value.emptyReturn
+
+  // 收集所有有值的日期
+  const events: any[] = []
+
+  // ETA (预计到港日期)
+  const eta = seaFreight?.eta || portOp?.etaDestPort
+  if (eta) {
+    events.push({
+      label: 'ETA',
+      fullLabel: '预计到港',
+      date: new Date(eta),
+      type: 'primary',
+      icon: '📅'
+    })
+  }
+
+  // 修正ETA
+  if (portOp?.etaCorrection) {
+    events.push({
+      label: '修正ETA',
+      fullLabel: '修正预计到港',
+      date: new Date(portOp.etaCorrection),
+      type: 'warning',
+      icon: '🔄'
+    })
+  }
+
+  // 最晚提柜日
+  if (trucking?.lastPickupDate) {
+    events.push({
+      label: '最晚提柜',
+      fullLabel: '最晚提柜日',
+      date: new Date(trucking.lastPickupDate),
+      type: 'danger',
+      icon: '⏰'
+    })
+  }
+
+  // 最晚还箱日
+  if (emptyReturn?.lastReturnDate) {
+    events.push({
+      label: '最晚还箱',
+      fullLabel: '最晚还箱日',
+      date: new Date(emptyReturn.lastReturnDate),
+      type: 'success',
+      icon: '📦'
+    })
+  }
+
+  // 按日期排序
+  const sortedEvents = events.sort((a, b) => a.date.getTime() - b.date.getTime())
+
+  // 调试日志
+  console.log('[Timeline Data] seaFreight:', seaFreight)
+  console.log('[Timeline Data] portOp:', portOp)
+  console.log('[Timeline Data] trucking:', trucking)
+  console.log('[Timeline Data] emptyReturn:', emptyReturn)
+  console.log('[Timeline Data] events count:', sortedEvents.length)
+
+  return sortedEvents
+})
+
+// 状态事件分组：左侧预计/计划时间，右侧实际时间
+const groupedStatusEvents = computed(() => {
+  if (!containerData.value?.statusEvents || containerData.value.statusEvents.length === 0) {
+    return []
+  }
+
+  const events = containerData.value.statusEvents
+
+  // 分组逻辑：将预计/计划时间与实际时间配对
+  const groups: any[] = []
+
+  // 已处理的事件ID集合
+  const processedIds = new Set<string>()
+
+  // 第一轮：尝试配对预计和实际时间
+  events.forEach((event: any) => {
+    if (processedIds.has(event.id)) return
+
+    const isPlanned = event.isEstimated || event.statusCode?.startsWith('E') || event.statusCode === 'ETA'
+
+    if (isPlanned) {
+      // 查找对应的实际时间（相同状态类型）
+      const matchingActual = events.find((e: any) =>
+        !processedIds.has(e.id) &&
+        !e.isEstimated &&
+        e.statusCode?.startsWith('A') &&
+        e.statusCode === event.statusCode?.replace('E', 'A')
+      )
+
+      if (matchingActual) {
+        const label = event.statusType === 'ETA' ? '到港' :
+                      event.statusType === 'ATD' ? '出运' :
+                      event.statusCode === 'ETA' ? '到港' :
+                      event.locationNameCn || event.statusCode
+
+        groups.push({
+          label,
+          planned: {
+            timestamp: event.occurredAt,
+            status: event.statusCode,
+            description: event.description,
+            isEstimated: true,
+            dataSource: event.dataSource
+          },
+          actual: {
+            timestamp: matchingActual.occurredAt,
+            status: matchingActual.statusCode,
+            description: matchingActual.description,
+            isEstimated: false,
+            dataSource: matchingActual.dataSource
+          },
+          timestamp: new Date(event.occurredAt).getTime()
+        })
+        processedIds.add(event.id)
+        processedIds.add(matchingActual.id)
+      }
+    }
+  })
+
+  // 第二轮：处理未配对的事件
+  events.forEach((event: any) => {
+    if (processedIds.has(event.id)) return
+
+    if (event.isEstimated) {
+      const label = event.statusType === 'ETA' ? '到港' :
+                    event.statusType === 'ATD' ? '出运' :
+                    event.locationNameCn || event.statusCode
+
+      groups.push({
+        label,
+        planned: {
+          timestamp: event.occurredAt,
+          status: event.statusCode,
+          description: event.description,
+          isEstimated: true,
+          dataSource: event.dataSource
+        },
+        actual: null,
+        timestamp: new Date(event.occurredAt).getTime()
+      })
+    } else {
+      const label = event.statusType === 'ATA' ? '实际到港' :
+                    event.statusType === 'PICKUP' ? '提柜' :
+                    event.statusType === 'UNLOAD' ? '卸柜' :
+                    event.statusType === 'RETURN' ? '还箱' :
+                    event.locationNameCn || event.statusCode
+
+      groups.push({
+        label,
+        planned: null,
+        actual: {
+          timestamp: event.occurredAt,
+          status: event.statusCode,
+          description: event.description,
+          isEstimated: false,
+          dataSource: event.dataSource
+        },
+        timestamp: new Date(event.occurredAt).getTime()
+      })
+    }
+    processedIds.add(event.id)
+  })
+
+  // 按时间戳排序（根据选择升序或降序）
+  return groups.sort((a, b) =>
+    timelineSortOrder.value === 'asc' ? a.timestamp - b.timestamp : b.timestamp - a.timestamp
+  )
+})
+
+// 判断日期是否已过期
+const isDateExpired = (date: Date): boolean => {
+  return new Date() > date
+}
+
+// 获取日期的警示灯颜色
+const getDateAlertColor = (date: Date): 'red' | 'orange' | 'green' => {
+  const now = new Date()
+  const diffTime = date.getTime() - now.getTime()
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+  if (diffDays <= 0) {
+    return 'red'      // <=0天：红色（已过期或今天到期）
+  } else if (diffDays <= 3) {
+    return 'orange'   // <=3天：橙色（即将到期）
+  } else {
+    return 'green'    // 其他：绿色（正常）
+  }
+}
+
+// 获取警示灯图标
+const getAlertIcon = (color: 'red' | 'orange' | 'green'): string => {
+  const icons = {
+    red: '🔴',
+    orange: '🟠',
+    green: '🟢'
+  }
+  return icons[color]
+}
+
+// 获取日期状态文本
+const getDateStatusText = (date: Date): string => {
+  if (isDateExpired(date)) {
+    const diffDays = Math.floor((new Date().getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+    if (diffDays === 0) return '今天到期'
+    if (diffDays === 1) return '已过期1天'
+    return `已过期${diffDays}天`
+  } else {
+    const diffDays = Math.floor((date.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+    if (diffDays === 0) return '今天到期'
+    if (diffDays === 1) return '剩余1天'
+    return `剩余${diffDays}天`
+  }
+}
+
 // 获取目的港操作信息
 const getDestinationPortOperation = () => {
   if (!containerData.value?.portOperations) return null
   return containerData.value.portOperations.find((po: any) => po.portType === 'destination')
+}
+
+// 根据港口类型动态显示物流状态
+const getLogisticsStatusText = (status: string): string => {
+  const baseText = statusMap[status]?.text || status
+
+  // 如果是 at_port 状态，根据最新的港口操作显示具体是中转港还是目的港
+  if (status === 'at_port' && containerData.value?.portOperations) {
+    // 查找最新的港口操作记录
+    const sortedPorts = [...containerData.value.portOperations].sort(
+      (a: any, b: any) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+    )
+    const latestPort = sortedPorts.find((po: any) => po.portType === 'transit' || po.portType === 'destination')
+
+    if (latestPort?.portType === 'transit') {
+      return '已到中转港'
+    } else if (latestPort?.portType === 'destination') {
+      return '已到目的港'
+    }
+  }
+
+  return baseText
 }
 
 onMounted(() => {
@@ -105,6 +367,13 @@ onMounted(() => {
 
 <template>
   <div class="container-detail-page" v-loading="loading">
+    <!-- 物流状态水印标记 -->
+    <div v-if="containerData" class="logistics-status-watermark">
+      <div class="watermark-badge" :class="statusMap[containerData.logisticsStatus]?.type || 'info'">
+        <div class="watermark-text">{{ getLogisticsStatusText(containerData.logisticsStatus) || containerData.logisticsStatus }}</div>
+      </div>
+    </div>
+
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
@@ -139,7 +408,7 @@ onMounted(() => {
           <div class="info-item">
             <span class="label">物流状态</span>
             <el-tag :type="statusMap[containerData.logisticsStatus]?.type || 'info'" size="small">
-              {{ statusMap[containerData.logisticsStatus]?.text || containerData.logisticsStatus }}
+              {{ getLogisticsStatusText(containerData.logisticsStatus) || containerData.logisticsStatus }}
             </el-tag>
           </div>
           <div class="info-item">
@@ -151,16 +420,66 @@ onMounted(() => {
             <span class="value">{{ containerData.cargoDescription || '-' }}</span>
           </div>
           <div class="info-item">
-            <span class="label">总重</span>
-            <span class="value">{{ (containerData.order?.totalGrossWeight || containerData.grossWeight) ? (containerData.order?.totalGrossWeight || containerData.grossWeight) : '-' }} KG</span>
+            <span class="label">备货单数</span>
+            <span class="value">{{ containerData.summary?.orderCount || 1 }} 个</span>
+          </div>
+          <!-- <div class="info-item">
+            <span class="label">毛重合计</span>
+            <span class="value">{{ containerData.summary?.totalGrossWeight || containerData.order?.totalGrossWeight || '-' }} KG</span>
           </div>
           <div class="info-item">
-            <span class="label">体积</span>
-            <span class="value">{{ (containerData.order?.totalCbm || containerData.cbm) ? (containerData.order?.totalCbm || containerData.cbm) : '-' }} CBM</span>
+            <span class="label">体积合计</span>
+            <span class="value">{{ containerData.summary?.totalCbm || containerData.order?.totalCbm || '-' }} CBM</span>
           </div>
           <div class="info-item">
-            <span class="label">箱数</span>
-            <span class="value">{{ (containerData.order?.totalBoxes || containerData.packages) ? (containerData.order?.totalBoxes || containerData.packages) : '-' }}</span>
+            <span class="label">箱数合计</span>
+            <span class="value">{{ containerData.summary?.totalBoxes || containerData.order?.totalBoxes || '-' }}</span>
+          </div>
+          <div class="info-item">
+            <span class="label">出运总价</span>
+            <span class="value">${{ containerData.summary?.shipmentTotalValue || containerData.order?.shipmentTotalValue || '-' }}</span>
+          </div> -->
+        </div>
+      </el-card>
+
+      <!-- 关键日期时间条 -->
+      <el-card class="timeline-card" v-if="timelineData.length > 0">
+        <template #header>
+          <div class="card-header">
+            <span class="title">
+              📅 关键日期
+            </span>
+            <span class="subtitle">货柜重要时间节点</span>
+          </div>
+        </template>
+
+        <div class="timeline-container">
+          <div class="timeline-line"></div>
+          <div class="timeline-events">
+            <div
+              v-for="(event, index) in timelineData"
+              :key="index"
+              class="timeline-event"
+              :class="{
+                'expired': isDateExpired(event.date),
+                'today': Math.abs(new Date().getTime() - event.date.getTime()) < 24 * 60 * 60 * 1000
+              }"
+            >
+              <div class="event-marker">
+                <span class="event-icon">{{ event.icon }}</span>
+              </div>
+              <div class="event-content">
+                <div class="event-header">
+                  <span class="event-label">{{ event.label }}</span>
+                  <span class="alert-light" :class="getDateAlertColor(event.date)">
+                    {{ getAlertIcon(getDateAlertColor(event.date)) }}
+                  </span>
+                </div>
+                <div class="event-date">{{ formatDate(event.date) }}</div>
+                <div class="event-status">{{ getDateStatusText(event.date) }}</div>
+                <div class="event-full-label">{{ event.fullLabel }}</div>
+              </div>
+            </div>
           </div>
         </div>
       </el-card>
@@ -168,13 +487,21 @@ onMounted(() => {
       <!-- 多页签详情 -->
       <el-card class="detail-card">
         <el-tabs v-model="activeTab">
-          <!-- 基本信息页签 -->
-          <el-tab-pane label="基本信息" name="info">
+          <!-- 货柜信息页签 -->
+          <el-tab-pane label="货柜信息" name="info">
             <div class="tab-content">
               <h3>货柜信息</h3>
               <el-descriptions :column="2" border>
                 <el-descriptions-item label="集装箱号">{{ containerData.containerNumber }}</el-descriptions-item>
-                <el-descriptions-item label="备货单号">{{ containerData.orderNumber }}</el-descriptions-item>
+                <el-descriptions-item label="备货单号">
+                  <template v-if="containerData.allOrders && containerData.allOrders.length > 1">
+                    {{ containerData.allOrders.map((o: any) => o.orderNumber).join(', ') }}
+                  </template>
+                  <template v-else>
+                    {{ containerData.orderNumber || '-' }}
+                  </template>
+                </el-descriptions-item>
+                <el-descriptions-item label="备货单数量">{{ containerData.summary?.orderCount || 1 }} 个</el-descriptions-item>
                 <el-descriptions-item label="柜型">{{ containerData.containerTypeCode }}</el-descriptions-item>
                 <el-descriptions-item label="箱尺寸">{{ containerData.containerSize || '-' }}</el-descriptions-item>
                 <el-descriptions-item label="封条号">{{ containerData.sealNumber || '-' }}</el-descriptions-item>
@@ -189,19 +516,22 @@ onMounted(() => {
                 <el-descriptions-item label="备注" :span="2">{{ containerData.remarks || '-' }}</el-descriptions-item>
               </el-descriptions>
 
-              <h3>货物信息</h3>
+              <h3>货物汇总信息（多个备货单合计）</h3>
               <el-descriptions :column="2" border>
-                <el-descriptions-item label="毛重">{{ containerData.grossWeight !== null && containerData.grossWeight !== undefined ? containerData.grossWeight : '-' }} KG</el-descriptions-item>
-                <el-descriptions-item label="净重">{{ containerData.netWeight !== null && containerData.netWeight !== undefined ? containerData.netWeight : '-' }} KG</el-descriptions-item>
-                <el-descriptions-item label="体积">{{ containerData.cbm !== null && containerData.cbm !== undefined ? containerData.cbm : '-' }} CBM</el-descriptions-item>
-                <el-descriptions-item label="箱数">{{ containerData.packages !== null && containerData.packages !== undefined ? containerData.packages : '-' }}</el-descriptions-item>
+                <el-descriptions-item label="毛重合计">{{ containerData.summary?.totalGrossWeight || containerData.grossWeight || '-' }} KG</el-descriptions-item>
+                <el-descriptions-item label="体积合计">{{ containerData.summary?.totalCbm || containerData.cbm || '-' }} CBM</el-descriptions-item>
+                <el-descriptions-item label="箱数合计">{{ containerData.summary?.totalBoxes || containerData.packages || '-' }}</el-descriptions-item>
+                <el-descriptions-item label="出运总价">${{ containerData.summary?.shipmentTotalValue || '-' }}</el-descriptions-item>
+                <el-descriptions-item label="FOB金额">${{ containerData.summary?.fobAmount || '-' }}</el-descriptions-item>
+                <el-descriptions-item label="CIF金额">${{ containerData.summary?.cifAmount || '-' }}</el-descriptions-item>
+                <el-descriptions-item label="议付金额">${{ containerData.summary?.negotiationAmount || '-' }}</el-descriptions-item>
               </el-descriptions>
 
               <h3>状态信息</h3>
               <el-descriptions :column="2" border>
                 <el-descriptions-item label="物流状态">
                   <el-tag :type="statusMap[containerData.logisticsStatus]?.type || 'info'">
-                    {{ statusMap[containerData.logisticsStatus]?.text || containerData.logisticsStatus }}
+                    {{ getLogisticsStatusText(containerData.logisticsStatus) || containerData.logisticsStatus }}
                   </el-tag>
                 </el-descriptions-item>
                 <el-descriptions-item label="是否甩柜">
@@ -225,48 +555,142 @@ onMounted(() => {
             </div>
           </el-tab-pane>
 
-          <!-- 备货单信息页签 -->
+          <!-- 备货单信息页签 (多个备货单) -->
           <el-tab-pane label="备货单信息" name="order">
-            <div class="tab-content" v-if="containerData.order">
-              <h3>备货单信息</h3>
+            <div class="tab-content">
+              <!-- 备货单汇总信息 -->
+              <h3>备货单汇总</h3>
               <el-descriptions :column="2" border>
-                <el-descriptions-item label="备货单号">{{ containerData.order.orderNumber }}</el-descriptions-item>
-                <el-descriptions-item label="主备货单号">{{ containerData.order.mainOrderNumber || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="销往国家">{{ containerData.order.sellToCountry || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="客户名称">{{ containerData.order.customerName || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="订单状态">
-                  <el-tag>{{ containerData.order.orderStatus || '-' }}</el-tag>
-                </el-descriptions-item>
-                <el-descriptions-item label="采购贸易模式">{{ containerData.order.procurementTradeMode || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="价格条款">{{ containerData.order.priceTerms || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="Wayfair SPO">{{ containerData.order.wayfairSpo || '-' }}</el-descriptions-item>
+                <el-descriptions-item label="备货单数量">{{ containerData.summary?.orderCount || 0 }} 个</el-descriptions-item>
+                <el-descriptions-item label="毛重合计">{{ containerData.summary?.totalGrossWeight || 0 }} KG</el-descriptions-item>
+                <el-descriptions-item label="体积合计">{{ containerData.summary?.totalCbm || 0 }} CBM</el-descriptions-item>
+                <el-descriptions-item label="箱数合计">{{ containerData.summary?.totalBoxes || 0 }}</el-descriptions-item>
+                <el-descriptions-item label="出运总价">${{ containerData.summary?.shipmentTotalValue || 0 }}</el-descriptions-item>
+                <el-descriptions-item label="FOB金额">${{ containerData.summary?.fobAmount || 0 }}</el-descriptions-item>
+                <el-descriptions-item label="CIF金额">${{ containerData.summary?.cifAmount || 0 }}</el-descriptions-item>
               </el-descriptions>
 
-              <h3>货物汇总</h3>
-              <el-descriptions :column="2" border>
-                <el-descriptions-item label="箱数合计">{{ containerData.order.totalBoxes || 0 }}</el-descriptions-item>
-                <el-descriptions-item label="体积合计">{{ containerData.order.totalCbm || 0 }} CBM</el-descriptions-item>
-                <el-descriptions-item label="毛重合计">{{ containerData.order.totalGrossWeight || 0 }} KG</el-descriptions-item>
-                <el-descriptions-item label="特殊货物体积">{{ containerData.order.specialCargoVolume || '-' }} CBM</el-descriptions-item>
-              </el-descriptions>
-
-              <h3>金额信息</h3>
-              <el-descriptions :column="2" border>
-                <el-descriptions-item label="出运总价">${{ containerData.order.shipmentTotalValue || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="FOB金额">${{ containerData.order.fobAmount || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="CIF金额">${{ containerData.order.cifAmount || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="议付金额">${{ containerData.order.negotiationAmount || '-' }}</el-descriptions-item>
-              </el-descriptions>
-
-              <h3>日期信息</h3>
-              <el-descriptions :column="2" border>
-                <el-descriptions-item label="订单日期">{{ formatDateOnly(containerData.order.orderDate) }}</el-descriptions-item>
-                <el-descriptions-item label="预计出运日期">{{ formatDateOnly(containerData.order.expectedShipDate) }}</el-descriptions-item>
-                <el-descriptions-item label="实际出运日期">{{ formatDateOnly(containerData.order.actualShipDate) }}</el-descriptions-item>
-                <el-descriptions-item label="创建人">{{ containerData.order.createdBy || '-' }}</el-descriptions-item>
-              </el-descriptions>
+              <!-- 多个备货单列表 -->
+              <h3>备货单明细</h3>
+              <el-table :data="containerData.allOrders || [containerData.order]" border stripe>
+                <el-table-column prop="orderNumber" label="备货单号" width="140" />
+                <el-table-column prop="mainOrderNumber" label="主备货单号" width="140">
+                  <template #default="{ row }">
+                    {{ row.mainOrderNumber || '-' }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="sellToCountry" label="销往国家" width="120" />
+                <el-table-column prop="customerName" label="客户名称" width="150" show-overflow-tooltip />
+                <el-table-column prop="orderStatus" label="订单状态" width="100">
+                  <template #default="{ row }">
+                    <el-tag size="small">{{ row.orderStatus || '-' }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="procurementTradeMode" label="采购贸易模式" width="120" />
+                <el-table-column prop="priceTerms" label="价格条款" width="80" />
+                <el-table-column prop="wayfairSpo" label="Wayfair SPO" width="120" />
+                <el-table-column prop="totalBoxes" label="箱数" width="80" align="right" />
+                <el-table-column prop="totalCbm" label="体积(CBM)" width="100" align="right" />
+                <el-table-column prop="totalGrossWeight" label="毛重(KG)" width="100" align="right" />
+                <el-table-column prop="shipmentTotalValue" label="出运总价" width="100" align="right">
+                  <template #default="{ row }">
+                    ${{ row.shipmentTotalValue || 0 }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="orderDate" label="订单日期" width="110">
+                  <template #default="{ row }">
+                    {{ formatDateOnly(row.orderDate) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="expectedShipDate" label="预计出运日期" width="110">
+                  <template #default="{ row }">
+                    {{ formatDateOnly(row.expectedShipDate) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="actualShipDate" label="实际出运日期" width="110">
+                  <template #default="{ row }">
+                    {{ formatDateOnly(row.actualShipDate) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="fobAmount" label="FOB金额" width="100" align="right">
+                  <template #default="{ row }">
+                    ${{ row.fobAmount || 0 }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="cifAmount" label="CIF金额" width="100" align="right">
+                  <template #default="{ row }">
+                    ${{ row.cifAmount || 0 }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="negotiationAmount" label="议付金额" width="100" align="right">
+                  <template #default="{ row }">
+                    ${{ row.negotiationAmount || 0 }}
+                  </template>
+                </el-table-column>
+              </el-table>
+              <el-empty v-if="!containerData.allOrders || containerData.allOrders.length === 0" description="暂无备货单信息" />
             </div>
-            <el-empty v-else description="暂无备货单信息" />
+          </el-tab-pane>
+
+          <!-- 状态事件页签 (时间线 - 横向展示，上方预计时间，中间时间轴，下方实际时间) -->
+          <el-tab-pane label="状态事件" name="events">
+            <div class="tab-content">
+              <div v-if="groupedStatusEvents.length > 0">
+                <!-- 时间轴排序控制 -->
+                <div class="timeline-sort-control">
+                  <span class="sort-label">排序方式：</span>
+                  <el-radio-group v-model="timelineSortOrder" size="small">
+                    <el-radio-button value="asc">时间升序</el-radio-button>
+                    <el-radio-button value="desc">时间降序</el-radio-button>
+                  </el-radio-group>
+                </div>
+
+                <div class="status-timeline-horizontal">
+                  <!-- 完整的时间轴线 -->
+                  <div class="timeline-full-line"></div>
+
+                <div
+                  v-for="(group, index) in groupedStatusEvents"
+                  :key="index"
+                  class="timeline-column"
+                >
+                  <!-- 上方：预计/计划时间 -->
+                  <div class="timeline-section timeline-top">
+                    <div v-if="group.planned" class="timeline-event-card planned">
+                      <div class="event-header">
+                        <span class="event-label">{{ group.label }}</span>
+                        <el-tag size="small" type="warning">预计</el-tag>
+                      </div>
+                      <div class="event-time">{{ formatDate(group.planned.timestamp) }}</div>
+                      <div class="event-status">{{ group.planned.status }}</div>
+                      <div class="event-desc">{{ group.planned.description }}</div>
+                    </div>
+                    <div v-else class="timeline-placeholder"></div>
+                  </div>
+
+                  <!-- 中间：时间线节点 -->
+                  <div class="timeline-center">
+                    <div class="timeline-dot" :class="{ 'with-planned': !!group.planned, 'with-actual': !!group.actual }"></div>
+                  </div>
+
+                  <!-- 下方：实际时间 -->
+                  <div class="timeline-section timeline-bottom">
+                    <div v-if="group.actual" class="timeline-event-card actual">
+                      <div class="event-header">
+                        <span class="event-label">{{ group.label }}</span>
+                        <el-tag size="small" type="success">实际</el-tag>
+                      </div>
+                      <div class="event-time">{{ formatDate(group.actual.timestamp) }}</div>
+                      <div class="event-status">{{ group.actual.status }}</div>
+                      <div class="event-desc">{{ group.actual.description }}</div>
+                    </div>
+                    <div v-else class="timeline-placeholder"></div>
+                  </div>
+                </div>
+                </div>
+              </div>
+              <el-empty v-else description="暂无状态事件记录" />
+            </div>
           </el-tab-pane>
 
           <!-- 海运信息页签 -->
@@ -348,6 +772,7 @@ onMounted(() => {
                     <el-descriptions-item label="司机电话">{{ tt.driverPhone || '-' }}</el-descriptions-item>
                     <el-descriptions-item label="车牌号">{{ tt.truckPlate || '-' }}</el-descriptions-item>
                     <el-descriptions-item label="计划提柜日期">{{ formatDateOnly(tt.plannedPickupDate) }}</el-descriptions-item>
+                    <el-descriptions-item label="最晚提柜日期">{{ formatDateOnly(tt.lastPickupDate) }}</el-descriptions-item>
                     <el-descriptions-item label="实际提柜日期">{{ formatDate(tt.pickupDate) }}</el-descriptions-item>
                     <el-descriptions-item label="提柜地点">{{ tt.pickupLocation || '-' }}</el-descriptions-item>
                     <el-descriptions-item label="计划送达日期">{{ formatDateOnly(tt.plannedDeliveryDate) }}</el-descriptions-item>
@@ -424,44 +849,13 @@ onMounted(() => {
                     <el-descriptions-item label="还箱终端编码">{{ er.returnTerminalCode || '-' }}</el-descriptions-item>
                     <el-descriptions-item label="计划还箱日期">{{ formatDateOnly(er.plannedReturnDate) }}</el-descriptions-item>
                     <el-descriptions-item label="实际还箱日期">{{ formatDate(er.returnTime) }}</el-descriptions-item>
-                    <el-descriptions-item label="上次还箱日期">{{ formatDateOnly(er.lastReturnDate) }}</el-descriptions-item>
+                    <el-descriptions-item label="最晚还箱日">{{ formatDateOnly(er.lastReturnDate) }}</el-descriptions-item>
                     <el-descriptions-item label="箱况">{{ er.containerCondition || '-' }}</el-descriptions-item>
                     <el-descriptions-item label="备注">{{ er.remarks || er.returnRemarks || '-' }}</el-descriptions-item>
                   </el-descriptions>
                 </div>
               </div>
               <el-empty v-else description="暂无还空箱信息" />
-            </div>
-          </el-tab-pane>
-
-          <!-- 状态事件页签 -->
-          <el-tab-pane label="状态事件" name="events">
-            <div class="tab-content">
-              <el-timeline v-if="containerData.statusEvents && containerData.statusEvents.length > 0">
-                <el-timeline-item
-                  v-for="(event, index) in containerData.statusEvents"
-                  :key="index"
-                  :timestamp="formatDate(event.occurredAt)"
-                  placement="top"
-                >
-                  <el-card>
-                    <h4>{{ event.statusCode || '-' }}</h4>
-                    <p>{{ event.locationNameCn || event.locationNameEn || event.locationCode }}</p>
-                    <p class="event-desc">{{ event.description || '-' }}</p>
-                  </el-card>
-                </el-timeline-item>
-              </el-timeline>
-              <el-empty v-else description="暂无状态事件记录" />
-            </div>
-          </el-tab-pane>
-
-          <!-- 时间戳页签 -->
-          <el-tab-pane label="时间戳" name="timestamp">
-            <div class="tab-content">
-              <el-descriptions :column="2" border>
-                <el-descriptions-item label="创建时间">{{ formatDate(containerData.createdAt) }}</el-descriptions-item>
-                <el-descriptions-item label="更新时间">{{ formatDate(containerData.updatedAt) }}</el-descriptions-item>
-              </el-descriptions>
             </div>
           </el-tab-pane>
         </el-tabs>
@@ -473,6 +867,68 @@ onMounted(() => {
 <style scoped lang="scss">
 .container-detail-page {
   padding: 20px;
+  position: relative;
+}
+
+// 物流状态水印标记
+.logistics-status-watermark {
+  position: fixed;
+  top: 45px;
+  right: 120px;
+  z-index: 9999;
+  padding: 10px;
+  pointer-events: none;
+
+  .watermark-badge {
+    position: relative;
+    width: 150px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    opacity: 0.4;
+    transform: rotate(-15deg);
+    transition: all 0.3s ease;
+
+    &.success {
+      background: linear-gradient(135deg, #67C23A 0%, #85CE61 100%);
+    }
+
+    &.warning {
+      background: linear-gradient(135deg, #E6A23C 0%, #F0AD4E 100%);
+    }
+
+    &.danger {
+      background: linear-gradient(135deg, #F56C6C 0%, #FF6B6B 100%);
+    }
+
+    &.info {
+      background: linear-gradient(135deg, #909399 0%, #A0A4A9 100%);
+    }
+
+    .watermark-text {
+      color: white;
+      font-size: 16px;
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.3;
+      padding: 10px;
+      letter-spacing: 1px;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    &:hover {
+      opacity: 0.6;
+      transform: rotate(0deg) scale(1.1);
+    }
+  }
+}
+
+// 调整页面头部，避免被水印遮挡
+.page-header {
+  position: relative;
+  z-index: 100;
 }
 
 .page-header {
@@ -578,4 +1034,525 @@ onMounted(() => {
     }
   }
 }
+
+/* 时间条样式 */
+.timeline-card {
+  margin-bottom: 20px;
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+
+    .title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #303133;
+    }
+
+    .subtitle {
+      font-size: 14px;
+      color: #909399;
+    }
+  }
+
+  .timeline-container {
+    position: relative;
+    padding: 30px 20px;
+    overflow-x: auto;
+
+    .timeline-line {
+      position: absolute;
+      left: 50px;
+      right: 50px;
+      top: 54px;
+      height: 3px;
+      background: linear-gradient(90deg, #409eff 0%, #67c23a 50%, #f56c6c 100%);
+      border-radius: 3px;
+    }
+
+    .timeline-events {
+      display: flex;
+      flex-direction: row;
+      gap: 0;
+      justify-content: space-between;
+      align-items: flex-start;
+      min-width: 100%;
+    }
+
+    .timeline-event {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      flex: 1;
+      text-align: center;
+
+      &.expired {
+        .event-marker {
+          background: #fef0f0;
+          border-color: #f56c6c;
+
+          .event-icon {
+            filter: grayscale(0.3);
+          }
+        }
+
+        .event-content {
+          opacity: 0.8;
+        }
+      }
+
+      &.today {
+        .event-marker {
+          animation: pulse 2s infinite;
+        }
+      }
+
+      .event-marker {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+        border: 4px solid #fff;
+        box-shadow: 0 2px 12px rgba(64, 158, 255, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        z-index: 2;
+        margin: 0 0 10px 0;
+        transition: all 0.3s ease;
+
+        .event-icon {
+          font-size: 22px;
+          line-height: 1;
+        }
+      }
+
+      .event-content {
+        flex: none;
+        padding: 10px 14px;
+        background: #f5f7fa;
+        border-radius: 8px;
+        border-top: 3px solid #409eff;
+        transition: all 0.3s ease;
+        min-width: 140px;
+        max-width: 180px;
+
+        .event-header {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          align-items: center;
+          margin-bottom: 6px;
+
+          .event-label {
+            font-size: 14px;
+            font-weight: 600;
+            color: #303133;
+          }
+
+          .event-status {
+            font-size: 11px;
+            font-weight: 500;
+          }
+
+          .alert-light {
+            font-size: 20px;
+            line-height: 1;
+            display: inline-block;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+
+            &.red {
+              animation: blink-red 1.5s ease-in-out infinite;
+            }
+
+            &.orange {
+              animation: blink-orange 2s ease-in-out infinite;
+            }
+
+            &.green {
+              animation: none;
+            }
+          }
+        }
+
+        .event-date {
+          font-size: 13px;
+          color: #409eff;
+          font-weight: 500;
+          margin-bottom: 3px;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+
+        .event-status {
+          font-size: 11px;
+          color: #606266;
+          margin-bottom: 3px;
+          font-weight: 500;
+        }
+
+        .event-full-label {
+          font-size: 11px;
+          color: #909399;
+        }
+      }
+
+      &:hover {
+        .event-marker {
+          transform: scale(1.15);
+          box-shadow: 0 4px 16px rgba(64, 158, 255, 0.4);
+        }
+
+        .event-content {
+          background: #ecf5ff;
+          transform: translateY(-5px);
+        }
+      }
+    }
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 2px 12px rgba(64, 158, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(64, 158, 255, 0.6);
+  }
+}
+
+@keyframes blink-red {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.9);
+  }
+}
+
+@keyframes blink-orange {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(0.95);
+  }
+}
+
+/* 状态事件时间线样式 */
+.status-timeline {
+  padding: 20px 0;
+
+  .timeline-row {
+    display: flex;
+    align-items: stretch;
+    margin-bottom: 30px;
+
+    &:last-child {
+      .timeline-line {
+        display: none;
+      }
+    }
+
+    .timeline-side {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      min-height: 80px;
+
+      &.timeline-left {
+        justify-content: flex-end;
+        padding-right: 20px;
+      }
+
+      &.timeline-right {
+        justify-content: flex-start;
+        padding-left: 20px;
+      }
+    }
+
+    .timeline-center {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+
+      .timeline-dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #409eff;
+        border: 3px solid #fff;
+        box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.2);
+        z-index: 2;
+        flex-shrink: 0;
+        transition: all 0.3s ease;
+
+        &.with-planned {
+          background: #e6a23c;
+          box-shadow: 0 0 0 3px rgba(230, 162, 60, 0.2);
+        }
+
+        &.with-actual {
+          background: #67c23a;
+          box-shadow: 0 0 0 3px rgba(103, 194, 58, 0.2);
+        }
+      }
+
+      .timeline-line {
+        width: 2px;
+        flex: 1;
+        min-height: 60px;
+        background: linear-gradient(180deg, #409eff 0%, #67c23a 100%);
+        margin-top: 8px;
+      }
+    }
+
+    .timeline-event-card {
+      background: #f5f7fa;
+      border-radius: 8px;
+      padding: 12px 16px;
+      min-width: 200px;
+      max-width: 300px;
+      transition: all 0.3s ease;
+      border-left: 4px solid #409eff;
+
+      &.planned {
+        border-left-color: #e6a23c;
+        background: #fdf6ec;
+
+        &:hover {
+          background: #fef0e6;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(230, 162, 60, 0.2);
+        }
+      }
+
+      &.actual {
+        border-left-color: #67c23a;
+        background: #f0f9ff;
+
+        &:hover {
+          background: #e6f7ff;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(103, 194, 58, 0.2);
+        }
+      }
+
+      .event-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        gap: 8px;
+
+        .event-label {
+          font-size: 14px;
+          font-weight: 600;
+          color: #303133;
+        }
+      }
+
+      .event-time {
+        font-size: 13px;
+        color: #409eff;
+        font-weight: 500;
+        margin-bottom: 6px;
+      }
+
+      .event-status {
+        font-size: 12px;
+        color: #909399;
+        margin-bottom: 4px;
+      }
+
+      .event-desc {
+        font-size: 12px;
+        color: #606266;
+        line-height: 1.4;
+      }
+    }
+
+    .timeline-placeholder {
+      width: 100%;
+      height: 1px;
+      background: transparent;
+    }
+  }
+}
+
+/* 时间轴排序控件样式 */
+.timeline-sort-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  background: #f5f7fa;
+  border-radius: 8px;
+
+  .sort-label {
+    font-size: 14px;
+    color: #606266;
+    font-weight: 500;
+  }
+}
+
+/* 状态事件时间线样式 - 横向布局 */
+.status-timeline-horizontal {
+  padding: 20px 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+
+  // 完整的时间轴线
+  .timeline-full-line {
+    position: absolute;
+    left: 90px;
+    right: 90px;
+    top: calc(50% - 8px);
+    height: 2px;
+    background: linear-gradient(90deg, #409eff 0%, #67c23a 100%);
+    z-index: 1;
+  }
+
+  .timeline-column {
+    display: inline-block;
+    vertical-align: top;
+    margin-right: 30px;
+    min-width: 180px;
+    position: relative;
+    z-index: 2;
+
+    &:last-child {
+      margin-right: 0;
+    }
+
+    .timeline-section {
+      min-height: 110px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      &.timeline-top {
+        justify-content: flex-end;
+        padding-bottom: 20px;
+      }
+
+      &.timeline-bottom {
+        padding-top: 20px;
+      }
+    }
+
+    .timeline-center {
+      display: flex;
+      align-items: center;
+      position: relative;
+      justify-content: center;
+
+      .timeline-dot {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #409eff;
+        border: 3px solid #fff;
+        box-shadow: 0 0 0 3px rgba(64, 158, 255, 0.2);
+        z-index: 2;
+        flex-shrink: 0;
+        transition: all 0.3s ease;
+
+        &.with-planned {
+          background: #e6a23c;
+          box-shadow: 0 0 0 3px rgba(230, 162, 60, 0.2);
+        }
+
+        &.with-actual {
+          background: #67c23a;
+          box-shadow: 0 0 0 3px rgba(103, 194, 58, 0.2);
+        }
+      }
+    }
+
+    .timeline-event-card {
+      background: #f5f7fa;
+      border-radius: 8px;
+      padding: 12px 14px;
+      width: 100%;
+      transition: all 0.3s ease;
+      border-top: 4px solid #409eff;
+
+      &.planned {
+        border-top-color: #e6a23c;
+        background: #fdf6ec;
+
+        &:hover {
+          background: #fef0e6;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(230, 162, 60, 0.2);
+        }
+      }
+
+      &.actual {
+        border-top-color: #67c23a;
+        background: #f0f9ff;
+
+        &:hover {
+          background: #e6f7ff;
+          transform: translateY(-2px);
+          box-shadow: 0 4px 12px rgba(103, 194, 58, 0.2);
+        }
+      }
+
+      .event-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        gap: 8px;
+
+        .event-label {
+          font-size: 14px;
+          font-weight: 600;
+          color: #303133;
+        }
+      }
+
+      .event-time {
+        font-size: 13px;
+        color: #409eff;
+        font-weight: 500;
+        margin-bottom: 6px;
+      }
+
+      .event-status {
+        font-size: 12px;
+        color: #909399;
+        margin-bottom: 4px;
+      }
+
+      .event-desc {
+        font-size: 12px;
+        color: #606266;
+        line-height: 1.4;
+      }
+    }
+
+    .timeline-placeholder {
+      width: 100%;
+      min-height: 120px;
+      height: 120px;
+    }
+  }
+}
+
+
+
 </style>

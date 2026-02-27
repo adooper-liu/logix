@@ -13,7 +13,7 @@ import {
 
 @Entity('dict_ports')
 export class Port {
-  @PrimaryColumn({ type: 'varchar', length: 10, name: 'port_code' })
+  @PrimaryColumn({ type: 'varchar', length: 50, name: 'port_code' })
   portCode: string;
 
   @Column({ type: 'varchar', length: 50, name: 'port_name' })

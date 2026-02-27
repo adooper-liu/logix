@@ -24,6 +24,9 @@ export class ReplenishmentOrder {
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'main_order_number' })
   mainOrderNumber!: string;
 
+  @Column({ type: 'varchar', length: 50, nullable: true, name: 'container_number' })
+  containerNumber!: string; // 关联的集装箱号（一个货柜可以有多个备货单）
+
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'sell_to_country' })
   sellToCountry!: string;
 
@@ -115,6 +118,12 @@ export class ReplenishmentOrder {
   @JoinColumn({ name: 'customer_code', referencedColumnName: 'customerCode' })
   customer!: Customer;
 
+  // 关联关系 - 一个备货单可以有多个货柜（通过 order_number 外键）
   @OneToMany(() => Container, (container) => container.order)
   containers!: Container[];
+
+  // 关联关系 - 一个货柜可以有多个备货单（通过 container_number 字段）
+  @ManyToOne(() => Container, { nullable: true })
+  @JoinColumn({ name: 'container_number', referencedColumnName: 'containerNumber' })
+  container?: Container;
 }

@@ -37,11 +37,18 @@ const alerts = ref([
 // 服务健康度图表
 let healthChart: echarts.ECharts | null = null
 let performanceChart: echarts.ECharts | null = null
+let updateTimer: number | null = null
+
+// 标记组件是否已卸载
+let isMounted = true
 
 // 更新图表
 const updateCharts = () => {
+  // 检查组件是否已卸载
+  if (!isMounted) return
+
   // 健康度图表
-  if (healthChart) {
+  if (healthChart && !healthChart.isDisposed()) {
     const healthOption = {
       tooltip: {
         trigger: 'axis',
@@ -73,7 +80,7 @@ const updateCharts = () => {
   }
 
   // 性能图表
-  if (performanceChart) {
+  if (performanceChart && !performanceChart.isDisposed()) {
     const performanceOption = {
       tooltip: { trigger: 'axis' },
       legend: { data: ['CPU使用率', '内存使用率'] },
@@ -101,34 +108,49 @@ const updateCharts = () => {
 }
 
 onMounted(() => {
+  isMounted = true
+
   // 初始化图表
   const healthChartDom = document.getElementById('health-chart')
   const performanceChartDom = document.getElementById('performance-chart')
-  
+
   if (healthChartDom) {
     healthChart = echarts.init(healthChartDom)
   }
-  
+
   if (performanceChartDom) {
     performanceChart = echarts.init(performanceChartDom)
   }
-  
+
   updateCharts()
-  
+
+  // 注释掉实时数据更新以避免ECharts错误
   // 模拟实时数据更新
-  setInterval(() => {
-    performanceMetrics.value.cpuUsage = Math.floor(Math.random() * 30) + 30
-    performanceMetrics.value.memoryUsage = Math.floor(Math.random() * 20) + 60
-    updateCharts()
-  }, 5000)
+  // updateTimer = window.setInterval(() => {
+  //   if (!isMounted) return
+  //   performanceMetrics.value.cpuUsage = Math.floor(Math.random() * 30) + 30
+  //   performanceMetrics.value.memoryUsage = Math.floor(Math.random() * 20) + 60
+  //   updateCharts()
+  // }, 5000)
 })
 
 onUnmounted(() => {
-  if (healthChart) {
-    healthChart.dispose()
+  isMounted = false
+
+  // 清理定时器
+  if (updateTimer) {
+    clearInterval(updateTimer)
+    updateTimer = null
   }
-  if (performanceChart) {
+
+  // 销毁图表实例
+  if (healthChart && !healthChart.isDisposed()) {
+    healthChart.dispose()
+    healthChart = null
+  }
+  if (performanceChart && !performanceChart.isDisposed()) {
     performanceChart.dispose()
+    performanceChart = null
   }
 })
 </script>

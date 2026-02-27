@@ -1,15 +1,22 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { containerService } from '@/services/container'
-import type { Container, PaginationParams } from '@/types'
+import type { PaginationParams } from '@/types'
 import { Search, Refresh, View, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import CountdownCard from '@/components/CountdownCard.vue'
+import { useContainerCountdown } from '@/composables/useContainerCountdown'
+import {
+  getLogisticsStatusText as getStatusText,
+  getLogisticsStatusType,
+  SimplifiedStatus
+} from '@/utils/logisticsStatusMachine'
 
 const router = useRouter()
 
 // 表格数据
-const containers = ref<Container[]>([])
+const containers = ref<any[]>([])
 const loading = ref(false)
 const searchKeyword = ref('')
 
@@ -20,19 +27,6 @@ const pagination = ref<PaginationParams>({
   total: 0
 })
 
-// 状态映射 - 符合数据库标准
-const statusMap: Record<string, { text: string; type: '' | 'success' | 'warning' | 'danger' | 'info' }> = {
-  'not_shipped': { text: '未出运', type: 'info' },
-  'shipped': { text: '已装船', type: 'success' },
-  'in_transit': { text: '在途', type: 'success' },
-  'at_port': { text: '已到港', type: 'success' },
-  'picked_up': { text: '已提柜', type: 'warning' },
-  'unloaded': { text: '已卸柜', type: 'warning' },
-  'returned_empty': { text: '已还箱', type: 'success' },
-  'hold': { text: '扣留', type: 'danger' },
-  'completed': { text: '已完成', type: 'success' }
-}
-
 // 清关状态映射
 const customsStatusMap: Record<string, { text: string; type: '' | 'success' | 'warning' | 'danger' | 'info' }> = {
   'NOT_STARTED': { text: '未开始', type: 'info' },
@@ -40,6 +34,16 @@ const customsStatusMap: Record<string, { text: string; type: '' | 'success' | 'w
   'COMPLETED': { text: '已完成', type: 'success' },
   'FAILED': { text: '失败', type: 'danger' }
 }
+
+// 使用倒计时composable
+const {
+  countdownByArrival,
+  countdownByPickup,
+  countdownByLastPickup,
+  countdownByReturn,
+  startTimer,
+  stopTimer
+} = useContainerCountdown(containers)
 
 // 获取集装箱列表
 const loadContainers = async () => {
@@ -80,12 +84,12 @@ const resetSearch = () => {
 }
 
 // 查看详情
-const viewDetails = (container: Container) => {
+const viewDetails = (container: any) => {
   router.push(`/shipments/${container.containerNumber}`)
 }
 
 // 编辑集装箱
-const editContainer = (container: Container) => {
+const editContainer = (container: any) => {
   ElMessage.info(`编辑集装箱 ${container.containerNumber}`)
 }
 
@@ -115,8 +119,27 @@ const formatDate = (date: string | Date): string => {
   })
 }
 
+// 根据港口类型动态显示物流状态
+const getLogisticsStatusText = (container: any): string => {
+  const status = container.logisticsStatus
+  const currentPortType = container.currentPortType || container.latestPortOperation?.portType
+
+  // 使用统一状态机获取状态文本
+  return getStatusText(status, currentPortType)
+}
+
+// 获取状态类型（用于 Tag 组件）
+const getStatusType = (status: string): string => {
+  return getLogisticsStatusType(status)
+}
+
 onMounted(() => {
   loadContainers()
+  startTimer()
+})
+
+onUnmounted(() => {
+  stopTimer()
 })
 </script>
 
@@ -154,6 +177,16 @@ onMounted(() => {
       </div>
     </el-card>
 
+    <!-- 倒计时可视化卡片 -->
+    <el-card class="countdown-cards">
+      <div class="countdown-grid">
+        <CountdownCard title="按到港" label="待到港货柜" :data="countdownByArrival" />
+        <CountdownCard title="按提柜" label="待提柜货柜" :data="countdownByPickup" />
+        <CountdownCard title="最晚提柜" label="即将超时货柜" :data="countdownByLastPickup" />
+        <CountdownCard title="最晚还箱" label="待还箱货柜" :data="countdownByReturn" />
+      </div>
+    </el-card>
+
     <!-- 集装箱表格 -->
     <el-card class="table-card">
       <el-table
@@ -170,10 +203,10 @@ onMounted(() => {
             <el-tag size="small">{{ row.containerTypeCode || '-' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="logisticsStatus" label="物流状态" width="100">
+        <el-table-column prop="logisticsStatus" label="物流状态" width="120">
           <template #default="{ row }">
-            <el-tag :type="statusMap[row.logisticsStatus]?.type || 'info'" size="small">
-              {{ statusMap[row.logisticsStatus]?.text || row.logisticsStatus || '-' }}
+            <el-tag :type="getStatusType(row.logisticsStatus)" size="small">
+              {{ getLogisticsStatusText(row) || '-' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -301,15 +334,30 @@ onMounted(() => {
   .search-bar {
     flex-direction: column;
     align-items: stretch !important;
-    
+
     .el-input {
       width: 100% !important;
       margin-right: 0 !important;
     }
-    
+
     .spacer {
       display: none;
     }
+  }
+
+  .countdown-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+}
+
+.countdown-cards {
+  margin-bottom: 20px;
+
+  .countdown-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
   }
 }
 </style>
