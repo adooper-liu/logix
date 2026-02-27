@@ -304,8 +304,45 @@ export function useContainerCountdown(containers: Ref<any[]>) {
     let urgentCount = 0
     // 倒计时<=7天（不包括<=3天）
     let warningCount = 0
+    // 倒计时>7天
+    let normalCount = 0
+    // 缺最后免费日
+    let noLastFreeDateCount = 0
+
+    // 状态判断函数：是否未提柜及之后状态没有任一发生
+    const isNotPickedUp = (status: string) => {
+      const statusIndex = [
+        SimplifiedStatus.NOT_SHIPPED,
+        SimplifiedStatus.SHIPPED,
+        SimplifiedStatus.IN_TRANSIT,
+        SimplifiedStatus.AT_PORT,
+        SimplifiedStatus.PICKED_UP,
+        SimplifiedStatus.UNLOADED,
+        SimplifiedStatus.RETURNED_EMPTY
+      ].indexOf(status as SimplifiedStatus)
+
+      // 未提柜及之后状态（NOT_SHIPPED、SHIPPED、IN_TRANSIT、AT_PORT）
+      return statusIndex >= 0 && statusIndex <= 3
+    }
+
+    // 判断是否已到目的港
+    const isArrivedAtDestination = (c: any) => {
+      const portOps = c.portOperations as PortOperation[] | undefined
+      const destPortOp = portOps?.find(po => po.portType === 'destination')
+      const ataDate = destPortOp?.ataDestPort || c.ataDestPort
+      return ataDate && c.currentPortType !== 'transit'
+    }
 
     containers.value.forEach((c: any) => {
+      // 统计范围：已到港且未提柜及之后状态没有任一发生
+      const arrivedAtDestination = isArrivedAtDestination(c)
+      const notPickedUp = isNotPickedUp(c.logisticsStatus)
+
+      // 如果没有到港或已经提柜，则不参与统计
+      if (!arrivedAtDestination || !notPickedUp) {
+        return
+      }
+
       // 获取港口操作信息
       const portOps = c.portOperations as PortOperation[] | undefined
       const singlePortOp = c.portOperation || c.latestPortOperation as PortOperation | undefined
@@ -316,20 +353,33 @@ export function useContainerCountdown(containers: Ref<any[]>) {
       const singleTrucking = c.truckingTransport as TruckingTransport | undefined
       const firstTrucking = trucking?.[0] || singleTrucking
 
-      if (portOp?.lastFreeDate && !firstTrucking?.pickupDate) {
-        const time = getRemainingTime(portOp.lastFreeDate)
-        if (time) {
-          if (time.isExpired) {
-            expiredCount++
-            expired++
+      // 统计范围：只统计无拖卡运输记录的货柜
+      if (firstTrucking) {
+        return
+      }
+
+      if (!portOp?.lastFreeDate) {
+        // 缺最后免费日
+        noLastFreeDateCount++
+        count++
+        return
+      }
+
+      const time = getRemainingTime(portOp.lastFreeDate)
+      if (time) {
+        if (time.isExpired) {
+          expiredCount++
+          expired++
+          count++
+        } else {
+          count++
+          if (time.days <= 3) {
+            urgentCount++
+            urgent++
+          } else if (time.days <= 7) {
+            warningCount++
           } else {
-            count++
-            if (time.days <= 3) {
-              urgentCount++
-              urgent++
-            } else if (time.days <= 7) {
-              warningCount++
-            }
+            normalCount++
           }
         }
       }
@@ -338,7 +388,9 @@ export function useContainerCountdown(containers: Ref<any[]>) {
     const filterItems = [
       { label: '已超时(≤0天)', count: expiredCount, color: '#f56c6c', days: '0' },
       { label: '即将超时(≤3天)', count: urgentCount, color: '#e6a23c', days: '1-3' },
-      { label: '预警(≤7天)', count: warningCount, color: '#409eff', days: '4-7' }
+      { label: '预警(≤7天)', count: warningCount, color: '#409eff', days: '4-7' },
+      { label: '7天以上(时间充裕)', count: normalCount, color: '#67c23a', days: '8+' },
+      { label: '缺最后免费日', count: noLastFreeDateCount, color: '#909399', days: 'no-last-free-date' }
     ]
 
     return { count, urgent, expired, filterItems }
@@ -357,6 +409,10 @@ export function useContainerCountdown(containers: Ref<any[]>) {
     let urgentCount = 0
     // 倒计时<=7天（不包括<=3天）
     let warningCount = 0
+    // 倒计时>7天
+    let normalCount = 0
+    // 缺最后还箱日
+    let noLastReturnDateCount = 0
 
     containers.value.forEach((c: any) => {
       // 获取还空箱信息
@@ -364,20 +420,52 @@ export function useContainerCountdown(containers: Ref<any[]>) {
       const singleEmptyReturn = c.emptyReturn as EmptyReturn | undefined
       const emptyReturn = emptyReturns?.[0] || singleEmptyReturn
 
-      if (emptyReturn?.lastReturnDate && !emptyReturn.returnTime) {
-        const time = getRemainingTime(emptyReturn.lastReturnDate)
-        if (time) {
-          if (time.isExpired) {
-            expiredCount++
-            expired++
+      // 获取拖卡运输信息
+      const trucking = c.truckingTransports as TruckingTransport[] | undefined
+      const singleTrucking = c.truckingTransport as TruckingTransport | undefined
+      const firstTrucking = trucking?.[0] || singleTrucking
+
+      // 统计范围：已提柜或有拖卡运输记录，且不等于已还箱状态
+      const hasTrucking = !!firstTrucking
+      const isPickedUp = c.logisticsStatus === SimplifiedStatus.PICKED_UP ||
+                       c.logisticsStatus === SimplifiedStatus.UNLOADED
+
+      // 排除已还箱状态
+      if (c.logisticsStatus === SimplifiedStatus.RETURNED_EMPTY) {
+        return
+      }
+
+      if (!hasTrucking && !isPickedUp) {
+        return
+      }
+
+      // 如果已还箱，则不参与统计
+      if (emptyReturn?.returnTime) {
+        return
+      }
+
+      // 缺最后还箱日
+      if (!emptyReturn?.lastReturnDate) {
+        noLastReturnDateCount++
+        count++
+        return
+      }
+
+      const time = getRemainingTime(emptyReturn.lastReturnDate)
+      if (time) {
+        if (time.isExpired) {
+          expiredCount++
+          expired++
+          count++
+        } else {
+          count++
+          if (time.days <= 3) {
+            urgentCount++
+            urgent++
+          } else if (time.days <= 7) {
+            warningCount++
           } else {
-            count++
-            if (time.days <= 3) {
-              urgentCount++
-              urgent++
-            } else if (time.days <= 7) {
-              warningCount++
-            }
+            normalCount++
           }
         }
       }
@@ -386,7 +474,9 @@ export function useContainerCountdown(containers: Ref<any[]>) {
     const filterItems = [
       { label: '已超时(≤0天)', count: expiredCount, color: '#f56c6c', days: '0' },
       { label: '即将超时(≤3天)', count: urgentCount, color: '#e6a23c', days: '1-3' },
-      { label: '预警(≤7天)', count: warningCount, color: '#409eff', days: '4-7' }
+      { label: '预警(≤7天)', count: warningCount, color: '#409eff', days: '4-7' },
+      { label: '还箱日倒计时>7天', count: normalCount, color: '#67c23a', days: '8+' },
+      { label: '缺最后还箱日', count: noLastReturnDateCount, color: '#909399', days: 'no-last-return-date' }
     ]
 
     return { count, urgent, expired, filterItems }

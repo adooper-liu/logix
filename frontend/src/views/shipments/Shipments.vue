@@ -257,22 +257,65 @@ const filterContainersByCondition = (allData: any[], filterType: string, filterD
 
     // 最晚提柜过滤
     if (filterType === '最晚提柜') {
-      if (!destPortOp?.lastFreeDate || firstTrucking?.pickupDate) return false
+      // 统计范围：已到港且未提柜及之后状态没有任一发生
+      const arrivedAtDestination = ataDate && c.currentPortType !== 'transit'
+      const notPickedUp = isNotPickedUp(c.logisticsStatus)
+
+      // 如果没有到港或已经提柜，则不参与统计
+      if (!arrivedAtDestination || !notPickedUp) {
+        return false
+      }
+
+      // 只统计无拖卡运输记录的货柜
+      if (firstTrucking) {
+        return false
+      }
+
+      // 缺最后免费日
+      if (!destPortOp?.lastFreeDate) {
+        return filterDays === 'no-last-free-date'
+      }
+
       const time = getRemainingTime(destPortOp.lastFreeDate)
       if (!time) return false
       if (filterDays === '0') return time.isExpired
       if (filterDays === '1-3') return !time.isExpired && time.days <= 3
       if (filterDays === '4-7') return !time.isExpired && time.days > 3 && time.days <= 7
+      if (filterDays === '8+') return !time.isExpired && time.days > 7
     }
 
     // 最晚还箱过滤
     if (filterType === '最晚还箱') {
-      if (!emptyReturn?.lastReturnDate || emptyReturn.returnTime) return false
+      // 统计范围：已提柜或有拖卡运输记录，且不等于已还箱状态
+      const hasTrucking = !!firstTrucking
+      const isPickedUp = c.logisticsStatus === SimplifiedStatus.PICKED_UP ||
+                        c.logisticsStatus === SimplifiedStatus.UNLOADED
+
+      // 排除已还箱状态
+      if (c.logisticsStatus === SimplifiedStatus.RETURNED_EMPTY) {
+        return false
+      }
+
+      if (!hasTrucking && !isPickedUp) {
+        return false
+      }
+
+      // 如果已还箱，则不参与统计
+      if (emptyReturn?.returnTime) {
+        return false
+      }
+
+      // 缺最后还箱日
+      if (!emptyReturn?.lastReturnDate) {
+        return filterDays === 'no-last-return-date'
+      }
+
       const time = getRemainingTime(emptyReturn.lastReturnDate)
       if (!time) return false
       if (filterDays === '0') return time.isExpired
       if (filterDays === '1-3') return !time.isExpired && time.days <= 3
       if (filterDays === '4-7') return !time.isExpired && time.days > 3 && time.days <= 7
+      if (filterDays === '8+') return !time.isExpired && time.days > 7
     }
 
     // 按状态过滤
@@ -400,13 +443,16 @@ const getFilterLabel = (days: string): string => {
     'today': '今日到港',
     'arrived-before-today': '今日之前到港',
     'other': '其他记录',
-    '0': '已超时/今日',
+    '0': '已超时',
     '0-3': '3天内',
     '4-7': '7天内',
     '7+': '7天以上',
+    '8+': '还箱日倒计时>7天',
     'today-actual': '今日实际提柜',
     'today-planned': '今日计划提柜',
     'pending': '待安排提柜',
+    'no-last-free-date': '缺最后免费日',
+    'no-last-return-date': '缺最后还箱日',
     '1-3': '1-3天'
   }
   return labels[days] || days
