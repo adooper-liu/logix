@@ -51,6 +51,21 @@
       </div>
 
       <div class="nav-section">
+        <div class="nav-section-title">📊 项目状态 ⭐</div>
+        <div
+          v-for="doc in projectDocs"
+          :key="doc.key"
+          class="nav-item"
+          :class="{ active: activeDoc === doc.key }"
+          @click="loadDoc(doc.key, doc.path)"
+        >
+          <span class="nav-item-icon">{{ doc.icon }}</span>
+          <span class="nav-item-text">{{ doc.title }}</span>
+          <span v-if="doc.badge" class="nav-item-badge">{{ doc.badge }}</span>
+        </div>
+      </div>
+
+      <div class="nav-section">
         <div class="nav-section-title">📦 前后端开发</div>
         <div
           v-for="doc in devDocs"
@@ -458,6 +473,16 @@ const devDocs = [
   }
 ]
 
+const projectDocs = [
+  {
+    key: 'PROJECT_STATUS',
+    title: '项目现状与开发计划（整合container-system）',
+    icon: '📊',
+    path: '/docs-temp/PROJECT_STATUS_AND_DEVELOPMENT_PLAN.md',
+    badge: '⭐⭐⭐'
+  }
+]
+
 const logisticsFlowDocs = [
   {
     key: 'LOGISTICS_FLOW',
@@ -511,18 +536,6 @@ const docsArchitectureDocs = [
     icon: '🏗️',
     path: '/docs/ARCHITECTURE_EXPLAINED.md',
     badge: '⭐'
-  },
-  {
-    key: 'STATUS_MACHINE',
-    title: '物流状态机',
-    icon: '🔄',
-    path: '/docs/LOGISTICS_STATUS_STATE_MACHINE.md'
-  },
-  {
-    key: 'UNIFIED_STATUS',
-    title: '统一状态机实现',
-    icon: '🔀',
-    path: '/docs/UNIFIED_STATUS_MACHINE_IMPLEMENTATION.md'
   },
   {
     key: 'UNIVERSAL_DICT',
@@ -718,13 +731,8 @@ const codeStandardDocs = [
 ]
 
 const toolDocs = [
-  {
-    key: 'DEV_STANDARDS',
-    title: '开发标准',
-    icon: '📝',
-    path: '/docs/DEVELOPMENT_STANDARDS.md',
-    badge: '⭐'
-  }
+  // 管理工具类文档，暂时为空
+  // 如有需要，可以添加数据库管理工具、部署工具等相关文档
 ]
 
 // 导航到首页
@@ -753,11 +761,26 @@ const handleDocNavigation = (url: string) => {
   const fileName = url.split('/').pop()?.replace('.md', '') || 'UNKNOWN'
   const docKey = fileName.toUpperCase()
 
+  // 转换相对路径为绝对路径
+  let fullPath = url
+  if (url.startsWith('./')) {
+    // 相对路径，转换为 /docs/ 路径
+    fullPath = `/docs/${url.substring(2)}`
+  } else if (!url.startsWith('/')) {
+    // 不以 / 开头的路径，添加 /docs/ 前缀
+    fullPath = `/docs/${url}`
+  } else if (!url.startsWith('/docs/')) {
+    // 以 / 开头但不是 /docs/，添加 /docs 前缀
+    fullPath = `/docs${url}`
+  }
+
+  console.log('文档导航转换:', { originalUrl: url, fullPath, docKey })
+
   // 滚动到顶部
   window.scrollTo({ top: 0, behavior: 'smooth' })
 
   // 加载新文档
-  loadDoc(docKey, url)
+  loadDoc(docKey, fullPath)
 }
 
 // 返回上一页

@@ -94,6 +94,8 @@ const formatDateOnly = (date: Date | string | undefined): string => {
 </template>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables' as *;
+
 .warehouse-operations-section {
   .warehouse-item {
     margin-bottom: 30px;
@@ -107,7 +109,7 @@ const formatDateOnly = (date: Date | string | undefined): string => {
 
     h3 {
       font-size: 16px;
-      color: #303133;
+      color: $text-primary;
       margin: 0 0 15px 0;
       padding-bottom: 10px;
       border-bottom: 1px solid #EBEEF5;

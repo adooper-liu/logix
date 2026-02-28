@@ -480,6 +480,8 @@ const scrollTo = (id: string) => {
 </script>
 
 <style lang="scss" scoped>
+@use '@/assets/styles/variables' as *;
+
 .about-page {
   min-height: 100vh;
   background: #f8f9fa;
@@ -787,7 +789,7 @@ const scrollTo = (id: string) => {
           line-height: 1.6;
 
           strong {
-            color: #f56c6c;
+            color: $danger-color;
           }
         }
       }
@@ -950,7 +952,7 @@ const scrollTo = (id: string) => {
         display: flex;
         align-items: center;
         gap: 8px;
-        color: #67c23a;
+        color: $success-color;
         font-size: 14px;
         font-weight: 500;
       }
@@ -970,7 +972,7 @@ const scrollTo = (id: string) => {
 
     &.level-high {
       background: linear-gradient(135deg, #fef0f0 0%, #fef2f2 100%);
-      border-color: #f56c6c;
+      border-color: $danger-color;
 
       .level-indicator {
         background: #f56c6c;
@@ -979,7 +981,7 @@ const scrollTo = (id: string) => {
 
     &.level-medium {
       background: linear-gradient(135deg, #fdf6ec 0%, #fef9f2 100%);
-      border-color: #e6a23c;
+      border-color: $warning-color;
 
       .level-indicator {
         background: #e6a23c;

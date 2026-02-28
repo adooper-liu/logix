@@ -737,6 +737,8 @@ onUnmounted(() => {
 </template>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables' as *;
+
 .shipments-page {
   padding: 20px;
 }
@@ -746,12 +748,12 @@ onUnmounted(() => {
   
   h2 {
     font-size: 24px;
-    color: #303133;
+    color: $text-primary;
     margin-bottom: 10px;
   }
   
   p {
-    color: #909399;
+    color: $text-secondary;
     font-size: 14px;
   }
 }

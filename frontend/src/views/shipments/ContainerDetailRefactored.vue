@@ -160,6 +160,8 @@ const destinationPortOperation = computed(() => {
 </template>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables' as *;
+
 .container-detail-page {
   padding: 20px;
   position: relative;
@@ -230,7 +232,7 @@ const destinationPortOperation = computed(() => {
   .tab-content {
     h3 {
       font-size: 16px;
-      color: #303133;
+      color: $text-primary;
       margin: 0 0 16px 0;
       padding-bottom: 10px;
       border-bottom: 1px solid #EBEEF5;

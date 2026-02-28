@@ -92,14 +92,14 @@ const updateCharts = () => {
           type: 'line',
           data: [35, 42, 48, 45, 52, 49, 45],
           smooth: true,
-          itemStyle: { color: '#409EFF' }
+          itemStyle: { color: $primary-color }
         },
         {
           name: '内存使用率',
           type: 'line',
           data: [55, 62, 68, 65, 72, 69, 68],
           smooth: true,
-          itemStyle: { color: '#E6A23C' }
+          itemStyle: { color: $warning-color }
         }
       ]
     }
@@ -276,6 +276,8 @@ onUnmounted(() => {
 </template>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables' as *;
+
 .monitoring-page {
   padding: 20px;
 }
@@ -285,12 +287,12 @@ onUnmounted(() => {
   
   h2 {
     font-size: 24px;
-    color: #303133;
+    color: $text-primary;
     margin-bottom: 10px;
   }
   
   p {
-    color: #909399;
+    color: $text-secondary;
     font-size: 14px;
   }
 }
@@ -328,12 +330,12 @@ onUnmounted(() => {
       .metric-value {
         font-size: 24px;
         font-weight: bold;
-        color: #303133;
+        color: $text-primary;
         margin-bottom: 5px;
       }
       
       .metric-label {
-        color: #909399;
+        color: $text-secondary;
         font-size: 14px;
       }
     }
@@ -392,9 +394,9 @@ onUnmounted(() => {
         margin-right: 15px;
         
         .el-icon {
-          &.error { color: #F56C6C; }
-          &.warning { color: #E6A23C; }
-          &.success { color: #67C23A; }
+          &.error { color: $danger-color; }
+          &.warning { color: $warning-color; }
+          &.success { color: $success-color; }
         }
       }
       
@@ -404,12 +406,12 @@ onUnmounted(() => {
         .alert-message {
           font-weight: 500;
           margin-bottom: 5px;
-          color: #303133;
+          color: $text-primary;
         }
         
         .alert-time {
           font-size: 12px;
-          color: #909399;
+          color: $text-secondary;
         }
       }
       

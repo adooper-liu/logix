@@ -69,6 +69,8 @@ const getLogisticsStatusText = (status: string): string => {
 </template>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables' as *;
+
 .summary-card {
   margin-bottom: 20px;
 
@@ -85,17 +87,17 @@ const getLogisticsStatusText = (status: string): string => {
 
     .label {
       font-size: 13px;
-      color: #909399;
+      color: $text-secondary;
       font-weight: 500;
     }
 
     .value {
       font-size: 14px;
-      color: #303133;
+      color: $text-primary;
       font-weight: 500;
 
       &.link {
-        color: #409eff;
+        color: $primary-color;
         cursor: pointer;
         text-decoration: underline;
       }

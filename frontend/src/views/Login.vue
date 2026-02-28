@@ -94,6 +94,8 @@ const handleLogin = async () => {
 </template>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables' as *;
+
 .login-container {
   display: flex;
   align-items: center;
@@ -118,12 +120,12 @@ const handleLogin = async () => {
     .title {
       font-size: 32px;
       font-weight: bold;
-      color: #303133;
+      color: $text-primary;
       margin-bottom: 10px;
     }
     
     .subtitle {
-      color: #909399;
+      color: $text-secondary;
       font-size: 16px;
     }
   }
@@ -138,7 +140,7 @@ const handleLogin = async () => {
     margin-top: 20px;
     
     .tips {
-      color: #909399;
+      color: $text-secondary;
       font-size: 14px;
     }
   }

@@ -12,8 +12,9 @@
 2. [失败案例总结](#失败案例总结)
 3. [开发流程规范](#开发流程规范)
 4. [命名规范](#命名规范)
-5. [关键开发步骤](#关键开发步骤)
-6. [常用映射参考](#常用映射参考)
+5. [颜色系统规范](#颜色系统规范) ⭐ 新增
+6. [关键开发步骤](#关键开发步骤)
+7. [常用映射参考](#常用映射参考)
 
 ---
 
@@ -519,6 +520,285 @@ docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db -f scripts/
 | 时间戳字段 | `{entity}_{event}_time` | `gate_in_time`, `available_time` |
 | 布尔字段 | `is_{action}` | `is_unboxing`, `is_rolled` |
 | 数量字段 | `{entity}_{unit}` | `total_boxes`, `total_gross_weight` |
+
+---
+
+## 🎨 颜色系统规范
+
+### 核心原则
+
+**禁止硬编码颜色**: 所有颜色必须使用统一的颜色变量系统。
+
+---
+
+### 颜色变量系统
+
+#### 1. 在 SCSS 中使用
+
+**必须**:
+- ✅ 在样式文件顶部导入颜色变量：`@use '@/assets/styles/variables' as *;`
+- ✅ 使用 SCSS 变量：`$primary-color`, `$success-color`, 等
+- ✅ 根据语义选择合适的颜色变量
+
+```scss
+// ✅ 正确
+@use '@/assets/styles/variables' as *;
+
+.my-button {
+  color: $primary-color;
+  background-color: $bg-color;
+  border-color: $border-base;
+}
+
+.status-badge {
+  &.success { color: $success-color; }
+  &.warning { color: $warning-color; }
+  &.danger { color: $danger-color; }
+}
+```
+
+**禁止**:
+- ❌ 硬编码十六进制颜色：`#409EFF`, `#67C23A`, 等
+- ❌ 混用大小写：`#409EFF` vs `#409eff`
+- ❌ 魔法数字：`rgba(64, 158, 255, 0.1)`
+
+---
+
+#### 2. 在 JS/TS 中使用
+
+**必须**:
+- ✅ 导入颜色组合式函数：`import { useColors } from '@/composables/useColors'`
+- ✅ 使用颜色对象：`colors.primary`, `colors.success`, 等
+- ✅ 使用辅助方法：`colors.getStatusColor(status)`
+
+```typescript
+// ✅ 正确
+import { useColors } from '@/composables/useColors'
+
+const colors = useColors()
+
+// 基础用法
+const buttonStyle = {
+  color: colors.primary,
+  backgroundColor: colors.bg.color
+}
+
+// 业务逻辑
+const statusColor = computed(() => {
+  return colors.getStatusColor(props.status)
+})
+
+// ECharts 配置
+const series = [{
+  itemStyle: { color: colors.primary }
+}]
+```
+
+**禁止**:
+- ❌ 硬编码颜色字符串：`'#409EFF'`, `'#67C23A'`
+- ❌ 在对象中直接写颜色：`color: '#409EFF'`
+
+---
+
+### 颜色分类使用规范
+
+#### 1. 主题色（Primary）
+
+**用途**: 主要操作、按钮、链接、高亮
+
+```scss
+// ✅ 正确
+.primary-button { color: $primary-color; }
+.active-link { color: $primary-color; }
+```
+
+#### 2. 功能色（Functional）
+
+| 颜色 | 变量 | 用途 |
+|------|------|------|
+| 成功 | `$success-color` | 成功状态、确认操作、正常 |
+| 警告 | `$warning-color` | 警告状态、注意提醒、即将到期 |
+| 危险 | `$danger-color` | 危险状态、删除操作、已超时 |
+| 信息 | `$info-color` | 信息提示、次要内容、待处理 |
+
+```scss
+// ✅ 正确
+.status-badge {
+  &.success { background: $success-color; }
+  &.warning { background: $warning-color; }
+  &.danger { background: $danger-color; }
+}
+```
+
+#### 3. 中性色（Neutral）
+
+**文字色**:
+- `$text-primary`: 主要文字、标题
+- `$text-regular`: 常规文字、正文
+- `$text-secondary`: 次要文字、辅助说明
+- `$text-placeholder`: 占位文字、禁用文本
+
+**背景色**:
+- `$bg-color`: 默认背景、卡片背景
+- `$bg-page`: 页面背景、容器背景
+
+**边框色**:
+- `$border-base`: 基础边框、默认边框
+- `$border-light`: 浅色边框、分割线
+- `$border-lighter`: 更浅边框、装饰线
+
+```scss
+// ✅ 正确
+.card {
+  background: $bg-color;
+  border: 1px solid $border-base;
+  color: $text-primary;
+}
+
+.page-container {
+  background: $bg-page;
+}
+```
+
+#### 4. 业务色（Business）
+
+**物流状态**:
+```typescript
+// ✅ 正确 - 使用辅助方法
+const statusColor = colors.getStatusColor('shipped')        // $status-shipped (#409EFF)
+const statusColor = colors.getStatusColor('at-port')        // $status-at-port (#67C23A)
+const statusColor = colors.getStatusColor('picked-up')      // $status-picked-up (#E6A23C)
+```
+
+**优先级**:
+```typescript
+// ✅ 正确 - 使用辅助方法
+const priorityColor = colors.getPriorityColor('critical')  // $priority-critical (#F56C6C)
+const priorityColor = colors.getPriorityColor('high')       // $priority-high (#E6A23C)
+const priorityColor = colors.getPriorityColor('medium')     // $priority-medium (#409EFF)
+```
+
+---
+
+### 迁移步骤
+
+#### 1. 新代码强制使用颜色变量
+
+**代码审查检查点**:
+- [ ] 样式文件中是否有硬编码颜色值？
+- [ ] JS/TS 中是否有硬编码颜色字符串？
+- [ ] 是否使用了语义化的颜色变量？
+
+**拒绝规则**:
+```typescript
+// ❌ 拒绝
+.button { color: #409EFF; }
+const color = '#409EFF';
+
+// ✅ 接受
+@use '@/assets/styles/variables' as *;
+.button { color: $primary-color; }
+import { useColors } from '@/composables/useColors'
+const colors = useColors()
+const color = colors.primary
+```
+
+#### 2. 逐步迁移现有代码
+
+**迁移顺序**:
+1. **核心组件**: Dashboard, Shipments, ContainerDetail
+2. **常用组件**: CountdownCard, Timeline, StatusBadge
+3. **次要组件**: Settings, About, Help
+
+**迁移工具**:
+```bash
+# 使用自动迁移脚本
+cd frontend
+node scripts/migrate-colors.js
+```
+
+**手动验证**:
+- 检查替换后的文件
+- 测试页面显示
+- 确认颜色效果正确
+
+---
+
+### 常见错误示例
+
+#### 错误 1: 硬编码颜色
+
+```typescript
+// ❌ 错误
+const statusColors = {
+  shipped: '#409EFF',
+  atPort: '#67C23A',
+  pickedUp: '#E6A23C'
+}
+
+// ✅ 正确
+import { useColors } from '@/composables/useColors'
+const colors = useColors()
+const statusColors = {
+  shipped: colors.status.shipped,
+  atPort: colors.status.atPort,
+  pickedUp: colors.status.pickedUp
+}
+```
+
+#### 错误 2: 在样式中直接写颜色
+
+```scss
+// ❌ 错误
+.button {
+  color: #409EFF;
+  background: #ffffff;
+  border: 1px solid #DCDFE6;
+}
+
+// ✅ 正确
+@use '@/assets/styles/variables' as *;
+
+.button {
+  color: $primary-color;
+  background: $bg-color;
+  border: 1px solid $border-base;
+}
+```
+
+#### 错误 3: 使用了错误的颜色类型
+
+```scss
+// ❌ 错误 - 使用功能色表示物流状态
+.status-shipped { color: $success-color; }
+
+// ✅ 正确 - 使用业务色
+.status-shipped { color: $status-shipped; }
+```
+
+---
+
+### 检查清单
+
+#### 新代码开发
+- [ ] 样式文件导入了 `@use '@/assets/styles/variables' as *;`
+- [ ] 没有硬编码颜色值
+- [ ] 使用了语义化的颜色变量
+- [ ] 代码审查已通过
+
+#### 现有代码迁移
+- [ ] 使用了迁移脚本
+- [ ] 手动检查替换结果
+- [ ] 测试页面显示正常
+- [ ] 没有引入新的问题
+
+---
+
+### 相关文档
+
+- **[颜色系统使用指南](./COLOR_SYSTEM_GUIDE.md)** - 完整的颜色系统文档
+- **[variables.scss](../src/assets/styles/variables.scss)** - 颜色变量定义
+- **[useColors.ts](../src/composables/useColors.ts)** - 颜色组合式函数
 
 ---
 

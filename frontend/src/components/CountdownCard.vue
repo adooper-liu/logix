@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Timer, Warning, CircleCheck } from '@element-plus/icons-vue'
+import { useColors } from '@/composables/useColors'
+
+// 使用颜色系统
+const colors = useColors()
 
 interface FilterItem {
   label: string
@@ -32,15 +36,15 @@ const emit = defineEmits<{
   'filter': [filterType: string, days: string]
 }>()
 
-// 获取倒计时卡片样式
+// 获取倒计时卡片样式 - 使用统一的颜色变量
 const cardStyle = computed(() => {
   if (props.data.expired > 0) {
-    return { type: 'danger' as const, icon: Warning, color: '#f56c6c' }
+    return { type: 'danger' as const, icon: Warning, color: colors.danger }
   }
   if (props.data.urgent > 0) {
-    return { type: 'warning' as const, icon: Timer, color: '#e6a23c' }
+    return { type: 'warning' as const, icon: Timer, color: colors.warning }
   }
-  return { type: 'success' as const, icon: CircleCheck, color: '#67c23a' }
+  return { type: 'success' as const, icon: CircleCheck, color: colors.success }
 })
 
 // 获取倒计时卡片状态文本
@@ -122,6 +126,8 @@ const totalCount = computed(() => {
 </template>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables' as *;
+
 .countdown-card {
   background: #fff;
   border-radius: 6px;
@@ -152,12 +158,12 @@ const totalCount = computed(() => {
     .card-title {
       font-size: 14px;
       font-weight: 600;
-      color: #303133;
+      color: $text-primary;
     }
 
     .card-subtitle {
       font-size: 10px;
-      color: #909399;
+      color: $text-secondary;
       font-weight: 400;
     }
 
@@ -171,13 +177,13 @@ const totalCount = computed(() => {
 
       .summary-label {
         font-size: 11px;
-        color: #909399;
+        color: $text-secondary;
       }
 
       .summary-count {
         font-size: 14px;
         font-weight: 700;
-        color: #409eff;
+        color: $primary-color;
       }
     }
   }
@@ -227,13 +233,13 @@ const totalCount = computed(() => {
     .card-value {
       font-size: 36px;
       font-weight: 700;
-      color: #303133;
+      color: $text-primary;
       line-height: 1;
     }
 
     .card-label {
       font-size: 13px;
-      color: #909399;
+      color: $text-secondary;
       margin-top: 5px;
     }
   }

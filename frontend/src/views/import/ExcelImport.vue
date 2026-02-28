@@ -914,6 +914,8 @@ onMounted(async () => {
 </template>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables' as *;
+
 .excel-import-container {
   padding: 20px;
   background: #f5f7fa;
@@ -968,23 +970,23 @@ onMounted(async () => {
   display: flex;
   gap: 16px;
   font-size: 14px;
-  color: #606266;
+  color: $text-regular;
 }
 
 .success-count {
-  color: #67c23a;
+  color: $success-color;
   font-weight: 600;
 }
 
 .failed-count {
-  color: #f56c6c;
+  color: $danger-color;
   font-weight: 600;
 }
 
 .more-data-tip {
   text-align: center;
   padding: 12px;
-  color: #909399;
+  color: $text-secondary;
   font-size: 14px;
 }
 
@@ -995,7 +997,7 @@ onMounted(async () => {
 .error-item {
   padding: 8px 12px;
   background: #fef0f0;
-  color: #f56c6c;
+  color: $danger-color;
   border-radius: 4px;
   margin-bottom: 8px;
 }

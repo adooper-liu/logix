@@ -1,30 +1,30 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/store/user'
 import {
-  Box,
-  DataBoard,
-  Connection,
-  Calendar,
-  Warning,
-  User,
   ArrowDown,
-  Setting,
-  SwitchButton,
-  Wallet,
-  Share,
-  Grid,
-  Money,
-  Reading,
+  Box,
+  Calendar,
+  Connection,
+  DataBoard,
   Document,
-  Upload,
-  House,
-  Monitor,
-  InfoFilled,
   DocumentCopy,
-  Notebook
+  Grid,
+  House,
+  InfoFilled,
+  Money,
+  Monitor,
+  Notebook,
+  Reading,
+  Setting,
+  Share,
+  SwitchButton,
+  Upload,
+  User,
+  Wallet,
+  Warning,
 } from '@element-plus/icons-vue'
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const router = useRouter()
 const route = useRoute()
@@ -39,9 +39,9 @@ const menuGroups = computed(() => [
       {
         path: '/shipments',
         name: 'Shipments',
-        meta: { title: '集装箱管理', icon: 'Box' }
-      }
-    ]
+        meta: { title: '货柜管理', icon: 'Box' },
+      },
+    ],
   },
   {
     title: '系统',
@@ -50,35 +50,35 @@ const menuGroups = computed(() => [
       {
         path: '/import',
         name: 'ExcelImport',
-        meta: { title: 'Excel数据导入', icon: 'Upload' }
+        meta: { title: 'Excel数据导入', icon: 'Upload' },
       },
       {
         path: '/monitoring',
         name: 'Monitoring',
-        meta: { title: '系统监控', icon: 'DataBoard' }
+        meta: { title: '系统监控', icon: 'DataBoard' },
       },
       {
         path: '/dict-mapping',
         name: 'DictMapping',
-        meta: { title: '通用字典映射', icon: 'DocumentCopy' }
+        meta: { title: '通用字典映射', icon: 'DocumentCopy' },
       },
       {
         path: '/settings',
         name: 'Settings',
-        meta: { title: '系统设置', icon: 'Setting' }
+        meta: { title: '系统设置', icon: 'Setting' },
       },
       {
         path: '/help',
         name: 'HelpDocumentation',
-        meta: { title: '帮助文档', icon: 'Notebook' }
+        meta: { title: '帮助文档', icon: 'Notebook' },
       },
       {
         path: '/about',
         name: 'About',
-        meta: { title: '关于', icon: 'InfoFilled' }
-      }
-    ]
-  }
+        meta: { title: '关于', icon: 'InfoFilled' },
+      },
+    ],
+  },
 ])
 
 // 图标组件映射
@@ -100,7 +100,7 @@ const iconMap: Record<string, unknown> = {
   Setting,
   InfoFilled,
   DocumentCopy,
-  Notebook
+  Notebook,
 }
 
 // 当前激活的路由
@@ -116,7 +116,7 @@ const handleMenuClick = (path: string) => {
   if (route.path === path) {
     return
   }
-  router.push(path).catch((err) => {
+  router.push(path).catch(err => {
     if (!err.message.includes('NavigationDuplicated')) {
       console.error('路由跳转失败:', err)
     }
@@ -151,10 +151,7 @@ const handleLogout = () => {
             placement="bottom"
             @command="handleMenuClick"
           >
-            <div
-              class="menu-item dropdown-trigger"
-              :class="{ active: isGroupActive(menuGroup) }"
-            >
+            <div class="menu-item dropdown-trigger" :class="{ active: isGroupActive(menuGroup) }">
               <el-icon>
                 <component :is="iconMap[menuGroup.icon || 'Box']" />
               </el-icon>
@@ -217,6 +214,8 @@ const handleLogout = () => {
 </template>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables' as *;
+
 .layout-container {
   display: flex;
   flex-direction: column;
@@ -227,13 +226,30 @@ const handleLogout = () => {
 .navbar {
   width: 100%;
   height: 64px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+  background: linear-gradient(
+    135deg,
+    $nav-bg-gradient-start 0%,
+    $nav-bg-gradient-mid 50%,
+    $nav-bg-gradient-end 100%
+  );
+  box-shadow: $nav-shadow, $nav-glow-shadow;
   position: sticky;
   top: 0;
   z-index: 1000;
-  backdrop-filter: blur(20px);
+  backdrop-filter: $nav-glass-blur;
   background-attachment: fixed;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, $nav-highlight-start, transparent, $nav-highlight-end);
+    pointer-events: none;
+  }
 
   .navbar-content {
     display: flex;
@@ -243,6 +259,8 @@ const handleLogout = () => {
     padding: 0 32px;
     max-width: 1440px;
     margin: 0 auto;
+    position: relative;
+    z-index: 1;
   }
 
   .navbar-logo {
@@ -251,23 +269,24 @@ const handleLogout = () => {
     gap: 10px;
     padding: 8px 16px;
     min-height: 48px;
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(10px);
+    background: $nav-glass-bg;
+    backdrop-filter: $nav-glass-blur;
     border-radius: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid $nav-glass-border;
     transition: all 0.3s ease;
     flex-shrink: 0;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.15);
       transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(255, 255, 255, 0.2);
+      box-shadow: $nav-hover-glow;
+      border-color: rgba(255, 255, 255, 0.2);
     }
 
     .logo-icon {
       font-size: 26px;
-      color: white;
-      filter: drop-shadow(0 2px 4px rgba(255, 255, 255, 0.3));
+      color: $nav-accent-cyan;
+      filter: drop-shadow(0 2px 8px rgba(0, 212, 255, 0.5));
       animation: float 3s ease-in-out infinite;
       display: inline-flex;
       align-items: center;
@@ -278,13 +297,17 @@ const handleLogout = () => {
     .logo-text {
       font-size: 22px;
       font-weight: 800;
-      color: white;
       letter-spacing: 2px;
-      background: linear-gradient(135deg, #ffffff 0%, #f0f0ff 50%, #fff5e5 100%);
+      background: linear-gradient(
+        135deg,
+        $nav-accent-cyan 0%,
+        $nav-accent-purple 50%,
+        $nav-accent-pink 100%
+      );
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      text-shadow: 0 0 20px rgba(0, 212, 255, 0.3);
       line-height: 1.2;
       display: inline-block;
       white-space: nowrap;
@@ -294,10 +317,10 @@ const handleLogout = () => {
       margin-left: 10px;
       font-size: 12px;
       font-weight: 500;
-      color: rgba(255, 255, 255, 0.9);
+      color: $nav-text-secondary;
       letter-spacing: 0.5px;
       padding-left: 10px;
-      border-left: 1px solid rgba(255, 255, 255, 0.3);
+      border-left: 1px solid rgba(255, 255, 255, 0.2);
       line-height: 1.4;
       white-space: nowrap;
       display: inline-block;
@@ -319,7 +342,7 @@ const handleLogout = () => {
       gap: 6px;
       padding: 8px 16px;
       min-width: auto;
-      color: rgba(255, 255, 255, 0.9);
+      color: $nav-text-secondary;
       font-size: 14px;
       line-height: 1.4;
       border-radius: 8px;
@@ -330,6 +353,7 @@ const handleLogout = () => {
       overflow: hidden;
       white-space: nowrap;
       text-decoration: none;
+      border: 1px solid transparent;
 
       &::before {
         content: '';
@@ -338,7 +362,7 @@ const handleLogout = () => {
         left: -100%;
         width: 100%;
         height: 100%;
-        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
         transition: left 0.5s;
       }
 
@@ -349,6 +373,7 @@ const handleLogout = () => {
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        color: $nav-accent-cyan;
       }
 
       span {
@@ -360,13 +385,15 @@ const handleLogout = () => {
         font-size: 12px;
         transition: transform 0.3s ease;
         margin-left: 2px;
+        color: $nav-text-muted;
       }
 
       &:hover {
-        color: white;
-        background: rgba(255, 255, 255, 0.25);
+        color: $nav-text-primary;
+        background: $nav-hover-bg;
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        box-shadow: $nav-hover-glow;
+        border-color: rgba(255, 255, 255, 0.15);
 
         &::before {
           left: 100%;
@@ -374,15 +401,17 @@ const handleLogout = () => {
 
         .dropdown-arrow {
           transform: rotate(180deg);
+          color: $nav-text-primary;
         }
       }
 
       &.active {
-        color: white;
-        background: rgba(255, 255, 255, 0.35);
+        color: $nav-text-primary;
+        background: linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(124, 58, 237, 0.15));
         font-weight: 600;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        box-shadow: $nav-hover-glow;
         position: relative;
+        border-color: rgba(0, 212, 255, 0.3);
 
         &::after {
           content: '';
@@ -390,11 +419,17 @@ const handleLogout = () => {
           bottom: 0;
           left: 50%;
           transform: translateX(-50%);
-          width: 60%;
+          width: 70%;
           height: 3px;
-          background: linear-gradient(90deg, #f093fb, #f5576c);
+          background: $nav-active-indicator;
           border-radius: 2px;
           animation: pulse 2s ease-in-out infinite;
+          box-shadow: 0 0 10px rgba(0, 212, 255, 0.5);
+        }
+
+        .el-icon {
+          color: $nav-accent-cyan;
+          filter: drop-shadow(0 0 6px rgba(0, 212, 255, 0.5));
         }
       }
     }
@@ -409,25 +444,26 @@ const handleLogout = () => {
     .user-info {
       display: inline-flex;
       align-items: center;
-      color: rgba(255, 255, 255, 0.95);
+      color: $nav-text-primary;
       cursor: pointer;
       padding: 8px 16px;
       border-radius: 10px;
       transition: all 0.3s ease;
-      background: rgba(255, 255, 255, 0.15);
-      backdrop-filter: blur(10px);
-      border: 1px solid rgba(255, 255, 255, 0.25);
+      background: $nav-glass-bg;
+      backdrop-filter: $nav-glass-blur;
+      border: 1px solid $nav-glass-border;
       gap: 8px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
       white-space: nowrap;
       flex-shrink: 0;
 
       .user-icon {
         font-size: 18px;
-        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+        filter: drop-shadow(0 2px 4px rgba(0, 212, 255, 0.3));
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        color: $nav-accent-cyan;
       }
 
       span {
@@ -440,16 +476,18 @@ const handleLogout = () => {
         transition: transform 0.3s ease;
         display: inline-flex;
         align-items: center;
+        color: $nav-text-muted;
       }
 
       &:hover {
-        background: rgba(255, 255, 255, 0.3);
+        background: rgba(255, 255, 255, 0.15);
         transform: translateY(-2px);
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-        border-color: rgba(255, 255, 255, 0.4);
+        box-shadow: $nav-hover-glow;
+        border-color: rgba(0, 212, 255, 0.3);
 
         .dropdown-icon {
           transform: rotate(180deg);
+          color: $nav-text-primary;
         }
       }
     }
@@ -459,12 +497,13 @@ const handleLogout = () => {
 .main-content {
   flex: 1;
   overflow-y: auto;
-  background-color: #f5f7fa;
+  background-color: $bg-page;
 }
 
 // 动画定义
 @keyframes float {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -473,7 +512,8 @@ const handleLogout = () => {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     width: 60%;
   }
@@ -485,11 +525,13 @@ const handleLogout = () => {
 
 // Element Plus 下拉菜单覆盖
 :deep(.el-dropdown-menu) {
-  background: rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: blur(20px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  background: rgba(15, 20, 40, 0.95) !important;
+  backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(0, 212, 255, 0.2) !important;
   border-radius: 12px !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+  box-shadow:
+    $nav-shadow,
+    0 0 30px rgba(0, 212, 255, 0.15) !important;
   padding: 8px !important;
   min-width: 180px !important;
 
@@ -500,19 +542,32 @@ const handleLogout = () => {
     display: flex;
     align-items: center;
     gap: 8px;
+    color: $nav-text-secondary;
 
     &:hover {
-      background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(240, 147, 251, 0.1)) !important;
+      background: linear-gradient(
+        135deg,
+        rgba(0, 212, 255, 0.15),
+        rgba(124, 58, 237, 0.15)
+      ) !important;
+      color: $nav-text-primary !important;
+      border-color: rgba(0, 212, 255, 0.3) !important;
     }
 
     &.is-active {
-      background: linear-gradient(135deg, rgba(102, 126, 234, 0.2), rgba(240, 147, 251, 0.2)) !important;
-      color: #667eea !important;
+      background: linear-gradient(
+        135deg,
+        rgba(0, 212, 255, 0.25),
+        rgba(124, 58, 237, 0.25)
+      ) !important;
+      color: $nav-accent-cyan !important;
       font-weight: 600;
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.2) !important;
     }
 
     .el-icon {
       font-size: 14px;
+      color: inherit;
     }
 
     span {

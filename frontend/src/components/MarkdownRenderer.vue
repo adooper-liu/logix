@@ -1,9 +1,9 @@
 <template>
-  <div class="markdown-renderer" v-html="renderedHtml" @navigate-to-doc="handleNavigate"></div>
+  <div class="markdown-renderer" v-html="htmlContent" @navigate-to-doc="handleNavigate"></div>
 </template>
 
 <script setup lang="ts">
-import { computed, watch, onMounted, onUnmounted } from 'vue'
+import { watch, onMounted, onUnmounted, ref } from 'vue'
 
 interface Props {
   content: string
@@ -28,6 +28,8 @@ onMounted(() => {
     console.log('捕获到导航事件:', event.detail)
     emit('navigateToDoc', event.detail.url)
   })
+  // 初始化 Shiki 高亮器
+  initHighlighter()
 })
 
 // 组件卸载时移除监听
@@ -35,20 +37,67 @@ onUnmounted(() => {
   window.removeEventListener('navigate-to-doc', () => {})
 })
 
-// 调试：监听 content 变化
-watch(() => props.content, (newContent) => {
+// Shiki 高亮器实例
+let highlighter: any = null
+const highlighterReady = ref(false)
+
+// 初始化 Shiki 高亮器
+const initHighlighter = async () => {
+  try {
+    // 预加载常用语言
+    const { createHighlighter } = await import('shiki')
+    highlighter = await createHighlighter({
+      themes: ['github-dark'],
+      langs: [
+        'bash',
+        'sh',
+        'typescript',
+        'javascript',
+        'sql',
+        'json',
+        'python',
+        'yaml',
+        'markdown',
+        'html',
+        'css',
+        'scss',
+        'ts'
+      ]
+    })
+    highlighterReady.value = true
+    console.log('Shiki 高亮器初始化成功')
+  } catch (error) {
+    console.error('Shiki 高亮器初始化失败:', error)
+  }
+}
+
+// 响应式 HTML 内容
+const htmlContent = ref('')
+
+// 监听 content 变化，重新解析
+watch(() => props.content, async (newContent) => {
   console.log('MarkdownRenderer 接收到内容，长度:', newContent?.length)
   console.log('内容前100字符:', newContent?.substring(0, 100))
+  if (newContent) {
+    htmlContent.value = await parseMarkdown(newContent)
+  }
 }, { immediate: true })
 
+// 监听高亮器就绪状态，重新高亮代码
+watch(highlighterReady, async (ready) => {
+  if (ready && props.content) {
+    htmlContent.value = await parseMarkdown(props.content)
+  }
+})
+
 // Markdown 解析器
-const parseMarkdown = (markdown: string): string => {
+const parseMarkdown = async (markdown: string): Promise<string> => {
   let html = markdown
 
   // 保存代码块
-  const codeBlocks: string[] = []
+  const codeBlocks: { lang: string; code: string }[] = []
   html = html.replace(/```(\w+)?\n([\s\S]*?)```/g, (_match, lang, code) => {
-    codeBlocks.push(`<pre><code class="language-${lang || 'text'}">${escapeHtml(code)}</code></pre>`)
+    codeBlocks.push({ lang: lang || 'text', code: code.trim() })
     return `__CODEBLOCK_${codeBlocks.length - 1}__`
   })
 
@@ -140,7 +189,26 @@ const parseMarkdown = (markdown: string): string => {
   html = escapeHtml(html)
 
   // 还原代码块
-  html = html.replace(/__CODEBLOCK_(\d+)__/g, (_match, index) => codeBlocks[index])
+  html = html.replace(/__CODEBLOCK_(\d+)__/g, (_match, index) => {
+    const codeBlock = codeBlocks[parseInt(index)]
+    if (highlighterReady.value && highlighter) {
+      try {
+        // 使用 Shiki 高亮代码
+        const highlightedCode = highlighter.codeToHtml(codeBlock.code, {
+          lang: codeBlock.lang,
+          theme: 'github-dark'
+        })
+        return highlightedCode
+      } catch (error) {
+        console.warn(`Shiki 高亮失败 (lang: ${codeBlock.lang}):`, error)
+        // 降级到普通渲染
+        return `<pre><code class="language-${codeBlock.lang}">${escapeHtml(codeBlock.code)}</code></pre>`
+      }
+    } else {
+      // 高亮器未就绪，使用普通渲染
+      return `<pre><code class="language-${codeBlock.lang}">${escapeHtml(codeBlock.code)}</code></pre>`
+    }
+  })
 
   // 还原链接和图片
   links.forEach((link) => {
@@ -224,11 +292,6 @@ const parseTableRow = (line: string): string => {
   const tag = line.includes('---') ? 'th' : 'td'
   return `<tr>${cells.map(cell => `<${tag}>${cell.trim()}</${tag}>`).join('')}</tr>`
 }
-
-const renderedHtml = computed(() => {
-  if (!props.content) return ''
-  return parseMarkdown(props.content)
-})
 </script>
 
 <style scoped lang="scss">
@@ -278,20 +341,30 @@ const renderedHtml = computed(() => {
     color: #2c3e50;
   }
 
-  :deep(pre) {
+  // Shiki 生成的代码块样式
+  :deep(pre.shiki) {
+    padding: 20px;
+    border-radius: 10px;
+    overflow-x: auto;
+    margin-bottom: 20px;
+    background: #0d1117 !important;
+  }
+
+  // 非 Shiki 的普通代码块
+  :deep(pre:not(.shiki)) {
     background: #2c3e50;
     color: #f8f9fa;
     padding: 20px;
     border-radius: 10px;
     overflow-x: auto;
     margin-bottom: 20px;
-  }
 
-  :deep(pre code) {
-    background: transparent;
-    padding: 0;
-    color: #f8f9fa;
-    font-family: 'Courier New', monospace;
+    code {
+      background: transparent;
+      padding: 0;
+      color: #f8f9fa;
+      font-family: 'Courier New', monospace;
+    }
   }
 
   :deep(blockquote) {

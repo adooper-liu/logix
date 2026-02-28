@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { 
-  House, 
-  Box, 
-  Warning, 
+import {
+  House,
+  Box,
+  Warning,
   TrendCharts,
   Ship,
   Clock,
@@ -11,6 +11,10 @@ import {
   Close
 } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
+import { useColors } from '@/composables/useColors'
+
+// 使用颜色系统
+const colors = useColors()
 
 // 统计数据
 const stats = ref({
@@ -28,13 +32,13 @@ const recentActivities = ref([
   { id: 4, container: 'MAEU2345678', status: '装船完成', time: '8小时前', type: 'success' }
 ])
 
-// 状态分布数据
+// 状态分布数据 - 使用统一的颜色变量
 const statusDistribution = ref([
-  { name: '在途运输', value: 45, color: '#409EFF' },
-  { name: '港口作业', value: 25, color: '#67C23A' },
-  { name: '等待提货', value: 15, color: '#E6A23C' },
-  { name: '异常状态', value: 10, color: '#F56C6C' },
-  { name: '已完成', value: 5, color: '#909399' }
+  { name: '在途运输', value: 45, color: colors.primary },
+  { name: '港口作业', value: 25, color: colors.success },
+  { name: '等待提货', value: 15, color: colors.warning },
+  { name: '异常状态', value: 10, color: colors.danger },
+  { name: '已完成', value: 5, color: colors.info }
 ])
 
 // 图表实例
@@ -194,6 +198,8 @@ const initChart = () => {
 </template>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables' as *;
+
 .dashboard {
   padding: 20px;
 }
@@ -231,12 +237,12 @@ const initChart = () => {
       .stat-value {
         font-size: 28px;
         font-weight: bold;
-        color: #303133;
+        color: $text-primary;
         margin-bottom: 5px;
       }
       
       .stat-label {
-        color: #909399;
+        color: $text-secondary;
         font-size: 14px;
       }
     }
@@ -274,21 +280,21 @@ const initChart = () => {
       .activity-title {
         font-weight: 500;
         margin-bottom: 5px;
-        color: #303133;
+        color: $text-primary;
       }
       
       .activity-time {
         font-size: 12px;
-        color: #909399;
+        color: $text-secondary;
       }
     }
     
     .activity-status {
       font-size: 18px;
-      &.activity-success { color: #67C23A; }
-      &.activity-warning { color: #E6A23C; }
-      &.activity-info { color: #409EFF; }
-      &.activity-danger { color: #F56C6C; }
+      &.activity-success { color: $success-color; }
+      &.activity-warning { color: $warning-color; }
+      &.activity-info { color: $primary-color; }
+      &.activity-danger { color: $danger-color; }
     }
   }
 }

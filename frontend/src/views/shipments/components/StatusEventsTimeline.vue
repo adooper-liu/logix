@@ -197,6 +197,8 @@ const groupedStatusEvents = computed(() => {
 </template>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables' as *;
+
 // 时间轴排序控件样式
 .timeline-sort-control {
   display: flex;
@@ -209,7 +211,7 @@ const groupedStatusEvents = computed(() => {
 
   .sort-label {
     font-size: 14px;
-    color: #606266;
+    color: $text-regular;
     font-weight: 500;
   }
 }
@@ -298,7 +300,7 @@ const groupedStatusEvents = computed(() => {
       border-top: 4px solid #409eff;
 
       &.planned {
-        border-top-color: #e6a23c;
+        border-top-color: $warning-color;
         background: #fdf6ec;
 
         &:hover {
@@ -309,7 +311,7 @@ const groupedStatusEvents = computed(() => {
       }
 
       &.actual {
-        border-top-color: #67c23a;
+        border-top-color: $success-color;
         background: #f0f9ff;
 
         &:hover {
@@ -329,26 +331,26 @@ const groupedStatusEvents = computed(() => {
         .event-label {
           font-size: 14px;
           font-weight: 600;
-          color: #303133;
+          color: $text-primary;
         }
       }
 
       .event-time {
         font-size: 13px;
-        color: #409eff;
+        color: $primary-color;
         font-weight: 500;
         margin-bottom: 6px;
       }
 
       .event-status {
         font-size: 12px;
-        color: #909399;
+        color: $text-secondary;
         margin-bottom: 4px;
       }
 
       .event-desc {
         font-size: 12px;
-        color: #606266;
+        color: $text-regular;
         line-height: 1.4;
       }
     }

@@ -1,32 +1,129 @@
  @use "sass:meta";
 
-// 全局样式变量
+// ============================================================================
+// 🎨 颜色系统 - Color System
+// ============================================================================
+
+// ---------- 导航条 - 高端科技感 ----------
+// 深空蓝渐变导航背景
+$nav-bg-gradient-start: #0a0e27;
+$nav-bg-gradient-mid: #1a1f3a;
+$nav-bg-gradient-end: #252b4a;
+
+// 科技感装饰色
+$nav-accent-cyan: #00d4ff;
+$nav-accent-purple: #7c3aed;
+$nav-accent-pink: #ec4899;
+
+// 导航条高光效果
+$nav-highlight-start: rgba(0, 212, 255, 0.1);
+$nav-highlight-end: rgba(124, 58, 237, 0.1);
+
+// 激活状态指示条
+$nav-active-indicator: linear-gradient(90deg, #00d4ff, #7c3aed, #ec4899);
+
+// 悬停效果
+$nav-hover-bg: rgba(255, 255, 255, 0.12);
+$nav-hover-glow: 0 0 20px rgba(0, 212, 255, 0.3);
+
+// 文字颜色
+$nav-text-primary: #ffffff;
+$nav-text-secondary: rgba(255, 255, 255, 0.85);
+$nav-text-muted: rgba(255, 255, 255, 0.6);
+
+// 玻璃态效果
+$nav-glass-bg: rgba(255, 255, 255, 0.08);
+$nav-glass-border: rgba(255, 255, 255, 0.12);
+$nav-glass-blur: blur(20px);
+
+// 阴影
+$nav-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+$nav-glow-shadow: 0 0 40px rgba(0, 212, 255, 0.15);
+
+// ---------- 主题色 ----------
 $primary-color: #409EFF;
+$primary-light: #79bbff;
+$primary-lighter: #a0cfff;
+$primary-extra-light: #c6e2ff;
+$primary-dark: #337ecc;
+
+// ---------- 功能色 ----------
 $success-color: #67C23A;
 $warning-color: #E6A23C;
 $danger-color: #F56C6C;
 $info-color: #909399;
 
-// 布局变量
+// 功能色变体
+$success-light: #95d475;
+$warning-light: #eebe77;
+$danger-light: #f89898;
+$info-light: #b1b3b8;
+
+// ---------- 中性色 - Text ----------
+$text-primary: #303133;      // 主要文字
+$text-regular: #606266;      // 常规文字
+$text-secondary: #909399;    // 次要文字
+$text-placeholder: #C0C4CC;  // 占位文字
+
+// ---------- 中性色 - Background ----------
+$bg-color: #ffffff;
+$bg-page: #f5f7fa;
+$bg-overlay: rgba(255, 255, 255, 0.9);
+
+// ---------- 中性色 - Border ----------
+$border-base: #DCDFE6;
+$border-light: #E4E7ED;
+$border-lighter: #EBEEF5;
+$border-extra-light: #F2F6FC;
+
+// ---------- 业务色 - 物流状态 ----------
+$status-shipped: #409EFF;          // 已出运
+$status-in-transit: #409EFF;       // 在途
+$status-at-port: #67C23A;          // 已到港
+$status-picked-up: #E6A23C;        // 已提柜
+$status-unloaded: #909399;         // 已卸柜
+$status-returned-empty: #909399;  // 已还箱
+$status-not-shipped: #909399;      // 未出运
+
+// ---------- 业务色 - 优先级 ----------
+$priority-critical: #F56C6C;  // 紧急
+$priority-high: #E6A23C;      // 高
+$priority-medium: #409EFF;     // 中
+$priority-low: #67C23A;        // 低
+
+// ============================================================================
+// 📏 布局变量 - Layout Variables
+// ============================================================================
+
 $sidebar-width: 240px;
 $header-height: 60px;
 $footer-height: 60px;
 
-// 响应式断点
+// ============================================================================
+// 📱 响应式断点 - Breakpoints
+// ============================================================================
+
 $breakpoint-xs: 480px;
 $breakpoint-sm: 768px;
 $breakpoint-md: 992px;
 $breakpoint-lg: 1200px;
 $breakpoint-xl: 1920px;
 
-// 间距变量
+// ============================================================================
+// 📐 间距变量 - Spacing
+// ============================================================================
+
 $spacing-xs: 4px;
 $spacing-sm: 8px;
 $spacing-md: 16px;
 $spacing-lg: 24px;
 $spacing-xl: 32px;
+$spacing-xxl: 48px;
 
-// 字体大小
+// ============================================================================
+// 🔤 字体大小 - Font Sizes
+// ============================================================================
+
 $font-size-xs: 12px;
 $font-size-sm: 13px;
 $font-size-base: 14px;
@@ -34,10 +131,46 @@ $font-size-lg: 16px;
 $font-size-xl: 18px;
 $font-size-xxl: 20px;
 
-// 阴影
+// ============================================================================
+// 🌑 阴影 - Shadows
+// ============================================================================
+
 $shadow-light: 0 2px 4px rgba(0, 0, 0, 0.12), 0 0 6px rgba(0, 0, 0, 0.04);
 $shadow-base: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
 $shadow-dark: 0 2px 20px 0 rgba(0, 0, 0, 0.2);
 
-// 导出所有变量供 @use 使用
+// ============================================================================
+// ⭕ 圆角 - Border Radius
+// ============================================================================
+
+$radius-small: 2px;
+$radius-base: 4px;
+$radius-large: 8px;
+$radius-circle: 50%;
+
+// ============================================================================
+// ⏱️ 过渡动画 - Transitions
+// ============================================================================
+
+$transition-base: all 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+$transition-fade: opacity 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+$transition-transform: transform 0.3s cubic-bezier(0.645, 0.045, 0.355, 1);
+
+// ============================================================================
+// 🎯 Z-Index 层级
+// ============================================================================
+
+$z-index-normal: 1;
+$z-index-dropdown: 1000;
+$z-index-sticky: 1020;
+$z-index-fixed: 1030;
+$z-index-modal-backdrop: 1040;
+$z-index-modal: 1050;
+$z-index-popover: 1060;
+$z-index-tooltip: 1070;
+
+// ============================================================================
+// 📦 导出所有变量供 @use 使用
+// ============================================================================
+
 @forward 'sass:meta';

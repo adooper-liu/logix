@@ -177,6 +177,8 @@ const timelineData = computed(() => {
 </template>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables' as *;
+
 .timeline-card {
   margin-bottom: 20px;
 
@@ -188,12 +190,12 @@ const timelineData = computed(() => {
     .title {
       font-size: 16px;
       font-weight: 600;
-      color: #303133;
+      color: $text-primary;
     }
 
     .subtitle {
       font-size: 14px;
-      color: #909399;
+      color: $text-secondary;
     }
   }
 
@@ -232,7 +234,7 @@ const timelineData = computed(() => {
       &.expired {
         .event-marker {
           background: #fef0f0;
-          border-color: #f56c6c;
+          border-color: $danger-color;
 
           .event-icon {
             filter: grayscale(0.3);
@@ -291,7 +293,7 @@ const timelineData = computed(() => {
           .event-label {
             font-size: 14px;
             font-weight: 600;
-            color: #303133;
+            color: $text-primary;
           }
 
           .alert-light {
@@ -316,21 +318,21 @@ const timelineData = computed(() => {
 
         .event-date {
           font-size: 13px;
-          color: #409eff;
+          color: $primary-color;
           font-weight: 500;
           margin-bottom: 3px;
         }
 
         .event-status {
           font-size: 11px;
-          color: #606266;
+          color: $text-regular;
           margin-bottom: 3px;
           font-weight: 500;
         }
 
         .event-full-label {
           font-size: 11px;
-          color: #909399;
+          color: $text-secondary;
         }
       }
 
