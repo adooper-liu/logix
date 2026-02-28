@@ -1,0 +1,32 @@
+# Dependencies
+node_modules
+dist
+build
+
+# Logs
+*.log
+logs
+
+# Database
+*.sql
+*.db
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build outputs
+coverage
+.nyc_output
+
+# Config files
+.eslintrc.js
+.eslintrc.cjs
+.prettierrc.json
+
+# Scripts
+scripts

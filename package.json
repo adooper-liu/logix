@@ -1,8 +1,30 @@
 {
-  "dependencies": {
-    "xlsx": "^0.18.5"
+  "name": "logix-monorepo",
+  "version": "1.0.0",
+  "description": "LogiX 项目 Lint 配置",
+  "scripts": {
+    "lint": "npm run lint:backend && npm run lint:frontend && npm run lint:md",
+    "lint:backend": "cd backend && npm run lint",
+    "lint:frontend": "cd frontend && npm run lint",
+    "lint:md": "markdownlint-cli2 \"frontend/public/docs/**/*.md\" \"./*.md\"",
+    "lint:fix": "npm run lint:fix:backend && npm run lint:fix:frontend && npm run lint:fix:md",
+    "lint:fix:backend": "cd backend && npm run lint -- --fix",
+    "lint:fix:frontend": "cd frontend && npm run lint -- --fix",
+    "lint:fix:md": "markdownlint-cli2 \"frontend/public/docs/**/*.md\" \"./*.md\" --fix",
+    "lint:naming": "npm run lint:naming:backend && npm run lint:naming:frontend",
+    "lint:naming:backend": "cd backend && npm run lint",
+    "lint:naming:frontend": "cd frontend && npm run lint",
+    "format": "npm run format:backend && npm run format:frontend && npm run format:md",
+    "format:backend": "cd backend && npm run format",
+    "format:frontend": "cd frontend && npm run format",
+    "format:md": "markdownlint-cli2 \"frontend/public/docs/**/*.md\" \"./*.md\" --fix",
+    "type-check": "npm run type-check:backend && npm run type-check:frontend",
+    "type-check:backend": "cd backend && npm run type-check",
+    "type-check:frontend": "cd frontend && npm run type-check",
+    "validate": "npm run type-check && npm run lint && npm run lint:naming"
   },
   "devDependencies": {
-    "cross-env": "^10.1.0"
+    "cross-env": "^10.1.0",
+    "markdownlint-cli2": "^0.21.0"
   }
 }

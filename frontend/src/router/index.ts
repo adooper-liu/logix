@@ -12,6 +12,7 @@ const ExcelImport = () => import('@/views/import/ExcelImport.vue')
 const Monitoring = () => import('@/views/monitoring/Monitoring.vue')
 const DictMapping = () => import('@/views/system/DictMapping.vue')
 const Settings = () => import('@/views/settings/Settings.vue')
+const HelpDocumentation = () => import('@/views/help/HelpDocumentation.vue')
 const About = () => import('@/views/About.vue')
 const Login = () => import('@/views/Login.vue')
 
@@ -96,6 +97,16 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '系统设置',
           icon: 'Setting',
+          requiresAuth: true
+        }
+      },
+      {
+        path: 'help',
+        name: 'HelpDocumentation',
+        component: HelpDocumentation,
+        meta: {
+          title: '帮助文档',
+          icon: 'Reading',
           requiresAuth: true
         }
       },

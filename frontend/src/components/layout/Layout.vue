@@ -22,7 +22,8 @@ import {
   House,
   Monitor,
   InfoFilled,
-  DocumentCopy
+  DocumentCopy,
+  Notebook
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
@@ -67,6 +68,11 @@ const menuGroups = computed(() => [
         meta: { title: '系统设置', icon: 'Setting' }
       },
       {
+        path: '/help',
+        name: 'HelpDocumentation',
+        meta: { title: '帮助文档', icon: 'Notebook' }
+      },
+      {
         path: '/about',
         name: 'About',
         meta: { title: '关于', icon: 'InfoFilled' }
@@ -93,7 +99,8 @@ const iconMap: Record<string, unknown> = {
   Monitor,
   Setting,
   InfoFilled,
-  DocumentCopy
+  DocumentCopy,
+  Notebook
 }
 
 // 当前激活的路由
