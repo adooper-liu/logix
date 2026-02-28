@@ -13,8 +13,9 @@
 3. [开发流程规范](#开发流程规范)
 4. [命名规范](#命名规范)
 5. [颜色系统规范](#颜色系统规范) ⭐ 新增
-6. [关键开发步骤](#关键开发步骤)
-7. [常用映射参考](#常用映射参考)
+6. [多语言规范](#多语言规范) ⭐ 新增
+7. [关键开发步骤](#关键开发步骤)
+8. [常用映射参考](#常用映射参考)
 
 ---
 
@@ -799,6 +800,369 @@ const statusColors = {
 - **[颜色系统使用指南](./COLOR_SYSTEM_GUIDE.md)** - 完整的颜色系统文档
 - **[variables.scss](../src/assets/styles/variables.scss)** - 颜色变量定义
 - **[useColors.ts](../src/composables/useColors.ts)** - 颜色组合式函数
+
+---
+
+## 🌍 多语言规范
+
+### 核心原则
+
+**禁止硬编码文本**: 所有用户可见的文本必须使用多语言翻译。
+
+- ❌ **错误做法**: 直接在模板中写中文文本
+- ✅ **正确做法**: 使用 `$t()` 或 `t()` 函数翻译
+
+**实施规则**:
+```vue
+<!-- ❌ 错误 -->
+<el-button>确认</el-button>
+<el-button>删除</el-button>
+
+<!-- ✅ 正确 -->
+<el-button>{{ $t('common.confirm') }}</el-button>
+<el-button>{{ $t('common.delete') }}</el-button>
+```
+
+### 支持的语言
+
+| 语言代码 | 语言名称 | 使用场景 |
+|---------|---------|---------|
+| `zh-CN` | 简体中文 | 默认语言，中文用户 |
+| `en-US` | English | 国际化用户 |
+| `ja-JP` | 日本語 | 日本用户 |
+
+### 使用方法
+
+#### 1. 在模板中使用
+
+```vue
+<template>
+  <div>
+    <!-- 简单翻译 -->
+    <h1>{{ $t('common.appName') }}</h1>
+    <p>{{ $t('common.slogan') }}</p>
+
+    <!-- 带参数的翻译 -->
+    <p>{{ $t('user.welcome', { name: userName }) }}</p>
+
+    <!-- 列表翻译 -->
+    <span>{{ $t('common.total', { count: items.length }) }}</span>
+  </div>
+</template>
+```
+
+#### 2. 在 Composition API 中使用
+
+```typescript
+<script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
+// 简单翻译
+const title = t('common.appName')
+
+// 带参数的翻译
+const welcomeMessage = computed(() => t('user.welcome', { name: userName.value }))
+</script>
+```
+
+#### 3. 动态语言切换
+
+```vue
+<script setup lang="ts">
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+</script>
+
+<template>
+  <LanguageSwitcher />
+</template>
+```
+
+### 翻译文件结构
+
+```typescript
+// frontend/src/locales/zh-CN.ts
+export default {
+  // 按模块分组
+  common: {
+    appName: 'LogiX',
+    slogan: '让复杂物流变得简单愉快',
+    confirm: '确认',
+    cancel: '取消'
+  },
+  nav: {
+    shipments: '货柜',
+    system: '系统',
+    settings: '设置'
+  },
+  container: {
+    containerNumber: '集装箱号',
+    logisticsStatus: '物流状态',
+    status: {
+      shipped: '已出运',
+      atPort: '已到港'
+    }
+  }
+}
+```
+
+### 翻译键命名规范
+
+#### 1. 使用嵌套结构
+
+✅ **推荐**:
+```typescript
+{
+  container: {
+    status: {
+      shipped: '已出运',
+      atPort: '已到港'
+    }
+  }
+}
+```
+
+❌ **不推荐**:
+```typescript
+{
+  'container.status.shipped': '已出运',
+  'container.status.atPort': '已到港'
+}
+```
+
+#### 2. 使用小写字母和连字符
+
+✅ **推荐**:
+```typescript
+{
+  containerNumber: '集装箱号',
+  logisticsStatus: '物流状态',
+  orderNumber: '订单号'
+}
+```
+
+❌ **不推荐**:
+```typescript
+{
+  ContainerNumber: '集装箱号',
+  logistics_status: '物流状态',
+  order_number: '订单号'
+}
+```
+
+#### 3. 按功能模块分组
+
+推荐的结构：
+```typescript
+{
+  // 通用
+  common: { ... },
+
+  // 导航菜单
+  nav: { ... },
+
+  // 用户相关
+  user: { ... },
+
+  // 业务模块
+  container: { ... },
+  order: { ... },
+  port: { ... },
+  demurrage: { ... },
+
+  // 验证和错误
+  validation: { ... },
+  error: { ... }
+}
+```
+
+### 添加新翻译的步骤
+
+#### 1. 在所有语言文件中添加相同的键
+
+**zh-CN.ts**:
+```typescript
+export default {
+  myModule: {
+    newKey: '新的翻译文本'
+  }
+}
+```
+
+**en-US.ts**:
+```typescript
+export default {
+  myModule: {
+    newKey: 'New translated text'
+  }
+}
+```
+
+**ja-JP.ts**:
+```typescript
+export default {
+  myModule: {
+    newKey: '新しい翻訳テキスト'
+  }
+}
+```
+
+#### 2. 在组件中使用
+
+```vue
+<template>
+  <span>{{ $t('myModule.newKey') }}</span>
+</template>
+```
+
+### 最佳实践
+
+#### 1. 避免文本拼接
+
+❌ **不推荐**:
+```vue
+<template>
+  <span>{{ $t('welcome') }} {{ userName }}</span>
+</template>
+```
+
+✅ **推荐**:
+```typescript
+// 翻译文件
+welcome: '欢迎，{name}'
+
+// 组件中
+<template>
+  <span>{{ $t('user.welcome', { name: userName }) }}</span>
+</template>
+```
+
+#### 2. 保持所有语言文件结构一致
+
+所有语言的翻译文件必须包含相同的键：
+
+```typescript
+// ✅ 正确
+// zh-CN.ts
+{ container: { status: { shipped: '已出运' } } }
+
+// en-US.ts
+{ container: { status: { shipped: 'Shipped' } } }
+
+// ja-JP.ts
+{ container: { status: { shipped: '出荷済み' } } }
+```
+
+#### 3. 考虑文本长度差异
+
+- 英文通常比中文长约 20-30%
+- 日文可能比中文略长
+- UI 设计时预留足够空间
+
+```vue
+<!-- ✅ 推荐 - 使用弹性布局 -->
+<div class="flex items-center">
+  <span>{{ $t('some.longText') }}</span>
+</div>
+
+<!-- ❌ 不推荐 - 固定宽度可能导致溢出 -->
+<div style="width: 100px;">
+  <span>{{ $t('some.longText') }}</span>
+</div>
+```
+
+#### 4. 使用语义化键名
+
+✅ **推荐**:
+```typescript
+{
+  validation: {
+    required: '此项为必填项',
+    email: '请输入有效的邮箱地址'
+  }
+}
+```
+
+❌ **不推荐**:
+```typescript
+{
+  error1: '此项为必填项',
+  error2: '请输入有效的邮箱地址'
+}
+```
+
+### 代码审查检查清单
+
+#### 新代码开发
+- [ ] 所有用户可见文本使用了翻译函数
+- [ ] 没有硬编码的中文字符串
+- [ ] 翻译键使用了嵌套结构
+- [ ] 所有语言文件都添加了对应翻译
+- [ ] 测试了语言切换功能
+
+#### 翻译文件维护
+- [ ] 新增翻译时，所有语言文件都同步更新
+- [ ] 翻译键命名符合规范
+- [ ] 使用了语义化的模块分组
+- [ ] 翻译文本准确且符合语言习惯
+
+### 常见错误示例
+
+#### 错误 1: 硬编码文本
+
+```vue
+<!-- ❌ 错误 -->
+<el-button>确认</el-button>
+
+<!-- ✅ 正确 -->
+<el-button>{{ $t('common.confirm') }}</el-button>
+```
+
+#### 错误 2: 文本拼接
+
+```vue
+<!-- ❌ 错误 -->
+<template>
+  <span>共 {{ count }} 条</span>
+</template>
+
+<!-- ✅ 正确 -->
+// 翻译文件
+total: '共 {count} 条'
+
+// 组件中
+<template>
+  <span>{{ $t('common.total', { count }) }}</span>
+</template>
+```
+
+#### 错误 3: 翻译键不一致
+
+```typescript
+// ❌ 错误 - 只在中文文件中添加
+// zh-CN.ts
+{ myModule: { newKey: '新功能' } }
+
+// en-US.ts
+// 缺少翻译
+
+// ✅ 正确 - 所有语言都添加
+// zh-CN.ts
+{ myModule: { newKey: '新功能' } }
+
+// en-US.ts
+{ myModule: { newKey: 'New Feature' } }
+
+// ja-JP.ts
+{ myModule: { newKey: '新機能' } }
+```
+
+### 相关文档
+
+- **[多语言使用指南](./INTERNATIONALIZATION_GUIDE.md)** - 完整的多语言系统文档
+- **[locales/](../src/locales/)** - 翻译文件目录
+- **[LanguageSwitcher.vue](../src/components/LanguageSwitcher.vue)** - 语言切换组件
 
 ---
 

@@ -25,57 +25,60 @@ import {
 } from '@element-plus/icons-vue'
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 
 const router = useRouter()
 const route = useRoute()
+const { t } = useI18n()
 const userStore = useUserStore()
 
 // 菜单分组定义
 const menuGroups = computed(() => [
   {
-    title: '货柜',
+    title: t('nav.shipments'),
     icon: 'Box',
     items: [
       {
         path: '/shipments',
         name: 'Shipments',
-        meta: { title: '货柜管理', icon: 'Box' },
+        meta: { title: t('nav.containerManagement'), icon: 'Box' },
       },
     ],
   },
   {
-    title: '系统',
+    title: t('nav.system'),
     icon: 'Setting',
     items: [
       {
         path: '/import',
         name: 'ExcelImport',
-        meta: { title: 'Excel数据导入', icon: 'Upload' },
+        meta: { title: t('nav.excelImport'), icon: 'Upload' },
       },
       {
         path: '/monitoring',
         name: 'Monitoring',
-        meta: { title: '系统监控', icon: 'DataBoard' },
+        meta: { title: t('nav.systemMonitoring'), icon: 'DataBoard' },
       },
       {
         path: '/dict-mapping',
         name: 'DictMapping',
-        meta: { title: '通用字典映射', icon: 'DocumentCopy' },
+        meta: { title: t('nav.dictMapping'), icon: 'DocumentCopy' },
       },
       {
         path: '/settings',
         name: 'Settings',
-        meta: { title: '系统设置', icon: 'Setting' },
+        meta: { title: t('nav.settings'), icon: 'Setting' },
       },
       {
         path: '/help',
         name: 'HelpDocumentation',
-        meta: { title: '帮助文档', icon: 'Notebook' },
+        meta: { title: t('nav.help'), icon: 'Notebook' },
       },
       {
         path: '/about',
         name: 'About',
-        meta: { title: '关于', icon: 'InfoFilled' },
+        meta: { title: t('nav.about'), icon: 'InfoFilled' },
       },
     ],
   },
@@ -139,8 +142,8 @@ const handleLogout = () => {
           <el-icon class="logo-icon">
             <Box />
           </el-icon>
-          <span class="logo-text">LogiX</span>
-          <span class="logo-slogan">让复杂物流变得简单愉快</span>
+          <span class="logo-text">{{ t('common.appName') }}</span>
+          <span class="logo-slogan">{{ t('common.slogan') }}</span>
         </div>
 
         <div class="menu-items">
@@ -179,6 +182,10 @@ const handleLogout = () => {
         </div>
 
         <div class="navbar-right">
+          <!-- 语言切换器 -->
+          <LanguageSwitcher />
+
+          <!-- 用户下拉菜单 -->
           <el-dropdown @command="handleLogout">
             <span class="user-info">
               <el-icon class="user-icon"><User /></el-icon>
@@ -189,15 +196,15 @@ const handleLogout = () => {
               <el-dropdown-menu>
                 <el-dropdown-item>
                   <el-icon><User /></el-icon>
-                  个人中心
+                  {{ t('nav.personalCenter') }}
                 </el-dropdown-item>
                 <el-dropdown-item>
                   <el-icon><Setting /></el-icon>
-                  系统设置
+                  {{ t('settings.general') }}
                 </el-dropdown-item>
                 <el-dropdown-item divided command="logout">
                   <el-icon><SwitchButton /></el-icon>
-                  退出登录
+                  {{ t('nav.logout') }}
                 </el-dropdown-item>
               </el-dropdown-menu>
             </template>
