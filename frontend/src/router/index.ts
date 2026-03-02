@@ -7,6 +7,7 @@ import Layout from '@/components/layout/Layout.vue'
 // 页面组件
 const Dashboard = () => import('@/views/dashboard/Dashboard.vue')
 const Shipments = () => import('@/views/shipments/Shipments.vue')
+const GanttChart = () => import('@/views/gantt/GanttChart.vue')
 const StatisticsVisualization = () => import('@/views/shipments/StatisticsVisualization.vue')
 const ContainerDetail = () => import('@/views/shipments/ContainerDetailRefactored.vue')
 const ExcelImport = () => import('@/views/import/ExcelImport.vue')
@@ -49,6 +50,16 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '集装箱管理',
           icon: 'Box',
+          requiresAuth: true
+        }
+      },
+      {
+        path: 'shipments/gantt-chart',
+        name: 'GanttChart',
+        component: GanttChart,
+        meta: {
+          title: '货柜甘特图',
+          icon: 'Calendar',
           requiresAuth: true
         }
       },

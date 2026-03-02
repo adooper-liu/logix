@@ -45,6 +45,11 @@ const menuGroups = computed(() => [
         meta: { title: t('nav.containerManagement'), icon: 'Box' },
       },
       {
+        path: '/shipments/gantt-chart',
+        name: 'GanttChart',
+        meta: { title: t('nav.ganttChart'), icon: 'Calendar' },
+      },
+      {
         path: '/statistics-visualization',
         name: 'StatisticsVisualization',
         meta: { title: t('nav.statisticsVisualization'), icon: 'DataBoard' },
@@ -116,7 +121,14 @@ const activeRoute = computed(() => route.path)
 
 // 判断菜单组是否激活
 const isGroupActive = (group: any) => {
-  return group.items.some((item: any) => item.path === route.path)
+  return group.items.some((item: any) => {
+    // 精确匹配或子路由匹配（包括 /shipments 和 /shipments/gantt-chart）
+    const itemPath = item.path
+    return route.path === itemPath ||
+           route.path.startsWith(itemPath + '/') ||
+           // 特殊处理：/shipments/gantt-chart 应该激活 /shipments 菜单项
+           (itemPath === '/shipments' && route.path.startsWith('/shipments/gantt-chart'))
+  })
 }
 
 // 处理菜单点击
@@ -189,7 +201,7 @@ const handleLogout = () => {
                   v-for="item in menuGroup.items"
                   :key="item.path"
                   :command="item.path"
-                  :class="{ 'is-active': activeRoute === item.path }"
+                  :class="{ 'is-active': activeRoute === item.path || activeRoute.startsWith(item.path + '/') }"
                 >
                   <el-icon>
                     <component :is="iconMap[item.meta.icon || 'Box']" />

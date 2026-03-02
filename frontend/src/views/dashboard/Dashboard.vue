@@ -6,6 +6,7 @@ import StatusDistributionChart from '@/components/dashboard/StatusDistributionCh
 import YearlyVolumeChart from '@/components/dashboard/YearlyVolumeChart.vue'
 import SankeyChart from '@/components/SankeyChart.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
+import WorldClock from '@/components/common/WorldClock.vue'
 import { containerService } from '@/services/container'
 import { Clock, Refresh, TrendCharts } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
@@ -49,7 +50,7 @@ const loadData = async () => {
     const [verifyResponse, statusResponse, yearlyResponse] = await Promise.all([
       containerService.getStatisticsVerification(startDate, endDate),
       containerService.getStatisticsDetailed(startDate, endDate),
-      containerService.getYearlyShipmentVolume(), // 年度出运量不受时间范围影响
+      containerService.getYearlyShipmentVolume() // 年度出运量不受时间范围影响
     ])
 
     if (verifyResponse.success && verifyResponse.data) {
@@ -141,6 +142,11 @@ onMounted(() => {
 
 <template>
   <div class="dashboard">
+    <!-- 多国时区时钟 -->
+    <div class="clock-section">
+      <WorldClock />
+    </div>
+
     <div class="dashboard-header">
       <h2>数据概览</h2>
       <div class="header-actions">
@@ -220,6 +226,10 @@ onMounted(() => {
 
 .dashboard {
   padding: 20px;
+}
+
+.clock-section {
+  margin-bottom: 20px;
 }
 
 .dashboard-header {

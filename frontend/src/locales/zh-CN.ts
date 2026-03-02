@@ -51,6 +51,7 @@ export default {
     shipments: '货柜',
     system: '系统',
     containerManagement: '集装箱管理',
+    ganttChart: '货柜甘特图',
     statisticsVisualization: '统计口径可视化',
     excelImport: 'Excel数据导入',
     systemMonitoring: '系统监控',
