@@ -77,15 +77,15 @@ const loadData = async () => {
 
     console.log('加载货柜数据，日期范围:', startDate, '至', endDate)
 
-    const response = await containerService.getContainers({
+    const containerResponse = await containerService.getContainers({
       page: 1,
       pageSize: 5000,
       startDate,
       endDate
     })
 
-    if (response) {
-      containers.value = response.items || []
+    if (containerResponse) {
+      containers.value = containerResponse.items || []
       ElMessage.success(`加载了 ${containers.value.length} 个货柜数据`)
       console.log('货柜数据加载完成，总数:', containers.value.length)
 
@@ -264,6 +264,135 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+.dimension-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 20px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+
+  .dimension-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #f1f3f5 100%);
+    transition: all 0.3s ease;
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    }
+
+    &.arrival-section {
+      .dimension-header .dimension-icon {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+    }
+
+    &.pickup-section {
+      .dimension-header .dimension-icon {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      }
+    }
+
+    &.last-pickup-section {
+      .dimension-header .dimension-icon {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+      }
+    }
+
+    &.return-section {
+      .dimension-header .dimension-icon {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      }
+    }
+
+    .dimension-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid rgba(0, 0, 0, 0.06);
+
+      .dimension-icon {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 10px;
+        color: white;
+        flex-shrink: 0;
+
+        svg {
+          width: 20px;
+          height: 20px;
+        }
+      }
+
+      .dimension-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: $text-primary;
+        flex: 1;
+      }
+
+      .dimension-total {
+        font-size: 20px;
+        font-weight: 700;
+        color: $text-primary;
+      }
+    }
+
+    .dimension-items {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+
+      .dimension-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.6);
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba(255, 255, 255, 0.9);
+          transform: translateX(4px);
+        }
+
+        &.warning {
+          background: linear-gradient(135deg, #fee 0%, #ffd 100%);
+          border-left: 3px solid #f56c6c;
+
+          .item-value {
+            color: #f56c6c;
+            font-weight: 700;
+          }
+        }
+
+        .item-label {
+          font-size: 12px;
+          color: $text-secondary;
+          font-weight: 500;
+        }
+
+        .item-value {
+          font-size: 14px;
+          font-weight: 600;
+          color: $text-primary;
+        }
+      }
+    }
+  }
 }
 
 .page-header {
@@ -500,6 +629,55 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
+  .dimension-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    padding: 16px;
+
+    .dimension-section {
+      padding: 12px;
+
+      .dimension-header {
+        padding-bottom: 10px;
+        gap: 8px;
+
+        .dimension-icon {
+          width: 36px;
+          height: 36px;
+
+          svg {
+            width: 18px;
+            height: 18px;
+          }
+        }
+
+        .dimension-title {
+          font-size: 13px;
+        }
+
+        .dimension-total {
+          font-size: 18px;
+        }
+      }
+
+      .dimension-items {
+        gap: 6px;
+
+        .dimension-item {
+          padding: 6px 10px;
+
+          .item-label {
+            font-size: 11px;
+          }
+
+          .item-value {
+            font-size: 13px;
+          }
+        }
+      }
+    }
+  }
+
   .page-header {
     flex-direction: column;
 
