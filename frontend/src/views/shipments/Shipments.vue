@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, shallowRef, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { containerService } from '@/services/container'
 import type { PaginationParams } from '@/types'
@@ -7,6 +7,7 @@ import type { PortOperation, TruckingTransport, EmptyReturn } from '@/types/cont
 import { Search, Refresh, View, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import CountdownCard from '@/components/CountdownCard.vue'
+import ContainerTimeFilter from '@/components/ContainerTimeFilter.vue'
 import { useContainerCountdown } from '@/composables/useContainerCountdown'
 import {
   getLogisticsStatusText as getStatusText,
@@ -16,12 +17,21 @@ import {
 
 const router = useRouter()
 
-// 表格数据
-const containers = ref<any[]>([])
-// 所有货柜数据（用于统计，不受分页影响）
-const allContainers = ref<any[]>([])
+// 表格数据 - 使用 shallowRef 减少深度响应式开销
+const containers = shallowRef<any[]>([])
+// 所有货柜数据（用于统计，不受分页影响）- 使用 shallowRef
+const allContainers = shallowRef<any[]>([])
 const loading = ref(false)
 const searchKeyword = ref('')
+
+// 时间筛选
+const timeFilter = ref<{
+  timeDimension: string
+  dateRange?: [Date, Date] | null
+}>({
+  timeDimension: 'all',
+  dateRange: null
+})
 
 // 分页参数
 const pagination = ref<PaginationParams>({
@@ -65,34 +75,44 @@ const loadContainers = async () => {
       search: searchKeyword.value
     }
 
+    // 添加时间筛选参数
+    if (timeFilter.value.dateRange && timeFilter.value.timeDimension !== 'all') {
+      params.startDate = timeFilter.value.dateRange[0]
+      params.endDate = timeFilter.value.dateRange[1]
+    }
+
     console.log('Loading containers with params:', params)
 
-    // 加载当前页数据（用于表格显示）
+    // 只加载当前页数据（用于表格显示）
     const response = await containerService.getContainers(params)
     console.log('Container response:', response)
 
     containers.value = response.items
     pagination.value.total = response.pagination.total || 0
 
-    // 加载所有货柜数据（用于统计，不带分页）
-    if (allContainers.value.length === 0) {
+    // 性能优化：不再加载所有数据用于统计
+    // 统计数据通过专门的 API 获取（待实现）
+    // 暂时使用当前页数据进行统计，直到后端 API 实现完成
+    if (allContainers.value.length === 0 && pagination.value.total <= 1000) {
+      // 如果数据量不大（<= 1000），可以加载全部数据用于统计
       try {
         const allParams: any = {
           page: 1,
-          pageSize: 999999,  // 获取所有数据
-          search: ''  // 统计时不需要搜索过滤
+          pageSize: Math.min(pagination.value.total, 1000),
+          search: ''
         }
         const allResponse = await containerService.getContainers(allParams)
         allContainers.value = allResponse.items
-        // 更新总记录数为数据库实际总数
-        pagination.value.total = allResponse.pagination.total || 0
         console.log('Loaded all containers for statistics:', allContainers.value.length)
-        console.log('Total containers in database:', pagination.value.total)
       } catch (allError) {
         console.error('Failed to load all containers for statistics:', allError)
         // 如果加载失败，使用当前页数据作为后备
         allContainers.value = response.items
       }
+    } else if (allContainers.value.length === 0 && pagination.value.total > 1000) {
+      // 数据量大时，使用当前页数据，避免加载过多数据
+      console.warn('Total containers > 1000, using current page data for statistics only')
+      allContainers.value = response.items
     }
   } catch (error) {
     console.error('Failed to load containers:', error)
@@ -341,6 +361,13 @@ const resetSearch = () => {
   loadContainers()
 }
 
+// 处理时间筛选变化
+const handleTimeFilterChange = (data: any) => {
+  timeFilter.value = data
+  pagination.value.page = 1 // 重置到第一页
+  loadContainers()
+}
+
 // 重新加载统计数据（获取所有货柜）
 const reloadStatistics = async () => {
   allContainers.value = []  // 清空缓存，强制重新加载
@@ -555,6 +582,9 @@ onUnmounted(() => {
 
     <!-- 搜索和操作栏 -->
     <el-card class="search-card">
+      <!-- 时间筛选 -->
+      <ContainerTimeFilter @filter="handleTimeFilterChange" />
+
       <div class="search-bar">
         <el-input
           v-model="searchKeyword"

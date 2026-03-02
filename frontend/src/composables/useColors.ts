@@ -96,7 +96,7 @@ export function useColors() {
       // 文字色
       '#303133': 'text.primary',
       '#606266': 'text.regular',
-      '#909399': 'text.secondary',
+      // 注意：'#909399' 已在 info 中定义，这里不再重复
       '#C0C4CC': 'text.placeholder',
 
       // 背景色

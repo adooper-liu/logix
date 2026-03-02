@@ -112,5 +112,58 @@ export default defineConfig({
         additionalData: `@use "@/assets/styles/variables.scss" as *;`
       }
     }
+  },
+  // 性能优化配置
+  build: {
+    // 启用代码分割
+    rollupOptions: {
+      output: {
+        // 手动代码分割
+        manualChunks: {
+          // Vue 核心
+          'vue-vendor': ['vue', 'vue-router', 'pinia'],
+          // Element Plus
+          'element-plus': ['element-plus', '@element-plus/icons-vue'],
+          // 工具库
+          'utils': ['axios'],
+          // 图表库
+          'charts': ['echarts']
+        }
+      }
+    },
+    // 启用 gzip 压缩
+    reportCompressedSize: true,
+    // 启用 chunk 大小警告
+    chunkSizeWarningLimit: 1000,
+    // 构建优化
+    minify: 'terser',
+    terserOptions: {
+      compress: {
+        drop_console: process.env.NODE_ENV === 'production',
+        drop_debugger: process.env.NODE_ENV === 'production'
+      }
+    },
+    // CSS 代码分割
+    cssCodeSplit: true,
+    // Source map 配置
+    sourcemap: process.env.NODE_ENV === 'development' ? 'inline' : false
+  },
+  // 预构建优化
+  optimizeDeps: {
+    include: [
+      'vue',
+      'vue-router',
+      'pinia',
+      'element-plus',
+      '@element-plus/icons-vue',
+      'axios',
+      'echarts'
+    ],
+    exclude: []
+  },
+  // ESBuild 配置
+  esbuild: {
+    // 生产环境移除 console
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : []
   }
 })

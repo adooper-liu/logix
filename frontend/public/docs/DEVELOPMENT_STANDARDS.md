@@ -12,10 +12,11 @@
 2. [失败案例总结](#失败案例总结)
 3. [开发流程规范](#开发流程规范)
 4. [命名规范](#命名规范)
-5. [颜色系统规范](#颜色系统规范) ⭐ 新增
-6. [多语言规范](#多语言规范) ⭐ 新增
-7. [关键开发步骤](#关键开发步骤)
-8. [常用映射参考](#常用映射参考)
+5. [颜色系统规范](#颜色系统规范)
+6. [多语言规范](#多语言规范)
+7. [性能优化规范](#性能优化规范) ⭐ 新增
+8. [关键开发步骤](#关键开发步骤)
+9. [常用映射参考](#常用映射参考)
 
 ---
 
@@ -1163,6 +1164,311 @@ total: '共 {count} 条'
 - **[多语言使用指南](./INTERNATIONALIZATION_GUIDE.md)** - 完整的多语言系统文档
 - **[locales/](../src/locales/)** - 翻译文件目录
 - **[LanguageSwitcher.vue](../src/components/LanguageSwitcher.vue)** - 语言切换组件
+
+---
+
+## ⚡ 性能优化规范
+
+### 核心原则
+
+**性能优先**: 所有新功能开发必须考虑性能影响，避免引入不必要的性能开销。
+
+**实施规则**:
+- ❌ **禁止**: 首屏加载非必需的资源
+- ❌ **禁止**: 在频繁触发的事件中执行耗时操作
+- ❌ **禁止**: 重复请求相同数据而不缓存
+- ✅ **必须**: 搜索输入必须使用防抖
+- ✅ **必须**: 长列表必须使用虚拟滚动或分页
+- ✅ **必须**: API 请求必须实现缓存策略
+
+### 优化策略分级
+
+#### 🔴 高优先级（必须实施）
+
+##### 1. 多语言按需加载
+
+**问题**: 当前所有 7 种语言在首次加载时全部打包，增加 50-100KB 包大小。
+
+**解决方案**: 只加载当前语言，其他语言按需动态加载。
+
+```typescript
+// ❌ 错误 - 所有语言全部打包
+import zhCN from './zh-CN'
+import enUS from './en-US'
+import jaJP from './ja-JP'
+import deDE from './de-DE'
+import frFR from './fr-FR'
+import itIT from './it-IT'
+import esES from './es-ES'
+
+export const messages = {
+  'zh-CN': zhCN,
+  'en-US': enUS,
+  'ja-JP': jaJP,
+  'de-DE': deDE,
+  'fr-FR': frFR,
+  'it-IT': itIT,
+  'es-ES': esES
+}
+
+// ✅ 正确 - 动态按需加载
+import zhCN from './zh-CN'
+
+export const messages = {
+  'zh-CN': zhCN
+}
+
+const loadLanguageAsync = async (lang: Language): Promise<void> => {
+  if (messages[lang]) return
+
+  const messagesModule = await import(`./${lang}.ts`)
+  messages[lang] = messagesModule.default
+  i18n.global.setLocaleMessage(lang, messagesModule.default)
+}
+
+export const setLanguage = async (lang: Language) => {
+  await loadLanguageAsync(lang)
+  i18n.global.locale.value = lang
+  localStorage.setItem('logix-language', lang)
+}
+```
+
+**预期收益**: 首次加载包大小减少 40-60KB。
+
+##### 2. API 数据缓存
+
+**问题**: 频繁请求相同数据，增加服务器负载和网络开销。
+
+**解决方案**: 实现多层缓存策略。
+
+```typescript
+// utils/api-cache.ts
+interface CacheEntry<T> {
+  data: T
+  expire: number
+}
+
+const cache = new Map<string, CacheEntry<any>>()
+
+export function withCache<T>(
+  key: string,
+  fetcher: () => Promise<T>,
+  ttl: number = 5 * 60 * 1000
+): Promise<T> {
+  const cached = cache.get(key)
+  if (cached && Date.now() < cached.expire) {
+    return Promise.resolve(cached.data)
+  }
+  return fetcher().then((data) => {
+    cache.set(key, { data, expire: Date.now() + ttl })
+    return data
+  })
+}
+
+// 使用
+export async function getContainers(params?: any) {
+  const cacheKey = `containers:${JSON.stringify(params)}`
+  return withCache(cacheKey, () => api.get('/containers', { params }), 3 * 60 * 1000)
+}
+```
+
+**预期收益**: API 请求减少 50% 以上。
+
+##### 3. 搜索输入防抖
+
+**问题**: 用户输入时频繁触发搜索请求，浪费资源。
+
+**解决方案**: 使用防抖延迟执行搜索。
+
+```typescript
+// ❌ 错误 - 每次输入都触发搜索
+<script setup lang="ts">
+const searchText = ref('')
+
+watch(searchText, (text) => {
+  performSearch(text) // 每次输入都执行
+})
+</script>
+
+// ✅ 正确 - 使用防抖
+<script setup lang="ts>
+import { useDebounce } from '@/composables/useDebounce'
+
+const searchText = ref('')
+const debouncedSearchText = useDebounce(searchText, 500)
+
+watch(debouncedSearchText, (text) => {
+  // 停止输入 500ms 后才执行
+  performSearch(text)
+})
+</script>
+```
+
+**预期收益**: 搜索请求减少 90% 以上。
+
+#### 🟡 中优先级（推荐实施）
+
+##### 4. 组件懒加载
+
+**问题**: 大型组件同步加载影响首屏性能。
+
+**解决方案**: 使用 `defineAsyncComponent` 异步加载。
+
+```typescript
+// ❌ 错误 - 同步加载所有子组件
+import ContainerHeader from './ContainerHeader.vue'
+import ContainerSummary from './ContainerSummary.vue'
+
+// ✅ 正确 - 懒加载大型子组件
+import { defineAsyncComponent } from 'vue'
+
+const ContainerHeader = defineAsyncComponent(() =>
+  import('./ContainerHeader.vue')
+)
+const ContainerSummary = defineAsyncComponent(() =>
+  import('./ContainerSummary.vue')
+)
+```
+
+##### 5. Pinia 状态缓存
+
+**问题**: 频繁从 Store 读取数据可能触发不必要的响应式更新。
+
+**解决方案**: 使用缓存层减少计算。
+
+```typescript
+// store/container.ts
+const CACHE_DURATION = 5 * 60 * 1000 // 5 分钟
+
+async function fetchContainers(forceRefresh = false) {
+  // 检查缓存
+  if (!forceRefresh && containers.value.length > 0) {
+    const age = Date.now() - lastFetch.value
+    if (age < CACHE_DURATION) {
+      return containers.value
+    }
+  }
+
+  loading.value = true
+  try {
+    containers.value = await getContainers()
+    lastFetch.value = Date.now()
+    return containers.value
+  } finally {
+    loading.value = false
+  }
+}
+```
+
+#### 🟢 低优先级（按需实施）
+
+##### 6. 虚拟滚动
+
+**适用场景**: 列表超过 100 条记录。
+
+```vue
+<template>
+  <el-table
+    :data="tableData"
+    height="600"
+    :virtual-scroll="true"
+    :row-height="60"
+  >
+    <el-table-column prop="id" label="ID" />
+  </el-table>
+</template>
+```
+
+##### 7. 路由预加载
+
+**实现**: 在空闲时预加载即将访问的路由。
+
+```typescript
+// router-prefetch.ts
+export async function prefetchRoutes(currentRoute: string) {
+  const routes = ['/shipments', '/monitoring', '/settings']
+  const currentIndex = routes.indexOf(currentRoute)
+  const nextRoute = routes[currentIndex + 1]
+
+  if (nextRoute) {
+    const component = routeMap[nextRoute]
+    await component()
+  }
+}
+```
+
+### 代码审查检查清单
+
+#### 新代码开发
+- [ ] 是否有不必要的同步导入？
+- [ ] 搜索输入是否使用了防抖？
+- [ ] API 请求是否实现了缓存？
+- [ ] 大型组件是否使用了懒加载？
+- [ ] 长列表是否使用了虚拟滚动或分页？
+- [ ] 图片是否使用了懒加载？
+
+#### 性能测试
+- [ ] 首屏加载时间 < 2s
+- [ ] 页面切换流畅无卡顿
+- [ ] 列表滚动性能良好
+- [ ] 网络请求数量合理
+- [ ] 包体积控制在合理范围
+
+### 常见错误示例
+
+#### 错误 1: 同步加载所有语言
+
+```typescript
+// ❌ 错误 - 首次加载全部语言
+import * as locales from './locales'
+```
+
+**修正**: 使用动态导入按需加载。
+
+#### 错误 2: 搜索无防抖
+
+```vue
+<!-- ❌ 错误 -->
+<el-input v-model="searchText" @input="handleSearch" />
+```
+
+**修正**: 使用防抖。
+
+#### 错误 3: 长列表无虚拟滚动
+
+```vue
+<!-- ❌ 错误 - 渲染 1000+ DOM 节点 -->
+<div v-for="item in items" :key="item.id">{{ item.name }}</div>
+```
+
+**修正**: 使用虚拟滚动或分页。
+
+#### 错误 4: 重复请求相同数据
+
+```typescript
+// ❌ 错误 - 每次都请求
+async function fetchData() {
+  return api.get('/data').then(res => res.data)
+}
+```
+
+**修正**: 使用缓存。
+
+### 性能指标
+
+| 指标 | 目标值 | 检测方法 |
+|------|--------|---------|
+| 首屏加载时间 | < 2s | Lighthouse |
+| 首次加载包大小 | < 500KB | Vite Bundle Analyzer |
+| API 请求命中率 | > 50% | DevTools Network |
+| 列表渲染（100条） | < 100ms | Performance API |
+| 页面切换延迟 | < 100ms | Router 钩子 |
+
+### 相关文档
+
+- **[性能优化指南](./PERFORMANCE_OPTIMIZATION_GUIDE.md)** - 完整的性能优化方案
+- **[Vite 性能优化](https://vitejs.dev/guide/performance.html)** - Vite 官方文档
+- **[Vue 3 性能优化](https://vuejs.org/guide/best-practices/performance.html)** - Vue 官方文档
 
 ---
 

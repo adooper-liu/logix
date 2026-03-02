@@ -10,6 +10,13 @@ const router = Router();
 const containerController = new ContainerController();
 
 /**
+ * @route   GET /statistics
+ * @desc    获取货柜统计数据
+ * @access  Public
+ */
+router.get('/statistics', containerController.getStatistics);
+
+/**
  * @route   GET /
  * @desc    获取货柜列表
  * @access  Public
@@ -43,12 +50,5 @@ router.put('/:id', containerController.updateContainer);
  * @access  Public
  */
 router.delete('/:id', containerController.deleteContainer);
-
-/**
- * @route   GET /statistics
- * @desc    获取货柜统计数据
- * @access  Public
- */
-router.get('/statistics', containerController.getStatistics);
 
 export default router;

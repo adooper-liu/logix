@@ -523,10 +523,11 @@ export function useContainerCountdown(containers: Ref<any[]>) {
   })
 
   // 启动定时器
+  // 性能优化：从 1 秒改为 10 秒，减少计算频率
   const startTimer = () => {
     timer = window.setInterval(() => {
       currentTime.value = new Date()
-    }, 1000)
+    }, 10000) // 每 10 秒更新一次，而不是每秒
   }
 
   // 停止定时器

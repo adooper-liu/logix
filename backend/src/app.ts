@@ -15,6 +15,7 @@ import { log } from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
 import { apiRateLimit } from './middleware/rateLimit.middleware.js';
 import routes from './routes/index.js';
+import monitoringRoutes from './routes/monitoring.routes.js';
 
 // 创建 Express 应用
 const app: Application = express();
@@ -83,7 +84,7 @@ app.use((req: Request, _res: Response, next) => {
 });
 
 // 健康检查（不使用速率限制）
-app.get('/health', (req: Request, res: Response) => {
+app.get('/health', (_req: Request, res: Response) => {
   res.status(200).json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
@@ -96,7 +97,7 @@ app.get('/health', (req: Request, res: Response) => {
 });
 
 // 服务信息
-app.get('/info', (req: Request, res: Response) => {
+app.get('/info', (_req: Request, res: Response) => {
   res.json({
     name: 'LogiX Main Service',
     version: '1.0.0',
@@ -109,6 +110,9 @@ app.get('/info', (req: Request, res: Response) => {
 
 // API 路由
 app.use(config.apiPrefix, routes);
+
+// 监控路由（挂载到 API 前缀下）
+app.use(`${config.apiPrefix}/monitoring`, monitoringRoutes);
 
 // 404 处理
 app.use(notFoundHandler);
