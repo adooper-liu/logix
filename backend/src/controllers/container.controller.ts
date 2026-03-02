@@ -570,4 +570,29 @@ export class ContainerController {
       });
     }
   };
+
+  /**
+   * 获取异常集装箱统计
+   * Get abnormal containers statistics
+   */
+  getAbnormalStatistics = async (_req: Request, res: Response): Promise<void> => {
+    try {
+      logger.info('[getAbnormalStatistics] Starting abnormal statistics calculation');
+
+      const abnormalDistribution = await this.statisticsService.getAbnormalDistribution();
+
+      logger.info('[getAbnormalStatistics] Abnormal statistics completed:', abnormalDistribution);
+
+      res.json({
+        success: true,
+        data: abnormalDistribution
+      });
+    } catch (error) {
+      logger.error('Failed to get abnormal statistics', error);
+      res.status(500).json({
+        success: false,
+        message: '获取异常统计失败'
+      });
+    }
+  };
 }

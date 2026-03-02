@@ -694,4 +694,94 @@ export class ContainerStatisticsService {
 
     return parseInt(result.count);
   }
+
+  // ==================== 异常集装箱统计 ====================
+
+  /**
+   * 获取异常集装箱统计（三种异常类型）
+   * 1. 已逾期未到港：ETA已逾期但未到港
+   * 2. 计划提柜逾期：计划提柜日期已过
+   * 3. 已超时：最晚提柜日期已过
+   */
+  async getAbnormalDistribution(): Promise<Record<string, number>> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // 并行执行三个异常查询
+    const [etaDelayCount, pickupOverdueCount, lastPickupExpiredCount] = await Promise.all([
+      this.getEtaDelayCount(today),
+      this.getPickupOverdueCount(today),
+      this.getLastPickupExpiredCount(today)
+    ]);
+
+    return {
+      etaDelay: etaDelayCount,
+      pickupOverdue: pickupOverdueCount,
+      lastPickupExpired: lastPickupExpiredCount
+    };
+  }
+
+  /**
+   * 1. 已逾期未到港：ETA < today，ATA is null，状态在 shipped/in_transit/at_port
+   */
+  private async getEtaDelayCount(today: Date): Promise<number> {
+    const todayStr = today.toISOString().split('T')[0];
+    const result = await this.containerRepository
+      .createQueryBuilder('container')
+      .select('COUNT(DISTINCT container.containerNumber)', 'count')
+      .innerJoin(
+        `(
+          SELECT po1.container_number
+          FROM process_port_operations po1
+          WHERE po1.port_type = 'destination'
+          AND po1.ata_dest_port IS NULL
+          AND po1.eta_dest_port < '${todayStr}'
+        )`,
+        'dest_po',
+        'dest_po.container_number = container.containerNumber'
+      )
+      .where('container.logisticsStatus IN (:...targetStatuses)', {
+        targetStatuses: [SimplifiedStatus.SHIPPED, SimplifiedStatus.IN_TRANSIT, SimplifiedStatus.AT_PORT]
+      })
+      .getRawOne();
+
+    return parseInt(result.count);
+  }
+
+  /**
+   * 2. 计划提柜逾期：plannedPickupDate < today，状态为 at_port，未提柜
+   */
+  private async getPickupOverdueCount(today: Date): Promise<number> {
+    const result = await this.containerRepository
+      .createQueryBuilder('container')
+      .select('COUNT(DISTINCT container.containerNumber)', 'count')
+      .innerJoin('container.portOperations', 'po')
+      .leftJoin('container.seaFreight', 'sf')
+      .leftJoin(TruckingTransport, 'tt', 'tt.containerNumber = container.containerNumber')
+      .where('po.portType = :portType', { portType: 'destination' })
+      .andWhere('container.logisticsStatus = :status', { status: SimplifiedStatus.AT_PORT })
+      .andWhere('tt.pickupDate IS NULL')
+      .andWhere('tt.plannedPickupDate < :today', { today })
+      .getRawOne();
+
+    return parseInt(result.count);
+  }
+
+  /**
+   * 3. 已超时：lastFreeDate < today，状态为 at_port，未提柜
+   */
+  private async getLastPickupExpiredCount(today: Date): Promise<number> {
+    const result = await this.containerRepository
+      .createQueryBuilder('container')
+      .select('COUNT(DISTINCT container.containerNumber)', 'count')
+      .innerJoin('container.portOperations', 'po')
+      .leftJoin(TruckingTransport, 'tt', 'tt.containerNumber = container.containerNumber')
+      .where('po.portType = :portType', { portType: 'destination' })
+      .andWhere('container.logisticsStatus = :status', { status: SimplifiedStatus.AT_PORT })
+      .andWhere('tt.containerNumber IS NULL')
+      .andWhere('po.lastFreeDate < :today', { today })
+      .getRawOne();
+
+    return parseInt(result.count);
+  }
 }

@@ -152,6 +152,21 @@ const handleLogout = () => {
         </div>
 
         <div class="menu-items">
+          <!-- HOME 链接 -->
+          <div
+            class="menu-item home-link"
+            :class="{ active: activeRoute === '/dashboard' }"
+            @click="handleMenuClick('/dashboard')"
+          >
+            <el-icon>
+              <House />
+            </el-icon>
+            <span>HOME</span>
+          </div>
+
+          <!-- 分隔符 -->
+          <div class="menu-separator"></div>
+
           <el-dropdown
             v-for="menuGroup in menuGroups"
             :key="menuGroup.title"
@@ -346,6 +361,13 @@ const handleLogout = () => {
     justify-content: center;
     gap: 8px;
     padding: 0 12px;
+
+    .menu-separator {
+      width: 1px;
+      height: 24px;
+      background: rgba(255, 255, 255, 0.15);
+      margin: 0 4px;
+    }
 
     .menu-item {
       display: inline-flex;

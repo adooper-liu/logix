@@ -152,6 +152,22 @@ class ContainerService {
     const response = await this.api.get('/containers/statistics-verify');
     return response.data;
   }
+
+  /**
+   * 获取异常集装箱统计
+   * Get abnormal containers statistics
+   */
+  async getAbnormalStatistics(): Promise<{
+    success: boolean;
+    data: {
+      etaDelay: number;
+      pickupOverdue: number;
+      lastPickupExpired: number;
+    };
+  }> {
+    const response = await this.api.get('/containers/statistics-abnormal');
+    return response.data;
+  }
 }
 
 export const containerService = new ContainerService();

@@ -31,6 +31,13 @@ router.get('/statistics-detailed', containerController.getStatisticsDetailed);
 router.get('/statistics-verify', containerController.getStatisticsVerify);
 
 /**
+ * @route   GET /statistics-abnormal
+ * @desc    获取异常集装箱统计
+ * @access  Public
+ */
+router.get('/statistics-abnormal', containerController.getAbnormalStatistics);
+
+/**
  * @route   GET /
  * @desc    获取货柜列表
  * @access  Public
