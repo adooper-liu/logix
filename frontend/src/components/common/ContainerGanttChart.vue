@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 import dayjs from 'dayjs'
 import isBetween from 'dayjs/plugin/isBetween'
 dayjs.extend(isBetween)
@@ -49,6 +49,55 @@ const allLanes = ref<LaneConfig[]>([
 
 // 当前选中的泳道
 const selectedLane = ref<LaneConfig>(allLanes.value[0])
+
+// 滚动同步
+const headerTimelineRef = ref<HTMLElement | null>(null)
+const laneTimelines = ref<HTMLElement[]>([])
+let isSyncing = false
+
+// 日期头滚动时同步所有泳道
+const onHeaderScroll = (e: Event) => {
+  if (isSyncing) return
+  isSyncing = true
+  const target = e.target as HTMLElement
+  laneTimelines.value.forEach(timeline => {
+    timeline.scrollLeft = target.scrollLeft
+  })
+  requestAnimationFrame(() => {
+    isSyncing = false
+  })
+}
+
+// 泳道滚动时同步日期头和其他泳道
+const onLaneScroll = (e: Event) => {
+  if (isSyncing) return
+  isSyncing = true
+  const target = e.target as HTMLElement
+
+  // 同步日期头
+  if (headerTimelineRef.value) {
+    headerTimelineRef.value.scrollLeft = target.scrollLeft
+  }
+
+  // 同步其他泳道
+  laneTimelines.value.forEach(timeline => {
+    if (timeline !== target) {
+      timeline.scrollLeft = target.scrollLeft
+    }
+  })
+
+  requestAnimationFrame(() => {
+    isSyncing = false
+  })
+}
+
+// 收集所有泳道的 timeline ref
+const collectLaneTimelines = () => {
+  nextTick(() => {
+    const elements = document.querySelectorAll('.lane-timeline')
+    laneTimelines.value = Array.from(elements) as HTMLElement[]
+  })
+}
 
 // 计算日期范围
 const dateRange = computed(() => {
@@ -124,126 +173,50 @@ const getContainerTooltipDate = (container: ContainerItem, lane: LaneConfig): st
   return formatFullDate(date)
 }
 
-// 生成时间分组的日期范围
-interface TimeGroup {
-  label: string
-  startDate: Date
-  endDate: Date
-  count: number
-  color: string
-}
-
-const timeGroups = computed<TimeGroup[]>(() => {
-  const groups: TimeGroup[] = []
-  const today = dayjs().startOf('day')
-
-  // 固定义所有时间组，不管是否有数据都显示
-  groups.push({
-    label: '已逾期到港',
-    startDate: dayjs(props.startDate).toDate(),
-    endDate: today.subtract(1, 'day').toDate(),
-    count: 0,
-    color: '#f56c6c'
-  })
-
-  groups.push({
-    label: '已到港',
-    startDate: dayjs(props.startDate).toDate(),
-    endDate: today.subtract(1, 'day').toDate(),
-    count: 0,
-    color: '#67c23a'
-  })
-
-  groups.push({
-    label: '今天到港',
-    startDate: today.toDate(),
-    endDate: today.toDate(),
-    count: 0,
-    color: selectedLane.value.color
-  })
-
-  groups.push({
-    label: '3天内到港',
-    startDate: today.add(1, 'day').toDate(),
-    endDate: today.add(3, 'day').toDate(),
-    count: 0,
-    color: '#e6a23c'
-  })
-
-  groups.push({
-    label: '7天内到港',
-    startDate: today.add(4, 'day').toDate(),
-    endDate: today.add(7, 'day').toDate(),
-    count: 0,
-    color: '#409eff'
-  })
-
-  groups.push({
-    label: '7天后到港',
-    startDate: today.add(8, 'day').toDate(),
-    endDate: dayjs(props.endDate).toDate(),
-    count: 0,
-    color: '#909399'
-  })
-
-  // 动态计算每个时间组的实际数量
-  groups.forEach(group => {
-    group.count = getArrivalSubset(group.label).length
-  })
-
-  return groups
-})
-
-// 获取时间组的日期数组
-const getGroupDates = (group: TimeGroup): Date[] => {
-  const dates: Date[] = []
-  const start = dayjs(group.startDate)
-  const end = dayjs(group.endDate)
-  const days = end.diff(start, 'day') + 1
-
-  // 对于"已逾期到港"和"已到港"这类历史货柜，返回空数组
-  // 它们会在getGroupContainers中根据实际日期显示
-  if (['已逾期到港', '已到港'].includes(group.label)) {
-    return []
-  }
-
-  // 对于其他时间组，返回日期范围内的所有日期
-  for (let i = 0; i < days; i++) {
-    const date = start.add(i, 'day').toDate()
-    // 检查是否在显示范围内
-    if (dayjs(date).isBetween(dayjs(props.startDate), dayjs(props.endDate), 'day', '[]')) {
-      dates.push(date)
-    }
-  }
-
-  return dates
-}
-
 // 获取按到港分组的货柜子集（使用与Shipments页面相同的逻辑）
+// 必须在 timeGroups 之前定义，因为 timeGroups 会调用这个函数
 const getArrivalSubset = (groupLabel: string): ContainerItem[] => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  return props.containers
+  // 只在第一次调用时输出详细信息
+  if (groupLabel === '已逾期到港' && !window['debugPrinted']) {
+    window['debugPrinted'] = true
+    console.log('货柜总数:', props.containers.length)
+    console.log('前5个货柜的详细信息:')
+    props.containers.slice(0, 5).forEach(container => {
+      console.log('集装箱号:', container.containerNumber)
+      console.log('  logisticsStatus:', container.logisticsStatus)
+      console.log('  currentPortType:', container.currentPortType)
+      console.log('  portOperations存在:', !!container.portOperations)
+      if (container.portOperations && container.portOperations.length > 0) {
+        console.log('  portOperations数量:', container.portOperations.length)
+        const destPortOp = container.portOperations.find((op: any) => op.portType === 'destination')
+        console.log('  目的港操作记录:', destPortOp ? {
+          portType: destPortOp.portType,
+          etaCorrection: destPortOp.etaCorrection,
+          etaDestPort: destPortOp.etaDestPort,
+          ataDestPort: destPortOp.ataDestPort
+        } : null)
+      }
+      console.log('  etaDestPort (容器级):', container.etaDestPort)
+      console.log('  ataDestPort (容器级):', container.ataDestPort)
+    })
+  }
+
+  const result = props.containers
     .filter(container => {
-      // 从portOperations中提取目的港操作记录
-      if (!container.portOperations || container.portOperations.length === 0) {
-        return false
-      }
+      // 提取ETA和ATA（直接使用容器级别字段）
+      const etaDate = container.etaDestPort
+      const ataDate = container.ataDestPort
 
-      const destPortOp = container.portOperations.find((op: any) => op.portType === 'destination')
-      if (!destPortOp) {
-        return false
-      }
-
-      // 提取ETA和ATA（与Shipments页面相同的逻辑）
-      const etaDate = destPortOp.etaCorrection || container.etaDestPort || destPortOp.etaDestPort
-      const ataDate = destPortOp.ataDestPort || container.ataDestPort
+      // 如果没有ETA和ATA，跳过
+      if (!etaDate && !ataDate) return false
 
       // 货柜当前港口类型
       const currentPortType = container.currentPortType
 
-      // 判断是否已出运但未到港（状态为 SHIPPED、IN_TRANSIT、AT_PORT）
+      // 判断是否已出运但未到港之后状态的货柜
       const isShippedButNotArrived = ['shipped', 'in_transit', 'at_port'].includes(container.logisticsStatus?.toLowerCase())
 
       if (groupLabel === '今天到港') {
@@ -316,16 +289,16 @@ const getArrivalSubset = (groupLabel: string): ContainerItem[] => {
     })
     .map(container => {
       // 提取并保存日期用于后续日期匹配
-      const destPortOp = container.portOperations.find((op: any) => op.portType === 'destination')
-      const etaDate = destPortOp?.etaCorrection || container.etaDestPort || destPortOp?.etaDestPort
-      const ataDate = destPortOp?.ataDestPort || container.ataDestPort
+      // 按照用户要求的顺序：ATA、ETA
+      const etaDate = container.etaDestPort
+      const ataDate = container.ataDestPort
 
-      // 根据groupLabel选择使用的日期
+      // 按顺序提取第一个有的日期：ATA > ETA
       let extractedDate: Date | null = null
-      if (groupLabel === '今天到港' || groupLabel === '已到港') {
-        extractedDate = ataDate ? new Date(ataDate) : null
-      } else if (['已逾期到港', '3天内到港', '7天内到港', '7天后到港'].includes(groupLabel)) {
-        extractedDate = etaDate ? new Date(etaDate) : null
+      if (ataDate) {
+        extractedDate = new Date(ataDate)
+      } else if (etaDate) {
+        extractedDate = new Date(etaDate)
       }
 
       return {
@@ -333,6 +306,99 @@ const getArrivalSubset = (groupLabel: string): ContainerItem[] => {
         extractedDate
       }
     })
+
+  // 调试日志
+  console.log(`${groupLabel} 筛选结果:`, {
+    总数: result.length,
+    有日期的: result.filter(c => c.extractedDate).length,
+    日期列表: result.filter(c => c.extractedDate).map(c => ({
+      集装箱号: c.containerNumber,
+      日期: dayjs(c.extractedDate).format('YYYY-MM-DD')
+    }))
+  })
+
+  return result
+}
+
+// 生成时间分组的日期范围
+interface TimeGroup {
+  label: string
+  startDate: Date
+  endDate: Date
+  count: number
+  color: string
+}
+
+const timeGroups = computed<TimeGroup[]>(() => {
+  const groups: TimeGroup[] = []
+  const today = dayjs().startOf('day')
+
+  // 固定义所有时间组，不管是否有数据都显示
+  groups.push({
+    label: '已逾期到港',
+    startDate: dayjs(props.startDate).toDate(),
+    endDate: today.subtract(1, 'day').toDate(),
+    count: 0,
+    color: '#f56c6c'
+  })
+
+  groups.push({
+    label: '已到港',
+    startDate: dayjs(props.startDate).toDate(),
+    endDate: today.subtract(1, 'day').toDate(),
+    count: 0,
+    color: '#67c23a'
+  })
+
+  groups.push({
+    label: '今天到港',
+    startDate: today.toDate(),
+    endDate: today.toDate(),
+    count: 0,
+    color: selectedLane.value.color
+  })
+
+  groups.push({
+    label: '3天内到港',
+    startDate: today.add(1, 'day').toDate(),
+    endDate: today.add(3, 'day').toDate(),
+    count: 0,
+    color: '#e6a23c'
+  })
+
+  groups.push({
+    label: '7天内到港',
+    startDate: today.add(4, 'day').toDate(),
+    endDate: today.add(7, 'day').toDate(),
+    count: 0,
+    color: '#409eff'
+  })
+
+  groups.push({
+    label: '7天后到港',
+    startDate: today.add(8, 'day').toDate(),
+    endDate: dayjs(props.endDate).toDate(),
+    count: 0,
+    color: '#909399'
+  })
+
+  // 动态计算每个时间组的实际数量
+  groups.forEach(group => {
+    group.count = getArrivalSubset(group.label).length
+  })
+
+  return groups
+})
+
+// 监听 timeGroups 变化，重新收集 ref
+watch(() => timeGroups.value, () => {
+  collectLaneTimelines()
+}, { deep: true, immediate: true })
+
+// 获取时间组的日期数组
+// 统一使用 dateArray 作为日期基准，确保日期头和格子对齐
+const getGroupDates = (group: TimeGroup): Date[] => {
+  return dateArray.value
 }
 
 // 获取时间组对应的货柜子集
@@ -353,25 +419,12 @@ const getGroupContainers = (group: TimeGroup, date: Date): ContainerItem[] => {
   // 先获取该时间组的所有货柜子集
   const groupSubset = getGroupContainersSubset(group)
 
-  // 对于"已逾期到港"和"已到港"，货柜应该显示在实际ATA/ETA日期上
-  if (['已逾期到港', '已到港'].includes(group.label)) {
-    // 当日期等于货柜的actualDate时显示该货柜
-    const targetDate = dayjs(date)
-    return groupSubset.filter(item => {
-      if (!item.extractedDate) return false
-      return dayjs(item.extractedDate).isSame(targetDate, 'day')
-    })
-  }
-
-  // 对于其他时间组，货柜显示在时间组定义的日期范围内
-  // 例如"3天内到港"的货柜显示在today+1到today+3的每一天
+  // 所有货柜都显示在实际提取的日期上（按ATA、修正ETA、ETA的顺序取第一个有的）
   const targetDate = dayjs(date)
-  const result = groupSubset.filter(item => {
+  return groupSubset.filter(item => {
     if (!item.extractedDate) return false
     return dayjs(item.extractedDate).isSame(targetDate, 'day')
   })
-
-  return result
 }
 
 </script>
@@ -416,7 +469,7 @@ const getGroupContainers = (group: TimeGroup, date: Date): ContainerItem[] => {
 
     <div class="gantt-header">
       <div class="lane-header">泳道</div>
-      <div class="timeline-header">
+      <div class="timeline-header" ref="headerTimelineRef" @scroll="onHeaderScroll">
         <div
           v-for="date in dateArray"
           :key="date.getTime()"
@@ -437,51 +490,27 @@ const getGroupContainers = (group: TimeGroup, date: Date): ContainerItem[] => {
             <span class="lane-label-count">({{ group.count }})</span>
           </div>
         </div>
-        <div class="lane-timeline">
-          <!-- 对于"已逾期到港"和"已到港"，遍历所有显示日期，只在货柜实际日期显示 -->
-          <template v-if="['已逾期到港', '已到港'].includes(group.label)">
-            <div
-              v-for="date in dateArray"
-              :key="date.getTime()"
-              class="timeline-cell"
-              :class="{ 'weekend': dayjs(date).day() === 0 || dayjs(date).day() === 6 }"
+        <div class="lane-timeline" @scroll="onLaneScroll">
+          <!-- 统一使用 dateArray 作为日期基准，确保与日期头对齐 -->
+          <div
+            v-for="date in dateArray"
+            :key="date.getTime()"
+            class="timeline-cell"
+            :class="{ 'weekend': dayjs(date).day() === 0 || dayjs(date).day() === 6 }"
+          >
+            <el-tooltip
+              v-for="container in getGroupContainers(group, date)"
+              :key="container.containerNumber"
+              :content="`${container.containerNumber} - ${getContainerTooltipDate(container, selectedLane)}`"
+              placement="top"
+              effect="dark"
             >
-              <el-tooltip
-                v-for="container in getGroupContainers(group, date)"
-                :key="container.containerNumber"
-                :content="`${container.containerNumber} - ${getContainerTooltipDate(container, selectedLane)}`"
-                placement="top"
-                effect="dark"
-              >
-                <div
-                  class="container-dot"
-                  :style="{ backgroundColor: group.color }"
-                ></div>
-              </el-tooltip>
-            </div>
-          </template>
-          <!-- 对于其他时间组，遍历时间组定义的日期范围 -->
-          <template v-else>
-            <div
-              v-for="date in getGroupDates(group)"
-              :key="date.getTime()"
-              class="timeline-cell"
-              :class="{ 'weekend': dayjs(date).day() === 0 || dayjs(date).day() === 6 }"
-            >
-              <el-tooltip
-                v-for="container in getGroupContainers(group, date)"
-                :key="container.containerNumber"
-                :content="`${container.containerNumber} - ${getContainerTooltipDate(container, selectedLane)}`"
-                placement="top"
-                effect="dark"
-              >
-                <div
-                  class="container-dot"
-                  :style="{ backgroundColor: group.color }"
-                ></div>
-              </el-tooltip>
-            </div>
-          </template>
+              <div
+                class="container-dot"
+                :style="{ backgroundColor: group.color }"
+              ></div>
+            </el-tooltip>
+          </div>
         </div>
       </div>
     </div>
