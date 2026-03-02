@@ -173,7 +173,7 @@ const filterContainersByCondition = (allData: any[], filterType: string, filterD
         arrivalDate.setHours(0, 0, 0, 0)
         if (filterDays === 'today') {
           return arrivalDate.getTime() === today.getTime()
-        } else if (filterDays === 'arrived-before-today') {
+        } else if (filterDays === 'arrivedBeforeToday') {
           return arrivalDate.getTime() < today.getTime()
         }
         return false
@@ -186,14 +186,14 @@ const filterContainersByCondition = (allData: any[], filterType: string, filterD
         if (!etaDate) return false
         const time = getRemainingTime(etaDate)
         return time?.isExpired === true
-      } else if (filterDays === '0-3' || filterDays === '4-7' || filterDays === '7+') {
+      } else if (filterDays === 'within3Days' || filterDays === 'within7Days' || filterDays === 'over7Days') {
         if (!etaDate) return false
         const time = getRemainingTime(etaDate)
         if (!time) return false
         if (time.isExpired) return false
-        if (filterDays === '0-3') return time.days <= 3
-        if (filterDays === '4-7') return time.days > 3 && time.days <= 7
-        if (filterDays === '7+') return time.days > 7
+        if (filterDays === 'within3Days') return time.days <= 3
+        if (filterDays === 'within7Days') return time.days > 3 && time.days <= 7
+        if (filterDays === 'over7Days') return time.days > 7
       } else if (filterDays === 'other') {
         // 其他记录：已出运/在途/AT_PORT，但无ETA或已过期
         if (!etaDate) return true  // 无ETA
@@ -223,7 +223,7 @@ const filterContainersByCondition = (allData: any[], filterType: string, filterD
       const plannedPickupDate = firstTrucking.plannedPickupDate
       const pickupDate = firstTrucking.pickupDate
 
-      if (filterDays === 'today-actual') {
+      if (filterDays === 'todayActual') {
         // 今日实际提柜
         if (pickupDate) {
           const pickupDateObj = new Date(pickupDate)
@@ -231,7 +231,7 @@ const filterContainersByCondition = (allData: any[], filterType: string, filterD
           return pickupDateObj.getTime() === today.getTime()
         }
         return false
-      } else if (filterDays === 'today-planned') {
+      } else if (filterDays === 'todayPlanned') {
         // 今日计划提柜（未提柜）
         if (pickupDate) return false  // 已提柜
         if (plannedPickupDate) {
@@ -248,15 +248,15 @@ const filterContainersByCondition = (allData: any[], filterType: string, filterD
           return time?.isExpired === true
         }
         return false
-      } else if (filterDays === '0-3' || filterDays === '4-7') {
+      } else if (filterDays === 'within3Days' || filterDays === 'within7Days') {
         // 3天/7天内预计提柜（未提柜）
         if (pickupDate) return false  // 已提柜
         if (!plannedPickupDate) return false
         const time = getRemainingTime(plannedPickupDate)
         if (!time) return false
         if (time.isExpired) return false
-        if (filterDays === '0-3') return time.days <= 3
-        if (filterDays === '4-7') return time.days > 3 && time.days <= 7
+        if (filterDays === 'within3Days') return time.days <= 3
+        if (filterDays === 'within7Days') return time.days > 3 && time.days <= 7
       }
     }
 
@@ -278,15 +278,15 @@ const filterContainersByCondition = (allData: any[], filterType: string, filterD
 
       // 缺最后免费日
       if (!destPortOp?.lastFreeDate) {
-        return filterDays === 'no-last-free-date'
+        return filterDays === 'noLastFreeDate'
       }
 
       const time = getRemainingTime(destPortOp.lastFreeDate)
       if (!time) return false
-      if (filterDays === '0') return time.isExpired
-      if (filterDays === '1-3') return !time.isExpired && time.days <= 3
-      if (filterDays === '4-7') return !time.isExpired && time.days > 3 && time.days <= 7
-      if (filterDays === '8+') return !time.isExpired && time.days > 7
+      if (filterDays === 'expired') return time.isExpired
+      if (filterDays === 'urgent') return !time.isExpired && time.days <= 3
+      if (filterDays === 'warning') return !time.isExpired && time.days > 3 && time.days <= 7
+      if (filterDays === 'normal') return !time.isExpired && time.days > 7
     }
 
     // 最晚还箱过滤
@@ -312,19 +312,23 @@ const filterContainersByCondition = (allData: any[], filterType: string, filterD
 
       // 缺最后还箱日
       if (!emptyReturn?.lastReturnDate) {
-        return filterDays === 'no-last-return-date'
+        return filterDays === 'noLastReturnDate'
       }
 
       const time = getRemainingTime(emptyReturn.lastReturnDate)
       if (!time) return false
-      if (filterDays === '0') return time.isExpired
-      if (filterDays === '1-3') return !time.isExpired && time.days <= 3
-      if (filterDays === '4-7') return !time.isExpired && time.days > 3 && time.days <= 7
-      if (filterDays === '8+') return !time.isExpired && time.days > 7
+      if (filterDays === 'expired') return time.isExpired
+      if (filterDays === 'urgent') return !time.isExpired && time.days <= 3
+      if (filterDays === 'warning') return !time.isExpired && time.days > 3 && time.days <= 7
+      if (filterDays === 'normal') return !time.isExpired && time.days > 7
     }
 
     // 按状态过滤
     if (filterType === '按状态') {
+      // 特殊处理：arrived_at_transit 筛选当前港口为transit的货柜
+      if (filterDays === 'arrived_at_transit') {
+        return c.currentPortType === 'transit'
+      }
       return c.logisticsStatus === filterDays
     }
 
