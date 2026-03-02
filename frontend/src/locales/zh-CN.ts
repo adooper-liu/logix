@@ -51,6 +51,7 @@ export default {
     shipments: '货柜',
     system: '系统',
     containerManagement: '集装箱管理',
+    statisticsVisualization: '统计口径可视化',
     excelImport: 'Excel数据导入',
     systemMonitoring: '系统监控',
     dictMapping: '通用字典映射',
@@ -92,10 +93,11 @@ export default {
       notShipped: '未出运',
       shipped: '已出运',
       inTransit: '在途',
-      atPort: '已到港',
+      atPort: '已到目的港',
       pickedUp: '已提柜',
       unloaded: '已卸柜',
-      returnedEmpty: '已还箱'
+      returnedEmpty: '已还箱',
+      arrivedAtTransit: '已到中转港'
     },
     // 柜型
     types: {

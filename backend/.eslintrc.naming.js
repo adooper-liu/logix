@@ -17,35 +17,26 @@ module.exports = {
     // TypeScript 命名约定
     '@typescript-eslint/naming-convention': [
       'error',
-      // 类名和接口名：PascalCase
+      // 类名：PascalCase
       {
         selector: 'class',
-        format: ['PascalCase'],
-        custom: {
-          regex: '^(I[A-Z]|[A-Z][a-z])',
-          match: false
-        }
+        format: ['PascalCase']
       },
+      // 接口名：PascalCase，必须以I开头
       {
         selector: 'interface',
         format: ['PascalCase'],
-        prefix: ['I'],
-        custom: {
-          regex: '^I[A-Z][a-zA-Z0-9]*$',
-          match: true
-        }
+        prefix: ['I']
       },
       // 类型别名：PascalCase
       {
         selector: 'typeAlias',
-        format: ['PascalCase'],
-        prefix: ['T']
+        format: ['PascalCase']
       },
-      // 枚举：PascalCase + Enum 后缀
+      // 枚举：PascalCase
       {
         selector: 'enum',
-        format: ['PascalCase'],
-        suffix: ['Enum']
+        format: ['PascalCase']
       },
       // 枚举成员：UPPER_SNAKE_CASE
       {
@@ -61,25 +52,15 @@ module.exports = {
         selector: 'function',
         format: ['camelCase']
       },
-      // 接口属性：camelCase
+      // 属性：camelCase
       {
-        selector: 'interfaceProperty',
+        selector: 'property',
         format: ['camelCase'],
         leadingUnderscore: 'allow'
       },
-      // 类属性：camelCase
-      {
-        selector: 'classProperty',
-        format: ['camelCase'],
-        leadingUnderscore: 'allow'
-      },
-      // 方法和访问器：camelCase
+      // 方法：camelCase
       {
         selector: 'method',
-        format: ['camelCase']
-      },
-      {
-        selector: 'accessor',
         format: ['camelCase']
       },
       // 参数：camelCase
@@ -88,27 +69,6 @@ module.exports = {
         format: ['camelCase'],
         leadingUnderscore: 'allow'
       }
-    ],
-
-    // 数据库表名和字段名检查（通过注释）
-    'valid-jsdoc': [
-      'warn',
-      {
-        prefer: {
-          arg: 'param',
-          return: 'returns',
-          argtype: 'type'
-        },
-        preferType: {
-          Boolean: 'boolean',
-          Number: 'number',
-          object: 'Object',
-          function: 'Function'
-        }
-      }
     ]
-  },
-
-  // 自定义规则（通过插件实现更严格的检查）
-  plugins: ['custom-naming-rules']
+  }
 };

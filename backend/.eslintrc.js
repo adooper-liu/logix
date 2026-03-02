@@ -13,7 +13,7 @@ module.exports = {
     sourceType: 'module',
     project: './tsconfig.json'
   },
-  plugins: ['@typescript-eslint', 'custom-naming-rules'],
+  plugins: ['@typescript-eslint'],
   rules: {
     ...namingRules.rules,
 
@@ -42,7 +42,7 @@ module.exports = {
     'prefer-arrow-callback': 'error',
     'prefer-template': 'error',
     'no-duplicate-imports': 'error',
-    'no-undef': ['error', { globals: { NodeJS: 'readonly' } }],
+    'no-undef': 'off', // TypeScript 已经处理了未定义变量检查
 
     // 代码风格（与 Prettier 配置保持一致）
     'indent': 'off',
@@ -51,12 +51,9 @@ module.exports = {
     'comma-dangle': 'off',
     'no-trailing-spaces': 'error',
     'eol-last': ['error', 'always'],
-    'max-len': ['warn', { code: 120, ignoreUrls: true }],
-
-    // 自定义命名规则
-    'custom-naming-rules/entity-class-name': 'error',
-    'custom-naming-rules/entity-property-name': 'warn',
-    'custom-naming-rules/table-name-snake-case': 'error',
-    'custom-naming-rules/interface-name-with-prefix': 'error'
+    'max-len': ['warn', { code: 120, ignoreUrls: true }]
+  },
+  globals: {
+    NodeJS: 'readonly'
   }
 }

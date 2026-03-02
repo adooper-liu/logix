@@ -106,6 +106,52 @@ class ContainerService {
     const response = await this.api.get('/containers/statistics');
     return response.data;
   }
+
+  /**
+   * 获取货柜详细统计数据（用于倒计时卡片）
+   * Get detailed container statistics for countdown cards
+   */
+  async getStatisticsDetailed(): Promise<{
+    success: boolean;
+    data: {
+      statusDistribution: Record<string, number>;
+      arrivalDistribution: Record<string, number>;
+      pickupDistribution: Record<string, number>;
+      lastPickupDistribution: Record<string, number>;
+      returnDistribution: Record<string, number>;
+    };
+  }> {
+    const response = await this.api.get('/containers/statistics-detailed');
+    return response.data;
+  }
+
+  /**
+   * 获取统计数据验证信息
+   * Get statistics verification data
+   */
+  async getStatisticsVerification(): Promise<{
+    success: boolean;
+    data: {
+      totalContainers: number;
+      totalInTransit: number;
+      totalArrival: number;
+      totalPickup: number;
+      totalLastPickup: number;
+      totalReturn: number;
+      atPortTotal: number;
+      pickedUpTotal: number;
+      checks: Array<{
+        name: string;
+        status: 'PASS' | 'FAIL';
+        expected: number | string;
+        actual: number;
+        diff: number;
+      }>;
+    };
+  }> {
+    const response = await this.api.get('/containers/statistics-verify');
+    return response.data;
+  }
 }
 
 export const containerService = new ContainerService();

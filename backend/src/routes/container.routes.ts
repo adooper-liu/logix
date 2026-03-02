@@ -17,6 +17,20 @@ const containerController = new ContainerController();
 router.get('/statistics', containerController.getStatistics);
 
 /**
+ * @route   GET /statistics-detailed
+ * @desc    获取货柜详细统计数据（用于倒计时卡片）
+ * @access  Public
+ */
+router.get('/statistics-detailed', containerController.getStatisticsDetailed);
+
+/**
+ * @route   GET /statistics-verify
+ * @desc    获取统计数据验证信息
+ * @access  Public
+ */
+router.get('/statistics-verify', containerController.getStatisticsVerify);
+
+/**
  * @route   GET /
  * @desc    获取货柜列表
  * @access  Public

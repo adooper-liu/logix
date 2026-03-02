@@ -18,7 +18,7 @@ export enum SimplifiedStatus {
   NOT_SHIPPED = 'not_shipped',      // 未出运
   SHIPPED = 'shipped',              // 已出运/已装船
   IN_TRANSIT = 'in_transit',        // 在途
-  AT_PORT = 'at_port',              // 已到港（中转港或目的港）
+  AT_PORT = 'at_port',              // 已到目的港
   PICKED_UP = 'picked_up',          // 已提柜
   UNLOADED = 'unloaded',            // 已卸柜
   RETURNED_EMPTY = 'returned_empty'  // 已还箱
@@ -32,7 +32,7 @@ export const SimplifiedStatusText: Record<SimplifiedStatus, string> = {
   [SimplifiedStatus.NOT_SHIPPED]: '未出运',
   [SimplifiedStatus.SHIPPED]: '已出运',
   [SimplifiedStatus.IN_TRANSIT]: '在途',
-  [SimplifiedStatus.AT_PORT]: '已到港',
+  [SimplifiedStatus.AT_PORT]: '已到目的港',
   [SimplifiedStatus.PICKED_UP]: '已提柜',
   [SimplifiedStatus.UNLOADED]: '已卸柜',
   [SimplifiedStatus.RETURNED_EMPTY]: '已还箱'
@@ -118,11 +118,11 @@ export const getLogisticsStatusText = (
 
   // at_port 状态根据港口类型动态显示
   if (portType === PortType.TRANSIT) {
-    return '到达中转港';
+    return '已到中转港';
   } else if (portType === PortType.DESTINATION) {
-    return '到达目的港';
+    return '已到目的港';
   } else {
-    return '已到港';
+    return '已到目的港';
   }
 };
 

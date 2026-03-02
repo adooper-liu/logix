@@ -19,8 +19,14 @@ const router = useRouter()
 
 // 表格数据 - 使用 shallowRef 减少深度响应式开销
 const containers = shallowRef<any[]>([])
-// 所有货柜数据（用于统计，不受分页影响）- 使用 shallowRef
-const allContainers = shallowRef<any[]>([])
+// 统计数据（从后端API获取，不依赖全量数据）
+const statisticsData = shallowRef<{
+  statusDistribution: Record<string, number>
+  arrivalDistribution: Record<string, number>
+  pickupDistribution: Record<string, number>
+  lastPickupDistribution: Record<string, number>
+  returnDistribution: Record<string, number>
+} | null>(null)
 const loading = ref(false)
 const searchKeyword = ref('')
 
@@ -54,7 +60,7 @@ const customsStatusMap: Record<string, { text: string; type: '' | 'success' | 'w
   'FAILED': { text: '失败', type: 'danger' }
 }
 
-// 使用倒计时composable（传入所有货柜数据进行统计）
+// 使用倒计时composable（传入统计数据，不再依赖allContainers）
 const {
   countdownByArrival,
   countdownByPickup,
@@ -63,7 +69,7 @@ const {
   countdownByStatus,
   startTimer,
   stopTimer
-} = useContainerCountdown(allContainers)
+} = useContainerCountdown(statisticsData)
 
 // 获取集装箱列表
 const loadContainers = async () => {
@@ -89,36 +95,26 @@ const loadContainers = async () => {
 
     containers.value = response.items
     pagination.value.total = response.pagination.total || 0
-
-    // 性能优化：不再加载所有数据用于统计
-    // 统计数据通过专门的 API 获取（待实现）
-    // 暂时使用当前页数据进行统计，直到后端 API 实现完成
-    if (allContainers.value.length === 0 && pagination.value.total <= 1000) {
-      // 如果数据量不大（<= 1000），可以加载全部数据用于统计
-      try {
-        const allParams: any = {
-          page: 1,
-          pageSize: Math.min(pagination.value.total, 1000),
-          search: ''
-        }
-        const allResponse = await containerService.getContainers(allParams)
-        allContainers.value = allResponse.items
-        console.log('Loaded all containers for statistics:', allContainers.value.length)
-      } catch (allError) {
-        console.error('Failed to load all containers for statistics:', allError)
-        // 如果加载失败，使用当前页数据作为后备
-        allContainers.value = response.items
-      }
-    } else if (allContainers.value.length === 0 && pagination.value.total > 1000) {
-      // 数据量大时，使用当前页数据，避免加载过多数据
-      console.warn('Total containers > 1000, using current page data for statistics only')
-      allContainers.value = response.items
-    }
   } catch (error) {
     console.error('Failed to load containers:', error)
     ElMessage.error('获取集装箱列表失败')
   } finally {
     loading.value = false
+  }
+}
+
+// 获取统计数据（后端聚合）
+const loadStatistics = async () => {
+  try {
+    console.log('Loading detailed statistics from backend...')
+    const response = await containerService.getStatisticsDetailed()
+    if (response.success && response.data) {
+      statisticsData.value = response.data
+      console.log('Statistics loaded:', response.data)
+    }
+  } catch (error) {
+    console.error('Failed to load statistics:', error)
+    ElMessage.error('获取统计数据失败')
   }
 }
 
@@ -136,11 +132,6 @@ const loadContainersByFilter = async () => {
     console.log('Loading containers with filter params:', params)
     const response = await containerService.getContainers(params)
     console.log('Container response:', response)
-
-    // 加载所有货柜数据用于统计
-    if (allContainers.value.length === 0) {
-      allContainers.value = response.items
-    }
 
     // 根据过滤条件在前端筛选
     containers.value = filterContainersByCondition(response.items, activeFilter.value.type, activeFilter.value.days)
@@ -188,12 +179,6 @@ const filterContainersByCondition = (allData: any[], filterType: string, filterD
         return false
       }
 
-      // 已到中转港的货柜
-      if (c.currentPortType === 'transit' && c.ataDestPort) {
-        if (filterDays === 'transit') return true
-        return false
-      }
-
       // 只统计已出运但未到港之后状态的货柜
       if (!isShippedButNotArrived(c.logisticsStatus)) return false
 
@@ -220,7 +205,7 @@ const filterContainersByCondition = (allData: any[], filterType: string, filterD
 
     // 按提柜过滤
     if (filterType === '按提柜') {
-      // 统计范围：已到港且未提柜及之后状态没有任一发生
+      // 统计范围：已到目的港且未提柜及之后状态没有任一发生
       const arrivedAtDestination = ataDate && c.currentPortType !== 'transit'
       const notPickedUp = isNotPickedUp(c.logisticsStatus)
 
@@ -277,7 +262,7 @@ const filterContainersByCondition = (allData: any[], filterType: string, filterD
 
     // 最晚提柜过滤
     if (filterType === '最晚提柜') {
-      // 统计范围：已到港且未提柜及之后状态没有任一发生
+      // 统计范围：已到目的港且未提柜及之后状态没有任一发生
       const arrivedAtDestination = ataDate && c.currentPortType !== 'transit'
       const notPickedUp = isNotPickedUp(c.logisticsStatus)
 
@@ -368,21 +353,9 @@ const handleTimeFilterChange = (data: any) => {
   loadContainers()
 }
 
-// 重新加载统计数据（获取所有货柜）
+// 重新加载统计数据（从后端获取）
 const reloadStatistics = async () => {
-  allContainers.value = []  // 清空缓存，强制重新加载
-  const params: any = {
-    page: 1,
-    pageSize: 999999,
-    search: ''
-  }
-  try {
-    const response = await containerService.getContainers(params)
-    allContainers.value = response.items
-    console.log('Reloaded all containers for statistics:', allContainers.value.length)
-  } catch (error) {
-    console.error('Failed to reload statistics:', error)
-  }
+  await loadStatistics()
 }
 
 // 处理倒计时卡片点击过滤
@@ -466,7 +439,7 @@ const getFilterLabel = (days: string): string => {
   const labels: Record<string, string> = {
     'all': '全部',
     'overdue': '已逾期未到港',
-    'transit': '到达中转港',
+    'transit': '已到中转港',
     'today': '今日到港',
     'arrived-before-today': '今日之前到港',
     'other': '其他记录',
@@ -563,8 +536,13 @@ const filteredContainers = computed(() => {
 })
 
 onMounted(() => {
-  loadContainers()
-  startTimer()
+  // 并行加载统计数据和表格数据
+  Promise.all([
+    loadStatistics(),
+    loadContainers()
+  ]).then(() => {
+    startTimer()
+  })
 })
 
 onUnmounted(() => {
@@ -631,7 +609,7 @@ onUnmounted(() => {
         <CountdownCard
           title="按到港"
           label="待到港货柜"
-          subtitle="（统计范围：已出运、在途、已到港）"
+          subtitle="（统计范围：已出运、在途、已到目的港）"
           :data="countdownByArrival"
           @filter="handleCountdownFilter"
         />

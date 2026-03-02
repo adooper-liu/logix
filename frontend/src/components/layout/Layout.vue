@@ -44,6 +44,11 @@ const menuGroups = computed(() => [
         name: 'Shipments',
         meta: { title: t('nav.containerManagement'), icon: 'Box' },
       },
+      {
+        path: '/statistics-visualization',
+        name: 'StatisticsVisualization',
+        meta: { title: t('nav.statisticsVisualization'), icon: 'DataBoard' },
+      },
     ],
   },
   {

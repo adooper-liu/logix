@@ -7,6 +7,7 @@ import Layout from '@/components/layout/Layout.vue'
 // 页面组件
 const Dashboard = () => import('@/views/dashboard/Dashboard.vue')
 const Shipments = () => import('@/views/shipments/Shipments.vue')
+const StatisticsVisualization = () => import('@/views/shipments/StatisticsVisualization.vue')
 const ContainerDetail = () => import('@/views/shipments/ContainerDetailRefactored.vue')
 const ExcelImport = () => import('@/views/import/ExcelImport.vue')
 const Monitoring = () => import('@/views/monitoring/Monitoring.vue')
@@ -48,6 +49,16 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '集装箱管理',
           icon: 'Box',
+          requiresAuth: true
+        }
+      },
+      {
+        path: 'statistics-visualization',
+        name: 'StatisticsVisualization',
+        component: StatisticsVisualization,
+        meta: {
+          title: '统计口径可视化',
+          icon: 'DataBoard',
           requiresAuth: true
         }
       },

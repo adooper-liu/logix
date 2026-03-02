@@ -64,10 +64,12 @@ const hasFilterItems = computed(() => {
   return props.data.filterItems && props.data.filterItems.length > 0
 })
 
-// 计算汇总总数（所有filterItems的count之和）
+// 计算汇总总数（所有filterItems的count之和，排除arrived_at_transit避免重复计数）
 const totalCount = computed(() => {
   if (!props.data.filterItems) return 0
-  return props.data.filterItems.reduce((sum, item) => sum + item.count, 0)
+  return props.data.filterItems
+    .filter(item => item.days !== 'arrived_at_transit')  // 排除arrived_at_transit
+    .reduce((sum, item) => sum + item.count, 0)
 })
 </script>
 

@@ -4,26 +4,29 @@ const props = defineProps<{
 }>()
 
 // 物流状态映射
-const statusMap: Record<string, { text: string; type: '' | 'success' | 'warning' | 'danger' | 'info' }> = {
-  'not_shipped': { text: '未出运', type: 'info' },
-  'shipped': { text: '已装船', type: 'success' },
-  'in_transit': { text: '在途', type: 'success' },
-  'at_port': { text: '已到港', type: 'success' },
-  'picked_up': { text: '已提柜', type: 'warning' },
-  'unloaded': { text: '已卸柜', type: 'warning' },
-  'returned_empty': { text: '已还箱', type: 'success' },
-  'cancelled': { text: '已取消', type: 'danger' },
-  'hold': { text: '扣留', type: 'danger' },
-  'completed': { text: '已完成', type: 'success' },
-  '未出运': { text: '未出运', type: 'info' },
-  '已装船': { text: '已装船', type: 'success' },
-  '在途': { text: '在途', type: 'success' },
-  '已到港': { text: '已到港', type: 'success' },
-  '已到中转港': { text: '已到中转港', type: 'success' },
-  '已提柜': { text: '已提柜', type: 'warning' },
-  '已卸柜': { text: '已卸柜', type: 'warning' },
-  '已还箱': { text: '已还箱', type: 'success' },
-  '已取消': { text: '已取消', type: 'danger' }
+const statusMap: Record<
+  string,
+  { text: string; type: '' | 'success' | 'warning' | 'danger' | 'info' }
+> = {
+  not_shipped: { text: '未出运', type: 'info' },
+  shipped: { text: '已装船', type: 'success' },
+  in_transit: { text: '在途', type: 'success' },
+  at_port: { text: '已到目的港', type: 'success' },
+  picked_up: { text: '已提柜', type: 'warning' },
+  unloaded: { text: '已卸柜', type: 'warning' },
+  returned_empty: { text: '已还箱', type: 'success' },
+  cancelled: { text: '已取消', type: 'danger' },
+  hold: { text: '扣留', type: 'danger' },
+  completed: { text: '已完成', type: 'success' },
+  未出运: { text: '未出运', type: 'info' },
+  已装船: { text: '已装船', type: 'success' },
+  在途: { text: '在途', type: 'success' },
+  已到中转港: { text: '已到中转港', type: 'success' },
+  已到目的港: { text: '已到目的港', type: 'success' },
+  已提柜: { text: '已提柜', type: 'warning' },
+  已卸柜: { text: '已卸柜', type: 'warning' },
+  已还箱: { text: '已还箱', type: 'success' },
+  已取消: { text: '已取消', type: 'danger' },
 }
 
 const getLogisticsStatusText = (status: string): string => {
@@ -49,7 +52,9 @@ const getLogisticsStatusText = (status: string): string => {
       <div class="info-item">
         <span class="label">物流状态</span>
         <el-tag :type="statusMap[containerData.logisticsStatus]?.type || 'info'" size="small">
-          {{ getLogisticsStatusText(containerData.logisticsStatus) || containerData.logisticsStatus }}
+          {{
+            getLogisticsStatusText(containerData.logisticsStatus) || containerData.logisticsStatus
+          }}
         </el-tag>
       </div>
       <div class="info-item">
