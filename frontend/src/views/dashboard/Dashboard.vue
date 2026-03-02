@@ -18,6 +18,14 @@ const stats = ref({
   alertContainers: 0,
 })
 
+// 异常集装箱详细数据
+const alertDetails = ref({
+  etaOverdue: 0, // ETA逾期未到港
+  lastPickupOverdue: 0, // 最晚提柜逾期
+  lastReturnOverdue: 0, // 最晚还箱逾期
+  plannedPickupOverdue: 0, // 计划提柜逾期
+})
+
 // 最近活动
 const recentActivities = ref<any[]>([])
 
@@ -58,18 +66,27 @@ const loadData = async () => {
       // 已完成 = 已还箱
       stats.value.completedContainers = dist.returned_empty || 0
 
-      // 异常集装箱 = 逾期未到港 + 已到中转港(列示)
-      // 注意：根据物流业务逻辑，已到中转港可能表示在中转港停留较长时间，属于异常情况
+      // 异常集装箱详细数据
       const arrivalDist = statusResponse.data.arrivalDistribution
-      if (arrivalDist) {
-        stats.value.alertContainers = (arrivalDist.overdue || 0) + (dist.arrived_at_transit || 0)
-      } else {
-        stats.value.alertContainers = dist.arrived_at_transit || 0
+      const lastPickupDist = statusResponse.data.lastPickupDistribution
+      const returnDist = statusResponse.data.returnDistribution
+      const pickupDist = statusResponse.data.pickupDistribution
+
+      alertDetails.value = {
+        etaOverdue: arrivalDist?.overdue || 0, // ETA逾期未到港
+        lastPickupOverdue: lastPickupDist?.expired || 0, // 最晚提柜逾期
+        lastReturnOverdue: returnDist?.expired || 0, // 最晚还箱逾期
+        plannedPickupOverdue: pickupDist?.overdue || 0, // 计划提柜逾期
       }
 
-      // 状态分布数据
+      stats.value.alertContainers =
+        alertDetails.value.etaOverdue +
+        alertDetails.value.lastPickupOverdue +
+        alertDetails.value.lastReturnOverdue +
+        alertDetails.value.plannedPickupOverdue
+
+      // 状态分布数据（不包含未出运）
       statusDistribution.value = [
-        { name: '未出运', value: dist.not_shipped || 0, color: '#909399' },
         { name: '已出运', value: dist.shipped || 0, color: '#409eff' },
         { name: '在途', value: dist.in_transit || 0, color: '#e6a23c' },
         { name: '已到中转港', value: dist.arrived_at_transit || 0, color: '#909399' },
@@ -135,18 +152,26 @@ const initChart = () => {
             borderWidth: 2,
           },
           label: {
-            show: false,
-            position: 'center',
+            show: true,
+            position: 'outside',
+            formatter: (params: any) => {
+              return `${params.name}\n${params.value} (${params.percent}%)`
+            },
+            fontSize: 12,
+            color: 'rgba(0,0,0,0.7)',
+            fontWeight: 'normal',
+          },
+          labelLine: {
+            show: true,
+            length: 8,
+            length2: 5,
           },
           emphasis: {
             label: {
               show: true,
-              fontSize: '18',
+              fontSize: '14',
               fontWeight: 'bold',
             },
-          },
-          labelLine: {
-            show: false,
           },
           data: statusDistribution.value,
         },
@@ -190,7 +215,7 @@ const updateChart = () => {
           </div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.totalContainers }}</div>
-            <div class="stat-label">总集装箱数</div>
+            <div class="stat-label">总货柜数</div>
           </div>
         </div>
       </el-card>
@@ -202,19 +227,37 @@ const updateChart = () => {
           </div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.activeContainers }}</div>
-            <div class="stat-label">在途集装箱</div>
+            <div class="stat-label">在途</div>
           </div>
         </div>
       </el-card>
 
-      <el-card class="stat-card clickable" @click="goToShipments">
+      <el-card class="stat-card alert-card" @click="goToShipments">
         <div class="stat-content">
           <div class="stat-icon warning">
             <el-icon><Warning /></el-icon>
           </div>
-          <div class="stat-info">
+          <div class="stat-info alert-info">
             <div class="stat-value">{{ stats.alertContainers }}</div>
-            <div class="stat-label">异常集装箱</div>
+            <div class="stat-label">异常</div>
+            <div class="alert-details">
+              <div class="alert-item">
+                <span class="alert-label">ETA</span>
+                <span class="alert-count">{{ alertDetails.etaOverdue }}</span>
+              </div>
+              <div class="alert-item">
+                <span class="alert-label">最晚提柜</span>
+                <span class="alert-count">{{ alertDetails.lastPickupOverdue }}</span>
+              </div>
+              <div class="alert-item">
+                <span class="alert-label">最晚还箱</span>
+                <span class="alert-count">{{ alertDetails.lastReturnOverdue }}</span>
+              </div>
+              <div class="alert-item">
+                <span class="alert-label">计划提柜</span>
+                <span class="alert-count">{{ alertDetails.plannedPickupOverdue }}</span>
+              </div>
+            </div>
           </div>
         </div>
       </el-card>
@@ -226,7 +269,7 @@ const updateChart = () => {
           </div>
           <div class="stat-info">
             <div class="stat-value">{{ stats.completedContainers }}</div>
-            <div class="stat-label">已完成</div>
+            <div class="stat-label">已还箱</div>
           </div>
         </div>
       </el-card>
@@ -374,6 +417,51 @@ const updateChart = () => {
     &:hover {
       transform: translateY(-2px);
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+  }
+
+  &.alert-card {
+    .stat-content {
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .stat-info.alert-info {
+      flex: 1;
+
+      .stat-value {
+        font-size: 24px;
+      }
+
+      .stat-label {
+        font-size: 13px;
+      }
+
+      .alert-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px 12px;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid rgba(224, 162, 60, 0.2);
+
+        .alert-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 11px;
+
+          .alert-label {
+            color: $text-secondary;
+            font-weight: 500;
+          }
+
+          .alert-count {
+            font-weight: 600;
+            color: #e6a23c;
+          }
+        }
+      }
     }
   }
 }
