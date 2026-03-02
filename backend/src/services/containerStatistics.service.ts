@@ -20,13 +20,33 @@ export class ContainerStatisticsService {
   /**
    * 获取按状态分布的统计
    */
-  async getStatusDistribution(): Promise<Record<string, number>> {
-    const result = await this.containerRepository
+  /**
+   * 获取状态分布统计
+   * 支持按出运时间（actualShipDate 或 shipmentDate）筛选
+   * @param startDate 出运开始日期
+   * @param endDate 出运结束日期
+   */
+  async getStatusDistribution(startDate?: string, endDate?: string): Promise<Record<string, number>> {
+    const query = this.containerRepository
       .createQueryBuilder('container')
+      .leftJoin('container.order', 'order')
+      .leftJoin('container.seaFreight', 'sf')
       .select('container.logisticsStatus', 'status')
       .addSelect('COUNT(*)', 'count')
+
+    // 按出运时间（actualShipDate 或 shipmentDate）筛选
+    if (startDate) {
+      query.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
+    }
+    if (endDate) {
+      const endDateObj = new Date(endDate)
+      endDateObj.setHours(23, 59, 59, 999)
+      query.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
+    }
+
+    const result = await query
       .groupBy('container.logisticsStatus')
-      .getRawMany();
+      .getRawMany()
 
     // 转换为对象格式
     const distribution: Record<string, number> = {
@@ -38,15 +58,17 @@ export class ContainerStatisticsService {
       picked_up: 0,
       unloaded: 0,
       returned_empty: 0
-    };
+    }
 
     result.forEach((row: any) => {
-      distribution[row.status] = parseInt(row.count);
-    });
+      distribution[row.status] = parseInt(row.count)
+    })
 
     // 查询到达中转港的货柜数（有transit类型港口操作记录，但没有到达目的港记录的货柜）
-    const transitArrivalResult = await this.containerRepository
+    const transitArrivalQuery = this.containerRepository
       .createQueryBuilder('container')
+      .leftJoin('container.order', 'order')
+      .leftJoin('container.seaFreight', 'sf')
       .select('COUNT(DISTINCT container.containerNumber)', 'count')
       .innerJoin(
         `(
@@ -64,46 +86,71 @@ export class ContainerStatisticsService {
         'transit_po',
         'transit_po.container_number = container.containerNumber'
       )
-      .getRawOne();
 
-    distribution.arrived_at_transit = parseInt(transitArrivalResult.count);
+    if (startDate) {
+      transitArrivalQuery.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
+    }
+    if (endDate) {
+      const endDateObj = new Date(endDate)
+      endDateObj.setHours(23, 59, 59, 999)
+      transitArrivalQuery.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
+    }
 
-    return distribution;
+    const transitArrivalResult = await transitArrivalQuery.getRawOne()
+
+    distribution.arrived_at_transit = parseInt(transitArrivalResult.count)
+
+    return distribution
   }
 
   /**
    * 获取按到港时间分布的统计
    * 目标集：shipped + in_transit + at_port
    * 原则：每个货柜只被计数一次，按目的港到港情况分类
+   * 支持按出运时间（createdAt）筛选
+   * @param startDate 出运开始日期
+   * @param endDate 出运结束日期
    */
-  async getArrivalDistribution(): Promise<Record<string, number>> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+  async getArrivalDistribution(startDate?: string, endDate?: string): Promise<Record<string, number>> {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
 
     const targetStatuses = [
       SimplifiedStatus.SHIPPED,
       SimplifiedStatus.IN_TRANSIT,
       SimplifiedStatus.AT_PORT
-    ];
+    ]
 
     // 先获取目标集总数
-    const totalTarget = await this.containerRepository
+    let totalTargetQuery = this.containerRepository
       .createQueryBuilder('container')
+      .leftJoin('container.order', 'order')
+      .leftJoin('container.seaFreight', 'sf')
       .select('COUNT(*)', 'count')
       .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses })
-      .getRawOne();
+
+    if (startDate) {
+      totalTargetQuery = totalTargetQuery.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
+    }
+    if (endDate) {
+      const endDateObj = new Date(endDate)
+      endDateObj.setHours(23, 59, 59, 999)
+      totalTargetQuery = totalTargetQuery.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
+    }
+
+    const totalTarget = await totalTargetQuery.getRawOne()
 
     // 先执行各查询并记录结果
-    const arrivedTodayResult = await this.getArrivedToday(today, targetStatuses);
-    const arrivedBeforeTodayResult = await this.getArrivedBeforeToday(today, targetStatuses);
-    const overdueNotArrivedResult = await this.getOverdueNotArrived(today, targetStatuses);
-    const within3DaysResult = await this.getWithin3Days(today, targetStatuses);
-    const within7DaysResult = await this.getWithin7Days(today, targetStatuses);
-    const over7DaysResult = await this.getOver7Days(today, targetStatuses);
-    const otherRecordsResult = await this.getOtherRecords(today, targetStatuses);
+    const arrivedTodayResult = await this.getArrivedToday(today, targetStatuses, startDate, endDate)
+    const arrivedBeforeTodayResult = await this.getArrivedBeforeToday(today, targetStatuses, startDate, endDate)
+    const overdueNotArrivedResult = await this.getOverdueNotArrived(today, targetStatuses, startDate, endDate)
+    const within3DaysResult = await this.getWithin3Days(today, targetStatuses, startDate, endDate)
+    const within7DaysResult = await this.getWithin7Days(today, targetStatuses, startDate, endDate)
+    const over7DaysResult = await this.getOver7Days(today, targetStatuses, startDate, endDate)
+    const otherRecordsResult = await this.getOtherRecords(today, targetStatuses, startDate, endDate)
 
     const sum = arrivedTodayResult + arrivedBeforeTodayResult +
-               overdueNotArrivedResult + within3DaysResult + within7DaysResult + over7DaysResult + otherRecordsResult;
+               overdueNotArrivedResult + within3DaysResult + within7DaysResult + over7DaysResult + otherRecordsResult
 
     console.log('[getArrivalDistribution]', {
       targetTotal: parseInt(totalTarget.count),
@@ -253,9 +300,11 @@ export class ContainerStatisticsService {
    * 1. 今日到港：目的港ATA = today，且状态在目标集内
    * 注意：如果一个货柜有多条目的港记录，只统计最近一次到港的
    */
-  private async getArrivedToday(today: Date, targetStatuses: string[]): Promise<number> {
-    const result = await this.containerRepository
+  private async getArrivedToday(today: Date, targetStatuses: string[], startDate?: string, endDate?: string): Promise<number> {
+    const query = this.containerRepository
       .createQueryBuilder('container')
+      .leftJoin('container.order', 'order')
+      .leftJoin('container.seaFreight', 'sf')
       .select('COUNT(DISTINCT container.containerNumber)', 'count')
       .innerJoin(
         `(
@@ -269,8 +318,18 @@ export class ContainerStatisticsService {
         'latest_po.container_number = container.container_number'
       )
       .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses })
-      .andWhere("DATE(latest_po.latest_ata) = :today", { today })
-      .getRawOne();
+      .andWhere("DATE(latest_po.latest_ata) = :today", { today });
+
+    if (startDate) {
+      query.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
+    }
+    if (endDate) {
+      const endDateObj = new Date(endDate)
+      endDateObj.setHours(23, 59, 59, 999)
+      query.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
+    }
+
+    const result = await query.getRawOne();
 
     return parseInt(result.count);
   }
@@ -279,9 +338,11 @@ export class ContainerStatisticsService {
    * 2. 今日之前到港：目的港ATA < today，且状态在目标集内
    * 注意：如果一个货柜有多条目的港记录，只统计最近一次到港的
    */
-  private async getArrivedBeforeToday(today: Date, targetStatuses: string[]): Promise<number> {
-    const result = await this.containerRepository
+  private async getArrivedBeforeToday(today: Date, targetStatuses: string[], startDate?: string, endDate?: string): Promise<number> {
+    const query = this.containerRepository
       .createQueryBuilder('container')
+      .leftJoin('container.order', 'order')
+      .leftJoin('container.seaFreight', 'sf')
       .select('COUNT(DISTINCT container.containerNumber)', 'count')
       .innerJoin(
         `(
@@ -295,8 +356,18 @@ export class ContainerStatisticsService {
         'latest_po.container_number = container.container_number'
       )
       .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses })
-      .andWhere('DATE(latest_po.latest_ata) < :today', { today })
-      .getRawOne();
+      .andWhere('DATE(latest_po.latest_ata) < :today', { today });
+
+    if (startDate) {
+      query.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
+    }
+    if (endDate) {
+      const endDateObj = new Date(endDate)
+      endDateObj.setHours(23, 59, 59, 999)
+      query.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
+    }
+
+    const result = await query.getRawOne();
 
     return parseInt(result.count);
   }
@@ -304,10 +375,12 @@ export class ContainerStatisticsService {
   /**
    * 3. 逾期未到港：ETA < today，ATA is null，且状态在目标集内
    */
-  private async getOverdueNotArrived(today: Date, targetStatuses: string[]): Promise<number> {
+  private async getOverdueNotArrived(today: Date, targetStatuses: string[], startDate?: string, endDate?: string): Promise<number> {
     const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD 格式
-    const result = await this.containerRepository
+    const query = this.containerRepository
       .createQueryBuilder('container')
+      .leftJoin('container.order', 'order')
+      .leftJoin('container.seaFreight', 'sf')
       .select('COUNT(DISTINCT container.containerNumber)', 'count')
       .innerJoin(
         `(
@@ -320,8 +393,18 @@ export class ContainerStatisticsService {
         'dest_po',
         'dest_po.container_number = container.container_number'
       )
-      .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses })
-      .getRawOne();
+      .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses });
+
+    if (startDate) {
+      query.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
+    }
+    if (endDate) {
+      const endDateObj = new Date(endDate)
+      endDateObj.setHours(23, 59, 59, 999)
+      query.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
+    }
+
+    const result = await query.getRawOne();
 
     return parseInt(result.count);
   }
@@ -329,14 +412,16 @@ export class ContainerStatisticsService {
   /**
    * 4. 3日内预计到港：ETA in [today, today+3]，且状态在目标集内
    */
-  private async getWithin3Days(today: Date, targetStatuses: string[]): Promise<number> {
+  private async getWithin3Days(today: Date, targetStatuses: string[], startDate?: string, endDate?: string): Promise<number> {
     const threeDaysLater = new Date(today);
     threeDaysLater.setDate(threeDaysLater.getDate() + 3);
     const todayStr = today.toISOString().split('T')[0];
     const threeDaysStr = threeDaysLater.toISOString().split('T')[0];
 
-    const result = await this.containerRepository
+    const query = this.containerRepository
       .createQueryBuilder('container')
+      .leftJoin('container.order', 'order')
+      .leftJoin('container.seaFreight', 'sf')
       .select('COUNT(DISTINCT container.containerNumber)', 'count')
       .innerJoin(
         `(
@@ -350,8 +435,18 @@ export class ContainerStatisticsService {
         'dest_po',
         'dest_po.container_number = container.container_number'
       )
-      .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses })
-      .getRawOne();
+      .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses });
+
+    if (startDate) {
+      query.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
+    }
+    if (endDate) {
+      const endDateObj = new Date(endDate)
+      endDateObj.setHours(23, 59, 59, 999)
+      query.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
+    }
+
+    const result = await query.getRawOne();
 
     return parseInt(result.count);
   }
@@ -359,7 +454,7 @@ export class ContainerStatisticsService {
   /**
    * 5. 7日内预计到港：ETA in (today+3, today+7]，且状态在目标集内
    */
-  private async getWithin7Days(today: Date, targetStatuses: string[]): Promise<number> {
+  private async getWithin7Days(today: Date, targetStatuses: string[], startDate?: string, endDate?: string): Promise<number> {
     const threeDaysLater = new Date(today);
     threeDaysLater.setDate(threeDaysLater.getDate() + 3);
     const sevenDaysLater = new Date(today);
@@ -367,8 +462,10 @@ export class ContainerStatisticsService {
     const threeDaysStr = threeDaysLater.toISOString().split('T')[0];
     const sevenDaysStr = sevenDaysLater.toISOString().split('T')[0];
 
-    const result = await this.containerRepository
+    const query = this.containerRepository
       .createQueryBuilder('container')
+      .leftJoin('container.order', 'order')
+      .leftJoin('container.seaFreight', 'sf')
       .select('COUNT(DISTINCT container.containerNumber)', 'count')
       .innerJoin(
         `(
@@ -382,8 +479,18 @@ export class ContainerStatisticsService {
         'dest_po',
         'dest_po.container_number = container.container_number'
       )
-      .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses })
-      .getRawOne();
+      .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses });
+
+    if (startDate) {
+      query.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
+    }
+    if (endDate) {
+      const endDateObj = new Date(endDate)
+      endDateObj.setHours(23, 59, 59, 999)
+      query.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
+    }
+
+    const result = await query.getRawOne();
 
     return parseInt(result.count);
   }
@@ -391,13 +498,15 @@ export class ContainerStatisticsService {
   /**
    * 6. 7日后预计到港：ETA > today+7，且状态在目标集内
    */
-  private async getOver7Days(today: Date, targetStatuses: string[]): Promise<number> {
+  private async getOver7Days(today: Date, targetStatuses: string[], startDate?: string, endDate?: string): Promise<number> {
     const sevenDaysLater = new Date(today);
     sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
     const sevenDaysStr = sevenDaysLater.toISOString().split('T')[0];
 
-    const result = await this.containerRepository
+    const query = this.containerRepository
       .createQueryBuilder('container')
+      .leftJoin('container.order', 'order')
+      .leftJoin('container.seaFreight', 'sf')
       .select('COUNT(DISTINCT container.containerNumber)', 'count')
       .innerJoin(
         `(
@@ -410,8 +519,18 @@ export class ContainerStatisticsService {
         'dest_po',
         'dest_po.container_number = container.container_number'
       )
-      .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses })
-      .getRawOne();
+      .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses });
+
+    if (startDate) {
+      query.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
+    }
+    if (endDate) {
+      const endDateObj = new Date(endDate)
+      endDateObj.setHours(23, 59, 59, 999)
+      query.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
+    }
+
+    const result = await query.getRawOne();
 
     return parseInt(result.count);
   }
@@ -419,9 +538,11 @@ export class ContainerStatisticsService {
   /**
    * 7. 其他：ETA is null，且状态在目标集内
    */
-  private async getOtherRecords(today: Date, targetStatuses: string[]): Promise<number> {
-    const result = await this.containerRepository
+  private async getOtherRecords(today: Date, targetStatuses: string[], startDate?: string, endDate?: string): Promise<number> {
+    const query = this.containerRepository
       .createQueryBuilder('container')
+      .leftJoin('container.order', 'order')
+      .leftJoin('container.seaFreight', 'sf')
       .select('COUNT(DISTINCT container.containerNumber)', 'count')
       .innerJoin(
         `(
@@ -434,8 +555,18 @@ export class ContainerStatisticsService {
         'dest_po',
         'dest_po.container_number = container.container_number'
       )
-      .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses })
-      .getRawOne();
+      .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses });
+
+    if (startDate) {
+      query.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
+    }
+    if (endDate) {
+      const endDateObj = new Date(endDate)
+      endDateObj.setHours(23, 59, 59, 999)
+      query.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
+    }
+
+    const result = await query.getRawOne();
 
     return parseInt(result.count);
   }
@@ -783,5 +914,87 @@ export class ContainerStatisticsService {
       .getRawOne();
 
     return parseInt(result.count);
+  }
+
+  /**
+   * 获取年度出运量数据（近三年）
+   * Get yearly shipment volume data (last 3 years)
+   */
+  async getYearlyVolume(): Promise<Array<{ year: number; volume: number; months: Array<{ month: number; volume: number }> }>> {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const years = [currentYear, currentYear - 1, currentYear - 2];
+
+    const yearlyData = [];
+
+    for (const year of years) {
+      const yearStart = new Date(year, 0, 1);
+      const yearEnd = new Date(year, 11, 31, 23, 59, 59, 999);
+
+      // 统计该年度已出运的货柜数量（shipped、in_transit、at_port、picked_up、unloaded、returned_empty）
+      const result = await this.containerRepository
+        .createQueryBuilder('container')
+        .leftJoin('container.order', 'order')
+        .leftJoin('container.seaFreight', 'sf')
+        .select('COUNT(DISTINCT container.containerNumber)', 'count')
+        .where('container.logisticsStatus IN (:...statuses)', {
+          statuses: [
+            SimplifiedStatus.SHIPPED,
+            SimplifiedStatus.IN_TRANSIT,
+            SimplifiedStatus.AT_PORT,
+            SimplifiedStatus.PICKED_UP,
+            SimplifiedStatus.UNLOADED,
+            SimplifiedStatus.RETURNED_EMPTY
+          ]
+        })
+        .andWhere('(order.actualShipDate >= :yearStart OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :yearStart))', { yearStart })
+        .andWhere('(order.actualShipDate < :yearEnd OR (order.actualShipDate IS NULL AND sf.shipmentDate < :yearEnd))', { yearEnd })
+        .getRawOne();
+
+      const yearlyVolume = parseInt(result.count);
+
+      // 只添加有数据的年份
+      if (yearlyVolume > 0) {
+        // 按月统计
+        const monthlyData = [];
+        for (let month = 1; month <= 12; month++) {
+          const monthStart = new Date(year, month - 1, 1);
+          const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
+
+          const monthlyResult = await this.containerRepository
+            .createQueryBuilder('container')
+            .leftJoin('container.order', 'order')
+            .leftJoin('container.seaFreight', 'sf')
+            .select('COUNT(DISTINCT container.containerNumber)', 'count')
+            .where('container.logisticsStatus IN (:...statuses)', {
+              statuses: [
+                SimplifiedStatus.SHIPPED,
+                SimplifiedStatus.IN_TRANSIT,
+                SimplifiedStatus.AT_PORT,
+                SimplifiedStatus.PICKED_UP,
+                SimplifiedStatus.UNLOADED,
+                SimplifiedStatus.RETURNED_EMPTY
+              ]
+            })
+            .andWhere('(order.actualShipDate >= :monthStart OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :monthStart))', { monthStart })
+            .andWhere('(order.actualShipDate <= :monthEnd OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :monthEnd))', { monthEnd })
+            .getRawOne();
+
+          monthlyData.push({
+            month,
+            volume: parseInt(monthlyResult.count)
+          });
+        }
+
+        yearlyData.push({
+          year,
+          volume: yearlyVolume,
+          months: monthlyData
+        });
+      }
+    }
+
+    // 按年份降序排列
+    return yearlyData.sort((a, b) => b.year - a.year);
   }
 }

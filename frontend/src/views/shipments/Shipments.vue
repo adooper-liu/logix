@@ -7,13 +7,14 @@ import type { PortOperation, TruckingTransport, EmptyReturn } from '@/types/cont
 import { Search, Refresh, View, Edit } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import CountdownCard from '@/components/CountdownCard.vue'
-import ContainerTimeFilter from '@/components/ContainerTimeFilter.vue'
+import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import { useContainerCountdown } from '@/composables/useContainerCountdown'
 import {
   getLogisticsStatusText as getStatusText,
   getLogisticsStatusType,
   SimplifiedStatus
 } from '@/utils/logisticsStatusMachine'
+import dayjs from 'dayjs'
 
 const router = useRouter()
 
@@ -30,14 +31,13 @@ const statisticsData = shallowRef<{
 const loading = ref(false)
 const searchKeyword = ref('')
 
-// 时间筛选
-const timeFilter = ref<{
-  timeDimension: string
-  dateRange?: [Date, Date] | null
-}>({
-  timeDimension: 'all',
-  dateRange: null
-})
+// 时间筛选（Dashboard风格的日期范围选择器）
+const shipmentDateRange = ref<[Date, Date]>([
+  dayjs().subtract(90, 'day').startOf('day').toDate(),
+  dayjs().endOf('day').toDate()
+])
+
+
 
 // 分页参数
 const pagination = ref<PaginationParams>({
@@ -81,10 +81,10 @@ const loadContainers = async () => {
       search: searchKeyword.value
     }
 
-    // 添加时间筛选参数
-    if (timeFilter.value.dateRange && timeFilter.value.timeDimension !== 'all') {
-      params.startDate = timeFilter.value.dateRange[0]
-      params.endDate = timeFilter.value.dateRange[1]
+    // 使用Dashboard风格的日期筛选
+    if (shipmentDateRange.value) {
+      params.startDate = dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD')
+      params.endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
     }
 
     console.log('Loading containers with params:', params)
@@ -107,7 +107,17 @@ const loadContainers = async () => {
 const loadStatistics = async () => {
   try {
     console.log('Loading detailed statistics from backend...')
-    const response = await containerService.getStatisticsDetailed()
+    // 根据时间筛选条件传递参数
+    let startDate: string | undefined
+    let endDate: string | undefined
+
+    // 使用Dashboard风格的日期筛选
+    if (shipmentDateRange.value) {
+      startDate = dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD')
+      endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
+    }
+
+    const response = await containerService.getStatisticsDetailed(startDate, endDate)
     if (response.success && response.data) {
       statisticsData.value = response.data
       console.log('Statistics loaded:', response.data)
@@ -350,11 +360,16 @@ const resetSearch = () => {
   loadContainers()
 }
 
-// 处理时间筛选变化
-const handleTimeFilterChange = (data: any) => {
-  timeFilter.value = data
-  pagination.value.page = 1 // 重置到第一页
-  loadContainers()
+// 处理Dashboard风格的日期范围筛选
+const handleShipmentDateChange = async (value: [Date, Date] | null) => {
+  if (value) {
+    shipmentDateRange.value = value
+    pagination.value.page = 1
+    await Promise.all([
+      loadStatistics(),
+      loadContainers()
+    ])
+  }
 }
 
 // 重新加载统计数据（从后端获取）
@@ -421,6 +436,16 @@ const formatDate = (date: string | Date): string => {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit'
+  })
+}
+
+const formatShipmentDate = (date: string | Date): string => {
+  if (!date) return '-'
+  const d = new Date(date)
+  return d.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
   })
 }
 
@@ -540,6 +565,16 @@ const filteredContainers = computed(() => {
 })
 
 onMounted(() => {
+  // 检查是否从Dashboard跳转过来，带有时间参数
+  const route = router.currentRoute.value
+  if (route.query.startDate && route.query.endDate && route.query.timeDimension) {
+    // 从Dashboard传来的时间范围，应用到Dashboard风格的日期选择器
+    shipmentDateRange.value = [
+      new Date(route.query.startDate as string),
+      new Date(route.query.endDate as string)
+    ]
+  }
+
   // 并行加载统计数据和表格数据
   Promise.all([
     loadStatistics(),
@@ -564,9 +599,6 @@ onUnmounted(() => {
 
     <!-- 搜索和操作栏 -->
     <el-card class="search-card">
-      <!-- 时间筛选 -->
-      <ContainerTimeFilter @filter="handleTimeFilterChange" />
-
       <div class="search-bar">
         <el-input
           v-model="searchKeyword"
@@ -583,6 +615,9 @@ onUnmounted(() => {
           <el-icon><Refresh /></el-icon>
           重置
         </el-button>
+
+        <!-- 共用的日期范围选择器 -->
+        <DateRangePicker v-model="shipmentDateRange" @update:modelValue="handleShipmentDateChange" />
 
         <!-- 显示当前过滤器 -->
         <el-tag v-if="activeFilter.type" type="warning" closable @close="resetFilter">
@@ -647,6 +682,11 @@ onUnmounted(() => {
         style="width: 100%"
       >
         <el-table-column prop="containerNumber" label="集装箱号" width="140" fixed />
+        <el-table-column prop="actualShipDate" label="出运日期" width="120">
+          <template #default="{ row }">
+            {{ formatShipmentDate(row.actualShipDate || row.createdAt) }}
+          </template>
+        </el-table-column>
         <el-table-column prop="orderNumber" label="备货单号" width="140" />
         <el-table-column prop="billOfLadingNumber" label="提单号" width="140" />
         <el-table-column prop="containerTypeCode" label="柜型" width="80">
@@ -772,13 +812,13 @@ onUnmounted(() => {
 
 .search-card {
   margin-bottom: 20px;
-  
+
   .search-bar {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
     gap: 10px;
-    
+
     .spacer {
       flex: 1;
     }

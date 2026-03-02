@@ -70,7 +70,10 @@ export class ContainerController {
 
       logger.info('[getContainers] Query params:', { page, pageSize, search, startDate, endDate });
 
-      const queryBuilder = this.containerRepository.createQueryBuilder('container');
+      const queryBuilder = this.containerRepository
+        .createQueryBuilder('container')
+        .leftJoin('container.order', 'order')
+        .leftJoin('container.seaFreight', 'sf');
 
       if (search) {
         queryBuilder.andWhere(
@@ -79,15 +82,26 @@ export class ContainerController {
         );
       }
 
+      // 按出运时间（actualShipDate 或 shipmentDate）筛选
       if (startDate && endDate) {
         queryBuilder.andWhere(
-          'container.updatedAt >= :startDate AND container.updatedAt <= :endDate',
-          { startDate, endDate }
+          '(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))',
+          { startDate }
+        );
+        queryBuilder.andWhere(
+          '(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))',
+          { endDate }
         );
       } else if (startDate) {
-        queryBuilder.andWhere('container.updatedAt >= :startDate', { startDate });
+        queryBuilder.andWhere(
+          '(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))',
+          { startDate }
+        );
       } else if (endDate) {
-        queryBuilder.andWhere('container.updatedAt <= :endDate', { endDate });
+        queryBuilder.andWhere(
+          '(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))',
+          { endDate }
+        );
       }
 
       const [items, total] = await queryBuilder
@@ -441,19 +455,28 @@ export class ContainerController {
 
   /**
    * 获取详细统计数据（按状态、到港、提柜、最晚提柜、最晚还箱）
+   * 支持按出运时间筛选
    * Get detailed container statistics
    */
-  getStatisticsDetailed = async (_req: Request, res: Response): Promise<void> => {
+  getStatisticsDetailed = async (req: Request, res: Response): Promise<void> => {
     try {
-      logger.info('[getStatisticsDetailed] Starting detailed statistics calculation');
+      const { startDate, endDate } = req.query
+
+      logger.info('[getStatisticsDetailed] Starting detailed statistics calculation', {
+        shipmentDateRange: {
+          startDate,
+          endDate
+        },
+        message: 'Filtering by shipment time (createdAt)'
+      });
 
       const [statusDistribution, arrivalDistribution, pickupDistribution, lastPickupDistribution, returnDistribution] =
         await Promise.all([
-          this.statisticsService.getStatusDistribution(),
-          this.statisticsService.getArrivalDistribution(),
-          this.statisticsService.getPickupDistribution(),
-          this.statisticsService.getLastPickupDistribution(),
-          this.statisticsService.getReturnDistribution()
+          this.statisticsService.getStatusDistribution(startDate as string, endDate as string),
+          this.statisticsService.getArrivalDistribution(startDate as string, endDate as string),
+          this.statisticsService.getPickupDistribution(startDate as string, endDate as string),
+          this.statisticsService.getLastPickupDistribution(startDate as string, endDate as string),
+          this.statisticsService.getReturnDistribution(startDate as string, endDate as string)
         ]);
 
       logger.info('[getStatisticsDetailed] Detailed statistics calculation completed');
@@ -486,19 +509,28 @@ export class ContainerController {
 
   /**
    * 获取统计数据验证信息
+   * 支持按出运时间筛选
    * Get statistics verification data for data consistency checks
    */
-  getStatisticsVerify = async (_req: Request, res: Response): Promise<void> => {
+  getStatisticsVerify = async (req: Request, res: Response): Promise<void> => {
     try {
-      logger.info('[getStatisticsVerify] Starting statistics verification');
+      const { startDate, endDate } = req.query
+
+      logger.info('[getStatisticsVerify] Starting statistics verification', {
+        shipmentDateRange: {
+          startDate,
+          endDate
+        },
+        message: 'Filtering by shipment time (createdAt)'
+      });
 
       const [statusDistribution, arrivalDistribution, pickupDistribution, lastPickupDistribution, returnDistribution] =
         await Promise.all([
-          this.statisticsService.getStatusDistribution(),
-          this.statisticsService.getArrivalDistribution(),
-          this.statisticsService.getPickupDistribution(),
-          this.statisticsService.getLastPickupDistribution(),
-          this.statisticsService.getReturnDistribution()
+          this.statisticsService.getStatusDistribution(startDate as string, endDate as string),
+          this.statisticsService.getArrivalDistribution(startDate as string, endDate as string),
+          this.statisticsService.getPickupDistribution(startDate as string, endDate as string),
+          this.statisticsService.getLastPickupDistribution(startDate as string, endDate as string),
+          this.statisticsService.getReturnDistribution(startDate as string, endDate as string)
         ]);
 
       // 计算总数（排除 arrived_at_transit，避免重复计数）
@@ -567,6 +599,31 @@ export class ContainerController {
       res.status(500).json({
         success: false,
         message: '获取统计数据验证失败'
+      });
+    }
+  };
+
+  /**
+   * 获取年度出运量数据（近三年）
+   * Get yearly shipment volume data (last 3 years)
+   */
+  getYearlyVolume = async (_req: Request, res: Response): Promise<void> => {
+    try {
+      logger.info('[getYearlyVolume] Starting yearly volume calculation');
+
+      const yearlyData = await this.statisticsService.getYearlyVolume();
+
+      logger.info('[getYearlyVolume] Yearly volume calculation completed:', yearlyData);
+
+      res.json({
+        success: true,
+        data: yearlyData
+      });
+    } catch (error) {
+      logger.error('Failed to get yearly volume', error);
+      res.status(500).json({
+        success: false,
+        message: '获取年度出运量失败'
       });
     }
   };

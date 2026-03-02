@@ -31,6 +31,13 @@ router.get('/statistics-detailed', containerController.getStatisticsDetailed);
 router.get('/statistics-verify', containerController.getStatisticsVerify);
 
 /**
+ * @route   GET /statistics-yearly-volume
+ * @desc    获取年度出运量数据（近三年）
+ * @access  Public
+ */
+router.get('/statistics-yearly-volume', containerController.getYearlyVolume);
+
+/**
  * @route   GET /statistics-abnormal
  * @desc    获取异常集装箱统计
  * @access  Public

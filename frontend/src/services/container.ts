@@ -111,7 +111,7 @@ class ContainerService {
    * 获取货柜详细统计数据（用于倒计时卡片）
    * Get detailed container statistics for countdown cards
    */
-  async getStatisticsDetailed(): Promise<{
+  async getStatisticsDetailed(startDate?: string, endDate?: string): Promise<{
     success: boolean;
     data: {
       statusDistribution: Record<string, number>;
@@ -121,15 +121,19 @@ class ContainerService {
       returnDistribution: Record<string, number>;
     };
   }> {
-    const response = await this.api.get('/containers/statistics-detailed');
-    return response.data;
+    const params: any = {}
+    if (startDate) params.startDate = startDate
+    if (endDate) params.endDate = endDate
+
+    const response = await this.api.get('/containers/statistics-detailed', { params })
+    return response.data
   }
 
   /**
    * 获取统计数据验证信息
    * Get statistics verification data
    */
-  async getStatisticsVerification(): Promise<{
+  async getStatisticsVerification(startDate?: string, endDate?: string): Promise<{
     success: boolean;
     data: {
       totalContainers: number;
@@ -149,8 +153,28 @@ class ContainerService {
       }>;
     };
   }> {
-    const response = await this.api.get('/containers/statistics-verify');
-    return response.data;
+    const params: any = {}
+    if (startDate) params.startDate = startDate
+    if (endDate) params.endDate = endDate
+
+    const response = await this.api.get('/containers/statistics-verify', { params })
+    return response.data
+  }
+
+  /**
+   * 获取年度出运量数据（近三年）
+   * Get yearly shipment volume data (last 3 years)
+   */
+  async getYearlyShipmentVolume(): Promise<{
+    success: boolean;
+    data: Array<{
+      year: number;
+      volume: number;
+      months: Array<{ month: number; volume: number }>;
+    }>;
+  }> {
+    const response = await this.api.get('/containers/statistics-yearly-volume')
+    return response.data
   }
 
   /**
