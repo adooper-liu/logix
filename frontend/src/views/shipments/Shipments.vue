@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { containerService } from '@/services/container'
 import type { PaginationParams } from '@/types'
 import type { PortOperation, TruckingTransport, EmptyReturn } from '@/types/container'
-import { Search, Refresh, View, Edit } from '@element-plus/icons-vue'
+import { Search, Refresh, View, Edit, Calendar } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import CountdownCard from '@/components/CountdownCard.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
@@ -619,6 +619,12 @@ onUnmounted(() => {
         <!-- 共用的日期范围选择器 -->
         <DateRangePicker v-model="shipmentDateRange" @update:modelValue="handleShipmentDateChange" />
 
+        <!-- 甘特图按钮 -->
+        <el-button type="success" @click="router.push('/shipments/gantt-chart')">
+          <el-icon><Calendar /></el-icon>
+          甘特图
+        </el-button>
+
         <!-- 显示当前过滤器 -->
         <el-tag v-if="activeFilter.type" type="warning" closable @close="resetFilter">
           {{ activeFilter.type }}: {{ getFilterLabel(activeFilter.days) }}
@@ -797,13 +803,13 @@ onUnmounted(() => {
 
 .page-header {
   margin-bottom: 20px;
-  
+
   h2 {
     font-size: 24px;
     color: $text-primary;
     margin-bottom: 10px;
   }
-  
+
   p {
     color: $text-secondary;
     font-size: 14px;

@@ -45,11 +45,6 @@ const menuGroups = computed(() => [
         meta: { title: t('nav.containerManagement'), icon: 'Box' },
       },
       {
-        path: '/shipments/gantt-chart',
-        name: 'GanttChart',
-        meta: { title: t('nav.ganttChart'), icon: 'Calendar' },
-      },
-      {
         path: '/statistics-visualization',
         name: 'StatisticsVisualization',
         meta: { title: t('nav.statisticsVisualization'), icon: 'DataBoard' },
