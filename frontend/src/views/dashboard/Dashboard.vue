@@ -38,7 +38,16 @@ const alertDetails = ref({
 
 const recentActivities = ref<any[]>([])
 const statusDistribution = ref<any[]>([])
-const statusData = ref<Record<string, number>>({})
+const statusData = ref<Record<string, number>>({
+  not_shipped: 0,
+  shipped: 0,
+  in_transit: 0,
+  arrived_at_transit: 0,
+  at_port: 0,
+  picked_up: 0,
+  unloaded: 0,
+  returned_empty: 0
+})
 const yearlyData = ref<any[]>([])
 
 const loadData = async () => {
@@ -65,7 +74,17 @@ const loadData = async () => {
 
     if (statusResponse.success && statusResponse.data) {
       const dist = statusResponse.data.statusDistribution
-      statusData.value = dist
+      // 合并默认值和实际数据，确保即使部分字段缺失也有默认值
+      statusData.value = {
+        not_shipped: dist.not_shipped || 0,
+        shipped: dist.shipped || 0,
+        in_transit: dist.in_transit || 0,
+        arrived_at_transit: dist.arrived_at_transit || 0,
+        at_port: dist.at_port || 0,
+        picked_up: dist.picked_up || 0,
+        unloaded: dist.unloaded || 0,
+        returned_empty: dist.returned_empty || 0
+      }
       stats.value.completedContainers = dist.returned_empty || 0
 
       const arrivalDist = statusResponse.data.arrivalDistribution

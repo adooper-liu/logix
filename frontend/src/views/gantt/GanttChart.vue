@@ -18,49 +18,121 @@ const loadDataDateRange = ref<[Date, Date]>([
 // 显示范围（初始为空，加载后会自动设置）
 const displayRange = ref<[Date, Date] | null>(null)
 
-// 从货柜中提取所有泳道有数据的日期范围
-const calculateDisplayRange = (containersData: any[]): [Date, Date] | null => {
+// 从货柜中提取指定泳道的日期范围
+// dimension: 'arrival' | 'pickup' | 'lastPickup' | 'return'
+const calculateDisplayRange = (containersData: any[], dimension: string = 'arrival'): [Date, Date] | null => {
   if (!containersData || containersData.length === 0) return null
 
   const allDates: Date[] = []
+  let validCount = 0
+
+  // 辅助函数：检查是否已提柜
+  const isNotPickedUp = (status: string) => {
+    const pickedUpStatuses = ['picked_up', 'unloaded', 'returned_empty']
+    return !pickedUpStatuses.includes(status?.toLowerCase())
+  }
 
   containersData.forEach(container => {
-    // 提取按到港日期
+    let date: Date | null = null
+    let shouldInclude = false // 是否应该包含在显示范围中
+
+    // 获取相关数据
+    const ataDate = container.ataDestPort
+    const etaDate = container.etaDestPort
+    const logisticsStatus = container.logisticsStatus?.toLowerCase()
+    const currentPortType = container.currentPortType
+
+    // 获取目的港操作记录
+    let destPortOp: any = null
     if (container.portOperations && container.portOperations.length > 0) {
-      const destPortOp = container.portOperations.find((op: any) => op.portType === 'destination')
-      if (destPortOp && destPortOp.ataDestPort) {
-        allDates.push(new Date(destPortOp.ataDestPort))
-      }
+      destPortOp = container.portOperations.find((op: any) => op.portType === 'destination')
     }
 
-    // 提取计划提柜日期
+    // 获取拖卡运输记录
+    let firstTrucking: any = null
     if (container.truckingTransports && container.truckingTransports.length > 0) {
-      const trucking = container.truckingTransports[0]
-      if (trucking.plannedPickupDate) {
-        allDates.push(new Date(trucking.plannedPickupDate))
-      }
+      firstTrucking = container.truckingTransports[0]
     }
 
-    // 提取最晚免费日期（提柜）
-    if (container.lastFreeDate) {
-      allDates.push(new Date(container.lastFreeDate))
-    }
-
-    // 提取最晚还箱日期
+    // 获取还空箱记录
+    let emptyReturn: any = null
     if (container.emptyReturns && container.emptyReturns.length > 0) {
-      const emptyReturn = container.emptyReturns[0]
-      if (emptyReturn.lastReturnDate) {
-        allDates.push(new Date(emptyReturn.lastReturnDate))
+      emptyReturn = container.emptyReturns[0]
+    }
+
+    // 根据维度提取对应日期
+    if (dimension === 'arrival') {
+      // 按到港：使用与 useGanttFilters 相同的逻辑
+      const isShippedButNotArrived = ['shipped', 'in_transit', 'at_port'].includes(logisticsStatus)
+
+      // ATA + currentPortType !== 'transit'（用于"今日到港"、"今日之前到港"）
+      if (ataDate && currentPortType !== 'transit') {
+        date = ataDate
+        shouldInclude = true
       }
+      // ETA + isShippedButNotArrived + currentPortType !== 'transit'（用于"已逾期到港"、"3日内预计到港"等）
+      else if (etaDate && currentPortType !== 'transit' && isShippedButNotArrived) {
+        date = etaDate
+        shouldInclude = true
+      }
+    } else if (dimension === 'pickup') {
+      // 按计划提柜：统计所有有计划提柜日期的货柜
+      if (firstTrucking?.plannedPickupDate) {
+        date = firstTrucking.plannedPickupDate
+        // 参考 Shipments 页面的逻辑：只统计未提柜的货柜
+        if (isNotPickedUp(logisticsStatus)) {
+          shouldInclude = true
+        }
+      }
+    } else if (dimension === 'lastPickup') {
+      // 按最晚提柜：已到目的港且未提柜
+      const arrivedAtDestination = ataDate && currentPortType !== 'transit'
+      const notPickedUp = isNotPickedUp(logisticsStatus)
+
+      if (arrivedAtDestination && notPickedUp) {
+        // 只统计无拖卡运输记录的货柜
+        if (!firstTrucking && destPortOp?.lastFreeDate) {
+          date = destPortOp.lastFreeDate
+          shouldInclude = true
+        }
+      }
+    } else if (dimension === 'return') {
+      // 按最晚还箱：已提柜或有拖卡运输记录，且不等于已还箱状态
+      const hasTrucking = !!firstTrucking
+      const isPickedUp = logisticsStatus === 'picked_up' || logisticsStatus === 'unloaded'
+
+      // 排除已还箱状态
+      if (logisticsStatus !== 'returned_empty') {
+        if (hasTrucking || isPickedUp) {
+          // 如果已还箱，则不参与统计
+          if (!emptyReturn?.returnTime) {
+            if (emptyReturn?.lastReturnDate) {
+              date = emptyReturn.lastReturnDate
+              shouldInclude = true
+            }
+          }
+        }
+      }
+    }
+
+    // 只添加符合条件的日期
+    if (date && shouldInclude) {
+      allDates.push(new Date(date))
+      validCount++
     }
   })
+
+  console.log('calculateDisplayRange - dimension:', dimension)
+  console.log('calculateDisplayRange - allDates:', allDates.length)
+  console.log('calculateDisplayRange - validCount:', validCount)
+  console.log('calculateDisplayRange - allDates sample:', allDates.slice(0, 5))
 
   if (allDates.length === 0) return null
 
   // 排序日期
   allDates.sort((a, b) => a.getTime() - b.getTime())
 
-  // 返回最早和最晚日期，并扩展一定范围
+  // 返回最早和最晚日期
   const minDate = dayjs(allDates[0]).startOf('day').toDate()
   const maxDate = dayjs(allDates[allDates.length - 1]).endOf('day').toDate()
 
@@ -75,7 +147,7 @@ const loadData = async () => {
     const startDate = dayjs(loadDataDateRange.value[0]).format('YYYY-MM-DD')
     const endDate = dayjs(loadDataDateRange.value[1]).format('YYYY-MM-DD')
 
-    console.log('加载货柜数据，日期范围:', startDate, '至', endDate)
+
 
     const containerResponse = await containerService.getContainers({
       page: 1,
@@ -87,13 +159,11 @@ const loadData = async () => {
     if (containerResponse) {
       containers.value = containerResponse.items || []
       ElMessage.success(`加载了 ${containers.value.length} 个货柜数据`)
-      console.log('货柜数据加载完成，总数:', containers.value.length)
 
-      // 计算并设置显示范围
-      const range = calculateDisplayRange(containers.value)
+      // 计算并设置显示范围（默认按到港维度）
+      const range = calculateDisplayRange(containers.value, 'arrival')
       if (range) {
         displayRange.value = range
-        console.log('自动设置显示范围:', dayjs(range[0]).format('YYYY-MM-DD'), '至', dayjs(range[1]).format('YYYY-MM-DD'))
       }
     }
   } catch (error) {
@@ -108,6 +178,19 @@ const loadData = async () => {
 const handleDateChange = async (value: [Date, Date] | null) => {
   if (value) {
     displayRange.value = value
+  }
+}
+
+// 处理泳道变化，更新显示范围
+const handleLaneChange = (dimension: string) => {
+  console.log('handleLaneChange called with dimension:', dimension)
+  const range = calculateDisplayRange(containers.value, dimension)
+  console.log('handleLaneChange - calculated range:', range)
+  if (range) {
+    displayRange.value = range
+    console.log('handleLaneChange - displayRange updated:', displayRange.value)
+    const laneName = dimension === 'arrival' ? '按到港' : dimension === 'pickup' ? '按计划提柜' : dimension === 'lastPickup' ? '按最晚提柜' : '按最晚还箱'
+    ElMessage.info(`已切换到${laneName}维度，日期范围已更新`)
   }
 }
 
@@ -200,9 +283,11 @@ onMounted(() => {
       <el-card class="gantt-card" v-loading="loading">
         <ContainerGanttChart
           v-if="displayRange"
+          :key="`${displayRange[0].getTime()}-${displayRange[1].getTime()}`"
           :containers="containers"
           :startDate="displayRange[0]"
           :endDate="displayRange[1]"
+          @laneChange="handleLaneChange"
         />
         <div v-else class="no-data">
           <el-empty description="暂无数据" />
