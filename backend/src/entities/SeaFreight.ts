@@ -16,130 +16,130 @@ import { Container } from './Container';
 
 @Entity('process_sea_freight')
 export class SeaFreight {
-  @PrimaryColumn({ type: 'varchar', length: 50, name: 'container_number' })
+  @PrimaryColumn({ type: 'varchar', length: 50 })
   containerNumber: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'bill_of_lading_number' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   billOfLadingNumber: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'booking_number' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   bookingNumber: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'shipping_company_id' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   shippingCompanyId: string;
 
-  @Column({ type: 'varchar', length: 100, nullable: true, name: 'vessel_name' })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   vesselName: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'voyage_number' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   voyageNumber: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'port_of_loading' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   portOfLoading: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'port_of_discharge' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   portOfDischarge: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'freight_forwarder_id' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   freightForwarderId: string;
 
-  @Column({ type: 'date', nullable: true, name: 'eta' })
+  @Column({ type: 'date', nullable: true })
   eta: Date;
 
-  @Column({ type: 'date', nullable: true, name: 'etd' })
+  @Column({ type: 'date', nullable: true })
   etd: Date;
 
-  @Column({ type: 'date', nullable: true, name: 'ata' })
+  @Column({ type: 'date', nullable: true })
   ata: Date;
 
-  @Column({ type: 'date', nullable: true, name: 'atd' })
+  @Column({ type: 'date', nullable: true })
   atd: Date;
 
-  @Column({ type: 'date', nullable: true, name: 'customs_clearance_date' })
+  @Column({ type: 'date', nullable: true })
   customsClearanceDate: Date;
 
   // Excel映射字段 - 提单相关
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'mbl_scac' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   mblScac?: string; // MBL SCAC
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'mbl_number' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   mblNumber?: string; // MBL Number
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'hbl_scac' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   hblScac?: string; // HBL SCAC
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'hbl_number' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   hblNumber?: string; // HBL Number
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'ams_number' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   amsNumber?: string; // AMS Number
 
   // 航线信息
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'transit_port_code' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   transitPortCode?: string; // 途经港
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'transport_mode' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   transportMode?: string; // 运输方式
 
   // 母船信息
-  @Column({ type: 'varchar', length: 100, nullable: true, name: 'mother_vessel_name' })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   motherVesselName?: string; // 母船船名
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'mother_voyage_number' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   motherVoyageNumber?: string; // 母船航次
 
   // 时间信息
-  @Column({ type: 'date', nullable: true, name: 'shipment_date' })
+  @Column({ type: 'date', nullable: true })
   shipmentDate?: Date; // 出运日期
 
-  @Column({ type: 'date', nullable: true, name: 'mother_shipment_date' })
+  @Column({ type: 'date', nullable: true })
   motherShipmentDate?: Date; // 母船出运日期
 
-  @Column({ type: 'date', nullable: true, name: 'document_release_date' })
+  @Column({ type: 'date', nullable: true })
   documentReleaseDate?: Date; // 放单日期
 
-  @Column({ type: 'date', nullable: true, name: 'port_entry_date' })
+  @Column({ type: 'date', nullable: true })
   portEntryDate?: Date; // 进港日期
 
-  @Column({ type: 'date', nullable: true, name: 'rail_yard_entry_date' })
+  @Column({ type: 'date', nullable: true })
   railYardEntryDate?: Date; // 进火车堆场日期
 
-  @Column({ type: 'date', nullable: true, name: 'truck_yard_entry_date' })
+  @Column({ type: 'date', nullable: true })
   truckYardEntryDate?: Date; // 进卡车堆场日期
 
   // 费用信息 - Excel映射字段
-  @Column({ type: 'varchar', length: 10, nullable: true, name: 'freight_currency' })
+  @Column({ type: 'varchar', length: 10, nullable: true })
   freightCurrency?: string; // 海运费币种 (USD/CNY/EUR等)
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, name: 'standard_freight_amount' })
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   standardFreightAmount?: number; // 标准海运费金额
 
   // 飞驼字段 - 船舶详细信息
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'route_code' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   routeCode?: string; // 航线代码
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'imo_number' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   imoNumber?: string; // IMO号码
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'mmsi_number' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   mmsiNumber?: string; // MMSI号码
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'flag' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   flag?: string; // 船籍
 
-  @Column({ type: 'date', nullable: true, name: 'eta_origin' })
+  @Column({ type: 'date', nullable: true })
   etaOrigin?: Date; // 起运港ETA
 
-  @Column({ type: 'date', nullable: true, name: 'ata_origin' })
+  @Column({ type: 'date', nullable: true })
   ataOrigin?: Date; // 起运港ATA
 
-  @Column({ type: 'date', nullable: true, name: 'port_open_date' })
+  @Column({ type: 'date', nullable: true })
   portOpenDate?: Date; // 开港时间
 
-  @Column({ type: 'date', nullable: true, name: 'port_close_date' })
+  @Column({ type: 'date', nullable: true })
   portCloseDate?: Date; // 截港时间
 
-  @Column({ type: 'text', nullable: true, name: 'remarks' })
+  @Column({ type: 'text', nullable: true })
   remarks: string;
 
   @CreateDateColumn({ name: 'created_at' })
@@ -150,9 +150,6 @@ export class SeaFreight {
 
   // 关联关系
   @ManyToOne(() => Container)
-  @JoinColumn({
-    name: 'container_number',
-    referencedColumnName: 'containerNumber'
-  })
+  @JoinColumn()
   container: Container;
 }

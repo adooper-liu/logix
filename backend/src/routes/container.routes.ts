@@ -17,6 +17,13 @@ const containerController = new ContainerController();
 router.get('/statistics', containerController.getStatistics);
 
 /**
+ * @route   GET /test-statistics
+ * @desc    测试统计服务
+ * @access  Public
+ */
+router.get('/test-statistics', containerController.testStatisticsService);
+
+/**
  * @route   GET /statistics-detailed
  * @desc    获取货柜详细统计数据（用于倒计时卡片）
  * @access  Public
@@ -43,6 +50,13 @@ router.get('/statistics-yearly-volume', containerController.getYearlyVolume);
  * @access  Public
  */
 router.get('/statistics-abnormal', containerController.getAbnormalStatistics);
+
+/**
+ * @route   GET /by-filter
+ * @desc    根据统计条件获取货柜列表（与统计查询使用相同逻辑）
+ * @access  Public
+ */
+router.get('/by-filter', containerController.getContainersByFilterCondition);
 
 /**
  * @route   GET /
@@ -78,5 +92,21 @@ router.put('/:id', containerController.updateContainer);
  * @access  Public
  */
 router.delete('/:id', containerController.deleteContainer);
+
+/**
+ * @route   POST /:containerNumber/update-status
+ * @desc    更新单个货柜状态
+ * @access  Public
+ */
+router.post('/:containerNumber/update-status', containerController.updateContainerStatus);
+
+/**
+ * @route   POST /update-statuses/batch
+ * @desc    批量更新货柜状态
+ * @access  Public
+ * @body     containerNumbers? - 货柜号数组（可选）
+ * @body     limit? - 批量更新数量限制（可选，默认1000）
+ */
+router.post('/update-statuses/batch', containerController.batchUpdateContainerStatuses);
 
 export default router;

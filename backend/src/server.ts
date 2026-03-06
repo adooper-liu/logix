@@ -8,6 +8,7 @@ import { config } from './config/index.js';
 import { log } from './utils/logger.js';
 import { logisticsPathService } from './services/logisticsPath.service.js';
 import { initDatabase, closeDatabase } from './database/index.js';
+import { containerStatusScheduler } from './schedulers/containerStatus.scheduler.js';
 
 /**
  * 启动服务器
@@ -17,6 +18,12 @@ async function startServer() {
     // 初始化数据库连接
     log.info('Initializing database connection...');
     await initDatabase();
+
+    // 启动货柜状态调度器
+    log.info('Starting container status scheduler...');
+    const schedulerInterval = parseInt(process.env.STATUS_SCHEDULER_INTERVAL || '60', 10);
+    containerStatusScheduler.start(schedulerInterval);
+    log.info(`✅ Container status scheduler started with ${schedulerInterval} minute interval`);
 
     // 检查微服务健康状态
     log.info('Checking microservices health...');
@@ -62,6 +69,11 @@ async function gracefulShutdown(signal: string) {
   log.info(`\n⚠️  Received ${signal}, shutting down gracefully...`);
 
   try {
+    // 停止货柜状态调度器
+    log.info('Stopping container status scheduler...');
+    containerStatusScheduler.stop();
+    log.info('✅ Container status scheduler stopped');
+
     // 关闭 Socket.IO
     io.close(() => {
       log.info('✅ Socket.IO closed');

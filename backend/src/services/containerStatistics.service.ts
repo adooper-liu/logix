@@ -1,1000 +1,337 @@
 /**
- * 货柜统计服务
- * Container Statistics Service
- * 负责货柜相关的统计查询
+ * 货柜统计服务（重构版）
+ * Container Statistics Service (Refactored)
+ * 负责货柜相关的统计查询 - 统一入口，委托给子服务处理
  */
 
 import { Repository } from 'typeorm';
 import { Container } from '../entities/Container';
-import { TruckingTransport } from '../entities/TruckingTransport';
 import { EmptyReturn } from '../entities/EmptyReturn';
-import { SimplifiedStatus } from '../utils/logisticsStatusMachine';
+import { TruckingTransport } from '../entities/TruckingTransport';
+import { CONDITION_TO_SERVICE_MAP } from '../../../shared/constants/FilterConditions';
+
+// 子服务导入
+import { StatusDistributionService } from './statistics/StatusDistribution.service';
+import { ArrivalStatisticsService } from './statistics/ArrivalStatistics.service';
+import { EtaStatisticsService } from './statistics/EtaStatistics.service';
+import { PlannedPickupStatisticsService } from './statistics/PlannedPickupStatistics.service';
+import { LastPickupStatisticsService } from './statistics/LastPickupStatistics.service';
+import { LastReturnStatisticsService } from './statistics/LastReturnStatistics.service';
+import { MonthlyVolumeService } from './statistics/MonthlyVolume.service';
 
 export class ContainerStatisticsService {
+  private statusDistribution: StatusDistributionService;
+  private arrivalStatistics: ArrivalStatisticsService;
+  private etaStatistics: EtaStatisticsService;
+  private plannedPickupStatistics: PlannedPickupStatisticsService;
+  private lastPickupStatistics: LastPickupStatisticsService;
+  private lastReturnStatistics: LastReturnStatisticsService;
+  private monthlyVolume: MonthlyVolumeService;
+
   constructor(
     private containerRepository: Repository<Container>,
-    private truckingTransportRepository: Repository<TruckingTransport>,
-    private emptyReturnRepository: Repository<EmptyReturn>
-  ) {}
+    private _truckingTransportRepository: Repository<TruckingTransport>,
+    private _emptyReturnRepository: Repository<EmptyReturn>
+  ) {
+    // 初始化子服务
+    this.statusDistribution = new StatusDistributionService(containerRepository);
+    this.arrivalStatistics = new ArrivalStatisticsService(containerRepository);
+    this.etaStatistics = new EtaStatisticsService(containerRepository);
+    this.plannedPickupStatistics = new PlannedPickupStatisticsService(
+      containerRepository,
+      _truckingTransportRepository
+    );
+    this.lastPickupStatistics = new LastPickupStatisticsService(
+      containerRepository,
+      _truckingTransportRepository
+    );
+    this.lastReturnStatistics = new LastReturnStatisticsService(
+      containerRepository,
+      _truckingTransportRepository,
+      _emptyReturnRepository
+    );
+    this.monthlyVolume = new MonthlyVolumeService(containerRepository);
+  }
 
-  /**
-   * 获取按状态分布的统计
-   */
   /**
    * 获取状态分布统计
-   * 支持按出运时间（actualShipDate 或 shipmentDate）筛选
-   * @param startDate 出运开始日期
-   * @param endDate 出运结束日期
    */
-  async getStatusDistribution(startDate?: string, endDate?: string): Promise<Record<string, number>> {
-    const query = this.containerRepository
-      .createQueryBuilder('container')
-      .leftJoin('container.order', 'order')
-      .leftJoin('container.seaFreight', 'sf')
-      .select('container.logisticsStatus', 'status')
-      .addSelect('COUNT(*)', 'count')
-
-    // 按出运时间（actualShipDate 或 shipmentDate）筛选
-    if (startDate) {
-      query.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
+  async getStatusDistribution(
+    startDate?: string,
+    endDate?: string
+  ): Promise<Record<string, number>> {
+    try {
+      return await this.statusDistribution.getDistribution(startDate, endDate);
+    } catch (error) {
+      console.error('[ContainerStatisticsService] Error in getStatusDistribution:', error);
+      throw error;
     }
-    if (endDate) {
-      const endDateObj = new Date(endDate)
-      endDateObj.setHours(23, 59, 59, 999)
-      query.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
-    }
-
-    const result = await query
-      .groupBy('container.logisticsStatus')
-      .getRawMany()
-
-    // 转换为对象格式
-    const distribution: Record<string, number> = {
-      not_shipped: 0,
-      shipped: 0,
-      in_transit: 0,
-      arrived_at_transit: 0,
-      at_port: 0,
-      picked_up: 0,
-      unloaded: 0,
-      returned_empty: 0
-    }
-
-    result.forEach((row: any) => {
-      distribution[row.status] = parseInt(row.count)
-    })
-
-    // 查询到达中转港的货柜数（有transit类型港口操作记录，但没有到达目的港记录的货柜）
-    const transitArrivalQuery = this.containerRepository
-      .createQueryBuilder('container')
-      .leftJoin('container.order', 'order')
-      .leftJoin('container.seaFreight', 'sf')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .innerJoin(
-        `(
-          SELECT po1.container_number
-          FROM process_port_operations po1
-          WHERE po1.port_type = 'transit'
-          AND NOT EXISTS (
-            SELECT 1
-            FROM process_port_operations po2
-            WHERE po2.container_number = po1.container_number
-            AND po2.port_type = 'destination'
-            AND po2.ata_dest_port IS NOT NULL
-          )
-        )`,
-        'transit_po',
-        'transit_po.container_number = container.containerNumber'
-      )
-
-    if (startDate) {
-      transitArrivalQuery.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
-    }
-    if (endDate) {
-      const endDateObj = new Date(endDate)
-      endDateObj.setHours(23, 59, 59, 999)
-      transitArrivalQuery.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
-    }
-
-    const transitArrivalResult = await transitArrivalQuery.getRawOne()
-
-    distribution.arrived_at_transit = parseInt(transitArrivalResult.count)
-
-    return distribution
   }
 
   /**
-   * 获取按到港时间分布的统计
-   * 目标集：shipped + in_transit + at_port
-   * 原则：每个货柜只被计数一次，按目的港到港情况分类
-   * 支持按出运时间（createdAt）筛选
-   * @param startDate 出运开始日期
-   * @param endDate 出运结束日期
+   * 获取按到港分布的统计（合并到港和ETA统计）
+   * 修正版：将统计分为三个分组
+   * - 已到目的港：今日到港 + 今日之前到港未提柜 + 今日之前到港已提柜
+   * - 已到中转港：已到中转港（有中转港记录，目的港无ATA）
+   * - 预计到港：逾期未到港 + 3天内 + 7天内 + 7天以上 + 其他
    */
-  async getArrivalDistribution(startDate?: string, endDate?: string): Promise<Record<string, number>> {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
-    const targetStatuses = [
-      SimplifiedStatus.SHIPPED,
-      SimplifiedStatus.IN_TRANSIT,
-      SimplifiedStatus.AT_PORT
-    ]
-
-    // 先获取目标集总数
-    let totalTargetQuery = this.containerRepository
-      .createQueryBuilder('container')
-      .leftJoin('container.order', 'order')
-      .leftJoin('container.seaFreight', 'sf')
-      .select('COUNT(*)', 'count')
-      .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses })
-
-    if (startDate) {
-      totalTargetQuery = totalTargetQuery.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
-    }
-    if (endDate) {
-      const endDateObj = new Date(endDate)
-      endDateObj.setHours(23, 59, 59, 999)
-      totalTargetQuery = totalTargetQuery.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
-    }
-
-    const totalTarget = await totalTargetQuery.getRawOne()
-
-    // 先执行各查询并记录结果
-    const arrivedTodayResult = await this.getArrivedToday(today, targetStatuses, startDate, endDate)
-    const arrivedBeforeTodayResult = await this.getArrivedBeforeToday(today, targetStatuses, startDate, endDate)
-    const overdueNotArrivedResult = await this.getOverdueNotArrived(today, targetStatuses, startDate, endDate)
-    const within3DaysResult = await this.getWithin3Days(today, targetStatuses, startDate, endDate)
-    const within7DaysResult = await this.getWithin7Days(today, targetStatuses, startDate, endDate)
-    const over7DaysResult = await this.getOver7Days(today, targetStatuses, startDate, endDate)
-    const otherRecordsResult = await this.getOtherRecords(today, targetStatuses, startDate, endDate)
-
-    const sum = arrivedTodayResult + arrivedBeforeTodayResult +
-               overdueNotArrivedResult + within3DaysResult + within7DaysResult + over7DaysResult + otherRecordsResult
-
-    console.log('[getArrivalDistribution]', {
-      targetTotal: parseInt(totalTarget.count),
-      calculatedSum: sum,
-      diff: parseInt(totalTarget.count) - sum,
-      targetStatuses,
-      details: {
-        today: arrivedTodayResult,
-        arrivedBeforeToday: arrivedBeforeTodayResult,
-        overdue: overdueNotArrivedResult,
-        within3Days: within3DaysResult,
-        within7Days: within7DaysResult,
-        over7Days: over7DaysResult,
-        other: otherRecordsResult
-      }
-    });
-
-    return {
-      today: arrivedTodayResult,
-      arrivedBeforeToday: arrivedBeforeTodayResult,
-      overdue: overdueNotArrivedResult,
-      within3Days: within3DaysResult,
-      within7Days: within7DaysResult,
-      over7Days: over7DaysResult,
-      other: otherRecordsResult
-    };
-  }
-
-  /**
-   * 获取按提柜时间分布的统计
-   */
-  async getPickupDistribution(): Promise<Record<string, number>> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const threeDaysLater = new Date(today);
-    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-
-    const sevenDaysLater = new Date(today);
-    sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
-
-    // 并行执行所有查询
-    const [
-      overduePlanned,
-      todayPlanned,
-      todayActual,
-      pendingArrangement,
-      within3Days,
-      within7Days
-    ] = await Promise.all([
-      this.getOverduePlanned(today),
-      this.getTodayPlanned(today),
-      this.getTodayActual(today),
-      this.getPendingArrangement(),
-      this.getPlannedWithin3Days(today, threeDaysLater),
-      this.getPlannedWithin7Days(today, threeDaysLater, sevenDaysLater)
+  async getArrivalDistribution(
+    startDate?: string,
+    endDate?: string
+  ): Promise<Record<string, number>> {
+    // 并行获取到港和ETA统计（添加错误捕获以便调试）
+    const [arrivalDist, etaDist] = await Promise.all([
+      this.arrivalStatistics.getDistribution(startDate, endDate).catch(err => {
+        console.error('[ContainerStatistics] arrivalStatistics.getDistribution error:', err);
+        return {
+          today: 0,
+          beforeTodayNotPickedUp: 0,
+          beforeTodayPickedUp: 0,
+          arrivedAtTransit: 0,
+          arrivedBeforeTodayNoATA: 0,
+          transitOverdue: 0,
+          transitWithin3Days: 0,
+          transitWithin7Days: 0,
+          transitOver7Days: 0,
+          transitNoETA: 0,
+          total: 0
+        };
+      }),
+      this.etaStatistics.getDistribution(startDate, endDate).catch(err => {
+        console.error('[ContainerStatistics] etaStatistics.getDistribution error:', err);
+        return { overdue: 0, within3Days: 0, within7Days: 0, over7Days: 0, otherRecords: 0, total: 0 };
+      })
     ]);
 
+    // 计算三个分组总数
+    const arrivedAtDestination = (arrivalDist.today || 0) + (arrivalDist.beforeTodayNotPickedUp || 0) + (arrivalDist.beforeTodayPickedUp || 0);
+    const arrivedAtTransit = arrivalDist.arrivedAtTransit || 0;
+    const expectedArrival = (etaDist.overdue || 0) + (etaDist.within3Days || 0) + (etaDist.within7Days || 0) + (etaDist.over7Days || 0) + (etaDist.otherRecords || 0);
+
     return {
-      overdue: overduePlanned,
-      todayPlanned,
-      todayActual,
-      pending: pendingArrangement,
-      within3Days,
-      within7Days
+      // 三个主分组
+      arrivedAtDestination,
+      arrivedAtTransit,
+      expectedArrival,
+
+      // 已到目的港的子分类
+      today: arrivalDist.today || 0,
+      arrivedBeforeTodayNotPickedUp: arrivalDist.beforeTodayNotPickedUp || 0,
+      arrivedBeforeTodayPickedUp: arrivalDist.beforeTodayPickedUp || 0,
+
+      // 已到中转港的子分类（按ETA细分）
+      transitOverdue: arrivalDist.transitOverdue || 0,
+      transitWithin3Days: arrivalDist.transitWithin3Days || 0,
+      transitWithin7Days: arrivalDist.transitWithin7Days || 0,
+      transitOver7Days: arrivalDist.transitOver7Days || 0,
+      transitNoETA: arrivalDist.transitNoETA || 0,
+
+      // 预计到港的子分类
+      overdue: etaDist.overdue || 0,
+      within3Days: etaDist.within3Days || 0,
+      within7Days: etaDist.within7Days || 0,
+      over7Days: etaDist.over7Days || 0,
+      other: etaDist.otherRecords || 0
     };
+  }
+
+  /**
+   * 获取按 ETA 分布的统计
+   */
+  async getEtaDistribution(
+    startDate?: string,
+    endDate?: string
+  ): Promise<Record<string, number>> {
+    return this.etaStatistics.getDistribution(startDate, endDate);
+  }
+
+  /**
+   * 获取按计划提柜分布的统计
+   */
+  async getPickupDistribution(
+    startDate?: string,
+    endDate?: string
+  ): Promise<Record<string, number>> {
+    return this.plannedPickupStatistics.getDistribution(startDate, endDate);
   }
 
   /**
    * 获取按最晚提柜时间分布的统计
    */
-  async getLastPickupDistribution(): Promise<Record<string, number>> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const threeDaysLater = new Date(today);
-    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-
-    const sevenDaysLater = new Date(today);
-    sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
-
-    // 并行执行所有查询
-    const [
-      expiredCount,
-      urgentCount,
-      warningCount,
-      normalCount,
-      noLastFreeDateCount
-    ] = await Promise.all([
-      this.getExpiredCount(today),
-      this.getUrgentCount(today, threeDaysLater),
-      this.getWarningCount(today, threeDaysLater, sevenDaysLater),
-      this.getNormalCount(today, sevenDaysLater),
-      this.getNoLastFreeDateCount()
-    ]);
-
-    return {
-      expired: expiredCount,
-      urgent: urgentCount,
-      warning: warningCount,
-      normal: normalCount,
-      noLastFreeDate: noLastFreeDateCount
-    };
+  async getLastPickupDistribution(
+    startDate?: string,
+    endDate?: string
+  ): Promise<Record<string, number>> {
+    return this.lastPickupStatistics.getDistribution(startDate, endDate);
   }
 
   /**
    * 获取按最晚还箱时间分布的统计
    */
-  async getReturnDistribution(): Promise<Record<string, number>> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const threeDaysLater = new Date(today);
-    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-
-    const sevenDaysLater = new Date(today);
-    sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
-
-    // 并行执行所有查询
-    const [
-      expiredCount,
-      urgentCount,
-      warningCount,
-      normalCount,
-      noLastReturnDateCount
-    ] = await Promise.all([
-      this.getReturnExpiredCount(today),
-      this.getReturnUrgentCount(today, threeDaysLater),
-      this.getReturnWarningCount(today, threeDaysLater, sevenDaysLater),
-      this.getReturnNormalCount(today, sevenDaysLater),
-      this.getNoLastReturnDateCount()
-    ]);
-
-    return {
-      expired: expiredCount,
-      urgent: urgentCount,
-      warning: warningCount,
-      normal: normalCount,
-      noLastReturnDate: noLastReturnDateCount
-    };
-  }
-
-  // ==================== 到港分布查询 ====================
-  // 关键原则：这7个查询必须互斥，确保每个货柜只被计数一次
-
-  /**
-   * 1. 今日到港：目的港ATA = today，且状态在目标集内
-   * 注意：如果一个货柜有多条目的港记录，只统计最近一次到港的
-   */
-  private async getArrivedToday(today: Date, targetStatuses: string[], startDate?: string, endDate?: string): Promise<number> {
-    const query = this.containerRepository
-      .createQueryBuilder('container')
-      .leftJoin('container.order', 'order')
-      .leftJoin('container.seaFreight', 'sf')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .innerJoin(
-        `(
-          SELECT po1.container_number, MAX(po1.ata_dest_port) as latest_ata
-          FROM process_port_operations po1
-          WHERE po1.port_type = 'destination'
-          AND po1.ata_dest_port IS NOT NULL
-          GROUP BY po1.container_number
-        )`,
-        'latest_po',
-        'latest_po.container_number = container.container_number'
-      )
-      .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses })
-      .andWhere("DATE(latest_po.latest_ata) = :today", { today });
-
-    if (startDate) {
-      query.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
-    }
-    if (endDate) {
-      const endDateObj = new Date(endDate)
-      endDateObj.setHours(23, 59, 59, 999)
-      query.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
-    }
-
-    const result = await query.getRawOne();
-
-    return parseInt(result.count);
+  async getLastReturnDistribution(
+    startDate?: string,
+    endDate?: string
+  ): Promise<Record<string, number>> {
+    return this.lastReturnStatistics.getDistribution(startDate, endDate);
   }
 
   /**
-   * 2. 今日之前到港：目的港ATA < today，且状态在目标集内
-   * 注意：如果一个货柜有多条目的港记录，只统计最近一次到港的
+   * 获取按最晚还箱时间分布的统计（兼容旧方法名）
    */
-  private async getArrivedBeforeToday(today: Date, targetStatuses: string[], startDate?: string, endDate?: string): Promise<number> {
-    const query = this.containerRepository
-      .createQueryBuilder('container')
-      .leftJoin('container.order', 'order')
-      .leftJoin('container.seaFreight', 'sf')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .innerJoin(
-        `(
-          SELECT po1.container_number, MAX(po1.ata_dest_port) as latest_ata
-          FROM process_port_operations po1
-          WHERE po1.port_type = 'destination'
-          AND po1.ata_dest_port IS NOT NULL
-          GROUP BY po1.container_number
-        )`,
-        'latest_po',
-        'latest_po.container_number = container.container_number'
-      )
-      .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses })
-      .andWhere('DATE(latest_po.latest_ata) < :today', { today });
-
-    if (startDate) {
-      query.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
-    }
-    if (endDate) {
-      const endDateObj = new Date(endDate)
-      endDateObj.setHours(23, 59, 59, 999)
-      query.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
-    }
-
-    const result = await query.getRawOne();
-
-    return parseInt(result.count);
+  async getReturnDistribution(
+    startDate?: string,
+    endDate?: string
+  ): Promise<Record<string, number>> {
+    return this.lastReturnStatistics.getDistribution(startDate, endDate);
   }
 
   /**
-   * 3. 逾期未到港：ETA < today，ATA is null，且状态在目标集内
+   * 获取最近3年的月度出运量统计
    */
-  private async getOverdueNotArrived(today: Date, targetStatuses: string[], startDate?: string, endDate?: string): Promise<number> {
-    const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD 格式
-    const query = this.containerRepository
-      .createQueryBuilder('container')
-      .leftJoin('container.order', 'order')
-      .leftJoin('container.seaFreight', 'sf')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .innerJoin(
-        `(
-          SELECT po1.container_number
-          FROM process_port_operations po1
-          WHERE po1.port_type = 'destination'
-          AND po1.ata_dest_port IS NULL
-          AND (po1.eta_dest_port < '${todayStr}' OR po1.eta_correction < '${todayStr}')
-        )`,
-        'dest_po',
-        'dest_po.container_number = container.container_number'
-      )
-      .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses });
-
-    if (startDate) {
-      query.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
-    }
-    if (endDate) {
-      const endDateObj = new Date(endDate)
-      endDateObj.setHours(23, 59, 59, 999)
-      query.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
-    }
-
-    const result = await query.getRawOne();
-
-    return parseInt(result.count);
+  async getRecentYearsDistribution(): Promise<any[]> {
+    return this.monthlyVolume.getRecentYearsDistribution();
   }
 
   /**
-   * 4. 3日内预计到港：ETA in [today, today+3]，且状态在目标集内
+   * 根据统计条件获取货柜列表
+   * 统一路由，委托给对应的子服务处理
+   * @param filterCondition 统计条件
+   * @param startDate 出运开始日期
+   * @param endDate 出运结束日期
    */
-  private async getWithin3Days(today: Date, targetStatuses: string[], startDate?: string, endDate?: string): Promise<number> {
-    const threeDaysLater = new Date(today);
-    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-    const todayStr = today.toISOString().split('T')[0];
-    const threeDaysStr = threeDaysLater.toISOString().split('T')[0];
-
-    const query = this.containerRepository
-      .createQueryBuilder('container')
-      .leftJoin('container.order', 'order')
-      .leftJoin('container.seaFreight', 'sf')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .innerJoin(
-        `(
-          SELECT po1.container_number
-          FROM process_port_operations po1
-          WHERE po1.port_type = 'destination'
-          AND po1.ata_dest_port IS NULL
-          AND po1.eta_dest_port >= '${todayStr}'
-          AND po1.eta_dest_port <= '${threeDaysStr}'
-        )`,
-        'dest_po',
-        'dest_po.container_number = container.container_number'
-      )
-      .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses });
-
-    if (startDate) {
-      query.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
-    }
-    if (endDate) {
-      const endDateObj = new Date(endDate)
-      endDateObj.setHours(23, 59, 59, 999)
-      query.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
+  async getContainersByCondition(
+    filterCondition: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
+    // 特殊处理：in_transit_transit（已到中转港）- 返回in_transit状态且已有中转港记录的货柜
+    if (filterCondition === 'in_transit_transit') {
+      return this.getContainersByInTransitTransit(startDate, endDate);
     }
 
-    const result = await query.getRawOne();
+    // 检查是否是物流状态筛选
+    const validStatuses = ['not_shipped', 'shipped', 'in_transit', 'at_port', 'picked_up', 'unloaded', 'returned_empty'];
+    if (validStatuses.includes(filterCondition)) {
+      return this.getContainersByStatus(filterCondition, startDate, endDate);
+    }
 
-    return parseInt(result.count);
+    const serviceName = CONDITION_TO_SERVICE_MAP[filterCondition];
+
+    switch (serviceName) {
+      case 'arrival':
+        return this.arrivalStatistics.getContainersByCondition(filterCondition, startDate, endDate);
+      case 'eta':
+        return this.etaStatistics.getContainersByCondition(filterCondition, startDate, endDate);
+      case 'plannedPickup':
+        return this.plannedPickupStatistics.getContainersByCondition(filterCondition, startDate, endDate);
+      case 'lastPickup':
+        return this.lastPickupStatistics.getContainersByCondition(filterCondition, startDate, endDate);
+      case 'lastReturn':
+        return this.lastReturnStatistics.getContainersByCondition(filterCondition, startDate, endDate);
+      default:
+        console.warn(`[ContainerStatisticsService] Unknown filterCondition: ${filterCondition}`);
+        return [];
+    }
   }
 
   /**
-   * 5. 7日内预计到港：ETA in (today+3, today+7]，且状态在目标集内
+   * 按物流状态获取货柜列表
    */
-  private async getWithin7Days(today: Date, targetStatuses: string[], startDate?: string, endDate?: string): Promise<number> {
-    const threeDaysLater = new Date(today);
-    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
-    const sevenDaysLater = new Date(today);
-    sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
-    const threeDaysStr = threeDaysLater.toISOString().split('T')[0];
-    const sevenDaysStr = sevenDaysLater.toISOString().split('T')[0];
-
-    const query = this.containerRepository
-      .createQueryBuilder('container')
-      .leftJoin('container.order', 'order')
-      .leftJoin('container.seaFreight', 'sf')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .innerJoin(
-        `(
-          SELECT po1.container_number
-          FROM process_port_operations po1
-          WHERE po1.port_type = 'destination'
-          AND po1.ata_dest_port IS NULL
-          AND po1.eta_dest_port > '${threeDaysStr}'
-          AND po1.eta_dest_port <= '${sevenDaysStr}'
-        )`,
-        'dest_po',
-        'dest_po.container_number = container.container_number'
-      )
-      .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses });
-
-    if (startDate) {
-      query.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
-    }
-    if (endDate) {
-      const endDateObj = new Date(endDate)
-      endDateObj.setHours(23, 59, 59, 999)
-      query.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
-    }
-
-    const result = await query.getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  /**
-   * 6. 7日后预计到港：ETA > today+7，且状态在目标集内
-   */
-  private async getOver7Days(today: Date, targetStatuses: string[], startDate?: string, endDate?: string): Promise<number> {
-    const sevenDaysLater = new Date(today);
-    sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
-    const sevenDaysStr = sevenDaysLater.toISOString().split('T')[0];
-
-    const query = this.containerRepository
-      .createQueryBuilder('container')
-      .leftJoin('container.order', 'order')
-      .leftJoin('container.seaFreight', 'sf')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .innerJoin(
-        `(
-          SELECT po1.container_number
-          FROM process_port_operations po1
-          WHERE po1.port_type = 'destination'
-          AND po1.ata_dest_port IS NULL
-          AND po1.eta_dest_port > '${sevenDaysStr}'
-        )`,
-        'dest_po',
-        'dest_po.container_number = container.container_number'
-      )
-      .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses });
-
-    if (startDate) {
-      query.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
-    }
-    if (endDate) {
-      const endDateObj = new Date(endDate)
-      endDateObj.setHours(23, 59, 59, 999)
-      query.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
-    }
-
-    const result = await query.getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  /**
-   * 7. 其他：ETA is null，且状态在目标集内
-   */
-  private async getOtherRecords(today: Date, targetStatuses: string[], startDate?: string, endDate?: string): Promise<number> {
-    const query = this.containerRepository
-      .createQueryBuilder('container')
-      .leftJoin('container.order', 'order')
-      .leftJoin('container.seaFreight', 'sf')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .innerJoin(
-        `(
-          SELECT po1.container_number
-          FROM process_port_operations po1
-          WHERE po1.port_type = 'destination'
-          AND po1.ata_dest_port IS NULL
-          AND po1.eta_dest_port IS NULL
-        )`,
-        'dest_po',
-        'dest_po.container_number = container.container_number'
-      )
-      .where('container.logisticsStatus IN (:...targetStatuses)', { targetStatuses });
-
-    if (startDate) {
-      query.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', { startDate: new Date(startDate) })
-    }
-    if (endDate) {
-      const endDateObj = new Date(endDate)
-      endDateObj.setHours(23, 59, 59, 999)
-      query.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', { endDate: endDateObj })
-    }
-
-    const result = await query.getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  // ==================== 提柜分布查询 ====================
-
-  private async getOverduePlanned(today: Date): Promise<number> {
-    const result = await this.containerRepository
-      .createQueryBuilder('container')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .innerJoin('container.portOperations', 'po')
-      .leftJoin('container.seaFreight', 'sf')
-      .leftJoin(TruckingTransport, 'tt', 'tt.containerNumber = container.containerNumber')
-      .where('po.portType = :portType', { portType: 'destination' })
-      .andWhere('container.logisticsStatus = :status', { status: SimplifiedStatus.AT_PORT })
-      .andWhere('tt.pickupDate IS NULL')
-      .andWhere('tt.plannedPickupDate < :today', { today })
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  private async getTodayPlanned(today: Date): Promise<number> {
-    const result = await this.containerRepository
-      .createQueryBuilder('container')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .innerJoin('container.portOperations', 'po')
-      .leftJoin('container.seaFreight', 'sf')
-      .leftJoin(TruckingTransport, 'tt', 'tt.containerNumber = container.containerNumber')
-      .where('po.portType = :portType', { portType: 'destination' })
-      .andWhere('container.logisticsStatus = :status', { status: SimplifiedStatus.AT_PORT })
-      .andWhere('tt.pickupDate IS NULL')
-      .andWhere("DATE(tt.plannedPickupDate) = :today", { today })
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  private async getTodayActual(today: Date): Promise<number> {
-    const result = await this.truckingTransportRepository
-      .createQueryBuilder('tt')
-      .select('COUNT(DISTINCT tt.containerNumber)', 'count')
-      .where("DATE(tt.pickupDate) = :today", { today })
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  private async getPendingArrangement(): Promise<number> {
-    const result = await this.containerRepository
-      .createQueryBuilder('container')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .innerJoin('container.portOperations', 'po')
-      .leftJoin(TruckingTransport, 'tt', 'tt.containerNumber = container.containerNumber')
-      .where('po.portType = :portType', { portType: 'destination' })
-      .andWhere('container.logisticsStatus = :status', { status: SimplifiedStatus.AT_PORT })
-      .andWhere('tt.containerNumber IS NULL')
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  private async getPlannedWithin3Days(today: Date, threeDaysLater: Date): Promise<number> {
-    const result = await this.containerRepository
-      .createQueryBuilder('container')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .innerJoin('container.portOperations', 'po')
-      .leftJoin('container.seaFreight', 'sf')
-      .leftJoin(TruckingTransport, 'tt', 'tt.containerNumber = container.containerNumber')
-      .where('po.portType = :portType', { portType: 'destination' })
-      .andWhere('container.logisticsStatus = :status', { status: SimplifiedStatus.AT_PORT })
-      .andWhere('tt.pickupDate IS NULL')
-      .andWhere('tt.plannedPickupDate >= :today', { today })
-      .andWhere('tt.plannedPickupDate <= :threeDays', { threeDays: threeDaysLater })
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  private async getPlannedWithin7Days(today: Date, threeDaysLater: Date, sevenDaysLater: Date): Promise<number> {
-    const result = await this.containerRepository
-      .createQueryBuilder('container')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .innerJoin('container.portOperations', 'po')
-      .leftJoin('container.seaFreight', 'sf')
-      .leftJoin(TruckingTransport, 'tt', 'tt.containerNumber = container.containerNumber')
-      .where('po.portType = :portType', { portType: 'destination' })
-      .andWhere('container.logisticsStatus = :status', { status: SimplifiedStatus.AT_PORT })
-      .andWhere('tt.pickupDate IS NULL')
-      .andWhere('tt.plannedPickupDate > :threeDays', { threeDays: threeDaysLater })
-      .andWhere('tt.plannedPickupDate <= :sevenDays', { sevenDays: sevenDaysLater })
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  // ==================== 最晚提柜分布查询 ====================
-
-  private async getExpiredCount(today: Date): Promise<number> {
-    const result = await this.containerRepository
-      .createQueryBuilder('container')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .leftJoin('container.portOperations', 'po')
-      .leftJoin(TruckingTransport, 'tt', 'tt.containerNumber = container.containerNumber')
-      .where('po.portType = :portType', { portType: 'destination' })
-      .andWhere('container.logisticsStatus = :status', { status: SimplifiedStatus.AT_PORT })
-      .andWhere('tt.containerNumber IS NULL')
-      .andWhere('po.lastFreeDate < :today', { today })
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  private async getUrgentCount(today: Date, threeDaysLater: Date): Promise<number> {
-    const result = await this.containerRepository
-      .createQueryBuilder('container')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .leftJoin('container.portOperations', 'po')
-      .leftJoin(TruckingTransport, 'tt', 'tt.containerNumber = container.containerNumber')
-      .where('po.portType = :portType', { portType: 'destination' })
-      .andWhere('container.logisticsStatus = :status', { status: SimplifiedStatus.AT_PORT })
-      .andWhere('tt.containerNumber IS NULL')
-      .andWhere('po.lastFreeDate >= :today', { today })
-      .andWhere('po.lastFreeDate <= :threeDays', { threeDays: threeDaysLater })
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  private async getWarningCount(today: Date, threeDaysLater: Date, sevenDaysLater: Date): Promise<number> {
-    const result = await this.containerRepository
-      .createQueryBuilder('container')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .leftJoin('container.portOperations', 'po')
-      .leftJoin(TruckingTransport, 'tt', 'tt.containerNumber = container.containerNumber')
-      .where('po.portType = :portType', { portType: 'destination' })
-      .andWhere('container.logisticsStatus = :status', { status: SimplifiedStatus.AT_PORT })
-      .andWhere('tt.containerNumber IS NULL')
-      .andWhere('po.lastFreeDate > :threeDays', { threeDays: threeDaysLater })
-      .andWhere('po.lastFreeDate <= :sevenDays', { sevenDays: sevenDaysLater })
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  private async getNormalCount(today: Date, sevenDaysLater: Date): Promise<number> {
-    const result = await this.containerRepository
-      .createQueryBuilder('container')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .leftJoin('container.portOperations', 'po')
-      .leftJoin(TruckingTransport, 'tt', 'tt.containerNumber = container.containerNumber')
-      .where('po.portType = :portType', { portType: 'destination' })
-      .andWhere('container.logisticsStatus = :status', { status: SimplifiedStatus.AT_PORT })
-      .andWhere('tt.containerNumber IS NULL')
-      .andWhere('po.lastFreeDate > :sevenDays', { sevenDays: sevenDaysLater })
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  private async getNoLastFreeDateCount(): Promise<number> {
-    const result = await this.containerRepository
-      .createQueryBuilder('container')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .leftJoin('container.portOperations', 'po')
-      .leftJoin(TruckingTransport, 'tt', 'tt.containerNumber = container.containerNumber')
-      .where('po.portType = :portType', { portType: 'destination' })
-      .andWhere('container.logisticsStatus = :status', { status: SimplifiedStatus.AT_PORT })
-      .andWhere('tt.containerNumber IS NULL')
-      .andWhere('po.lastFreeDate IS NULL')
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  // ==================== 最晚还箱分布查询 ====================
-
-  private async getReturnExpiredCount(today: Date): Promise<number> {
-    const result = await this.containerRepository
-      .createQueryBuilder('container')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .leftJoin(EmptyReturn, 'er', 'er.containerNumber = container.containerNumber')
-      .where('container.logisticsStatus IN (:...statuses)', {
-        statuses: [SimplifiedStatus.PICKED_UP, SimplifiedStatus.UNLOADED]
-      })
-      .andWhere('er.containerNumber IS NOT NULL')
-      .andWhere('er.returnTime IS NULL')
-      .andWhere('er.lastReturnDate < :today', { today })
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  private async getReturnUrgentCount(today: Date, threeDaysLater: Date): Promise<number> {
-    const result = await this.containerRepository
-      .createQueryBuilder('container')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .leftJoin(EmptyReturn, 'er', 'er.containerNumber = container.containerNumber')
-      .where('container.logisticsStatus IN (:...statuses)', {
-        statuses: [SimplifiedStatus.PICKED_UP, SimplifiedStatus.UNLOADED]
-      })
-      .andWhere('er.containerNumber IS NOT NULL')
-      .andWhere('er.returnTime IS NULL')
-      .andWhere('er.lastReturnDate >= :today', { today })
-      .andWhere('er.lastReturnDate <= :threeDays', { threeDays: threeDaysLater })
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  private async getReturnWarningCount(today: Date, threeDaysLater: Date, sevenDaysLater: Date): Promise<number> {
-    const result = await this.containerRepository
-      .createQueryBuilder('container')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .leftJoin(EmptyReturn, 'er', 'er.containerNumber = container.containerNumber')
-      .where('container.logisticsStatus IN (:...statuses)', {
-        statuses: [SimplifiedStatus.PICKED_UP, SimplifiedStatus.UNLOADED]
-      })
-      .andWhere('er.containerNumber IS NOT NULL')
-      .andWhere('er.returnTime IS NULL')
-      .andWhere('er.lastReturnDate > :threeDays', { threeDays: threeDaysLater })
-      .andWhere('er.lastReturnDate <= :sevenDays', { sevenDays: sevenDaysLater })
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  private async getReturnNormalCount(today: Date, sevenDaysLater: Date): Promise<number> {
-    const result = await this.containerRepository
-      .createQueryBuilder('container')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .leftJoin(EmptyReturn, 'er', 'er.containerNumber = container.containerNumber')
-      .where('container.logisticsStatus IN (:...statuses)', {
-        statuses: [SimplifiedStatus.PICKED_UP, SimplifiedStatus.UNLOADED]
-      })
-      .andWhere('er.containerNumber IS NOT NULL')
-      .andWhere('er.returnTime IS NULL')
-      .andWhere('er.lastReturnDate > :sevenDays', { sevenDays: sevenDaysLater })
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  private async getNoLastReturnDateCount(): Promise<number> {
-    const result = await this.containerRepository
-      .createQueryBuilder('container')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .leftJoin(EmptyReturn, 'er', 'er.containerNumber = container.containerNumber')
-      .where('container.logisticsStatus IN (:...statuses)', {
-        statuses: [SimplifiedStatus.PICKED_UP, SimplifiedStatus.UNLOADED]
-      })
-      .andWhere('er.containerNumber IS NOT NULL')
-      .andWhere('er.returnTime IS NULL')
-      .andWhere('er.lastReturnDate IS NULL')
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  // ==================== 异常集装箱统计 ====================
-
-  /**
-   * 获取异常集装箱统计（三种异常类型）
-   * 1. 已逾期未到港：ETA已逾期但未到港
-   * 2. 计划提柜逾期：计划提柜日期已过
-   * 3. 已超时：最晚提柜日期已过
-   */
-  async getAbnormalDistribution(): Promise<Record<string, number>> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    // 并行执行三个异常查询
-    const [etaDelayCount, pickupOverdueCount, lastPickupExpiredCount] = await Promise.all([
-      this.getEtaDelayCount(today),
-      this.getPickupOverdueCount(today),
-      this.getLastPickupExpiredCount(today)
-    ]);
-
-    return {
-      etaDelay: etaDelayCount,
-      pickupOverdue: pickupOverdueCount,
-      lastPickupExpired: lastPickupExpiredCount
-    };
-  }
-
-  /**
-   * 1. 已逾期未到港：ETA < today，ATA is null，状态在 shipped/in_transit/at_port
-   */
-  private async getEtaDelayCount(today: Date): Promise<number> {
-    const todayStr = today.toISOString().split('T')[0];
-    const result = await this.containerRepository
-      .createQueryBuilder('container')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .innerJoin(
-        `(
-          SELECT po1.container_number
-          FROM process_port_operations po1
-          WHERE po1.port_type = 'destination'
-          AND po1.ata_dest_port IS NULL
-          AND po1.eta_dest_port < '${todayStr}'
-        )`,
-        'dest_po',
-        'dest_po.container_number = container.containerNumber'
-      )
-      .where('container.logisticsStatus IN (:...targetStatuses)', {
-        targetStatuses: [SimplifiedStatus.SHIPPED, SimplifiedStatus.IN_TRANSIT, SimplifiedStatus.AT_PORT]
-      })
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  /**
-   * 2. 计划提柜逾期：plannedPickupDate < today，状态为 at_port，未提柜
-   */
-  private async getPickupOverdueCount(today: Date): Promise<number> {
-    const result = await this.containerRepository
-      .createQueryBuilder('container')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .innerJoin('container.portOperations', 'po')
-      .leftJoin('container.seaFreight', 'sf')
-      .leftJoin(TruckingTransport, 'tt', 'tt.containerNumber = container.containerNumber')
-      .where('po.portType = :portType', { portType: 'destination' })
-      .andWhere('container.logisticsStatus = :status', { status: SimplifiedStatus.AT_PORT })
-      .andWhere('tt.pickupDate IS NULL')
-      .andWhere('tt.plannedPickupDate < :today', { today })
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  /**
-   * 3. 已超时：lastFreeDate < today，状态为 at_port，未提柜
-   */
-  private async getLastPickupExpiredCount(today: Date): Promise<number> {
-    const result = await this.containerRepository
-      .createQueryBuilder('container')
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .innerJoin('container.portOperations', 'po')
-      .leftJoin(TruckingTransport, 'tt', 'tt.containerNumber = container.containerNumber')
-      .where('po.portType = :portType', { portType: 'destination' })
-      .andWhere('container.logisticsStatus = :status', { status: SimplifiedStatus.AT_PORT })
-      .andWhere('tt.containerNumber IS NULL')
-      .andWhere('po.lastFreeDate < :today', { today })
-      .getRawOne();
-
-    return parseInt(result.count);
-  }
-
-  /**
-   * 获取年度出运量数据（近三年）
-   * Get yearly shipment volume data (last 3 years)
-   */
-  async getYearlyVolume(): Promise<Array<{ year: number; volume: number; months: Array<{ month: number; volume: number }> }>> {
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const years = [currentYear, currentYear - 1, currentYear - 2];
-
-    const yearlyData = [];
-
-    for (const year of years) {
-      const yearStart = new Date(year, 0, 1);
-      const yearEnd = new Date(year, 11, 31, 23, 59, 59, 999);
-
-      // 统计该年度已出运的货柜数量（shipped、in_transit、at_port、picked_up、unloaded、returned_empty）
-      const result = await this.containerRepository
-        .createQueryBuilder('container')
-        .leftJoin('container.order', 'order')
-        .leftJoin('container.seaFreight', 'sf')
-        .select('COUNT(DISTINCT container.containerNumber)', 'count')
-        .where('container.logisticsStatus IN (:...statuses)', {
-          statuses: [
-            SimplifiedStatus.SHIPPED,
-            SimplifiedStatus.IN_TRANSIT,
-            SimplifiedStatus.AT_PORT,
-            SimplifiedStatus.PICKED_UP,
-            SimplifiedStatus.UNLOADED,
-            SimplifiedStatus.RETURNED_EMPTY
-          ]
-        })
-        .andWhere('(order.actualShipDate >= :yearStart OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :yearStart))', { yearStart })
-        .andWhere('(order.actualShipDate < :yearEnd OR (order.actualShipDate IS NULL AND sf.shipmentDate < :yearEnd))', { yearEnd })
-        .getRawOne();
-
-      const yearlyVolume = parseInt(result.count);
-
-      // 只添加有数据的年份
-      if (yearlyVolume > 0) {
-        // 按月统计
-        const monthlyData = [];
-        for (let month = 1; month <= 12; month++) {
-          const monthStart = new Date(year, month - 1, 1);
-          const monthEnd = new Date(year, month, 0, 23, 59, 59, 999);
-
-          const monthlyResult = await this.containerRepository
-            .createQueryBuilder('container')
-            .leftJoin('container.order', 'order')
-            .leftJoin('container.seaFreight', 'sf')
-            .select('COUNT(DISTINCT container.containerNumber)', 'count')
-            .where('container.logisticsStatus IN (:...statuses)', {
-              statuses: [
-                SimplifiedStatus.SHIPPED,
-                SimplifiedStatus.IN_TRANSIT,
-                SimplifiedStatus.AT_PORT,
-                SimplifiedStatus.PICKED_UP,
-                SimplifiedStatus.UNLOADED,
-                SimplifiedStatus.RETURNED_EMPTY
-              ]
-            })
-            .andWhere('(order.actualShipDate >= :monthStart OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :monthStart))', { monthStart })
-            .andWhere('(order.actualShipDate <= :monthEnd OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :monthEnd))', { monthEnd })
-            .getRawOne();
-
-          monthlyData.push({
-            month,
-            volume: parseInt(monthlyResult.count)
-          });
-        }
-
-        yearlyData.push({
-          year,
-          volume: yearlyVolume,
-          months: monthlyData
-        });
+  private async getContainersByStatus(
+    logisticsStatus: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
+    const query = this.containerRepository.createQueryBuilder('container');
+    query.where('container.logisticsStatus = :logisticsStatus', { logisticsStatus });
+
+    // 添加出运时间筛选
+    if (startDate || endDate) {
+      query.leftJoin('process_sea_freight', 'sf', 'sf.container_number = container.container_number')
+        .leftJoin('biz_replenishment_orders', 'o', 'o.order_number = container.order_number');
+
+      if (startDate) {
+        query.andWhere(
+          '(o.actual_ship_date >= :startDate OR (o.actual_ship_date IS NULL AND sf.shipment_date >= :startDate))',
+          { startDate: new Date(startDate) }
+        );
+      }
+      if (endDate) {
+        const endDateObj = new Date(endDate);
+        endDateObj.setHours(23, 59, 59, 999);
+        query.andWhere(
+          '(o.actual_ship_date <= :endDate OR (o.actual_ship_date IS NULL AND sf.shipment_date <= :endDate))',
+          { endDate: endDateObj }
+        );
       }
     }
 
-    // 按年份降序排列
-    return yearlyData.sort((a, b) => b.year - a.year);
+    return query.getMany();
+  }
+
+  /**
+   * 获取已到中转港的货柜列表
+   * 条件：in_transit状态 且 有中转港记录且无目的港ATA
+   */
+  private async getContainersByInTransitTransit(
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
+    const query = this.containerRepository.createQueryBuilder('container');
+
+    // 条件：in_transit状态
+    query.where('container.logisticsStatus = :logisticsStatus', { logisticsStatus: 'in_transit' });
+
+    // 添加中转港存在条件
+    query.andWhere(qb => {
+      const subQuery = qb.subQuery()
+        .select('1')
+        .from('process_port_operations', 'transit_po')
+        .where('transit_po.container_number = container.container_number')
+        .andWhere('transit_po.port_type = :transitType', { transitType: 'transit' })
+        .getQuery();
+      return `EXISTS ${subQuery}`;
+    });
+
+    // 添加目的港无ATA条件
+    query.andWhere(qb => {
+      const destSubQuery = qb.subQuery()
+        .select('1')
+        .from('process_port_operations', 'dest_po')
+        .where('dest_po.container_number = container.container_number')
+        .andWhere('dest_po.port_type = :portType', { portType: 'destination' })
+        .andWhere('dest_po.port_sequence = (SELECT MAX(po2.port_sequence) FROM process_port_operations po2 WHERE po2.container_number = dest_po.container_number AND po2.port_type = \'destination\')')
+        .andWhere('dest_po.ata_dest_port IS NOT NULL')
+        .getQuery();
+      return `NOT EXISTS ${destSubQuery}`;
+    });
+
+    // 添加出运时间筛选
+    if (startDate || endDate) {
+      query.leftJoin('process_sea_freight', 'sf', 'sf.container_number = container.container_number')
+        .leftJoin('biz_replenishment_orders', 'o', 'o.order_number = container.order_number');
+
+      if (startDate) {
+        query.andWhere(
+          '(o.actual_ship_date >= :startDate OR (o.actual_ship_date IS NULL AND sf.shipment_date >= :startDate))',
+          { startDate: new Date(startDate) }
+        );
+      }
+      if (endDate) {
+        const endDateObj = new Date(endDate);
+        endDateObj.setHours(23, 59, 59, 999);
+        query.andWhere(
+          '(o.actual_ship_date <= :endDate OR (o.actual_ship_date IS NULL AND sf.shipment_date <= :endDate))',
+          { endDate: endDateObj }
+        );
+      }
+    }
+
+    return query.getMany();
+  }
+
+  // 为了兼容旧代码，保留 getYearlyVolume 方法
+  async getYearlyVolume(): Promise<any[]> {
+    return this.monthlyVolume.getRecentYearsDistribution();
   }
 }

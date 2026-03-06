@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import ContainerGanttChart from '@/components/common/ContainerGanttChart.vue'
+import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import { containerService } from '@/services/container'
-import { ElMessage } from 'element-plus'
 import dayjs from 'dayjs'
+import { ElMessage } from 'element-plus'
+import { onMounted, ref } from 'vue'
 
 const loading = ref(false)
 const containers = ref<any[]>([])
@@ -12,7 +12,7 @@ const containers = ref<any[]>([])
 // 加载数据的日期范围（更大范围，确保能获取到相关货柜）
 const loadDataDateRange = ref<[Date, Date]>([
   dayjs().subtract(180, 'day').startOf('day').toDate(),
-  dayjs().add(90, 'day').endOf('day').toDate()
+  dayjs().add(90, 'day').endOf('day').toDate(),
 ])
 
 // 显示范围（初始为空，加载后会自动设置）
@@ -20,7 +20,10 @@ const displayRange = ref<[Date, Date] | null>(null)
 
 // 从货柜中提取指定泳道的日期范围
 // dimension: 'arrival' | 'pickup' | 'lastPickup' | 'return'
-const calculateDisplayRange = (containersData: any[], dimension: string = 'arrival'): [Date, Date] | null => {
+const calculateDisplayRange = (
+  containersData: any[],
+  dimension: string = 'arrival'
+): [Date, Date] | null => {
   if (!containersData || containersData.length === 0) return null
 
   const allDates: Date[] = []
@@ -77,7 +80,9 @@ const calculateDisplayRange = (containersData: any[], dimension: string = 'arriv
       }
     } else if (dimension === 'pickup') {
       // 按计划提柜：统计所有有计划提柜日期的货柜
-      if (firstTrucking?.plannedPickupDate) {
+      // 仅统计已到目的港且未提柜的货柜（与 useGanttFilters 保持一致）
+      const arrivedAtDestination = ataDate && currentPortType !== 'transit'
+      if (arrivedAtDestination && firstTrucking?.plannedPickupDate) {
         date = firstTrucking.plannedPickupDate
         // 参考 Shipments 页面的逻辑：只统计未提柜的货柜
         if (isNotPickedUp(logisticsStatus)) {
@@ -134,7 +139,9 @@ const calculateDisplayRange = (containersData: any[], dimension: string = 'arriv
 
   // 返回最早和最晚日期
   const minDate = dayjs(allDates[0]).startOf('day').toDate()
-  const maxDate = dayjs(allDates[allDates.length - 1]).endOf('day').toDate()
+  const maxDate = dayjs(allDates[allDates.length - 1])
+    .endOf('day')
+    .toDate()
 
   return [minDate, maxDate]
 }
@@ -147,13 +154,11 @@ const loadData = async () => {
     const startDate = dayjs(loadDataDateRange.value[0]).format('YYYY-MM-DD')
     const endDate = dayjs(loadDataDateRange.value[1]).format('YYYY-MM-DD')
 
-
-
     const containerResponse = await containerService.getContainers({
       page: 1,
       pageSize: 5000,
       startDate,
-      endDate
+      endDate,
     })
 
     if (containerResponse) {
@@ -189,8 +194,23 @@ const handleLaneChange = (dimension: string) => {
   if (range) {
     displayRange.value = range
     console.log('handleLaneChange - displayRange updated:', displayRange.value)
-    const laneName = dimension === 'arrival' ? '按到港' : dimension === 'pickup' ? '按计划提柜' : dimension === 'lastPickup' ? '按最晚提柜' : '按最晚还箱'
-    ElMessage.info(`已切换到${laneName}维度，日期范围已更新`)
+    const laneName =
+      dimension === 'arrival'
+        ? '按到港'
+        : dimension === 'pickup'
+          ? '按计划提柜'
+          : dimension === 'lastPickup'
+            ? '按最晚提柜'
+            : '按最晚还箱'
+    const laneSubtitle =
+      dimension === 'arrival'
+        ? '到港时间分布'
+        : dimension === 'pickup'
+          ? '计划提柜分布'
+          : dimension === 'lastPickup'
+            ? '免租期倒计时'
+            : '还箱期限倒计时'
+    ElMessage.info(`已切换到${laneName}（${laneSubtitle}）维度，日期范围已更新`)
   }
 }
 
@@ -209,9 +229,7 @@ onMounted(() => {
       </div>
       <div class="header-actions">
         <DateRangePicker v-model="displayRange" @update:modelValue="handleDateChange" />
-        <el-button type="primary" @click="loadData" :loading="loading">
-          刷新数据
-        </el-button>
+        <el-button type="primary" @click="loadData" :loading="loading"> 刷新数据 </el-button>
       </div>
     </div>
 
@@ -220,10 +238,34 @@ onMounted(() => {
       <div class="stat-item">
         <div class="stat-icon">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M20 7H4C2.89543 7 2 7.89543 2 9V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V9C22 7.89543 21.1046 7 20 7Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M12 3V7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M8 3V7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M16 3V7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path
+              d="M20 7H4C2.89543 7 2 7.89543 2 9V19C2 20.1046 2.89543 21 4 21H20C21.1046 21 22 20.1046 22 19V9C22 7.89543 21.1046 7 20 7Z"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M12 3V7"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M8 3V7"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M16 3V7"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
           </svg>
         </div>
         <div class="stat-content">
@@ -235,13 +277,20 @@ onMounted(() => {
       <div class="stat-item">
         <div class="stat-icon display-icon">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M8 7V3M16 7V3M3 10H21M21 10V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V10H21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path
+              d="M8 7V3M16 7V3M3 10H21M21 10V19C21 20.1046 20.1046 21 19 21H5C3.89543 21 3 20.1046 3 19V10H21Z"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
           </svg>
         </div>
         <div class="stat-content">
           <span class="stat-label">显示范围</span>
           <span class="stat-value" v-if="displayRange">
-            {{ dayjs(displayRange[0]).format('YYYY-MM-DD') }} 至 {{ dayjs(displayRange[1]).format('YYYY-MM-DD') }}
+            {{ dayjs(displayRange[0]).format('YYYY-MM-DD') }} 至
+            {{ dayjs(displayRange[1]).format('YYYY-MM-DD') }}
           </span>
           <span class="stat-value" v-else>-</span>
         </div>
@@ -250,22 +299,49 @@ onMounted(() => {
       <div class="stat-item">
         <div class="stat-icon load-icon">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M4 16V4C4 2.89543 4.89543 2 6 2H18C19.1046 2 20 2.89543 20 4V16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M12 2V8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M2 16H22V20C22 21.1046 21.1046 22 20 22H4C2.89543 22 2 21.1046 2 20V16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path
+              d="M4 16V4C4 2.89543 4.89543 2 6 2H18C19.1046 2 20 2.89543 20 4V16"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M12 2V8"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M2 16H22V20C22 21.1046 21.1046 22 20 22H4C2.89543 22 2 21.1046 2 20V16Z"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
           </svg>
         </div>
         <div class="stat-content">
           <span class="stat-label">加载范围</span>
-          <span class="stat-value">{{ dayjs(loadDataDateRange[0]).format('YYYY-MM-DD') }} 至 {{ dayjs(loadDataDateRange[1]).format('YYYY-MM-DD') }}</span>
+          <span class="stat-value"
+            >{{ dayjs(loadDataDateRange[0]).format('YYYY-MM-DD') }} 至
+            {{ dayjs(loadDataDateRange[1]).format('YYYY-MM-DD') }}</span
+          >
         </div>
       </div>
       <div class="stat-divider"></div>
       <div class="stat-item">
         <div class="stat-icon days-icon">
           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-            <path d="M12 6V12L16 14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2" />
+            <path
+              d="M12 6V12L16 14"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
           </svg>
         </div>
         <div class="stat-content">
@@ -305,19 +381,27 @@ onMounted(() => {
           <div class="info-item">
             <h4>泳道说明：</h4>
             <ul>
-              <li><strong>按到港：</strong>显示货柜实际到港日期</li>
-              <li><strong>按计划提柜：</strong>显示货柜计划提柜日期</li>
-              <li><strong>按最晚提柜：</strong>显示货柜最晚免费提柜日期</li>
-              <li><strong>按最晚还箱：</strong>显示货柜最晚还箱日期</li>
+              <li><strong>按到港（到港时间分布）：</strong>显示货柜实际到港日期和预计到港日期</li>
+              <li><strong>按计划提柜（计划提柜分布）：</strong>显示货柜计划提柜日期</li>
+              <li><strong>按最晚提柜（免租期倒计时）：</strong>显示货柜最后免费提柜日期</li>
+              <li><strong>按最晚还箱（还箱期限倒计时）：</strong>显示货柜最后还箱日期</li>
             </ul>
           </div>
           <div class="info-item">
             <h4>颜色说明：</h4>
             <ul>
-              <li><span class="color-dot" style="background-color: #67c23a;"></span> 绿色：按到港</li>
-              <li><span class="color-dot" style="background-color: #e6a23c;"></span> 橙色：按计划提柜</li>
-              <li><span class="color-dot" style="background-color: #f56c6c;"></span> 红色：按最晚提柜</li>
-              <li><span class="color-dot" style="background-color: #909399;"></span> 灰色：按最晚还箱</li>
+              <li>
+                <span class="color-dot" style="background-color: #67c23a"></span> 绿色：按到港
+              </li>
+              <li>
+                <span class="color-dot" style="background-color: #e6a23c"></span> 橙色：按计划提柜
+              </li>
+              <li>
+                <span class="color-dot" style="background-color: #f56c6c"></span> 红色：按最晚提柜
+              </li>
+              <li>
+                <span class="color-dot" style="background-color: #909399"></span> 灰色：按最晚还箱
+              </li>
             </ul>
           </div>
           <div class="info-item">
@@ -705,7 +789,8 @@ onMounted(() => {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {

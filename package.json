@@ -28,6 +28,8 @@
     "markdownlint-cli2": "^0.21.0"
   },
   "dependencies": {
+    "exceljs": "^4.4.0",
+    "pg": "^8.20.0",
     "shiki": "^4.0.0",
     "vue-i18n": "^9.14.4",
     "xlsx": "^0.18.5"

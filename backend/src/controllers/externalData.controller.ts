@@ -6,11 +6,24 @@
 import { Request, Response } from 'express';
 import { feituoAdapter } from '../adapters/FeiTuoAdapter';
 import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
+import { Container } from '../entities/Container';
+import { PortOperation } from '../entities/PortOperation';
+import { SeaFreight } from '../entities/SeaFreight';
+import { TruckingTransport } from '../entities/TruckingTransport';
+import { WarehouseOperation } from '../entities/WarehouseOperation';
+import { EmptyReturn } from '../entities/EmptyReturn';
 import { AppDataSource } from '../database';
 import { logger } from '../utils/logger';
+import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
 
 export class ExternalDataController {
   private eventRepository = AppDataSource.getRepository(ContainerStatusEvent);
+  private containerRepository = AppDataSource.getRepository(Container);
+  private portOperationRepository = AppDataSource.getRepository(PortOperation);
+  private seaFreightRepository = AppDataSource.getRepository(SeaFreight);
+  private truckingTransportRepository = AppDataSource.getRepository(TruckingTransport);
+  private warehouseOperationRepository = AppDataSource.getRepository(WarehouseOperation);
+  private emptyReturnRepository = AppDataSource.getRepository(EmptyReturn);
   /**
    * 同步单个货柜的状态事件
    * POST /api/external/sync/:containerNumber
@@ -46,6 +59,9 @@ export class ExternalDataController {
 
       // 保存到数据库
       const savedEvents = await this.saveStatusEvents(events);
+
+      // 关键: 重新计算货柜的物流状态
+      await this.recalculateLogisticsStatus(containerNumber);
 
       res.json({
         success: true,
@@ -126,6 +142,65 @@ export class ExternalDataController {
     }
 
     return savedEvents;
+  }
+
+  /**
+   * 重新计算货柜的物流状态
+   * 基于更新后的核心时间字段重新计算状态
+   *
+   * @param containerNumber 集装箱号
+   */
+  private async recalculateLogisticsStatus(containerNumber: string): Promise<void> {
+    try {
+      // 获取货柜
+      const container = await this.containerRepository.findOne({
+        where: { containerNumber },
+        relations: []
+      });
+
+      if (!container) {
+        logger.warn(`[ExternalDataController] 货柜 ${containerNumber} 不存在`);
+        return;
+      }
+
+      // 获取港口操作记录
+      const portOperations = await this.portOperationRepository
+        .createQueryBuilder('po')
+        .where('po.containerNumber = :containerNumber', { containerNumber })
+        .orderBy('po.portSequence', 'DESC')
+        .getMany();
+
+      // 获取其他相关数据
+      const [seaFreight, truckingTransport, warehouseOperation, emptyReturn] = await Promise.all([
+        this.seaFreightRepository.findOne({ where: { containerNumber } }),
+        this.truckingTransportRepository.findOne({ where: { containerNumber } }),
+        this.warehouseOperationRepository.findOne({ where: { containerNumber } }),
+        this.emptyReturnRepository.findOne({ where: { containerNumber } })
+      ]);
+
+      // 计算新的物流状态
+      const result = calculateLogisticsStatus(
+        container,
+        portOperations,
+        seaFreight,
+        truckingTransport,
+        warehouseOperation,
+        emptyReturn
+      );
+
+      // 更新货柜的物流状态
+      if (result.status !== container.logisticsStatus) {
+        const oldStatus = container.logisticsStatus;
+        container.logisticsStatus = result.status;
+        await this.containerRepository.save(container);
+
+        logger.info(`[ExternalDataController] 货柜 ${containerNumber} 物流状态更新: ${oldStatus} -> ${result.status}`);
+      }
+
+    } catch (error) {
+      logger.error(`[ExternalDataController] 重新计算物流状态失败:`, error);
+      // 不抛出错误,避免影响主流程
+    }
   }
 
   /**

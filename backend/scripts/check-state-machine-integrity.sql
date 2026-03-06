@@ -1,0 +1,185 @@
+-- 状态机数据完整性检查脚�?
+-- 检查数据链的完整性和状态更新有效�?
+
+-- ============================================================
+-- 1. 检查状态分�?
+-- ============================================================
+SELECT '1. 状态分�? as description;
+SELECT 
+  logistics_status,
+  COUNT(*) as count,
+  ROUND(COUNT(*) * 100.0 / (SELECT COUNT(*) FROM biz_containers), 2) as percentage
+FROM biz_containers
+GROUP BY logistics_status
+ORDER BY logistics_status;
+
+-- ============================================================
+-- 2. 检查状态流转的完整性（关键字段�?
+-- ============================================================
+SELECT '2. 状态流转完整性检�? as description;
+
+-- 检查各状态的必要字段完整�?
+WITH status_check AS (
+  SELECT
+    c.container_number,
+    c.logistics_status,
+    sf.shipment_date as shipment_date,
+    po.ata_dest_port as ata_date,
+    tt.pickup_date as pickup_date,
+    wo.wms_confirm_date as wms_confirm_date,
+    er.return_time as return_time,
+    CASE 
+      WHEN c.logistics_status = 'in_transit' THEN 
+        CASE WHEN sf.shipment_date IS NULL THEN '�?缺海运日�? ELSE '�?正常' END
+      WHEN c.logistics_status = 'at_port' THEN 
+        CASE WHEN po.ata_dest_port IS NULL THEN '�?缺ATA' ELSE '�?正常' END
+      WHEN c.logistics_status = 'picked_up' THEN 
+        CASE WHEN tt.pickup_date IS NULL THEN '�?缺提柜日�? ELSE '�?正常' END
+      WHEN c.logistics_status = 'unloaded' THEN 
+        CASE WHEN wo.wms_confirm_date IS NULL AND wo.ebs_status != '已入�? AND wo.wms_status != 'WMS已完�? THEN '�?缺卸柜确�? ELSE '�?正常' END
+      WHEN c.logistics_status = 'returned_empty' THEN 
+        CASE WHEN er.return_time IS NULL THEN '�?缺还箱时�? ELSE '�?正常' END
+      ELSE '�?正常'
+    END as field_check
+  FROM biz_containers c
+  LEFT JOIN process_sea_freight sf ON c.container_number = sf.container_number
+  LEFT JOIN process_port_operations po ON c.container_number = po.container_number AND po.port_type = 'destination'
+  LEFT JOIN process_trucking_transport tt ON c.container_number = tt.container_number
+  LEFT JOIN process_warehouse_operations wo ON c.container_number = wo.container_number
+  LEFT JOIN process_empty_returns er ON c.container_number = er.container_number
+)
+SELECT 
+  logistics_status,
+  field_check,
+  COUNT(*) as count
+FROM status_check
+WHERE field_check != '�?正常'
+GROUP BY logistics_status, field_check
+ORDER BY logistics_status, field_check;
+
+-- ============================================================
+-- 3. 检查状态流转顺序（不允许逆流转）
+-- ============================================================
+SELECT '3. 状态流转顺序检查（基于操作记录时间�? as description;
+
+WITH status_timeline AS (
+  SELECT
+    c.container_number,
+    c.logistics_status,
+    ROW_NUMBER() OVER (PARTITION BY c.container_number ORDER BY GREATEST(
+      COALESCE(sf.shipment_date, '1900-01-01'::timestamp),
+      COALESCE(po.ata_dest_port, '1900-01-01'::timestamp),
+      COALESCE(tt.pickup_date, '1900-01-01'::timestamp),
+      COALESCE(wo.wms_confirm_date, '1900-01-01'::timestamp),
+      COALESCE(er.return_time, '1900-01-01'::timestamp)
+    ) DESC) as rank
+  FROM biz_containers c
+  LEFT JOIN process_sea_freight sf ON c.container_number = sf.container_number
+  LEFT JOIN process_port_operations po ON c.container_number = po.container_number AND po.port_type = 'destination'
+  LEFT JOIN process_trucking_transport tt ON c.container_number = tt.container_number
+  LEFT JOIN process_warehouse_operations wo ON c.container_number = wo.container_number
+  LEFT JOIN process_empty_returns er ON c.container_number = er.container_number
+  WHERE c.logistics_status IN ('picked_up', 'unloaded', 'returned_empty')
+)
+SELECT * FROM status_timeline WHERE rank = 1 LIMIT 20;
+
+-- ============================================================
+-- 4. 检查多港经停场�?
+-- ============================================================
+SELECT '4. 多港经停场景检�? as description;
+
+SELECT
+  c.container_number,
+  c.logistics_status,
+  COUNT(CASE WHEN po.port_type = 'transit' THEN 1 END) as transit_count,
+  COUNT(CASE WHEN po.port_type = 'destination' AND po.ata_dest_port IS NOT NULL THEN 1 END) as destination_arrived_count,
+  CASE 
+    WHEN c.logistics_status = 'at_port' AND 
+         EXISTS (SELECT 1 FROM process_port_operations po2 WHERE po2.container_number = c.container_number AND po2.port_type = 'transit')
+         AND NOT EXISTS (SELECT 1 FROM process_port_operations po3 WHERE po3.container_number = c.container_number AND po3.port_type = 'destination' AND po3.ata_dest_port IS NOT NULL)
+    THEN '�?已到中转港（正确�?
+    WHEN c.logistics_status IN ('picked_up', 'unloaded', 'returned_empty') AND
+         NOT EXISTS (SELECT 1 FROM process_port_operations po4 WHERE po4.container_number = c.container_number AND po4.port_type = 'destination' AND po4.ata_dest_port IS NOT NULL)
+    THEN '�?已提�?卸柜/还箱但目的港无ATA'
+    ELSE '�?正常'
+  END as status_check
+FROM biz_containers c
+LEFT JOIN process_port_operations po ON c.container_number = po.container_number
+GROUP BY c.container_number, c.logistics_status
+HAVING COUNT(CASE WHEN po.port_type = 'transit' THEN 1 END) > 0
+LIMIT 20;
+
+-- ============================================================
+-- 5. 检查状态机覆盖�?
+-- ============================================================
+SELECT '5. 状态机覆盖度检�? as description;
+
+SELECT 
+  '总货柜数' as metric,
+  COUNT(*) as value
+FROM biz_containers
+
+UNION ALL
+
+SELECT 
+  '有海运记�?,
+  COUNT(DISTINCT c.container_number)
+FROM biz_containers c
+INNER JOIN process_sea_freight sf ON c.container_number = sf.container_number
+
+UNION ALL
+
+SELECT 
+  '有港口操作记�?,
+  COUNT(DISTINCT c.container_number)
+FROM biz_containers c
+INNER JOIN process_port_operations po ON c.container_number = po.container_number
+
+UNION ALL
+
+SELECT 
+  '有拖卡运输记�?,
+  COUNT(DISTINCT c.container_number)
+FROM biz_containers c
+INNER JOIN process_trucking_transport tt ON c.container_number = tt.container_number
+
+UNION ALL
+
+SELECT 
+  '有仓库操作记�?,
+  COUNT(DISTINCT c.container_number)
+FROM biz_containers c
+INNER JOIN process_warehouse_operations wo ON c.container_number = wo.container_number
+
+UNION ALL
+
+SELECT 
+  '有还箱记�?,
+  COUNT(DISTINCT c.container_number)
+FROM biz_containers c
+INNER JOIN process_empty_returns er ON c.container_number = er.container_number
+
+UNION ALL
+
+SELECT 
+  '状态非�?,
+  COUNT(*)
+FROM biz_containers
+WHERE logistics_status IS NOT NULL;
+
+-- ============================================================
+-- 6. 检查状态一致性问�?
+-- ============================================================
+SELECT '6. 状态一致性问�? as description;
+
+-- 已还箱但仍有未完成的后续操作
+SELECT 
+  c.container_number,
+  c.logistics_status,
+  '已还箱但可能有不一致的后续操作' as issue
+FROM biz_containers c
+WHERE c.logistics_status = 'returned_empty'
+  AND (
+    EXISTS (SELECT 1 FROM process_warehouse_operations wo WHERE wo.container_number = c.container_number AND wo.wms_confirm_date > (SELECT return_time FROM process_empty_returns er WHERE er.container_number = c.container_number))
+  )
+LIMIT 10;

@@ -16,145 +16,145 @@ import { Container } from './Container';
 
 @Entity('process_port_operations')
 export class PortOperation {
-  @PrimaryColumn({ type: 'varchar', length: 50, name: 'id' })
+  @PrimaryColumn({ type: 'varchar', length: 50 })
   id: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'container_number' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   containerNumber: string;
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'port_type' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   portType: string; // origin/transit/destination
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'port_code' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   portCode: string;
 
-  @Column({ type: 'varchar', length: 100, nullable: true, name: 'port_name' })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   portName: string;
 
-  @Column({ type: 'int', nullable: true, name: 'port_sequence' })
+  @Column({ type: 'int', nullable: true })
   portSequence: number;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'eta_dest_port' })
+  @Column({ type: 'timestamp', nullable: true })
   etaDestPort: Date;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'ata_dest_port' })
+  @Column({ type: 'timestamp', nullable: true })
   ataDestPort: Date;
 
-  @Column({ type: 'date', nullable: true, name: 'etd_transit' })
+  @Column({ type: 'date', nullable: true })
   etdTransit: Date;
 
-  @Column({ type: 'date', nullable: true, name: 'atd_transit' })
+  @Column({ type: 'date', nullable: true })
   atdTransit: Date;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'gate_in_time' })
+  @Column({ type: 'timestamp', nullable: true })
   gateInTime: Date;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'gate_out_time' })
+  @Column({ type: 'timestamp', nullable: true })
   gateOutTime: Date;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'discharged_time' })
+  @Column({ type: 'timestamp', nullable: true })
   dischargedTime: Date;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'available_time' })
+  @Column({ type: 'timestamp', nullable: true })
   availableTime: Date;
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'customs_status' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   customsStatus: string;
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'isf_status' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   isfStatus: string;
 
-  @Column({ type: 'date', nullable: true, name: 'last_free_date' })
+  @Column({ type: 'date', nullable: true })
   lastFreeDate: Date;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'gate_in_terminal' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   gateInTerminal: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'gate_out_terminal' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   gateOutTerminal: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'berth_position' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   berthPosition: string;
 
   // Excel映射字段 - 缺失字段
-  @Column({ type: 'timestamp', nullable: true, name: 'eta_correction' })
+  @Column({ type: 'timestamp', nullable: true })
   etaCorrection?: Date; // ETA修正
 
-  @Column({ type: 'timestamp', nullable: true, name: 'dest_port_unload_date' })
+  @Column({ type: 'timestamp', nullable: true })
   destPortUnloadDate?: Date; // 目的港卸船/火车日期
 
-  @Column({ type: 'timestamp', nullable: true, name: 'transit_arrival_date' })
+  @Column({ type: 'timestamp', nullable: true })
   transitArrivalDate?: Date; // 途经港到达日期
 
-  @Column({ type: 'timestamp', nullable: true, name: 'planned_customs_date' })
+  @Column({ type: 'timestamp', nullable: true })
   plannedCustomsDate?: Date; // 计划清关日期
 
-  @Column({ type: 'date', nullable: true, name: 'actual_customs_date' })
+  @Column({ type: 'date', nullable: true })
   actualCustomsDate?: Date; // 实际清关日期
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'customs_broker_code' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   customsBrokerCode?: string; // 目的港清关公司
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'document_status' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   documentStatus?: string; // 清关单据状态
 
-  @Column({ type: 'date', nullable: true, name: 'all_generated_date' })
+  @Column({ type: 'date', nullable: true })
   allGeneratedDate?: Date; // 全部生成日期
 
-  @Column({ type: 'text', nullable: true, name: 'customs_remarks' })
+  @Column({ type: 'text', nullable: true })
   customsRemarks?: string; // 异常原因
 
-  @Column({ type: 'timestamp', nullable: true, name: 'isf_declaration_date' })
+  @Column({ type: 'timestamp', nullable: true })
   isfDeclarationDate?: Date; // ISF申报日期
 
-  @Column({ type: 'timestamp', nullable: true, name: 'document_transfer_date' })
+  @Column({ type: 'timestamp', nullable: true })
   documentTransferDate?: Date; // 传递日期
 
   // 免费期信息 - Excel映射字段
-  @Column({ type: 'int', nullable: true, name: 'free_storage_days' })
+  @Column({ type: 'int', nullable: true })
   freeStorageDays?: number; // 免堆期(天) - 货物在码头免费存放天数
 
-  @Column({ type: 'int', nullable: true, name: 'free_detention_days' })
+  @Column({ type: 'int', nullable: true })
   freeDetentionDays?: number; // 场内免箱期(天) - 集装箱在码头免费使用天数
 
-  @Column({ type: 'int', nullable: true, name: 'free_off_terminal_days' })
+  @Column({ type: 'int', nullable: true })
   freeOffTerminalDays?: number; // 场外免箱期(天) - 集装箱离开码头后免费使用天数
 
   // 飞驼字段 - 状态节点详细信息
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'status_code' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   statusCode?: string; // 状态代码 (如 DLPT)
 
-  @Column({ type: 'timestamp', nullable: true, name: 'status_occurred_at' })
+  @Column({ type: 'timestamp', nullable: true })
   statusOccurredAt?: Date; // 状态发生时间
 
-  @Column({ type: 'boolean', nullable: true, name: 'has_occurred' })
+  @Column({ type: 'boolean', nullable: true })
   hasOccurred?: boolean; // 是否已发生
 
-  @Column({ type: 'varchar', length: 100, nullable: true, name: 'location_name_en' })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   locationNameEn?: string; // 地点英文名
 
-  @Column({ type: 'varchar', length: 100, nullable: true, name: 'location_name_cn' })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   locationNameCn?: string; // 地点中文名
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'location_type' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   locationType?: string; // 地点类型 (ETA/ETD/ATD/ATA等)
 
-  @Column({ type: 'decimal', precision: 10, scale: 6, nullable: true, name: 'latitude' })
+  @Column({ type: 'decimal', precision: 10, scale: 6, nullable: true })
   latitude?: number; // 纬度
 
-  @Column({ type: 'decimal', precision: 10, scale: 6, nullable: true, name: 'longitude' })
+  @Column({ type: 'decimal', precision: 10, scale: 6, nullable: true })
   longitude?: number; // 经度
 
-  @Column({ type: 'int', nullable: true, name: 'timezone' })
+  @Column({ type: 'int', nullable: true })
   timezone?: number; // 时区
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'data_source' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   dataSource?: string; // 数据来源 (AIS/船公司/码头)
 
-  @Column({ type: 'varchar', length: 200, nullable: true, name: 'cargo_location' })
+  @Column({ type: 'varchar', length: 200, nullable: true })
   cargoLocation?: string; // 货物存储位置
 
-  @Column({ type: 'text', nullable: true, name: 'remarks' })
+  @Column({ type: 'text', nullable: true })
   remarks: string;
 
   @CreateDateColumn({ name: 'created_at' })
@@ -165,9 +165,6 @@ export class PortOperation {
 
   // 关联关系
   @ManyToOne(() => Container)
-  @JoinColumn({
-    name: 'container_number',
-    referencedColumnName: 'containerNumber'
-  })
+  @JoinColumn()
   container: Container;
 }

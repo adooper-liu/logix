@@ -72,12 +72,12 @@ export const useTimeGroups = (
         if (dimension.key === 'overdue') {
           groupStartDate = dayjs(startDate).toDate()
           groupEndDate = today.subtract(1, 'day').toDate()
-        } else if (dimension.key === 'arrivedBeforeToday') {
-          groupStartDate = dayjs(startDate).toDate()
-          groupEndDate = today.subtract(1, 'day').toDate()
         } else if (dimension.key === 'today') {
           groupStartDate = today.toDate()
           groupEndDate = today.toDate()
+        } else if (dimension.key === 'arrivedBeforeTodayNotPickedUp' || dimension.key === 'arrivedBeforeTodayPickedUp') {
+          groupStartDate = dayjs(startDate).toDate()
+          groupEndDate = today.subtract(1, 'day').toDate()
         } else if (dimension.key === 'within3Days') {
           groupStartDate = today.add(1, 'day').toDate()
           groupEndDate = today.add(3, 'day').toDate()
@@ -86,6 +86,9 @@ export const useTimeGroups = (
           groupEndDate = today.add(7, 'day').toDate()
         } else if (dimension.key === 'over7Days') {
           groupStartDate = today.add(8, 'day').toDate()
+          groupEndDate = dayjs(endDate).toDate()
+        } else if (dimension.key === 'other') {
+          groupStartDate = dayjs(startDate).toDate()
           groupEndDate = dayjs(endDate).toDate()
         }
 
@@ -108,7 +111,7 @@ export const useTimeGroups = (
         } else if (dimension.key === 'pending') {
           groupStartDate = dayjs(startDate).toDate()
           groupEndDate = today.subtract(1, 'day').toDate()
-        } else if (dimension.key === 'todayPlanned' || dimension.key === 'todayActual') {
+        } else if (dimension.key === 'todayPlanned') {
           groupStartDate = today.toDate()
           groupEndDate = today.toDate()
         } else if (dimension.key === 'within3Days') {

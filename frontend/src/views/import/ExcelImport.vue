@@ -40,7 +40,14 @@ const importResult = reactive({
 /**
  * Excel字段到数据库字段的完整映射
  * 基于 database/03_create_tables.sql 数据库表结构
- * 最后更新: 2026-02-26
+ * 最后更新: 2026-03-06
+ *
+ * 注意事项：
+ * 1. 飞驼API字段(如route_code, imo_number, mmsi_number, flag, eta_origin, ata_origin, port_open_date, port_close_date等)
+ *    仅由飞驼API接口写入,Excel导入不处理这些字段
+ * 2. process_port_operations中的status_code, status_occurred_at, has_occurred, location_name_en, location_name_cn,
+ *    location_type, latitude, longitude, timezone, data_source, cargo_location等飞驼字段同样仅由API写入
+ * 3. Excel导入只处理用户手动维护的字段,不影响API自动同步的数据
  */
 const FIELD_MAPPINGS: FieldMapping[] = [
   // ===== 备货单表 (biz_replenishment_orders) =====

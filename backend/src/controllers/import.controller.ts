@@ -404,7 +404,7 @@ export class ImportController {
     const portData = tables.process_port_operations; // 数组需要单独处理
     const truckingData = snakeToCamel(tables.process_trucking_transport);
     const warehouseData = snakeToCamel(tables.process_warehouse_operations);
-    const returnData = snakeToCamel(tables.process_empty_return);
+    const returnData = snakeToCamel(tables.process_empty_returns);
 
     // 港口操作是数组，需要单独转换每个元素
     const portOperations = portData?.map((p: any) => snakeToCamel(p)) || [];
@@ -632,6 +632,19 @@ export class ImportController {
         await queryRunner.commitTransaction();
         logger.info('[Import] 导入成功:', resultData);
 
+        // 导入成功后，自动更新货柜状态
+        if (containerData?.containerNumber) {
+          try {
+            const { ContainerStatusService } = await import('../services/containerStatus.service');
+            const statusService = new ContainerStatusService();
+            await statusService.updateStatus(containerData.containerNumber);
+            logger.info(`[Import] 货柜 ${containerData.containerNumber} 状态已自动更新`);
+          } catch (statusError) {
+            logger.warn(`[Import] 自动更新货柜状态失败:`, statusError);
+            // 不影响导入结果，只记录警告
+          }
+        }
+
         res.json({
           success: true,
           message: '数据导入成功',
@@ -735,6 +748,7 @@ export class ImportController {
 
     const results: any[] = [];
     const errors: any[] = [];
+    const containersToUpdate: string[] = []; // 收集需要更新状态的货柜号
 
     // 逐条处理，每条记录独立事务
     for (let i = 0; i < batch.length; i++) {
@@ -783,7 +797,7 @@ export class ImportController {
             process_port_operations: portData,
             process_trucking_transport: truckingData,
             process_warehouse_operations: warehouseData,
-            process_empty_return: returnData
+            process_empty_returns: returnData
           } = convertedTables;
 
           const resultData: any = { rowIndex: i + 1 };
@@ -989,6 +1003,11 @@ export class ImportController {
           logger.info(`[Import] 第${i + 1}行: 事务提交成功`);
           results.push({ success: true, ...resultData });
 
+          // 收集需要更新状态的货柜号
+          if (containerData?.containerNumber) {
+            containersToUpdate.push(containerData.containerNumber);
+          }
+
         } catch (error: any) {
           await queryRunner.rollbackTransaction();
           logger.error(`[Import] 第 ${i + 1} 行导入失败:`, error);
@@ -1017,6 +1036,19 @@ export class ImportController {
     }
 
     logger.info(`[Import] 批量导入完成: 成功 ${results.length - errors.length} 条，失败 ${errors.length} 条`);
+
+    // 批量导入成功后，自动更新所有导入货柜的状态
+    if (containersToUpdate.length > 0) {
+      try {
+        const { ContainerStatusService } = await import('../services/containerStatus.service');
+        const statusService = new ContainerStatusService();
+        const updatedCount = await statusService.updateStatusesForContainers(containersToUpdate);
+        logger.info(`[Import] 批量自动更新状态: 更新了 ${updatedCount} 个货柜`);
+      } catch (statusError) {
+        logger.warn(`[Import] 批量自动更新货柜状态失败:`, statusError);
+        // 不影响导入结果，只记录警告
+      }
+    }
 
     // 随机抽取3条数据进行验证
     const successfulResults = results.filter(r => r.success);
@@ -1066,7 +1098,7 @@ export class ImportController {
       try {
         // 从数据库查询各表的数据
         const [container, order, seaFreight, portOp, trucking, warehouse, emptyReturn] = await Promise.all([
-          this.containerRepository.findOne({ where: { containerNumber } }),
+          this.containerRepository.findOne({ where: { containerNumber }, relations: [] }),
           item.tables.replenishment_orders?.orderNumber
             ? this.orderRepository.findOne({ where: { orderNumber: item.tables.replenishment_orders.orderNumber } })
             : null,

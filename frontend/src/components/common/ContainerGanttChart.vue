@@ -173,7 +173,10 @@ watch(() => timeGroups, () => {
             @click="selectedLaneName = lane.name"
           >
             <span class="lane-radio-dot" :style="{ backgroundColor: lane.color }"></span>
-            <span class="lane-radio-label">{{ lane.name }}</span>
+            <span class="lane-radio-label">
+              {{ lane.name }}
+              <span class="lane-radio-subtitle" v-if="lane.subtitle">{{ lane.subtitle }}</span>
+            </span>
           </div>
         </div>
       </div>
@@ -181,7 +184,10 @@ watch(() => timeGroups, () => {
       <div class="legend-item">
         <span class="legend-label">当前：</span>
         <div class="legend-dot" :style="{ backgroundColor: selectedLane.color }"></div>
-        <span class="legend-label">{{ selectedLane.name }}</span>
+        <span class="legend-label">
+          {{ selectedLane.name }}
+          <span class="legend-subtitle" v-if="selectedLane.subtitle">{{ selectedLane.subtitle }}</span>
+        </span>
       </div>
     </div>
 
@@ -305,6 +311,16 @@ watch(() => timeGroups, () => {
         font-weight: 600;
         color: $text-secondary;
         transition: color 0.2s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
+
+        .lane-radio-subtitle {
+          font-size: 11px;
+          font-weight: 400;
+          color: $text-hint;
+        }
       }
 
       &:hover {
@@ -343,6 +359,16 @@ watch(() => timeGroups, () => {
       font-size: 14px;
       font-weight: 500;
       color: $text-secondary;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+
+      .legend-subtitle {
+        font-size: 11px;
+        font-weight: 400;
+        color: $text-hint;
+      }
     }
 
     .legend-dot {

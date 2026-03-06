@@ -17,93 +17,93 @@ import { Warehouse } from './Warehouse';
 
 @Entity('process_warehouse_operations')
 export class WarehouseOperation {
-  @PrimaryColumn({ type: 'varchar', length: 50, name: 'container_number' })
+  @PrimaryColumn({ type: 'varchar', length: 50 })
   containerNumber: string;
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'operation_type' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   operationType: string; // INBOUND/OUTBOUND/TRANSIT
 
   // 仓库信息
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'warehouse_id' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   warehouseId?: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'planned_warehouse' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   plannedWarehouse?: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'actual_warehouse' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   actualWarehouse?: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'warehouse_group' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   warehouseGroup?: string;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'warehouse_arrival_date' })
+  @Column({ type: 'timestamp', nullable: true })
   warehouseArrivalDate?: Date;
 
   // 卸柜信息
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'unload_mode_actual' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   unloadModeActual?: string;
 
-  @Column({ type: 'date', nullable: true, name: 'last_unload_date' })
+  @Column({ type: 'date', nullable: true })
   lastUnloadDate?: Date;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'planned_unload_date' })
+  @Column({ type: 'timestamp', nullable: true })
   plannedUnloadDate?: Date;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'unload_date' })
+  @Column({ type: 'timestamp', nullable: true })
   unloadDate?: Date;
 
   // 系统状态
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'wms_status' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   wmsStatus?: string;
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'ebs_status' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   ebsStatus?: string;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'wms_confirm_date' })
+  @Column({ type: 'timestamp', nullable: true })
   wmsConfirmDate?: Date;
 
   // 卸柜操作详情
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'unload_gate' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   unloadGate?: string;
 
-  @Column({ type: 'varchar', length: 100, nullable: true, name: 'unload_company' })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   unloadCompany?: string;
 
-  @Column({ type: 'date', nullable: true, name: 'notification_pickup_date' })
+  @Column({ type: 'date', nullable: true })
   notificationPickupDate?: Date;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'pickup_time' })
+  @Column({ type: 'timestamp', nullable: true })
   pickupTime?: Date;
 
-  @Column({ type: 'text', nullable: true, name: 'warehouse_remarks' })
+  @Column({ type: 'text', nullable: true })
   warehouseRemarks?: string;
 
   // 保留原有字段
-  @Column({ type: 'timestamp', nullable: true, name: 'gate_in_time' })
+  @Column({ type: 'timestamp', nullable: true })
   gateInTime?: Date;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'gate_out_time' })
+  @Column({ type: 'timestamp', nullable: true })
   gateOutTime?: Date;
 
-  @Column({ type: 'date', nullable: true, name: 'storage_start_date' })
+  @Column({ type: 'date', nullable: true })
   storageStartDate?: Date;
 
-  @Column({ type: 'date', nullable: true, name: 'storage_end_date' })
+  @Column({ type: 'date', nullable: true })
   storageEndDate?: Date;
 
-  @Column({ type: 'boolean', default: false, name: 'is_unboxing' })
+  @Column({ type: 'boolean', default: false })
   isUnboxing: boolean;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'unboxing_time' })
+  @Column({ type: 'timestamp', nullable: true })
   unboxingTime?: Date;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'cargo_received_by' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   cargoReceivedBy?: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'cargo_delivered_to' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   cargoDeliveredTo?: string;
 
-  @Column({ type: 'text', nullable: true, name: 'remarks' })
+  @Column({ type: 'text', nullable: true })
   remarks?: string;
 
   @CreateDateColumn({ name: 'created_at' })
@@ -114,13 +114,10 @@ export class WarehouseOperation {
 
   // 关联关系
   @ManyToOne(() => Container)
-  @JoinColumn({
-    name: 'container_number',
-    referencedColumnName: 'containerNumber'
-  })
+  @JoinColumn()
   container: Container;
 
   @ManyToOne(() => Warehouse, { nullable: true })
-  @JoinColumn({ name: 'warehouse_id', referencedColumnName: 'warehouseCode' })
+  @JoinColumn()
   warehouse: Warehouse;
 }

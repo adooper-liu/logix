@@ -3,7 +3,10 @@ import type { ContainerItem } from '../types/ganttChart'
 import { getRemainingTime } from './useGanttHelpers'
 
 // 获取按到港分组的货柜子集（使用与Shipments页面相同的逻辑）
-export const getArrivalSubset = (containers: ContainerItem[], groupLabel: string): ContainerItem[] => {
+export const getArrivalSubset = (
+  containers: ContainerItem[],
+  groupLabel: string
+): ContainerItem[] => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -20,7 +23,9 @@ export const getArrivalSubset = (containers: ContainerItem[], groupLabel: string
       const currentPortType = container.currentPortType
 
       // 判断是否已出运但未到港之后状态的货柜
-      const isShippedButNotArrived = ['shipped', 'in_transit', 'at_port'].includes(container.logisticsStatus?.toLowerCase())
+      const isShippedButNotArrived = ['shipped', 'in_transit', 'at_port'].includes(
+        container.logisticsStatus?.toLowerCase()
+      )
 
       if (groupLabel === '今日到港') {
         // ATA = today 且当前港口类型不是transit
@@ -32,12 +37,30 @@ export const getArrivalSubset = (containers: ContainerItem[], groupLabel: string
         return false
       }
 
-      if (groupLabel === '今日之前到港') {
-        // ATA < today 且当前港口类型不是transit
+      if (groupLabel === '今日之前到港未提柜') {
+        // ATA < today, 当前港口类型不是transit, 且未提柜/未卸柜/未还箱
         if (ataDate && currentPortType !== 'transit') {
-          const arrivalDate = new Date(ataDate)
-          arrivalDate.setHours(0, 0, 0, 0)
-          return arrivalDate.getTime() < today.getTime()
+          const logisticsStatus = container.logisticsStatus?.toLowerCase()
+          // 排除已提柜、已卸柜、已还箱状态
+          if (!['picked_up', 'unloaded', 'returned_empty'].includes(logisticsStatus)) {
+            const arrivalDate = new Date(ataDate)
+            arrivalDate.setHours(0, 0, 0, 0)
+            return arrivalDate.getTime() < today.getTime()
+          }
+        }
+        return false
+      }
+
+      if (groupLabel === '今日之前到港已提柜') {
+        // ATA < today, 当前港口类型不是transit, 且已提柜/已卸柜/已还箱
+        if (ataDate && currentPortType !== 'transit') {
+          const logisticsStatus = container.logisticsStatus?.toLowerCase()
+          // 包含已提柜、已卸柜、已还箱状态
+          if (['picked_up', 'unloaded', 'returned_empty'].includes(logisticsStatus)) {
+            const arrivalDate = new Date(ataDate)
+            arrivalDate.setHours(0, 0, 0, 0)
+            return arrivalDate.getTime() < today.getTime()
+          }
         }
         return false
       }
@@ -106,7 +129,7 @@ export const getArrivalSubset = (containers: ContainerItem[], groupLabel: string
 
       return {
         ...container,
-        extractedDate
+        extractedDate,
       }
     })
 
@@ -114,7 +137,10 @@ export const getArrivalSubset = (containers: ContainerItem[], groupLabel: string
 }
 
 // 获取按计划提柜分组的货柜子集
-export const getPickupSubset = (containers: ContainerItem[], groupLabel: string): ContainerItem[] => {
+export const getPickupSubset = (
+  containers: ContainerItem[],
+  groupLabel: string
+): ContainerItem[] => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -126,8 +152,14 @@ export const getPickupSubset = (containers: ContainerItem[], groupLabel: string)
         firstTrucking = container.truckingTransports[0]
       }
 
-      if (groupLabel === '已逾期提柜') {
-        // 计划提柜逾期（未提柜）
+      // 到达目的港判断（用于按计划提柜的各分组）
+      const ataDate = container.ataDestPort
+      const currentPortType = container.currentPortType
+      const arrivedAtDestination = ataDate && currentPortType !== 'transit'
+
+      if (groupLabel === '逾期未提柜') {
+        // 计划提柜逾期（未提柜），仅统计已到目的港的货柜
+        if (!arrivedAtDestination) return false
         if (!firstTrucking?.plannedPickupDate) return false
         if (firstTrucking.pickupDate) return false
         const plannedPickupDate = new Date(firstTrucking.plannedPickupDate)
@@ -142,19 +174,17 @@ export const getPickupSubset = (containers: ContainerItem[], groupLabel: string)
         return !firstTrucking
       } else if (groupLabel === '今日计划提柜') {
         // 今日计划提柜（未提柜）
+        // 仅统计已到目的港的货柜
+        if (!arrivedAtDestination) return false
         if (!firstTrucking?.plannedPickupDate) return false
         if (firstTrucking.pickupDate) return false
         const plannedPickupDate = new Date(firstTrucking.plannedPickupDate)
         plannedPickupDate.setHours(0, 0, 0, 0)
         return plannedPickupDate.getTime() === today.getTime()
-      } else if (groupLabel === '今日实际提柜') {
-        // 今日实际提柜
-        if (!firstTrucking?.pickupDate) return false
-        const pickupDate = new Date(firstTrucking.pickupDate)
-        pickupDate.setHours(0, 0, 0, 0)
-        return pickupDate.getTime() === today.getTime()
       } else if (groupLabel === '3天内计划提柜') {
         // 3天内预计提柜（未提柜）
+        // 仅统计已到目的港的货柜
+        if (!arrivedAtDestination) return false
         if (!firstTrucking?.plannedPickupDate) return false
         if (firstTrucking.pickupDate) return false
         const plannedPickupDate = new Date(firstTrucking.plannedPickupDate)
@@ -163,6 +193,8 @@ export const getPickupSubset = (containers: ContainerItem[], groupLabel: string)
         return time.days <= 3
       } else if (groupLabel === '7天内计划提柜') {
         // 7天内预计提柜（未提柜）
+        // 仅统计已到目的港的货柜
+        if (!arrivedAtDestination) return false
         if (!firstTrucking?.plannedPickupDate) return false
         if (firstTrucking.pickupDate) return false
         const plannedPickupDate = new Date(firstTrucking.plannedPickupDate)
@@ -187,7 +219,7 @@ export const getPickupSubset = (containers: ContainerItem[], groupLabel: string)
 
       return {
         ...container,
-        extractedDate
+        extractedDate,
       }
     })
 
@@ -195,7 +227,10 @@ export const getPickupSubset = (containers: ContainerItem[], groupLabel: string)
 }
 
 // 获取按最晚提柜分组的货柜子集
-export const getLastPickupSubset = (containers: ContainerItem[], groupLabel: string): ContainerItem[] => {
+export const getLastPickupSubset = (
+  containers: ContainerItem[],
+  groupLabel: string
+): ContainerItem[] => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -208,20 +243,34 @@ export const getLastPickupSubset = (containers: ContainerItem[], groupLabel: str
 
       if (!arrivedAtDestination) return false
 
-      // 只统计无拖卡运输记录的货柜
-      let firstTrucking: any = null
-      if (container.truckingTransports && container.truckingTransports.length > 0) {
-        firstTrucking = container.truckingTransports[0]
-      }
-
-      if (firstTrucking) return false
-
       // 获取目的港操作记录
       let destPortOp: any = null
       if (container.portOperations && container.portOperations.length > 0) {
         destPortOp = container.portOperations.find((op: any) => op.portType === 'destination')
       }
 
+      // 业务逻辑：
+      // 情况1：无计划日期 + 无实际提柜 → ✅ 纳入统计
+      // 情况2：有计划日期 + 无实际提柜 → ✅ 纳入统计
+      // 情况3：有计划日期 + 有实际提柜 → ❌ 不纳入统计
+
+      const hasPlannedPickupDate = destPortOp?.plannedPickupDate ? true : false
+      let hasActualPickupDate = false
+
+      // 检查是否有实际提柜日期（从拖卡运输记录中获取）
+      if (container.truckingTransports && container.truckingTransports.length > 0) {
+        const firstTrucking = container.truckingTransports[0]
+        if (firstTrucking.pickupTime) {
+          hasActualPickupDate = true
+        }
+      }
+
+      // 情况3：有计划日期 + 有实际提柜 → 不纳入统计
+      if (hasPlannedPickupDate && hasActualPickupDate) {
+        return false
+      }
+
+      // 情况1和情况2：需要 lastFreeDate 才能纳入统计（除了"缺最后免费日"分组）
       if (!destPortOp?.lastFreeDate) {
         return groupLabel === '缺最后免费日'
       }
@@ -254,7 +303,7 @@ export const getLastPickupSubset = (containers: ContainerItem[], groupLabel: str
 
       return {
         ...container,
-        extractedDate
+        extractedDate,
       }
     })
 
@@ -262,7 +311,10 @@ export const getLastPickupSubset = (containers: ContainerItem[], groupLabel: str
 }
 
 // 获取按最晚还箱分组的货柜子集
-export const getReturnSubset = (containers: ContainerItem[], groupLabel: string): ContainerItem[] => {
+export const getReturnSubset = (
+  containers: ContainerItem[],
+  groupLabel: string
+): ContainerItem[] => {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
@@ -326,7 +378,7 @@ export const getReturnSubset = (containers: ContainerItem[], groupLabel: string)
 
       return {
         ...container,
-        extractedDate
+        extractedDate,
       }
     })
 
@@ -334,7 +386,11 @@ export const getReturnSubset = (containers: ContainerItem[], groupLabel: string)
 }
 
 // 获取时间组对应的货柜子集
-export const getGroupContainersSubset = (containers: ContainerItem[], laneName: string, groupLabel: string): ContainerItem[] => {
+export const getGroupContainersSubset = (
+  containers: ContainerItem[],
+  laneName: string,
+  groupLabel: string
+): ContainerItem[] => {
   // 根据不同泳道使用不同的筛选逻辑
   if (laneName === '按到港') {
     return getArrivalSubset(containers, groupLabel)

@@ -255,19 +255,33 @@ export const isValidSimplifiedTransition = (
 // ============================================================================
 
 /**
+ * 判断是否WMS已确认（已卸柜）
+ * Check if WMS is confirmed (container unloaded)
+ *
+ * @param warehouseOperation 仓库操作记录
+ * @returns 是否已确认
+ */
+export const isWmsConfirmed = (warehouseOperation?: WarehouseOperation): boolean => {
+  if (!warehouseOperation) return false;
+
+  // 满足任一条件即可
+  return warehouseOperation.wmsStatus === 'WMS已完成' ||
+         warehouseOperation.ebsStatus === '已入库' ||
+         warehouseOperation.wmsConfirmDate !== null;
+};
+
+/**
  * 基于货柜相关数据自动计算物流状态
  * Calculate logistics status automatically based on container data
  *
  * 优先级顺序（从高到低）:
  * 1. 还空箱日期 → returned_empty
- * 2. 仓库卸柜日期 → unloaded
+ * 2. 仓库卸柜（WMS已确认） → unloaded
  * 3. 拖车提柜日期 → picked_up
- * 4. 目的港实际到港 → at_port
- * 5. 中转港到达日期 → at_port
- * 6. 有目的港记录（无到达时间）→ in_transit
- * 7. 有中转港记录（无到达时间）→ shipped
- * 8. 有出运日期 → shipped
- * 9. 默认 → not_shipped
+ * 4. 目的港实际到港（ata_dest_port） → at_port
+ * 5. 中转港实际到港（ata_dest_port或gate_in_time） → at_port
+ * 6. 有海运记录（已实际出运）→ in_transit
+ * 7. 默认状态（无出运记录）→ not_shipped
  */
 export const calculateLogisticsStatus = (
   container: Container,
@@ -295,8 +309,9 @@ export const calculateLogisticsStatus = (
     return { status, currentPortType, latestPortOperation };
   }
 
-  // 优先级2: 仓库卸柜日期
-  if (warehouseOperation?.unloadDate) {
+  // 优先级2: 仓库卸柜（WMS已确认）
+  // 判断条件：wmsStatus === 'WMS已完成' OR ebsStatus === '已入库' OR wmsConfirmDate !== null
+  if (isWmsConfirmed(warehouseOperation)) {
     status = SimplifiedStatus.UNLOADED;
     return { status, currentPortType, latestPortOperation };
   }
@@ -316,8 +331,8 @@ export const calculateLogisticsStatus = (
     return { status, currentPortType, latestPortOperation };
   }
 
-  // 优先级5: 中转港有到达时间
-  const transitWithArrival = transitPorts.find(po => po.transitArrivalDate);
+  // 优先级5: 中转港有ATA（或进闸时间）
+  const transitWithArrival = transitPorts.find(po => po.ataDestPort || po.gateInTime);
   if (transitWithArrival) {
     status = SimplifiedStatus.AT_PORT;
     currentPortType = 'transit';
@@ -325,29 +340,13 @@ export const calculateLogisticsStatus = (
     return { status, currentPortType, latestPortOperation };
   }
 
-  // 优先级6: 有目的港记录（无到达时间）→ 在途
-  if (destPorts.length > 0) {
-    status = SimplifiedStatus.IN_TRANSIT;
-    currentPortType = 'destination';
-    latestPortOperation = destPorts[0];
-    return { status, currentPortType, latestPortOperation };
-  }
-
-  // 优先级7: 有中转港记录（无到达时间）→ 已出运
-  if (transitPorts.length > 0) {
-    status = SimplifiedStatus.SHIPPED;
-    currentPortType = 'transit';
-    latestPortOperation = transitPorts[0];
-    return { status, currentPortType, latestPortOperation };
-  }
-
-  // 优先级8: 有出运日期
+  // 优先级6: 有海运记录（已实际出运）→ 在途
   if (seaFreight?.shipmentDate || container.order?.actualShipDate) {
-    status = SimplifiedStatus.SHIPPED;
+    status = SimplifiedStatus.IN_TRANSIT;
     return { status, currentPortType, latestPortOperation };
   }
 
-  // 优先级9: 默认状态
+  // 优先级7: 默认状态（未出运）
   status = SimplifiedStatus.NOT_SHIPPED;
   return { status, currentPortType, latestPortOperation };
 };
@@ -461,6 +460,7 @@ export default {
   ExternalApiToDetailedMap,
   SimplifiedStatusTransitions,
   isValidSimplifiedTransition,
+  isWmsConfirmed,
   calculateLogisticsStatus,
   mapExternalStatusToSimplified,
   batchMapExternalStatuses,

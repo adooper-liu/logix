@@ -58,9 +58,6 @@ export class EmptyReturn {
 
   // 关联关系
   @ManyToOne(() => Container)
-  @JoinColumn({
-    name: 'containerNumber',
-    referencedColumnName: 'containerNumber'
-  })
+  @JoinColumn()
   container: Container;
 }

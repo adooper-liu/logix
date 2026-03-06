@@ -21,7 +21,7 @@ const router = useRouter()
 // 表格数据 - 使用 shallowRef 减少深度响应式开销
 const containers = shallowRef<any[]>([])
 // 统计数据（从后端API获取，不依赖全量数据）
-const statisticsData = shallowRef<{
+const statisticsData = ref<{
   statusDistribution: Record<string, number>
   arrivalDistribution: Record<string, number>
   pickupDistribution: Record<string, number>
@@ -107,17 +107,8 @@ const loadContainers = async () => {
 const loadStatistics = async () => {
   try {
     console.log('Loading detailed statistics from backend...')
-    // 根据时间筛选条件传递参数
-    let startDate: string | undefined
-    let endDate: string | undefined
-
-    // 使用Dashboard风格的日期筛选
-    if (shipmentDateRange.value) {
-      startDate = dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD')
-      endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
-    }
-
-    const response = await containerService.getStatisticsDetailed(startDate, endDate)
+    // 统计不使用日期筛选，显示所有货柜的数据
+    const response = await containerService.getStatisticsDetailed(undefined, undefined)
     if (response.success && response.data) {
       statisticsData.value = response.data
       console.log('Statistics loaded:', response.data)
@@ -128,240 +119,92 @@ const loadStatistics = async () => {
   }
 }
 
-// 根据过滤条件从数据库加载货柜
+// 根据过滤条件从数据库加载货柜（使用后端过滤）
+// 注意：filterCondition直接来自CountdownCard，已经是后端值，无需映射
 const loadContainersByFilter = async () => {
   loading.value = true
   try {
-    // 获取所有数据（不使用分页）
-    const params: any = {
-      page: 1,
-      pageSize: 999999,
-      search: searchKeyword.value
+    // 点击标签时不使用日期筛选，显示所有符合条件的货柜
+    const startDate = undefined
+    const endDate = undefined
+
+    // filterCondition直接来自CountdownCard的days值，已经是后端filterCondition
+    // 无需任何映射，直接透传给后端
+    const filterCondition = activeFilter.value.days
+
+    console.log('🎯 [Shipments] 倒计时卡片点击', {
+      type: activeFilter.value.type,
+      days: activeFilter.value.days,
+      filterCondition,  // 直接透传，无映射
+      path: 'frontend → loadContainersByFilter → backend API (无中间层映射)'
+    })
+
+    // 使用后端API根据统计条件获取货柜列表
+    const response = await containerService.getContainersByFilterCondition(
+      filterCondition,
+      startDate,
+      endDate
+    )
+
+    console.log('📦 [Shipments] loadContainersByFilter 后端响应', {
+      success: response.success,
+      count: response.count,
+      itemsLength: response.items?.length || 0
+    })
+
+    if (response.success && response.items) {
+      containers.value = response.items
+      pagination.value.total = response.count
+
+      console.log(`✅ [Shipments] 成功加载 ${containers.value.length} 条货柜数据`)
+    } else {
+      containers.value = []
+      pagination.value.total = 0
+      console.warn('⚠️ [Shipments] 后端返回空数据')
     }
-
-    console.log('Loading containers with filter params:', params)
-    const response = await containerService.getContainers(params)
-    console.log('Container response:', response)
-
-    // 根据过滤条件在前端筛选
-    containers.value = filterContainersByCondition(response.items, activeFilter.value.type, activeFilter.value.days)
-    pagination.value.total = containers.value.length
-
-    console.log(`Filtered ${containers.value.length} containers from ${response.items.length} total`)
   } catch (error) {
-    console.error('Failed to load containers by filter:', error)
+    console.error('❌ [Shipments] loadContainersByFilter 失败:', error)
     ElMessage.error('获取集装箱列表失败')
   } finally {
     loading.value = false
   }
 }
 
-// 根据条件筛选货柜（从全部数据中筛选）
-const filterContainersByCondition = (allData: any[], filterType: string, filterDays: string): any[] => {
-  if (!filterType || !filterDays) {
-    return allData
-  }
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  return allData.filter((c: any) => {
-    const portOps = c.portOperations as PortOperation[] | undefined
-    const destPortOp = portOps?.find(po => po.portType === 'destination')
-    const etaDate = destPortOp?.etaCorrection || c.etaDestPort || destPortOp?.etaDestPort
-    const ataDate = destPortOp?.ataDestPort || c.ataDestPort
-    const trucking = c.truckingTransports as TruckingTransport[] | undefined
-    const firstTrucking = trucking?.[0]
-    const emptyReturns = c.emptyReturns as EmptyReturn[] | undefined
-    const emptyReturn = emptyReturns?.[0]
-
-    // 按到港过滤
-    if (filterType === '按到港') {
-      // 先处理已到目的港的货柜
-      if (ataDate && c.currentPortType !== 'transit') {
-        const arrivalDate = new Date(ataDate)
-        arrivalDate.setHours(0, 0, 0, 0)
-        if (filterDays === 'today') {
-          return arrivalDate.getTime() === today.getTime()
-        } else if (filterDays === 'arrivedBeforeToday') {
-          return arrivalDate.getTime() < today.getTime()
-        }
-        return false
-      }
-
-      // 只统计已出运但未到港之后状态的货柜
-      if (!isShippedButNotArrived(c.logisticsStatus)) return false
-
-      if (filterDays === 'overdue') {
-        if (!etaDate) return false
-        const time = getRemainingTime(etaDate)
-        return time?.isExpired === true
-      } else if (filterDays === 'within3Days' || filterDays === 'within7Days' || filterDays === 'over7Days') {
-        if (!etaDate) return false
-        const time = getRemainingTime(etaDate)
-        if (!time) return false
-        if (time.isExpired) return false
-        if (filterDays === 'within3Days') return time.days <= 3
-        if (filterDays === 'within7Days') return time.days > 3 && time.days <= 7
-        if (filterDays === 'over7Days') return time.days > 7
-      } else if (filterDays === 'other') {
-        // 其他记录：已出运/在途/AT_PORT，但无ETA或已过期
-        if (!etaDate) return true  // 无ETA
-        const time = getRemainingTime(etaDate)
-        if (time?.isExpired) return false  // 已逾期被归类到overdue
-        return false
-      }
-    }
-
-    // 按提柜过滤
-    if (filterType === '按提柜') {
-      // 统计范围：已到目的港且未提柜及之后状态没有任一发生
-      const arrivedAtDestination = ataDate && c.currentPortType !== 'transit'
-      const notPickedUp = isNotPickedUp(c.logisticsStatus)
-
-      // 如果没有到港或已经提柜，则不参与统计
-      if (!arrivedAtDestination || !notPickedUp) {
-        return false
-      }
-
-      // 无拖卡运输记录
-      if (!firstTrucking) {
-        // 待安排提柜（已到港但无拖卡运输记录）
-        return filterDays === 'pending'
-      }
-
-      const plannedPickupDate = firstTrucking.plannedPickupDate
-      const pickupDate = firstTrucking.pickupDate
-
-      if (filterDays === 'todayActual') {
-        // 今日实际提柜
-        if (pickupDate) {
-          const pickupDateObj = new Date(pickupDate)
-          pickupDateObj.setHours(0, 0, 0, 0)
-          return pickupDateObj.getTime() === today.getTime()
-        }
-        return false
-      } else if (filterDays === 'todayPlanned') {
-        // 今日计划提柜（未提柜）
-        if (pickupDate) return false  // 已提柜
-        if (plannedPickupDate) {
-          const plannedDate = new Date(plannedPickupDate)
-          plannedDate.setHours(0, 0, 0, 0)
-          return plannedDate.getTime() === today.getTime()
-        }
-        return false
-      } else if (filterDays === 'overdue') {
-        // 计划提柜逾期（未提柜）
-        if (pickupDate) return false  // 已提柜
-        if (plannedPickupDate) {
-          const time = getRemainingTime(plannedPickupDate)
-          return time?.isExpired === true
-        }
-        return false
-      } else if (filterDays === 'within3Days' || filterDays === 'within7Days') {
-        // 3天/7天内预计提柜（未提柜）
-        if (pickupDate) return false  // 已提柜
-        if (!plannedPickupDate) return false
-        const time = getRemainingTime(plannedPickupDate)
-        if (!time) return false
-        if (time.isExpired) return false
-        if (filterDays === 'within3Days') return time.days <= 3
-        if (filterDays === 'within7Days') return time.days > 3 && time.days <= 7
-      }
-    }
-
-    // 最晚提柜过滤
-    if (filterType === '最晚提柜') {
-      // 统计范围：已到目的港且未提柜及之后状态没有任一发生
-      const arrivedAtDestination = ataDate && c.currentPortType !== 'transit'
-      const notPickedUp = isNotPickedUp(c.logisticsStatus)
-
-      // 如果没有到港或已经提柜，则不参与统计
-      if (!arrivedAtDestination || !notPickedUp) {
-        return false
-      }
-
-      // 只统计无拖卡运输记录的货柜
-      if (firstTrucking) {
-        return false
-      }
-
-      // 缺最后免费日
-      if (!destPortOp?.lastFreeDate) {
-        return filterDays === 'noLastFreeDate'
-      }
-
-      const time = getRemainingTime(destPortOp.lastFreeDate)
-      if (!time) return false
-      if (filterDays === 'expired') return time.isExpired
-      if (filterDays === 'urgent') return !time.isExpired && time.days <= 3
-      if (filterDays === 'warning') return !time.isExpired && time.days > 3 && time.days <= 7
-      if (filterDays === 'normal') return !time.isExpired && time.days > 7
-    }
-
-    // 最晚还箱过滤
-    if (filterType === '最晚还箱') {
-      // 统计范围：已提柜或有拖卡运输记录，且不等于已还箱状态
-      const hasTrucking = !!firstTrucking
-      const isPickedUp = c.logisticsStatus === SimplifiedStatus.PICKED_UP ||
-                        c.logisticsStatus === SimplifiedStatus.UNLOADED
-
-      // 排除已还箱状态
-      if (c.logisticsStatus === SimplifiedStatus.RETURNED_EMPTY) {
-        return false
-      }
-
-      if (!hasTrucking && !isPickedUp) {
-        return false
-      }
-
-      // 如果已还箱，则不参与统计
-      if (emptyReturn?.returnTime) {
-        return false
-      }
-
-      // 缺最后还箱日
-      if (!emptyReturn?.lastReturnDate) {
-        return filterDays === 'noLastReturnDate'
-      }
-
-      const time = getRemainingTime(emptyReturn.lastReturnDate)
-      if (!time) return false
-      if (filterDays === 'expired') return time.isExpired
-      if (filterDays === 'urgent') return !time.isExpired && time.days <= 3
-      if (filterDays === 'warning') return !time.isExpired && time.days > 3 && time.days <= 7
-      if (filterDays === 'normal') return !time.isExpired && time.days > 7
-    }
-
-    // 按状态过滤
-    if (filterType === '按状态') {
-      // 特殊处理：arrived_at_transit 筛选当前港口为transit的货柜
-      if (filterDays === 'arrived_at_transit') {
-        return c.currentPortType === 'transit'
-      }
-      return c.logisticsStatus === filterDays
-    }
-
-    return false
-  })
-}
 
 // 搜索处理
 const handleSearch = () => {
+  console.log('🔍 [Shipments] 搜索按钮点击', {
+    searchKeyword: searchKeyword.value,
+    shipmentDateRange: shipmentDateRange.value,
+    currentPage: pagination.value.page
+  })
   pagination.value.page = 1
   loadContainers()
 }
 
 // 重置搜索
 const resetSearch = () => {
+  console.log('🔄 [Shipments] 重置搜索按钮点击', {
+    beforeKeyword: searchKeyword.value,
+    beforeFilter: activeFilter.value
+  })
   searchKeyword.value = ''
   activeFilter.value = { type: '', days: '' }
   pagination.value.page = 1
   loadContainers()
+  console.log('✅ [Shipments] 重置完成', {
+    afterKeyword: searchKeyword.value,
+    afterFilter: activeFilter.value
+  })
 }
 
 // 处理Dashboard风格的日期范围筛选
 const handleShipmentDateChange = async (value: [Date, Date] | null) => {
+  console.log('📅 [Shipments] 日期范围改变', {
+    value,
+    formattedValue: value ? [dayjs(value[0]).format('YYYY-MM-DD'), dayjs(value[1]).format('YYYY-MM-DD')] : null
+  })
   if (value) {
     shipmentDateRange.value = value
     pagination.value.page = 1
@@ -369,59 +212,97 @@ const handleShipmentDateChange = async (value: [Date, Date] | null) => {
       loadStatistics(),
       loadContainers()
     ])
+    console.log('✅ [Shipments] 日期筛选完成')
   }
 }
 
 // 重新加载统计数据（从后端获取）
 const reloadStatistics = async () => {
+  console.log('🔄 [Shipments] 刷新统计数据按钮点击')
   await loadStatistics()
 }
 
 // 处理倒计时卡片点击过滤
+// 注意：days已经是后端filterCondition，直接使用，无需映射
 const handleCountdownFilter = (type: string, days: string) => {
+  console.log('🎯 [Shipments] 倒计时卡片点击', {
+    type,
+    days,  // 已经是后端filterCondition
+    filterLabel: `${type} - ${days}`,
+    path: 'CountdownCard → handleCountdownFilter → loadContainersByFilter → backend API (无映射层)'
+  })
   activeFilter.value = { type: type as any, days }
   pagination.value.page = 1
-  loadContainersByFilter()  // 使用新函数从数据库获取并过滤
+  loadContainersByFilter()
 }
 
 // 重置过滤器
 const resetFilter = () => {
+  console.log('🔄 [Shipments] 重置过滤器按钮点击', {
+    beforeFilter: activeFilter.value
+  })
   activeFilter.value = { type: '', days: '' }
   pagination.value.page = 1
   loadContainers()
+  console.log('✅ [Shipments] 过滤器已重置')
 }
 
 // 查看详情
 const viewDetails = (container: any) => {
+  console.log('👁️ [Shipments] 查看详情按钮点击', {
+    containerNumber: container.containerNumber,
+    orderNumber: container.orderNumber,
+    targetPath: `/shipments/${container.containerNumber}`
+  })
   router.push(`/shipments/${container.containerNumber}`)
 }
 
 // 编辑集装箱
 const editContainer = (container: any) => {
+  console.log('✏️ [Shipments] 编辑按钮点击', {
+    containerNumber: container.containerNumber,
+    orderNumber: container.orderNumber
+  })
   ElMessage.info(`编辑集装箱 ${container.containerNumber}`)
 }
 
 // 分页改变
 const handlePageChange = (page: number) => {
+  console.log('📄 [Shipments] 分页改变', {
+    fromPage: pagination.value.page,
+    toPage: page,
+    hasFilter: !!(activeFilter.value.type && activeFilter.value.days),
+    filter: activeFilter.value
+  })
   pagination.value.page = page
   if (activeFilter.value.type && activeFilter.value.days) {
     // 有过滤条件时，使用前端分页
     // 数据已经在 loadContainersByFilter 中全部加载
+    console.log('📄 [Shipments] 使用前端分页（已加载全部数据）')
   } else {
     // 无过滤条件时，使用后端分页
+    console.log('📄 [Shipments] 使用后端分页')
     loadContainers()
   }
 }
 
 // 页面大小改变
 const handlePageSizeChange = (pageSize: number) => {
+  console.log('📏 [Shipments] 页面大小改变', {
+    fromPageSize: pagination.value.pageSize,
+    toPageSize: pageSize,
+    hasFilter: !!(activeFilter.value.type && activeFilter.value.days),
+    filter: activeFilter.value
+  })
   pagination.value.pageSize = pageSize
   pagination.value.page = 1
   if (activeFilter.value.type && activeFilter.value.days) {
     // 有过滤条件时，使用前端分页
     // 数据已经在 loadContainersByFilter 中全部加载
+    console.log('📏 [Shipments] 使用前端分页（已加载全部数据）')
   } else {
     // 无过滤条件时，使用后端分页
+    console.log('📏 [Shipments] 使用后端分页')
     loadContainers()
   }
 }
@@ -470,15 +351,17 @@ const getFilterLabel = (days: string): string => {
     'overdue': '已逾期未到港',
     'transit': '已到中转港',
     'today': '今日到港',
-    'arrived-before-today': '今日之前到港',
+    'arrivedBeforeTodayNotPickedUp': '今日之前到港未提柜',
+    'arrivedBeforeTodayPickedUp': '今日之前到港已提柜',
+    'arrivedBeforeTodayNoATA': '今日之前到港，但无ATA',
     'other': '其他记录',
     '0': '已超时',
     '0-3': '3天内',
     '4-7': '7天内',
     '7+': '7天以上',
     '8+': '还箱日倒计时>7天',
-    'today-actual': '今日实际提柜',
-    'today-planned': '今日计划提柜',
+    'overduePickup': '逾期未提柜',
+    'todayPlanned': '今日计划提柜',
     'pending': '待安排提柜',
     'no-last-free-date': '缺最后免费日',
     'no-last-return-date': '缺最后还箱日',
@@ -648,33 +531,42 @@ onUnmounted(() => {
         <CountdownCard
           title="按状态"
           label="物流状态分布"
+          subtitle="（全部货柜）"
           :data="countdownByStatus"
           @filter="handleCountdownFilter"
+          description="<strong>统计范围：</strong>全部货柜<br/><strong>分类依据：</strong>物流状态机（logistics_status）<br/><strong>业务用途：</strong>监控货柜在全流程中的实时分布状态"
         />
         <CountdownCard
           title="按到港"
-          label="待到港货柜"
-          subtitle="（统计范围：已出运、在途、已到目的港）"
+          label="到港时间分布"
+          subtitle="（全部货柜）"
           :data="countdownByArrival"
           @filter="handleCountdownFilter"
+          description="<strong>统计范围：</strong>shipped + in_transit + at_port + picked_up + unloaded + returned_empty<br/><strong>分组结构：</strong><br/>① 已到目的港（今日到港 + 之前未提柜 + 之前已提柜）<br/>② 已到中转港（有中转港记录，目的港未到）<br/>③ 预计到港（已逾期 + 3天内 + 7天内 + 7天以上 + 其他）<br/><strong>分类依据：</strong>目的港 ETA（预计）和 ATA（实际）日期，中转港记录<br/><strong>业务用途：</strong>监控海运段的到港进度，区分中转港和目的港状态，预警逾期风险"
         />
         <CountdownCard
-          title="按提柜"
-          label="待提柜货柜"
+          title="按计划提柜"
+          label="计划提柜分布"
+          subtitle="（已到目的港 + 未提柜状态）"
           :data="countdownByPickup"
           @filter="handleCountdownFilter"
+          description="<strong>统计范围：</strong>已到目的港（有ATA且≠transit）+ 未提柜状态<br/><strong>分类依据：</strong>planned_pickup_date（计划提柜日期）<br/><strong>包含：</strong>逾期未提柜、今日计划提柜、待安排提柜、3天内预计提柜、7天内预计提柜<br/><strong>业务用途：</strong>监控已到港货柜的计划提柜执行进度"
         />
         <CountdownCard
-          title="最晚提柜"
-          label="即将超时货柜"
+          title="按最晚提柜"
+          label="免租期倒计时"
+          subtitle="（已到目的港 + 未提柜状态）"
           :data="countdownByLastPickup"
           @filter="handleCountdownFilter"
+          description="<strong>统计范围：</strong>已到目的港（有ATA且≠transit）+ 未提柜状态<br/><strong>分类依据：</strong>last_free_date（最后免费提柜日）<br/><strong>关键区别：</strong>与'按计划提柜'不同，这里聚焦<span class='highlight'>免租期倒计时风险</span><br/><strong>业务用途：</strong>预警可能产生滞港费的货柜"
         />
         <CountdownCard
-          title="最晚还箱"
-          label="待还箱货柜"
+          title="按最晚还箱"
+          label="还箱期限倒计时"
+          subtitle="（已提柜或有拖卡记录 + 未还箱状态）"
           :data="countdownByReturn"
           @filter="handleCountdownFilter"
+          description="<strong>统计范围：</strong>已提柜或有拖卡运输记录 + 未还箱状态<br/><strong>分类依据：</strong>last_return_date（最后还箱日）<br/><strong>业务用途：</strong>监控空箱返还期限，避免产生滞箱费"
         />
       </div>
     </el-card>

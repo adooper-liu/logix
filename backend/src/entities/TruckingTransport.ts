@@ -16,70 +16,70 @@ import { Container } from './Container';
 
 @Entity('process_trucking_transport')
 export class TruckingTransport {
-  @PrimaryColumn({ type: 'varchar', length: 50, name: 'container_number' })
+  @PrimaryColumn({ type: 'varchar', length: 50 })
   containerNumber: string;
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'trucking_type' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   truckingType: string; // PRE_SHIPMENT/POST_SHIPMENT
 
-  @Column({ type: 'boolean', default: false, nullable: true, name: 'is_pre_pickup' })
+  @Column({ type: 'boolean', default: false, nullable: true })
   isPrePickup?: boolean;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'trucking_company_id' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   truckingCompanyId?: string;
 
-  @Column({ type: 'text', nullable: true, name: 'pickup_notification' })
+  @Column({ type: 'text', nullable: true })
   pickupNotification?: string;
 
-  @Column({ type: 'varchar', length: 100, nullable: true, name: 'carrier_company' })
+  @Column({ type: 'varchar', length: 100, nullable: true })
   carrierCompany?: string;
 
-  @Column({ type: 'date', nullable: true, name: 'last_pickup_date' })
+  @Column({ type: 'date', nullable: true })
   lastPickupDate?: Date;
 
-  @Column({ type: 'date', nullable: true, name: 'planned_pickup_date' })
+  @Column({ type: 'date', nullable: true })
   plannedPickupDate?: Date;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'pickup_date' })
+  @Column({ type: 'timestamp', nullable: true })
   pickupDate?: Date;
 
-  @Column({ type: 'date', nullable: true, name: 'last_delivery_date' })
+  @Column({ type: 'date', nullable: true })
   lastDeliveryDate?: Date;
 
-  @Column({ type: 'date', nullable: true, name: 'planned_delivery_date' })
+  @Column({ type: 'date', nullable: true })
   plannedDeliveryDate?: Date;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'delivery_date' })
+  @Column({ type: 'timestamp', nullable: true })
   deliveryDate?: Date;
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'unload_mode_plan' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   unloadModePlan?: string; // Drop off / Live load
 
   // 司机信息
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'driver_name' })
+  @Column({ type: 'varchar', length: 50, nullable: true })
   driverName?: string;
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'driver_phone' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   driverPhone?: string;
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'truck_plate' })
+  @Column({ type: 'varchar', length: 20, nullable: true })
   truckPlate?: string;
 
   // 地点信息
-  @Column({ type: 'varchar', length: 200, nullable: true, name: 'pickup_location' })
+  @Column({ type: 'varchar', length: 200, nullable: true })
   pickupLocation?: string;
 
-  @Column({ type: 'varchar', length: 200, nullable: true, name: 'delivery_location' })
+  @Column({ type: 'varchar', length: 200, nullable: true })
   deliveryLocation?: string;
 
   // 费用信息
-  @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true, name: 'distance_km' })
+  @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true })
   distanceKm?: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, name: 'cost' })
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   cost?: number;
 
-  @Column({ type: 'text', nullable: true, name: 'remarks' })
+  @Column({ type: 'text', nullable: true })
   remarks?: string;
 
   @CreateDateColumn({ name: 'created_at' })
@@ -90,9 +90,6 @@ export class TruckingTransport {
 
   // 关联关系
   @ManyToOne(() => Container)
-  @JoinColumn({
-    name: 'container_number',
-    referencedColumnName: 'containerNumber'
-  })
+  @JoinColumn()
   container: Container;
 }

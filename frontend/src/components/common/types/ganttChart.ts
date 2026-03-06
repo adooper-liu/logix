@@ -1,7 +1,9 @@
 export interface LaneConfig {
   name: string
+  subtitle?: string
   dateField: string
   color: string
+  dimensions?: any[]
 }
 
 export interface ContainerItem {

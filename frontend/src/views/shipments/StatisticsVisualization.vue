@@ -10,6 +10,12 @@ import {
   InfoFilled,
   ArrowRight
 } from '@element-plus/icons-vue'
+import type { PaginationParams } from '@/types'
+import {
+  getLogisticsStatusText,
+  getLogisticsStatusType
+} from '@/utils/logisticsStatusMachine'
+import dayjs from 'dayjs'
 
 interface StatisticsVerification {
   totalContainers: number
@@ -43,6 +49,17 @@ const detailedStats = ref<DetailedStats | null>(null)
 const activeTab = ref('overview')
 const autoRefreshInterval = ref<number | null>(null)
 
+// 数据表相关
+const showDataTable = ref(false)
+const tableContainers = ref<any[]>([])
+const tableLoading = ref(false)
+const tablePagination = ref<PaginationParams>({
+  page: 1,
+  pageSize: 10,
+  total: 0
+})
+const tableTitle = ref('')
+
 // 状态标签映射
 const statusLabels: Record<string, string> = {
   not_shipped: '未出运',
@@ -57,9 +74,15 @@ const statusLabels: Record<string, string> = {
 
 // 到港分布标签映射
 const arrivalLabels: Record<string, string> = {
-  overdue: '已逾期未到港',
+  arrivedAtDestination: '已到目的港',
+  arrivedAtTransit: '已到中转港',
+  expectedArrival: '预计到港',
+  // 已到目的港的子分类
   today: '今日到港',
-  arrivedBeforeToday: '今日之前到港',
+  arrivedBeforeTodayNotPickedUp: '今日之前到港未提柜',
+  arrivedBeforeTodayPickedUp: '今日之前到港已提柜',
+  // 预计到港的子分类
+  overdue: '已逾期未到港',
   within3Days: '3天内预计到港',
   within7Days: '7天内预计到港',
   over7Days: '7天以上预计到港',
@@ -68,9 +91,8 @@ const arrivalLabels: Record<string, string> = {
 
 // 提柜分布标签映射
 const pickupLabels: Record<string, string> = {
-  overdue: '计划提柜逾期',
+  overdue: '逾期未提柜',
   todayPlanned: '今日计划提柜',
-  todayActual: '今日实际提柜',
   pending: '待安排提柜',
   within3Days: '3天内预计提柜',
   within7Days: '7天内预计提柜'
@@ -176,6 +198,79 @@ const stopAutoRefresh = () => {
     clearInterval(autoRefreshInterval.value)
     autoRefreshInterval.value = null
   }
+}
+
+// 处理到港分组点击
+const handleArrivalGroupClick = async (groupKey: string, groupLabel: string) => {
+  console.log('[StatisticsVisualization] handleArrivalGroupClick called:', {
+    groupKey,
+    groupLabel,
+    expectedCount: detailedStats.value?.arrivalDistribution?.[groupKey] || 0
+  })
+
+  showDataTable.value = true
+  tableTitle.value = groupLabel
+  tableLoading.value = true
+  tableContainers.value = []
+
+  try {
+    const response = await containerService.getContainersByFilterCondition(
+      groupKey,
+      undefined,
+      undefined
+    )
+
+    console.log('[StatisticsVisualization] getContainersByFilterCondition response:', {
+      success: response.success,
+      count: response.count,
+      itemsLength: response.items?.length || 0
+    })
+
+    if (response.success && response.items) {
+      tableContainers.value = response.items
+      tablePagination.value.total = response.count
+
+      console.log('[StatisticsVisualization] Data loaded successfully:', {
+        totalCount: response.count,
+        firstItem: response.items[0] || null,
+        lastItem: response.items[response.items.length - 1] || null
+      })
+
+      // 打印前5条数据的详细信息
+      if (response.items.length > 0) {
+        console.log('[StatisticsVisualization] First 5 items details:', response.items.slice(0, 5).map(item => ({
+          containerNumber: item.containerNumber,
+          orderNumber: item.orderNumber,
+          logisticsStatus: item.logisticsStatus,
+          etaDestPort: item.etaDestPort,
+          ataDestPort: item.ataDestPort,
+          destinationPort: item.destinationPort
+        })))
+      }
+    } else {
+      tableContainers.value = []
+      tablePagination.value.total = 0
+      console.warn('[StatisticsVisualization] No data returned from backend')
+    }
+  } catch (error) {
+    console.error('[StatisticsVisualization] Failed to load containers:', error)
+    tableContainers.value = []
+  } finally {
+    tableLoading.value = false
+  }
+}
+
+// 关闭数据表
+const closeDataTable = () => {
+  showDataTable.value = false
+  tableContainers.value = []
+  tablePagination.value.total = 0
+}
+
+// 格式化日期
+const formatDate = (date: string | null | undefined) => {
+  if (!date) return '-'
+  return dayjs(date).format('YYYY-MM-DD')
 }
 
 // 计算验证通过率
@@ -368,23 +463,93 @@ onUnmounted(() => {
             <span>目标集: 已出运 + 在途 + 已到目的港 ({{ verificationData?.totalInTransit || 0 }})</span>
           </div>
           <div class="statistics-container">
-            <el-row :gutter="16">
-              <el-col 
-                v-for="(count, category) in detailedStats?.arrivalDistribution" 
-                :key="category"
-                :xs="12" 
-                :sm="8" 
-                :md="6"
-              >
-                <div class="category-item" :class="{ 'highlight': category === 'overdue' }">
-                  <div class="category-count">{{ count }}</div>
-                  <div class="category-label">{{ arrivalLabels[category] || category }}</div>
+            <!-- 三个主分组 -->
+            <el-row :gutter="16" class="main-groups">
+              <el-col :xs="24" :sm="8">
+                <div
+                  class="group-card destination clickable"
+                  :class="{ 'has-data': (detailedStats?.arrivalDistribution?.arrivedAtDestination || 0) > 0 }"
+                  @click="(detailedStats?.arrivalDistribution?.arrivedAtDestination || 0) > 0 && handleArrivalGroupClick('arrivedAtDestination', '已到目的港')"
+                >
+                  <div class="group-header">
+                    <el-icon><component :is="SuccessFilled" /></el-icon>
+                    <span>已到目的港</span>
+                    <el-icon v-if="(detailedStats?.arrivalDistribution?.arrivedAtDestination || 0) > 0" class="click-hint"><ArrowRight /></el-icon>
+                  </div>
+                  <div class="group-count">{{ detailedStats?.arrivalDistribution?.arrivedAtDestination || 0 }}</div>
+                  <div class="group-detail">
+                    <div class="detail-item">
+                      <span class="detail-label">今日到港</span>
+                      <span class="detail-value">{{ detailedStats?.arrivalDistribution?.today || 0 }}</span>
+                    </div>
+                    <div class="detail-item">
+                      <span class="detail-label">之前未提柜</span>
+                      <span class="detail-value">{{ detailedStats?.arrivalDistribution?.arrivedBeforeTodayNotPickedUp || 0 }}</span>
+                    </div>
+                    <div class="detail-item">
+                      <span class="detail-label">之前已提柜</span>
+                      <span class="detail-value">{{ detailedStats?.arrivalDistribution?.arrivedBeforeTodayPickedUp || 0 }}</span>
+                    </div>
+                  </div>
+                </div>
+              </el-col>
+              <el-col :xs="24" :sm="8">
+                <div
+                  class="group-card transit clickable"
+                  :class="{ 'has-data': (detailedStats?.arrivalDistribution?.arrivedAtTransit || 0) > 0 }"
+                  @click="(detailedStats?.arrivalDistribution?.arrivedAtTransit || 0) > 0 && handleArrivalGroupClick('arrivedAtTransit', '已到中转港')"
+                >
+                  <div class="group-header">
+                    <el-icon><component :is="ArrowRight" /></el-icon>
+                    <span>已到中转港</span>
+                    <el-icon v-if="(detailedStats?.arrivalDistribution?.arrivedAtTransit || 0) > 0" class="click-hint"><ArrowRight /></el-icon>
+                  </div>
+                  <div class="group-count">{{ detailedStats?.arrivalDistribution?.arrivedAtTransit || 0 }}</div>
+                  <div class="group-note">
+                    有中转港记录，目的港未到（有ETA无ATA）
+                  </div>
+                </div>
+              </el-col>
+              <el-col :xs="24" :sm="8">
+                <div
+                  class="group-card expected clickable"
+                  :class="{ 'has-data': (detailedStats?.arrivalDistribution?.expectedArrival || 0) > 0 }"
+                  @click="(detailedStats?.arrivalDistribution?.expectedArrival || 0) > 0 && handleArrivalGroupClick('expectedArrival', '预计到港')"
+                >
+                  <div class="group-header">
+                    <el-icon><component :is="Warning" /></el-icon>
+                    <span>预计到港</span>
+                    <el-icon v-if="(detailedStats?.arrivalDistribution?.expectedArrival || 0) > 0" class="click-hint"><ArrowRight /></el-icon>
+                  </div>
+                  <div class="group-count">{{ detailedStats?.arrivalDistribution?.expectedArrival || 0 }}</div>
+                  <div class="group-detail">
+                    <div class="detail-item" :class="{ 'critical': (detailedStats?.arrivalDistribution?.overdue || 0) > 0 }">
+                      <span class="detail-label">已逾期</span>
+                      <span class="detail-value">{{ detailedStats?.arrivalDistribution?.overdue || 0 }}</span>
+                    </div>
+                    <div class="detail-item">
+                      <span class="detail-label">3天内</span>
+                      <span class="detail-value">{{ detailedStats?.arrivalDistribution?.within3Days || 0 }}</span>
+                    </div>
+                    <div class="detail-item">
+                      <span class="detail-label">7天内</span>
+                      <span class="detail-value">{{ detailedStats?.arrivalDistribution?.within7Days || 0 }}</span>
+                    </div>
+                    <div class="detail-item">
+                      <span class="detail-label">7天以上</span>
+                      <span class="detail-value">{{ detailedStats?.arrivalDistribution?.over7Days || 0 }}</span>
+                    </div>
+                    <div class="detail-item">
+                      <span class="detail-label">其他</span>
+                      <span class="detail-value">{{ detailedStats?.arrivalDistribution?.other || 0 }}</span>
+                    </div>
+                  </div>
                 </div>
               </el-col>
             </el-row>
             <div class="summary">
               <el-tag type="info" size="large">
-                总计: {{ getDistributionTotal(detailedStats?.arrivalDistribution || {}) }}
+                总计: {{ (detailedStats?.arrivalDistribution?.arrivedAtDestination || 0) + (detailedStats?.arrivalDistribution?.arrivedAtTransit || 0) + (detailedStats?.arrivalDistribution?.expectedArrival || 0) }}
               </el-tag>
               <el-tag
                 v-if="verificationData"
@@ -394,6 +559,55 @@ onUnmounted(() => {
                 验证: {{ verificationData.totalArrival }} ≤ {{ verificationData.totalInTransit }}
               </el-tag>
             </div>
+
+            <!-- 数据表弹窗 -->
+            <el-drawer
+              v-model="showDataTable"
+              :title="`${tableTitle} - 数据详情`"
+              size="70%"
+              direction="rtl"
+            >
+              <template #header>
+                <div class="drawer-header">
+                  <span>{{ tableTitle }} - 数据详情</span>
+                  <el-button type="primary" @click="closeDataTable" size="small">关闭</el-button>
+                </div>
+              </template>
+
+              <div class="table-container">
+                <el-table
+                  :data="tableContainers"
+                  v-loading="tableLoading"
+                  stripe
+                  style="width: 100%"
+                >
+                  <el-table-column prop="containerNumber" label="集装箱号" width="150" fixed />
+                  <el-table-column prop="orderNumber" label="备货单号" width="150" />
+                  <el-table-column prop="containerTypeCode" label="柜型" width="100" />
+                  <el-table-column prop="destinationPort" label="目的港" width="120" />
+                  <el-table-column label="物流状态" width="120">
+                    <template #default="{ row }">
+                      <el-tag :type="getLogisticsStatusType(row.logisticsStatus)">
+                        {{ getLogisticsStatusText(row.logisticsStatus) }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="ETA" width="120">
+                    <template #default="{ row }">
+                      {{ formatDate(row.etaDestPort) }}
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="ATA" width="120">
+                    <template #default="{ row }">
+                      {{ formatDate(row.ataDestPort) }}
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <div class="table-footer">
+                  <el-tag type="info">共 {{ tablePagination.total }} 条记录</el-tag>
+                </div>
+              </div>
+            </el-drawer>
           </div>
         </el-card>
       </el-tab-pane>
@@ -404,12 +618,12 @@ onUnmounted(() => {
           <template #header>
             <div class="card-header">
               <el-icon><component :is="SuccessFilled" /></el-icon>
-              <span>按提柜统计 - 已到目的港但尚未提柜货柜的提柜安排情况</span>
+              <span>按计划提柜统计 - 已到目的港但尚未提柜货柜的计划提柜情况</span>
             </div>
           </template>
           <div class="info-box info">
             <el-icon><component :is="InfoFilled" /></el-icon>
-            <span>目标集: 已到目的港 ({{ verificationData?.atPortTotal || 0 }})</span>
+            <span>统计范围: 已到目的港 + 未提柜状态 ({{ verificationData?.atPortTotal || 0 }})</span>
           </div>
           <div class="statistics-container">
             <el-row :gutter="16">
@@ -441,16 +655,16 @@ onUnmounted(() => {
           <template #header>
             <div class="card-header">
               <el-icon><component :is="Warning" /></el-icon>
-              <span>最晚提柜统计 - 最后免费日倒计时（仅未安排拖卡运输的货柜）</span>
+              <span>按最晚提柜统计 - 免租期倒计时（未实际提柜货柜）</span>
             </div>
           </template>
           <div class="info-box warning">
             <el-icon><component :is="InfoFilled" /></el-icon>
-            <span>关键区别: 仅统计无拖卡运输记录的货柜</span>
+            <span>统计范围: 已到目的港 + 未提柜状态（无拖卡运输记录）</span>
           </div>
           <div class="info-box info">
             <el-icon><component :is="InfoFilled" /></el-icon>
-            <span>与"按提柜统计"的区别: "按提柜"统计所有at_port货柜，"最晚提柜"只统计无拖卡运输记录的货柜</span>
+            <span>关键区别: 与"按计划提柜"不同，这里聚焦免租期倒计时风险</span>
           </div>
           <div class="statistics-container">
             <el-row :gutter="16">
@@ -478,7 +692,7 @@ onUnmounted(() => {
                 未安排拖卡运输货柜: {{ getDistributionTotal(detailedStats?.lastPickupDistribution || {}) }}
               </el-tag>
               <el-tag type="success" size="large">
-                已安排拖卡运输货柜: {{ (detailedStats?.pickupDistribution?.todayActual || 0) + getDistributionTotal({
+                已安排拖卡运输货柜: {{ getDistributionTotal({
                   overdue: detailedStats?.pickupDistribution?.overdue || 0,
                   todayPlanned: detailedStats?.pickupDistribution?.todayPlanned || 0,
                   pending: detailedStats?.pickupDistribution?.pending || 0,
@@ -497,12 +711,12 @@ onUnmounted(() => {
           <template #header>
             <div class="card-header">
               <el-icon><component :is="CircleCheck" /></el-icon>
-              <span>最晚还箱统计 - 最后还箱日倒计时</span>
+              <span>按最晚还箱统计 - 还箱期限倒计时</span>
             </div>
           </template>
           <div class="info-box info">
             <el-icon><component :is="InfoFilled" /></el-icon>
-            <span>目标集: 已提柜 + 已卸柜 ({{ verificationData?.pickedUpTotal || 0 }})</span>
+            <span>统计范围: 已提柜或有拖卡运输记录 + 未还箱状态 ({{ verificationData?.pickedUpTotal || 0 }})</span>
           </div>
           <div class="statistics-container">
             <el-row :gutter="16">
@@ -807,6 +1021,136 @@ onUnmounted(() => {
   }
 }
 
+.main-groups {
+  margin-bottom: 20px;
+}
+
+.group-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  margin-bottom: 16px;
+
+  &:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  }
+
+  &.clickable.has-data {
+    cursor: pointer;
+
+    &:hover {
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    }
+
+    &:active {
+      transform: translateY(-2px) scale(0.98);
+    }
+  }
+
+  &.destination {
+    background: linear-gradient(135deg, #e6fffb 0%, #b7eb8f 100%);
+    border: 2px solid #52c41a;
+  }
+
+  &.transit {
+    background: linear-gradient(135deg, #fff7e6 0%, #ffe7ba 100%);
+    border: 2px solid #faad14;
+  }
+
+  &.expected {
+    background: linear-gradient(135deg, #e6f7ff 0%, #91d5ff 100%);
+    border: 2px solid #1890ff;
+  }
+
+  .group-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+
+    .el-icon {
+      font-size: 24px;
+    }
+
+    .click-hint {
+      margin-left: auto;
+      font-size: 18px;
+      opacity: 0.6;
+      transition: opacity 0.2s;
+    }
+
+    .clickable.has-data:hover .click-hint {
+      opacity: 1;
+    }
+
+    span {
+      font-size: 18px;
+      font-weight: 600;
+      color: $text-primary;
+    }
+  }
+
+  .group-count {
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 20px;
+    text-align: center;
+    color: $text-primary;
+  }
+
+  .group-note {
+    text-align: center;
+    font-size: 14px;
+    color: $text-secondary;
+    line-height: 1.4;
+  }
+
+  .group-detail {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+
+    .detail-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: rgba(255, 255, 255, 0.7);
+      border-radius: 8px;
+      font-size: 14px;
+
+      &.critical {
+        background: rgba(255, 77, 79, 0.15);
+        border: 1px solid #ff4d4f;
+
+        .detail-label {
+          color: #ff4d4f;
+          font-weight: 600;
+        }
+
+        .detail-value {
+          color: #ff4d4f;
+          font-weight: 700;
+        }
+      }
+
+      .detail-label {
+        color: $text-secondary;
+      }
+
+      .detail-value {
+        font-weight: 600;
+        color: $text-primary;
+      }
+    }
+  }
+}
+
 .text-success {
   color: #52c41a;
 }
@@ -817,6 +1161,27 @@ onUnmounted(() => {
 
 .text-danger {
   color: #ff4d4f;
+}
+
+// 数据表样式
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.table-container {
+  padding: 0;
+
+  .table-footer {
+    display: flex;
+    justify-content: center;
+    padding: 16px 0;
+    border-top: 1px solid #e8e8e8;
+  }
 }
 
 // 响应式设计

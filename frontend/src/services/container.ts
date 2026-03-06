@@ -192,6 +192,27 @@ class ContainerService {
     const response = await this.api.get('/containers/statistics-abnormal');
     return response.data;
   }
+
+  /**
+   * 根据统计条件获取货柜列表（与统计查询使用相同逻辑）
+   * Get containers by filter condition (same logic as statistics queries)
+   */
+  async getContainersByFilterCondition(
+    filterCondition: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<{
+    success: boolean;
+    items: any[];
+    count: number;
+  }> {
+    const params: any = { filterCondition };
+    if (startDate) params.startDate = startDate;
+    if (endDate) params.endDate = endDate;
+
+    const response = await this.api.get('/containers/by-filter', { params });
+    return response.data;
+  }
 }
 
 export const containerService = new ContainerService();

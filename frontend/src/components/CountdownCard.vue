@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Timer, Warning, CircleCheck } from '@element-plus/icons-vue'
+import { Timer, Warning, CircleCheck, InfoFilled } from '@element-plus/icons-vue'
 import { useColors } from '@/composables/useColors'
 
 // 使用颜色系统
@@ -11,6 +11,8 @@ interface FilterItem {
   count: number
   color: string
   days: string
+  level?: number
+  children?: FilterItem[]
 }
 
 interface CountdownData {
@@ -25,11 +27,13 @@ interface Props {
   data: CountdownData
   label?: string
   subtitle?: string
+  description?: string  // 统计口径说明
 }
 
 const props = withDefaults(defineProps<Props>(), {
   label: '待处理货柜',
-  subtitle: ''
+  subtitle: '',
+  description: ''
 })
 
 const emit = defineEmits<{
@@ -64,12 +68,17 @@ const hasFilterItems = computed(() => {
   return props.data.filterItems && props.data.filterItems.length > 0
 })
 
-// 计算汇总总数（所有filterItems的count之和，排除arrived_at_transit避免重复计数）
+// 计算汇总总数（所有 filterItems 的 count 之和，排除 children 避免重复计数）
 const totalCount = computed(() => {
   if (!props.data.filterItems) return 0
   return props.data.filterItems
-    .filter(item => item.days !== 'arrived_at_transit')  // 排除arrived_at_transit
+    .filter(item => item.level === 0)  // 只计算顶级项目
     .reduce((sum, item) => sum + item.count, 0)
+})
+
+// 是否有说明信息
+const hasDescription = computed(() => {
+  return props.description && props.description.length > 0
 })
 </script>
 
@@ -81,7 +90,27 @@ const totalCount = computed(() => {
           <component :is="cardStyle.icon" />
         </el-icon>
         <div class="title-wrapper">
-          <span class="card-title">{{ title }}</span>
+          <div class="title-row">
+            <span class="card-title">{{ title }}</span>
+            <!-- 统计口径说明 tooltip -->
+            <el-tooltip 
+              v-if="hasDescription" 
+              class="description-tooltip" 
+              placement="top-start"
+              :popper-style="{ maxWidth: '400px', padding: '12px' }"
+            >
+              <template #content>
+                <div class="tooltip-content">
+                  <div class="tooltip-title">
+                    <el-icon><InfoFilled /></el-icon>
+                    <span>统计口径</span>
+                  </div>
+                  <div class="tooltip-text" v-html="description"></div>
+                </div>
+              </template>
+              <el-icon class="info-icon" :size="16"><InfoFilled /></el-icon>
+            </el-tooltip>
+          </div>
           <span v-if="subtitle" class="card-subtitle">{{ subtitle }}</span>
         </div>
       </div>
@@ -91,23 +120,46 @@ const totalCount = computed(() => {
       </div>
     </div>
 
-    <!-- 如果有过滤项，显示标签形式的过滤项 -->
+    <!-- 如果有过滤项，显示标签形式的过滤项（支持树形结构） -->
     <div v-if="hasFilterItems" class="filter-items">
-      <div
-        v-for="(item, index) in data.filterItems"
-        :key="index"
-        class="filter-tag"
-        :class="{ 'clickable': item.count > 0 }"
-        :style="{ 
-          backgroundColor: item.count > 0 ? item.color + '15' : '#f5f7fa',
-          borderColor: item.count > 0 ? item.color : '#dcdfe6',
-          color: item.count > 0 ? item.color : '#909399'
-        }"
-        @click="item.count > 0 && handleFilterClick(item.days)"
-      >
-        <span class="tag-label">{{ item.label }}</span>
-        <span class="tag-count">{{ item.count }}</span>
-      </div>
+      <template v-for="(item, index) in data.filterItems" :key="index">
+        <!-- 父级项目 -->
+        <div
+          class="filter-tag parent-tag"
+          :class="{ 'clickable': item.count > 0 }"
+          :style="{
+            backgroundColor: item.count > 0 ? item.color + '15' : '#f5f7fa',
+            borderColor: item.count > 0 ? item.color : '#dcdfe6',
+            color: item.count > 0 ? item.color : '#909399'
+          }"
+          @click="item.count > 0 && handleFilterClick(item.days)"
+        >
+          <span class="tag-label">{{ item.label }}</span>
+          <span class="tag-count">{{ item.count }}</span>
+        </div>
+        <!-- 子级项目 -->
+        <div
+          v-if="item.children && item.children.length > 0"
+          class="children-container"
+        >
+          <div
+            v-for="(child, childIndex) in item.children"
+            :key="`${index}-${childIndex}`"
+            class="filter-tag child-tag"
+            :class="{ 'clickable': child.count > 0 }"
+            :style="{
+              backgroundColor: child.count > 0 ? child.color + '10' : '#fafafa',
+              borderColor: child.count > 0 ? child.color : '#e0e0e0',
+              color: child.count > 0 ? child.color : '#b0b0b0',
+              marginLeft: '12px'
+            }"
+            @click="child.count > 0 && handleFilterClick(child.days)"
+          >
+            <span class="tag-label">{{ child.label }}</span>
+            <span class="tag-count">{{ child.count }}</span>
+          </div>
+        </div>
+      </template>
     </div>
 
     <!-- 否则显示原有的单卡片样式 -->
@@ -149,70 +201,120 @@ const totalCount = computed(() => {
       display: flex;
       align-items: center;
       gap: 8px;
-    }
 
-    .title-wrapper {
-      display: flex;
-      flex-direction: column;
-      gap: 1px;
-    }
+      .title-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
 
-    .card-title {
-      font-size: 14px;
-      font-weight: 600;
-      color: $text-primary;
-    }
+        .title-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
 
-    .card-subtitle {
-      font-size: 10px;
-      color: $text-secondary;
-      font-weight: 400;
+          .card-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #303133;
+          }
+
+          .info-icon {
+            cursor: help;
+            color: #909399;
+            transition: color 0.2s;
+
+            &:hover {
+              color: #409eff;
+            }
+          }
+        }
+
+        .card-subtitle {
+          font-size: 12px;
+          color: #909399;
+        }
+      }
     }
 
     .card-summary {
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 4px;
-      padding: 3px 8px;
-      background: #f0f9ff;
-      border-radius: 10px;
+      gap: 2px;
 
       .summary-label {
         font-size: 11px;
-        color: $text-secondary;
+        color: #909399;
       }
 
       .summary-count {
-        font-size: 14px;
+        font-size: 18px;
         font-weight: 700;
-        color: $primary-color;
+        color: #303133;
       }
     }
   }
 
   .filter-items {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    align-content: flex-start;
+    flex-direction: column;
+    gap: 8px;
+
+    .children-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
 
     .filter-tag {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 8px;
+      padding: 4px 10px;
       border-radius: 4px;
-      border: 1px solid;
       font-size: 12px;
-      transition: all 0.2s ease;
+      border: 1px solid;
+      transition: all 0.2s;
       cursor: default;
+
+      &.parent-tag {
+        width: 100%;
+        justify-content: space-between;
+        font-weight: 600;
+        font-size: 13px;
+      }
+
+      &.child-tag {
+        flex: 0 0 auto;
+        min-width: 100px;
+        justify-content: space-between;
+        font-weight: 500;
+        font-size: 12px;
+
+        &:before {
+          content: '├';
+          margin-right: 4px;
+          color: inherit;
+          opacity: 0.6;
+        }
+
+        &:last-child {
+          &:before {
+            content: '└';
+          }
+        }
+      }
 
       &.clickable {
         cursor: pointer;
 
         &:hover {
           transform: translateY(-1px);
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        &:active {
+          transform: translateY(0);
         }
       }
 
@@ -222,53 +324,87 @@ const totalCount = computed(() => {
 
       .tag-count {
         font-weight: 700;
-        font-size: 13px;
-        min-width: 16px;
-        text-align: center;
       }
     }
   }
 
   .card-content {
-    margin-bottom: 15px;
+    text-align: center;
+    padding: 8px 0;
 
     .card-value {
-      font-size: 36px;
+      font-size: 32px;
       font-weight: 700;
-      color: $text-primary;
+      color: v-bind('cardStyle.color');
       line-height: 1;
     }
 
     .card-label {
+      margin-top: 6px;
       font-size: 13px;
-      color: $text-secondary;
-      margin-top: 5px;
+      color: #909399;
     }
   }
 
   .card-footer {
-    display: flex;
-    align-items: center;
+    margin-top: 8px;
+    text-align: center;
   }
 }
 
-@media (max-width: 768px) {
-  .countdown-card {
-    padding: 10px;
+// Tooltip 样式
+.description-tooltip {
+  display: inline-block;
+}
 
-    .filter-items {
-      .filter-tag {
-        font-size: 11px !important;
-        padding: 3px 6px !important;
+.tooltip-content {
+  max-width: 380px;
+  background: #303133;  // 深色背景
+  padding: 12px;
+  border-radius: 6px;
+  
+  .tooltip-title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+    
+    .el-icon {
+      color: #409eff;
+      font-size: 16px;
+    }
+    
+    span {
+      font-weight: 600;
+      color: #fff;  // 白色字体
+      font-size: 14px;
+    }
+  }
+  
+  .tooltip-text {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #e0e0e0;  // 浅灰色字体，提升可读性
+    
+    :deep(strong) {
+      color: #fff;  // 白色加粗
+      font-weight: 600;
+    }
+    
+    :deep(.highlight) {
+      color: #e6a23c;  // 保持橙色高亮
+      font-weight: 600;
+    }
+    
+    :deep(ul) {
+      margin: 6px 0 0 16px;
+      padding: 0;
+      
+      li {
+        margin: 4px 0;
       }
-    }
-
-    .card-value {
-      font-size: 28px !important;
-    }
-
-    .card-title {
-      font-size: 13px !important;
     }
   }
 }

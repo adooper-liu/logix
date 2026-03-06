@@ -6,7 +6,15 @@
 import axios, { AxiosInstance } from 'axios';
 import { AppDataSource } from '../database';
 import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
+import { PortOperation } from '../entities/PortOperation';
+import { Container } from '../entities/Container';
 import { logger } from '../utils/logger';
+import {
+  shouldUpdateCoreField,
+  getCoreFieldName,
+  getPortTypeForStatusCode,
+  FEITUO_STATUS_TO_CORE_FIELD_MAP,
+} from '../constants/FeiTuoStatusMapping';
 
 /**
  * 飞驼API响应数据结构
@@ -77,6 +85,13 @@ export enum DataSource {
 export class ExternalDataService {
   private apiClient: AxiosInstance;
   private apiConfig: any;
+  private requestQueue: Promise<any>[] = [];
+  private readonly MAX_CONCURRENT_REQUESTS = 5;
+  private readonly REQUEST_DELAY_MS = 200;
+
+  // 数据仓库
+  private portOperationRepository = AppDataSource.getRepository(PortOperation);
+  private containerRepository = AppDataSource.getRepository(Container);
 
   constructor(config?: { apiKey?: string; apiUrl?: string }) {
     this.apiConfig = config || {
@@ -115,27 +130,67 @@ export class ExternalDataService {
   /**
    * 从飞驼获取货柜追踪数据
    * @param containerNumbers 集装箱号数组
+   * @param retries 重试次数
    */
-  async fetchFromFeituo(containerNumbers: string[]): Promise<any[]> {
-    try {
-      logger.info(`[ExternalDataService] 从飞驼获取 ${containerNumbers.length} 个货柜的数据`);
+  async fetchFromFeituo(containerNumbers: string[], retries: number = 3): Promise<any[]> {
+    let lastError: any = null;
 
-      const response = await this.apiClient.post<FeituoTrackingResponse>('/tracking/batch', {
-        containerNumbers,
-        includeHistory: true,
-      });
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      try {
+        logger.info(`[ExternalDataService] 从飞驼获取 ${containerNumbers.length} 个货柜的数据 (尝试 ${attempt + 1}/${retries + 1})`);
 
-      if (response.data.code !== 200) {
-        throw new Error(`飞驼API错误: ${response.data.message}`);
+        const response = await this.apiClient.post<FeituoTrackingResponse>('/tracking/batch', {
+          containerNumbers,
+          includeHistory: true,
+        });
+
+        if (response.data.code !== 200) {
+          const errorMsg = response.data.message || '未知错误';
+
+          // 如果是速率限制错误，等待后重试
+          if (errorMsg.includes('Too many requests') || response.status === 429) {
+            logger.warn(`[ExternalDataService] 触发速率限制，等待后重试 (尝试 ${attempt + 1}/${retries + 1})`);
+            await this.sleep(Math.pow(2, attempt) * 1000); // 指数退避: 1s, 2s, 4s
+            lastError = new Error(errorMsg);
+            continue;
+          }
+
+          throw new Error(`飞驼API错误: ${errorMsg}`);
+        }
+
+        logger.info(`[ExternalDataService] 成功获取 ${response.data.data.length} 个货柜的追踪数据`);
+        return response.data.data;
+
+      } catch (error: any) {
+        lastError = error;
+
+        // 如果是网络错误或速率限制错误，继续重试
+        if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.response?.status === 429) {
+          if (attempt < retries) {
+            const delay = Math.pow(2, attempt) * 1000;
+            logger.warn(`[ExternalDataService] 请求失败，${delay}ms后重试 (尝试 ${attempt + 1}/${retries + 1}): ${error.message}`);
+            await this.sleep(delay);
+            continue;
+          }
+        }
+
+        // 其他错误直接抛出
+        if (attempt === retries) {
+          logger.error('[ExternalDataService] 从飞驼获取数据失败，已达到最大重试次数:', error);
+          throw error;
+        }
       }
-
-      logger.info(`[ExternalDataService] 成功获取 ${response.data.data.length} 个货柜的追踪数据`);
-      return response.data.data;
-
-    } catch (error: any) {
-      logger.error('[ExternalDataService] 从飞驼获取数据失败:', error);
-      throw error;
     }
+
+    throw lastError || new Error('从飞驼获取数据失败');
+  }
+
+  /**
+   * 休眠函数
+   * @param ms 毫秒数
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 
   /**
@@ -291,6 +346,12 @@ export class ExternalDataService {
       // 保存到数据库
       const savedEvents = await this.saveStatusEvents(events);
 
+      // 关键: 更新PortOperation表的核心时间字段
+      await this.updatePortOperationCoreFields(containerNumber, externalData[0].trackingEvents);
+
+      // 关键: 重新计算货柜的物流状态
+      await this.recalculateLogisticsStatus(containerNumber);
+
       logger.info(`[ExternalDataService] 成功同步货柜 ${containerNumber} 的 ${savedEvents.length} 个状态事件`);
       return savedEvents;
 
@@ -301,7 +362,159 @@ export class ExternalDataService {
   }
 
   /**
+   * 更新PortOperation表的核心时间字段
+   * 根据飞驼状态代码更新对应的字段
+   *
+   * @param containerNumber 集装箱号
+   * @param feituoEvents 飞驼事件数组
+   */
+  private async updatePortOperationCoreFields(containerNumber: string, feituoEvents: FeituoEvent[]): Promise<void> {
+    try {
+      if (!feituoEvents || feituoEvents.length === 0) {
+        return;
+      }
+
+      // 查找所有港口操作记录
+      const portOperations = await this.portOperationRepository
+        .createQueryBuilder('po')
+        .where('po.containerNumber = :containerNumber', { containerNumber })
+        .getMany();
+
+      if (portOperations.length === 0) {
+        logger.warn(`[ExternalDataService] 货柜 ${containerNumber} 没有港口操作记录`);
+        return;
+      }
+
+      let updatedCount = 0;
+
+      // 遍历飞驼事件,更新对应的核心时间字段
+      for (const event of feituoEvents) {
+        // 检查是否应该更新核心字段
+        if (!shouldUpdateCoreField(event.statusCode, event.hasOccurred !== false)) {
+          continue;
+        }
+
+        // 获取核心字段名
+        const coreFieldName = getCoreFieldName(event.statusCode);
+        if (!coreFieldName) {
+          continue;
+        }
+
+        // 获取港口类型
+        const portType = getPortTypeForStatusCode(event.statusCode);
+
+        // 查找对应的港口操作记录
+        let targetPortOperation: PortOperation | null = null;
+
+        if (portType) {
+          // 根据港口类型和地点代码查找
+          targetPortOperation = portOperations.find(po =>
+            po.portType === portType &&
+            (po.portCode === event.locationCode || po.portName === event.locationName || po.portName === event.locationNameEn || po.portName === event.locationNameCn)
+          ) || null;
+        }
+
+        if (!targetPortOperation) {
+          // 如果找不到对应的港口操作记录,尝试创建或使用第一个记录
+          targetPortOperation = portOperations.find(po => po.portType === portType) || portOperations[0];
+        }
+
+        if (!targetPortOperation) {
+          logger.warn(`[ExternalDataService] 无法找到货柜 ${containerNumber} 的港口操作记录`);
+          continue;
+        }
+
+        // 更新核心时间字段
+        const eventTime = new Date(event.eventTime);
+        const currentValue = (targetPortOperation as any)[coreFieldName];
+
+        // 只有当飞驼数据更新时才更新字段
+        if (!currentValue || eventTime > currentValue) {
+          (targetPortOperation as any)[coreFieldName] = eventTime;
+
+          // 标记数据源
+          if (!targetPortOperation.dataSource) {
+            targetPortOperation.dataSource = 'Feituo';
+          }
+
+          logger.info(`[ExternalDataService] 更新核心字段: ${containerNumber} - ${coreFieldName} = ${eventTime}`);
+          updatedCount++;
+        }
+      }
+
+      // 保存所有更新的港口操作记录
+      if (updatedCount > 0) {
+        await this.portOperationRepository.save(portOperations);
+        logger.info(`[ExternalDataService] 成功更新货柜 ${containerNumber} 的 ${updatedCount} 个核心字段`);
+      }
+
+    } catch (error) {
+      logger.error(`[ExternalDataService] 更新核心字段失败:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 重新计算货柜的物流状态
+   * 基于更新后的核心时间字段重新计算状态
+   *
+   * @param containerNumber 集装箱号
+   */
+  private async recalculateLogisticsStatus(containerNumber: string): Promise<void> {
+    try {
+      // 动态导入状态机模块,避免循环依赖
+      const { calculateLogisticsStatus } = await import('../utils/logisticsStatusMachine');
+
+      // 获取货柜
+      const container = await this.containerRepository.findOne({
+        where: { containerNumber },
+        relations: []
+      });
+
+      if (!container) {
+        logger.warn(`[ExternalDataService] 货柜 ${containerNumber} 不存在`);
+        return;
+      }
+
+      // 获取港口操作记录
+      const portOperations = await this.portOperationRepository
+        .createQueryBuilder('po')
+        .where('po.containerNumber = :containerNumber', { containerNumber })
+        .orderBy('po.portSequence', 'DESC')
+        .getMany();
+
+      // 获取其他相关数据 (用于状态机计算)
+      // 注意: 这里需要根据实际情况导入其他Repository
+      // 为了简化,这里暂时只使用港口操作记录
+
+      // 计算新的物流状态
+      const result = calculateLogisticsStatus(
+        container,
+        portOperations,
+        undefined, // seaFreight
+        undefined, // truckingTransport
+        undefined, // warehouseOperation
+        undefined  // emptyReturn
+      );
+
+      // 更新货柜的物流状态
+      if (result.status !== container.logisticsStatus) {
+        const oldStatus = container.logisticsStatus;
+        container.logisticsStatus = result.status;
+        await this.containerRepository.save(container);
+
+        logger.info(`[ExternalDataService] 货柜 ${containerNumber} 物流状态更新: ${oldStatus} -> ${result.status}`);
+      }
+
+    } catch (error) {
+      logger.error(`[ExternalDataService] 重新计算物流状态失败:`, error);
+      // 不抛出错误,避免影响主流程
+    }
+  }
+
+  /**
    * 批量同步货柜状态事件
+   * 优化为批量请求+并发控制，避免触发API速率限制
    * @param containerNumbers 集装箱号数组
    * @param dataSource 数据源类型
    */
@@ -313,21 +526,126 @@ export class ExternalDataService {
       failed: [] as { containerNumber: string; error: string }[],
     };
 
-    for (const containerNumber of containerNumbers) {
-      try {
-        await this.syncContainerEvents(containerNumber, dataSource);
-        result.success.push(containerNumber);
-      } catch (error: any) {
-        result.failed.push({
-          containerNumber,
-          error: error.message || '未知错误',
-        });
-        logger.error(`[ExternalDataService] 同步货柜 ${containerNumber} 失败:`, error);
+    try {
+      // 策略1: 使用飞驼批量API一次性获取所有数据
+      if (containerNumbers.length <= 50) {
+        // 分批处理，每批最多50个货柜
+        const batches = this.chunkArray(containerNumbers, 50);
+
+        for (const batch of batches) {
+          try {
+            logger.info(`[ExternalDataService] 处理批次: ${batch.length} 个货柜`);
+
+            // 批量获取数据
+            const externalData = await this.fetchFromFeituo(batch);
+
+            // 并发处理每个货柜
+            const processPromises = externalData.map(async (data) => {
+              try {
+                const events = this.convertFeituoToStatusEvents(data, dataSource);
+                await this.saveStatusEvents(events);
+                await this.updatePortOperationCoreFields(data.containerNumber, data.trackingEvents);
+                await this.recalculateLogisticsStatus(data.containerNumber);
+                return data.containerNumber;
+              } catch (error: any) {
+                logger.error(`[ExternalDataService] 处理货柜 ${data.containerNumber} 失败:`, error);
+                throw error;
+              }
+            });
+
+            // 控制并发数量
+            const processed = await this.processWithConcurrencyLimit(processPromises, this.MAX_CONCURRENT_REQUESTS);
+            result.success.push(...processed);
+
+          } catch (error: any) {
+            // 整批失败，标记所有货柜为失败
+            batch.forEach(containerNumber => {
+              result.failed.push({
+                containerNumber,
+                error: error.message || '批次处理失败',
+              });
+            });
+            logger.error(`[ExternalDataService] 批次处理失败:`, error);
+          }
+
+          // 批次之间延迟，避免触发速率限制
+          if (batches.indexOf(batch) < batches.length - 1) {
+            await this.sleep(this.REQUEST_DELAY_MS);
+          }
+        }
+
+      } else {
+        // 超过50个货柜，使用逐个请求的方式(避免单次请求过大)
+        for (const containerNumber of containerNumbers) {
+          try {
+            await this.syncContainerEvents(containerNumber, dataSource);
+            result.success.push(containerNumber);
+          } catch (error: any) {
+            result.failed.push({
+              containerNumber,
+              error: error.message || '未知错误',
+            });
+            logger.error(`[ExternalDataService] 同步货柜 ${containerNumber} 失败:`, error);
+          }
+
+          // 请求之间延迟
+          await this.sleep(this.REQUEST_DELAY_MS);
+        }
       }
+
+    } catch (error: any) {
+      logger.error('[ExternalDataService] 批量同步失败:', error);
     }
 
     logger.info(`[ExternalDataService] 批量同步完成: 成功 ${result.success.length}, 失败 ${result.failed.length}`);
     return result;
+  }
+
+  /**
+   * 数组分块
+   * @param array 原数组
+   * @param size 每块大小
+   */
+  private chunkArray<T>(array: T[], size: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+      chunks.push(array.slice(i, i + size));
+    }
+    return chunks;
+  }
+
+  /**
+   * 并发控制处理Promise数组
+   * @param promises Promise数组
+   * @param concurrencyLimit 并发限制
+   */
+  private async processWithConcurrencyLimit<T>(promises: (() => Promise<T>)[], concurrencyLimit: number): Promise<T[]> {
+    const results: T[] = [];
+    const executing: Promise<void>[] = [];
+
+    for (const promiseFunc of promises) {
+      const promise = promiseFunc();
+
+      results.push(
+        promise.then((value) => value).catch((error) => {
+          // 忽略错误，让调用方处理
+          throw error;
+        })
+      );
+
+      const executingPromise = promise.finally(() => {
+        executing.splice(executing.indexOf(executingPromise), 1);
+      });
+
+      executing.push(executingPromise);
+
+      if (executing.length >= concurrencyLimit) {
+        await Promise.race(executing);
+      }
+    }
+
+    await Promise.all(executing);
+    return results.filter((result): result is T => result !== undefined);
   }
 
   /**

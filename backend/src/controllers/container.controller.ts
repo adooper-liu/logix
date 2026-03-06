@@ -17,6 +17,7 @@ import { Repository } from 'typeorm';
 import { logger } from '../utils/logger';
 import { ContainerService } from '../services/container.service';
 import { ContainerStatisticsService } from '../services/containerStatistics.service';
+import { ContainerStatusService } from '../services/containerStatus.service';
 
 export class ContainerController {
   private containerRepository: Repository<Container>;
@@ -26,6 +27,7 @@ export class ContainerController {
   private emptyReturnRepository: Repository<EmptyReturn>;
   private containerService: ContainerService;
   private statisticsService: ContainerStatisticsService;
+  private containerStatusService: ContainerStatusService;
 
   constructor() {
     const containerRepository = AppDataSource.getRepository(Container);
@@ -58,7 +60,73 @@ export class ContainerController {
       truckingTransportRepository,
       emptyReturnRepository
     );
+
+    this.containerStatusService = new ContainerStatusService();
   }
+
+  /**
+   * 测试统计服务初始化
+   */
+  testStatisticsService = async (req: Request, res: Response): Promise<void> => {
+    try {
+      console.log('[Test] StatisticsService initialized:', !!this.statisticsService);
+      console.log('[Test] StatusDistributionService initialized:', !!(this.statisticsService as any).statusDistribution);
+      console.log('[Test] containerRepository initialized:', !!this.containerRepository);
+
+      const testQuery = this.containerRepository
+        .createQueryBuilder('container')
+        .select('COUNT(*)', 'count')
+        .getRawOne();
+
+      const count = await testQuery;
+      console.log('[Test] Container count:', count);
+
+      // 测试 getStatusDistribution
+      console.log('[Test] Testing getStatusDistribution...');
+      const statusDist = await this.statisticsService.getStatusDistribution();
+      console.log('[Test] Status distribution result:', statusDist);
+
+      // 测试 getArrivalDistribution
+      console.log('[Test] Testing getArrivalDistribution...');
+      const arrivalDist = await this.statisticsService.getArrivalDistribution();
+      console.log('[Test] Arrival distribution result:', arrivalDist);
+
+      // 测试 getPickupDistribution
+      console.log('[Test] Testing getPickupDistribution...');
+      const pickupDist = await this.statisticsService.getPickupDistribution();
+      console.log('[Test] Pickup distribution result:', pickupDist);
+
+      // 测试 getLastPickupDistribution
+      console.log('[Test] Testing getLastPickupDistribution...');
+      const lastPickupDist = await this.statisticsService.getLastPickupDistribution();
+      console.log('[Test] Last pickup distribution result:', lastPickupDist);
+
+      // 测试 getReturnDistribution
+      console.log('[Test] Testing getReturnDistribution...');
+      const returnDist = await this.statisticsService.getReturnDistribution();
+      console.log('[Test] Return distribution result:', returnDist);
+
+      res.json({
+        success: true,
+        data: {
+          statisticsService: !!this.statisticsService,
+          containerCount: count?.count,
+          statusDistribution: statusDist,
+          arrivalDistribution: arrivalDist,
+          pickupDistribution: pickupDist,
+          lastPickupDistribution: lastPickupDist,
+          returnDistribution: returnDist
+        }
+      });
+    } catch (error: any) {
+      console.error('[Test] Error:', error);
+      res.status(500).json({
+        success: false,
+        error: error?.message,
+        stack: error?.stack
+      });
+    }
+  };
 
   /**
    * 获取货柜列表
@@ -345,7 +413,8 @@ export class ContainerController {
       const updateData = req.body;
 
       const container = await this.containerRepository.findOne({
-        where: { containerNumber: id }
+        where: { containerNumber: id },
+        relations: []
       });
 
       if (!container) {
@@ -384,7 +453,8 @@ export class ContainerController {
       const { id } = req.params;
 
       const container = await this.containerRepository.findOne({
-        where: { containerNumber: id }
+        where: { containerNumber: id },
+        relations: []
       });
 
       if (!container) {
@@ -470,14 +540,21 @@ export class ContainerController {
         message: 'Filtering by shipment time (createdAt)'
       });
 
-      const [statusDistribution, arrivalDistribution, pickupDistribution, lastPickupDistribution, returnDistribution] =
-        await Promise.all([
-          this.statisticsService.getStatusDistribution(startDate as string, endDate as string),
-          this.statisticsService.getArrivalDistribution(startDate as string, endDate as string),
-          this.statisticsService.getPickupDistribution(startDate as string, endDate as string),
-          this.statisticsService.getLastPickupDistribution(startDate as string, endDate as string),
-          this.statisticsService.getReturnDistribution(startDate as string, endDate as string)
-        ]);
+      // 逐个执行以便更好地追踪错误
+      const statusDistribution = await this.statisticsService.getStatusDistribution(startDate as string, endDate as string);
+      logger.info('[getStatisticsDetailed] Status distribution completed');
+
+      const arrivalDistribution = await this.statisticsService.getArrivalDistribution(startDate as string, endDate as string);
+      logger.info('[getStatisticsDetailed] Arrival distribution completed');
+
+      const pickupDistribution = await this.statisticsService.getPickupDistribution(startDate as string, endDate as string);
+      logger.info('[getStatisticsDetailed] Pickup distribution completed');
+
+      const lastPickupDistribution = await this.statisticsService.getLastPickupDistribution(startDate as string, endDate as string);
+      logger.info('[getStatisticsDetailed] Last pickup distribution completed');
+
+      const returnDistribution = await this.statisticsService.getReturnDistribution(startDate as string, endDate as string);
+      logger.info('[getStatisticsDetailed] Return distribution completed');
 
       logger.info('[getStatisticsDetailed] Detailed statistics calculation completed');
       logger.info('[getStatisticsDetailed] Results:', {
@@ -498,11 +575,15 @@ export class ContainerController {
           returnDistribution
         }
       });
-    } catch (error) {
-      logger.error('Failed to get detailed statistics', error);
+    } catch (error: any) {
+      logger.error('[getStatisticsDetailed] Failed to get detailed statistics', {
+        error: error?.message,
+        stack: error?.stack
+      });
       res.status(500).json({
         success: false,
-        message: '获取详细统计数据失败'
+        message: '获取详细统计数据失败',
+        error: error?.message
       });
     }
   };
@@ -649,6 +730,124 @@ export class ContainerController {
       res.status(500).json({
         success: false,
         message: '获取异常统计失败'
+      });
+    }
+  };
+
+  /**
+   * 根据统计条件获取货柜列表
+   * 与统计查询使用相同的逻辑，确保前后端数据一致
+   * @param filterCondition 统计条件
+   * @param startDate 出运开始日期
+   * @param endDate 出运结束日期
+   */
+  getContainersByFilterCondition = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { filterCondition, startDate, endDate } = req.query;
+
+      if (!filterCondition || typeof filterCondition !== 'string') {
+        res.status(400).json({
+          success: false,
+          message: '缺少 filterCondition 参数'
+        });
+        return;
+      }
+
+      logger.info('[getContainersByFilterCondition] Query params:', {
+        filterCondition,
+        startDate,
+        endDate
+      });
+
+      const containers = await this.statisticsService.getContainersByCondition(
+        filterCondition as string,
+        startDate as string,
+        endDate as string
+      );
+
+      // 使用 containerService 丰富货柜列表数据
+      const containersWithStatus = await this.containerService.enrichContainersList(containers);
+
+      logger.info(`[getContainersByFilterCondition] Found ${containers.length} containers for condition: ${filterCondition}`);
+
+      res.json({
+        success: true,
+        items: containersWithStatus,
+        count: containers.length
+      });
+    } catch (error) {
+      logger.error('Failed to get containers by filter condition', error);
+      res.status(500).json({
+        success: false,
+        message: '根据条件获取货柜列表失败'
+      });
+    }
+  };
+
+  /**
+   * 更新单个货柜状态
+   * POST /api/containers/:containerNumber/update-status
+   */
+  updateContainerStatus = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { containerNumber } = req.params;
+
+      if (!containerNumber) {
+        res.status(400).json({
+          success: false,
+          message: '货柜号不能为空'
+        });
+        return;
+      }
+
+      const updated = await this.containerStatusService.updateStatus(containerNumber);
+
+      res.json({
+        success: true,
+        updated,
+        message: updated ? '状态更新成功' : '状态无需更新'
+      });
+    } catch (error) {
+      logger.error(`Failed to update container status`, error);
+      res.status(500).json({
+        success: false,
+        message: '更新货柜状态失败'
+      });
+    }
+  };
+
+  /**
+   * 批量更新货柜状态
+   * POST /api/containers/update-statuses/batch
+   * 支持传入货柜号数组，或使用 limit 参数批量更新
+   */
+  batchUpdateContainerStatuses = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { containerNumbers, limit } = req.body;
+
+      let updatedCount = 0;
+
+      if (Array.isArray(containerNumbers) && containerNumbers.length > 0) {
+        // 更新指定货柜
+        updatedCount = await this.containerStatusService.updateStatusesForContainers(containerNumbers);
+      } else if (limit) {
+        // 批量更新指定数量的货柜
+        updatedCount = await this.containerStatusService.batchUpdateStatuses(limit);
+      } else {
+        // 默认批量更新所有货柜
+        updatedCount = await this.containerStatusService.batchUpdateStatuses(1000);
+      }
+
+      res.json({
+        success: true,
+        updatedCount,
+        message: `批量更新完成，更新了 ${updatedCount} 个货柜`
+      });
+    } catch (error) {
+      logger.error('Failed to batch update container statuses', error);
+      res.status(500).json({
+        success: false,
+        message: '批量更新货柜状态失败'
       });
     }
   };
