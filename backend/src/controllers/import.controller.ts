@@ -404,7 +404,7 @@ export class ImportController {
     const portData = tables.process_port_operations; // 数组需要单独处理
     const truckingData = snakeToCamel(tables.process_trucking_transport);
     const warehouseData = snakeToCamel(tables.process_warehouse_operations);
-    const returnData = snakeToCamel(tables.process_empty_returns);
+    const returnData = snakeToCamel(tables.process_empty_return);
 
     // 港口操作是数组，需要单独转换每个元素
     const portOperations = portData?.map((p: any) => snakeToCamel(p)) || [];
@@ -797,7 +797,7 @@ export class ImportController {
             process_port_operations: portData,
             process_trucking_transport: truckingData,
             process_warehouse_operations: warehouseData,
-            process_empty_returns: returnData
+            process_empty_return: returnData
           } = convertedTables;
 
           const resultData: any = { rowIndex: i + 1 };

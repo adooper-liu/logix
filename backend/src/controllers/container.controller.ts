@@ -140,7 +140,7 @@ export class ContainerController {
 
       const queryBuilder = this.containerRepository
         .createQueryBuilder('container')
-        .leftJoin('container.order', 'order')
+        .leftJoin('container.replenishmentOrders', 'order')
         .leftJoin('container.seaFreight', 'sf');
 
       if (search) {
@@ -215,8 +215,8 @@ export class ContainerController {
         .createQueryBuilder('container')
         .leftJoinAndSelect('container.type', 'type')
         .leftJoinAndSelect('container.portOperations', 'portOperations')
-        .leftJoinAndSelect('container.orders', 'orders')
-        .leftJoinAndSelect('container.order', 'order')
+        .leftJoinAndSelect('container.replenishmentOrders', 'order')
+        .leftJoinAndSelect('container.seaFreight', 'sf')
         .where('container.containerNumber = :id', { id })
         .getOne();
 
@@ -233,6 +233,8 @@ export class ContainerController {
       const containerWithExtensions = container as any;
       containerWithExtensions.allOrders = replenishmentOrders;
       containerWithExtensions.summary = this.calculateOrdersSummary(replenishmentOrders);
+      // 保持向后兼容：将第一个备货单作为order返回
+      containerWithExtensions.order = replenishmentOrders[0] || null;
 
       // 获取状态事件
       const statusEvents = await this.containerService.getContainerStatusEvents(id);

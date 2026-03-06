@@ -12,7 +12,7 @@ import { SelectQueryBuilder } from 'typeorm';
 export class DateFilterBuilder {
   /**
    * 为查询添加出运时间过滤
-   * 按 actualShipDate 筛选
+   * 按 actualShipDate 筛选，如果备货单没有actualShipDate则使用海运日期
    */
   static addDateFilters(
     query: SelectQueryBuilder<any>,
@@ -20,13 +20,17 @@ export class DateFilterBuilder {
     endDate?: string
   ): SelectQueryBuilder<any> {
     if (startDate) {
-      query.andWhere('order.actualShipDate >= :startDate', { startDate: new Date(startDate) });
+      query.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', {
+        startDate: new Date(startDate)
+      });
     }
 
     if (endDate) {
       const endDateObj = new Date(endDate);
       endDateObj.setHours(23, 59, 59, 999);
-      query.andWhere('order.actualShipDate <= :endDate', { endDate: endDateObj });
+      query.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', {
+        endDate: endDateObj
+      });
     }
 
     return query;
@@ -34,13 +38,15 @@ export class DateFilterBuilder {
 
   /**
    * 创建基础查询（带 order 和 sf 连接）
+   * 注意：由于一个货柜可能有多个备货单，使用leftJoin处理
    */
   static createBaseQuery(
     containerRepository: any
   ): SelectQueryBuilder<any> {
     return containerRepository
       .createQueryBuilder('container')
-      .leftJoin('container.order', 'order');
+      .leftJoin('container.replenishmentOrders', 'order')
+      .leftJoin('container.seaFreight', 'sf');
   }
 
   /**

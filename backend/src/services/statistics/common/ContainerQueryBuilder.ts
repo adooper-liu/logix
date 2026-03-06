@@ -1,6 +1,5 @@
 /**
- * 货柜查询构建器
- * 负责构建常用的货柜查询基础
+ * 货柜查询构建�? * 负责构建常用的货柜查询基础
  */
 
 import { SelectQueryBuilder } from 'typeorm';
@@ -8,13 +7,10 @@ import { PortOperationQueryBuilder } from './PortOperationQueryBuilder';
 import { DateFilterBuilder } from './DateFilterBuilder';
 
 /**
- * 货柜查询构建器
- * 提供常用的货柜查询模板
- */
+ * 货柜查询构建�? * 提供常用的货柜查询模�? */
 export class ContainerQueryBuilder {
   /**
-   * 物流状态常量
-   */
+   * 物流状态常�?   */
   static readonly STATUSES = {
     ALL_SHIPPED: ['shipped', 'in_transit', 'at_port', 'picked_up', 'unloaded', 'returned_empty'],
     NOT_PICKED_UP: ['not_shipped', 'shipped', 'in_transit', 'at_port'],
@@ -23,15 +19,13 @@ export class ContainerQueryBuilder {
   };
 
   /**
-   * 创建基础查询（带 order 和 sf 连接）
-   */
+   * 创建基础查询（带 order �?sf 连接�?   */
   static createBaseQuery(containerRepository: any): SelectQueryBuilder<any> {
     return DateFilterBuilder.createBaseQuery(containerRepository);
   }
 
   /**
-   * 为查询添加最新目的港操作的内连接（含 ATA）
-   */
+   * 为查询添加最新目的港操作的内连接（含 ATA�?   */
   static joinLatestDestinationWithAta(
     query: SelectQueryBuilder<any>,
     alias: string = 'latest_po'
@@ -40,8 +34,7 @@ export class ContainerQueryBuilder {
   }
 
   /**
-   * 为查询添加最新目的港操作的内连接（含 ETA）
-   */
+   * 为查询添加最新目的港操作的内连接（含 ETA�?   */
   static joinLatestDestinationWithEta(
     query: SelectQueryBuilder<any>,
     alias: string = 'latest_po'
@@ -60,8 +53,7 @@ export class ContainerQueryBuilder {
   }
 
   /**
-   * 为查询添加最新目的港操作的内连接（含 lastFreeDate）
-   */
+   * 为查询添加最新目的港操作的内连接（含 lastFreeDate�?   */
   static joinLatestDestinationWithLastFreeDate(
     query: SelectQueryBuilder<any>,
     alias: string = 'latest_po'
@@ -77,15 +69,28 @@ export class ContainerQueryBuilder {
     alias: string = 'er'
   ): SelectQueryBuilder<any> {
     return query.leftJoin(
-      'process_empty_returns',
+      'process_empty_return',
       alias,
-      `${alias}.container_number = container.containerNumber`
+      `${alias}.container_number = container.container_number`
     );
   }
 
   /**
-   * 为查询添加日期过滤
+   * 为查询添加还空箱记录的内连接（用于 lastReturnDate，使用正确的列名）
    */
+  static joinEmptyReturnWithColumn(
+    query: SelectQueryBuilder<any>,
+    alias: string = 'er'
+  ): SelectQueryBuilder<any> {
+    return query.leftJoin(
+      'process_empty_return',
+      alias,
+      `${alias}.container_number = container.container_number`
+    );
+  }
+
+  /**
+   * 为查询添加日期过�?   */
   static addDateFilters(
     query: SelectQueryBuilder<any>,
     startDate?: string,
@@ -95,8 +100,7 @@ export class ContainerQueryBuilder {
   }
 
   /**
-   * 为查询添加物流状态过滤
-   */
+   * 为查询添加物流状态过�?   */
   static filterByLogisticsStatus(
     query: SelectQueryBuilder<any>,
     statuses: string[]
@@ -107,8 +111,7 @@ export class ContainerQueryBuilder {
   }
 
   /**
-   * 为查询排除指定的物流状态
-   */
+   * 为查询排除指定的物流状�?   */
   static excludeLogisticsStatus(
     query: SelectQueryBuilder<any>,
     statuses: string[]
@@ -119,11 +122,11 @@ export class ContainerQueryBuilder {
   }
 
   /**
-   * 过滤目标集（必须是已出运状态的货柜）
-   */
+   * 过滤目标集（必须是已出运状态的货柜�?   */
   static filterTargetStatus(
     query: SelectQueryBuilder<any>
   ): SelectQueryBuilder<any> {
     return this.filterByLogisticsStatus(query, this.STATUSES.ALL_SHIPPED);
   }
 }
+

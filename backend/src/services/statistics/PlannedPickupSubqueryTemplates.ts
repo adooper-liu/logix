@@ -21,8 +21,8 @@ export class PlannedPickupSubqueryTemplates {
     SELECT c.container_number, c.logistics_status, po.ata_dest_port
     FROM biz_containers c
     INNER JOIN process_port_operations po ON c.container_number = po.container_number
-    LEFT JOIN biz_replenishment_orders o ON c.order_number = o.order_number
-    LEFT JOIN process_sea_freight sf ON c.container_number = sf.container_number
+    LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
+    LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_number
     WHERE po.port_type = 'destination'
     AND po.ata_dest_port IS NOT NULL
     AND po.port_sequence = (

@@ -247,8 +247,8 @@ export class ContainerStatisticsService {
 
     // 添加出运时间筛选
     if (startDate || endDate) {
-      query.leftJoin('process_sea_freight', 'sf', 'sf.container_number = container.container_number')
-        .leftJoin('biz_replenishment_orders', 'o', 'o.order_number = container.order_number');
+      query.leftJoin('process_sea_freight', 'sf', 'sf.bill_of_lading_number = container.billOfLadingNumber')
+        .leftJoin('biz_replenishment_orders', 'o', 'o.container_number = container.container_number');
 
       if (startDate) {
         query.andWhere(
@@ -308,8 +308,8 @@ export class ContainerStatisticsService {
 
     // 添加出运时间筛选
     if (startDate || endDate) {
-      query.leftJoin('process_sea_freight', 'sf', 'sf.container_number = container.container_number')
-        .leftJoin('biz_replenishment_orders', 'o', 'o.order_number = container.order_number');
+      query.leftJoin('process_sea_freight', 'sf', 'sf.bill_of_lading_number = container.billOfLadingNumber')
+        .leftJoin('biz_replenishment_orders', 'o', 'o.container_number = container.container_number');
 
       if (startDate) {
         query.andWhere(

@@ -102,7 +102,7 @@ export class StatusDistributionService {
           // 排除优先级1：还空箱记录
           const notEmptyReturn = qb.subQuery()
             .select('1')
-            .from('process_empty_returns', 'er')
+            .from('process_empty_return', 'er')
             .where('er.container_number = container.container_number')
             .andWhere('er.return_time IS NOT NULL')
             .getQuery();
@@ -121,7 +121,7 @@ export class StatusDistributionService {
           // 排除优先级3：拖车提柜记录
           const notPickedUp = qb.subQuery()
             .select('1')
-            .from('process_trucking_transports', 'tt')
+            .from('process_trucking_transport', 'tt')
             .where('tt.container_number = container.container_number')
             .andWhere('tt.pickup_date IS NOT NULL')
             .getQuery();
@@ -172,7 +172,7 @@ export class StatusDistributionService {
           // 排除优先级1：还空箱记录
           const notEmptyReturn = qb.subQuery()
             .select('1')
-            .from('process_empty_returns', 'er')
+            .from('process_empty_return', 'er')
             .where('er.container_number = container.container_number')
             .andWhere('er.return_time IS NOT NULL')
             .getQuery();
@@ -191,7 +191,7 @@ export class StatusDistributionService {
           // 排除优先级3：拖车提柜记录
           const notPickedUp = qb.subQuery()
             .select('1')
-            .from('process_trucking_transports', 'tt')
+            .from('process_trucking_transport', 'tt')
             .where('tt.container_number = container.container_number')
             .andWhere('tt.pickup_date IS NOT NULL')
             .getQuery();

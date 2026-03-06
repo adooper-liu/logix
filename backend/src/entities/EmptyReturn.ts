@@ -14,7 +14,7 @@ import {
 } from 'typeorm';
 import { Container } from './Container';
 
-@Entity('process_empty_returns')
+@Entity('process_empty_return')
 export class EmptyReturn {
   @PrimaryColumn({ type: 'varchar', length: 50, name: 'container_number' })
   containerNumber: string;
