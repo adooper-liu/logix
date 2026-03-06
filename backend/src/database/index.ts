@@ -11,6 +11,7 @@ import { CustomerType } from '../entities/CustomerType';
 import { Customer } from '../entities/Customer';
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { Container } from '../entities/Container';
+import { ContainerSku } from '../entities/ContainerSku';
 import { SeaFreight } from '../entities/SeaFreight';
 import { PortOperation } from '../entities/PortOperation';
 import { ContainerType } from '../entities/ContainerType';
@@ -55,6 +56,7 @@ export const dataSourceOptions: DataSourceOptions = {
     Customer,
     ReplenishmentOrder,
     Container,
+    ContainerSku,
 
     // 流程表 (Process Tables)
     SeaFreight,

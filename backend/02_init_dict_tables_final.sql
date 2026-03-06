@@ -336,12 +336,12 @@ INSERT INTO dict_container_types (type_code, type_name_cn, type_name_en, size_ft
 -- ============================================================
 -- 仓库字典 (dict_warehouses)
 -- ============================================================
-INSERT INTO dict_warehouses (warehouse_code, warehouse_name, warehouse_name_en, warehouse_type, address, city, state, country, contact_phone, contact_email, status, remarks, created_at, updated_at) VALUES
-('WH_US_NJ_01', '新泽西仓库1', 'New Jersey Warehouse 1', 'PUBLIC', '123 Industrial Way', 'Newark', 'NJ', 'US', '+1-973-5551100', 'info@njwarehouse.com', 'ACTIVE', NULL, NOW(), NOW()),
-('WH_US_CA_01', '加州仓库1', 'California Warehouse 1', 'PRIVATE', '456 Commerce Blvd', 'Los Angeles', 'CA', 'US', '+1-213-5551200', 'info@cawarehouse.com', 'ACTIVE', NULL, NOW(), NOW()),
-('WH_EU_DE_01', '德国仓库1', 'Germany Warehouse 1', 'PUBLIC', '789 Logistik Str', 'Hamburg', NULL, 'DE', '+49-40-5551300', 'info@dewarehouse.com', 'ACTIVE', NULL, NOW(), NOW()),
-('WH_CA_BC_01', '加拿大BC仓库1', 'Canada BC Warehouse 1', 'PUBLIC', '321 Port Road', 'Vancouver', 'BC', 'CA', '+1-604-5551400', 'info@bcwarehouse.com', 'ACTIVE', NULL, NOW(), NOW()),
-('WH_EU_NL_01', '荷兰仓库1', 'Netherlands Warehouse 1', 'PUBLIC', '654 Havenweg', 'Rotterdam', NULL, 'NL', '+31-10-5551500', 'info@nlwarehouse.com', 'ACTIVE', NULL, NOW(), NOW());
+INSERT INTO dict_warehouses (warehouse_code, warehouse_name, warehouse_name_en, property_type, warehouse_type, address, city, state, country, contact_phone, contact_email, status, remarks, created_at, updated_at) VALUES
+('WH_US_NJ_01', '新泽西仓库1', 'New Jersey Warehouse 1', '自营仓', 'PUBLIC', '123 Industrial Way', 'Newark', 'NJ', 'US', '+1-973-5551100', 'info@njwarehouse.com', 'ACTIVE', NULL, NOW(), NOW()),
+('WH_US_CA_01', '加州仓库1', 'California Warehouse 1', '自营仓', 'PRIVATE', '456 Commerce Blvd', 'Los Angeles', 'CA', 'US', '+1-213-5551200', 'info@cawarehouse.com', 'ACTIVE', NULL, NOW(), NOW()),
+('WH_EU_DE_01', '德国仓库1', 'Germany Warehouse 1', '自营仓', 'PUBLIC', '789 Logistik Str', 'Hamburg', NULL, 'DE', '+49-40-5551300', 'info@dewarehouse.com', 'ACTIVE', NULL, NOW(), NOW()),
+('WH_CA_BC_01', '加拿大BC仓库1', 'Canada BC Warehouse 1', '自营仓', 'PUBLIC', '321 Port Road', 'Vancouver', 'BC', 'CA', '+1-604-5551400', 'info@bcwarehouse.com', 'ACTIVE', NULL, NOW(), NOW()),
+('WH_EU_NL_01', '荷兰仓库1', 'Netherlands Warehouse 1', '自营仓', 'PUBLIC', '654 Havenweg', 'Rotterdam', NULL, 'NL', '+31-10-5551500', 'info@nlwarehouse.com', 'ACTIVE', NULL, NOW(), NOW());
 
 -- ============================================================
 -- 海外公司字典 (dict_overseas_companies)

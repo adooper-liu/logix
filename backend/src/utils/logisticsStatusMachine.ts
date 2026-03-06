@@ -191,7 +191,7 @@ export const ExternalApiToDetailedMap: Record<string, DetailedStatus> = {
   'DLPT': DetailedStatus.SAILING,        // 航行
   'ARRIVE': DetailedStatus.ARRIVED,       // 到达
   'ATA': DetailedStatus.ARRIVED,          // 实际到港
-  'ETA': DetailedStatus.IN_TRANSIT,       // 预计到港
+  'ETA': DetailedStatus.SAILING,          // 预计到港
   'GATE_IN': DetailedStatus.GATE_IN,      // 进闸
   'GATE_OUT': DetailedStatus.GATE_OUT,    // 出闸
   'DISCHARGED': DetailedStatus.DISCHARGED,// 卸货
@@ -341,7 +341,7 @@ export const calculateLogisticsStatus = (
   }
 
   // 优先级6: 有海运记录（已实际出运）→ 在途
-  if (seaFreight?.shipmentDate || container.order?.actualShipDate) {
+  if (seaFreight?.shipmentDate) {
     status = SimplifiedStatus.IN_TRANSIT;
     return { status, currentPortType, latestPortOperation };
   }

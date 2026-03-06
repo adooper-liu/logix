@@ -6,11 +6,9 @@
 -- Usage: Create all tables based on TypeORM entities
 -- ============================================================
 
-\echo '开始创建数据库表...'
-\echo 'Starting to create database tables...'
 
 -- ============================================================
--- 字典表 (Dictionary Tables)
+-- 字典�?(Dictionary Tables)
 -- ============================================================
 
 -- 1. 国别字典 (dict_countries)
@@ -68,7 +66,7 @@ CREATE TABLE IF NOT EXISTS dict_ports (
 CREATE INDEX idx_ports_country ON dict_ports(country);
 CREATE INDEX idx_ports_city ON dict_ports(city);
 
--- 4. 船公司字典 (dict_shipping_companies)
+-- 4. 船公司字�?(dict_shipping_companies)
 CREATE TABLE IF NOT EXISTS dict_shipping_companies (
     company_code VARCHAR(50) PRIMARY KEY,
     company_name VARCHAR(100) NOT NULL,
@@ -172,7 +170,7 @@ CREATE TABLE IF NOT EXISTS dict_warehouses (
     warehouse_name VARCHAR(100) NOT NULL,
     warehouse_name_en VARCHAR(200),
     short_name VARCHAR(100),
-    property_type VARCHAR(20) NOT NULL CHECK (property_type IN ('自营仓', '平台仓', '第三方仓')),
+    property_type VARCHAR(20) NOT NULL CHECK (property_type IN ('自营�?, '平台�?, '第三方仓')),
     warehouse_type VARCHAR(20),
     company_code VARCHAR(50),
     address VARCHAR(300),
@@ -194,10 +192,10 @@ CREATE INDEX idx_warehouses_property_type ON dict_warehouses(property_type);
 CREATE INDEX idx_warehouses_company ON dict_warehouses(company_code);
 
 -- ============================================================
--- 流程表 (Process Tables)
+-- 流程�?(Process Tables)
 -- ============================================================
 
--- 14. 海运信息表 (process_sea_freight) - 提前创建，因为biz_containers需要引用它
+-- 14. 海运信息�?(process_sea_freight) - 提前创建，因为biz_containers需要引用它
 CREATE TABLE IF NOT EXISTS process_sea_freight (
     bill_of_lading_number VARCHAR(50) PRIMARY KEY,
     booking_number VARCHAR(50),
@@ -246,10 +244,10 @@ CREATE INDEX idx_sea_freight_bol ON process_sea_freight(bill_of_lading_number);
 CREATE INDEX idx_sea_freight_vessel ON process_sea_freight(vessel_name, voyage_number);
 
 -- ============================================================
--- 业务表 (Business Tables)
+-- 业务�?(Business Tables)
 -- ============================================================
 
--- 11. 客户表 (biz_customers)
+-- 11. 客户�?(biz_customers)
 CREATE TABLE IF NOT EXISTS biz_customers (
     customer_code VARCHAR(50) PRIMARY KEY,
     customer_name VARCHAR(100) NOT NULL,
@@ -278,7 +276,7 @@ CREATE TABLE IF NOT EXISTS biz_customers (
 CREATE INDEX idx_customers_country ON biz_customers(country);
 CREATE INDEX idx_customers_type ON biz_customers(customer_type_code);
 
--- 12. 货柜表 (biz_containers)
+-- 12. 货柜�?(biz_containers)
 CREATE TABLE IF NOT EXISTS biz_containers (
     container_number VARCHAR(50) PRIMARY KEY,
     bill_of_lading_number VARCHAR(50),
@@ -355,7 +353,7 @@ CREATE INDEX idx_replenishment_container ON biz_replenishment_orders(container_n
 CREATE INDEX idx_replenishment_status ON biz_replenishment_orders(order_status);
 CREATE INDEX idx_replenishment_date ON biz_replenishment_orders(actual_ship_date);
 
--- 13.5. 货柜SKU明细表 (biz_container_skus)
+-- 13.5. 货柜SKU明细�?(biz_container_skus)
 CREATE TABLE IF NOT EXISTS biz_container_skus (
     id SERIAL PRIMARY KEY,
     container_number VARCHAR(50) NOT NULL,
@@ -386,10 +384,10 @@ CREATE INDEX idx_container_skus_order ON biz_container_skus(order_number);
 CREATE INDEX idx_container_skus_sku ON biz_container_skus(sku_code);
 
 -- ============================================================
--- 流程表 (Process Tables)
+-- 流程�?(Process Tables)
 -- ============================================================
 
--- 15. 港口操作表 (process_port_operations)
+-- 15. 港口操作�?(process_port_operations)
 CREATE TABLE IF NOT EXISTS process_port_operations (
     id VARCHAR(50) PRIMARY KEY,
     container_number VARCHAR(50),
@@ -446,7 +444,7 @@ CREATE INDEX idx_port_operations_container ON process_port_operations(container_
 CREATE INDEX idx_port_operations_port ON process_port_operations(port_code);
 CREATE INDEX idx_port_operations_type ON process_port_operations(port_type);
 
--- 16. 拖卡运输表 (process_trucking_transport)
+-- 16. 拖卡运输�?(process_trucking_transport)
 CREATE TABLE IF NOT EXISTS process_trucking_transport (
     container_number VARCHAR(50) PRIMARY KEY,
     trucking_type VARCHAR(20),
@@ -474,7 +472,7 @@ CREATE TABLE IF NOT EXISTS process_trucking_transport (
     FOREIGN KEY (container_number) REFERENCES biz_containers(container_number) ON DELETE CASCADE
 );
 
--- 17. 仓库操作表 (process_warehouse_operations)
+-- 17. 仓库操作�?(process_warehouse_operations)
 CREATE TABLE IF NOT EXISTS process_warehouse_operations (
     container_number VARCHAR(50) PRIMARY KEY,
     operation_type VARCHAR(20),
@@ -531,7 +529,7 @@ CREATE TABLE IF NOT EXISTS process_empty_return (
 );
 
 -- ============================================================
--- 扩展表 (Extension Tables)
+-- 扩展�?(Extension Tables)
 -- ============================================================
 
 -- 19. 集装箱状态事件表 (ext_container_status_events)
@@ -566,7 +564,7 @@ CREATE TABLE IF NOT EXISTS ext_container_loading_records (
     FOREIGN KEY (container_number) REFERENCES biz_containers(container_number) ON DELETE CASCADE
 );
 
--- 21. 集装箱HOLD记录表 (ext_container_hold_records)
+-- 21. 集装箱HOLD记录�?(ext_container_hold_records)
 CREATE TABLE IF NOT EXISTS ext_container_hold_records (
     id SERIAL PRIMARY KEY,
     container_number VARCHAR(50) NOT NULL,
@@ -598,11 +596,3 @@ CREATE TABLE IF NOT EXISTS ext_container_charges (
 CREATE INDEX idx_charges_container ON ext_container_charges(container_number);
 CREATE INDEX idx_charges_type ON ext_container_charges(charge_type);
 
-\echo '数据库表创建完成'
-\echo 'All tables created successfully'
-\echo ''
-\echo '表统计:'
-\echo '字典表: ' || (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE 'dict_%')
-\echo '业务表: ' || (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE 'biz_%')
-\echo '流程表: ' || (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE 'process_%')
-\echo '扩展表: ' || (SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE 'ext_%')

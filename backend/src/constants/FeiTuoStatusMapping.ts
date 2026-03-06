@@ -28,7 +28,7 @@ export const FEITUO_STATUS_TO_CORE_FIELD_MAP: Record<string, string> = {
   // ===== 码头操作 =====
   'DISCHARGED': 'dest_port_unload_date', // 卸货 -> 目的港卸船日期
   'AVAIL': 'available_time',           // 可提货 -> 可提货时间
-  'DISCHARGED': 'discharged_time',     // 放电 -> 放电时间
+
 
   // ===== 中转港相关 =====
   'TRANSIT_ARRIVE': 'ata_dest_port',   // 到达中转港 -> 中转港实际到港日期

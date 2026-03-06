@@ -229,19 +229,10 @@ export class ContainerController {
       }
 
       // 处理备货单汇总
-      const allOrders = [...(container.orders || []), ...(container.order ? [container.order] : []).filter(Boolean)];
-      const uniqueOrders = allOrders.filter((order, index, self) =>
-        index === self.findIndex(o => o.orderNumber === order.orderNumber)
-      );
-
+      const replenishmentOrders = container.replenishmentOrders || [];
       const containerWithExtensions = container as any;
-      containerWithExtensions.allOrders = uniqueOrders;
-      containerWithExtensions.summary = this.calculateOrdersSummary(uniqueOrders);
-
-      if (allOrders.length > 0) {
-        container.order = allOrders[0];
-        container.orderNumber = allOrders[0].orderNumber;
-      }
+      containerWithExtensions.allOrders = replenishmentOrders;
+      containerWithExtensions.summary = this.calculateOrdersSummary(replenishmentOrders);
 
       // 获取状态事件
       const statusEvents = await this.containerService.getContainerStatusEvents(id);
@@ -269,9 +260,13 @@ export class ContainerController {
           .getMany()
       ]);
 
-      // 同步实际出运日期
-      if (container.order && !container.order.actualShipDate && seaFreightData?.shipmentDate) {
-        container.order.actualShipDate = seaFreightData.shipmentDate;
+      // 同步实际出运日期（同步到关联的备货单）
+      if (replenishmentOrders.length > 0 && seaFreightData?.shipmentDate) {
+        for (const order of replenishmentOrders) {
+          if (!order.actualShipDate) {
+            order.actualShipDate = seaFreightData.shipmentDate;
+          }
+        }
       }
 
       // 处理港口操作数据
@@ -284,7 +279,6 @@ export class ContainerController {
 
       const responseData = {
         containerNumber: container.containerNumber,
-        orderNumber: container.orderNumber,
         containerTypeCode: container.containerTypeCode,
         cargoDescription: container.cargoDescription,
         grossWeight: container.grossWeight,

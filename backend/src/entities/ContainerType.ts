@@ -25,7 +25,7 @@ export class ContainerType {
   @Column({ type: 'int', nullable: true, name: 'size_ft' })
   sizeFt?: number; // 尺寸 (20/40/45/53)
 
-  @Column({ type: 'varchar', length: 10, nullable: true, name: 'type_abbrev' })
+  @Column({ type: 'varchar', length: 50, nullable: true, name: 'type_abbrev' })
   typeAbbrev?: string; // 类型缩写 (GP/HC/FR/OT/TK/RF/HT等)
 
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'full_name' })

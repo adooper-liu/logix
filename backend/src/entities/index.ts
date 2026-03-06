@@ -21,6 +21,7 @@ export { OverseasCompany } from './OverseasCompany';
 export { Customer } from './Customer';
 export { ReplenishmentOrder } from './ReplenishmentOrder';
 export { Container } from './Container';
+export { ContainerSku } from './ContainerSku';
 
 // 流程表 (Process Tables)
 export { SeaFreight } from './SeaFreight';

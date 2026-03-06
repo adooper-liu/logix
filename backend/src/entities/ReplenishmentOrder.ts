@@ -15,6 +15,7 @@ import {
 } from 'typeorm';
 import { Container } from './Container';
 import { Customer } from './Customer';
+import { ContainerSku } from './ContainerSku';
 
 @Entity('biz_replenishment_orders')
 export class ReplenishmentOrder {
@@ -118,12 +119,12 @@ export class ReplenishmentOrder {
   @JoinColumn({ name: 'customer_code', referencedColumnName: 'customerCode' })
   customer!: Customer;
 
-  // 关联关系 - 一个备货单可以有多个货柜（通过 order_number 外键）
-  @OneToMany(() => Container, (container) => container.order)
-  containers!: Container[];
-
-  // 关联关系 - 一个货柜可以有多个备货单（通过 container_number 字段）
+  // 关联关系 - 一个备货单只属于一个货柜
   @ManyToOne(() => Container, { nullable: true })
   @JoinColumn({ name: 'container_number', referencedColumnName: 'containerNumber' })
   container?: Container;
+
+  // 关联关系 - 一个备货单有多个SKU明细
+  @OneToMany(() => ContainerSku, (sku) => sku.order)
+  containerSkus!: ContainerSku[];
 }

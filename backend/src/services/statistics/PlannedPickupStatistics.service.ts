@@ -150,7 +150,7 @@ export class PlannedPickupStatisticsService {
     startDate?: string,
     endDate?: string
   ): Promise<Container[]> {
-    const method = this.METHOD_MAP[filterCondition as FilterCondition];
+    const method = this.METHOD_MAP[filterCondition];
 
     if (!method) {
       console.warn(`[PlannedPickupStatisticsService] Unknown filterCondition: ${filterCondition}`);

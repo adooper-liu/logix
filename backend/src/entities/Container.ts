@@ -17,16 +17,14 @@ import { ReplenishmentOrder } from './ReplenishmentOrder';
 import { ContainerType } from './ContainerType';
 import { SeaFreight } from './SeaFreight';
 import { PortOperation } from './PortOperation';
+import { ContainerSku } from './ContainerSku';
 
 @Entity('biz_containers')
 export class Container {
   @PrimaryColumn({ type: 'varchar', length: 50, name: 'container_number' })
   containerNumber!: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'order_number' })
-  orderNumber!: string;
-
-  @Column({ type: 'varchar', length: 20, name: 'container_type_code' })
+  @Column({ type: 'varchar', length: 50, name: 'container_type_code' })
   containerTypeCode!: string;
 
   @Column({ type: 'text', nullable: true, name: 'cargo_description' })
@@ -112,24 +110,22 @@ export class Container {
   @UpdateDateColumn({ name: 'updated_at' })
   updatedAt!: Date;
 
-  // 关联关系
-  // 注意：一个货柜可以有多个备货单，所以这里应该是 @OneToMany
-  // 但为了向后兼容，保留 order_number 字段作为主备货单的引用
-  @ManyToOne(() => ReplenishmentOrder, { nullable: true })
-  @JoinColumn({ name: 'order_number', referencedColumnName: 'orderNumber' })
-  order?: ReplenishmentOrder;
-
-  // 一个货柜可以关联多个备货单（通过备货单的 container_number 字段）
-  @OneToMany(() => ReplenishmentOrder, (replenishmentOrder) => replenishmentOrder.container, { nullable: true })
-  orders?: ReplenishmentOrder[];
+  // 关联关系 - 一个货柜有多个备货单
+  @OneToMany(() => ReplenishmentOrder, (order) => order.container)
+  replenishmentOrders!: ReplenishmentOrder[];
 
   @ManyToOne(() => ContainerType, { nullable: false })
   @JoinColumn({ name: 'container_type_code', referencedColumnName: 'typeCode' })
   type!: ContainerType;
 
-  @OneToMany(() => SeaFreight, (seaFreight) => seaFreight.container)
-  seaFreight!: SeaFreight[];
+  @ManyToOne(() => SeaFreight, { nullable: true })
+  @JoinColumn({ name: 'bill_of_lading_number', referencedColumnName: 'billOfLadingNumber' })
+  seaFreight!: SeaFreight;
 
   @OneToMany(() => PortOperation, (portOp) => portOp.container)
   portOperations!: PortOperation[];
+
+  // 关联关系 - 一个货柜有多个SKU
+  @OneToMany(() => ContainerSku, (sku) => sku.container)
+  containerSkus!: ContainerSku[];
 }
