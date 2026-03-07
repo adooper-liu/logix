@@ -5,15 +5,42 @@ import { containerService } from '@/services/container'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import { onMounted, ref } from 'vue'
+import { useRoute } from 'vue-router'
 
+const route = useRoute()
 const loading = ref(false)
 const containers = ref<any[]>([])
+/** 与 Shipments 统计卡片同源：getStatisticsDetailed，用于驱动甘特图泳道行数量 */
+const statisticsFromApi = ref<{
+  arrivalDistribution: Record<string, number>
+  pickupDistribution: Record<string, number>
+  lastPickupDistribution: Record<string, number>
+  returnDistribution: Record<string, number>
+} | null>(null)
 
-// 加载数据的日期范围（更大范围，确保能获取到相关货柜）
-const loadDataDateRange = ref<[Date, Date]>([
-  dayjs().subtract(180, 'day').startOf('day').toDate(),
-  dayjs().add(90, 'day').endOf('day').toDate(),
-])
+// 与 Shipments 页一致：按出运日期范围加载，默认「过去 90 天～今天」
+function getDefaultDateRange(): [Date, Date] {
+  return [
+    dayjs().subtract(90, 'day').startOf('day').toDate(),
+    dayjs().endOf('day').toDate()
+  ]
+}
+
+// 从 route.query 解析日期与筛选（与 Shipments 统计卡片逻辑一致）
+function getInitialDateRange(): [Date, Date] {
+  const q = route.query
+  if (q.startDate && q.endDate) {
+    const start = new Date(String(q.startDate))
+    const end = new Date(String(q.endDate))
+    if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+      return [dayjs(start).startOf('day').toDate(), dayjs(end).endOf('day').toDate()]
+    }
+  }
+  return getDefaultDateRange()
+}
+
+// 加载数据的日期范围（出运日期，与 GET /containers 的 startDate/endDate 一致）
+const loadDataDateRange = ref<[Date, Date]>(getInitialDateRange())
 
 // 显示范围（初始为空，加载后会自动设置）
 const displayRange = ref<[Date, Date] | null>(null)
@@ -79,7 +106,7 @@ const calculateDisplayRange = (
         shouldInclude = true
       }
     } else if (dimension === 'pickup') {
-      // 按计划提柜：统计所有有计划提柜日期的货柜
+      // 按提柜计划：统计所有有提柜计划日期的货柜
       // 仅统计已到目的港且未提柜的货柜（与 useGanttFilters 保持一致）
       const arrivedAtDestination = ataDate && currentPortType !== 'transit'
       if (arrivedAtDestination && firstTrucking?.plannedPickupDate) {
@@ -127,11 +154,6 @@ const calculateDisplayRange = (
     }
   })
 
-  console.log('calculateDisplayRange - dimension:', dimension)
-  console.log('calculateDisplayRange - allDates:', allDates.length)
-  console.log('calculateDisplayRange - validCount:', validCount)
-  console.log('calculateDisplayRange - allDates sample:', allDates.slice(0, 5))
-
   if (allDates.length === 0) return null
 
   // 排序日期
@@ -146,30 +168,51 @@ const calculateDisplayRange = (
   return [minDate, maxDate]
 }
 
-// 加载数据
+// 与 Shipments 统计卡片一致：出运日期 [startDate,endDate]；若有 filterCondition 则用 by-filter 接口
 const loadData = async () => {
   loading.value = true
   try {
-    // 使用更大的日期范围加载货柜数据，确保能获取到相关的货柜
     const startDate = dayjs(loadDataDateRange.value[0]).format('YYYY-MM-DD')
     const endDate = dayjs(loadDataDateRange.value[1]).format('YYYY-MM-DD')
+    const filterCondition = route.query.filterCondition as string | undefined
+    const containersQuery = (route.query.containers as string) || ''
 
-    const containerResponse = await containerService.getContainers({
-      page: 1,
-      pageSize: 5000,
-      startDate,
-      endDate,
-    })
-
-    if (containerResponse) {
-      containers.value = containerResponse.items || []
-      ElMessage.success(`加载了 ${containers.value.length} 个货柜数据`)
-
-      // 计算并设置显示范围（默认按到港维度）
-      const range = calculateDisplayRange(containers.value, 'arrival')
-      if (range) {
-        displayRange.value = range
+    let list: any[] = []
+    const [containersRes, statisticsRes] = await Promise.all([
+      filterCondition
+        ? containerService.getContainersByFilterCondition(filterCondition, startDate, endDate)
+        : containerService.getContainers({
+            page: 1,
+            pageSize: 5000,
+            search: '',
+            startDate,
+            endDate
+          }),
+      containerService.getStatisticsDetailed(startDate, endDate)
+    ])
+    list = (containersRes as any)?.items ?? []
+    if (statisticsRes?.success && statisticsRes.data) {
+      statisticsFromApi.value = {
+        arrivalDistribution: statisticsRes.data.arrivalDistribution ?? {},
+        pickupDistribution: statisticsRes.data.pickupDistribution ?? {},
+        lastPickupDistribution: statisticsRes.data.lastPickupDistribution ?? {},
+        returnDistribution: statisticsRes.data.returnDistribution ?? {}
       }
+    } else {
+      statisticsFromApi.value = null
+    }
+
+    if (containersQuery.trim()) {
+      const allowed = new Set(containersQuery.split(',').map((s) => s.trim()).filter(Boolean))
+      list = list.filter((c: any) => allowed.has(c.containerNumber ?? c.container_number ?? ''))
+    }
+
+    containers.value = list
+    ElMessage.success(`加载了 ${containers.value.length} 个货柜数据`)
+
+    const range = calculateDisplayRange(containers.value, 'arrival')
+    if (range) {
+      displayRange.value = range
     }
   } catch (error) {
     console.error('Failed to load containers:', error)
@@ -188,17 +231,14 @@ const handleDateChange = async (value: [Date, Date] | null) => {
 
 // 处理泳道变化，更新显示范围
 const handleLaneChange = (dimension: string) => {
-  console.log('handleLaneChange called with dimension:', dimension)
   const range = calculateDisplayRange(containers.value, dimension)
-  console.log('handleLaneChange - calculated range:', range)
   if (range) {
     displayRange.value = range
-    console.log('handleLaneChange - displayRange updated:', displayRange.value)
     const laneName =
       dimension === 'arrival'
         ? '按到港'
         : dimension === 'pickup'
-          ? '按计划提柜'
+          ? '按提柜计划'
           : dimension === 'lastPickup'
             ? '按最晚提柜'
             : '按最晚还箱'
@@ -361,6 +401,7 @@ onMounted(() => {
           v-if="displayRange"
           :key="`${displayRange[0].getTime()}-${displayRange[1].getTime()}`"
           :containers="containers"
+          :statistics="statisticsFromApi"
           :startDate="displayRange[0]"
           :endDate="displayRange[1]"
           @laneChange="handleLaneChange"
@@ -382,7 +423,7 @@ onMounted(() => {
             <h4>泳道说明：</h4>
             <ul>
               <li><strong>按到港（到港时间分布）：</strong>显示货柜实际到港日期和预计到港日期</li>
-              <li><strong>按计划提柜（计划提柜分布）：</strong>显示货柜计划提柜日期</li>
+              <li><strong>按提柜计划（提柜计划分布）：</strong>显示货柜提柜计划日期</li>
               <li><strong>按最晚提柜（免租期倒计时）：</strong>显示货柜最后免费提柜日期</li>
               <li><strong>按最晚还箱（还箱期限倒计时）：</strong>显示货柜最后还箱日期</li>
             </ul>
@@ -394,7 +435,7 @@ onMounted(() => {
                 <span class="color-dot" style="background-color: #67c23a"></span> 绿色：按到港
               </li>
               <li>
-                <span class="color-dot" style="background-color: #e6a23c"></span> 橙色：按计划提柜
+                <span class="color-dot" style="background-color: #e6a23c"></span> 橙色：按提柜计划
               </li>
               <li>
                 <span class="color-dot" style="background-color: #f56c6c"></span> 红色：按最晚提柜

@@ -99,3 +99,19 @@ body {
     padding: 15px;
   }
 }
+
+// Element Plus 消息/弹窗：层级在导航条之上，顶部偏移 100px 避免被遮挡
+.el-message {
+  z-index: 2000 !important;
+  top: 100px !important;
+}
+.el-message-box__wrapper,
+.el-notification {
+  z-index: 2000 !important;
+}
+.el-message-box__wrapper {
+  padding-top: 100px;
+}
+.el-notification {
+  top: 100px !important;
+}

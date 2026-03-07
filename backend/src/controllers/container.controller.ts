@@ -13,8 +13,9 @@ import { TruckingTransport } from '../entities/TruckingTransport';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { logger } from '../utils/logger';
+import { snakeToCamel } from '../utils/snakeToCamel';
 import { ContainerService } from '../services/container.service';
 import { ContainerStatisticsService } from '../services/containerStatistics.service';
 import { ContainerStatusService } from '../services/containerStatus.service';
@@ -141,42 +142,70 @@ export class ContainerController {
       const queryBuilder = this.containerRepository
         .createQueryBuilder('container')
         .leftJoin('container.replenishmentOrders', 'order')
-        .leftJoin('container.seaFreight', 'sf');
+        .leftJoinAndSelect('container.seaFreight', 'sf');
 
       if (search) {
         queryBuilder.andWhere(
-          'container.containerNumber ILIKE :search OR container.orderNumber ILIKE :search',
+          'container.containerNumber ILIKE :search OR order.orderNumber ILIKE :search',
           { search: `%${search}%` }
         );
       }
 
-      // 按出运时间（actualShipDate 或 shipmentDate）筛选
+      let dateFilterFallback = false;
+
+      // 按出运时间（actualShipDate 或 shipmentDate）筛选，与 DateFilterBuilder 一致：startDate 当天 0 点，endDate 当天 23:59:59
       if (startDate && endDate) {
+        const startDateObj = new Date(startDate as string);
+        const endDateObj = new Date(endDate as string);
+        endDateObj.setHours(23, 59, 59, 999);
         queryBuilder.andWhere(
           '(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))',
-          { startDate }
+          { startDate: startDateObj }
         );
         queryBuilder.andWhere(
           '(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))',
-          { endDate }
+          { endDate: endDateObj }
         );
       } else if (startDate) {
         queryBuilder.andWhere(
           '(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))',
-          { startDate }
+          { startDate: new Date(startDate as string) }
         );
       } else if (endDate) {
+        const endDateObj = new Date(endDate as string);
+        endDateObj.setHours(23, 59, 59, 999);
         queryBuilder.andWhere(
           '(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))',
-          { endDate }
+          { endDate: endDateObj }
         );
       }
 
-      const [items, total] = await queryBuilder
+      let [items, total] = await queryBuilder
         .orderBy('container.updatedAt', 'DESC')
         .skip((Number(page) - 1) * Number(pageSize))
         .take(Number(pageSize))
         .getManyAndCount();
+
+      // 当传了日期且按日期筛选结果为 0 时，回退为「全部货柜」并打标，避免页面空白
+      if (startDate && endDate && total === 0) {
+        dateFilterFallback = true;
+        const fallbackQb = this.containerRepository
+          .createQueryBuilder('container')
+          .leftJoin('container.replenishmentOrders', 'order')
+          .leftJoinAndSelect('container.seaFreight', 'sf');
+        if (search) {
+          fallbackQb.andWhere(
+            'container.containerNumber ILIKE :search OR order.orderNumber ILIKE :search',
+            { search: `%${search}%` }
+          );
+        }
+        [items, total] = await fallbackQb
+          .orderBy('container.updatedAt', 'DESC')
+          .skip((Number(page) - 1) * Number(pageSize))
+          .take(Number(pageSize))
+          .getManyAndCount();
+        logger.info(`[getContainers] Date range had no matches, fallback to all: ${total} containers`);
+      }
 
       logger.info(`[getContainers] Found ${items.length} containers, total: ${total}`);
 
@@ -184,6 +213,7 @@ export class ContainerController {
 
       res.json({
         success: true,
+        dateFilterFallback: dateFilterFallback || undefined,
         items: containersWithStatus,
         pagination: {
           page: Number(page),
@@ -200,6 +230,24 @@ export class ContainerController {
         success: false,
         message: '获取货柜列表失败'
       });
+    }
+  };
+
+  /**
+   * 获取货柜在列表中的单行数据（与列表 API 的 enrich 结果一致，用于核对前端显示与后端数据）
+   */
+  getContainerListRow = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id: containerNumber } = req.params;
+      const row = await this.containerService.getListRowByContainerNumber(containerNumber);
+      if (!row) {
+        res.status(404).json({ success: false, message: '货柜不存在' });
+        return;
+      }
+      res.json({ success: true, data: row });
+    } catch (error: any) {
+      logger.error('[getContainerListRow]', error?.message);
+      res.status(500).json({ success: false, message: '获取列表行数据失败' });
     }
   };
 
@@ -239,12 +287,11 @@ export class ContainerController {
       // 获取状态事件
       const statusEvents = await this.containerService.getContainerStatusEvents(id);
 
-      // 获取关联数据
-      const [seaFreightData, truckingTransports, warehouseOperations, emptyReturns] = await Promise.all([
-        this.seaFreightRepository
-          .createQueryBuilder('sf')
-          .where('sf.containerNumber = :id', { id })
-          .getOne(),
+      // 海运信息已通过 leftJoinAndSelect('container.seaFreight') 加载，SeaFreight 表无 container_number 列
+      const seaFreightData = container.seaFreight ?? null;
+
+      // 获取其余关联数据
+      const [truckingTransports, warehouseOperations, emptyReturns] = await Promise.all([
         this.truckingTransportRepository
           .createQueryBuilder('tt')
           .where('tt.containerNumber = :id', { id })
@@ -372,7 +419,7 @@ export class ContainerController {
    */
   createContainer = async (req: Request, res: Response): Promise<void> => {
     try {
-      const containerData = req.body;
+      const containerData = snakeToCamel(req.body);
 
       const container = this.containerRepository.create({
         ...containerData,
@@ -406,7 +453,7 @@ export class ContainerController {
   updateContainer = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const updateData = req.body;
+      const updateData = snakeToCamel(req.body);
 
       const container = await this.containerRepository.findOne({
         where: { containerNumber: id },
@@ -537,10 +584,10 @@ export class ContainerController {
       });
 
       // 逐个执行以便更好地追踪错误
-      const statusDistribution = await this.statisticsService.getStatusDistribution(startDate as string, endDate as string);
+      let statusDistribution = await this.statisticsService.getStatusDistribution(startDate as string, endDate as string);
       logger.info('[getStatisticsDetailed] Status distribution completed');
 
-      const arrivalDistribution = await this.statisticsService.getArrivalDistribution(startDate as string, endDate as string);
+      let arrivalDistribution = await this.statisticsService.getArrivalDistribution(startDate as string, endDate as string);
       logger.info('[getStatisticsDetailed] Arrival distribution completed');
 
       const pickupDistribution = await this.statisticsService.getPickupDistribution(startDate as string, endDate as string);
@@ -551,6 +598,19 @@ export class ContainerController {
 
       const returnDistribution = await this.statisticsService.getReturnDistribution(startDate as string, endDate as string);
       logger.info('[getStatisticsDetailed] Return distribution completed');
+
+      // 当传了日期且按状态/到港合计为 0 时，回退为「不按日期」的统计并打标，避免卡片全 0
+      let dateFilterFallback = false;
+      if (startDate && endDate) {
+        const statusTotal = Object.entries(statusDistribution).reduce((s, [k, v]) => (k === 'arrived_at_transit' || k === 'arrived_at_destination' ? s : s + (v || 0)), 0);
+        const arrivalTotal = Object.values(arrivalDistribution).reduce((s, n) => s + (Number(n) || 0), 0);
+        if (statusTotal === 0 || arrivalTotal === 0) {
+          dateFilterFallback = true;
+          if (statusTotal === 0) statusDistribution = await this.statisticsService.getStatusDistribution(undefined, undefined);
+          if (arrivalTotal === 0) arrivalDistribution = await this.statisticsService.getArrivalDistribution(undefined, undefined);
+          logger.info('[getStatisticsDetailed] Date range had no status/arrival matches, fallback to unfiltered stats');
+        }
+      }
 
       logger.info('[getStatisticsDetailed] Detailed statistics calculation completed');
       logger.info('[getStatisticsDetailed] Results:', {
@@ -563,6 +623,7 @@ export class ContainerController {
 
       res.json({
         success: true,
+        dateFilterFallback: dateFilterFallback || undefined,
         data: {
           statusDistribution,
           arrivalDistribution,
@@ -761,8 +822,19 @@ export class ContainerController {
         endDate as string
       );
 
-      // 使用 containerService 丰富货柜列表数据
-      const containersWithStatus = await this.containerService.enrichContainersList(containers);
+      // 统计服务返回的 container 未加载 seaFreight，enrich 时拿不到提单号；先按柜号带 relation 重查再 enrich
+      let toEnrich = containers;
+      if (containers.length > 0) {
+        const containerNumbers = containers.map((c: Container) => c.containerNumber);
+        const withRelations = await this.containerRepository.find({
+          where: { containerNumber: In(containerNumbers) },
+          relations: ['seaFreight']
+        });
+        const byNumber = new Map(withRelations.map((c: Container) => [c.containerNumber, c]));
+        toEnrich = containerNumbers.map((n: string) => byNumber.get(n)).filter(Boolean) as Container[];
+      }
+
+      const containersWithStatus = await this.containerService.enrichContainersList(toEnrich);
 
       logger.info(`[getContainersByFilterCondition] Found ${containers.length} containers for condition: ${filterCondition}`);
 

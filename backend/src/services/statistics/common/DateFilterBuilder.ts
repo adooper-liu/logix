@@ -4,6 +4,7 @@
  */
 
 import { SelectQueryBuilder } from 'typeorm';
+import { getDateRangeSubqueryRaw as getDateRangeSubqueryRawImpl } from './DateRangeSubquery';
 
 /**
  * 日期过滤构建器
@@ -74,5 +75,12 @@ export class DateFilterBuilder {
     const result = new Date(date);
     result.setDate(result.getDate() + days);
     return result;
+  }
+
+  /**
+   * 出运日期范围子查询（raw SQL）- 委托给统一组件，避免重复实现
+   */
+  static getDateRangeSubqueryRaw(startDate: string, endDate: string): { sql: string; params: any[] } {
+    return getDateRangeSubqueryRawImpl(startDate, endDate);
   }
 }

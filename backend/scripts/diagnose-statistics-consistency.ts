@@ -355,7 +355,7 @@ async function diagnoseStatisticsConsistency() {
     .setParameters({ sevenDays: sevenDaysLater })
     .getRawOne();
 
-  // 缺最后免费日
+  // 最晚提柜日为空
   const noLastFreeDateCount = await containerRepo
     .createQueryBuilder('c')
     .select('COUNT(DISTINCT c.containerNumber)', 'count')
@@ -385,7 +385,7 @@ async function diagnoseStatisticsConsistency() {
   console.log(`  即将超时(1-3天): ${urgentCount.count}`);
   console.log(`  预警(4-7天): ${warningCount.count}`);
   console.log(`  时间充裕(7天以上): ${normalCount.count}`);
-  console.log(`  缺最后免费日: ${noLastFreeDateCount.count}`);
+  console.log(`  最晚提柜日为空: ${noLastFreeDateCount.count}`);
   console.log(`按最晚提柜合计: ${lastPickupSum}`);
 
   // 4. 按最晚还箱分布（目标集：已提柜或有拖卡记录 + 未还箱状态）
@@ -450,7 +450,7 @@ async function diagnoseStatisticsConsistency() {
     .andWhere('er.lastReturnDate > :sevenDays', { sevenDays: sevenDaysLater })
     .getRawOne();
 
-  // 缺最后还箱日
+  // 最后还箱日为空
   const returnNoLastReturnDateCount = await containerRepo
     .createQueryBuilder('c')
     .select('COUNT(DISTINCT c.containerNumber)', 'count')
@@ -472,7 +472,7 @@ async function diagnoseStatisticsConsistency() {
   console.log(`  即将超时(1-3天): ${returnUrgentCount.count}`);
   console.log(`  预警(4-7天): ${returnWarningCount.count}`);
   console.log(`  还箱日倒计时>7天: ${returnNormalCount.count}`);
-  console.log(`  缺最后还箱日: ${returnNoLastReturnDateCount.count}`);
+  console.log(`  最后还箱日为空: ${returnNoLastReturnDateCount.count}`);
   console.log(`按最晚还箱合计: ${returnSum}`);
 
   // 5. 一致性检查

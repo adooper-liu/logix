@@ -95,7 +95,7 @@ async function diagnoseLastPickup() {
         WHEN po.lastFreeDate >= CURRENT_DATE AND po.lastFreeDate <= CURRENT_DATE + INTERVAL '3 days' THEN '1-3 天'
         WHEN po.lastFreeDate > CURRENT_DATE + INTERVAL '3 days' AND po.lastFreeDate <= CURRENT_DATE + INTERVAL '7 days' THEN '4-7 天'
         WHEN po.lastFreeDate > CURRENT_DATE + INTERVAL '7 days' THEN '7 天以上'
-        ELSE '缺最后免费日'
+        ELSE '最晚提柜日为空'
       END`, 'lastFreeDateStatus')
       .addSelect('COUNT(DISTINCT container.containerNumber)', 'count')
       .groupBy(`CASE WHEN tt.containerNumber IS NOT NULL THEN '有拖卡记录' ELSE '无拖卡记录' END`)
@@ -104,7 +104,7 @@ async function diagnoseLastPickup() {
         WHEN po.lastFreeDate >= CURRENT_DATE AND po.lastFreeDate <= CURRENT_DATE + INTERVAL '3 days' THEN '1-3 天'
         WHEN po.lastFreeDate > CURRENT_DATE + INTERVAL '3 days' AND po.lastFreeDate <= CURRENT_DATE + INTERVAL '7 days' THEN '4-7 天'
         WHEN po.lastFreeDate > CURRENT_DATE + INTERVAL '7 days' THEN '7 天以上'
-        ELSE '缺最后免费日'
+        ELSE '最晚提柜日为空'
       END`)
       .orderBy('count', 'DESC')
       .getRawMany();

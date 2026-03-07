@@ -1,7 +1,7 @@
 /**
- * 按计划提柜统计服务
+ * 按提柜计划统计服务
  * Planned Pickup Statistics Service
- * 负责按计划提柜时间的统计查询
+ * 负责按提柜计划时间的统计查询
  *
  * 采用方案2：SQL模板 + 子查询组合
  * 目标集与"按最晚提柜日"相同
@@ -11,6 +11,7 @@ import { Repository } from 'typeorm';
 import { Container } from '../../entities/Container';
 import { TruckingTransport } from '../../entities/TruckingTransport';
 import { DateFilterBuilder } from './common/DateFilterBuilder';
+import { getDateRangeSubqueryRaw } from './common/DateRangeSubquery';
 import { PlannedPickupSubqueryTemplates } from './PlannedPickupSubqueryTemplates';
 
 export class PlannedPickupStatisticsService {
@@ -33,8 +34,8 @@ export class PlannedPickupStatisticsService {
   };
 
   /**
-   * 获取按计划提柜分布的统计
-   * 目标集：与"按最晚提柜日"相同 - 已到目的港（有ATA）+ 状态在 ('shipped', 'in_transit', 'at_port')
+   * 获取按提柜计划分布的统计
+   * 目标集：与按状态「已到目的港」对齐（NOT 还箱/WMS/提柜 + 有目的港 ATA），总数对应 arrived_at_destination
    */
   async getDistribution(startDate?: string, endDate?: string): Promise<Record<string, number>> {
     const today = DateFilterBuilder.toDayStart(new Date());
@@ -60,18 +61,6 @@ export class PlannedPickupStatisticsService {
     const withoutPlan = pendingArrangement;
     const total = withPlan + withoutPlan;
 
-    console.log('[PlannedPickupStatisticsService.getDistribution]', {
-      overdue: overduePlanned,
-      todayPlanned,
-      within3Days,
-      within7Days,
-      pending: pendingArrangement,
-      withPlan,
-      withoutPlan,
-      total,
-      breakdown: '按计划提柜目标集总数应该是46个（与按最晚提柜日一致）'
-    });
-
     return {
       overdue: overduePlanned,
       todayPlanned,
@@ -85,60 +74,77 @@ export class PlannedPickupStatisticsService {
   }
 
   /**
+   * 统计与查询共用：按条件子查询 + 可选出运日期过滤，返回柜号列表（同一套 SQL，避免重复）
+   */
+  private async runSubqueryForCondition(
+    innerSql: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<string[]> {
+    let sql: string;
+    let params: any[] = [];
+    if (startDate && endDate) {
+      const { sql: dateSql, params: dateParams } = getDateRangeSubqueryRaw(startDate, endDate);
+      sql = `SELECT DISTINCT t.container_number FROM (${innerSql}) t WHERE t.container_number IN (${dateSql})`;
+      params = dateParams;
+    } else {
+      sql = `SELECT DISTINCT t.container_number FROM (${innerSql}) t`;
+    }
+    const result = await this.containerRepository.query(sql, params);
+    return (result || []).map((r: any) => r.container_number).filter(Boolean);
+  }
+
+  /** 由柜号列表取 Container 实体（统计与查询共用） */
+  private async getContainersByNumbers(containerNumbers: string[]): Promise<Container[]> {
+    if (containerNumbers.length === 0) return [];
+    return this.containerRepository.createQueryBuilder('container')
+      .where('container.containerNumber IN (:...containerNumbers)', { containerNumbers })
+      .getMany();
+  }
+
+  /**
    * 逾期未提柜（plannedPickupDate < 今天）
    */
   async getOverduePlanned(today: string, startDate?: string, endDate?: string): Promise<number> {
-    let sql = PlannedPickupSubqueryTemplates.OVERDUE_PLANNED_SUBQUERY(today);
-    console.log('[getOverduePlanned] Subquery SQL:', sql);
-    sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sql}) t`;
-
-    const result = await this.containerRepository.query(sql);
-    console.log('[getOverduePlanned] Count result:', result);
-    return parseInt(result[0]?.count || '0');
+    const innerSql = PlannedPickupSubqueryTemplates.OVERDUE_PLANNED_SUBQUERY(today);
+    const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
+    return containerNumbers.length;
   }
 
   /**
    * 今日计划提柜（plannedPickupDate = 今天）
    */
   async getTodayPlanned(today: string, startDate?: string, endDate?: string): Promise<number> {
-    let sql = PlannedPickupSubqueryTemplates.TODAY_PLANNED_SUBQUERY(today);
-    sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sql}) t`;
-
-    const result = await this.containerRepository.query(sql);
-    return parseInt(result[0]?.count || '0');
+    const innerSql = PlannedPickupSubqueryTemplates.TODAY_PLANNED_SUBQUERY(today);
+    const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
+    return containerNumbers.length;
   }
 
   /**
    * 3天内计划提柜（今天 < plannedPickupDate <= 3天）
    */
   async getPlannedWithin3Days(today: string, threeDaysLater: string, startDate?: string, endDate?: string): Promise<number> {
-    let sql = PlannedPickupSubqueryTemplates.WITHIN_3_DAYS_PLANNED_SUBQUERY(today, threeDaysLater);
-    sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sql}) t`;
-
-    const result = await this.containerRepository.query(sql);
-    return parseInt(result[0]?.count || '0');
+    const innerSql = PlannedPickupSubqueryTemplates.WITHIN_3_DAYS_PLANNED_SUBQUERY(today, threeDaysLater);
+    const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
+    return containerNumbers.length;
   }
 
   /**
    * 7天内计划提柜（3天 < plannedPickupDate <= 7天）
    */
   async getPlannedWithin7Days(today: string, threeDaysLater: string, sevenDaysLater: string, startDate?: string, endDate?: string): Promise<number> {
-    let sql = PlannedPickupSubqueryTemplates.WITHIN_7_DAYS_PLANNED_SUBQUERY(today, threeDaysLater, sevenDaysLater);
-    sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sql}) t`;
-
-    const result = await this.containerRepository.query(sql);
-    return parseInt(result[0]?.count || '0');
+    const innerSql = PlannedPickupSubqueryTemplates.WITHIN_7_DAYS_PLANNED_SUBQUERY(today, threeDaysLater, sevenDaysLater);
+    const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
+    return containerNumbers.length;
   }
 
   /**
    * 待安排提柜（无拖卡记录或无计划提柜日期）
    */
   async getPendingArrangement(startDate?: string, endDate?: string): Promise<number> {
-    let sql = PlannedPickupSubqueryTemplates.PENDING_ARRANGEMENT_SUBQUERY;
-    sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sql}) t`;
-
-    const result = await this.containerRepository.query(sql);
-    return parseInt(result[0]?.count || '0');
+    const innerSql = PlannedPickupSubqueryTemplates.PENDING_ARRANGEMENT_SUBQUERY;
+    const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
+    return containerNumbers.length;
   }
 
   /**
@@ -168,67 +174,38 @@ export class PlannedPickupStatisticsService {
     return method.call(this, todayStr, threeDaysLaterStr, sevenDaysLaterStr, startDate, endDate);
   }
 
+  /** 逾期未提柜 — 与 getOverduePlanned 共用同一套 SQL */
   private async getContainersByOverduePlanned(today: string, startDate?: string, endDate?: string): Promise<Container[]> {
-    let sql = PlannedPickupSubqueryTemplates.OVERDUE_PLANNED_SUBQUERY(today);
-    const result = await this.containerRepository.query(sql);
-    console.log('[getContainersByOverduePlanned] SQL result count:', result.length);
-    console.log('[getContainersByOverduePlanned] containerNumbers:', result.map((r: any) => r.container_number));
-    if (result.length === 0) return [];
-
-    const containerNumbers = result.map((r: any) => r.container_number);
-    const containers = await this.containerRepository.createQueryBuilder('container')
-      .setFindOptions({ relations: [] })
-      .where('container.containerNumber IN (:...containerNumbers)', { containerNumbers })
-      .getMany();
-    console.log('[getContainersByOverduePlanned] Final containers count:', containers.length);
-    return containers;
+    const innerSql = PlannedPickupSubqueryTemplates.OVERDUE_PLANNED_SUBQUERY(today);
+    const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
+    return this.getContainersByNumbers(containerNumbers);
   }
 
+  /** 今日计划提柜 — 与 getTodayPlanned 共用同一套 SQL */
   private async getContainersByTodayPlanned(today: string, startDate?: string, endDate?: string): Promise<Container[]> {
-    let sql = PlannedPickupSubqueryTemplates.TODAY_PLANNED_SUBQUERY(today);
-    const result = await this.containerRepository.query(sql);
-    if (result.length === 0) return [];
-
-    const containerNumbers = result.map((r: any) => r.container_number);
-    return this.containerRepository.createQueryBuilder('container')
-      .setFindOptions({ relations: [] })
-      .where('container.containerNumber IN (:...containerNumbers)', { containerNumbers })
-      .getMany();
+    const innerSql = PlannedPickupSubqueryTemplates.TODAY_PLANNED_SUBQUERY(today);
+    const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
+    return this.getContainersByNumbers(containerNumbers);
   }
 
+  /** 3天内计划提柜 — 与 getPlannedWithin3Days 共用同一套 SQL */
   private async getContainersByPlannedWithin3Days(today: string, threeDaysLater: string, startDate?: string, endDate?: string): Promise<Container[]> {
-    let sql = PlannedPickupSubqueryTemplates.WITHIN_3_DAYS_PLANNED_SUBQUERY(today, threeDaysLater);
-    const result = await this.containerRepository.query(sql);
-    if (result.length === 0) return [];
-
-    const containerNumbers = result.map((r: any) => r.container_number);
-    return this.containerRepository.createQueryBuilder('container')
-      .setFindOptions({ relations: [] })
-      .where('container.containerNumber IN (:...containerNumbers)', { containerNumbers })
-      .getMany();
+    const innerSql = PlannedPickupSubqueryTemplates.WITHIN_3_DAYS_PLANNED_SUBQUERY(today, threeDaysLater);
+    const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
+    return this.getContainersByNumbers(containerNumbers);
   }
 
+  /** 7天内计划提柜 — 与 getPlannedWithin7Days 共用同一套 SQL */
   private async getContainersByPlannedWithin7Days(today: string, threeDaysLater: string, sevenDaysLater: string, startDate?: string, endDate?: string): Promise<Container[]> {
-    let sql = PlannedPickupSubqueryTemplates.WITHIN_7_DAYS_PLANNED_SUBQUERY(today, threeDaysLater, sevenDaysLater);
-    const result = await this.containerRepository.query(sql);
-    if (result.length === 0) return [];
-
-    const containerNumbers = result.map((r: any) => r.container_number);
-    return this.containerRepository.createQueryBuilder('container')
-      .setFindOptions({ relations: [] })
-      .where('container.containerNumber IN (:...containerNumbers)', { containerNumbers })
-      .getMany();
+    const innerSql = PlannedPickupSubqueryTemplates.WITHIN_7_DAYS_PLANNED_SUBQUERY(today, threeDaysLater, sevenDaysLater);
+    const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
+    return this.getContainersByNumbers(containerNumbers);
   }
 
+  /** 待安排提柜 — 与 getPendingArrangement 共用同一套 SQL */
   private async getContainersByPendingArrangement(startDate?: string, endDate?: string): Promise<Container[]> {
-    let sql = PlannedPickupSubqueryTemplates.PENDING_ARRANGEMENT_SUBQUERY;
-    const result = await this.containerRepository.query(sql);
-    if (result.length === 0) return [];
-
-    const containerNumbers = result.map((r: any) => r.container_number);
-    return this.containerRepository.createQueryBuilder('container')
-      .setFindOptions({ relations: [] })
-      .where('container.containerNumber IN (:...containerNumbers)', { containerNumbers })
-      .getMany();
+    const innerSql = PlannedPickupSubqueryTemplates.PENDING_ARRANGEMENT_SUBQUERY;
+    const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
+    return this.getContainersByNumbers(containerNumbers);
   }
 }

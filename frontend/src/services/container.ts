@@ -12,6 +12,7 @@ import type {
   ContainerStats
 } from '@/types/container';
 import type { PaginationParams } from '@/types';
+import { camelToSnake } from '@/utils/camelToSnake';
 
 class ContainerService {
   private api: AxiosInstance;
@@ -74,7 +75,7 @@ class ContainerService {
    * Create container
    */
   async createContainer(container: Partial<Container>): Promise<{ success: boolean; data: Container }> {
-    const response = await this.api.post('/containers', container);
+    const response = await this.api.post('/containers', camelToSnake(container as Record<string, any>));
     return response.data;
   }
 
@@ -83,7 +84,7 @@ class ContainerService {
    * Update container
    */
   async updateContainer(id: string, container: Partial<Container>): Promise<{ success: boolean; data: Container }> {
-    const response = await this.api.put(`/containers/${id}`, container);
+    const response = await this.api.put(`/containers/${id}`, camelToSnake(container as Record<string, any>));
     return response.data;
   }
 
@@ -113,6 +114,8 @@ class ContainerService {
    */
   async getStatisticsDetailed(startDate?: string, endDate?: string): Promise<{
     success: boolean;
+    /** 为 true 表示所选日期范围内无匹配，已回退为不按日期的统计 */
+    dateFilterFallback?: boolean;
     data: {
       statusDistribution: Record<string, number>;
       arrivalDistribution: Record<string, number>;

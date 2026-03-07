@@ -1,0 +1,77 @@
+# 甘特图与 Shipments 统计卡片逻辑对齐说明
+
+本文档说明甘特图页（`/shipments/gantt-chart`）与 Shipments 页（`/shipments`）统计卡片、列表的数据逻辑如何保持一致，便于后续一起沟通甘特图显示方案。
+
+---
+
+## 甘特图开发进度确认（与代码核对）
+
+| 状态 | 说明 |
+|------|------|
+| **已实现** | 文档「二、甘特图与 Shipments 的对齐项」中列出的 6 项均已在代码中落地（日期范围、跳转传参、filterCondition/containers、数据接口、泳道行数量用 statistics、时间轴圆点）。 |
+| **query.containers** | 「只展示」已实现：有 `query.containers` 时列表只保留这些柜号；「高亮」或「展示全部但高亮」为后续可选。 |
+| **后续可选** | 见下文「四、后续可选」：筛选条件下后端分页、列宽拖拽、显示与交互方案讨论。 |
+
+---
+
+## 一、统一约定（与 SHIPMENTS_CARD_STATISTICS_DESIGN_CONFIRM 一致）
+
+- **统计与数据范围**：均按「**出运日期**」在所选日期范围内的货柜（`actual_ship_date` 或 `shipment_date` 落在 `[startDate, endDate]`）。
+- **日期含义**：`startDate` / `endDate` 始终表示**出运日期**，与顶部日期选择器一致。
+- **卡片筛选**：当用户点击某卡片下的标签时，`filterCondition`（即前端的 `activeFilter.days`）与后端 `GET /api/v1/containers/by-filter` 的 `filterCondition` 一致，与统计口径同源。
+
+---
+
+## 二、甘特图与 Shipments 的对齐项（已实现）
+
+| 项目 | Shipments 页 | 甘特图页 | 说明 |
+|------|--------------|----------|------|
+| **日期范围默认值** | 过去 90 天～今天（出运日期） | 同左 | 甘特图 `loadDataDateRange` 默认与 Shipments `shipmentDateRange` 一致 |
+| **从 Shipments 跳转** | 传 `query.startDate`、`query.endDate` | 甘特图读取并用作加载范围 | 同一出运日期范围，数据一致 |
+| **卡片筛选** | 传 `query.filterCondition`（即 `activeFilter.days`） | 甘特图若有 `filterCondition` 则调 `getContainersByFilterCondition` | 与点击卡片后的列表为同一批货柜 |
+| **选中柜号** | 传 `query.containers`（逗号分隔） | 甘特图加载后在内存中只保留这些柜号 | 仅展示勾选柜，与「批量导出」等选中集一致 |
+| **数据接口** | 无筛选：`GET /containers`；有筛选：`GET /containers/by-filter` | 同左，按是否有 `filterCondition` 选择接口 | 与统计卡片、列表共用同一套后端逻辑 |
+| **泳道行数量** | 统计卡片用 `GET /containers/statistics-detailed` 的分布数据 | 甘特图同源：加载时并行请求 `getStatisticsDetailed(startDate, endDate)`，用其 `arrivalDistribution` 等驱动四类泳道每行的 (n) | 行上数字与 Shipments 卡片完全一致，不受 5000 条限制 |
+| **时间轴圆点** | — | 仍由已加载的货柜列表 + `useGanttFilters` 按日分组绘制 | 圆点表示「当前已加载货柜」在该日的分布 |
+
+---
+
+## 三、甘特图当前数据流（简要）
+
+1. **初始化**  
+   - 读取 `route.query`：`startDate`、`endDate`、`filterCondition`、`containers`。  
+   - 若有 `startDate`/`endDate`，则作为 `loadDataDateRange`（出运日期范围）；否则使用默认「过去 90 天～今天」。
+
+2. **加载**（`loadData`）  
+   - 并行请求：  
+     - 货柜列表：若有 `filterCondition` 则 `getContainersByFilterCondition(...)`，否则 `getContainers({ page: 1, pageSize: 5000, startDate, endDate })`，得到 `items`。  
+     - 统计接口：`getStatisticsDetailed(startDate, endDate)`，得到 `arrivalDistribution`、`pickupDistribution`、`lastPickupDistribution`、`returnDistribution`。  
+   - 若有 `containers`：在得到的列表中只保留 `containerNumber` 在 `containers` 中的货柜。  
+   - 结果：`containers` 写入列表，`statisticsFromApi` 写入统计数据并传给 `ContainerGanttChart`。  
+   - 根据当前泳道计算 `displayRange`。
+
+3. **泳道与显示范围**  
+   - 泳道（按到港 / 按提柜计划 / 按最晚提柜 / 按最晚还箱）与统计卡片维度一致；`calculateDisplayRange` 的筛选逻辑与各统计服务口径对齐（见 GanttChart.vue 内注释）。
+
+---
+
+## 四、后续可选（依赖后端或甘特图页配合）
+
+按方案顺序可做的部分已全部实现；以下三项为后续可选，依赖后端或甘特图页配合，在此写明便于排期与对接。
+
+| 项 | 内容 | 依赖 |
+|----|------|------|
+| **query.containers 高亮** | 「只展示」已实现；可选：展示全部货柜但高亮 `query.containers` 中的柜号（可配置）。 | 甘特图页前端实现 |
+| **筛选条件下后端分页** | `getContainersByFilterCondition` 支持 `page`、`pageSize`、`total` 后，前端接入筛选条件下的后端分页。 | 后端先支持分页参数与 total，再前端接入 |
+| **列宽拖拽** | 引入支持列宽拖拽的 table 或自封装表头后再做。 | 甘特图页：选型/自封装表头 |
+
+---
+
+## 五、后续可一起沟通的甘特图显示方案
+
+- 泳道内条目的展示样式（颜色、标签、tooltip）。  
+- 时间轴刻度与「显示范围」的联动（是否允许用户自定义显示区间）。  
+- 从甘特图再钻取到货柜详情或回 Shipments 列表的交互。  
+- 大数量货柜时的性能与分页/虚拟滚动策略。
+
+以上为当前实现的对齐关系与后续可选清单，便于在此基础上讨论甘特图显示与交互方案。

@@ -28,12 +28,15 @@ interface Props {
   label?: string
   subtitle?: string
   description?: string  // 统计口径说明
+  /** 树形展示：true = 三分组并列一行（按到港），'column' = 单列树形（按状态） */
+  treeLayout?: boolean | 'column'
 }
 
 const props = withDefaults(defineProps<Props>(), {
   label: '待处理货柜',
   subtitle: '',
-  description: ''
+  description: '',
+  treeLayout: false
 })
 
 const emit = defineEmits<{
@@ -120,45 +123,121 @@ const hasDescription = computed(() => {
       </div>
     </div>
 
-    <!-- 如果有过滤项，显示标签形式的过滤项（支持树形结构） -->
-    <div v-if="hasFilterItems" class="filter-items">
+    <!-- 如果有过滤项：treeLayout 为 column=按状态多组，true=按到港三分组，否则平铺标签；全部按分组展示，无树线 -->
+    <div v-if="hasFilterItems" class="filter-items" :class="{ 'tree-layout': treeLayout === true, 'tree-layout-column': treeLayout === 'column' }">
       <template v-for="(item, index) in data.filterItems" :key="index">
-        <!-- 父级项目 -->
-        <div
-          class="filter-tag parent-tag"
-          :class="{ 'clickable': item.count > 0 }"
-          :style="{
-            backgroundColor: item.count > 0 ? item.color + '15' : '#f5f7fa',
-            borderColor: item.count > 0 ? item.color : '#dcdfe6',
-            color: item.count > 0 ? item.color : '#909399'
-          }"
-          @click="item.count > 0 && handleFilterClick(item.days)"
-        >
-          <span class="tag-label">{{ item.label }}</span>
-          <span class="tag-count">{{ item.count }}</span>
-        </div>
-        <!-- 子级项目 -->
-        <div
-          v-if="item.children && item.children.length > 0"
-          class="children-container"
-        >
-          <div
-            v-for="(child, childIndex) in item.children"
-            :key="`${index}-${childIndex}`"
-            class="filter-tag child-tag"
-            :class="{ 'clickable': child.count > 0 }"
-            :style="{
-              backgroundColor: child.count > 0 ? child.color + '10' : '#fafafa',
-              borderColor: child.count > 0 ? child.color : '#e0e0e0',
-              color: child.count > 0 ? child.color : '#b0b0b0',
-              marginLeft: '12px'
-            }"
-            @click="child.count > 0 && handleFilterClick(child.days)"
-          >
-            <span class="tag-label">{{ child.label }}</span>
-            <span class="tag-count">{{ child.count }}</span>
+        <!-- 按状态：多组并列，每组父级+子项，均用 Badge 展示 -->
+        <div v-if="treeLayout === 'column'" class="tree-block">
+          <el-badge :value="item.count" :hidden="item.count === 0" :color="item.count > 0 ? item.color : '#909399'" :offset="[6, 10]" class="countdown-badge">
+            <span
+              class="filter-tag parent-tag badge-trigger"
+              :class="{ 'clickable': item.count > 0 }"
+              :style="{
+                backgroundColor: item.count > 0 ? item.color + '15' : '#f5f7fa',
+                borderColor: item.count > 0 ? item.color : '#dcdfe6',
+                color: item.count > 0 ? item.color : '#909399'
+              }"
+              @click="item.count > 0 && handleFilterClick(item.days)"
+            >{{ item.label }}</span>
+          </el-badge>
+          <div v-if="item.children?.length" class="children-container">
+            <el-badge
+              v-for="(child, childIndex) in item.children"
+              :key="`${index}-${childIndex}`"
+              :value="child.count"
+              :hidden="child.count === 0"
+              :color="child.count > 0 ? child.color : '#b0b0b0'"
+              :offset="[6, 10]"
+              class="countdown-badge"
+            >
+              <span
+                class="filter-tag child-tag badge-trigger"
+                :class="{ 'clickable': child.count > 0 }"
+                :style="{
+                  backgroundColor: child.count > 0 ? child.color + '10' : '#fafafa',
+                  borderColor: child.count > 0 ? child.color : '#e0e0e0',
+                  color: child.count > 0 ? child.color : '#b0b0b0'
+                }"
+                @click="child.count > 0 && handleFilterClick(child.days)"
+              >{{ child.label }}</span>
+            </el-badge>
           </div>
         </div>
+        <!-- 按到港：三分组并列，每组父级+子项，均用 Badge 展示 -->
+        <div v-else-if="treeLayout === true" class="tree-col">
+          <el-badge :value="item.count" :hidden="item.count === 0" :color="item.count > 0 ? item.color : '#909399'" :offset="[6, 10]" class="countdown-badge">
+            <span
+              class="filter-tag parent-tag badge-trigger"
+              :class="{ 'clickable': item.count > 0 }"
+              :style="{
+                backgroundColor: item.count > 0 ? item.color + '15' : '#f5f7fa',
+                borderColor: item.count > 0 ? item.color : '#dcdfe6',
+                color: item.count > 0 ? item.color : '#909399'
+              }"
+              @click="item.count > 0 && handleFilterClick(item.days)"
+            >{{ item.label }}</span>
+          </el-badge>
+          <div v-if="item.children?.length" class="children-container">
+            <el-badge
+              v-for="(child, childIndex) in item.children"
+              :key="`${index}-${childIndex}`"
+              :value="child.count"
+              :hidden="child.count === 0"
+              :color="child.count > 0 ? child.color : '#b0b0b0'"
+              :offset="[6, 10]"
+              class="countdown-badge"
+            >
+              <span
+                class="filter-tag child-tag badge-trigger"
+                :class="{ 'clickable': child.count > 0 }"
+                :style="{
+                  backgroundColor: child.count > 0 ? child.color + '10' : '#fafafa',
+                  borderColor: child.count > 0 ? child.color : '#e0e0e0',
+                  color: child.count > 0 ? child.color : '#b0b0b0'
+                }"
+                @click="child.count > 0 && handleFilterClick(child.days)"
+              >{{ child.label }}</span>
+            </el-badge>
+          </div>
+        </div>
+        <!-- 平铺：均用 Badge 展示 -->
+        <template v-else>
+          <el-badge :value="item.count" :hidden="item.count === 0" :color="item.count > 0 ? item.color : '#909399'" :offset="[6, 10]" class="countdown-badge">
+            <span
+              class="filter-tag parent-tag badge-trigger"
+              :class="{ 'clickable': item.count > 0 }"
+              :style="{
+                backgroundColor: item.count > 0 ? item.color + '15' : '#f5f7fa',
+                borderColor: item.count > 0 ? item.color : '#dcdfe6',
+                color: item.count > 0 ? item.color : '#909399'
+              }"
+              @click="item.count > 0 && handleFilterClick(item.days)"
+            >{{ item.label }}</span>
+          </el-badge>
+          <div v-if="item.children && item.children.length > 0" class="children-container">
+            <el-badge
+              v-for="(child, childIndex) in item.children"
+              :key="`${index}-${childIndex}`"
+              :value="child.count"
+              :hidden="child.count === 0"
+              :color="child.count > 0 ? child.color : '#b0b0b0'"
+              :offset="[6, 10]"
+              class="countdown-badge"
+            >
+              <span
+                class="filter-tag child-tag badge-trigger"
+                :class="{ 'clickable': child.count > 0 }"
+                :style="{
+                  backgroundColor: child.count > 0 ? child.color + '10' : '#fafafa',
+                  borderColor: child.count > 0 ? child.color : '#e0e0e0',
+                  color: child.count > 0 ? child.color : '#b0b0b0',
+                  marginLeft: '12px'
+                }"
+                @click="child.count > 0 && handleFilterClick(child.days)"
+              >{{ child.label }}</span>
+            </el-badge>
+          </div>
+        </template>
       </template>
     </div>
 
@@ -182,38 +261,40 @@ const hasDescription = computed(() => {
 <style scoped lang="scss">
 @use '@/assets/styles/variables' as *;
 
+/* 最小标签布局：极简紧凑 */
 .countdown-card {
   background: #fff;
-  border-radius: 6px;
-  padding: 12px;
+  border-radius: 4px;
+  padding: 5px 8px;
   border-left: 3px solid;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   min-height: auto;
 
   .card-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 10px;
+    gap: 4px;
+    margin-bottom: 4px;
 
     .header-left {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 4px;
+      min-width: 0;
 
       .title-wrapper {
         display: flex;
         flex-direction: column;
-        gap: 4px;
+        gap: 0;
 
         .title-row {
           display: flex;
           align-items: center;
-          gap: 6px;
+          gap: 3px;
 
           .card-title {
-            font-size: 15px;
+            font-size: 12px;
             font-weight: 600;
             color: #303133;
           }
@@ -221,6 +302,7 @@ const hasDescription = computed(() => {
           .info-icon {
             cursor: help;
             color: #909399;
+            font-size: 12px;
             transition: color 0.2s;
 
             &:hover {
@@ -230,7 +312,7 @@ const hasDescription = computed(() => {
         }
 
         .card-subtitle {
-          font-size: 12px;
+          font-size: 10px;
           color: #909399;
         }
       }
@@ -240,15 +322,15 @@ const hasDescription = computed(() => {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 2px;
+      gap: 0;
 
       .summary-label {
-        font-size: 11px;
+        font-size: 9px;
         color: #909399;
       }
 
       .summary-count {
-        font-size: 18px;
+        font-size: 14px;
         font-weight: 700;
         color: #303133;
       }
@@ -257,51 +339,165 @@ const hasDescription = computed(() => {
 
   .filter-items {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+
+    /* 按分组布局：按到港三分组并列 */
+    &.tree-layout {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      flex-wrap: nowrap;
+      align-items: start;
+    }
+
+    /* 按状态：flex 换行，每项占自身宽度，避免重叠 */
+    &.tree-layout-column {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .tree-block {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      flex: 0 0 auto;
+    }
+
+    /* 按状态：标签宽度随内容变化 */
+    &.tree-layout-column .tree-block {
+      .filter-tag.parent-tag {
+        width: fit-content;
+        flex: 0 0 auto;
+        padding: 2px 5px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      /* 子标签横向排列、自动换行，相对主分组缩进 */
+      .children-container {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        width: fit-content;
+        max-width: 100%;
+        padding-left: 10px;
+      }
+
+      .filter-tag.child-tag {
+        width: fit-content;
+        flex: 0 0 auto;
+        padding: 2px 4px;
+        font-size: 10px;
+        min-width: 0;
+
+        .tag-label {
+          flex: 0 1 auto;
+          min-width: 0;
+        }
+      }
+    }
+
+    .tree-col {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    &.tree-layout .tree-col {
+      .filter-tag.parent-tag {
+        width: 100%;
+        flex: 0 0 auto;
+        padding: 2px 5px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      /* 子标签横向排列、自动换行，相对主分组缩进 */
+      .children-container {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        width: 100%;
+        padding-left: 10px;
+      }
+
+      .filter-tag.child-tag {
+        width: fit-content;
+        flex: 0 0 auto;
+        padding: 2px 4px;
+        font-size: 10px;
+        min-width: 0;
+
+        .tag-label {
+          flex: 0 1 auto;
+          min-width: 0;
+        }
+      }
+    }
 
     .children-container {
       display: flex;
       flex-wrap: wrap;
-      gap: 6px;
+      gap: 10px;
+    }
+
+    :deep(.countdown-badge) {
+      display: inline-block;
+      margin-right: 10px;
+      margin-bottom: 8px;
+
+      .el-badge__content {
+        font-size: 10px;
+        line-height: 1.2;
+        height: 14px;
+        min-width: 14px;
+        padding: 0 4px;
+      }
+    }
+
+    .filter-tag.badge-trigger {
+      display: inline-flex;
+      align-items: center;
+      white-space: nowrap;
     }
 
     .filter-tag {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border-radius: 4px;
-      font-size: 12px;
-      border: 1px solid;
+      gap: 4px;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 10px;
+      border: none;
       transition: all 0.2s;
       cursor: default;
 
       &.parent-tag {
-        width: 100%;
+        flex: 0 0 auto;
         justify-content: space-between;
         font-weight: 600;
-        font-size: 13px;
+        font-size: 10px;
       }
 
       &.child-tag {
         flex: 0 0 auto;
-        min-width: 100px;
+        min-width: 0;
         justify-content: space-between;
         font-weight: 500;
-        font-size: 12px;
+        font-size: 10px;
 
         &:before {
-          content: '├';
-          margin-right: 4px;
-          color: inherit;
-          opacity: 0.6;
-        }
-
-        &:last-child {
-          &:before {
-            content: '└';
-          }
+          content: '';
+          display: none;
         }
       }
 
@@ -309,45 +505,46 @@ const hasDescription = computed(() => {
         cursor: pointer;
 
         &:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
         }
 
         &:active {
-          transform: translateY(0);
+          transform: scale(0.98);
         }
       }
 
       .tag-label {
         font-weight: 500;
+        white-space: nowrap;
       }
 
       .tag-count {
         font-weight: 700;
+        flex-shrink: 0;
       }
     }
   }
 
   .card-content {
     text-align: center;
-    padding: 8px 0;
+    padding: 2px 0;
 
     .card-value {
-      font-size: 32px;
+      font-size: 20px;
       font-weight: 700;
       color: v-bind('cardStyle.color');
       line-height: 1;
     }
 
     .card-label {
-      margin-top: 6px;
-      font-size: 13px;
+      margin-top: 2px;
+      font-size: 11px;
       color: #909399;
     }
   }
 
   .card-footer {
-    margin-top: 8px;
+    margin-top: 2px;
     text-align: center;
   }
 }

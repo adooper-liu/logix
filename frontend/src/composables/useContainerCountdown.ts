@@ -64,16 +64,6 @@ export function useContainerCountdown(statisticsData: Ref<{
     const urgent = overdue + within3Days + transitOverdue + transitWithin3Days
     const expired = overdue + transitOverdue
 
-    console.log('[countdownByArrival]', {
-      dist,
-      count,
-      breakdown: {
-        arrivedAtDestination: today + arrivedBeforeTodayNotPickedUp + arrivedBeforeTodayPickedUp,
-        arrivedAtTransit,
-        expectedArrival: overdue + within3Days + within7Days + over7Days + other
-      }
-    })
-
     // 按三个主分组组织筛选项（树形结构）
     // 注意：days值直接使用后端filterCondition，无需映射
     const filterItems = [
@@ -127,7 +117,7 @@ export function useContainerCountdown(statisticsData: Ref<{
 
   // 计算按提柜倒计时的货柜数量（使用后端统计数据）
   // 按最新方案：
-  // 按计划提柜总计 (实际已到目的港但未提柜)
+  // 按提柜计划总计 (实际已到目的港但未提柜)
   // ├── ① 有安排拖车计划
   // │   ├── 逾期未提柜
   // │   ├── 今日计划提柜
@@ -153,7 +143,7 @@ export function useContainerCountdown(statisticsData: Ref<{
     const urgent = overdue + todayPlanned + within3Days
     const expired = overdue
 
-    // 按计划提柜筛选项 - days值直接使用后端filterCondition
+    // 按提柜计划筛选项 - days值直接使用后端filterCondition
     const filterItems = [
       { label: '逾期未提柜', count: overdue, color: '#f56c6c', days: 'overduePlanned', level: 0 },
       { label: '今日计划提柜', count: todayPlanned, color: '#e6a23c', days: 'todayPlanned', level: 0 },
@@ -161,20 +151,6 @@ export function useContainerCountdown(statisticsData: Ref<{
       { label: '7天内计划提柜', count: within7Days, color: '#67c23a', days: 'plannedWithin7Days', level: 0 },
       { label: '待安排提柜', count: pending, color: '#909399', days: 'pendingArrangement', level: 0 }
     ]
-
-    console.log('[countdownByPickup]', {
-      dist,
-      count,
-      withPlan,
-      withoutPlan,
-      breakdown: {
-        overdue,
-        todayPlanned,
-        within3Days,
-        within7Days,
-        pending
-      }
-    })
 
     return { count, urgent, expired, filterItems }
   })
@@ -193,25 +169,12 @@ export function useContainerCountdown(statisticsData: Ref<{
 
     const count = expired + urgent + warning + normal + noLastFreeDate
 
-    console.log('[countdownByLastPickup]', {
-      dist,
-      count,
-      totalFromBackend: dist.total,
-      breakdown: {
-        expired,
-        urgent,
-        warning,
-        normal,
-        noLastFreeDate
-      }
-    })
-
     const filterItems = [
       { label: '已超时', count: expired, color: '#f56c6c', days: 'expired', level: 0 },
       { label: '即将超时(1-3天)', count: urgent, color: '#e6a23c', days: 'urgent', level: 0 },
       { label: '预警(4-7天)', count: warning, color: '#409eff', days: 'warning', level: 0 },
       { label: '时间充裕(7天以上)', count: normal, color: '#67c23a', days: 'normal', level: 0 },
-      { label: '缺最后免费日', count: noLastFreeDate, color: '#909399', days: 'noLastFreeDate', level: 0 }
+      { label: '最晚提柜日为空', count: noLastFreeDate, color: '#909399', days: 'noLastFreeDate', level: 0 }
     ]
 
     return { count, urgent: urgent + expired, expired, filterItems }
@@ -225,7 +188,7 @@ export function useContainerCountdown(statisticsData: Ref<{
   // │   ├── 紧急：倒计时3天内
   // │   ├── 警告：倒计时7天内
   // │   └── 正常
-  // └── ② 缺最后还箱日
+  // └── ② 最后还箱日为空
   const countdownByReturn = computed<CountdownData>(() => {
     const dist = statisticsData.value?.returnDistribution
     if (!dist) return { count: 0, urgent: 0, expired: 0, filterItems: [] }
@@ -250,64 +213,64 @@ export function useContainerCountdown(statisticsData: Ref<{
       { label: '紧急：倒计时3天内', count: urgent, color: '#e6a23c', days: 'returnUrgent', level: 0 },
       { label: '警告：倒计时7天内', count: warning, color: '#409eff', days: 'returnWarning', level: 0 },
       { label: '正常', count: normal, color: '#67c23a', days: 'returnNormal', level: 0 },
-      { label: '缺最后还箱日', count: noLastReturnDate, color: '#909399', days: 'noLastReturnDate', level: 0 }
+      { label: '最后还箱日为空', count: noLastReturnDate, color: '#909399', days: 'noLastReturnDate', level: 0 }
     ]
-
-    console.log('[countdownByReturn]', {
-      dist,
-      count,
-      withLastReturnDate,
-      withoutLastReturnDate,
-      breakdown: {
-        expired,
-        urgent,
-        warning,
-        normal,
-        noLastReturnDate
-      }
-    })
 
     return { count, urgent: urgentCount, expired: expiredCount, filterItems }
   })
 
+  // 按状态：按状态机优先级顺序展示（SimplifiedStatus 流转顺序）
+  const STATUS_DISPLAY_ORDER: (keyof typeof SimplifiedStatus)[] = [
+    'NOT_SHIPPED',
+    'SHIPPED',
+    'IN_TRANSIT',
+    'AT_PORT',
+    'PICKED_UP',
+    'UNLOADED',
+    'RETURNED_EMPTY'
+  ]
+
   // 计算按物流状态分类的货柜数量（使用后端统计数据）
-  // 严格按状态机统计，补充at_port状态按港口类型统计（先筛选at_port,再区分港口类型）
+  // 业务口径：未到目的港 = 在途（含「已到中转港」）；已到目的港 = 已到港。总数 = 7 个顶级项之和，子项不重复计入。
   const countdownByStatus = computed<CountdownData>(() => {
     const dist = statisticsData.value?.statusDistribution
     if (!dist) return { count: 0, urgent: 0, expired: 0, filterItems: [] }
 
-    // 状态分布使用snake_case（数据库字段名）
-    // arrived_at_transit 和 arrived_at_destination 是at_port状态的子维度（数据可能重叠）
-    const filterItems = [
-      { label: '未出运', count: dist.not_shipped || 0, color: '#909399', days: SimplifiedStatus.NOT_SHIPPED },
-      { label: '已出运', count: dist.shipped || 0, color: '#409eff', days: SimplifiedStatus.SHIPPED },
-      { label: '在途', count: dist.in_transit || 0, color: '#e6a23c', days: SimplifiedStatus.IN_TRANSIT },
-      // 已到港状态（包含按港口类型子维度）
-      {
-        label: '已到港',
-        count: dist.at_port || 0,
-        color: '#67c23a',
-        days: SimplifiedStatus.AT_PORT,
-        level: 0,
-        children: [
-          { label: '已到中转港', count: dist.arrived_at_transit || 0, color: '#909399', days: 'arrived_at_transit', level: 1 },
-          { label: '已到目的港', count: dist.arrived_at_destination || 0, color: '#67c23a', days: 'arrived_at_destination', level: 1 }
-        ]
-      },
-      { label: '已提柜', count: dist.picked_up || 0, color: '#f39c12', days: SimplifiedStatus.PICKED_UP },
-      { label: '已卸柜', count: dist.unloaded || 0, color: '#3498db', days: SimplifiedStatus.UNLOADED },
-      { label: '已还箱', count: dist.returned_empty || 0, color: '#95a5a6', days: SimplifiedStatus.RETURNED_EMPTY }
+    const inTransit = dist.in_transit || 0
+    const arrivedAtTransit = dist.arrived_at_transit || 0
+    const arrivedAtDestination = dist.arrived_at_destination || 0
+
+    const itemConfig: Record<string, { label: string; count: number; color: string; days: string }> = {
+      [SimplifiedStatus.NOT_SHIPPED]: { label: '未出运', count: dist.not_shipped || 0, color: '#909399', days: SimplifiedStatus.NOT_SHIPPED },
+      [SimplifiedStatus.SHIPPED]: { label: '已出运', count: dist.shipped || 0, color: '#409eff', days: SimplifiedStatus.SHIPPED },
+      [SimplifiedStatus.AT_PORT]: { label: '已到目的港', count: arrivedAtDestination, color: '#67c23a', days: 'arrived_at_destination' },
+      [SimplifiedStatus.PICKED_UP]: { label: '已提柜', count: dist.picked_up || 0, color: '#f39c12', days: SimplifiedStatus.PICKED_UP },
+      [SimplifiedStatus.UNLOADED]: { label: '已卸柜', count: dist.unloaded || 0, color: '#3498db', days: SimplifiedStatus.UNLOADED },
+      [SimplifiedStatus.RETURNED_EMPTY]: { label: '已还箱', count: dist.returned_empty || 0, color: '#95a5a6', days: SimplifiedStatus.RETURNED_EMPTY }
+    }
+
+    // IN_TRANSIT 不显示「在途」父级，只显示两个子细分：未到港、已到中转港
+    const inTransitItems = [
+      { label: '未到港', count: inTransit, color: '#e6a23c', days: SimplifiedStatus.IN_TRANSIT, level: 0 },
+      { label: '已到中转港', count: arrivedAtTransit, color: '#909399', days: 'arrived_at_transit', level: 0 }
     ]
 
-    // 计算总数时排除 arrived_at_transit 和 arrived_at_destination，因为它们只是 at_port 的子维度
-    const { arrived_at_transit, arrived_at_destination, ...statusOnly } = dist
-    const count = Object.values(statusOnly).reduce((sum, val) => sum + (val || 0), 0)
+    const filterItems = STATUS_DISPLAY_ORDER.flatMap(key => {
+      if (key === 'IN_TRANSIT') return inTransitItems
+      const config = itemConfig[SimplifiedStatus[key]]
+      if (!config) return []
+      return [{ ...config, level: 0 }]
+    }) as CountdownData['filterItems']
+
+    const count =
+      (dist.not_shipped || 0) + (dist.shipped || 0) + (inTransit + arrivedAtTransit) + arrivedAtDestination +
+      (dist.picked_up || 0) + (dist.unloaded || 0) + (dist.returned_empty || 0)
 
     return {
       count,
       urgent: 0,
       expired: 0,
-      filterItems
+      filterItems: filterItems || []
     }
   })
 

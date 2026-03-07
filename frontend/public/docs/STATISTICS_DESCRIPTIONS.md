@@ -205,7 +205,7 @@ Day 5 (3 月 5 日):
 | 即将超时 (1-3 天) | urgent | 🟠 #e6a23c | 今日 ≤ lastFreeDate ≤ 3 天后 | 紧急，需要立即处理 ⚠️ |
 | 预警 (4-7 天) | warning | 🔵 #409eff | 3 天后 < lastFreeDate ≤ 7 天后 | 需要关注，提前准备 |
 | 时间充裕 (7 天以上) | normal | 🟢 #67c23a | lastFreeDate > 7 天后 | 时间充足，按计划执行 |
-| 缺最后免费日 | noLastFreeDate | 🟤 #909399 | lastFreeDate is null | 数据缺失，需补充 |
+| 最晚提柜日为空 | noLastFreeDate | 🟤 #909399 | lastFreeDate is null | 数据缺失，需补充 |
 
 ### 💼 业务用途
 **聚焦免租期倒计时风险**，预警可能产生滞港费的货柜。
@@ -247,7 +247,7 @@ Day 5 (3 月 5 日):
 | 即将超时 (1-3 天) | urgent | 🟠 #e6a23c | 今日 ≤ lastReturnDate ≤ 3 天后 | 紧急，需尽快还箱 ⚠️ |
 | 预警 (4-7 天) | warning | 🔵 #409eff | 3 天后 < lastReturnDate ≤ 7 天后 | 需要提前准备 |
 | 时间充裕 (7 天以上) | normal | 🟢 #67c23a | lastReturnDate > 7 天后 | 时间充足 |
-| 缺最后还箱日 | noLastReturnDate | 🟤 #909399 | lastReturnDate is null | 数据缺失，需补充 |
+| 最后还箱日为空 | noLastReturnDate | 🟤 #909399 | lastReturnDate is null | 数据缺失，需补充 |
 
 ### 💼 业务用途
 监控空箱返还期限，避免产生滞箱费（detention charge）。

@@ -51,7 +51,7 @@ export const ARRIVAL_DIMENSIONS = [
 ] as const
 
 /**
- * 按计划提柜分类维度
+ * 按提柜计划分类维度
  */
 export const PICKUP_DIMENSIONS = [
   {
@@ -92,7 +92,7 @@ export const LAST_PICKUP_DIMENSIONS = [
   },
   {
     key: 'noLastFreeDate',
-    label: '缺最后免费日',
+    label: '最晚提柜日为空',
     color: '#909399'
   },
   {
@@ -123,7 +123,7 @@ export const RETURN_DIMENSIONS = [
   },
   {
     key: 'noLastReturnDate',
-    label: '缺最后还箱日',
+    label: '最后还箱日为空',
     color: '#909399'
   },
   {
@@ -156,7 +156,7 @@ export const LANE_CONFIGS = [
     dimensions: ARRIVAL_DIMENSIONS
   },
   {
-    name: '按计划提柜',
+    name: '按提柜计划',
     subtitle: '计划提柜分布',
     dimension: 'pickup' as const,
     dateField: 'plannedPickupDate',
@@ -186,7 +186,7 @@ export const LANE_CONFIGS = [
  */
 export const LANE_NAME_TO_DIMENSION: Record<string, string> = {
   '按到港': 'arrival',
-  '按计划提柜': 'pickup',
+  '按提柜计划': 'pickup',
   '按最晚提柜': 'lastPickup',
   '按最晚还箱': 'return'
 }
@@ -196,7 +196,7 @@ export const LANE_NAME_TO_DIMENSION: Record<string, string> = {
  */
 export const LANE_GROUP_LABELS: Record<string, string[]> = {
   '按到港': ARRIVAL_DIMENSIONS.map(d => d.label),
-  '按计划提柜': PICKUP_DIMENSIONS.map(d => d.label),
+  '按提柜计划': PICKUP_DIMENSIONS.map(d => d.label),
   '按最晚提柜': LAST_PICKUP_DIMENSIONS.map(d => d.label),
   '按最晚还箱': RETURN_DIMENSIONS.map(d => d.label)
 }

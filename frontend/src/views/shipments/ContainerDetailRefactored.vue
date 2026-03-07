@@ -14,7 +14,11 @@ import WarehouseOperations from './components/WarehouseOperations.vue'
 import EmptyReturn from './components/EmptyReturn.vue'
 
 const route = useRoute()
-const containerNumber = computed(() => route.params.containerNumber as string)
+// 路由 param 已解码；若需兼容编码柜号则 decodeURIComponent
+const containerNumber = computed(() => {
+  const p = route.params.containerNumber as string
+  return p ? decodeURIComponent(p) : ''
+})
 
 // 数据加载
 const loading = ref(false)
@@ -23,17 +27,25 @@ const activeTab = ref('order')
 
 // 加载货柜详情
 const loadContainerDetail = async () => {
+  if (!containerNumber.value?.trim()) {
+    ElMessage.error('缺少集装箱号，请从列表进入')
+    return
+  }
   loading.value = true
   try {
     const response = await containerService.getContainerById(containerNumber.value)
     if (response.success) {
       containerData.value = response.data
     } else {
-      ElMessage.error('获取货柜详情失败')
+      ElMessage.error((response as any).message || '获取货柜详情失败')
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error('Failed to load container details:', error)
-    ElMessage.error('获取货柜详情失败')
+    const msg =
+      error?.response?.data?.message ||
+      error?.response?.data?.error ||
+      (error?.response?.status === 404 ? '货柜不存在' : '获取货柜详情失败')
+    ElMessage.error(msg)
   } finally {
     loading.value = false
   }

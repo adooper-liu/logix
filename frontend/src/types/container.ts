@@ -87,12 +87,14 @@ export interface ContainerFilters {
 
 export interface ContainerResponse {
   success: boolean;
+  /** 为 true 表示所选日期范围内无出运记录，已回退为全部货柜 */
+  dateFilterFallback?: boolean;
   items: Container[];
   pagination: {
     page: number;
     pageSize: number;
     total: number;
-    totalPages: number;
+    totalPages?: number;
   };
 }
 

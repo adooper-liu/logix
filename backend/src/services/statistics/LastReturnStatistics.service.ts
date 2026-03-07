@@ -9,6 +9,7 @@ import { EmptyReturn } from '../../entities/EmptyReturn';
 import { TruckingTransport } from '../../entities/TruckingTransport';
 import { ContainerQueryBuilder } from './common/ContainerQueryBuilder';
 import { DateFilterBuilder } from './common/DateFilterBuilder';
+import { applyDateFilterToQuery } from './common/DateRangeSubquery';
 
 export class LastReturnStatisticsService {
   constructor(
@@ -25,14 +26,20 @@ export class LastReturnStatisticsService {
     const threeDaysLater = DateFilterBuilder.addDays(today, 3);
     const sevenDaysLater = DateFilterBuilder.addDays(today, 7);
 
-    // 并行执行所有查�?    const [expiredCount, urgentCount, warningCount, normalCount, noLastReturnDateCount] =
-      await Promise.all([
-        this.getReturnExpiredCount(today, startDate, endDate),
-        this.getReturnUrgentCount(today, threeDaysLater, startDate, endDate),
-        this.getReturnWarningCount(today, threeDaysLater, sevenDaysLater, startDate, endDate),
-        this.getReturnNormalCount(today, sevenDaysLater, startDate, endDate),
-        this.getNoLastReturnDateCount(startDate, endDate)
-      ]);
+    // 并行执行所有查询
+    const results = await Promise.all([
+      this.getReturnExpiredCount(today, startDate, endDate),
+      this.getReturnUrgentCount(today, threeDaysLater, startDate, endDate),
+      this.getReturnWarningCount(today, threeDaysLater, sevenDaysLater, startDate, endDate),
+      this.getReturnNormalCount(today, sevenDaysLater, startDate, endDate),
+      this.getNoLastReturnDateCount(startDate, endDate)
+    ]);
+
+    const expiredCount = results[0];
+    const urgentCount = results[1];
+    const warningCount = results[2];
+    const normalCount = results[3];
+    const noLastReturnDateCount = results[4];
 
     const total = expiredCount + urgentCount + warningCount + normalCount + noLastReturnDateCount;
 
@@ -54,11 +61,9 @@ export class LastReturnStatisticsService {
     this.joinEmptyReturn(query);
     query.andWhere('er.last_return_date IS NOT NULL');
     query.andWhere('er.last_return_date < :today', { today });
-
-    const result = await ContainerQueryBuilder.addDateFilters(query, startDate, endDate)
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .getRawOne();
-    return parseInt(result.count || '0');
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, { today });
+    const result = await query.select('COUNT(DISTINCT container.containerNumber)', 'count').getRawOne();
+    return parseInt(result?.count || '0');
   }
 
   /**
@@ -70,11 +75,9 @@ export class LastReturnStatisticsService {
     query.andWhere('er.last_return_date IS NOT NULL');
     query.andWhere('er.last_return_date >= :today', { today });
     query.andWhere('er.last_return_date <= :threeDays', { threeDays: threeDaysLater });
-
-    const result = await ContainerQueryBuilder.addDateFilters(query, startDate, endDate)
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .getRawOne();
-    return parseInt(result.count || '0');
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, { today, threeDays: threeDaysLater });
+    const result = await query.select('COUNT(DISTINCT container.containerNumber)', 'count').getRawOne();
+    return parseInt(result?.count || '0');
   }
 
   /**
@@ -86,11 +89,9 @@ export class LastReturnStatisticsService {
     query.andWhere('er.last_return_date IS NOT NULL');
     query.andWhere('er.last_return_date > :threeDays', { threeDays: threeDaysLater });
     query.andWhere('er.last_return_date <= :sevenDays', { sevenDays: sevenDaysLater });
-
-    const result = await ContainerQueryBuilder.addDateFilters(query, startDate, endDate)
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .getRawOne();
-    return parseInt(result.count || '0');
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, { threeDays: threeDaysLater, sevenDays: sevenDaysLater });
+    const result = await query.select('COUNT(DISTINCT container.containerNumber)', 'count').getRawOne();
+    return parseInt(result?.count || '0');
   }
 
   /**
@@ -102,11 +103,9 @@ export class LastReturnStatisticsService {
     this.joinEmptyReturn(query);
     query.andWhere('er.last_return_date IS NOT NULL');
     query.andWhere('er.last_return_date > :sevenDays', { sevenDays: sevenDaysLater });
-
-    const result = await ContainerQueryBuilder.addDateFilters(query, startDate, endDate)
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .getRawOne();
-    return parseInt(result.count || '0');
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, { sevenDays: sevenDaysLater });
+    const result = await query.select('COUNT(DISTINCT container.containerNumber)', 'count').getRawOne();
+    return parseInt(result?.count || '0');
   }
 
   /**
@@ -116,11 +115,9 @@ export class LastReturnStatisticsService {
     this.filterTargetSet(query);
     this.joinEmptyReturn(query);
     query.andWhere('er.last_return_date IS NULL');
-
-    const result = await ContainerQueryBuilder.addDateFilters(query, startDate, endDate)
-      .select('COUNT(DISTINCT container.containerNumber)', 'count')
-      .getRawOne();
-    return parseInt(result.count || '0');
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate);
+    const result = await query.select('COUNT(DISTINCT container.containerNumber)', 'count').getRawOne();
+    return parseInt(result?.count || '0');
   }
 
   /**

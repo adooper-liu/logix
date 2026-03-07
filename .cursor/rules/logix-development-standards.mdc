@@ -1,0 +1,55 @@
+---
+description: LogiX 开发准则 - 数据库优先、命名与数据完整性
+alwaysApply: true
+---
+
+# LogiX 开发准则
+
+## 核心原则（必须遵守）
+
+1. **数据库表结构是唯一基准**：所有表名、字段名以数据库为准；代码与 API 对齐数据库，不反向改库补数据。
+2. **禁止临时补丁修数据**：导入错误时删除错误数据 → 修映射/逻辑 → 重新导入；禁止用临时 SQL UPDATE/INSERT 修补。
+3. **开发顺序**：数据库表设计(SQL) → TypeORM 实体(TS) → 后端 API(TS) → 前端对接(Vue/TS) → 联调。
+
+## 命名与映射（写代码时必查）
+
+| 层级 | 规则 | 示例 |
+|------|------|------|
+| 数据库表名 | 前缀 + snake_case | `biz_containers`, `process_sea_freight`, `dict_ports` |
+| 数据库字段 | snake_case | `container_number`, `eta_dest_port` |
+| 实体属性 | camelCase + `@Column({ name: 'snake_case' })` | `containerNumber` |
+| API/Excel 映射 | 与数据库一致：完整表名 + snake_case 字段名 | `table: 'process_port_operations'`, `field: 'container_number'` |
+| API 请求体 | snake_case（与数据库对齐） | 后端对 body 做 snakeToCamel 再写实体；前端对 payload 做 camelToSnake 再发送 |
+| 前端组件/组合式 | 组件 PascalCase.vue，组合式 use+PascalCase，CSS kebab-case | `ContainerDetails.vue`, `useContainerData`, `container-card` |
+
+新增或修改表/字段时：先改 SQL 与实体，再改 API 与前端；Excel 映射的 table/field 必须与数据库完全一致，日期/数字/布尔配好 transform。
+
+## 数据展示与顶部日期（必须遵守）
+
+- **全项目统一**：所有数据展示（列表、统计卡片、图表等）均以**顶部日期范围**为筛选条件，对应数据库「出运日期」口径（`actual_ship_date` 或 `shipment_date`）。
+- **约定**：有数据展示的页面必须提供可见的日期范围选择器；该日期作为 startDate/endDate 传给所有支持日期筛选的接口（统计、列表、按条件查询等）；同一页内卡片、表格、图表共用同一套日期，不得出现「统计用全量、列表用日期」或「无日期控件却展示数据」。
+- **后端口径**：日期筛选统一按备货单 `actual_ship_date`，为空时按海运 `shipment_date`（见 DateFilterBuilder）。
+
+## 前端规范（避免常见错误）
+
+- **颜色**：禁止硬编码色值；SCSS 用 `@use '@/assets/styles/variables' as *` 与变量；JS/TS 用 `useColors()`。
+- **文案**：用户可见文案用 `$t()`/`t()`，禁止硬编码中文。
+- **性能**：搜索输入防抖；长列表虚拟滚动或分页；API 考虑缓存。
+
+## 单一职责与组件拆分（必须遵守）
+
+- **一个文件/组件只做一类事**：不写“上帝组件”或“上帝函数”；单文件过长（例如 Vue > 300 行、TS 逻辑 > 200 行）时优先拆成子组件或独立模块。
+- **前端**：页面只负责布局与编排，具体展示和交互拆成子组件；可复用逻辑抽到 composables（useXxx）；列表项、卡片、表单区块、弹窗内容等单独成组件。
+- **后端**：Controller 只做参数校验与调用 Service，业务逻辑放在 Service；复杂查询或统计可拆成独立 Service 或工具函数。
+- **命名体现职责**：组件名、文件名、函数名能直接看出做什么（如 CountdownCard、useContainerStats、getContainersByFilter）。
+
+## 代码风格
+
+- 缩进 2 空格、单引号；后端加分号、行宽约 120；前端无分号、行宽约 100。
+- 禁止提交 console.log、硬编码魔法数字；优先明确类型，避免 any。
+
+## 参考文档
+
+- 完整规范：`frontend/public/docs/DEVELOPMENT_STANDARDS.md`
+- 命名细则：`frontend/public/docs/NAMING_CONVENTIONS.md`
+- Lint：根目录 `npm run lint` / `npm run type-check` / `npm run validate`。

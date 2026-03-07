@@ -128,7 +128,7 @@ async function quickDiagnose() {
         WHEN po.lastFreeDate >= CURRENT_DATE AND po.lastFreeDate <= CURRENT_DATE + INTERVAL '3 days' THEN '即将超时 (1-3 天)'
         WHEN po.lastFreeDate > CURRENT_DATE + INTERVAL '3 days' AND po.lastFreeDate <= CURRENT_DATE + INTERVAL '7 days' THEN '预警 (4-7 天)'
         WHEN po.lastFreeDate > CURRENT_DATE + INTERVAL '7 days' THEN '时间充裕 (7 天以上)'
-        ELSE '缺最后免费日'
+        ELSE '最晚提柜日为空'
       END`, 'category')
       .addSelect('COUNT(*)', 'count')
       .groupBy(`CASE 
@@ -136,7 +136,7 @@ async function quickDiagnose() {
         WHEN po.lastFreeDate >= CURRENT_DATE AND po.lastFreeDate <= CURRENT_DATE + INTERVAL '3 days' THEN '即将超时 (1-3 天)'
         WHEN po.lastFreeDate > CURRENT_DATE + INTERVAL '3 days' AND po.lastFreeDate <= CURRENT_DATE + INTERVAL '7 days' THEN '预警 (4-7 天)'
         WHEN po.lastFreeDate > CURRENT_DATE + INTERVAL '7 days' THEN '时间充裕 (7 天以上)'
-        ELSE '缺最后免费日'
+        ELSE '最晚提柜日为空'
       END`)
       .getRawMany();
     

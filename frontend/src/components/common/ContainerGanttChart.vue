@@ -10,7 +10,8 @@ import {
   laneNameToDimension,
   useDateRange,
   useDateArray,
-  useTimeGroups
+  useTimeGroups,
+  type GanttStatisticsData
 } from './composables/useGanttData'
 import {
   formatDateLabel,
@@ -24,6 +25,8 @@ import {
 
 interface ContainerGanttChartProps {
   containers: ContainerItem[]
+  /** 与 Shipments 统计卡片同源：有则泳道行数量用此数据，圆点仍用 containers */
+  statistics?: GanttStatisticsData | null
   startDate: Date
   endDate: Date
 }
@@ -112,12 +115,13 @@ const dateRange = useDateRange(props.startDate, props.endDate)
 // 生成日期数组
 const dateArray = useDateArray(dateRange)
 
-// 生成时间分组
+// 生成时间分组（行数量优先用 statistics，圆点仍用 containers）
 const timeGroups = useTimeGroups(
   props.containers,
   props.startDate,
   props.endDate,
-  selectedLane
+  selectedLane,
+  props.statistics ?? null
 )
 
 // 调试：打印时间分组信息

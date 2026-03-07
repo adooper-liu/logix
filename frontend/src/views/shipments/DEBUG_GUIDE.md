@@ -37,9 +37,9 @@
 ### 4. 🎯 倒计时卡片点击（重点）
 ```
 🎯 [Shipments] 倒计时卡片点击
-- type: 筛选类型（如"按计划提柜"）
+- type: 筛选类型（如"按提柜计划"）
 - days: 时间维度（如"overdue"）
-- filterLabel: 组合标签（如"按计划提柜 - overdue"）
+- filterLabel: 组合标签（如"按提柜计划 - overdue"）
 - path: 完整调用路径
   frontend → handleCountdownFilter → loadContainersByFilter → backend API
 ```
@@ -119,7 +119,7 @@
 
 Loading containers by filter condition from backend:
 - filterCondition: 后端筛选条件（如"overduePlanned"）
-- filterType: 前端类型（如"按计划提柜"）
+- filterType: 前端类型（如"按提柜计划"）
 - originalDays: 原始days值（如"overdue"）
 - startDate: 开始日期
 - endDate: 结束日期
@@ -147,7 +147,7 @@ Statistics loaded: { statusDistribution, arrivalDistribution, ... }
 1. **查看前端日志**
    ```
    🎯 [Shipments] 倒计时卡片点击
-   - type: "按计划提柜"
+   - type: "按提柜计划"
    - days: "overdue"
    ```
 
@@ -155,7 +155,7 @@ Statistics loaded: { statusDistribution, arrivalDistribution, ... }
    ```
    Loading containers by filter condition from backend:
    - filterCondition: "overduePlanned"  ← 检查是否正确映射
-   - filterType: "按计划提柜"
+   - filterType: "按提柜计划"
    - originalDays: "overdue"
    ```
 
@@ -188,7 +188,7 @@ Statistics loaded: { statusDistribution, arrivalDistribution, ... }
 2. **检查FILTER_CONDITION_MAP**
    ```
    前端日志应该显示：
-   filterCondition = FILTER_CONDITION_MAP["按计划提柜"]["overdue"]
+   filterCondition = FILTER_CONDITION_MAP["按提柜计划"]["overdue"]
    结果应该是: "overduePlanned"
    ```
 

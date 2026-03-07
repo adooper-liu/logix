@@ -1,10 +1,10 @@
 /**
- * 按计划提柜 SQL 子查询模板
+ * 按提柜计划 SQL 子查询模板
  * Planned Pickup Subquery Templates
  *
- * 数据子集规则：
- * 1. 目标集：与"按最晚提柜日"相同 - 已到目的港（有ATA）+ 状态在 ('shipped', 'in_transit', 'at_port')
- * 2. 分组：按计划提柜时间分组
+ * 数据子集规则（与按状态「已到目的港」对齐，对应 arrived_at_destination 46）：
+ * 1. 目标集：NOT 还箱、NOT WMS、NOT 提柜 + 有目的港 ATA（状态机优先级4）
+ * 2. 分组：按提柜计划时间分组
  *    - 逾期未提柜：plannedPickupDate < 今天
  *    - 今日计划提柜：plannedPickupDate = 今天
  *    - 3天内计划提柜：今天 < plannedPickupDate <= 3天
@@ -14,11 +14,11 @@
 
 export class PlannedPickupSubqueryTemplates {
   /**
-   * 目标集子查询模板（基础条件）
-   * 已实际到达目的港（有ATA）且没有实际提柜记录的货柜
+   * 目标集子查询模板（与状态机已到目的港同源）
+   * 条件：NOT 还箱、NOT WMS、NOT 提柜 + EXISTS 目的港 ATA
    */
   static readonly TARGET_SET_SUBQUERY = `
-    SELECT c.container_number, c.logistics_status, po.ata_dest_port
+    SELECT c.container_number
     FROM biz_containers c
     INNER JOIN process_port_operations po ON c.container_number = po.container_number
     LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
@@ -31,7 +31,9 @@ export class PlannedPickupSubqueryTemplates {
       WHERE po2.container_number = po.container_number
       AND po2.port_type = 'destination'
     )
-    AND c.logistics_status NOT IN ('picked_up', 'unloaded', 'returned_empty')
+    AND NOT EXISTS (SELECT 1 FROM process_empty_return er WHERE er.container_number = c.container_number AND er.return_time IS NOT NULL)
+    AND NOT EXISTS (SELECT 1 FROM process_warehouse_operations wo WHERE wo.container_number = c.container_number AND (wo.wms_status = 'WMS已完成' OR wo.ebs_status = '已入库' OR wo.wms_confirm_date IS NOT NULL))
+    AND NOT EXISTS (SELECT 1 FROM process_trucking_transport tt WHERE tt.container_number = c.container_number AND tt.pickup_date IS NOT NULL)
   `;
 
   /**

@@ -104,7 +104,7 @@ const lastPickupLabels: Record<string, string> = {
   urgent: '即将超时(1-3天)',
   warning: '预警(4-7天)',
   normal: '时间充裕(7天以上)',
-  noLastFreeDate: '缺最后免费日'
+  noLastFreeDate: '最晚提柜日为空'
 }
 
 // 最晚还箱分布标签映射
@@ -113,7 +113,7 @@ const returnLabels: Record<string, string> = {
   urgent: '即将超时(1-3天)',
   warning: '预警(4-7天)',
   normal: '时间充裕(7天以上)',
-  noLastReturnDate: '缺最后还箱日'
+  noLastReturnDate: '最后还箱日为空'
 }
 
 // 获取验证状态图标和颜色
@@ -417,7 +417,7 @@ onUnmounted(() => {
             </div>
           </template>
           <div class="statistics-container">
-            <el-row :gutter="16">
+            <el-row :gutter="12">
               <el-col 
                 v-for="(count, status) in detailedStats?.statusDistribution" 
                 :key="status"
@@ -464,7 +464,7 @@ onUnmounted(() => {
           </div>
           <div class="statistics-container">
             <!-- 三个主分组 -->
-            <el-row :gutter="16" class="main-groups">
+            <el-row :gutter="12" class="main-groups">
               <el-col :xs="24" :sm="8">
                 <div
                   class="group-card destination clickable"
@@ -618,7 +618,7 @@ onUnmounted(() => {
           <template #header>
             <div class="card-header">
               <el-icon><component :is="SuccessFilled" /></el-icon>
-              <span>按计划提柜统计 - 已到目的港但尚未提柜货柜的计划提柜情况</span>
+              <span>按提柜计划统计 - 已到目的港但尚未提柜货柜的提柜计划情况</span>
             </div>
           </template>
           <div class="info-box info">
@@ -626,7 +626,7 @@ onUnmounted(() => {
             <span>统计范围: 已到目的港 + 未提柜状态 ({{ verificationData?.atPortTotal || 0 }})</span>
           </div>
           <div class="statistics-container">
-            <el-row :gutter="16">
+            <el-row :gutter="12">
               <el-col 
                 v-for="(count, category) in detailedStats?.pickupDistribution" 
                 :key="category"
@@ -664,10 +664,10 @@ onUnmounted(() => {
           </div>
           <div class="info-box info">
             <el-icon><component :is="InfoFilled" /></el-icon>
-            <span>关键区别: 与"按计划提柜"不同，这里聚焦免租期倒计时风险</span>
+            <span>关键区别: 与"按提柜计划"不同，这里聚焦免租期倒计时风险</span>
           </div>
           <div class="statistics-container">
-            <el-row :gutter="16">
+            <el-row :gutter="12">
               <el-col 
                 v-for="(count, category) in detailedStats?.lastPickupDistribution" 
                 :key="category"
@@ -719,7 +719,7 @@ onUnmounted(() => {
             <span>统计范围: 已提柜或有拖卡运输记录 + 未还箱状态 ({{ verificationData?.pickedUpTotal || 0 }})</span>
           </div>
           <div class="statistics-container">
-            <el-row :gutter="16">
+            <el-row :gutter="12">
               <el-col 
                 v-for="(count, category) in detailedStats?.returnDistribution" 
                 :key="category"
@@ -761,8 +761,9 @@ onUnmounted(() => {
 <style scoped lang="scss">
 @use '@/assets/styles/variables' as *;
 
+/* 紧凑布局 */
 .statistics-visualization {
-  padding: 24px;
+  padding: 16px;
   background-color: $bg-page;
   min-height: calc(100vh - 64px);
 }
@@ -771,7 +772,7 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   padding: 20px 24px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: 12px;
@@ -824,31 +825,31 @@ onUnmounted(() => {
 }
 
 .stat-card {
-  margin-bottom: 20px;
-  border-radius: 12px;
+  margin-bottom: 12px;
+  border-radius: 10px;
   overflow: hidden;
   transition: all 0.3s ease;
 
   &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
   }
 
   :deep(.el-card__body) {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 20px;
+    gap: 12px;
+    padding: 12px 16px;
   }
 
   .stat-icon {
-    width: 56px;
-    height: 56px;
-    border-radius: 12px;
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 28px;
+    font-size: 22px;
     flex-shrink: 0;
   }
 
@@ -856,16 +857,16 @@ onUnmounted(() => {
     flex: 1;
 
     .stat-value {
-      font-size: 32px;
+      font-size: 26px;
       font-weight: 700;
       line-height: 1.2;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
 
     .stat-label {
-      font-size: 14px;
+      font-size: 13px;
       color: $text-secondary;
-      line-height: 1.4;
+      line-height: 1.3;
     }
   }
 
@@ -910,15 +911,15 @@ onUnmounted(() => {
 }
 
 .verification-card {
-  margin-top: 20px;
-  border-radius: 12px;
+  margin-top: 12px;
+  border-radius: 10px;
 
   .card-header {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     font-weight: 600;
-    font-size: 16px;
+    font-size: 14px;
     color: $text-primary;
   }
 }
@@ -926,14 +927,14 @@ onUnmounted(() => {
 .info-box {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 12px 16px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  font-size: 14px;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+  font-size: 13px;
 
   .el-icon {
-    font-size: 18px;
+    font-size: 16px;
     flex-shrink: 0;
   }
 
@@ -951,20 +952,20 @@ onUnmounted(() => {
 }
 
 .statistics-container {
-  padding: 8px 0;
+  padding: 4px 0;
 
   .status-item,
   .category-item {
     background: #f8f9fa;
-    border-radius: 12px;
-    padding: 20px;
+    border-radius: 10px;
+    padding: 12px 14px;
     text-align: center;
-    margin-bottom: 16px;
+    margin-bottom: 10px;
     transition: all 0.3s ease;
 
     &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
     }
 
     &.highlight {
@@ -984,36 +985,36 @@ onUnmounted(() => {
 
     .status-count,
     .category-count {
-      font-size: 36px;
+      font-size: 28px;
       font-weight: 700;
       color: #1890ff;
       line-height: 1.2;
-      margin-bottom: 8px;
+      margin-bottom: 4px;
     }
 
     .status-label,
     .category-label {
-      font-size: 14px;
+      font-size: 13px;
       color: $text-secondary;
-      line-height: 1.4;
+      line-height: 1.3;
     }
   }
 
   .summary {
     display: flex;
-    gap: 12px;
+    gap: 8px;
     flex-wrap: wrap;
-    padding-top: 16px;
-    border-top: 2px solid #e8e8e8;
+    padding-top: 12px;
+    border-top: 1px solid #e8e8e8;
   }
 }
 
 .card-header {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-weight: 600;
-  font-size: 16px;
+  font-size: 14px;
   color: $text-primary;
 
   .el-icon {
@@ -1022,16 +1023,16 @@ onUnmounted(() => {
 }
 
 .main-groups {
-  margin-bottom: 20px;
+  margin-bottom: 12px;
 }
 
 .group-card {
   background: #fff;
-  border-radius: 16px;
-  padding: 24px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   transition: all 0.3s ease;
-  margin-bottom: 16px;
+  margin-bottom: 10px;
 
   &:hover {
     transform: translateY(-4px);
@@ -1069,16 +1070,16 @@ onUnmounted(() => {
   .group-header {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 16px;
+    gap: 6px;
+    margin-bottom: 10px;
 
     .el-icon {
-      font-size: 24px;
+      font-size: 20px;
     }
 
     .click-hint {
       margin-left: auto;
-      font-size: 18px;
+      font-size: 16px;
       opacity: 0.6;
       transition: opacity 0.2s;
     }
@@ -1088,24 +1089,24 @@ onUnmounted(() => {
     }
 
     span {
-      font-size: 18px;
+      font-size: 15px;
       font-weight: 600;
       color: $text-primary;
     }
   }
 
   .group-count {
-    font-size: 48px;
+    font-size: 36px;
     font-weight: 700;
     line-height: 1;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     text-align: center;
     color: $text-primary;
   }
 
   .group-note {
     text-align: center;
-    font-size: 14px;
+    font-size: 12px;
     color: $text-secondary;
     line-height: 1.4;
   }
@@ -1113,16 +1114,16 @@ onUnmounted(() => {
   .group-detail {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 5px;
 
     .detail-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px 12px;
+      padding: 5px 10px;
       background: rgba(255, 255, 255, 0.7);
-      border-radius: 8px;
-      font-size: 14px;
+      border-radius: 6px;
+      font-size: 13px;
 
       &.critical {
         background: rgba(255, 77, 79, 0.15);
@@ -1184,38 +1185,38 @@ onUnmounted(() => {
   }
 }
 
-// 响应式设计
+// 响应式设计（紧凑布局下进一步收窄）
 @media (max-width: 768px) {
   .statistics-visualization {
-    padding: 16px;
+    padding: 12px;
   }
 
   .page-header {
     flex-direction: column;
-    gap: 16px;
-    padding: 16px;
+    gap: 12px;
+    padding: 12px;
 
     .header-title {
       h2 {
-        font-size: 20px;
+        font-size: 18px;
       }
     }
   }
 
   .stat-card {
     :deep(.el-card__body) {
-      padding: 16px;
+      padding: 10px 12px;
     }
 
     .stat-icon {
-      width: 48px;
-      height: 48px;
-      font-size: 24px;
+      width: 40px;
+      height: 40px;
+      font-size: 20px;
     }
 
     .stat-content {
       .stat-value {
-        font-size: 24px;
+        font-size: 22px;
       }
 
       .stat-label {
@@ -1226,11 +1227,11 @@ onUnmounted(() => {
 
   .status-item,
   .category-item {
-    padding: 16px;
+    padding: 10px 12px;
 
     .status-count,
     .category-count {
-      font-size: 28px;
+      font-size: 24px;
     }
   }
 }

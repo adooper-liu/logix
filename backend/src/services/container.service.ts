@@ -18,6 +18,7 @@ import { SimplifiedStatus, calculateLogisticsStatus } from '../utils/logisticsSt
 
 interface ContainerWithStatus {
   container: Container;
+  firstOrderNumber: string | null;
   orderInfo: ReplenishmentOrder | null;
   latestEvent: ContainerStatusEvent | null;
   latestPortOperation: PortOperation | null;
@@ -59,12 +60,13 @@ export class ContainerService {
 
           return {
             ...enriched.container,
+            orderNumber: enriched.orderInfo?.orderNumber ?? enriched.firstOrderNumber ?? null,
             latestStatus: this.formatLatestStatus(enriched.latestEvent),
             location: currentLocation,
             lastUpdated: enriched.container.updatedAt,
             currentPortType: enriched.currentPortType,
             latestPortOperation: this.formatPortOperation(enriched.latestPortOperation),
-            // 扩展字段
+            // 扩展字段（与列表表头绑定一致）
             etaDestPort: enriched.latestPortOperation?.etaDestPort || null,
             etaCorrection: enriched.latestPortOperation?.etaCorrection || null,
             ataDestPort: enriched.currentPortType === 'transit'
@@ -76,6 +78,11 @@ export class ContainerService {
             actualShipDate: enriched.orderInfo?.actualShipDate || enriched.seaFreight?.shipmentDate || null,
             sellToCountry: enriched.orderInfo?.sellToCountry || null,
             customerName: enriched.orderInfo?.customerName || null,
+            // 计划提柜日 / 最晚提柜日 / 最晚还箱日 / 实际还箱日（列表表头用）
+            plannedPickupDate: enriched.truckingTransport?.plannedPickupDate || null,
+            lastFreeDate: enriched.latestPortOperation?.lastFreeDate || null,
+            lastReturnDate: enriched.emptyReturn?.lastReturnDate || null,
+            returnTime: enriched.emptyReturn?.returnTime || null,
             // 关联数据（用于前端过滤）
             truckingTransports: enriched.truckingTransport ? [enriched.truckingTransport] : [],
             emptyReturns: enriched.emptyReturn ? [enriched.emptyReturn] : []
@@ -91,26 +98,46 @@ export class ContainerService {
   }
 
   /**
+   * 按集装箱号返回与列表行完全一致的 enrich 数据，用于与前端/数据库核对
+   */
+  async getListRowByContainerNumber(containerNumber: string): Promise<any | null> {
+    const container = await this.containerRepository.findOne({
+      where: { containerNumber },
+      relations: ['seaFreight']
+    });
+    if (!container) return null;
+    const [row] = await this.enrichContainersList([container]);
+    return row ?? null;
+  }
+
+  /**
    * 为单个货柜添加扩展信息
    */
   private async enrichSingleContainer(container: Container): Promise<ContainerWithStatus> {
     // 并行查询所有相关数据
-    const [orderInfo, latestEvent, portOperations, seaFreight, truckingTransport, warehouseOperation, emptyReturn] =
+    const firstOrderNumber = await this.getFirstOrderNumberForContainer(container.containerNumber);
+    const [orderInfo, latestEvent, portOperations, truckingTransport, warehouseOperation, emptyReturn] =
       await Promise.allSettled([
-        this.fetchOrderInfo(container.orderNumber),
+        this.fetchOrderInfo(firstOrderNumber),
         this.fetchLatestStatusEvent(container.containerNumber),
         this.fetchPortOperations(container.containerNumber),
-        this.fetchSeaFreight(container.containerNumber),
         this.fetchTruckingTransport(container.containerNumber),
         this.fetchWarehouseOperation(container.containerNumber),
         this.fetchEmptyReturn(container.containerNumber)
       ]);
 
-    // 处理查询结果
+    // 处理查询结果（SeaFreight 通过 Container.seaFreight 关联加载，process_sea_freight 表无 container_number）
     const orderInfoData = orderInfo.status === 'fulfilled' ? orderInfo.value : null;
     const latestEventData = latestEvent.status === 'fulfilled' ? latestEvent.value : null;
     const portOperationsData = portOperations.status === 'fulfilled' ? portOperations.value : [];
-    const seaFreightData = seaFreight.status === 'fulfilled' ? seaFreight.value : null;
+    let seaFreightData = container.seaFreight ?? null;
+    if (!seaFreightData && (container as any).bill_of_lading_number) {
+      try {
+        seaFreightData = await this.seaFreightRepository.findOne({
+          where: { billOfLadingNumber: (container as any).bill_of_lading_number }
+        }) ?? null;
+      } catch (_) { /* ignore */ }
+    }
     const truckingTransportData = truckingTransport.status === 'fulfilled' ? truckingTransport.value : null;
     const warehouseOperationData = warehouseOperation.status === 'fulfilled' ? warehouseOperation.value : null;
     const emptyReturnData = emptyReturn.status === 'fulfilled' ? emptyReturn.value : null;
@@ -136,6 +163,7 @@ export class ContainerService {
 
     return {
       container,
+      firstOrderNumber,
       orderInfo: orderInfoData,
       latestEvent: latestEventData,
       latestPortOperation: result.latestPortOperation,
@@ -473,6 +501,21 @@ export class ContainerService {
 
   // ==================== 数据查询辅助方法 ====================
 
+  /** 获取货柜下第一个备货单号（biz_containers 无 order_number 字段，通过 biz_replenishment_orders 查） */
+  private async getFirstOrderNumberForContainer(containerNumber: string): Promise<string | null> {
+    try {
+      const order = await this.orderRepository
+        .createQueryBuilder('o')
+        .select('o.orderNumber')
+        .where('o.containerNumber = :containerNumber', { containerNumber })
+        .limit(1)
+        .getOne();
+      return order?.orderNumber ?? null;
+    } catch {
+      return null;
+    }
+  }
+
   private async fetchOrderInfo(orderNumber: string | null): Promise<ReplenishmentOrder | null> {
     if (!orderNumber) return null;
     try {
@@ -509,18 +552,6 @@ export class ContainerService {
     } catch (error) {
       logger.warn(`[fetchPortOperations] Failed for ${containerNumber}:`, error);
       return [];
-    }
-  }
-
-  private async fetchSeaFreight(containerNumber: string): Promise<SeaFreight | null> {
-    try {
-      return await this.seaFreightRepository
-        .createQueryBuilder('sf')
-        .where('sf.containerNumber = :containerNumber', { containerNumber })
-        .getOne();
-    } catch (error) {
-      logger.warn(`[fetchSeaFreight] Failed for ${containerNumber}:`, error);
-      return null;
     }
   }
 

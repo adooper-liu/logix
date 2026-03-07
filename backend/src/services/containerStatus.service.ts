@@ -39,7 +39,7 @@ export class ContainerStatusService {
     try {
       const container = await this.containerRepository.findOne({
         where: { containerNumber },
-        relations: [] // 不加载关联
+        relations: ['seaFreight'] // 需通过关联取海运信息，SeaFreight 表无 container_number
       });
 
       if (!container) {
@@ -47,14 +47,15 @@ export class ContainerStatusService {
         return false;
       }
 
-      // 获取所有相关数据
-      const [portOperations, seaFreight, truckingTransport, warehouseOperation, emptyReturn] =
+      const seaFreight = container.seaFreight ?? null;
+
+      // 获取其余相关数据
+      const [portOperations, truckingTransport, warehouseOperation, emptyReturn] =
         await Promise.all([
           this.portOperationRepository.find({
             where: { containerNumber },
             order: { portSequence: 'ASC' }
           }),
-          this.seaFreightRepository.findOne({ where: { containerNumber } }),
           this.truckingTransportRepository.findOne({ where: { containerNumber } }),
           this.warehouseOperationRepository.findOne({ where: { containerNumber } }),
           this.emptyReturnRepository.findOne({ where: { containerNumber } })
@@ -100,20 +101,21 @@ export class ContainerStatusService {
     try {
       const containers = await this.containerRepository.find({
         take: limit,
-        relations: [] // 明确不加载关联，避免列名问题
+        relations: ['seaFreight'] // 需通过关联取海运信息，SeaFreight 表无 container_number
       });
 
       let updatedCount = 0;
 
       for (const container of containers) {
-        // 获取所有相关数据
-        const [portOperations, seaFreight, truckingTransport, warehouseOperation, emptyReturn] =
+        const seaFreight = container.seaFreight ?? null;
+
+        // 获取其余相关数据
+        const [portOperations, truckingTransport, warehouseOperation, emptyReturn] =
           await Promise.all([
             this.portOperationRepository.find({
               where: { containerNumber: container.containerNumber },
               order: { portSequence: 'ASC' }
             }),
-            this.seaFreightRepository.findOne({ where: { containerNumber: container.containerNumber } }),
             this.truckingTransportRepository.findOne({ where: { containerNumber: container.containerNumber } }),
             this.warehouseOperationRepository.findOne({ where: { containerNumber: container.containerNumber } }),
             this.emptyReturnRepository.findOne({ where: { containerNumber: container.containerNumber } })

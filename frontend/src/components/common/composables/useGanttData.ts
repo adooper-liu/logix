@@ -51,12 +51,22 @@ export const useDateArray = (dateRange: any) => {
   })
 }
 
+/** 统计卡片接口返回的分布数据，用于驱动泳道行数量（与 Shipments 一致） */
+export interface GanttStatisticsData {
+  arrivalDistribution: Record<string, number>
+  pickupDistribution: Record<string, number>
+  lastPickupDistribution: Record<string, number>
+  returnDistribution: Record<string, number>
+}
+
 // 生成时间分组的日期范围
+// statistics: 可选，来自 getStatisticsDetailed；有则行数量用该数据（与 Shipments 卡片一致），圆点仍用 containers
 export const useTimeGroups = (
   containers: ContainerItem[],
   startDate: Date,
   endDate: Date,
-  selectedLane: any
+  selectedLane: any,
+  statistics?: GanttStatisticsData | null
 ) => {
   return computed<TimeGroup[]>(() => {
     const groups: TimeGroup[] = []
@@ -94,13 +104,14 @@ export const useTimeGroups = (
 
         groups.push({
           label: dimension.label,
+          key: dimension.key,
           startDate: groupStartDate,
           endDate: groupEndDate,
           count: 0,
           color: dimension.color
         })
       })
-    } else if (laneName === '按计划提柜') {
+    } else if (laneName === '按提柜计划') {
       PICKUP_DIMENSIONS.forEach(dimension => {
         let groupStartDate: Date = dayjs(startDate).toDate()
         let groupEndDate: Date = dayjs(endDate).toDate()
@@ -124,6 +135,7 @@ export const useTimeGroups = (
 
         groups.push({
           label: dimension.label,
+          key: dimension.key,
           startDate: groupStartDate,
           endDate: groupEndDate,
           count: 0,
@@ -154,6 +166,7 @@ export const useTimeGroups = (
 
         groups.push({
           label: dimension.label,
+          key: dimension.key,
           startDate: groupStartDate,
           endDate: groupEndDate,
           count: 0,
@@ -184,6 +197,7 @@ export const useTimeGroups = (
 
         groups.push({
           label: dimension.label,
+          key: dimension.key,
           startDate: groupStartDate,
           endDate: groupEndDate,
           count: 0,
@@ -192,9 +206,20 @@ export const useTimeGroups = (
       })
     }
 
-    // 动态计算每个时间组的实际数量
+    // 行数量：优先用统计卡片接口数据（与 Shipments 一致），否则用已加载货柜列表前端分组计数
+    const distByLane: Record<string, Record<string, number> | undefined> = {
+      '按到港': statistics?.arrivalDistribution,
+      '按提柜计划': statistics?.pickupDistribution,
+      '按最晚提柜': statistics?.lastPickupDistribution,
+      '按最晚还箱': statistics?.returnDistribution
+    }
+    const distribution = distByLane[laneName]
     groups.forEach(group => {
-      group.count = getGroupContainersSubset(containers, laneName, group.label).length
+      if (distribution && group.key != null) {
+        group.count = distribution[group.key] ?? 0
+      } else {
+        group.count = getGroupContainersSubset(containers, laneName, group.label).length
+      }
     })
 
     return groups

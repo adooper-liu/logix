@@ -401,6 +401,9 @@ export class ImportController {
     const orderData = snakeToCamel(tables.biz_replenishment_orders);
     const containerData = snakeToCamel(tables.biz_containers);
     const seaFreightData = snakeToCamel(tables.process_sea_freight);
+    // Excel 列名为「提单号」时可能以中文键传入，统一取出提单号
+    const getBlNumber = (sf: any) =>
+      sf?.billOfLadingNumber ?? sf?.mblNumber ?? (sf && typeof sf['提单号'] !== 'undefined' && sf['提单号'] !== '' ? sf['提单号'] : null);
     const portData = tables.process_port_operations; // 数组需要单独处理
     const truckingData = snakeToCamel(tables.process_trucking_transport);
     const warehouseData = snakeToCamel(tables.process_warehouse_operations);
@@ -418,8 +421,11 @@ export class ImportController {
       try {
         const resultData: any = {};
 
-        // 1. 创建或更新备货单
+        // 1. 创建或更新备货单（同一行有货柜时，将柜号写入备货单，建立关联）
         if (orderData?.orderNumber) {
+          if (containerData?.containerNumber) {
+            orderData.containerNumber = containerData.containerNumber;
+          }
           logger.info('[Import] 处理备货单:', orderData.orderNumber);
 
           const existingOrder = await queryRunner.manager.findOne(ReplenishmentOrder, {
@@ -436,8 +442,10 @@ export class ImportController {
           resultData.orderNumber = orderData.orderNumber;
         }
 
-        // 2. 创建或更新货柜
+        // 2. 创建或更新货柜（同一行有海运/提单时，将提单号写入货柜，建立关联）
         if (containerData?.containerNumber) {
+          const blNum = getBlNumber(seaFreightData);
+          if (blNum) containerData.billOfLadingNumber = blNum;
           logger.info('[Import] 处理货柜:', containerData.containerNumber);
 
           const existingContainer = await queryRunner.manager.findOne(Container, {
@@ -471,11 +479,20 @@ export class ImportController {
             await queryRunner.manager.save(container);
             logger.info('[Import] 创建货柜成功');
           }
+          if (containerData.billOfLadingNumber) {
+            await queryRunner.manager.query(
+              'UPDATE biz_containers SET bill_of_lading_number = $1 WHERE container_number = $2',
+              [containerData.billOfLadingNumber, containerData.containerNumber]
+            );
+          }
           resultData.containerNumber = containerData.containerNumber;
         }
 
-        // 3. 创建或更新海运信息
-        if (seaFreightData?.containerNumber || seaFreightData?.billOfLadingNumber) {
+        // 3. 创建或更新海运信息（支持字段 billOfLadingNumber、mblNumber、Excel 列名「提单号」）
+        if (seaFreightData?.containerNumber || getBlNumber(seaFreightData)) {
+          if (seaFreightData && !seaFreightData.billOfLadingNumber && seaFreightData['提单号']) {
+            seaFreightData.billOfLadingNumber = seaFreightData['提单号'];
+          }
           logger.info('[Import] 处理海运信息:', seaFreightData);
 
           // 转换船公司名称为代码
@@ -745,6 +762,8 @@ export class ImportController {
       }
       return result;
     };
+    const getBlNumber = (sf: any) =>
+      sf?.billOfLadingNumber ?? sf?.mblNumber ?? (sf && typeof sf['提单号'] !== 'undefined' && sf['提单号'] !== '' ? sf['提单号'] : null);
 
     const results: any[] = [];
     const errors: any[] = [];
@@ -802,8 +821,11 @@ export class ImportController {
 
           const resultData: any = { rowIndex: i + 1 };
 
-          // 1. 创建或更新备货单
+          // 1. 创建或更新备货单（同一行有货柜时，将柜号写入备货单，建立关联）
           if (orderData?.orderNumber) {
+            if (containerData?.containerNumber) {
+              orderData.containerNumber = containerData.containerNumber;
+            }
             logger.info(`[Import] 第${i + 1}行: 创建备货单 - ${orderData.orderNumber}`);
             const existingOrder = await queryRunner.manager.findOne(ReplenishmentOrder, {
               where: { orderNumber: orderData.orderNumber }
@@ -821,8 +843,10 @@ export class ImportController {
             resultData.orderNumber = orderData.orderNumber;
           }
 
-          // 2. 创建或更新货柜
+          // 2. 创建或更新货柜（同一行有海运/提单时，将提单号写入货柜，建立关联；支持 Excel 列名「提单号」）
           if (containerData?.containerNumber) {
+            const blNum = getBlNumber(seaFreightData);
+            if (blNum) containerData.billOfLadingNumber = blNum;
             logger.info(`[Import] 第${i + 1}行: 创建货柜 - ${containerData.containerNumber}`);
             const existingContainer = await queryRunner.manager.findOne(Container, {
               where: { containerNumber: containerData.containerNumber }
@@ -854,11 +878,20 @@ export class ImportController {
               });
               await queryRunner.manager.save(container);
             }
+            if (containerData.billOfLadingNumber) {
+              await queryRunner.manager.query(
+                'UPDATE biz_containers SET bill_of_lading_number = $1 WHERE container_number = $2',
+                [containerData.billOfLadingNumber, containerData.containerNumber]
+              );
+            }
             resultData.containerNumber = containerData.containerNumber;
           }
 
-          // 3. 创建或更新海运信息
-          if (seaFreightData?.containerNumber || seaFreightData?.billOfLadingNumber) {
+          // 3. 创建或更新海运信息（支持 billOfLadingNumber、mblNumber、Excel 列名「提单号」）
+          if (seaFreightData?.containerNumber || getBlNumber(seaFreightData)) {
+            if (seaFreightData && !seaFreightData.billOfLadingNumber && seaFreightData['提单号']) {
+              seaFreightData.billOfLadingNumber = seaFreightData['提单号'];
+            }
             // 转换船公司名称为代码
             if (seaFreightData.shippingCompanyId) {
               seaFreightData.shippingCompanyId = await this.validateShippingCompany(queryRunner, seaFreightData.shippingCompanyId);

@@ -13,6 +13,8 @@ export interface ContainerItem {
 
 export interface TimeGroup {
   label: string
+  /** 与 statistics-detailed 接口的 distribution key 一致，用于用统计 API 驱动行数量 */
+  key?: string
   startDate: Date
   endDate: Date
   count: number

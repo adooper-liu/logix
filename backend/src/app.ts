@@ -48,8 +48,10 @@ io.on('connection', (socket) => {
   });
 });
 
-// 安全中间件
-app.use(helmet());
+// 安全中间件（允许跨域页面读取 API 响应，否则前端 localhost:5173 无法读取后端 3001 的响应体）
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
 
 // CORS 配置
 app.use(cors({

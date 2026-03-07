@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { Container } from '../../entities/Container';
 import { ContainerQueryBuilder } from './common/ContainerQueryBuilder';
 import { DateFilterBuilder } from './common/DateFilterBuilder';
+import { createDateRangeSubQuery } from './common/DateRangeSubquery';
 
 export class StatusDistributionService {
   constructor(private containerRepository: Repository<Container>) {}
@@ -31,27 +32,45 @@ export class StatusDistributionService {
    *
    * 状态机优先级说明：
    * 优先级4: 目的港有ata_dest_port → at_port + current_port_type='destination'
-   * 优先级5: 中转港有ata_dest_port或gate_in_time → at_port + current_port_type='transit'
+   * 优先级5: 中转港有 ata_dest_port / gate_in_time / transit_arrival_date 任一 → at_port + current_port_type='transit'
    * 注意：两个统计都是基于状态机计算结果，受更高优先级状态（还空箱、WMS确认、拖车提柜）的排除
    */
   async getDistribution(startDate?: string, endDate?: string): Promise<Record<string, number>> {
     try {
-      console.log('[StatusDistributionService] Starting getDistribution with dates:', { startDate, endDate });
+      let result: { status?: string; count?: string }[];
 
-      const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
-      query.select('container.logisticsStatus', 'status')
-        .addSelect('COUNT(*)', 'count');
-
-      console.log('[StatusDistributionService] Base query created');
-
-      // 按出运时间筛选
-      const filteredQuery = DateFilterBuilder.addDateFilters(query, startDate, endDate);
-
-      console.log('[StatusDistributionService] Date filters added');
-
-      const result = await filteredQuery.groupBy('container.logisticsStatus').getRawMany();
-
-      console.log('[StatusDistributionService] Query result:', result);
+      if (startDate && endDate) {
+        // 使用子查询：先筛出「出运日期在范围内」的 container_number，再按 logistics_status 统计，避免 join 导致无匹配或重复计数
+        const subQuery = this.containerRepository
+          .createQueryBuilder('c')
+          .select('DISTINCT c.containerNumber', 'cn')
+          .leftJoin('c.replenishmentOrders', 'o')
+          .leftJoin('c.seaFreight', 'sf')
+          .where(
+            '(o.actualShipDate >= :startDate OR (o.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))',
+            { startDate: new Date(startDate) }
+          )
+          .andWhere(
+            '(o.actualShipDate <= :endDate OR (o.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))',
+            { endDate: (() => { const d = new Date(endDate); d.setHours(23, 59, 59, 999); return d; })() }
+          );
+        const mainQuery = this.containerRepository
+          .createQueryBuilder('container')
+          .select('container.logisticsStatus', 'status')
+          .addSelect('COUNT(*)', 'count')
+          .where(`container.containerNumber IN (${subQuery.getQuery()})`)
+          .setParameters(subQuery.getParameters())
+          .groupBy('container.logisticsStatus');
+        result = await mainQuery.getRawMany();
+      } else {
+        // 未传日期时统计全部货柜
+        const query = this.containerRepository
+          .createQueryBuilder('container')
+          .select('container.logisticsStatus', 'status')
+          .addSelect('COUNT(*)', 'count')
+          .groupBy('container.logisticsStatus');
+        result = await query.getRawMany();
+      }
 
     // 转换为对象格式
     const distribution: Record<string, number> = {
@@ -67,7 +86,9 @@ export class StatusDistributionService {
     };
 
     result.forEach((row: any) => {
-      distribution[row.status] = parseInt(row.count);
+      const statusKey = row.status ?? row.STATUS ?? row.logistics_status ?? row.logisticsStatus;
+      const cnt = row.count ?? row.COUNT;
+      if (statusKey != null) distribution[statusKey] = parseInt(String(cnt || '0'), 10);
     });
 
     // 查询有transit类型港口操作记录的货柜数
@@ -135,21 +156,33 @@ export class StatusDistributionService {
             .andWhere('dest_po.ata_dest_port IS NOT NULL')
             .getQuery();
 
-          // 包含优先级5：中转港ATA或gate_in_time
+          // 包含优先级5：中转港有到港/进闸（ata_dest_port、gate_in_time 或 transit_arrival_date）
           const hasTransitArrival = qb.subQuery()
             .select('1')
             .from('process_port_operations', 'transit_po')
             .where('transit_po.container_number = container.container_number')
-            .andWhere('transit_po.port_type = :transitType', { transitType: 'transit' })
-            .andWhere('(transit_po.ata_dest_port IS NOT NULL OR transit_po.gate_in_time IS NOT NULL)')
+            .andWhere('transit_po.port_type = :transitType')
+            .andWhere('(transit_po.ata_dest_port IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)')
             .getQuery();
 
           return `NOT EXISTS ${notEmptyReturn} AND NOT EXISTS ${notWmsConfirmed} AND NOT EXISTS ${notPickedUp} AND NOT EXISTS ${notDestinationAta} AND EXISTS ${hasTransitArrival}`;
         });
 
-      const result = await DateFilterBuilder.addDateFilters(query, startDate, endDate)
-        .getRawOne();
-      return parseInt(result.count || '0');
+      // 子查询中的占位符必须绑定到主查询
+      query.setParameter('transitType', 'transit');
+      query.setParameter('destType', 'destination');
+      query.setParameter('wmsStatus', 'WMS已完成');
+      query.setParameter('ebsStatus', '已入库');
+
+      if (startDate && endDate) {
+        const subQuery = createDateRangeSubQuery(this.containerRepository, startDate, endDate);
+        query.andWhere(`container.containerNumber IN (${subQuery.getQuery()})`).setParameters(subQuery.getParameters());
+      } else {
+        DateFilterBuilder.addDateFilters(query, startDate, endDate);
+      }
+
+      const result = await query.getRawOne();
+      return parseInt(result?.count || '0');
     } catch (error) {
       console.error('[StatusDistributionService] Error in getTransitArrivalCount:', error);
       throw error;
@@ -208,12 +241,110 @@ export class StatusDistributionService {
           return `NOT EXISTS ${notEmptyReturn} AND NOT EXISTS ${notWmsConfirmed} AND NOT EXISTS ${notPickedUp} AND EXISTS ${hasDestinationAta}`;
         });
 
-      const result = await DateFilterBuilder.addDateFilters(query, startDate, endDate)
-        .getRawOne();
-      return parseInt(result.count || '0');
+      query.setParameter('destType', 'destination');
+      query.setParameter('wmsStatus', 'WMS已完成');
+      query.setParameter('ebsStatus', '已入库');
+
+      if (startDate && endDate) {
+        const subQuery = createDateRangeSubQuery(this.containerRepository, startDate, endDate);
+        query.andWhere(`container.containerNumber IN (${subQuery.getQuery()})`).setParameters(subQuery.getParameters());
+      } else {
+        DateFilterBuilder.addDateFilters(query, startDate, endDate);
+      }
+
+      const result = await query.getRawOne();
+      return parseInt(result?.count || '0');
     } catch (error) {
       console.error('[StatusDistributionService] Error in getDestinationArrivalCount:', error);
       throw error;
     }
+  }
+
+  /**
+   * 按状态维度：获取「已到中转港」货柜列表（与 getTransitArrivalCount 同源逻辑）
+   * 条件：无还箱/WMS/提柜/目的港ATA + 有中转港 ata_dest_port / gate_in_time / transit_arrival_date
+   */
+  async getContainersByArrivedAtTransit(startDate?: string, endDate?: string): Promise<Container[]> {
+    const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
+    query.andWhere(qb => {
+      const notEmptyReturn = qb.subQuery()
+        .select('1')
+        .from('process_empty_return', 'er')
+        .where('er.container_number = container.container_number')
+        .andWhere('er.return_time IS NOT NULL')
+        .getQuery();
+      const notWmsConfirmed = qb.subQuery()
+        .select('1')
+        .from('process_warehouse_operations', 'wo')
+        .where('wo.container_number = container.container_number')
+        .andWhere('(wo.wms_status = :wmsStatus OR wo.ebs_status = :ebsStatus OR wo.wms_confirm_date IS NOT NULL)')
+        .getQuery();
+      const notPickedUp = qb.subQuery()
+        .select('1')
+        .from('process_trucking_transport', 'tt')
+        .where('tt.container_number = container.container_number')
+        .andWhere('tt.pickup_date IS NOT NULL')
+        .getQuery();
+      const notDestinationAta = qb.subQuery()
+        .select('1')
+        .from('process_port_operations', 'dest_po')
+        .where('dest_po.container_number = container.container_number')
+        .andWhere('dest_po.port_type = :destType')
+        .andWhere('dest_po.ata_dest_port IS NOT NULL')
+        .getQuery();
+      const hasTransitArrival = qb.subQuery()
+        .select('1')
+        .from('process_port_operations', 'transit_po')
+        .where('transit_po.container_number = container.container_number')
+        .andWhere('transit_po.port_type = :transitType')
+        .andWhere('(transit_po.ata_dest_port IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)')
+        .getQuery();
+      return `NOT EXISTS ${notEmptyReturn} AND NOT EXISTS ${notWmsConfirmed} AND NOT EXISTS ${notPickedUp} AND NOT EXISTS ${notDestinationAta} AND EXISTS ${hasTransitArrival}`;
+    });
+    query.setParameter('transitType', 'transit');
+    query.setParameter('destType', 'destination');
+    query.setParameter('wmsStatus', 'WMS已完成');
+    query.setParameter('ebsStatus', '已入库');
+    return DateFilterBuilder.addDateFilters(query, startDate, endDate).getMany();
+  }
+
+  /**
+   * 按状态维度：获取「已到目的港」货柜列表（与 getDestinationArrivalCount 同源逻辑）
+   * 条件：无还箱/WMS/提柜 + 有目的港 ATA
+   */
+  async getContainersByArrivedAtDestination(startDate?: string, endDate?: string): Promise<Container[]> {
+    const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
+    query.andWhere(qb => {
+      const notEmptyReturn = qb.subQuery()
+        .select('1')
+        .from('process_empty_return', 'er')
+        .where('er.container_number = container.container_number')
+        .andWhere('er.return_time IS NOT NULL')
+        .getQuery();
+      const notWmsConfirmed = qb.subQuery()
+        .select('1')
+        .from('process_warehouse_operations', 'wo')
+        .where('wo.container_number = container.container_number')
+        .andWhere('(wo.wms_status = :wmsStatus OR wo.ebs_status = :ebsStatus OR wo.wms_confirm_date IS NOT NULL)', {
+          wmsStatus: 'WMS已完成',
+          ebsStatus: '已入库'
+        })
+        .getQuery();
+      const notPickedUp = qb.subQuery()
+        .select('1')
+        .from('process_trucking_transport', 'tt')
+        .where('tt.container_number = container.container_number')
+        .andWhere('tt.pickup_date IS NOT NULL')
+        .getQuery();
+      const hasDestinationAta = qb.subQuery()
+        .select('1')
+        .from('process_port_operations', 'dest_po')
+        .where('dest_po.container_number = container.container_number')
+        .andWhere('dest_po.port_type = :destType', { destType: 'destination' })
+        .andWhere('dest_po.ata_dest_port IS NOT NULL')
+        .getQuery();
+      return `NOT EXISTS ${notEmptyReturn} AND NOT EXISTS ${notWmsConfirmed} AND NOT EXISTS ${notPickedUp} AND EXISTS ${hasDestinationAta}`;
+    });
+    return DateFilterBuilder.addDateFilters(query, startDate, endDate).getMany();
   }
 }

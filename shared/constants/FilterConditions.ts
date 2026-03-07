@@ -30,7 +30,7 @@ export const CONDITION_TO_SERVICE_MAP: Record<string, string> = {
   'over7Days': 'eta',
   'otherRecords': 'eta',
 
-  // 按计划提柜维度
+    // 按提柜计划维度
   'overduePlanned': 'plannedPickup',
   'todayPlanned': 'plannedPickup',
   'plannedWithin3Days': 'plannedPickup',

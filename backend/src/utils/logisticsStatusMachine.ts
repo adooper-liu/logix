@@ -279,7 +279,7 @@ export const isWmsConfirmed = (warehouseOperation?: WarehouseOperation): boolean
  * 2. 仓库卸柜（WMS已确认） → unloaded
  * 3. 拖车提柜日期 → picked_up
  * 4. 目的港实际到港（ata_dest_port） → at_port
- * 5. 中转港实际到港（ata_dest_port或gate_in_time） → at_port
+ * 5. 中转港实际到港（ata_dest_port / gate_in_time / transit_arrival_date 任一） → at_port
  * 6. 有海运记录（已实际出运）→ in_transit
  * 7. 默认状态（无出运记录）→ not_shipped
  */
@@ -331,8 +331,10 @@ export const calculateLogisticsStatus = (
     return { status, currentPortType, latestPortOperation };
   }
 
-  // 优先级5: 中转港有ATA（或进闸时间）
-  const transitWithArrival = transitPorts.find(po => po.ataDestPort || po.gateInTime);
+  // 优先级5: 中转港有到港/进闸（ata_dest_port、gate_in_time 或 transit_arrival_date）
+  const transitWithArrival = transitPorts.find(po =>
+    po.ataDestPort || po.gateInTime || (po as any).transitArrivalDate
+  );
   if (transitWithArrival) {
     status = SimplifiedStatus.AT_PORT;
     currentPortType = 'transit';
@@ -343,6 +345,11 @@ export const calculateLogisticsStatus = (
   // 优先级6: 有海运记录（已实际出运）→ 在途
   if (seaFreight?.shipmentDate) {
     status = SimplifiedStatus.IN_TRANSIT;
+    // 在途时仍需展示「预计到港/修正ETA」，取目的港港口操作（按 port_sequence 取最后一条目的港）
+    const destForEta = destPorts.length
+      ? [...destPorts].sort((a, b) => (b.portSequence ?? 0) - (a.portSequence ?? 0))[0]
+      : null;
+    latestPortOperation = destForEta ?? null;
     return { status, currentPortType, latestPortOperation };
   }
 

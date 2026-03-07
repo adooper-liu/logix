@@ -8,7 +8,7 @@ import { Repository } from 'typeorm';
 import { Container } from '../entities/Container';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { TruckingTransport } from '../entities/TruckingTransport';
-import { CONDITION_TO_SERVICE_MAP } from '../../../shared/constants/FilterConditions';
+import { CONDITION_TO_SERVICE_MAP } from '../constants/FilterConditions';
 
 // 子服务导入
 import { StatusDistributionService } from './statistics/StatusDistribution.service';
@@ -79,8 +79,8 @@ export class ContainerStatisticsService {
     startDate?: string,
     endDate?: string
   ): Promise<Record<string, number>> {
-    // 并行获取到港和ETA统计（添加错误捕获以便调试）
-    const [arrivalDist, etaDist] = await Promise.all([
+    // 并行获取到港、ETA、状态分布（预计到港主分组与按状态「在途未到港」对齐）
+    const [arrivalDist, etaDist, statusDist] = await Promise.all([
       this.arrivalStatistics.getDistribution(startDate, endDate).catch(err => {
         console.error('[ContainerStatistics] arrivalStatistics.getDistribution error:', err);
         return {
@@ -100,13 +100,17 @@ export class ContainerStatisticsService {
       this.etaStatistics.getDistribution(startDate, endDate).catch(err => {
         console.error('[ContainerStatistics] etaStatistics.getDistribution error:', err);
         return { overdue: 0, within3Days: 0, within7Days: 0, over7Days: 0, otherRecords: 0, total: 0 };
+      }),
+      this.statusDistribution.getDistribution(startDate, endDate).catch(err => {
+        console.error('[ContainerStatistics] statusDistribution.getDistribution error:', err);
+        return { in_transit: 0 } as Record<string, number>;
       })
     ]);
 
-    // 计算三个分组总数
+    // 三个主分组总数；预计到港 = 按状态「在途中的未到港」in_transit，保证两处一致
     const arrivedAtDestination = (arrivalDist.today || 0) + (arrivalDist.beforeTodayNotPickedUp || 0) + (arrivalDist.beforeTodayPickedUp || 0);
     const arrivedAtTransit = arrivalDist.arrivedAtTransit || 0;
-    const expectedArrival = (etaDist.overdue || 0) + (etaDist.within3Days || 0) + (etaDist.within7Days || 0) + (etaDist.over7Days || 0) + (etaDist.otherRecords || 0);
+    const expectedArrival = Number(statusDist.in_transit) || 0;
 
     return {
       // 三个主分组
@@ -146,7 +150,7 @@ export class ContainerStatisticsService {
   }
 
   /**
-   * 获取按计划提柜分布的统计
+   * 获取按提柜计划分布的统计
    */
   async getPickupDistribution(
     startDate?: string,
@@ -209,6 +213,14 @@ export class ContainerStatisticsService {
       return this.getContainersByInTransitTransit(startDate, endDate);
     }
 
+    // 按状态卡片子维度：已到港 → 已到中转港 / 已到目的港（与 StatusDistribution 子统计同源）
+    if (filterCondition === 'arrived_at_transit') {
+      return this.statusDistribution.getContainersByArrivedAtTransit(startDate, endDate);
+    }
+    if (filterCondition === 'arrived_at_destination') {
+      return this.statusDistribution.getContainersByArrivedAtDestination(startDate, endDate);
+    }
+
     // 检查是否是物流状态筛选
     const validStatuses = ['not_shipped', 'shipped', 'in_transit', 'at_port', 'picked_up', 'unloaded', 'returned_empty'];
     if (validStatuses.includes(filterCondition)) {
@@ -247,7 +259,7 @@ export class ContainerStatisticsService {
 
     // 添加出运时间筛选
     if (startDate || endDate) {
-      query.leftJoin('process_sea_freight', 'sf', 'sf.bill_of_lading_number = container.billOfLadingNumber')
+      query.leftJoin('process_sea_freight', 'sf', 'sf.bill_of_lading_number = container.bill_of_lading_number')
         .leftJoin('biz_replenishment_orders', 'o', 'o.container_number = container.container_number');
 
       if (startDate) {
@@ -308,7 +320,7 @@ export class ContainerStatisticsService {
 
     // 添加出运时间筛选
     if (startDate || endDate) {
-      query.leftJoin('process_sea_freight', 'sf', 'sf.bill_of_lading_number = container.billOfLadingNumber')
+      query.leftJoin('process_sea_freight', 'sf', 'sf.bill_of_lading_number = container.bill_of_lading_number')
         .leftJoin('biz_replenishment_orders', 'o', 'o.container_number = container.container_number');
 
       if (startDate) {
@@ -333,5 +345,17 @@ export class ContainerStatisticsService {
   // 为了兼容旧代码，保留 getYearlyVolume 方法
   async getYearlyVolume(): Promise<any[]> {
     return this.monthlyVolume.getRecentYearsDistribution();
+  }
+
+  /**
+   * 获取异常集装箱统计（逾期/异常状态等）
+   */
+  async getAbnormalDistribution(): Promise<Record<string, number>> {
+    // 可后续接入具体异常维度统计，先返回空结构避免 500
+    return {
+      overdue: 0,
+      abnormal: 0,
+      total: 0
+    };
   }
 }

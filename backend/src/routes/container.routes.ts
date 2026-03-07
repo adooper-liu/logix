@@ -66,6 +66,13 @@ router.get('/by-filter', containerController.getContainersByFilterCondition);
 router.get('/', containerController.getContainers);
 
 /**
+ * @route   GET /:id/list-row
+ * @desc    获取该货柜在列表中的单行数据（与列表 enrich 一致，用于核对前端与数据库）
+ * @access  Public
+ */
+router.get('/:id/list-row', containerController.getContainerListRow);
+
+/**
  * @route   GET /:id
  * @desc    获取货柜详情
  * @access  Public
