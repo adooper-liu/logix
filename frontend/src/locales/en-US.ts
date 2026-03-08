@@ -54,6 +54,7 @@ export default {
     system: 'System',
     containerManagement: 'Container Management',
     excelImport: 'Excel Import',
+    demurrageStandardsImport: 'Demurrage Standards Import',
     systemMonitoring: 'System Monitoring',
     dictMapping: 'Dictionary Mapping',
     settings: 'Settings',

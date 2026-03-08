@@ -83,6 +83,11 @@ const menuGroups = computed(() => [
         meta: { title: t('nav.excelImport'), icon: 'Upload' },
       },
       {
+        path: '/import/demurrage-standards',
+        name: 'DemurrageStandardsImport',
+        meta: { title: t('nav.demurrageStandardsImport'), icon: 'Document' },
+      },
+      {
         path: '/monitoring',
         name: 'Monitoring',
         meta: { title: t('nav.systemMonitoring'), icon: 'DataBoard' },

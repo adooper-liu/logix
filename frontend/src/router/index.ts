@@ -10,6 +10,7 @@ const Shipments = () => import('@/views/shipments/Shipments.vue')
 const GanttChart = () => import('@/views/gantt/GanttChart.vue')
 const ContainerDetail = () => import('@/views/shipments/ContainerDetailRefactored.vue')
 const ExcelImport = () => import('@/views/import/ExcelImport.vue')
+const DemurrageStandardsImport = () => import('@/views/import/DemurrageStandardsImport.vue')
 const Monitoring = () => import('@/views/monitoring/Monitoring.vue')
 const DictMapping = () => import('@/views/system/DictMapping.vue')
 const Settings = () => import('@/views/settings/Settings.vue')
@@ -78,6 +79,16 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: 'Excel数据导入',
           icon: 'Upload',
+          requiresAuth: true
+        }
+      },
+      {
+        path: 'import/demurrage-standards',
+        name: 'DemurrageStandardsImport',
+        component: DemurrageStandardsImport,
+        meta: {
+          title: '滞港费标准导入',
+          icon: 'Document',
           requiresAuth: true
         }
       },

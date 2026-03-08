@@ -28,4 +28,11 @@ router.post('/excel', importController.importExcelData.bind(importController));
  */
 router.post('/excel/batch', importController.importBatchExcelData.bind(importController));
 
+/**
+ * @route   POST /api/v1/import/demurrage-standards
+ * @desc    批量导入滞港费标准
+ * @access  Public
+ */
+router.post('/demurrage-standards', importController.importDemurrageStandards.bind(importController));
+
 export default router;

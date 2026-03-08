@@ -7,5 +7,6 @@
 | 01 | [01-DEMURRAGE_LOGIC_FROM_CONTAINER_SYSTEM.md](./01-DEMURRAGE_LOGIC_FROM_CONTAINER_SYSTEM.md) | 滞港费计算逻辑与定义（来源 container-system）：术语、免费期类型、阶梯费率、标准匹配 |
 | 02 | [02-CONTAINER_SCHEDULING_AND_COST_OPTIMIZATION_PLAN.md](./02-CONTAINER_SCHEDULING_AND_COST_OPTIMIZATION_PLAN.md) | 货柜提柜/送仓/卸柜/还箱调度与费用优化方案：目标、费用口径、last_free_date、排期与优化 |
 | 03 | [03-DEMURRAGE_DATABASE_STATUS.md](./03-DEMURRAGE_DATABASE_STATUS.md) | 数据库滞港费标准设计检查与迁移：主表结构、实体、单独迁移脚本、SQL 校验 |
+| 04 | [04-DEMURRAGE_STANDARDS_EXCEL_IMPORT.md](./04-DEMURRAGE_STANDARDS_EXCEL_IMPORT.md) | 滞港费标准 Excel 导入：字段映射、阶梯转换、free_days 推导、导入方案 |
 
-**关联**：01 为概念与计算口径基础；02 为方案与配置设计（已按 01 对齐）；03 为表结构与迁移落地。
+**关联**：01 为概念与计算口径基础；02 为方案与配置设计（已按 01 对齐）；03 为表结构与迁移落地；04 为 Excel 导入落地。

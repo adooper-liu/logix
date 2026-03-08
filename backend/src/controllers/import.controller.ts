@@ -18,6 +18,7 @@ import { FreightForwarder } from '../entities/FreightForwarder';
 import { Port } from '../entities/Port';
 import { TruckingCompany } from '../entities/TruckingCompany';
 import { CustomsBroker } from '../entities/CustomsBroker';
+import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
 import { Repository } from 'typeorm';
 import { logger } from '../utils/logger';
 
@@ -30,6 +31,7 @@ export class ImportController {
   private warehouseRepository: Repository<WarehouseOperation>;
   private emptyReturnRepository: Repository<EmptyReturn>;
   private containerTypeRepository: Repository<ContainerType>;
+  private demurrageStandardRepository: Repository<ExtDemurrageStandard>;
 
   constructor() {
     this.containerRepository = AppDataSource.getRepository(Container);
@@ -40,6 +42,7 @@ export class ImportController {
     this.warehouseRepository = AppDataSource.getRepository(WarehouseOperation);
     this.emptyReturnRepository = AppDataSource.getRepository(EmptyReturn);
     this.containerTypeRepository = AppDataSource.getRepository(ContainerType);
+    this.demurrageStandardRepository = AppDataSource.getRepository(ExtDemurrageStandard);
   }
 
   /**
@@ -1193,6 +1196,74 @@ export class ImportController {
     });
 
     return result;
+  }
+
+  /**
+   * 批量导入滞港费标准
+   * POST /api/v1/import/demurrage-standards
+   * Body: { records: DemurrageStandardRow[] }
+   */
+  async importDemurrageStandards(req: Request, res: Response): Promise<void> {
+    const { records } = req.body;
+
+    if (!Array.isArray(records) || records.length === 0) {
+      res.status(400).json({
+        success: false,
+        message: '缺少 records 参数或为空数组'
+      });
+      return;
+    }
+
+    let successCount = 0;
+    const errors: { row: number; error: string }[] = [];
+
+    for (let i = 0; i < records.length; i++) {
+      const row = records[i];
+      const rowNum = i + 1;
+
+      try {
+        const entity = this.demurrageStandardRepository.create({
+          foreignCompanyCode: row.foreign_company_code,
+          foreignCompanyName: row.foreign_company_name ?? null,
+          effectiveDate: row.effective_date ? new Date(row.effective_date) : null,
+          expiryDate: row.expiry_date ? new Date(row.expiry_date) : null,
+          destinationPortCode: row.destination_port_code,
+          destinationPortName: row.destination_port_name ?? null,
+          shippingCompanyCode: row.shipping_company_code,
+          shippingCompanyName: row.shipping_company_name ?? null,
+          terminal: row.terminal ?? null,
+          originForwarderCode: row.origin_forwarder_code,
+          originForwarderName: row.origin_forwarder_name ?? null,
+          transportModeCode: row.transport_mode_code ?? null,
+          transportModeName: row.transport_mode_name ?? null,
+          chargeTypeCode: row.charge_type_code ?? null,
+          chargeName: row.charge_name ?? null,
+          isChargeable: row.is_chargeable ?? 'Y',
+          sequenceNumber: row.sequence_number ?? null,
+          portCondition: row.port_condition ?? null,
+          freeDaysBasis: row.free_days_basis ?? '自然日',
+          freeDays: row.free_days ?? 0,
+          calculationBasis: row.calculation_basis ?? '按卸船',
+          ratePerDay: row.rate_per_day ?? null,
+          tiers: row.tiers ?? null,
+          currency: row.currency ?? 'USD',
+          processStatus: row.process_status ?? null
+        });
+
+        await this.demurrageStandardRepository.save(entity);
+        successCount++;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        logger.error(`[Import] 滞港费标准第 ${rowNum} 行导入失败: ${msg}`);
+        errors.push({ row: rowNum, error: msg });
+      }
+    }
+
+    res.json({
+      success: successCount,
+      failed: records.length - successCount,
+      errors: errors.length > 0 ? errors : undefined
+    });
   }
 
   /**

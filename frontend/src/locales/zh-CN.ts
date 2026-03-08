@@ -55,6 +55,7 @@ export default {
     containerManagement: '集装箱管理',
     ganttChart: '货柜甘特图',
     excelImport: 'Excel数据导入',
+    demurrageStandardsImport: '滞港费标准导入',
     systemMonitoring: '系统监控',
     dictMapping: '通用字典映射',
     settings: '系统设置',
