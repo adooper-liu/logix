@@ -598,6 +598,69 @@ CREATE TABLE IF NOT EXISTS ext_container_charges (
 CREATE INDEX idx_charges_container ON ext_container_charges(container_number);
 CREATE INDEX idx_charges_type ON ext_container_charges(charge_type);
 
+-- 23. 滞港费标准表 (ext_demurrage_standards)
+CREATE TABLE IF NOT EXISTS ext_demurrage_standards (
+    id SERIAL PRIMARY KEY,
+    foreign_company_code VARCHAR(50),
+    foreign_company_name VARCHAR(100),
+    effective_date DATE,
+    expiry_date DATE,
+    destination_port_code VARCHAR(50),
+    destination_port_name VARCHAR(100),
+    shipping_company_code VARCHAR(50),
+    shipping_company_name VARCHAR(100),
+    terminal VARCHAR(100),
+    origin_forwarder_code VARCHAR(50),
+    origin_forwarder_name VARCHAR(100),
+    transport_mode_code VARCHAR(20),
+    transport_mode_name VARCHAR(50),
+    charge_type_code VARCHAR(50),
+    charge_name VARCHAR(100),
+    is_chargeable VARCHAR(1) DEFAULT 'N',
+    sequence_number INT,
+    port_condition VARCHAR(20),
+    free_days_basis VARCHAR(20),
+    free_days INT,
+    calculation_basis VARCHAR(20),
+    rate_per_day DECIMAL(12,2),
+    tiers JSONB,
+    currency VARCHAR(10) DEFAULT 'USD',
+    process_status VARCHAR(20),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_demurrage_std_port ON ext_demurrage_standards(destination_port_code);
+CREATE INDEX idx_demurrage_std_company ON ext_demurrage_standards(shipping_company_code);
+CREATE INDEX idx_demurrage_std_effective ON ext_demurrage_standards(effective_date, expiry_date);
+
+-- 24. 滞港费记录表 (ext_demurrage_records)
+CREATE TABLE IF NOT EXISTS ext_demurrage_records (
+    id SERIAL PRIMARY KEY,
+    container_number VARCHAR(50) NOT NULL,
+    charge_type VARCHAR(50),
+    charge_name VARCHAR(100),
+    free_days INT,
+    free_days_basis VARCHAR(20),
+    calculation_basis VARCHAR(20),
+    charge_start_date DATE,
+    charge_end_date DATE,
+    charge_days INT,
+    charge_amount DECIMAL(12,2),
+    currency VARCHAR(10) DEFAULT 'USD',
+    charge_status VARCHAR(20),
+    invoice_number VARCHAR(50),
+    invoice_date DATE,
+    payment_date DATE,
+    remarks TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (container_number) REFERENCES biz_containers(container_number) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_demurrage_rec_container ON ext_demurrage_records(container_number);
+CREATE INDEX idx_demurrage_rec_status ON ext_demurrage_records(charge_status);
+
 \echo '数据库表创建完成'
 \echo 'All tables created successfully'
 \echo ''

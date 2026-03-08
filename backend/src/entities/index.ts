@@ -35,3 +35,5 @@ export { ContainerStatusEvent } from './ContainerStatusEvent';
 export { ContainerLoadingRecord } from './ContainerLoadingRecord';
 export { ContainerHoldRecord } from './ContainerHoldRecord';
 export { ContainerCharge } from './ContainerCharge';
+export { ExtDemurrageStandard } from './ExtDemurrageStandard';
+export { ExtDemurrageRecord } from './ExtDemurrageRecord';

@@ -6,24 +6,19 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// 根据环境加载不同的env文件
+// 以 start-logix-dev.ps1 为准：脚本用根目录 .env + docker-compose.timescaledb.prod.yml 起库，后端 npm run dev 在主机跑
+// 先加载根目录 .env（DB_USERNAME/DB_PASSWORD/DB_DATABASE 与容器一致），再加载 backend 的 .env.dev（仅覆盖 DB_HOST=localhost 等）
 const env = process.env.NODE_ENV || 'development';
 const envFile = env === 'production' ? '.env' : '.env.dev';
 
-// 加载环境变量（优先从backend目录加载）
-dotenv.config({
-  path: path.resolve(process.cwd(), envFile)
-});
-
-// 如果找不到开发环境配置，尝试根目录的.env
 if (env !== 'production') {
   const rootEnvPath = path.resolve(process.cwd(), '../.env');
-  try {
-    dotenv.config({ path: rootEnvPath });
-  } catch {
-    // 忽略根目录.env可能不存在的情况
-  }
+  dotenv.config({ path: rootEnvPath });
 }
+dotenv.config({
+  path: path.resolve(process.cwd(), envFile),
+  override: true
+});
 
 export const config = {
   // 应用配置

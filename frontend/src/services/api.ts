@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios'
 import { ElMessage } from 'element-plus'
+import { useAppStore } from '@/store/app'
 
 // 创建axios实例
 const apiClient: AxiosInstance = axios.create({
@@ -13,10 +14,13 @@ const apiClient: AxiosInstance = axios.create({
 // 请求拦截器
 apiClient.interceptors.request.use(
   (config) => {
-    // 添加认证token
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
+    }
+    const appStore = useAppStore()
+    if (appStore.scopedCountryCode) {
+      config.headers['X-Country-Code'] = appStore.scopedCountryCode
     }
     return config
   },

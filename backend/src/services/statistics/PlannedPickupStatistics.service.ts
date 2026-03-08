@@ -46,7 +46,6 @@ export class PlannedPickupStatisticsService {
     const threeDaysLaterStr = threeDaysLater.toISOString().split('T')[0];
     const sevenDaysLaterStr = sevenDaysLater.toISOString().split('T')[0];
 
-    // 并行执行所有查询
     const [overduePlanned, todayPlanned, within3Days, within7Days, pendingArrangement] =
       await Promise.all([
         this.getOverduePlanned(todayStr, startDate, endDate),

@@ -17,9 +17,10 @@ import dayjs from 'dayjs'
 const router = useRouter()
 const loading = ref(false)
 
+// 顶部时间窗口默认为本年
 const dateRange = ref<[Date, Date]>([
-  dayjs().subtract(90, 'day').startOf('day').toDate(),
-  dayjs().endOf('day').toDate()
+  dayjs().startOf('year').toDate(),
+  dayjs().endOf('year').toDate()
 ])
 
 const stats = ref({
@@ -50,70 +51,94 @@ const statusData = ref<Record<string, number>>({
 })
 const yearlyData = ref<any[]>([])
 
+// 与 Shipments 页一致：仅用 getStatisticsDetailed，同一出运日期范围、同一口径
+const MAIN_STATUS_KEYS = [
+  'not_shipped',
+  'shipped',
+  'in_transit',
+  'at_port',
+  'picked_up',
+  'unloaded',
+  'returned_empty'
+] as const
+
 const loadData = async () => {
   loading.value = true
   try {
     const startDate = dayjs(dateRange.value[0]).format('YYYY-MM-DD')
     const endDate = dayjs(dateRange.value[1]).format('YYYY-MM-DD')
 
-    const [verifyResponse, statusResponse, yearlyResponse] = await Promise.all([
-      containerService.getStatisticsVerification(startDate, endDate),
+    const [statusResponse, yearlyResponse] = await Promise.all([
       containerService.getStatisticsDetailed(startDate, endDate),
       containerService.getYearlyShipmentVolume() // 年度出运量不受时间范围影响
     ])
 
-    if (verifyResponse.success && verifyResponse.data) {
-      const data = verifyResponse.data
-      stats.value = {
-        totalContainers: data.totalContainers,
-        activeContainers: data.totalInTransit,
-        completedContainers: 0,
-        alertContainers: 0,
-      }
-    }
-
     if (statusResponse.success && statusResponse.data) {
       const dist = statusResponse.data.statusDistribution
-      // 合并默认值和实际数据，确保即使部分字段缺失也有默认值
-      statusData.value = {
-        not_shipped: dist.not_shipped || 0,
-        shipped: dist.shipped || 0,
-        in_transit: dist.in_transit || 0,
-        arrived_at_transit: dist.arrived_at_transit || 0,
-        at_port: dist.at_port || 0,
-        picked_up: dist.picked_up || 0,
-        unloaded: dist.unloaded || 0,
-        returned_empty: dist.returned_empty || 0
+      if (statusResponse.dateFilterFallback) {
+        ElMessage.info('所选日期范围内无出运记录，统计已显示全部货柜')
       }
-      stats.value.completedContainers = dist.returned_empty || 0
 
-      const arrivalDist = statusResponse.data.arrivalDistribution
-      const lastPickupDist = statusResponse.data.lastPickupDistribution
-      const returnDist = statusResponse.data.returnDistribution
-      const pickupDist = statusResponse.data.pickupDistribution
+      // 总柜数：与 Shipments/statistics-verify 一致，仅 7 个主状态之和（不含 arrived_at_transit/arrived_at_destination 子维度）
+      const totalContainers = MAIN_STATUS_KEYS.reduce(
+        (sum, key) => sum + (dist[key] ?? 0),
+        0
+      )
+      // 在途货柜 = 未到港 + 已到中转港（与桑基图/按状态口径一致）
+      const activeContainers =
+        (dist.shipped ?? 0) + (dist.in_transit ?? 0) + (dist.arrived_at_transit ?? 0)
+
+      statusData.value = {
+        not_shipped: dist.not_shipped ?? 0,
+        shipped: dist.shipped ?? 0,
+        in_transit: dist.in_transit ?? 0,
+        arrived_at_transit: dist.arrived_at_transit ?? 0,
+        arrived_at_destination: dist.arrived_at_destination ?? 0,
+        at_port: dist.at_port ?? 0,
+        picked_up: dist.picked_up ?? 0,
+        unloaded: dist.unloaded ?? 0,
+        returned_empty: dist.returned_empty ?? 0
+      }
+
+      const arrivalDist = statusResponse.data.arrivalDistribution ?? {}
+      const lastPickupDist = statusResponse.data.lastPickupDistribution ?? {}
+      const returnDist = statusResponse.data.returnDistribution ?? {}
+      const pickupDist = statusResponse.data.pickupDistribution ?? {}
 
       alertDetails.value = {
-        etaOverdue: arrivalDist?.overdue || 0,
-        lastPickupOverdue: lastPickupDist?.expired || 0,
-        lastReturnOverdue: returnDist?.expired || 0,
-        plannedPickupOverdue: pickupDist?.overdue || 0,
+        etaOverdue: arrivalDist.overdue ?? 0,
+        lastPickupOverdue: lastPickupDist.expired ?? 0,
+        lastReturnOverdue: returnDist.expired ?? 0,
+        plannedPickupOverdue: pickupDist.overdue ?? 0
       }
 
-      stats.value.alertContainers =
-        alertDetails.value.etaOverdue +
-        alertDetails.value.lastPickupOverdue +
-        alertDetails.value.lastReturnOverdue +
-        alertDetails.value.plannedPickupOverdue
+      stats.value = {
+        totalContainers,
+        activeContainers,
+        completedContainers: dist.returned_empty ?? 0,
+        alertContainers:
+          alertDetails.value.etaOverdue +
+          alertDetails.value.lastPickupOverdue +
+          alertDetails.value.lastReturnOverdue +
+          alertDetails.value.plannedPickupOverdue
+      }
 
       statusDistribution.value = [
-        { name: '已出运', value: dist.shipped || 0, color: '#409eff' },
-        { name: '在途', value: dist.in_transit || 0, color: '#e6a23c' },
-        { name: '已到中转港', value: dist.arrived_at_transit || 0, color: '#909399' },
-        { name: '已到目的港', value: dist.at_port || 0, color: '#67c23a' },
-        { name: '已提柜', value: dist.picked_up || 0, color: '#f39c12' },
-        { name: '已卸柜', value: dist.unloaded || 0, color: '#3498db' },
-        { name: '已还箱', value: dist.returned_empty || 0, color: '#95a5a6' },
+        { name: '已出运', value: dist.shipped ?? 0, color: '#409eff' },
+        { name: '在途', value: dist.in_transit ?? 0, color: '#e6a23c' },
+        { name: '已到中转港', value: dist.arrived_at_transit ?? 0, color: '#909399' },
+        { name: '已到目的港', value: dist.at_port ?? 0, color: '#67c23a' },
+        { name: '已提柜', value: dist.picked_up ?? 0, color: '#f39c12' },
+        { name: '已卸柜', value: dist.unloaded ?? 0, color: '#3498db' },
+        { name: '已还箱', value: dist.returned_empty ?? 0, color: '#95a5a6' }
       ]
+    } else {
+      stats.value = {
+        totalContainers: 0,
+        activeContainers: 0,
+        completedContainers: 0,
+        alertContainers: 0
+      }
     }
 
     if (yearlyResponse.success && yearlyResponse.data) {
@@ -187,14 +212,14 @@ onMounted(() => {
       <StatsCard
         type="active"
         :value="stats.activeContainers"
-        label="在途集装箱"
+        label="在途货柜"
         @click="goToShipments"
       />
 
       <StatsCard
         type="alert"
         :value="stats.alertContainers"
-        label="异常集装箱"
+        label="逾期货柜"
         :alert-details="alertDetails"
         @click="goToShipments"
       />

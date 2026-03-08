@@ -3,61 +3,76 @@ import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Setting, Connection, Notification } from '@element-plus/icons-vue'
 
-// 系统配置
-const systemConfig = ref({
-  // API配置
+// 默认配置（用于重置）
+const defaultConfig = {
   api: {
     baseUrl: 'http://localhost:3001/api/v1',
     timeout: 10000,
     retryAttempts: 3
   },
-  
-  // 适配器配置
   adapters: {
     defaultSource: 'logistics_path',
     healthCheckInterval: 60000,
     enableAutoFailover: true
   },
-  
-  // 通知配置
   notifications: {
     emailEnabled: true,
     webhookEnabled: true,
     alertThreshold: 80
   }
-})
-
-// 表单验证
-const formRules = {
-  'api.baseUrl': [
-    { required: true, message: '请输入API基础URL', trigger: 'blur' },
-    { type: 'url', message: '请输入有效的URL', trigger: 'blur' }
-  ],
-  'api.timeout': [
-    { required: true, message: '请输入超时时间', trigger: 'blur' },
-    { type: 'number', message: '请输入数字', trigger: 'blur' }
-  ]
 }
 
+// 系统配置
+const systemConfig = ref({ ...JSON.parse(JSON.stringify(defaultConfig)) })
+
 // 保存配置
-const saveConfig = () => {
+const saveConfig = async () => {
+  const url = systemConfig.value.api?.baseUrl?.trim()
+  if (!url) {
+    ElMessage.warning('请输入 API 基础 URL')
+    return
+  }
+  try {
+    new URL(url)
+  } catch {
+    ElMessage.warning('请输入有效的 URL（如 http://localhost:3001/api/v1）')
+    return
+  }
+  const timeout = systemConfig.value.api?.timeout
+  if (timeout == null || timeout < 1000 || timeout > 30000) {
+    ElMessage.warning('请求超时时间需在 1000～30000 ms 之间')
+    return
+  }
   ElMessage.success('配置保存成功')
-  // 这里应该调用API保存配置
+  // 实际持久化需对接后端或 localStorage
 }
 
 // 重置配置
 const resetConfig = () => {
-  ElMessage.info('配置已重置为默认值')
-  // 这里应该重置为默认配置
+  systemConfig.value = JSON.parse(JSON.stringify(defaultConfig))
+  ElMessage.info('已重置为默认值')
 }
 
 // 测试连接
 const testConnection = async () => {
+  const baseUrl = systemConfig.value.api?.baseUrl?.trim()
+  if (!baseUrl) {
+    ElMessage.warning('请先填写 API 基础 URL')
+    return
+  }
   ElMessage.info('正在测试连接...')
-  // 这里应该调用测试连接API
-  setTimeout(() => {
-    ElMessage.success('连接测试成功')
-  }, 1500)
+  try {
+    // 后端 /health 在根路径，不在 /api/v1 下
+    const origin = baseUrl.replace(/\/api\/v1\/?$/, '').replace(/\/$/, '') || baseUrl
+    const res = await fetch(`${origin}/health`, { method: 'GET' })
+    if (res.ok) {
+      ElMessage.success('连接测试成功')
+    } else {
+      ElMessage.warning(`连接返回状态 ${res.status}`)
+    }
+  } catch (e: any) {
+    ElMessage.error('连接失败：' + (e?.message || '网络错误'))
+  }
 }
 </script>
 
@@ -68,6 +83,53 @@ const testConnection = async () => {
       <h2>系统设置</h2>
       <p>配置系统参数和连接设置</p>
     </div>
+
+    <!-- 帮助说明与应用场景 -->
+    <el-collapse class="help-collapse">
+      <el-collapse-item name="help">
+        <template #title>
+          <span class="help-title">
+            <span class="help-icon">📖</span>
+            帮助说明与应用场景
+          </span>
+        </template>
+        <div class="help-content">
+          <section class="help-section">
+            <h4>一、帮助说明</h4>
+            <ul class="help-desc-list">
+              <li><strong>API 配置</strong>：前端请求后端的基地址（如开发环境 http://localhost:3001/api/v1）、请求超时时间与失败重试次数。修改后需「保存配置」；「测试连接」会请求该地址下的 /health 检查是否可达。</li>
+              <li><strong>适配器配置</strong>：默认数据源可选「物流路径微服务」或「飞驼API」，用于物流状态等数据的拉取来源；健康检查间隔与「启用自动故障转移」用于在主源不可用时切换备用源。</li>
+              <li><strong>通知配置</strong>：邮件通知、Webhook 开关及告警阈值（百分比），用于系统告警与通知策略；实际生效需后端或第三方服务支持。</li>
+            </ul>
+          </section>
+          <section class="help-section">
+            <h4>二、应用场景示例</h4>
+            <div class="help-scenarios">
+              <div class="scenario-item">
+                <span class="scenario-label">场景 1：本地开发</span>
+                <p>API 基础 URL 填 <code>http://localhost:3001/api/v1</code>，超时 10000 ms，用「测试连接」确认后端已启动且 /health 正常。</p>
+              </div>
+              <div class="scenario-item">
+                <span class="scenario-label">场景 2：生产/预发环境</span>
+                <p>将 API 基础 URL 改为生产或预发域名（如 <code>https://api.yourcompany.com/api/v1</code>），适当提高超时与重试次数，保存后刷新页面使请求走新地址。</p>
+              </div>
+              <div class="scenario-item">
+                <span class="scenario-label">场景 3：优先使用飞驼数据</span>
+                <p>默认数据源选「飞驼API」，系统会优先从飞驼拉取状态；若飞驼不可用且开启「自动故障转移」，将自动切回「物流路径微服务」。</p>
+              </div>
+              <div class="scenario-item">
+                <span class="scenario-label">场景 4：降低健康检查频率</span>
+                <p>将健康检查间隔调大（如 120000 ms），可减少对数据源的心跳请求，适合对实时性要求不高的环境。</p>
+              </div>
+              <div class="scenario-item">
+                <span class="scenario-label">场景 5：告警与通知</span>
+                <p>开启「启用邮件通知」或「启用 Webhook」，并设置告警阈值（如 80%）；当触发条件时由后端或集成服务发送告警（需后端实现）。</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </el-collapse-item>
+    </el-collapse>
 
     <div class="settings-grid">
       <!-- API配置 -->
@@ -190,17 +252,115 @@ const testConnection = async () => {
 }
 
 .page-header {
-  margin-bottom: 30px;
-  
+  margin-bottom: 24px;
+
   h2 {
     font-size: 24px;
     color: $text-primary;
     margin-bottom: 10px;
   }
-  
+
   p {
     color: $text-secondary;
     font-size: 14px;
+  }
+}
+
+.help-collapse {
+  margin-bottom: 24px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  :deep(.el-collapse-item__header) {
+    padding: 12px 16px;
+    font-size: 15px;
+    background: #f8f9fa;
+  }
+
+  :deep(.el-collapse-item__wrap) {
+    border-bottom: none;
+  }
+
+  :deep(.el-collapse-item__content) {
+    padding: 0;
+  }
+}
+
+.help-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .help-icon {
+    font-size: 18px;
+  }
+}
+
+.help-content {
+  padding: 20px 24px;
+  background: #fff;
+  color: #333;
+}
+
+.help-section {
+  margin-bottom: 20px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  h4 {
+    margin: 0 0 12px 0;
+    font-size: 15px;
+    color: $text-primary;
+  }
+}
+
+.help-desc-list {
+  margin: 0 0 16px 0;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: $text-secondary;
+
+  li {
+    margin-bottom: 8px;
+  }
+}
+
+.help-scenarios {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.scenario-item {
+  padding: 12px 14px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #409eff;
+
+  .scenario-label {
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+    color: $text-primary;
+    margin-bottom: 6px;
+  }
+
+  p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: $text-secondary;
+  }
+
+  code {
+    padding: 2px 6px;
+    background: #e8e8e8;
+    border-radius: 4px;
+    font-size: 12px;
   }
 }
 

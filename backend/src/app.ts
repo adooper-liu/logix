@@ -14,6 +14,7 @@ import { config } from './config/index.js';
 import { log } from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
 import { apiRateLimit } from './middleware/rateLimit.middleware.js';
+import { scopedCountryMiddleware } from './middleware/scopedCountry.middleware.js';
 import routes from './routes/index.js';
 import monitoringRoutes from './routes/monitoring.routes.js';
 
@@ -73,6 +74,9 @@ if (config.nodeEnv !== 'test') {
 
 // 速率限制
 app.use(apiRateLimit);
+
+// 全局国家过滤：从 X-Country-Code 写入请求上下文，供查询层统一施加过滤（与帐号权限对接时在此扩展）
+app.use(scopedCountryMiddleware);
 
 // 请求日志
 app.use((req: Request, _res: Response, next) => {

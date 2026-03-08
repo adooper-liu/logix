@@ -13,6 +13,7 @@ import type {
 } from '@/types/container';
 import type { PaginationParams } from '@/types';
 import { camelToSnake } from '@/utils/camelToSnake';
+import { useAppStore } from '@/store/app';
 
 class ContainerService {
   private api: AxiosInstance;
@@ -29,6 +30,10 @@ class ContainerService {
         const token = localStorage.getItem('token');
         if (token) {
           config.headers.Authorization = `Bearer ${token}`;
+        }
+        const appStore = useAppStore();
+        if (appStore.scopedCountryCode) {
+          config.headers['X-Country-Code'] = appStore.scopedCountryCode;
         }
         return config;
       },
@@ -193,6 +198,15 @@ class ContainerService {
     };
   }> {
     const response = await this.api.get('/containers/statistics-abnormal');
+    return response.data;
+  }
+
+  /**
+   * 获取国别字典列表（用于全局国家选择器等）
+   * Get country list from dict_countries
+   */
+  async getCountries(): Promise<{ success: boolean; data: Array<{ code: string; nameCn: string; nameEn: string }> }> {
+    const response = await this.api.get('/countries');
     return response.data;
   }
 

@@ -28,14 +28,16 @@ export class ReplenishmentOrder {
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'container_number' })
   containerNumber!: string; // 关联的集装箱号（一个货柜可以有多个备货单）
 
+  /** 销往国家，与 biz_customers.country 同源（通过 customer_code 关联客户），为冗余/快照字段 */
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'sell_to_country' })
   sellToCountry!: string;
 
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'customer_code' })
-  customerCode!: string; // 客户编码
+  customerCode!: string; // 客户编码，外键关联 biz_customers.customer_code
 
+  /** 客户名称，与 biz_customers.customer_name 同源，冗余便于查询与展示 */
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'customer_name' })
-  customerName!: string; // 客户名称（冗余字段，便于查询）
+  customerName!: string;
 
   @Column({
     type: 'varchar',

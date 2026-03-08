@@ -33,6 +33,8 @@ export default {
     total: 'Total {count} items',
     page: 'Page {current}/{total}',
     perPage: '{count} items per page',
+    allCountries: 'All countries',
+    countryFilter: 'Country filter',
     operation: 'Operation',
     remark: 'Remark',
     createTime: 'Create Time',

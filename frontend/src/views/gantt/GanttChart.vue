@@ -18,11 +18,11 @@ const statisticsFromApi = ref<{
   returnDistribution: Record<string, number>
 } | null>(null)
 
-// 与 Shipments 页一致：按出运日期范围加载，默认「过去 90 天～今天」
+// 甘特图默认时间窗口：本年（1 月 1 日～12 月 31 日）
 function getDefaultDateRange(): [Date, Date] {
   return [
-    dayjs().subtract(90, 'day').startOf('day').toDate(),
-    dayjs().endOf('day').toDate()
+    dayjs().startOf('year').toDate(),
+    dayjs().endOf('year').toDate()
   ]
 }
 
@@ -42,8 +42,8 @@ function getInitialDateRange(): [Date, Date] {
 // 加载数据的日期范围（出运日期，与 GET /containers 的 startDate/endDate 一致）
 const loadDataDateRange = ref<[Date, Date]>(getInitialDateRange())
 
-// 显示范围（初始为空，加载后会自动设置）
-const displayRange = ref<[Date, Date] | null>(null)
+// 顶部时间窗口（默认与 loadDataDateRange 一致，进入页面默认为本年）
+const displayRange = ref<[Date, Date]>(getInitialDateRange())
 
 // 从货柜中提取指定泳道的日期范围
 // dimension: 'arrival' | 'pickup' | 'lastPickup' | 'return'
@@ -229,6 +229,12 @@ const handleDateChange = async (value: [Date, Date] | null) => {
   }
 }
 
+// 按当前显示范围重新加载数据（将 displayRange 同步为 loadDataDateRange 并请求）
+const reloadWithDisplayRange = () => {
+  loadDataDateRange.value = [displayRange.value[0], displayRange.value[1]]
+  loadData()
+}
+
 // 处理泳道变化，更新显示范围
 const handleLaneChange = (dimension: string) => {
   const range = calculateDisplayRange(containers.value, dimension)
@@ -264,12 +270,21 @@ onMounted(() => {
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
-        <h2>货柜时间分布甘特图</h2>
-        <p class="subtitle">可视化展示货柜在不同时间节点的分布情况</p>
+        <div class="header-title-row">
+          <span class="header-icon">📊</span>
+          <div>
+            <h2>货柜时间分布甘特图</h2>
+            <p class="subtitle">按到港 / 提柜计划 / 最晚提柜 / 最晚还箱 多维度可视化</p>
+          </div>
+        </div>
+        <div class="header-meta">
+          <router-link to="/shipments" class="back-link">← 返回发运看板</router-link>
+        </div>
       </div>
       <div class="header-actions">
         <DateRangePicker v-model="displayRange" @update:modelValue="handleDateChange" />
-        <el-button type="primary" @click="loadData" :loading="loading"> 刷新数据 </el-button>
+        <el-button @click="reloadWithDisplayRange" :loading="loading">按当前范围加载</el-button>
+        <el-button type="primary" @click="loadData" :loading="loading">刷新数据</el-button>
       </div>
     </div>
 
@@ -407,20 +422,23 @@ onMounted(() => {
           @laneChange="handleLaneChange"
         />
         <div v-else class="no-data">
-          <el-empty description="暂无数据" />
+          <el-empty description="暂无货柜数据，请选择日期范围后点击「刷新数据」或「按当前范围加载」" />
         </div>
       </el-card>
     </div>
 
-    <!-- 使用说明 -->
-    <div class="info-section">
-      <el-card>
-        <template #header>
-          <h3>使用说明</h3>
+    <!-- 使用说明与图例（可折叠） -->
+    <el-collapse class="info-collapse">
+      <el-collapse-item name="help">
+        <template #title>
+          <span class="info-collapse-title">
+            <span class="info-collapse-icon">📖</span>
+            使用说明与图例
+          </span>
         </template>
         <div class="info-content">
           <div class="info-item">
-            <h4>泳道说明：</h4>
+            <h4>泳道说明</h4>
             <ul>
               <li><strong>按到港（到港时间分布）：</strong>显示货柜实际到港日期和预计到港日期</li>
               <li><strong>按提柜计划（提柜计划分布）：</strong>显示货柜提柜计划日期</li>
@@ -429,40 +447,26 @@ onMounted(() => {
             </ul>
           </div>
           <div class="info-item">
-            <h4>颜色说明：</h4>
+            <h4>颜色与预警</h4>
             <ul>
-              <li>
-                <span class="color-dot" style="background-color: #67c23a"></span> 绿色：按到港
-              </li>
-              <li>
-                <span class="color-dot" style="background-color: #e6a23c"></span> 橙色：按提柜计划
-              </li>
-              <li>
-                <span class="color-dot" style="background-color: #f56c6c"></span> 红色：按最晚提柜
-              </li>
-              <li>
-                <span class="color-dot" style="background-color: #909399"></span> 灰色：按最晚还箱
-              </li>
+              <li><span class="color-dot" style="background-color: #67c23a"></span> 绿色：按到港</li>
+              <li><span class="color-dot" style="background-color: #e6a23c"></span> 橙色：按提柜计划</li>
+              <li><span class="color-dot" style="background-color: #f56c6c"></span> 红色：按最晚提柜</li>
+              <li><span class="color-dot" style="background-color: #909399"></span> 灰色：按最晚还箱</li>
+              <li><span class="warning-dot overdue"></span> 已逾期 · <span class="warning-dot urgent"></span> 即将到期（3 天内）</li>
             </ul>
           </div>
           <div class="info-item">
-            <h4>预警状态：</h4>
+            <h4>操作提示</h4>
             <ul>
-              <li><span class="warning-dot overdue"></span> 已逾期：日期已过，显示红色并闪烁</li>
-              <li><span class="warning-dot urgent"></span> 即将到期：3天内到期，显示橙色并闪烁</li>
-            </ul>
-          </div>
-          <div class="info-item">
-            <h4>操作提示：</h4>
-            <ul>
-              <li>鼠标悬停在圆点上可查看货柜详细信息</li>
-              <li>选择不同日期范围可查看对应时间段的数据</li>
-              <li>周末日期背景会高亮显示</li>
+              <li>悬停圆点可查看柜号、日期、状态、目的港</li>
+              <li>顶部选择日期范围后点「刷新数据」按出运日期加载；点「按当前范围加载」以当前显示区间重新拉数</li>
+              <li>周末列浅红背景，今日列浅蓝高亮</li>
             </ul>
           </div>
         </div>
-      </el-card>
-    </div>
+      </el-collapse-item>
+    </el-collapse>
   </div>
 </template>
 
@@ -609,20 +613,49 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 20px;
+  gap: 24px;
+  padding: 20px 24px;
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 
   .header-left {
-    h2 {
-      margin: 0 0 8px 0;
-      font-size: 24px;
-      color: $text-primary;
-      font-weight: 600;
+    .header-title-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+
+      .header-icon {
+        font-size: 32px;
+        line-height: 1;
+      }
+
+      h2 {
+        margin: 0 0 6px 0;
+        font-size: 22px;
+        color: $text-primary;
+        font-weight: 700;
+      }
+
+      .subtitle {
+        margin: 0;
+        font-size: 13px;
+        color: $text-secondary;
+      }
     }
 
-    .subtitle {
-      margin: 0;
-      font-size: 14px;
-      color: $text-secondary;
+    .header-meta {
+      margin-top: 12px;
+
+      .back-link {
+        font-size: 13px;
+        color: $primary-color;
+        text-decoration: none;
+
+        &:hover {
+          text-decoration: underline;
+        }
+      }
     }
   }
 
@@ -630,90 +663,88 @@ onMounted(() => {
     display: flex;
     gap: 12px;
     align-items: center;
+    flex-wrap: wrap;
   }
 }
 
 .stats-bar {
   display: flex;
   align-items: center;
-  gap: 24px;
-  padding: 20px 24px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.25);
+  gap: 12px;
+  padding: 10px 16px;
+  background: #f5f6f8;
+  border: 1px solid #e8e9eb;
+  border-radius: 10px;
 
   .stat-item {
     display: flex;
     align-items: center;
-    gap: 16px;
-    padding: 8px 16px;
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 12px;
-    backdrop-filter: blur(10px);
-    transition: all 0.3s ease;
+    gap: 10px;
+    padding: 6px 12px;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #ebecee;
+    transition: background 0.2s ease;
 
     &:hover {
-      background: rgba(255, 255, 255, 0.25);
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      background: #fafbfc;
     }
 
     .stat-icon {
-      width: 40px;
-      height: 40px;
+      width: 28px;
+      height: 28px;
       display: flex;
       align-items: center;
       justify-content: center;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 10px;
-      color: white;
-      font-size: 20px;
+      background: #eef0f2;
+      border-radius: 6px;
+      color: $text-secondary;
       flex-shrink: 0;
-      transition: all 0.3s ease;
 
       svg {
-        width: 22px;
-        height: 22px;
+        width: 16px;
+        height: 16px;
       }
 
       &.display-icon {
-        background: rgba(102, 234, 204, 0.3);
+        background: #e8f4fc;
+        color: $primary-color;
       }
 
       &.load-icon {
-        background: rgba(255, 206, 86, 0.3);
+        background: #fef5e8;
+        color: #e6a23c;
       }
 
       &.days-icon {
-        background: rgba(237, 100, 166, 0.3);
+        background: #f0e8f5;
+        color: #909399;
       }
     }
 
     .stat-content {
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      gap: 0;
 
       .stat-label {
-        font-size: 12px;
-        color: rgba(255, 255, 255, 0.85);
+        font-size: 11px;
+        color: $text-secondary;
         font-weight: 500;
-        letter-spacing: 0.5px;
       }
 
       .stat-value {
-        font-size: 18px;
-        font-weight: 700;
-        color: white;
-        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        font-size: 14px;
+        font-weight: 600;
+        color: $text-primary;
       }
     }
   }
 
   .stat-divider {
-    width: 2px;
-    height: 32px;
-    background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    width: 1px;
+    height: 24px;
+    background: #e0e2e5;
     flex-shrink: 0;
   }
 }
@@ -758,70 +789,92 @@ onMounted(() => {
   }
 }
 
-.info-section {
-  h3 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 600;
-    color: $text-primary;
+.info-collapse {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+
+  :deep(.el-collapse-item__header) {
+    padding: 12px 16px;
+    font-size: 15px;
+    background: #f8f9fa;
   }
 
-  .info-content {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 20px;
+  :deep(.el-collapse-item__wrap) {
+    border-bottom: none;
+  }
 
-    .info-item {
-      h4 {
-        margin: 0 0 12px 0;
-        font-size: 14px;
-        font-weight: 600;
-        color: $text-primary;
-      }
+  :deep(.el-collapse-item__content) {
+    padding: 16px 20px;
+    background: white;
+  }
+}
 
-      ul {
-        margin: 0;
-        padding-left: 20px;
-        list-style: none;
+.info-collapse-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 
-        li {
-          font-size: 13px;
-          color: $text-secondary;
-          margin-bottom: 8px;
-          display: flex;
-          align-items: center;
-          gap: 8px;
+  .info-collapse-icon {
+    font-size: 18px;
+  }
+}
 
-          &:last-child {
-            margin-bottom: 0;
+.info-content {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+
+  .info-item {
+    h4 {
+      margin: 0 0 10px 0;
+      font-size: 14px;
+      font-weight: 600;
+      color: $text-primary;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 20px;
+      list-style: none;
+
+      li {
+        font-size: 13px;
+        color: $text-secondary;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+
+        &:last-child {
+          margin-bottom: 0;
+        }
+
+        strong {
+          color: $text-primary;
+        }
+
+        .color-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+
+        .warning-dot {
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          flex-shrink: 0;
+
+          &.overdue {
+            background-color: #f56c6c;
+            animation: pulse 2s infinite;
           }
 
-          strong {
-            color: $text-primary;
-          }
-
-          .color-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            flex-shrink: 0;
-          }
-
-          .warning-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            flex-shrink: 0;
-
-            &.overdue {
-              background-color: #f56c6c;
-              animation: pulse 2s infinite;
-            }
-
-            &.urgent {
-              background-color: #e6a23c;
-              animation: pulse 2s infinite;
-            }
+          &.urgent {
+            background-color: #e6a23c;
+            animation: pulse 2s infinite;
           }
         }
       }
@@ -900,34 +953,38 @@ onMounted(() => {
   }
 
   .stats-bar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 16px;
-    padding: 16px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px 12px;
 
     .stat-item {
-      padding: 12px 16px;
-      gap: 12px;
+      padding: 6px 10px;
+      gap: 8px;
 
       .stat-icon {
-        width: 36px;
-        height: 36px;
+        width: 24px;
+        height: 24px;
 
         svg {
-          width: 18px;
-          height: 18px;
+          width: 14px;
+          height: 14px;
         }
       }
 
       .stat-content {
+        .stat-label {
+          font-size: 10px;
+        }
+
         .stat-value {
-          font-size: 16px;
+          font-size: 13px;
         }
       }
     }
 
     .stat-divider {
-      display: none;
+      height: 20px;
     }
   }
 

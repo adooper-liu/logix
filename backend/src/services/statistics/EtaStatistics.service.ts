@@ -23,7 +23,6 @@ export class EtaStatisticsService {
     const threeDaysLater = DateFilterBuilder.addDays(today, 3);
     const sevenDaysLater = DateFilterBuilder.addDays(today, 7);
 
-    // 并行执行所有查询（添加错误捕获以便调试）
     const [overdue, within3Days, within7Days, over7Days, otherRecords] = await Promise.all([
       this.getOverdueNotArrived(today, startDate, endDate).catch(err => {
         console.error('[EtaStatistics] getOverdueNotArrived error:', err);
@@ -128,7 +127,6 @@ export class EtaStatisticsService {
   async getOtherRecords(startDate?: string, endDate?: string): Promise<number> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
 
-    // 使用内连接过滤无 ATA 和无 ETA 的记录
     query.innerJoin(
       `(
         SELECT po1.container_number
@@ -149,7 +147,7 @@ export class EtaStatisticsService {
 
     ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.ETA_TARGET);
     this.excludeContainersArrivedAtTransit(query);
-    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate);
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, undefined);
     const result = await query.select('COUNT(DISTINCT container.containerNumber)', 'count').getRawOne();
     return parseInt(result?.count || '0');
   }
@@ -215,11 +213,10 @@ export class EtaStatisticsService {
     ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.ETA_TARGET);
     query.andWhere('DATE(latest_po.latest_eta) >= :today', { today });
     query.andWhere('DATE(latest_po.latest_eta) <= :threeDays', { threeDays: threeDaysLater });
-
-    // 排除有中转港记录的货柜
     this.excludeContainersArrivedAtTransit(query);
-
-    return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
+    ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
+    ContainerQueryBuilder.addCountryFilters(query);
+    return query.getMany();
   }
 
   private async getContainersByWithin7Days(today: Date, threeDaysLater: Date, sevenDaysLater: Date, startDate?: string, endDate?: string): Promise<Container[]> {
@@ -228,11 +225,10 @@ export class EtaStatisticsService {
     ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.ETA_TARGET);
     query.andWhere('DATE(latest_po.latest_eta) > :threeDays', { threeDays: threeDaysLater });
     query.andWhere('DATE(latest_po.latest_eta) <= :sevenDays', { sevenDays: sevenDaysLater });
-
-    // 排除有中转港记录的货柜
     this.excludeContainersArrivedAtTransit(query);
-
-    return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
+    ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
+    ContainerQueryBuilder.addCountryFilters(query);
+    return query.getMany();
   }
 
   private async getContainersByOver7Days(today: Date, sevenDaysLater: Date, startDate?: string, endDate?: string): Promise<Container[]> {
@@ -240,11 +236,10 @@ export class EtaStatisticsService {
     ContainerQueryBuilder.joinLatestDestinationWithEta(query);
     ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.ETA_TARGET);
     query.andWhere('DATE(latest_po.latest_eta) > :sevenDays', { sevenDays: sevenDaysLater });
-
-    // 排除有中转港记录的货柜
     this.excludeContainersArrivedAtTransit(query);
-
-    return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
+    ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
+    ContainerQueryBuilder.addCountryFilters(query);
+    return query.getMany();
   }
 
   private async getContainersByOverdue(today: Date, startDate?: string, endDate?: string): Promise<Container[]> {
@@ -252,11 +247,10 @@ export class EtaStatisticsService {
     ContainerQueryBuilder.joinLatestDestinationWithEta(query);
     ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.ETA_TARGET);
     query.andWhere('DATE(latest_po.latest_eta) < :today', { today });
-
-    // 排除有中转港记录的货柜
     this.excludeContainersArrivedAtTransit(query);
-
-    return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
+    ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
+    ContainerQueryBuilder.addCountryFilters(query);
+    return query.getMany();
   }
 
   private async getContainersByOtherRecords(startDate?: string, endDate?: string): Promise<Container[]> {
@@ -281,10 +275,9 @@ export class EtaStatisticsService {
     );
 
     ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.ETA_TARGET);
-
-    // 排除有中转港记录的货柜
     this.excludeContainersArrivedAtTransit(query);
-
-    return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
+    ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
+    ContainerQueryBuilder.addCountryFilters(query);
+    return query.getMany();
   }
 }

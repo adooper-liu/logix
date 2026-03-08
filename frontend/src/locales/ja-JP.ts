@@ -17,6 +17,8 @@ export default {
     search: '検索',
     filter: 'フィルター',
     export: 'エクスポート',
+    allCountries: 'すべての国',
+    countryFilter: '国フィルター',
     import: 'インポート',
     refresh: '更新',
     loading: '読み込み中...',

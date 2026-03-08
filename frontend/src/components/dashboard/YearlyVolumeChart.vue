@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import * as echarts from 'echarts'
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 
 interface YearlyVolumeChartProps {
   data: Array<{
@@ -16,70 +16,89 @@ const viewType = ref<'yearly' | 'monthly'>('monthly')
 
 let chartInstance: echarts.ECharts | null = null
 
-const formatMonth = (month: number, year: number) => {
-  return `${year}-${month.toString().padStart(2, '0')}`
-}
+// 与 variables 一致：柱状图渐变、折线图多色
+const BAR_GRADIENT = [
+  { offset: 0, color: '#409EFF' },
+  { offset: 1, color: '#67C23A' }
+]
+const LINE_COLORS = ['#409EFF', '#E6A23C', '#67C23A', '#909399', '#F56C6C', '#00d4ff']
 
 const updateChart = () => {
   if (!chartInstance) return
 
-  let option: any = {
+  const option: echarts.ComposeOption = {
     tooltip: {
       trigger: 'axis',
+      backgroundColor: 'rgba(255,255,255,0.96)',
+      borderColor: '#E4E7ED',
+      borderWidth: 1,
+      padding: [10, 14],
+      textStyle: { color: '#303133', fontSize: 13 },
       axisPointer: {
-        type: viewType.value === 'yearly' ? 'shadow' : 'cross'
+        type: viewType.value === 'yearly' ? 'shadow' : 'cross',
+        shadowStyle: { color: 'rgba(0,0,0,0.06)' },
+        crossStyle: { color: '#909399' }
       },
       formatter: (params: any) => {
         if (viewType.value === 'yearly') {
           const data = params[0]
-          return `${data.name}年<br/>出运量: ${data.value}个`
-        } else {
-          let result = ''
-          params.forEach((param: any) => {
-            result += `${param.seriesName}<br/>${param.name}: ${param.value}个<br/>`
-          })
-          return result
+          return `${data.name}年<br/><span style="color:#606266">出运货柜：</span><strong>${data.value}</strong> 柜`
         }
+        let result = ''
+        ;(params as any[]).forEach((param: any) => {
+          result += `${param.seriesName}：<strong>${param.value}</strong> 柜<br/>`
+        })
+        return result
       }
     },
     legend: {
-      data: viewType.value === 'yearly' ? ['出运量'] : props.data.map((item: any) => item.year + '年'),
-      top: 10,
-      left: 'center'
+      data: viewType.value === 'yearly' ? ['出运货柜'] : props.data.map((item: any) => item.year + '年'),
+      top: 8,
+      left: 'center',
+      textStyle: { color: '#606266', fontSize: 12 }
     },
     grid: {
-      left: '5%',
-      right: '5%',
-      bottom: '15%',
-      top: '50px'
+      left: '3%',
+      right: '4%',
+      bottom: '14%',
+      top: 44,
+      containLabel: true
     },
     xAxis: {
       type: 'category',
+      axisLine: { lineStyle: { color: '#E4E7ED' } },
+      axisTick: { show: false },
       axisLabel: {
+        color: '#606266',
         fontSize: 12,
         rotate: viewType.value === 'monthly' ? 45 : 0
       }
     },
     yAxis: {
       type: 'value',
+      axisLine: { show: false },
+      axisTick: { show: false },
+      splitLine: { lineStyle: { color: '#EBEEF5', type: 'dashed' } },
       axisLabel: {
-        formatter: '{value}个'
+        color: '#606266',
+        fontSize: 12,
+        formatter: '{value}'
       }
     },
-    series: []
+    series: [] as any[]
   }
 
   if (viewType.value === 'yearly') {
     const years = props.data.map((item: any) => item.year.toString())
     const volumes = props.data.map((item: any) => item.volume)
 
-    option.xAxis.data = years
-    option.series = [
+    ;(option as any).xAxis.data = years
+    ;(option as any).series = [
       {
-        name: '出运量',
+        name: '出运货柜',
         type: 'bar',
         data: volumes,
-        barWidth: '40%',
+        barWidth: '42%',
         itemStyle: {
           color: {
             type: 'linear',
@@ -87,29 +106,41 @@ const updateChart = () => {
             y: 0,
             x2: 0,
             y2: 1,
-            colorStops: [
-              { offset: 0, color: '#409eff' },
-              { offset: 1, color: '#67c23a' }
-            ]
+            colorStops: BAR_GRADIENT
           },
-          borderRadius: [8, 8, 0, 0]
+          borderRadius: [6, 6, 0, 0]
+        },
+        emphasis: {
+          itemStyle: {
+            color: {
+              type: 'linear',
+              x: 0,
+              y: 0,
+              x2: 0,
+              y2: 1,
+              colorStops: [
+                { offset: 0, color: '#79bbff' },
+                { offset: 1, color: '#95d475' }
+              ]
+            }
+          }
         },
         label: {
           show: true,
           position: 'top',
-          formatter: '{c}',
-          fontSize: 14,
-          fontWeight: 'bold',
-          color: '#333'
+          formatter: '{c} 柜',
+          fontSize: 13,
+          fontWeight: 600,
+          color: '#303133'
         }
       }
     ]
   } else {
     const months = Array.from({ length: 12 }, (_, i) => `${i + 1}月`)
-    option.xAxis.data = months
-    option.tooltip.axisPointer.type = 'cross'
+    ;(option as any).xAxis.data = months
+    ;(option as any).tooltip.axisPointer.type = 'cross'
 
-    option.series = props.data.map((item: any) => ({
+    ;(option as any).series = props.data.map((item: any, idx: number) => ({
       name: item.year + '年',
       type: 'line',
       data: item.months.map((m: any) => m.volume),
@@ -117,12 +148,15 @@ const updateChart = () => {
       symbol: 'circle',
       symbolSize: 8,
       lineStyle: {
-        width: 3
+        width: 2.5,
+        color: LINE_COLORS[idx % LINE_COLORS.length]
       },
       itemStyle: {
+        color: LINE_COLORS[idx % LINE_COLORS.length],
         borderWidth: 2,
         borderColor: '#fff'
-      }
+      },
+      emphasis: { scale: true, scaleSize: 10 }
     }))
   }
 
@@ -163,37 +197,51 @@ const handleResize = () => {
 <template>
   <div class="chart-container">
     <div class="chart-header">
-      <div class="chart-title">出运量统计</div>
-      <el-radio-group v-model="viewType" size="small">
-        <el-radio-button value="monthly">按月（线状图）</el-radio-button>
-        <el-radio-button value="yearly">按年（柱形图）</el-radio-button>
+      <span class="chart-title">出运货柜统计</span>
+      <el-radio-group v-model="viewType" size="small" class="view-switch">
+        <el-radio-button value="monthly">按月</el-radio-button>
+        <el-radio-button value="yearly">按年</el-radio-button>
       </el-radio-group>
     </div>
-    <div id="yearly-chart" style="height: 300px"></div>
+    <div id="yearly-chart" class="chart-body"></div>
   </div>
 </template>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables' as *;
+
 .chart-container {
   width: 100%;
+  padding: $spacing-md;
+  background: $bg-color;
+  border-radius: 8px;
+  border: 1px solid $border-light;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
 
   .chart-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 15px;
-    padding: 0 5px;
+    margin-bottom: $spacing-md;
+    padding: 0 $spacing-xs;
 
     .chart-title {
-      font-size: 16px;
+      font-size: 17px;
       font-weight: 600;
-      color: #333;
+      color: $text-primary;
+      letter-spacing: 0.02em;
+    }
+
+    .view-switch {
+      :deep(.el-radio-button__inner) {
+        font-size: 12px;
+      }
     }
   }
 
-  #yearly-chart {
+  .chart-body {
     width: 100%;
-    height: 300px;
+    height: 320px;
   }
 }
 </style>

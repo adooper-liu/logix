@@ -4,6 +4,7 @@
  */
 
 import { SelectQueryBuilder } from 'typeorm';
+import { getScopedCountryCode } from '../../../utils/requestContext.js';
 import { getDateRangeSubqueryRaw as getDateRangeSubqueryRawImpl } from './DateRangeSubquery';
 
 /**
@@ -34,6 +35,23 @@ export class DateFilterBuilder {
       });
     }
 
+    return query;
+  }
+
+  /**
+   * 为国家筛选添加条件：
+   * 数据链：biz_containers --[container_number]--> biz_replenishment_orders 取得 sell_to_country
+   *        → sell_to_country 与 biz_customers.customer_name 关联 → 取 biz_customers.country 作为国家过滤值
+   * 即：JOIN biz_customers cust ON cust.customer_name = order.sell_to_country，过滤 WHERE cust.country = :countryCode
+   */
+  static addCountryFilters(
+    query: SelectQueryBuilder<any>,
+    countryCode?: string
+  ): SelectQueryBuilder<any> {
+    const code = (countryCode !== undefined && countryCode !== null ? String(countryCode).trim() : getScopedCountryCode()) || '';
+    if (!code) return query;
+    query.leftJoin('biz_customers', 'cust', 'cust.customer_name = order.sell_to_country');
+    query.andWhere('cust.country = :countryCode', { countryCode: code });
     return query;
   }
 

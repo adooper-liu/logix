@@ -8,7 +8,6 @@ import Layout from '@/components/layout/Layout.vue'
 const Dashboard = () => import('@/views/dashboard/Dashboard.vue')
 const Shipments = () => import('@/views/shipments/Shipments.vue')
 const GanttChart = () => import('@/views/gantt/GanttChart.vue')
-const StatisticsVisualization = () => import('@/views/shipments/StatisticsVisualization.vue')
 const ContainerDetail = () => import('@/views/shipments/ContainerDetailRefactored.vue')
 const ExcelImport = () => import('@/views/import/ExcelImport.vue')
 const Monitoring = () => import('@/views/monitoring/Monitoring.vue')
@@ -60,16 +59,6 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '货柜甘特图',
           icon: 'Calendar',
-          requiresAuth: true
-        }
-      },
-      {
-        path: 'statistics-visualization',
-        name: 'StatisticsVisualization',
-        component: StatisticsVisualization,
-        meta: {
-          title: '统计口径可视化',
-          icon: 'DataBoard',
           requiresAuth: true
         }
       },

@@ -18,6 +18,7 @@ import { PlannedPickupStatisticsService } from './statistics/PlannedPickupStatis
 import { LastPickupStatisticsService } from './statistics/LastPickupStatistics.service';
 import { LastReturnStatisticsService } from './statistics/LastReturnStatistics.service';
 import { MonthlyVolumeService } from './statistics/MonthlyVolume.service';
+import { DateFilterBuilder } from './statistics/common/DateFilterBuilder';
 
 export class ContainerStatisticsService {
   private statusDistribution: StatusDistributionService;
@@ -79,7 +80,6 @@ export class ContainerStatisticsService {
     startDate?: string,
     endDate?: string
   ): Promise<Record<string, number>> {
-    // 并行获取到港、ETA、状态分布（预计到港主分组与按状态「在途未到港」对齐）
     const [arrivalDist, etaDist, statusDist] = await Promise.all([
       this.arrivalStatistics.getDistribution(startDate, endDate).catch(err => {
         console.error('[ContainerStatistics] arrivalStatistics.getDistribution error:', err);
@@ -208,27 +208,20 @@ export class ContainerStatisticsService {
     startDate?: string,
     endDate?: string
   ): Promise<Container[]> {
-    // 特殊处理：in_transit_transit（已到中转港）- 返回in_transit状态且已有中转港记录的货柜
     if (filterCondition === 'in_transit_transit') {
       return this.getContainersByInTransitTransit(startDate, endDate);
     }
-
-    // 按状态卡片子维度：已到港 → 已到中转港 / 已到目的港（与 StatusDistribution 子统计同源）
     if (filterCondition === 'arrived_at_transit') {
       return this.statusDistribution.getContainersByArrivedAtTransit(startDate, endDate);
     }
     if (filterCondition === 'arrived_at_destination') {
       return this.statusDistribution.getContainersByArrivedAtDestination(startDate, endDate);
     }
-
-    // 检查是否是物流状态筛选
     const validStatuses = ['not_shipped', 'shipped', 'in_transit', 'at_port', 'picked_up', 'unloaded', 'returned_empty'];
     if (validStatuses.includes(filterCondition)) {
       return this.getContainersByStatus(filterCondition, startDate, endDate);
     }
-
     const serviceName = CONDITION_TO_SERVICE_MAP[filterCondition];
-
     switch (serviceName) {
       case 'arrival':
         return this.arrivalStatistics.getContainersByCondition(filterCondition, startDate, endDate);
@@ -256,28 +249,23 @@ export class ContainerStatisticsService {
   ): Promise<Container[]> {
     const query = this.containerRepository.createQueryBuilder('container');
     query.where('container.logisticsStatus = :logisticsStatus', { logisticsStatus });
-
-    // 添加出运时间筛选
-    if (startDate || endDate) {
-      query.leftJoin('process_sea_freight', 'sf', 'sf.bill_of_lading_number = container.bill_of_lading_number')
-        .leftJoin('biz_replenishment_orders', 'o', 'o.container_number = container.container_number');
-
-      if (startDate) {
-        query.andWhere(
-          '(o.actual_ship_date >= :startDate OR (o.actual_ship_date IS NULL AND sf.shipment_date >= :startDate))',
-          { startDate: new Date(startDate) }
-        );
-      }
-      if (endDate) {
-        const endDateObj = new Date(endDate);
-        endDateObj.setHours(23, 59, 59, 999);
-        query.andWhere(
-          '(o.actual_ship_date <= :endDate OR (o.actual_ship_date IS NULL AND sf.shipment_date <= :endDate))',
-          { endDate: endDateObj }
-        );
-      }
+    query.leftJoin('container.replenishmentOrders', 'order');
+    query.leftJoin('container.seaFreight', 'sf');
+    if (startDate) {
+      query.andWhere(
+        '(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))',
+        { startDate: new Date(startDate) }
+      );
     }
-
+    if (endDate) {
+      const endDateObj = new Date(endDate);
+      endDateObj.setHours(23, 59, 59, 999);
+      query.andWhere(
+        '(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))',
+        { endDate: endDateObj }
+      );
+    }
+    DateFilterBuilder.addCountryFilters(query);
     return query.getMany();
   }
 
@@ -290,11 +278,7 @@ export class ContainerStatisticsService {
     endDate?: string
   ): Promise<Container[]> {
     const query = this.containerRepository.createQueryBuilder('container');
-
-    // 条件：in_transit状态
     query.where('container.logisticsStatus = :logisticsStatus', { logisticsStatus: 'in_transit' });
-
-    // 添加中转港存在条件
     query.andWhere(qb => {
       const subQuery = qb.subQuery()
         .select('1')
@@ -304,8 +288,6 @@ export class ContainerStatisticsService {
         .getQuery();
       return `EXISTS ${subQuery}`;
     });
-
-    // 添加目的港无ATA条件
     query.andWhere(qb => {
       const destSubQuery = qb.subQuery()
         .select('1')
@@ -317,28 +299,23 @@ export class ContainerStatisticsService {
         .getQuery();
       return `NOT EXISTS ${destSubQuery}`;
     });
-
-    // 添加出运时间筛选
-    if (startDate || endDate) {
-      query.leftJoin('process_sea_freight', 'sf', 'sf.bill_of_lading_number = container.bill_of_lading_number')
-        .leftJoin('biz_replenishment_orders', 'o', 'o.container_number = container.container_number');
-
-      if (startDate) {
-        query.andWhere(
-          '(o.actual_ship_date >= :startDate OR (o.actual_ship_date IS NULL AND sf.shipment_date >= :startDate))',
-          { startDate: new Date(startDate) }
-        );
-      }
-      if (endDate) {
-        const endDateObj = new Date(endDate);
-        endDateObj.setHours(23, 59, 59, 999);
-        query.andWhere(
-          '(o.actual_ship_date <= :endDate OR (o.actual_ship_date IS NULL AND sf.shipment_date <= :endDate))',
-          { endDate: endDateObj }
-        );
-      }
+    query.leftJoin('container.replenishmentOrders', 'order');
+    query.leftJoin('container.seaFreight', 'sf');
+    if (startDate) {
+      query.andWhere(
+        '(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))',
+        { startDate: new Date(startDate) }
+      );
     }
-
+    if (endDate) {
+      const endDateObj = new Date(endDate);
+      endDateObj.setHours(23, 59, 59, 999);
+      query.andWhere(
+        '(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))',
+        { endDate: endDateObj }
+      );
+    }
+    DateFilterBuilder.addCountryFilters(query);
     return query.getMany();
   }
 

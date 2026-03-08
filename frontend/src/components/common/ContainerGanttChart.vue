@@ -124,37 +124,51 @@ const timeGroups = useTimeGroups(
   props.statistics ?? null
 )
 
-// 调试：打印时间分组信息
-console.log('ContainerGanttChart - props.containers:', props.containers.length)
-console.log('ContainerGanttChart - props.startDate:', props.startDate)
-console.log('ContainerGanttChart - props.endDate:', props.endDate)
-console.log('ContainerGanttChart - dateRange:', dateRange)
-console.log('ContainerGanttChart - dateArray:', dateArray.value)
-console.log('ContainerGanttChart - dateArray length:', dateArray.value.length)
-console.log('ContainerGanttChart - selectedLane:', selectedLane.value)
-console.log('ContainerGanttChart - timeGroups:', timeGroups.value)
-
-// 调试：检查每个时间分组的货柜数据
-timeGroups.value.forEach(group => {
-  const subset = getGroupContainersSubset(props.containers, selectedLane.value.name, group.label)
-  console.log(`Group "${group.label}":`, {
-    subsetLength: subset.length,
-    subset: subset.slice(0, 3).map(c => ({
-      containerNumber: c.containerNumber,
-      extractedDate: c.extractedDate,
-      logisticsStatus: c.logisticsStatus,
-      ataDestPort: c.ataDestPort,
-      etaDestPort: c.etaDestPort
-    }))
-  })
-})
-
-// 为tooltip获取完整的容器日期
-const getContainerTooltipDate = (container: ContainerItem, lane: LaneConfig): string => {
+// 为 tooltip 生成完整文案（柜号、日期、状态、目的港）
+const getContainerTooltipContent = (container: ContainerItem, lane: LaneConfig): string => {
   const date = extractDateFromContainer(container, lane.dateField)
-  if (!date) return '-'
-  return formatFullDate(date)
+  const dateStr = date ? formatFullDate(date) : '-'
+  const status = (container as any).logisticsStatus ?? (container as any).logistics_status ?? '-'
+  const destPort = getDestPortFromContainer(container)
+  return `${container.containerNumber} · 日期：${dateStr} · 状态：${status} · 目的港：${destPort}`
 }
+
+// 当前泳道对应的「日期」含义（tooltip 中日期行的标签）
+const DATE_LABEL_BY_LANE_NAME: Record<string, string> = {
+  '按到港': '到港日期',
+  '按提柜计划': '计划提柜日',
+  '按最晚提柜': '最晚提柜日',
+  '按最晚还箱': '最晚还箱日'
+}
+function getDateLabelForLane(lane: LaneConfig): string {
+  return DATE_LABEL_BY_LANE_NAME[lane.name] ?? '日期'
+}
+
+// 目的港：列表接口返回 destinationPort，也可能在 portOperations[destination].portName
+function getDestPortFromContainer(container: ContainerItem): string {
+  const c = container as any
+  if (c.destinationPort) return c.destinationPort
+  if (c.destPort) return c.destPort
+  if (c.dest_port) return c.dest_port
+  const destOp = c.portOperations?.find((op: any) => op.portType === 'destination')
+  if (destOp?.portName) return destOp.portName
+  if (destOp?.port_name) return destOp.port_name
+  return '-'
+}
+
+// 返回结构化数据供卡片 tooltip 使用
+const getContainerTooltipData = (container: ContainerItem, lane: LaneConfig) => {
+  const date = extractDateFromContainer(container, lane.dateField)
+  return {
+    containerNumber: container.containerNumber,
+    dateLabel: getDateLabelForLane(lane),
+    dateStr: date ? formatFullDate(date) : '-',
+    status: (container as any).logisticsStatus ?? (container as any).logistics_status ?? '-',
+    destPort: getDestPortFromContainer(container)
+  }
+}
+
+const isToday = (d: Date) => dayjs(d).isSame(dayjs(), 'day')
 
 // 监听 timeGroups 变化，重新收集 ref
 watch(() => timeGroups, () => {
@@ -202,7 +216,10 @@ watch(() => timeGroups, () => {
           v-for="date in dateArray"
           :key="date.getTime()"
           class="date-cell"
-          :class="{ 'weekend': dayjs(date).day() === 0 || dayjs(date).day() === 6 }"
+          :class="{
+            'weekend': dayjs(date).day() === 0 || dayjs(date).day() === 6,
+            'today': isToday(date)
+          }"
         >
           {{ formatDateLabel(date) }}
         </div>
@@ -224,15 +241,37 @@ watch(() => timeGroups, () => {
             v-for="date in dateArray"
             :key="date.getTime()"
             class="timeline-cell"
-            :class="{ 'weekend': dayjs(date).day() === 0 || dayjs(date).day() === 6 }"
+            :class="{
+              'weekend': dayjs(date).day() === 0 || dayjs(date).day() === 6,
+              'today': isToday(date)
+            }"
           >
             <el-tooltip
               v-for="container in getGroupContainers(getGroupContainersSubset(props.containers, selectedLane.name, group.label), date)"
               :key="container.containerNumber"
-              :content="`${container.containerNumber} - ${getContainerTooltipDate(container, selectedLane)}`"
               placement="top"
               effect="dark"
+              popper-class="gantt-dot-tooltip-card-popper"
             >
+              <template #content>
+                <div class="gantt-dot-tooltip-card">
+                  <div class="tooltip-card-title">{{ getContainerTooltipData(container, selectedLane).containerNumber }}</div>
+                  <div class="tooltip-card-body">
+                    <div class="tooltip-card-row">
+                      <span class="tooltip-card-label">{{ getContainerTooltipData(container, selectedLane).dateLabel }}</span>
+                      <span class="tooltip-card-value">{{ getContainerTooltipData(container, selectedLane).dateStr }}</span>
+                    </div>
+                    <div class="tooltip-card-row">
+                      <span class="tooltip-card-label">状态</span>
+                      <span class="tooltip-card-value">{{ getContainerTooltipData(container, selectedLane).status }}</span>
+                    </div>
+                    <div class="tooltip-card-row">
+                      <span class="tooltip-card-label">目的港</span>
+                      <span class="tooltip-card-value">{{ getContainerTooltipData(container, selectedLane).destPort }}</span>
+                    </div>
+                  </div>
+                </div>
+              </template>
               <div
                 class="container-dot"
                 :style="{ backgroundColor: group.color }"
@@ -381,182 +420,210 @@ watch(() => timeGroups, () => {
       border-radius: 50%;
     }
   }
-}
 
-.gantt-header {
-  display: flex;
-  align-items: center;
-  border-bottom: 1px solid #e9ecef;
-  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-
-  .lane-header {
-    min-width: 150px;
-    max-width: 150px;
-    padding: 16px;
-    font-size: 14px;
-    font-weight: 700;
-    color: $text-primary;
-    text-align: left;
-    background: #f8f9fa;
-    border-right: 2px solid #e9ecef;
-  }
-
-  .timeline-header {
-    flex: 1;
+  .gantt-header {
     display: flex;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
-    -webkit-overflow-scrolling: touch;
+    align-items: center;
+    border-bottom: 1px solid #e9ecef;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
 
-    &::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 3px;
-
-      &:hover {
-        background: rgba(0, 0, 0, 0.3);
-      }
-    }
-
-    .date-cell {
-      min-width: 50px;
-      max-width: 50px;
-      height: 50px;
+    .lane-header {
+      min-width: 150px;
+      max-width: 150px;
+      height: 68px;
+      min-height: 68px;
+      padding: 0 16px;
       display: flex;
       align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-weight: 600;
-      color: $text-secondary;
-      border-right: 1px solid #e9ecef;
-      background: white;
-      flex-shrink: 0;
-
-      &.weekend {
-        background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
-        color: #f56c6c;
-      }
+      font-size: 14px;
+      font-weight: 700;
+      color: $text-primary;
+      text-align: left;
+      background: #f8f9fa;
+      border-right: 2px solid #e9ecef;
     }
-  }
-}
 
-.gantt-body {
-  display: flex;
-  flex-direction: column;
-}
-
-.gantt-lane {
-  display: flex;
-  align-items: stretch;
-  border-bottom: 1px solid #e9ecef;
-  transition: background 0.3s ease;
-
-  &:hover {
-    background: #f8f9fa;
-  }
-
-  .lane-label {
-    min-width: 150px;
-    max-width: 150px;
-    padding: 16px;
-    background: #f8f9fa;
-    border-right: 2px solid #e9ecef;
-    border-left: 4px solid;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-
-    .lane-label-content {
+    .timeline-header {
+      flex: 1;
       display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 0, 0, 0.18) transparent;
+      -webkit-overflow-scrolling: touch;
 
-      .lane-label-text {
-        font-size: 14px;
-        font-weight: 600;
-        color: $text-primary;
+      &::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
       }
 
-      .lane-label-count {
-        font-size: 12px;
-        font-weight: 700;
-        color: $text-secondary;
-        background: white;
-        padding: 2px 8px;
-        border-radius: 10px;
-        border: 1px solid #e9ecef;
-      }
-    }
-  }
-
-  .lane-timeline {
-    flex: 1;
-    display: flex;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
-    -webkit-overflow-scrolling: touch;
-
-    &::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: rgba(0, 0, 0, 0.2);
-      border-radius: 3px;
-
-      &:hover {
-        background: rgba(0, 0, 0, 0.3);
-      }
-    }
-
-    .timeline-cell {
-      min-width: 50px;
-      max-width: 50px;
-      height: 60px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
-      padding: 8px;
-      border-right: 1px solid #e9ecef;
-      background: white;
-      flex-shrink: 0;
-      position: relative;
-      flex-wrap: wrap;
-
-      &.weekend {
-        background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
+      &::-webkit-scrollbar-track {
+        background: transparent;
       }
 
-      .container-dot {
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        flex-shrink: 0;
+      &::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.18);
+        border-radius: 2px;
 
         &:hover {
-          transform: scale(1.5);
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+          background: rgba(0, 0, 0, 0.28);
+        }
+      }
+
+      .date-cell {
+        min-width: 50px;
+        width: max-content;
+        height: 68px;
+        min-height: 68px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 600;
+        color: $text-secondary;
+        border-right: 1px solid #e9ecef;
+        background: white;
+        flex-shrink: 0;
+        padding: 0 8px;
+
+        &.weekend {
+          background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
+          color: #f56c6c;
+        }
+
+        &.today {
+          background: linear-gradient(135deg, #ecf5ff 0%, #d9ecff 100%);
+          color: $primary-color;
+          font-weight: 700;
+        }
+      }
+    }
+  }
+
+  .gantt-body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .gantt-lane {
+    display: flex;
+    align-items: stretch;
+    height: 68px;
+    min-height: 68px;
+    border-bottom: 1px solid #e9ecef;
+    transition: background 0.3s ease;
+
+    &:hover {
+      background: #f8f9fa;
+    }
+
+    .lane-label {
+      min-width: 150px;
+      max-width: 150px;
+      padding: 16px;
+      background: #f8f9fa;
+      border-right: 2px solid #e9ecef;
+      border-left: 4px solid;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+
+      .lane-label-content {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+
+        .lane-label-text {
+          font-size: 14px;
+          font-weight: 600;
+          color: $text-primary;
+        }
+
+        .lane-label-count {
+          font-size: 12px;
+          font-weight: 700;
+          color: $text-secondary;
+          background: white;
+          padding: 2px 8px;
+          border-radius: 10px;
+          border: 1px solid #e9ecef;
+        }
+      }
+    }
+
+    .lane-timeline {
+      flex: 1;
+      display: flex;
+      height: 68px;
+      min-height: 68px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(0, 0, 0, 0.18) transparent;
+      -webkit-overflow-scrolling: touch;
+
+      &::-webkit-scrollbar {
+        width: 4px;
+        height: 4px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: rgba(0, 0, 0, 0.18);
+        border-radius: 2px;
+
+        &:hover {
+          background: rgba(0, 0, 0, 0.28);
+        }
+      }
+
+      .timeline-cell {
+        min-width: 50px;
+        width: max-content;
+        height: 68px;
+        min-height: 68px;
+        display: flex;
+        flex-direction: column;
+        flex-wrap: wrap;
+        align-content: flex-start;
+        align-items: flex-start;
+        justify-content: flex-start;
+        gap: 4px;
+        padding: 6px 8px;
+        border-right: 1px solid #e9ecef;
+        background: white;
+        flex-shrink: 0;
+        position: relative;
+        box-sizing: border-box;
+
+        &.weekend {
+          background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
+        }
+
+        &.today {
+          background: linear-gradient(135deg, #ecf5ff 0%, #d9ecff 100%);
+        }
+
+        .container-dot {
+          width: 10px;
+          height: 10px;
+          min-width: 10px;
+          min-height: 10px;
+          border-radius: 50%;
+          cursor: pointer;
+          transition: transform 0.2s ease, box-shadow 0.2s ease;
+          flex-shrink: 0;
+          border: 1.5px solid rgba(255, 255, 255, 0.9);
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+
+          &:hover {
+            transform: scale(1.4);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.22);
+          }
         }
       }
     }
@@ -597,21 +664,81 @@ watch(() => timeGroups, () => {
   .timeline-header .date-cell,
   .lane-timeline .timeline-cell {
     min-width: 40px;
-    max-width: 40px;
+    width: max-content;
+  }
+
+  .gantt-lane {
+    height: 56px;
+    min-height: 56px;
+
+    .lane-timeline {
+      height: 56px;
+      min-height: 56px;
+    }
   }
 
   .timeline-header .date-cell {
-    height: 40px;
+    height: 56px;
     font-size: 11px;
   }
 
   .lane-timeline .timeline-cell {
-    height: 50px;
+    height: 56px;
+    min-height: 56px;
   }
 
   .lane-timeline .timeline-cell .container-dot {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
+    min-width: 8px;
+    min-height: 8px;
+    border-width: 1px;
+  }
+}
+</style>
+
+<style lang="scss">
+/* 圆点 tooltip 卡片（内容 teleport 到 body，需全局） */
+.gantt-dot-tooltip-card-popper {
+  padding: 4px;
+  max-width: 320px;
+}
+
+.gantt-dot-tooltip-card {
+  background: var(--el-bg-color-overlay);
+  border-radius: 8px;
+  box-shadow: var(--el-box-shadow-light);
+  padding: 0;
+  min-width: 160px;
+  overflow: hidden;
+
+  .tooltip-card-title {
+    font-weight: 600;
+    font-size: 13px;
+    padding: 10px 12px 8px;
+    border-bottom: 1px solid var(--el-border-color-lighter);
+    color: #000;
+  }
+
+  .tooltip-card-body {
+    padding: 8px 12px 10px;
+  }
+
+  .tooltip-card-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 12px;
+    padding: 2px 0;
+  }
+
+  .tooltip-card-label {
+    color: var(--el-text-color-secondary);
+  }
+
+  .tooltip-card-value {
+    color: var(--el-text-color-primary);
+    font-weight: 500;
   }
 }
 </style>

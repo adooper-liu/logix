@@ -197,6 +197,7 @@ export class UniversalDictMappingController {
         name_cn,
         name_en,
         old_code,
+        aliases: aliasesRaw,
         is_primary,
         sort_order
       } = req.body;
@@ -208,11 +209,15 @@ export class UniversalDictMappingController {
         return;
       }
 
+      const aliasesStr = Array.isArray(aliasesRaw)
+        ? aliasesRaw.map((a: any) => String(a).trim()).filter(Boolean).join(', ')
+        : (aliasesRaw != null ? String(aliasesRaw).trim() : null);
+
       const result = await AppDataSource.query(
         `INSERT INTO dict_universal_mapping
          (dict_type, target_table, target_field, standard_code, standard_name,
-          name_cn, name_en, old_code, is_primary, sort_order)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+          name_cn, name_en, old_code, aliases, is_primary, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
          ON CONFLICT (dict_type, name_cn) DO UPDATE SET
            target_table = EXCLUDED.target_table,
            target_field = EXCLUDED.target_field,
@@ -220,6 +225,7 @@ export class UniversalDictMappingController {
            standard_name = EXCLUDED.standard_name,
            name_en = EXCLUDED.name_en,
            old_code = EXCLUDED.old_code,
+           aliases = EXCLUDED.aliases,
            is_primary = EXCLUDED.is_primary,
            sort_order = EXCLUDED.sort_order,
            updated_at = NOW()
@@ -233,6 +239,7 @@ export class UniversalDictMappingController {
           name_cn,
           name_en || null,
           old_code || null,
+          aliasesStr || null,
           is_primary !== undefined ? is_primary : true,
           sort_order || 0
         ]
@@ -335,13 +342,16 @@ export class UniversalDictMappingController {
 
       const allowedFields = [
         'standard_code', 'standard_name', 'name_cn', 'name_en',
-        'old_code', 'is_primary', 'is_active', 'sort_order', 'remarks'
+        'old_code', 'aliases', 'is_primary', 'is_active', 'sort_order', 'remarks'
       ];
 
       allowedFields.forEach(field => {
         if (updates[field] !== undefined) {
+          const val = field === 'aliases' && Array.isArray(updates[field])
+            ? (updates[field] as string[]).map(s => String(s).trim()).filter(Boolean).join(', ')
+            : updates[field];
           fields.push(`${field} = $${paramIndex}`);
-          values.push(updates[field]);
+          values.push(val);
           paramIndex++;
         }
       });

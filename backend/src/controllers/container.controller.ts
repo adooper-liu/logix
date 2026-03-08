@@ -19,6 +19,7 @@ import { snakeToCamel } from '../utils/snakeToCamel';
 import { ContainerService } from '../services/container.service';
 import { ContainerStatisticsService } from '../services/containerStatistics.service';
 import { ContainerStatusService } from '../services/containerStatus.service';
+import { DateFilterBuilder } from '../services/statistics/common/DateFilterBuilder';
 
 export class ContainerController {
   private containerRepository: Repository<Container>;
@@ -144,6 +145,8 @@ export class ContainerController {
         .leftJoin('container.replenishmentOrders', 'order')
         .leftJoinAndSelect('container.seaFreight', 'sf');
 
+      DateFilterBuilder.addCountryFilters(queryBuilder);
+
       if (search) {
         queryBuilder.andWhere(
           'container.containerNumber ILIKE :search OR order.orderNumber ILIKE :search',
@@ -193,6 +196,7 @@ export class ContainerController {
           .createQueryBuilder('container')
           .leftJoin('container.replenishmentOrders', 'order')
           .leftJoinAndSelect('container.seaFreight', 'sf');
+        DateFilterBuilder.addCountryFilters(fallbackQb);
         if (search) {
           fallbackQb.andWhere(
             'container.containerNumber ILIKE :search OR order.orderNumber ILIKE :search',
@@ -576,14 +580,10 @@ export class ContainerController {
       const { startDate, endDate } = req.query
 
       logger.info('[getStatisticsDetailed] Starting detailed statistics calculation', {
-        shipmentDateRange: {
-          startDate,
-          endDate
-        },
-        message: 'Filtering by shipment time (createdAt)'
+        shipmentDateRange: { startDate, endDate },
+        message: 'Filtering by shipment time; country from request context'
       });
 
-      // 逐个执行以便更好地追踪错误
       let statusDistribution = await this.statisticsService.getStatusDistribution(startDate as string, endDate as string);
       logger.info('[getStatisticsDetailed] Status distribution completed');
 

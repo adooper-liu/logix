@@ -1,0 +1,167 @@
+# 滞港费计算逻辑与定义解读（来源：container-system）
+
+> 从 `D:\Gihub\container-system` 中提取的滞港费计算逻辑、术语定义与数据表结构，供 LogiX 方案对齐参考。  
+**应用**：上述口径已用于修正与补全 [02-CONTAINER_SCHEDULING_AND_COST_OPTIMIZATION_PLAN.md](./02-CONTAINER_SCHEDULING_AND_COST_OPTIMIZATION_PLAN.md) 中的费用口径、last_free_date 计算与配置表设计。
+
+---
+
+## 一、术语定义
+
+| 术语       | 英文        | 说明 |
+|------------|-------------|------|
+| 滞港费     | Demurrage   | 货柜在港口停留超过免费期产生的费用 |
+| 滞箱费     | Detention   | 货柜提走后超过免费期未还空箱产生的费用 |
+| 免费期     | Free Period | 免收滞港费的初始时间段 |
+| 计费期     | Chargeable Period | 开始计费的时间段 |
+| 自然日     | Natural Days | 按日历天数计算，含周末和节假日 |
+| 工作日     | Working Days | 只计算工作日，周末和节假日不计入 |
+
+---
+
+## 二、滞港费计算逻辑（核心）
+
+### 2.1 时间范围
+
+- **起算日（免费期开始）**：由「计算方式」决定  
+  - **按到港**：优先 **ATA**（目的港实际到港 `ata_dest_port`），无则 **ETA**（`eta_dest_port`）  
+  - **按卸船**：**卸船日**（`discharge_date` / 目的港卸船时间）  
+- **截止日（计费截止）**：  
+  - 当前实现中多为「**当前日期**」或「计算日期」；若有实际提柜日，应为**实际提柜日**（提柜后不再产生滞港费）。
+
+即：**滞港费 = 从到港/卸船到提柜（或到“计算日”）的停留中，超出免费期的部分按费率计费。**
+
+### 2.2 免费期与计费天数
+
+- **免费天数**：来自滞港费标准（如 5 天、7 天），按**免费天数基准**折算成「免费期结束日期」：
+  - **Natural Days**：免费期结束日 = 起算日 + 免费天数 − 1（按自然日数满 N 天）
+  - **Working Days**：从起算日起数第 N 个**工作日**为免费期结束日
+  - **Natural+Working**：免费期按**工作日**数满 N 天得到结束日，**计费天数**按**自然日**（最常用）
+  - **Working+Natural**：免费期按自然日，计费天数按工作日
+- **计费天数** = max(0, 截止日与起算日之间的天数 − 免费天数)，具体按所选基准（自然日/工作日）计算。
+
+文档中公式示例（自然日）：
+
+```text
+免费期结束日期 = ETA + (免费天数 - 1)  // 或 ATA/卸船日 + (免费天数 - 1)
+计费天数 = max(0, 计算日期 − 免费期结束日期)  // 按自然日或工作日依基准
+```
+
+### 2.3 阶梯费率
+
+- 标准中配置多档**阶梯费率**（如 1–5 天 0 元、6–10 天 50 元/天、11–30 天 120 元/天、31+ 天 200 元/天）。
+- 计费天数按阶梯从低到高填满，每档：`本档天数 × 本档日费率`，再汇总为**总滞港费**。
+
+---
+
+## 三、免费天数基准类型（container-system 定义）
+
+| 类型 | 免费期 | 计费期 | 说明 |
+|------|--------|--------|------|
+| Natural Days | 自然日 | 自然日 | 每天都计入 |
+| Working Days | 工作日 | 工作日 | 周末/节假日不计 |
+| **Natural+Working** | 工作日 | 自然日 | 免费期按工作日，超期后按自然日计费，**最常用** |
+| Working+Natural | 自然日 | 工作日 | 免费期自然日，计费期工作日 |
+| Working Days-Excluding Holidays | 工作日（不含法定假） | 工作日 | 等同 Working Days，但明确排除法定节假日 |
+
+---
+
+## 四、标准匹配与多费用项（container-system）
+
+### 4.1 标准匹配条件
+
+- **四字段**：进口国、目的港、船公司、货代公司。在 LogiX 的 `ext_demurrage_standards` 中：**进口国**通过 **foreign_company_code / foreign_company_name**（境外/分公司）识别；目的港、船公司、货代对应 **destination_port_code**、**shipping_company_code**、**origin_forwarder_code**。货柜侧用境外分公司或进口国维度与标准表匹配。
+- **有效期**：`effective_date <= 当前` 且（`expiry_date` 为空 或 `expiry_date >= 当前`）。
+- 满足条件的标准可能**多行**，每行一个费用项（滞港费、堆存费、滞箱费等）。
+
+### 4.2 多费用项分别计算
+
+- 每行标准有：**免费天数**、**免费天数基准**、**计算方式**（按到港/按卸船）、**计算类型**（自然日/工作日等）、**费率**（或阶梯）。
+- **收费标志** `is_chargeable`：`Y` = 不收费跳过，`N` = 收费并参与计算。
+- 按项算出金额后**合计**为总费用。
+
+### 4.3 计算方式（决定起算日）
+
+| 计算方式 | 基准时间 | 说明 |
+|----------|----------|------|
+| 按到港   | ATA 优先，无则 ETA | 免费期从到港日开始 |
+| 按卸船   | 卸船日   | 免费期从卸船完成日开始 |
+
+---
+
+## 五、数据表与字段（container-system）
+
+### 5.1 港口操作 / 货柜时间
+
+- `port_operations.last_free_date`：最后免费日期（与 LogiX 一致，可作「免费期截止日」展示或校验）。
+- `eta_dest_port`、`ata_dest_port`：目的港 ETA/ATA。
+- 卸船：`discharge_date` 或目的港卸船时间字段。
+
+### 5.2 滞港费记录与计算
+
+- **demurrage_records**：每条记录对应一次滞港费结果  
+  - `ata_dest_port`、`port_days`、`demurrage_free_days`、`demurrage_fee_basis`、`total_demurrage_cost` 等。
+- **demurrage_calculations**：阶梯明细  
+  - `start_date`、`end_date`、`days_count`、`fee_basis`、`rate_per_day`、`tier_number`、`subtotal_cost`。
+
+### 5.3 费用标准（fee_standards / lms_demurrage_standards）
+
+- `port_code`、`demurrage_free_days`、`demurrage_fee_basis`、`detention_free_days`、`detention_fee_basis`、`tiers`（阶梯 JSON）、`currency`、`effective_date`、`expiry_date` 等。
+- 文档中提到的完整标准表还包含：`calculation_basis`（按到港/按卸船）、`charge_name`、`is_chargeable`、`rate` 等。
+
+---
+
+## 六、后端实现要点（container-system）
+
+### 6.1 计算入口（demurrage.service.ts）
+
+- **入参**：`ataDestPort`、`demurrageFreeDays`、`demurrageFeeBasis`、`tiers`、`ratePerDay`。
+- **起算日**：`startDate = ataDestPort`。
+- **截止日**：`endDate = new Date()`（当前日期）；若业务上按「实际提柜日」截断，则应用提柜日。
+- 调用 `calculateDemurrageFee(startDate, endDate, feeBasis, freeDays, tiers, ratePerDay)` 得到总费用与阶梯明细。
+
+### 6.2 计费天数与费用（fee.util.ts）
+
+- `getBillableDays(startDate, endDate, feeBasis)`：按 feeBasis 返回 start 到 end 的「总天数」（自然日或工作日）。
+- **计费天数** = max(0, 总天数 − freeDays)。
+- 再用阶梯 `tiers` 对计费天数分段，每段 `天数 × 日费率` 累加为 `totalCost`。
+
+### 6.3 与 last_free_date 的关系
+
+- container-system 中滞港费**计算**主要用 **ATA/ETA + 免费天数** 得到免费期，再与截止日比较算计费天数；**last_free_date** 存在于 `port_operations`，用于展示或业务判断，未在给出的计算函数中直接参与「计费天数」公式。
+- 若将 **last_free_date** 视为「免费期截止日」的权威值，则计费天数可改为：  
+  **计费天数** = max(0, 截止日 − last_free_date)，再按自然日/工作日折算（与当前「起算日 + 免费天数」等价，当 last_free_date 按同一规则计算时）。
+
+---
+
+## 七、对 LogiX 的对照与建议
+
+| 项目 | container-system | LogiX 现状 / 建议 |
+|------|------------------|-------------------|
+| 起算日 | 按到港（ATA/ETA）或按卸船 | 方案文档已写：ETA → 修正 ETA → ATA/卸船，用于算 last_free_date；滞港费起算可与 last_free_date 计算口径一致（见 [02-CONTAINER_SCHEDULING_AND_COST_OPTIMIZATION_PLAN.md](./02-CONTAINER_SCHEDULING_AND_COST_OPTIMIZATION_PLAN.md) §2.1、§3.1） |
+| 免费期截止 | 起算日 + 免费天数（按自然日/工作日） | last_free_date 建议按同一口径自动计算并写回；支持免费天数基准（Natural/Working/Natural+Working） |
+| 计费截止 | 当前日期或实际提柜日 | 滞港费应在「实际提柜日」截断（`process_trucking_transport.pickup_date`）；无提柜日时可暂用当前日做预估 |
+| 免费天数基准 | Natural / Working / Natural+Working 等 | 方案已补全五种类型表；可先实现 Natural Days，再扩展 Working、Natural+Working |
+| 阶梯费率 | 标准表 + demurrage_calculations | 配置表含 minDays、maxDays、rate 或阶梯 JSON；见方案 §5.2 |
+| 标准匹配 | 进口国、目的港、船公司、货代 + 有效期 | 方案 §3.1 扩展、§5.2：四字段 + effective_date、expiry_date |
+| last_free_date | 存在但未参与公式代码 | LogiX 已规划：用 ETA/修正 ETA/ATA/卸船 + 免费天数（及基准）计算并更新 `process_port_operations.last_free_date` |
+| LogiX 表名 | container-system 表名 | LogiX：port_operations → **process_port_operations**；卸船 → **dest_port_unload_date**；还箱 → **process_empty_return.last_return_date**、**return_time** |
+
+---
+
+## 八、小结
+
+- **滞港费**：从**到港或卸船**到**提柜或计算日**的停留中，超出**免费期**的天数按**阶梯费率**计费。
+- **免费期**：由**起算日**（按到港用 ATA/ETA，按卸船用卸船日）+ **免费天数** + **免费天数基准**（自然日/工作日等）得到免费期结束日；**计费天数**再按所选基准（自然日/工作日）计算。
+- **last_free_date**：即「免费期截止日」；若与上述规则一致，可由 ETA/修正 ETA/ATA/卸船 + 免费天数**自动计算并更新**，与 container-system 的滞港费逻辑对齐。
+- 若需与 container-system 完全一致，可进一步引入：按到港/按卸船、多费用项、收费标志、阶梯费率及标准表四字段匹配与有效期判断。
+
+**参考文件（container-system）**  
+- `docs/DEMURRAGE_CALCULATION.md`  
+- `docs/DEMURRAGE_STANDARD_SELECTION.md`  
+- `backend/src/services/demurrage.service.ts`  
+- `backend/src/utils/fee.util.ts`  
+- `scripts/analysis/demurrage_calculator.py`  
+- `backend/prisma/schema.prisma`（DemurrageRecord、DemurrageCalculation、FeeStandard）  
+
+**本目录关联**  
+- [02-CONTAINER_SCHEDULING_AND_COST_OPTIMIZATION_PLAN.md](./02-CONTAINER_SCHEDULING_AND_COST_OPTIMIZATION_PLAN.md) — 货柜提柜/送仓/卸柜/还箱调度与费用优化方案，已按本文档修正与补全滞港费口径、last_free_date 计算与配置表设计。

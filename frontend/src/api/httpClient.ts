@@ -5,6 +5,7 @@ import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse 
 import { ElMessage } from 'element-plus'
 import { fetchWithCache, globalApiCache } from '@/utils/apiCache'
 import type { CacheConfig } from '@/utils/apiCache'
+import { useAppStore } from '@/store/app'
 
 /**
  * API配置接口
@@ -55,15 +56,15 @@ export class HttpClient {
     // 请求拦截器
     this.instance.interceptors.request.use(
       (config) => {
-        // 添加token
         const token = localStorage.getItem('token')
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
         }
-
-        // 添加请求时间戳（用于调试）
+        const appStore = useAppStore()
+        if (appStore.scopedCountryCode) {
+          config.headers['X-Country-Code'] = appStore.scopedCountryCode
+        }
         ;(config as any).metadata = { startTime: Date.now() }
-
         return config
       },
       (error) => {

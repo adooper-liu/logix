@@ -99,6 +99,14 @@ export class ContainerQueryBuilder {
     return DateFilterBuilder.addDateFilters(query, startDate, endDate);
   }
 
+  /** 为查询添加国家过滤（销住国家/客户国家/目的港所在国） */
+  static addCountryFilters(
+    query: SelectQueryBuilder<any>,
+    countryCode?: string
+  ): SelectQueryBuilder<any> {
+    return DateFilterBuilder.addCountryFilters(query, countryCode);
+  }
+
   /**
    * 为查询添加物流状态过�?   */
   static filterByLogisticsStatus(

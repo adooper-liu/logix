@@ -1,7 +1,13 @@
 /**
  * 状态分布统计服务
  * Status Distribution Service
- * 负责货柜状态的分布统计
+ * 负责货柜状态的分布统计。
+ *
+ * 数据用途（与 Shipments 卡片、桑基图对齐）：
+ * - Shipments 页「按状态」卡片及子维度（已到中转港、已到目的港）与本服务 getDistribution 同源。
+ * - 桑基图各节点数值均由此服务 getDistribution 返回的 statusDistribution 计算，不改变桑基图结构。
+ * - 日期口径：与 Shipments 一致，按出运日期（actual_ship_date / shipment_date）在 [startDate,endDate] 内，
+ *   使用 createDateRangeSubQuery 统一子查询，与 ArrivalStatistics、LastPickupStatistics 等卡片统计同源。
  */
 
 import { Repository } from 'typeorm';
@@ -40,20 +46,7 @@ export class StatusDistributionService {
       let result: { status?: string; count?: string }[];
 
       if (startDate && endDate) {
-        // 使用子查询：先筛出「出运日期在范围内」的 container_number，再按 logistics_status 统计，避免 join 导致无匹配或重复计数
-        const subQuery = this.containerRepository
-          .createQueryBuilder('c')
-          .select('DISTINCT c.containerNumber', 'cn')
-          .leftJoin('c.replenishmentOrders', 'o')
-          .leftJoin('c.seaFreight', 'sf')
-          .where(
-            '(o.actualShipDate >= :startDate OR (o.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))',
-            { startDate: new Date(startDate) }
-          )
-          .andWhere(
-            '(o.actualShipDate <= :endDate OR (o.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))',
-            { endDate: (() => { const d = new Date(endDate); d.setHours(23, 59, 59, 999); return d; })() }
-          );
+        const subQuery = createDateRangeSubQuery(this.containerRepository, startDate, endDate);
         const mainQuery = this.containerRepository
           .createQueryBuilder('container')
           .select('container.logisticsStatus', 'status')
@@ -63,12 +56,15 @@ export class StatusDistributionService {
           .groupBy('container.logisticsStatus');
         result = await mainQuery.getRawMany();
       } else {
-        // 未传日期时统计全部货柜
+        // 未传日期时统计全部货柜（可选国家）
         const query = this.containerRepository
           .createQueryBuilder('container')
           .select('container.logisticsStatus', 'status')
           .addSelect('COUNT(*)', 'count')
-          .groupBy('container.logisticsStatus');
+          .leftJoin('container.replenishmentOrders', 'order')
+          .leftJoin('container.seaFreight', 'sf');
+        DateFilterBuilder.addCountryFilters(query);
+        query.groupBy('container.logisticsStatus');
         result = await query.getRawMany();
       }
 
@@ -94,9 +90,13 @@ export class StatusDistributionService {
     // 查询有transit类型港口操作记录的货柜数
     distribution.arrived_at_transit = await this.getTransitArrivalCount(startDate, endDate);
 
-    // 查询有destination类型港口操作记录的货柜数
-    distribution.arrived_at_destination = await this.getDestinationArrivalCount(startDate, endDate);
+    const destCount = await this.getDestinationArrivalCount(startDate, endDate);
+    distribution.arrived_at_destination = destCount;
 
+    // 调试：桑基图「已到目的港」= arrived_at_destination + picked_up + unloaded + returned_empty，若只显示 173 多为 arrived_at_destination 丢失
+    if (typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production') {
+      console.log('[StatusDistributionService] getDestinationArrivalCount(已到目的港未提)=', destCount, '; picked_up+unloaded+returned_empty=', distribution.picked_up + distribution.unloaded + distribution.returned_empty, '; 已到目的港合计=', destCount + distribution.picked_up + distribution.unloaded + distribution.returned_empty);
+    }
     console.log('[StatusDistributionService] Final distribution:', distribution);
 
     return distribution;
@@ -176,9 +176,11 @@ export class StatusDistributionService {
 
       if (startDate && endDate) {
         const subQuery = createDateRangeSubQuery(this.containerRepository, startDate, endDate);
-        query.andWhere(`container.containerNumber IN (${subQuery.getQuery()})`).setParameters(subQuery.getParameters());
+        query.andWhere(`container.containerNumber IN (${subQuery.getQuery()})`);
+        query.setParameters({ ...query.getParameters(), ...subQuery.getParameters() });
       } else {
         DateFilterBuilder.addDateFilters(query, startDate, endDate);
+        DateFilterBuilder.addCountryFilters(query);
       }
 
       const result = await query.getRawOne();
@@ -247,13 +249,22 @@ export class StatusDistributionService {
 
       if (startDate && endDate) {
         const subQuery = createDateRangeSubQuery(this.containerRepository, startDate, endDate);
-        query.andWhere(`container.containerNumber IN (${subQuery.getQuery()})`).setParameters(subQuery.getParameters());
+        query.andWhere(`container.containerNumber IN (${subQuery.getQuery()})`);
+        query.setParameters({ ...query.getParameters(), ...subQuery.getParameters() });
       } else {
         DateFilterBuilder.addDateFilters(query, startDate, endDate);
+        DateFilterBuilder.addCountryFilters(query);
       }
 
+      if (process.env?.NODE_ENV !== 'production') {
+        console.log('[StatusDistributionService] getDestinationArrivalCount SQL params:', { startDate, endDate, params: query.getParameters() });
+      }
       const result = await query.getRawOne();
-      return parseInt(result?.count || '0');
+      const count = parseInt(result?.count || '0');
+      if (process.env?.NODE_ENV !== 'production') {
+        console.log('[StatusDistributionService] getDestinationArrivalCount raw result:', result, '-> count:', count);
+      }
+      return count;
     } catch (error) {
       console.error('[StatusDistributionService] Error in getDestinationArrivalCount:', error);
       throw error;
@@ -305,7 +316,9 @@ export class StatusDistributionService {
     query.setParameter('destType', 'destination');
     query.setParameter('wmsStatus', 'WMS已完成');
     query.setParameter('ebsStatus', '已入库');
-    return DateFilterBuilder.addDateFilters(query, startDate, endDate).getMany();
+    DateFilterBuilder.addDateFilters(query, startDate, endDate);
+    DateFilterBuilder.addCountryFilters(query);
+    return query.getMany();
   }
 
   /**
@@ -345,6 +358,8 @@ export class StatusDistributionService {
         .getQuery();
       return `NOT EXISTS ${notEmptyReturn} AND NOT EXISTS ${notWmsConfirmed} AND NOT EXISTS ${notPickedUp} AND EXISTS ${hasDestinationAta}`;
     });
-    return DateFilterBuilder.addDateFilters(query, startDate, endDate).getMany();
+    DateFilterBuilder.addDateFilters(query, startDate, endDate);
+    DateFilterBuilder.addCountryFilters(query);
+    return query.getMany();
   }
 }

@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { useUserStore } from '@/store/user'
+import { useAppStore } from '@/store/app'
+import { containerService } from '@/services/container'
 import {
   ArrowDown,
   Box,
@@ -23,7 +25,7 @@ import {
   Wallet,
   Warning,
 } from '@element-plus/icons-vue'
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
@@ -32,6 +34,31 @@ const router = useRouter()
 const route = useRoute()
 const { t } = useI18n()
 const userStore = useUserStore()
+const appStore = useAppStore()
+
+const countryOptions = ref<Array<{ value: string; label: string }>>([])
+
+onMounted(async () => {
+  try {
+    const res = await containerService.getCountries()
+    if (res?.success && Array.isArray(res.data)) {
+      countryOptions.value = [
+        { value: '', label: t('common.allCountries') || '全部国家' },
+        ...res.data.map((c: { code: string; nameCn: string; nameEn: string }) => ({
+          value: c.code,
+          label: c.nameCn || c.nameEn || c.code
+        }))
+      ]
+    }
+  } catch {
+    countryOptions.value = [{ value: '', label: t('common.allCountries') || '全部国家' }]
+  }
+})
+
+const scopedCountryValue = computed({
+  get: () => appStore.scopedCountryCode ?? '',
+  set: (v: string) => appStore.setScopedCountryCode(v || null)
+})
 
 // 菜单分组定义
 const menuGroups = computed(() => [
@@ -43,11 +70,6 @@ const menuGroups = computed(() => [
         path: '/shipments',
         name: 'Shipments',
         meta: { title: t('nav.containerManagement'), icon: 'Box' },
-      },
-      {
-        path: '/statistics-visualization',
-        name: 'StatisticsVisualization',
-        meta: { title: t('nav.statisticsVisualization'), icon: 'DataBoard' },
       },
     ],
   },
@@ -209,6 +231,22 @@ const handleLogout = () => {
         </div>
 
         <div class="navbar-right">
+          <!-- 全局国家筛选 -->
+          <el-select
+            v-model="scopedCountryValue"
+            :placeholder="t('common.countryFilter') || '国家筛选'"
+            clearable
+            filterable
+            class="country-select"
+            style="width: 160px"
+          >
+            <el-option
+              v-for="opt in countryOptions"
+              :key="opt.value"
+              :value="opt.value"
+              :label="opt.label"
+            />
+          </el-select>
           <!-- 语言切换器 -->
           <LanguageSwitcher />
 
@@ -481,6 +519,18 @@ const handleLogout = () => {
     align-items: center;
     gap: 12px;
     padding: 0 24px;
+
+    .country-select {
+      :deep(.el-input__wrapper) {
+        background: $nav-glass-bg;
+        border: 1px solid $nav-glass-border;
+        color: $nav-text-primary;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      }
+      :deep(.el-input__inner::placeholder) {
+        color: $nav-text-muted;
+      }
+    }
 
     .user-info {
       display: inline-flex;

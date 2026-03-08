@@ -56,15 +56,16 @@ const testDialogVisible = ref(false)
 const testName = ref('')
 const testResult = ref('')
 
-// 加载数据
+// 加载数据（后端返回 { success, data: rows[], total }）
 const loadData = async () => {
   loading.value = true
   try {
     const response: any = await universalDictMappingService.getMappingsByType(currentDictType.value)
-    tableData.value = response || []
-    pagination.total = response?.length || 0
+    const rows = response?.data?.data ?? response?.data
+    tableData.value = Array.isArray(rows) ? rows : []
+    pagination.total = response?.data?.total ?? response?.total ?? tableData.value.length
   } catch (error: any) {
-    ElMessage.error(error.message || '加载映射数据失败')
+    ElMessage.error(error?.message || '加载映射数据失败')
   } finally {
     loading.value = false
   }
@@ -83,10 +84,11 @@ const handleSearch = async () => {
       currentDictType.value,
       searchForm.keyword
     )
-    tableData.value = response || []
-    pagination.total = response?.length || 0
+    const rows = response?.data?.data ?? response?.data
+    tableData.value = Array.isArray(rows) ? rows : []
+    pagination.total = response?.data?.total ?? response?.total ?? tableData.value.length
   } catch (error: any) {
-    ElMessage.error(error.message || '搜索失败')
+    ElMessage.error(error?.message || '搜索失败')
   } finally {
     loading.value = false
   }
@@ -119,6 +121,7 @@ const handleAdd = () => {
 const handleEdit = (row: any) => {
   dialogMode.value = 'edit'
   dialogTitle.value = '编辑映射'
+  const aliasesStr = Array.isArray(row.aliases) ? row.aliases.join(', ') : (row.aliases ? String(row.aliases).trim() : '')
   Object.assign(formData, {
     dict_type: row.dict_type,
     target_table: row.target_table,
@@ -126,7 +129,7 @@ const handleEdit = (row: any) => {
     standard_code: row.standard_code,
     name_cn: row.name_cn,
     name_en: row.name_en,
-    aliases: Array.isArray(row.aliases) ? row.aliases.join(', ') : row.aliases || '',
+    aliases: aliasesStr,
     is_active: row.is_active
   })
   dialogVisible.value = true
@@ -145,12 +148,16 @@ const handleDelete = async (row: any) => {
       }
     )
 
-    await universalDictMappingService.deleteMapping(row.id)
+    const result = await universalDictMappingService.deleteMapping(row.id)
+    if (result?.success === false) {
+      ElMessage.error(result?.error || '删除失败')
+      return
+    }
     ElMessage.success('删除成功')
     await loadData()
   } catch (error: any) {
     if (error !== 'cancel') {
-      ElMessage.error(error.message || '删除失败')
+      ElMessage.error(error?.message || '删除失败')
     }
   }
 }
@@ -169,8 +176,9 @@ const handleSave = async () => {
     .filter((s: string) => s)
 
   try {
+    let result: any
     if (dialogMode.value === 'create') {
-      await universalDictMappingService.addMapping({
+      result = await universalDictMappingService.addMapping({
         dict_type: formData.dict_type,
         target_table: formData.target_table,
         target_field: formData.target_field,
@@ -180,21 +188,24 @@ const handleSave = async () => {
         aliases: aliasesArray,
         is_active: formData.is_active
       })
-      ElMessage.success('添加成功')
     } else {
-      await universalDictMappingService.updateMapping(rowId.value, {
+      result = await universalDictMappingService.updateMapping(rowId.value!, {
         standard_code: formData.standard_code,
         name_cn: formData.name_cn,
         name_en: formData.name_en,
         aliases: aliasesArray,
         is_active: formData.is_active
       })
-      ElMessage.success('更新成功')
     }
+    if (result?.success === false) {
+      ElMessage.error(result?.error || '保存失败')
+      return
+    }
+    ElMessage.success(dialogMode.value === 'create' ? '添加成功' : '更新成功')
     dialogVisible.value = false
     await loadData()
   } catch (error: any) {
-    ElMessage.error(error.message || '保存失败')
+    ElMessage.error(error?.message || '保存失败')
   }
 }
 
@@ -296,15 +307,24 @@ const stats = ref({
   byType: {} as Record<string, number>
 })
 
-// 加载统计信息
+// 加载统计信息（后端返回 { success, data: { summary, by_type } }）
 const loadStats = async () => {
   try {
     const response: any = await universalDictMappingService.getStats()
-    stats.value = response || {
-      total: 0,
-      active: 0,
-      inactive: 0,
-      byType: {}
+    const d = response?.data
+    const summary = d?.summary || {}
+    const byTypeList = d?.by_type || []
+    const total = Number(summary.total_mappings) || 0
+    const active = Number(summary.active_mappings) || 0
+    const byType: Record<string, number> = {}
+    byTypeList.forEach((row: any) => {
+      if (row?.dict_type != null) byType[row.dict_type] = Number(row.total_count) || 0
+    })
+    stats.value = {
+      total,
+      active,
+      inactive: total - active,
+      byType
     }
   } catch (error: any) {
     console.error('加载统计信息失败:', error)
@@ -336,6 +356,97 @@ onMounted(() => {
         <el-button @click="handleRefresh" :icon="Refresh">刷新</el-button>
       </div>
     </div>
+
+    <!-- 映射示例与操作说明 -->
+    <el-collapse class="help-collapse">
+      <el-collapse-item name="help">
+        <template #title>
+          <span class="help-title">
+            <span class="help-icon">📖</span>
+            映射示例与操作说明
+          </span>
+        </template>
+        <div class="help-content">
+          <section class="help-section">
+            <h4>一、映射示例</h4>
+            <p>映射用于把「中文名称、别名、旧代码」对应到系统内的<strong>标准代码</strong>，便于 Excel 导入、查询时自动识别。</p>
+            <div class="example-table-wrap">
+              <table class="help-example-table">
+                <thead>
+                  <tr>
+                    <th>字典类型</th>
+                    <th>中文名称 / 别名</th>
+                    <th>标准代码（需与字典表一致）</th>
+                    <th>说明</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>港口 PORT</td>
+                    <td>青岛、青島、Qingdao</td>
+                    <td>CNQIN</td>
+                    <td>导入时写「青岛」会转为 CNQIN 写入目的港等字段</td>
+                  </tr>
+                  <tr>
+                    <td>国家 COUNTRY</td>
+                    <td>中国、China、CN</td>
+                    <td>CN</td>
+                    <td>与 dict_countries 等表的标准代码一致</td>
+                  </tr>
+                  <tr>
+                    <td>船公司 SHIPPING_COMPANY</td>
+                    <td>马士基、MAERSK</td>
+                    <td>MAEU</td>
+                    <td>标准代码来自 dict_shipping_companies</td>
+                  </tr>
+                  <tr>
+                    <td>柜型 CONTAINER_TYPE</td>
+                    <td>40尺高柜、40HC</td>
+                    <td>40HC</td>
+                    <td>与 dict_container_types 一致</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+          <section class="help-section">
+            <h4>二、操作说明</h4>
+            <ol class="help-steps">
+              <li><strong>选择字典类型</strong>：上方标签切换港口、国家、船公司等。</li>
+              <li><strong>新增映射</strong>：点击「新增映射」，填写<strong>标准代码</strong>、<strong>中文名称</strong>（必填）；英文名称、别名可选，别名多个用英文逗号分隔。</li>
+              <li><strong>标准代码</strong>：必须与对应字典表（如 dict_ports.port_code）中已有代码一致，否则导入/查询无法关联。</li>
+              <li><strong>编辑 / 删除</strong>：表格右侧操作列可编辑或删除该条映射。</li>
+              <li><strong>测试查询</strong>：点击顶部「测试查询」，输入名称可检查是否能解析到标准代码。</li>
+            </ol>
+          </section>
+          <section class="help-section">
+            <h4>三、多场景示例</h4>
+            <div class="help-scenarios">
+              <div class="scenario-item">
+                <span class="scenario-label">场景 1：Excel 导入目的港</span>
+                <p>Excel 中「目的港」列填写「青岛」「上海港」「宁波」。系统通过映射转为 CNQIN、CNSHA、CNNBO 写入数据库，与 dict_ports 一致，便于统计与关联。</p>
+              </div>
+              <div class="scenario-item">
+                <span class="scenario-label">场景 2：同一港口多种写法</span>
+                <p>中文「青岛」、繁体「青島」、英文「Qingdao」、旧代码「QIN」均可作为别名写在同一映射下，统一指向标准代码 CNQIN，导入时任一种写法都能识别。</p>
+              </div>
+              <div class="scenario-item">
+                <span class="scenario-label">场景 3：船公司 / 柜型筛选</span>
+                <p>列表筛选「船公司 = 马士基」时，系统用映射将「马士基」「MAERSK」解析为 MAEU 再查库；柜型「40尺高柜」「40HC」映射到 40HC，与 dict_container_types 一致。</p>
+              </div>
+              <div class="scenario-item">
+                <span class="scenario-label">场景 4：国家与客户类型</span>
+                <p>国家「中国」「China」「CN」映射到 CN；客户类型、货代、清关、拖车、仓库等若字典表有标准代码，在此配置名称→代码后，导入与查询即可按名称自动转换。</p>
+              </div>
+              <div class="scenario-item">
+                <span class="scenario-label">场景 5：新增港口后的配置</span>
+                <p>新港口先在「港口字典」维护标准代码（如 XMNN 厦门），再在本页「港口」类型下新增映射：标准代码 XMNN，中文名称「厦门」，别名可填「Xiamen」「廈門」，导入表格即可用「厦门」。</p>
+              </div>
+            </div>
+          </section>
+        </div>
+      </el-collapse-item>
+    </el-collapse>
 
     <!-- 统计卡片 -->
     <div class="stats-grid">
@@ -414,7 +525,7 @@ onMounted(() => {
         stripe
         border
         style="width: 100%"
-        empty-text="暂无数据"
+        empty-text="当前该类型暂无映射，请点击上方「新增映射」添加"
       >
         <el-table-column prop="id" label="ID" width="80" align="center" />
         <el-table-column prop="standard_code" label="标准代码" width="150" align="center">
@@ -427,14 +538,14 @@ onMounted(() => {
         <el-table-column prop="aliases" label="别名" min-width="200">
           <template #default="{ row }">
             <el-tag
-              v-for="(alias, index) in (Array.isArray(row.aliases) ? row.aliases : [])"
+              v-for="(alias, index) in (Array.isArray(row.aliases) ? row.aliases : (row.aliases ? String(row.aliases).split(/\s*,\s*/).filter(Boolean) : []))"
               :key="index"
               size="small"
               style="margin: 2px"
             >
               {{ alias }}
             </el-tag>
-            <span v-if="!row.aliases || row.aliases.length === 0" class="empty-text">-</span>
+            <span v-if="!row.aliases || (Array.isArray(row.aliases) ? row.aliases.length === 0 : !String(row.aliases).trim())" class="empty-text">-</span>
           </template>
         </el-table-column>
         <el-table-column prop="is_active" label="状态" width="100" align="center">
@@ -566,6 +677,132 @@ onMounted(() => {
   .header-actions {
     display: flex;
     gap: 12px;
+  }
+}
+
+.help-collapse {
+  margin-bottom: 24px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+
+  :deep(.el-collapse-item__header) {
+    padding: 12px 16px;
+    font-size: 15px;
+    background: #f8f9fa;
+  }
+
+  :deep(.el-collapse-item__wrap) {
+    border-bottom: none;
+  }
+
+  :deep(.el-collapse-item__content) {
+    padding: 0;
+  }
+}
+
+.help-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  .help-icon {
+    font-size: 18px;
+  }
+}
+
+.help-content {
+  padding: 20px 24px;
+  background: #fff;
+  color: #333;
+}
+
+.help-section {
+  margin-bottom: 20px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  h4 {
+    margin: 0 0 12px 0;
+    font-size: 15px;
+    color: #2c3e50;
+  }
+
+  p {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #555;
+  }
+}
+
+.help-example-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+
+  th,
+  td {
+    border: 1px solid #e8e8e8;
+    padding: 10px 12px;
+    text-align: left;
+  }
+
+  th {
+    background: #f5f7fa;
+    color: #2c3e50;
+    font-weight: 600;
+  }
+
+  td {
+    color: #555;
+  }
+}
+
+.example-table-wrap {
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+.help-steps {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #555;
+
+  li {
+    margin-bottom: 6px;
+  }
+}
+
+.help-scenarios {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.scenario-item {
+  padding: 12px 14px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border-left: 4px solid #409eff;
+
+  .scenario-label {
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+    color: #2c3e50;
+    margin-bottom: 6px;
+  }
+
+  p {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.6;
+    color: #555;
   }
 }
 

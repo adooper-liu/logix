@@ -17,6 +17,8 @@ export default {
     search: 'Rechercher',
     filter: 'Filtrer',
     export: 'Exporter',
+    allCountries: 'Tous les pays',
+    countryFilter: 'Filtre pays',
     import: 'Importer',
     refresh: 'Actualiser',
     loading: 'Chargement...',

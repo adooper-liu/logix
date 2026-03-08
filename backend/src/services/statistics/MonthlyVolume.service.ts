@@ -58,7 +58,6 @@ export class MonthlyVolumeService {
    */
   private async getYearlyVolume(yearStart: Date, yearEnd: Date): Promise<number> {
     const result = await ContainerQueryBuilder.createBaseQuery(this.containerRepository)
-      .leftJoin('container.seaFreight', 'sf')
       .select('COUNT(DISTINCT container.containerNumber)', 'count')
       .where('container.logisticsStatus IN (:...statuses)', {
         statuses: [
@@ -78,9 +77,9 @@ export class MonthlyVolumeService {
         '(order.actualShipDate < :yearEnd OR (order.actualShipDate IS NULL AND sf.shipmentDate < :yearEnd))',
         { yearEnd }
       )
-      .getRawOne();
+      .getRawOne<{ count: string }>();
 
-    return parseInt(result.count || '0');
+    return parseInt(result?.count ?? '0', 10);
   }
 
   /**
@@ -109,7 +108,6 @@ export class MonthlyVolumeService {
    */
   private async getMonthlyVolume(monthStart: Date, monthEnd: Date): Promise<number> {
     const result = await ContainerQueryBuilder.createBaseQuery(this.containerRepository)
-      .leftJoin('container.seaFreight', 'sf')
       .select('COUNT(DISTINCT container.containerNumber)', 'count')
       .where('container.logisticsStatus IN (:...statuses)', {
         statuses: [
@@ -129,8 +127,8 @@ export class MonthlyVolumeService {
         '(order.actualShipDate <= :monthEnd OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :monthEnd))',
         { monthEnd }
       )
-      .getRawOne();
+      .getRawOne<{ count: string }>();
 
-    return parseInt(result.count || '0');
+    return parseInt(result?.count ?? '0', 10);
   }
 }

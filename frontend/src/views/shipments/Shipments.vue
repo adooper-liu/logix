@@ -32,8 +32,9 @@ const loading = ref(false)
 const searchKeyword = ref('')
 
 // 时间筛选（Dashboard风格的日期范围选择器）
+// 顶部时间窗口默认为本年（出运日期口径）
 const shipmentDateRange = ref<[Date, Date]>([
-  dayjs().subtract(90, 'day').startOf('day').toDate(),
+  dayjs().startOf('year').toDate(),
   dayjs().endOf('day').toDate()
 ])
 

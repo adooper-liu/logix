@@ -23,6 +23,8 @@ import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
 import { ContainerLoadingRecord } from '../entities/ContainerLoadingRecord';
 import { ContainerHoldRecord } from '../entities/ContainerHoldRecord';
 import { ContainerCharge } from '../entities/ContainerCharge';
+import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
+import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
 import { Port } from '../entities/Port';
 import { ShippingCompany } from '../entities/ShippingCompany';
 import { FreightForwarder } from '../entities/FreightForwarder';
@@ -69,7 +71,11 @@ export const dataSourceOptions: DataSourceOptions = {
     ContainerStatusEvent,
     ContainerLoadingRecord,
     ContainerHoldRecord,
-    ContainerCharge
+    ContainerCharge,
+
+    // 滞港费扩展表 (Demurrage Extension Tables)
+    ExtDemurrageStandard,
+    ExtDemurrageRecord
   ],
   synchronize: databaseConfig.synchronize,
   logging: databaseConfig.logging,

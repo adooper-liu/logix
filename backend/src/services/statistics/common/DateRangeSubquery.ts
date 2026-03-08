@@ -6,6 +6,7 @@
 import { SelectQueryBuilder } from 'typeorm';
 import { Repository } from 'typeorm';
 import { Container } from '../../../entities/Container';
+import { getScopedCountryCode } from '../../../utils/requestContext.js';
 import { DateFilterBuilder } from './DateFilterBuilder';
 import { ContainerQueryBuilder } from './ContainerQueryBuilder';
 
@@ -17,15 +18,17 @@ function toEndDateEnd(endDate: string): Date {
 }
 
 /**
- * TypeORM 版：创建「出运日期在 [startDate, endDate] 内」的货柜号子查询
+ * TypeORM 版：创建「出运日期在 [startDate, endDate] 内」且可选「国家」的货柜号子查询
+ * 国家：sell_to_country 与 biz_customers.customer_name 关联取 cust.country，过滤 cust.country = :countryCode
  * 用于 mainQuery.andWhere('container.containerNumber IN (subquery)').setParameters(subquery.getParameters())
  */
 export function createDateRangeSubQuery(
   containerRepository: Repository<Container>,
   startDate: string,
-  endDate: string
+  endDate: string,
+  countryCode?: string
 ): SelectQueryBuilder<Container> {
-  return containerRepository
+  const qb = containerRepository
     .createQueryBuilder('c')
     .select('DISTINCT c.containerNumber')
     .leftJoin('c.replenishmentOrders', 'o')
@@ -38,41 +41,64 @@ export function createDateRangeSubQuery(
       '(o.actualShipDate <= :endDate OR (o.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))',
       { endDate: toEndDateEnd(endDate) }
     );
+
+  const code = (countryCode !== undefined && countryCode !== null ? String(countryCode).trim() : getScopedCountryCode()) || '';
+  if (code) {
+    qb.leftJoin('biz_customers', 'cust', 'cust.customer_name = o.sell_to_country').andWhere('cust.country = :countryCode', {
+      countryCode: code
+    });
+  }
+  return qb;
 }
 
+
 /**
- * Raw SQL 版：返回子查询 SQL 与参数（占位符 $1=startDate, $2=endDate）
+ * Raw SQL 版：返回子查询 SQL 与参数（占位符 $1=startDate, $2=endDate；若有国家则 $3=countryCode）
  * 用于与模板 SQL 组合：WHERE t.container_number IN (sql)
  */
-export function getDateRangeSubqueryRaw(startDate: string, endDate: string): { sql: string; params: any[] } {
-  const sql = `SELECT c.container_number FROM biz_containers c
+export function getDateRangeSubqueryRaw(
+  startDate: string,
+  endDate: string,
+  countryCode?: string
+): { sql: string; params: any[] } {
+  const params: any[] = [new Date(startDate), toEndDateEnd(endDate)];
+  const code = (countryCode !== undefined && countryCode !== null ? String(countryCode).trim() : getScopedCountryCode()) || '';
+  let sql = `SELECT DISTINCT c.container_number FROM biz_containers c
 LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
 LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_number
+LEFT JOIN biz_customers cust ON cust.customer_name = o.sell_to_country
 WHERE (o.actual_ship_date >= $1 OR (o.actual_ship_date IS NULL AND sf.shipment_date >= $1))
 AND (o.actual_ship_date <= $2 OR (o.actual_ship_date IS NULL AND sf.shipment_date <= $2))`;
-  return { sql, params: [new Date(startDate), toEndDateEnd(endDate)] };
+  if (code) {
+    params.push(code);
+    sql += ` AND cust.country = $3`;
+  }
+  return { sql, params };
 }
 
 /**
- * 为已带 order/sf 的 TypeORM 查询应用出运日期筛选
+ * 为已带 order/sf 的 TypeORM 查询应用出运日期与国家筛选
  * - 若提供 startDate 且 endDate：用 IN (子查询)，并合并 extraParams
  * - 否则：调用 DateFilterBuilder.addDateFilters
+ * - countryCode 传入子查询或由调用方在无子查询时用 DateFilterBuilder.addCountryFilters
  */
 export function applyDateFilterToQuery(
   query: SelectQueryBuilder<any>,
   containerRepository: Repository<Container>,
   startDate?: string,
   endDate?: string,
-  extraParams?: Record<string, unknown>
+  extraParams?: Record<string, unknown>,
+  countryCode?: string
 ): void {
   if (startDate && endDate) {
-    const subQuery = createDateRangeSubQuery(containerRepository, startDate, endDate);
+    const subQuery = createDateRangeSubQuery(containerRepository, startDate, endDate, countryCode);
     query.andWhere(`container.containerNumber IN (${subQuery.getQuery()})`).setParameters({
       ...subQuery.getParameters(),
       ...(extraParams || {})
     });
   } else {
     ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
+    DateFilterBuilder.addCountryFilters(query, countryCode);
   }
 }
 

@@ -28,6 +28,7 @@ services:
       - timescaledb_prod_data:/var/lib/postgresql/data
       - ./backend/scripts/init-database-complete.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
       - ./backend/scripts/init-timescaledb.sql:/docker-entrypoint-initdb.d/02-timescaledb.sql:ro
+      - ./backend/migrations/create_universal_dict_mapping.sql:/docker-entrypoint-initdb.d/03-universal-dict-mapping.sql:ro
       - ./backups:/backups:ro
     ports:
       - "${DB_PORT:-5432}:5432"

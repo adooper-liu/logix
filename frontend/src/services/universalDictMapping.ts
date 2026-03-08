@@ -6,7 +6,8 @@
 
 import axios from 'axios'
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/dict-mapping'
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1'
+const API_BASE = `${BASE_URL}/dict-mapping`
 
 // 字典类型枚举
 export enum DictType {
@@ -246,10 +247,7 @@ export async function getMappingStats() {
     return response.data
   } catch (error: any) {
     console.error('[getMappingStats] Error:', error)
-    return {
-      success: false,
-      data: {}
-    }
+    return { success: false, data: {} }
   }
 }
 

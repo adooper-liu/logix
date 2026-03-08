@@ -49,7 +49,6 @@ export class ArrivalStatisticsService {
     const threeDaysLater = DateFilterBuilder.addDays(today, 3);
     const sevenDaysLater = DateFilterBuilder.addDays(today, 7);
 
-    // 并行执行所有查询
     const [
       arrivedToday,
       arrivedBeforeNotPickedUp,
@@ -126,12 +125,6 @@ export class ArrivalStatisticsService {
    * 今日到港
    */
   async getArrivedToday(today: Date, startDate?: string, endDate?: string): Promise<number> {
-    console.log('[ArrivalStatistics] getArrivedToday called with params:', {
-      today: today.toISOString(),
-      startDate,
-      endDate
-    });
-
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.joinLatestDestinationWithAta(query);
     ContainerQueryBuilder.filterTargetStatus(query);
@@ -145,6 +138,7 @@ export class ArrivalStatisticsService {
       });
     } else {
       ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
+      ContainerQueryBuilder.addCountryFilters(query);
     }
 
     const result = await query
@@ -159,12 +153,6 @@ export class ArrivalStatisticsService {
    * 今日之前到港未提柜
    */
   async getArrivedBeforeTodayNotPickedUp(today: Date, startDate?: string, endDate?: string): Promise<number> {
-    console.log('[ArrivalStatistics] getArrivedBeforeTodayNotPickedUp called with params:', {
-      today: today.toISOString(),
-      startDate,
-      endDate
-    });
-
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.joinLatestDestinationWithAta(query);
     ContainerQueryBuilder.filterTargetStatus(query);
@@ -179,6 +167,7 @@ export class ArrivalStatisticsService {
       });
     } else {
       ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
+      ContainerQueryBuilder.addCountryFilters(query);
     }
 
     const result = await query
@@ -215,12 +204,6 @@ export class ArrivalStatisticsService {
    * 今日之前到港已提柜
    */
   async getArrivedBeforeTodayPickedUp(today: Date, startDate?: string, endDate?: string): Promise<number> {
-    console.log('[ArrivalStatistics] getArrivedBeforeTodayPickedUp called with params:', {
-      today: today.toISOString(),
-      startDate,
-      endDate
-    });
-
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.joinLatestDestinationWithAta(query);
     ContainerQueryBuilder.filterTargetStatus(query);
@@ -235,6 +218,7 @@ export class ArrivalStatisticsService {
       });
     } else {
       ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
+      ContainerQueryBuilder.addCountryFilters(query);
     }
 
     const result = await query
@@ -317,14 +301,12 @@ export class ArrivalStatisticsService {
     const sevenDaysLater = DateFilterBuilder.addDays(today, 7);
 
     switch (filterCondition) {
-      // 三个主分组
       case 'arrivedAtDestination':
         return this.getContainersByArrivedAtDestination(today, startDate, endDate);
       case 'arrivedAtTransit':
         return this.getContainersByArrivedAtTransit(startDate, endDate);
       case 'expectedArrival':
         return this.getContainersByExpectedArrival(today, startDate, endDate);
-      // 已到目的港的子分类
       case 'arrivalToday':
         return this.getContainersByArrivalToday(today, startDate, endDate);
       case 'arrivedBeforeTodayNotPickedUp':
@@ -333,7 +315,6 @@ export class ArrivalStatisticsService {
         return this.getContainersByArrivedBeforeTodayPickedUp(today, startDate, endDate);
       case 'arrivedBeforeTodayNoATA':
         return this.getContainersByArrivedBeforeTodayNoATA(startDate, endDate);
-      // 中转港按ETA细分
       case 'transitOverdue':
         return this.getContainersByTransitOverdue(today, startDate, endDate);
       case 'transitWithin3Days':
@@ -355,19 +336,16 @@ export class ArrivalStatisticsService {
    * 使用 ContainerQueryBuilder 确保与统计方法逻辑一致
    */
   private async getContainersByArrivedAtDestination(today: Date, startDate?: string, endDate?: string): Promise<Container[]> {
-    // 使用 ContainerQueryBuilder 构建查询
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.joinLatestDestinationWithAta(query);
     ContainerQueryBuilder.filterTargetStatus(query);
-    // 目的港有ATA（即已到目的港）
-    // 注意：joinLatestDestinationWithAta已经过滤了latest_ata IS NOT NULL
-
-    return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
+    ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
+    ContainerQueryBuilder.addCountryFilters(query);
+    return query.getMany();
   }
 
   /**
    * 已到中转港（主分组）
-   * 与 getArrivedAtTransit 统计同源：使用 ARRIVED_AT_TRANSIT_SUBQUERY 模板（含 NOT 还箱/WMS/提柜 + 中转港到港）
    */
   private async getContainersByArrivedAtTransit(startDate?: string, endDate?: string): Promise<Container[]> {
     let { sql, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.ARRIVED_AT_TRANSIT_SUBQUERY, startDate, endDate);
@@ -418,7 +396,9 @@ export class ArrivalStatisticsService {
       return `NOT EXISTS ${destSubQuery}`;
     });
 
-    return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
+    ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
+    ContainerQueryBuilder.addCountryFilters(query);
+    return query.getMany();
   }
 
   /**
@@ -429,8 +409,9 @@ export class ArrivalStatisticsService {
     ContainerQueryBuilder.joinLatestDestinationWithAta(query);
     ContainerQueryBuilder.filterTargetStatus(query);
     query.andWhere('DATE(latest_po.latest_ata) = :today', { today });
-
-    return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
+    ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
+    ContainerQueryBuilder.addCountryFilters(query);
+    return query.getMany();
   }
 
   /**
@@ -442,8 +423,9 @@ export class ArrivalStatisticsService {
     ContainerQueryBuilder.filterTargetStatus(query);
     query.andWhere('DATE(latest_po.latest_ata) < :today', { today });
     ContainerQueryBuilder.excludeLogisticsStatus(query, ContainerQueryBuilder.STATUSES.PICKED_UP);
-
-    return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
+    ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
+    ContainerQueryBuilder.addCountryFilters(query);
+    return query.getMany();
   }
 
   /**
@@ -455,8 +437,9 @@ export class ArrivalStatisticsService {
     ContainerQueryBuilder.filterTargetStatus(query);
     query.andWhere('DATE(latest_po.latest_ata) < :today', { today });
     ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.PICKED_UP);
-
-    return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
+    ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
+    ContainerQueryBuilder.addCountryFilters(query);
+    return query.getMany();
   }
 
   /**

@@ -7,10 +7,11 @@ interface DateRangePickerProps {
   label?: string
 }
 
+// 全项目统一：顶部时间窗口默认为本年（不可用局部变量，defineProps 会提升）
 const props = withDefaults(defineProps<DateRangePickerProps>(), {
   modelValue: () => [
-    dayjs().subtract(90, 'day').startOf('day').toDate(),
-    dayjs().endOf('day').toDate()
+    dayjs().startOf('year').toDate(),
+    dayjs().endOf('year').toDate()
   ],
   label: '按出运时间筛选'
 })
@@ -22,6 +23,15 @@ const emit = defineEmits<{
 const dateRange = ref<[Date, Date] | null>(props.modelValue)
 
 const shortcuts = [
+  {
+    text: '本年',
+    value: () => {
+      return [
+        dayjs().startOf('year').toDate(),
+        dayjs().endOf('year').toDate()
+      ]
+    }
+  },
   {
     text: '最近7天',
     value: () => {
@@ -69,10 +79,10 @@ const handleChange = (value: any) => {
 }
 
 const handleClear = () => {
-  // 清除日期范围后，设置默认为最近90天
+  // 清除后恢复默认：本年
   const defaultValue: [Date, Date] = [
-    dayjs().subtract(90, 'day').startOf('day').toDate(),
-    dayjs().endOf('day').toDate()
+    dayjs().startOf('year').toDate(),
+    dayjs().endOf('year').toDate()
   ]
   dateRange.value = defaultValue
   emit('update:modelValue', defaultValue)
