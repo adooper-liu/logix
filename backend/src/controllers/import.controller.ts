@@ -1223,32 +1223,32 @@ export class ImportController {
 
       try {
         const entity = this.demurrageStandardRepository.create({
-          foreignCompanyCode: row.foreign_company_code,
+          foreignCompanyCode: String(row.foreign_company_code ?? ''),
           foreignCompanyName: row.foreign_company_name ?? null,
           effectiveDate: row.effective_date ? new Date(row.effective_date) : null,
           expiryDate: row.expiry_date ? new Date(row.expiry_date) : null,
-          destinationPortCode: row.destination_port_code,
+          destinationPortCode: String(row.destination_port_code ?? ''),
           destinationPortName: row.destination_port_name ?? null,
-          shippingCompanyCode: row.shipping_company_code,
+          shippingCompanyCode: String(row.shipping_company_code ?? ''),
           shippingCompanyName: row.shipping_company_name ?? null,
           terminal: row.terminal ?? null,
-          originForwarderCode: row.origin_forwarder_code,
+          originForwarderCode: String(row.origin_forwarder_code ?? ''),
           originForwarderName: row.origin_forwarder_name ?? null,
           transportModeCode: row.transport_mode_code ?? null,
           transportModeName: row.transport_mode_name ?? null,
           chargeTypeCode: row.charge_type_code ?? null,
           chargeName: row.charge_name ?? null,
-          isChargeable: row.is_chargeable ?? 'Y',
+          isChargeable: (row.is_chargeable as string) ?? 'Y',
           sequenceNumber: row.sequence_number ?? null,
           portCondition: row.port_condition ?? null,
           freeDaysBasis: row.free_days_basis ?? '自然日',
-          freeDays: row.free_days ?? 0,
+          freeDays: Number(row.free_days ?? 0),
           calculationBasis: row.calculation_basis ?? '按卸船',
           ratePerDay: row.rate_per_day ?? null,
-          tiers: row.tiers ?? null,
+          tiers: (row.tiers as Record<string, unknown>) ?? null,
           currency: row.currency ?? 'USD',
           processStatus: row.process_status ?? null
-        });
+        } as Parameters<typeof this.demurrageStandardRepository.create>[0]);
 
         await this.demurrageStandardRepository.save(entity);
         successCount++;
