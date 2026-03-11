@@ -30,7 +30,7 @@
 | 处理状态 | ext_demurrage_standards | process_status | 否 | 或与单据状态合并 |
 | *费用类型.费用小类编码 | ext_demurrage_standards | charge_type_code | US-DEMURRAGE-0036 | |
 | 费用类型.费用小类名称 | ext_demurrage_standards | charge_name | Demurrage Charge | |
-| *标记 | ext_demurrage_standards | is_chargeable | Y | Y=收费，N=不收费 |
+| *标记 | ext_demurrage_standards | is_chargeable | N | N=收费，Y=不收费 |
 | 序列号 | ext_demurrage_standards | sequence_number | 2957 | 需去除千分位逗号 |
 | *目的港条件 | ext_demurrage_standards | port_condition | 良 | |
 | *计算方式 | ext_demurrage_standards | calculation_basis | 按卸船 | 按到港 / 按卸船 |
@@ -172,7 +172,7 @@ function feesToTiers(fees: number[]): Record<string, number> {
 ### 3.4 序列号与 is_chargeable
 
 - **序列号**：Excel "2,957" 需去逗号 → 2957。
-- **标记/ is_chargeable**：Y = 收费（is_chargeable='Y'），N = 不收费（'N'）。与 01-DEMURRAGE 文档一致：Y 表示收费并参与计算。
+- **标记/ is_chargeable**：N = 收费（is_chargeable='N'），Y = 不收费（'Y'）。与 01-DEMURRAGE 文档一致：N 表示收费并参与计算。
 
 ---
 

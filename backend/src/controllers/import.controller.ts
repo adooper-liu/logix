@@ -19,8 +19,11 @@ import { Port } from '../entities/Port';
 import { TruckingCompany } from '../entities/TruckingCompany';
 import { CustomsBroker } from '../entities/CustomsBroker';
 import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
+import { feituoImportService } from '../services/feituoImport.service';
+import { OverseasCompany } from '../entities/OverseasCompany';
 import { Repository } from 'typeorm';
 import { logger } from '../utils/logger';
+import { auditLogService } from '../services/auditLog.service';
 
 export class ImportController {
   private containerRepository: Repository<Container>;
@@ -160,122 +163,116 @@ export class ImportController {
   }
 
   /**
-   * 验证并规范化船公司代码（如果不存在则自动创建）
+   * 口径统一：从字典表解析港口编码（仅解析，不自动创建）
    * @param queryRunner 查询运行器
-   * @param companyName Excel 中的船公司名称或代码
-   * @returns 有效的船公司代码
+   * @param nameOrCode Excel 中的港口名称或代码
+   * @returns 字典中的 port_code，未匹配则返回 null 并记录警告
+   */
+  private async resolvePortCode(queryRunner: any, nameOrCode: string): Promise<string | null> {
+    if (!nameOrCode || !nameOrCode.trim()) return null;
+    const v = nameOrCode.trim();
+    const port = await queryRunner.manager
+      .getRepository(Port)
+      .createQueryBuilder('p')
+      .where('p.port_code = :v OR LOWER(TRIM(p.port_name)) = LOWER(:v) OR (p.port_name_en IS NOT NULL AND LOWER(TRIM(p.port_name_en)) = LOWER(:v))', { v })
+      .getOne();
+    if (!port) {
+      logger.warn(`[Import] 港口未匹配（口径统一）: ${v}`);
+      return null;
+    }
+    return port.portCode;
+  }
+
+  /**
+   * 口径统一：从字典表解析船公司编码（仅解析，不自动创建）
+   */
+  private async resolveShippingCompanyCode(queryRunner: any, nameOrCode: string): Promise<string | null> {
+    if (!nameOrCode || !nameOrCode.trim()) return null;
+    const v = nameOrCode.trim();
+    const ship = await queryRunner.manager
+      .getRepository(ShippingCompany)
+      .createQueryBuilder('s')
+      .where('s.company_code = :v OR LOWER(TRIM(s.company_name)) = LOWER(:v) OR (s.company_name_en IS NOT NULL AND LOWER(TRIM(s.company_name_en)) = LOWER(:v))', { v })
+      .getOne();
+    if (!ship) {
+      logger.warn(`[Import] 船公司未匹配（口径统一）: ${v}`);
+      return null;
+    }
+    return ship.companyCode;
+  }
+
+  /**
+   * 口径统一：从字典表解析货代编码（仅解析，不自动创建）
+   */
+  private async resolveFreightForwarderCode(queryRunner: any, nameOrCode: string): Promise<string | null> {
+    if (!nameOrCode || !nameOrCode.trim()) return null;
+    const v = nameOrCode.trim();
+    const ff = await queryRunner.manager
+      .getRepository(FreightForwarder)
+      .createQueryBuilder('f')
+      .where('f.forwarder_code = :v OR LOWER(TRIM(f.forwarder_name)) = LOWER(:v) OR (f.forwarder_name_en IS NOT NULL AND LOWER(TRIM(f.forwarder_name_en)) = LOWER(:v))', { v })
+      .getOne();
+    if (!ff) {
+      logger.warn(`[Import] 货代未匹配（口径统一）: ${v}`);
+      return null;
+    }
+    return ff.forwarderCode;
+  }
+
+  /**
+   * 验证并规范化船公司代码（口径统一：先解析，未匹配则自动创建字典并返回 code）
    */
   private async validateShippingCompany(queryRunner: any, companyName: string): Promise<string | null> {
-    if (!companyName || companyName.trim() === '') return null;
-
+    const code = await this.resolveShippingCompanyCode(queryRunner, companyName);
+    if (code) return code;
+    if (!companyName || !companyName.trim()) return null;
     const trimmedName = companyName.trim();
-
-    // 首先检查是否已经是代码
-    const byCode = await queryRunner.manager.findOne(ShippingCompany, {
-      where: { companyCode: trimmedName }
-    });
-    if (byCode) return trimmedName;
-
-    // 按名称查找
-    const byName = await queryRunner.manager.findOne(ShippingCompany, {
-      where: [
-        { companyName: trimmedName },
-        { companyNameEn: trimmedName }
-      ]
-    });
-    if (byName) return byName.companyCode;
-
-    // 不存在，自动创建
     const newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : 'NEW_' + Date.now();
-
     const newCompany = queryRunner.manager.create(ShippingCompany, {
       companyCode: newCode,
       companyName: trimmedName,
       companyNameEn: trimmedName
     });
-
     await queryRunner.manager.save(newCompany);
-    logger.info(`[Import] 新增船公司: ${trimmedName} (代码: ${newCode})`);
+    logger.info(`[Import] 自动创建船公司（口径统一）: ${trimmedName} → ${newCode}`);
     return newCode;
   }
 
   /**
-   * 验证并规范化货代公司代码（如果不存在则自动创建）
-   * @param queryRunner 查询运行器
-   * @param forwarderName Excel 中的货代公司名称或代码
-   * @returns 有效的货代公司代码
+   * 验证并规范化货代公司代码（口径统一：先解析，未匹配则自动创建字典并返回 code）
    */
   private async validateFreightForwarder(queryRunner: any, forwarderName: string): Promise<string | null> {
-    if (!forwarderName || forwarderName.trim() === '') return null;
-
+    const code = await this.resolveFreightForwarderCode(queryRunner, forwarderName);
+    if (code) return code;
+    if (!forwarderName || !forwarderName.trim()) return null;
     const trimmedName = forwarderName.trim();
-
-    // 首先检查是否已经是代码
-    const byCode = await queryRunner.manager.findOne(FreightForwarder, {
-      where: { forwarderCode: trimmedName }
-    });
-    if (byCode) return trimmedName;
-
-    // 按名称查找
-    const byName = await queryRunner.manager.findOne(FreightForwarder, {
-      where: [
-        { forwarderName: trimmedName },
-        { forwarderNameEn: trimmedName }
-      ]
-    });
-    if (byName) return byName.forwarderCode;
-
-    // 不存在，自动创建
     const newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : 'NEW_FF_' + Date.now();
-
     const newForwarder = queryRunner.manager.create(FreightForwarder, {
       forwarderCode: newCode,
       forwarderName: trimmedName,
       forwarderNameEn: trimmedName
     });
-
     await queryRunner.manager.save(newForwarder);
-    logger.info(`[Import] 新增货代公司: ${trimmedName} (代码: ${newCode})`);
+    logger.info(`[Import] 自动创建货代（口径统一）: ${trimmedName} → ${newCode}`);
     return newCode;
   }
 
   /**
-   * 验证并规范化港口代码（如果不存在则自动创建）
-   * @param queryRunner 查询运行器
-   * @param portName Excel 中的港口名称或代码
-   * @returns 有效的港口代码
+   * 验证并规范化港口代码（口径统一：先解析，未匹配则自动创建字典并返回 code）
    */
   private async validatePort(queryRunner: any, portName: string): Promise<string | null> {
-    if (!portName || portName.trim() === '') return null;
-
+    const code = await this.resolvePortCode(queryRunner, portName);
+    if (code) return code;
+    if (!portName || !portName.trim()) return null;
     const trimmedName = portName.trim();
-
-    // 首先检查是否已经是代码
-    const byCode = await queryRunner.manager.findOne(Port, {
-      where: { portCode: trimmedName }
-    });
-    if (byCode) return trimmedName;
-
-    // 按名称查找
-    const byName = await queryRunner.manager.findOne(Port, {
-      where: [
-        { portName: trimmedName },
-        { portNameEn: trimmedName }
-      ]
-    });
-    if (byName) return byName.portCode;
-
-    // 不存在，自动创建
     const newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : 'NEW_PORT_' + Date.now();
-
     const newPort = queryRunner.manager.create(Port, {
       portCode: newCode,
       portName: trimmedName,
       portNameEn: trimmedName
     });
-
     await queryRunner.manager.save(newPort);
-    logger.info(`[Import] 新增港口: ${trimmedName} (代码: ${newCode})`);
+    logger.info(`[Import] 自动创建港口（口径统一）: ${trimmedName} → ${newCode}`);
     return newCode;
   }
 
@@ -424,74 +421,9 @@ export class ImportController {
       try {
         const resultData: any = {};
 
-        // 1. 创建或更新备货单（同一行有货柜时，将柜号写入备货单，建立关联）
-        if (orderData?.orderNumber) {
-          if (containerData?.containerNumber) {
-            orderData.containerNumber = containerData.containerNumber;
-          }
-          logger.info('[Import] 处理备货单:', orderData.orderNumber);
-
-          const existingOrder = await queryRunner.manager.findOne(ReplenishmentOrder, {
-            where: { orderNumber: orderData.orderNumber }
-          });
-
-          if (existingOrder) {
-            Object.assign(existingOrder, orderData);
-            await queryRunner.manager.save(existingOrder);
-          } else {
-            const order = queryRunner.manager.create(ReplenishmentOrder, orderData);
-            await queryRunner.manager.save(order);
-          }
-          resultData.orderNumber = orderData.orderNumber;
-        }
-
-        // 2. 创建或更新货柜（同一行有海运/提单时，将提单号写入货柜，建立关联）
-        if (containerData?.containerNumber) {
-          const blNum = getBlNumber(seaFreightData);
-          if (blNum) containerData.billOfLadingNumber = blNum;
-          logger.info('[Import] 处理货柜:', containerData.containerNumber);
-
-          const existingContainer = await queryRunner.manager.findOne(Container, {
-            where: { containerNumber: containerData.containerNumber }
-          });
-
-          // 验证并规范化柜型编码
-          const containerTypeCode = await this.validateAndNormalizeContainerType(
-            containerData.containerTypeCode || '40HQ'
-          );
-
-          // 验证并规范化物流状态
-          const logisticsStatus = this.validateLogisticsStatus(
-            containerData.logisticsStatus || ''
-          );
-
-          if (existingContainer) {
-            Object.assign(existingContainer, {
-              ...containerData,
-              containerTypeCode,
-              logisticsStatus
-            });
-            await queryRunner.manager.save(existingContainer);
-          } else {
-            const container = queryRunner.manager.create(Container, {
-              ...containerData,
-              orderNumber: containerData.orderNumber,
-              containerTypeCode,
-              logisticsStatus
-            });
-            await queryRunner.manager.save(container);
-            logger.info('[Import] 创建货柜成功');
-          }
-          if (containerData.billOfLadingNumber) {
-            await queryRunner.manager.query(
-              'UPDATE biz_containers SET bill_of_lading_number = $1 WHERE container_number = $2',
-              [containerData.billOfLadingNumber, containerData.containerNumber]
-            );
-          }
-          resultData.containerNumber = containerData.containerNumber;
-        }
-
-        // 3. 创建或更新海运信息（支持字段 billOfLadingNumber、mblNumber、Excel 列名「提单号」）
+        // 1. 先创建海运（biz_containers.bill_of_lading_number 外键依赖 process_sea_freight）
+        // 2. 再创建货柜（biz_replenishment_orders.container_number 外键依赖 biz_containers）
+        // 3. 最后创建备货单
         if (seaFreightData?.containerNumber || getBlNumber(seaFreightData)) {
           if (seaFreightData && !seaFreightData.billOfLadingNumber && seaFreightData['提单号']) {
             seaFreightData.billOfLadingNumber = seaFreightData['提单号'];
@@ -541,6 +473,72 @@ export class ImportController {
             const seaFreight = queryRunner.manager.create(SeaFreight, seaFreightData);
             await queryRunner.manager.save(seaFreight);
           }
+        }
+
+        // 2. 创建或更新货柜（海运已存在，bill_of_lading_number 外键可满足）
+        let containerExisted = false; // 用于审计日志
+        if (containerData?.containerNumber) {
+          const blNum = getBlNumber(seaFreightData);
+          if (blNum) containerData.billOfLadingNumber = blNum;
+          logger.info('[Import] 处理货柜:', containerData.containerNumber);
+
+          const existingContainer = await queryRunner.manager.findOne(Container, {
+            where: { containerNumber: containerData.containerNumber }
+          });
+          containerExisted = !!existingContainer;
+
+          const containerTypeCode = await this.validateAndNormalizeContainerType(
+            containerData.containerTypeCode || '40HQ'
+          );
+          const logisticsStatus = this.validateLogisticsStatus(
+            containerData.logisticsStatus || ''
+          );
+
+          if (existingContainer) {
+            Object.assign(existingContainer, {
+              ...containerData,
+              containerTypeCode,
+              logisticsStatus
+            });
+            await queryRunner.manager.save(existingContainer);
+          } else {
+            const container = queryRunner.manager.create(Container, {
+              ...containerData,
+              orderNumber: containerData.orderNumber,
+              containerTypeCode,
+              logisticsStatus
+            });
+            await queryRunner.manager.save(container);
+            logger.info('[Import] 创建货柜成功');
+          }
+          if (containerData.billOfLadingNumber) {
+            await queryRunner.manager.query(
+              'UPDATE biz_containers SET bill_of_lading_number = $1 WHERE container_number = $2',
+              [containerData.billOfLadingNumber, containerData.containerNumber]
+            );
+          }
+          resultData.containerNumber = containerData.containerNumber;
+        }
+
+        // 3. 创建或更新备货单（货柜已存在，container_number 外键可满足）
+        if (orderData?.orderNumber) {
+          if (containerData?.containerNumber) {
+            orderData.containerNumber = containerData.containerNumber;
+          }
+          logger.info('[Import] 处理备货单:', orderData.orderNumber);
+
+          const existingOrder = await queryRunner.manager.findOne(ReplenishmentOrder, {
+            where: { orderNumber: orderData.orderNumber }
+          });
+
+          if (existingOrder) {
+            Object.assign(existingOrder, orderData);
+            await queryRunner.manager.save(existingOrder);
+          } else {
+            const order = queryRunner.manager.create(ReplenishmentOrder, orderData);
+            await queryRunner.manager.save(order);
+          }
+          resultData.orderNumber = orderData.orderNumber;
         }
 
         // 4. 创建或更新港口操作（支持多港经停，数组格式）
@@ -651,6 +649,20 @@ export class ImportController {
 
         await queryRunner.commitTransaction();
         logger.info('[Import] 导入成功:', resultData);
+
+        // 记录数据变更日志
+        if (containerData?.containerNumber) {
+          const batchId = `excel_${Date.now()}`;
+          await auditLogService.logChange({
+            sourceType: 'excel_import',
+            entityType: 'biz_containers',
+            entityId: containerData.containerNumber,
+            action: containerExisted ? 'UPDATE' : 'INSERT',
+            changedFields: null,
+            batchId,
+            remark: 'Excel导入: replenishment_orders, sea_freight, port_operations, trucking_transport, warehouse_operations, empty_return'
+          });
+        }
 
         // 导入成功后，自动更新货柜状态
         if (containerData?.containerNumber) {
@@ -824,73 +836,9 @@ export class ImportController {
 
           const resultData: any = { rowIndex: i + 1 };
 
-          // 1. 创建或更新备货单（同一行有货柜时，将柜号写入备货单，建立关联）
-          if (orderData?.orderNumber) {
-            if (containerData?.containerNumber) {
-              orderData.containerNumber = containerData.containerNumber;
-            }
-            logger.info(`[Import] 第${i + 1}行: 创建备货单 - ${orderData.orderNumber}`);
-            const existingOrder = await queryRunner.manager.findOne(ReplenishmentOrder, {
-              where: { orderNumber: orderData.orderNumber }
-            });
-
-            if (existingOrder) {
-              Object.assign(existingOrder, orderData);
-              await queryRunner.manager.save(existingOrder);
-              logger.info(`[Import] 第${i + 1}行: 更新备货单成功`);
-            } else {
-              const order = queryRunner.manager.create(ReplenishmentOrder, orderData);
-              await queryRunner.manager.save(order);
-              logger.info(`[Import] 第${i + 1}行: 创建备货单成功`);
-            }
-            resultData.orderNumber = orderData.orderNumber;
-          }
-
-          // 2. 创建或更新货柜（同一行有海运/提单时，将提单号写入货柜，建立关联；支持 Excel 列名「提单号」）
-          if (containerData?.containerNumber) {
-            const blNum = getBlNumber(seaFreightData);
-            if (blNum) containerData.billOfLadingNumber = blNum;
-            logger.info(`[Import] 第${i + 1}行: 创建货柜 - ${containerData.containerNumber}`);
-            const existingContainer = await queryRunner.manager.findOne(Container, {
-              where: { containerNumber: containerData.containerNumber }
-            });
-
-            // 验证并规范化柜型编码
-            const containerTypeCode = await this.validateAndNormalizeContainerType(
-              containerData.containerTypeCode || '40HQ'
-            );
-
-            // 验证并规范化物流状态
-            const logisticsStatus = this.validateLogisticsStatus(
-              containerData.logisticsStatus || ''
-            );
-
-            if (existingContainer) {
-              Object.assign(existingContainer, {
-                ...containerData,
-                containerTypeCode,
-                logisticsStatus
-              });
-              await queryRunner.manager.save(existingContainer);
-            } else {
-              const container = queryRunner.manager.create(Container, {
-                ...containerData,
-                orderNumber: containerData.orderNumber,
-                containerTypeCode,
-                logisticsStatus
-              });
-              await queryRunner.manager.save(container);
-            }
-            if (containerData.billOfLadingNumber) {
-              await queryRunner.manager.query(
-                'UPDATE biz_containers SET bill_of_lading_number = $1 WHERE container_number = $2',
-                [containerData.billOfLadingNumber, containerData.containerNumber]
-              );
-            }
-            resultData.containerNumber = containerData.containerNumber;
-          }
-
-          // 3. 创建或更新海运信息（支持 billOfLadingNumber、mblNumber、Excel 列名「提单号」）
+          // 1. 先创建海运（biz_containers.bill_of_lading_number 外键依赖 process_sea_freight）
+          // 2. 再创建货柜（biz_replenishment_orders.container_number 外键依赖 biz_containers）
+          // 3. 最后创建备货单
           if (seaFreightData?.containerNumber || getBlNumber(seaFreightData)) {
             if (seaFreightData && !seaFreightData.billOfLadingNumber && seaFreightData['提单号']) {
               seaFreightData.billOfLadingNumber = seaFreightData['提单号'];
@@ -938,6 +886,71 @@ export class ImportController {
               const seaFreight = queryRunner.manager.create(SeaFreight, seaFreightData);
               await queryRunner.manager.save(seaFreight);
             }
+          }
+
+          // 2. 创建或更新货柜（海运已存在，bill_of_lading_number 外键可满足）
+          let batchContainerExisted = false;
+          if (containerData?.containerNumber) {
+            const blNum = getBlNumber(seaFreightData);
+            if (blNum) containerData.billOfLadingNumber = blNum;
+            logger.info(`[Import] 第${i + 1}行: 创建货柜 - ${containerData.containerNumber}`);
+            const existingContainer = await queryRunner.manager.findOne(Container, {
+              where: { containerNumber: containerData.containerNumber }
+            });
+            batchContainerExisted = !!existingContainer;
+
+            const containerTypeCode = await this.validateAndNormalizeContainerType(
+              containerData.containerTypeCode || '40HQ'
+            );
+            const logisticsStatus = this.validateLogisticsStatus(
+              containerData.logisticsStatus || ''
+            );
+
+            if (existingContainer) {
+              Object.assign(existingContainer, {
+                ...containerData,
+                containerTypeCode,
+                logisticsStatus
+              });
+              await queryRunner.manager.save(existingContainer);
+            } else {
+              const container = queryRunner.manager.create(Container, {
+                ...containerData,
+                orderNumber: containerData.orderNumber,
+                containerTypeCode,
+                logisticsStatus
+              });
+              await queryRunner.manager.save(container);
+            }
+            if (containerData.billOfLadingNumber) {
+              await queryRunner.manager.query(
+                'UPDATE biz_containers SET bill_of_lading_number = $1 WHERE container_number = $2',
+                [containerData.billOfLadingNumber, containerData.containerNumber]
+              );
+            }
+            resultData.containerNumber = containerData.containerNumber;
+          }
+
+          // 3. 创建或更新备货单（货柜已存在，container_number 外键可满足）
+          if (orderData?.orderNumber) {
+            if (containerData?.containerNumber) {
+              orderData.containerNumber = containerData.containerNumber;
+            }
+            logger.info(`[Import] 第${i + 1}行: 创建备货单 - ${orderData.orderNumber}`);
+            const existingOrder = await queryRunner.manager.findOne(ReplenishmentOrder, {
+              where: { orderNumber: orderData.orderNumber }
+            });
+
+            if (existingOrder) {
+              Object.assign(existingOrder, orderData);
+              await queryRunner.manager.save(existingOrder);
+              logger.info(`[Import] 第${i + 1}行: 更新备货单成功`);
+            } else {
+              const order = queryRunner.manager.create(ReplenishmentOrder, orderData);
+              await queryRunner.manager.save(order);
+              logger.info(`[Import] 第${i + 1}行: 创建备货单成功`);
+            }
+            resultData.orderNumber = orderData.orderNumber;
           }
 
           // 4. 创建或更新港口操作（支持多港经停，数组格式）
@@ -1037,6 +1050,21 @@ export class ImportController {
 
           await queryRunner.commitTransaction();
           logger.info(`[Import] 第${i + 1}行: 事务提交成功`);
+
+          // 记录数据变更日志（批量导入）
+          if (containerData?.containerNumber) {
+            const batchId = `excel_batch_${Date.now()}_${i}`;
+            await auditLogService.logChange({
+              sourceType: 'excel_import',
+              entityType: 'biz_containers',
+              entityId: containerData.containerNumber,
+              action: batchContainerExisted ? 'UPDATE' : 'INSERT',
+              changedFields: null,
+              batchId,
+              remark: `Excel批量导入 第${i + 1}行`
+            });
+          }
+
           results.push({ success: true, ...resultData });
 
           // 收集需要更新状态的货柜号
@@ -1199,9 +1227,64 @@ export class ImportController {
   }
 
   /**
+   * 根据名称解析四项匹配编码（口径统一）
+   */
+  private async resolveDemurrageCodesFromNames(row: Record<string, unknown>): Promise<Record<string, string>> {
+    const resolved: Record<string, string> = {};
+    const portRepo = AppDataSource.getRepository(Port);
+    const shipRepo = AppDataSource.getRepository(ShippingCompany);
+    const ffRepo = AppDataSource.getRepository(FreightForwarder);
+    const ocRepo = AppDataSource.getRepository(OverseasCompany);
+
+    const v = (key: string) => String(row[key] ?? '').trim();
+
+    const portVal = v('destination_port_code') || v('destination_port_name');
+    if (portVal) {
+      const port = await portRepo
+        .createQueryBuilder('p')
+        .where('p.port_code = :v OR LOWER(TRIM(p.port_name)) = LOWER(:v) OR (p.port_name_en IS NOT NULL AND LOWER(TRIM(p.port_name_en)) = LOWER(:v))', { v: portVal })
+        .getOne();
+      if (port) resolved.destination_port_code = port.portCode;
+    }
+
+    const shipVal = v('shipping_company_code') || v('shipping_company_name');
+    if (shipVal) {
+      const ship = await shipRepo
+        .createQueryBuilder('s')
+        .where(
+          's.company_code = :v OR LOWER(TRIM(s.company_name)) = LOWER(:v) OR (s.company_name_en IS NOT NULL AND LOWER(TRIM(s.company_name_en)) = LOWER(:v)) OR (s.scac_code IS NOT NULL AND LOWER(TRIM(s.scac_code)) = LOWER(:v))',
+          { v: shipVal }
+        )
+        .getOne();
+      if (ship) resolved.shipping_company_code = ship.companyCode;
+    }
+
+    const ffVal = v('origin_forwarder_code') || v('origin_forwarder_name');
+    if (ffVal) {
+      const ff = await ffRepo
+        .createQueryBuilder('f')
+        .where('f.forwarder_code = :v OR LOWER(TRIM(f.forwarder_name)) = LOWER(:v) OR (f.forwarder_name_en IS NOT NULL AND LOWER(TRIM(f.forwarder_name_en)) = LOWER(:v))', { v: ffVal })
+        .getOne();
+      if (ff) resolved.origin_forwarder_code = ff.forwarderCode;
+    }
+
+    const ocVal = v('foreign_company_code') || v('foreign_company_name');
+    if (ocVal) {
+      const oc = await ocRepo
+        .createQueryBuilder('o')
+        .where('o.company_code = :v OR LOWER(TRIM(o.company_name)) = LOWER(:v) OR (o.company_name_en IS NOT NULL AND LOWER(TRIM(o.company_name_en)) = LOWER(:v))', { v: ocVal })
+        .getOne();
+      if (oc) resolved.foreign_company_code = oc.companyCode;
+    }
+
+    return resolved;
+  }
+
+  /**
    * 批量导入滞港费标准
    * POST /api/v1/import/demurrage-standards
    * Body: { records: DemurrageStandardRow[] }
+   * 导入时自动根据名称解析编码（口径统一）
    */
   async importDemurrageStandards(req: Request, res: Response): Promise<void> {
     const { records } = req.body;
@@ -1222,33 +1305,40 @@ export class ImportController {
       const rowNum = i + 1;
 
       try {
+        const resolved = await this.resolveDemurrageCodesFromNames(row);
+        const resolvedRow = { ...row };
+        if (resolved.destination_port_code) resolvedRow.destination_port_code = resolved.destination_port_code;
+        if (resolved.shipping_company_code) resolvedRow.shipping_company_code = resolved.shipping_company_code;
+        if (resolved.origin_forwarder_code) resolvedRow.origin_forwarder_code = resolved.origin_forwarder_code;
+        if (resolved.foreign_company_code) resolvedRow.foreign_company_code = resolved.foreign_company_code;
+
         const entity = this.demurrageStandardRepository.create({
-          foreignCompanyCode: String(row.foreign_company_code ?? ''),
-          foreignCompanyName: row.foreign_company_name ?? null,
-          effectiveDate: row.effective_date ? new Date(row.effective_date) : null,
-          expiryDate: row.expiry_date ? new Date(row.expiry_date) : null,
-          destinationPortCode: String(row.destination_port_code ?? ''),
-          destinationPortName: row.destination_port_name ?? null,
-          shippingCompanyCode: String(row.shipping_company_code ?? ''),
-          shippingCompanyName: row.shipping_company_name ?? null,
-          terminal: row.terminal ?? null,
-          originForwarderCode: String(row.origin_forwarder_code ?? ''),
-          originForwarderName: row.origin_forwarder_name ?? null,
-          transportModeCode: row.transport_mode_code ?? null,
-          transportModeName: row.transport_mode_name ?? null,
-          chargeTypeCode: row.charge_type_code ?? null,
-          chargeName: row.charge_name ?? null,
-          isChargeable: (row.is_chargeable as string) ?? 'Y',
-          sequenceNumber: row.sequence_number ?? null,
-          portCondition: row.port_condition ?? null,
-          freeDaysBasis: row.free_days_basis ?? '自然日',
-          freeDays: Number(row.free_days ?? 0),
-          calculationBasis: row.calculation_basis ?? '按卸船',
-          ratePerDay: row.rate_per_day ?? null,
-          tiers: (row.tiers as Record<string, unknown>) ?? null,
-          currency: row.currency ?? 'USD',
-          processStatus: row.process_status ?? null
-        } as Parameters<typeof this.demurrageStandardRepository.create>[0]);
+          foreignCompanyCode: String(resolvedRow.foreign_company_code ?? ''),
+          foreignCompanyName: resolvedRow.foreign_company_name ?? null,
+          effectiveDate: resolvedRow.effective_date ? new Date(resolvedRow.effective_date) : null,
+          expiryDate: resolvedRow.expiry_date ? new Date(resolvedRow.expiry_date) : null,
+          destinationPortCode: String(resolvedRow.destination_port_code ?? ''),
+          destinationPortName: resolvedRow.destination_port_name ?? null,
+          shippingCompanyCode: String(resolvedRow.shipping_company_code ?? ''),
+          shippingCompanyName: resolvedRow.shipping_company_name ?? null,
+          terminal: resolvedRow.terminal ?? null,
+          originForwarderCode: String(resolvedRow.origin_forwarder_code ?? ''),
+          originForwarderName: resolvedRow.origin_forwarder_name ?? null,
+          transportModeCode: resolvedRow.transport_mode_code ?? null,
+          transportModeName: resolvedRow.transport_mode_name ?? null,
+          chargeTypeCode: resolvedRow.charge_type_code ?? null,
+          chargeName: resolvedRow.charge_name ?? null,
+          isChargeable: (resolvedRow.is_chargeable as string) ?? 'Y',
+          sequenceNumber: resolvedRow.sequence_number ?? null,
+          portCondition: resolvedRow.port_condition ?? null,
+          freeDaysBasis: resolvedRow.free_days_basis ?? '自然日',
+          freeDays: Number(resolvedRow.free_days ?? 0),
+          calculationBasis: resolvedRow.calculation_basis ?? '按卸船',
+          ratePerDay: resolvedRow.rate_per_day ?? null,
+          tiers: (resolvedRow.tiers as Record<string, unknown>) ?? null,
+          currency: resolvedRow.currency ?? 'USD',
+          processStatus: resolvedRow.process_status ?? null
+        } as any);
 
         await this.demurrageStandardRepository.save(entity);
         successCount++;
@@ -1298,4 +1388,50 @@ export class ImportController {
       warnings.forEach(w => logger.warn(`[Import] - ${w}`));
     }
   }
+
+  /**
+   * 飞驼 Excel 导入
+   * POST /api/v1/import/feituo-excel
+   * Body: { tableType: 1|2, rows: Record[]|unknown[][], headers?: string[], fileName?: string }
+   * 传 headers + rows 为 unknown[][] 时按分组存储，避免同名字段错位
+   */
+  importFeituoExcel = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { tableType, rows, headers, fileName } = req.body;
+      if (![1, 2].includes(Number(tableType))) {
+        res.status(400).json({
+          success: false,
+          message: 'tableType 必须为 1（表一）或 2（表二）'
+        });
+        return;
+      }
+      if (!Array.isArray(rows) || rows.length === 0) {
+        res.status(400).json({
+          success: false,
+          message: 'rows 必须为非空数组'
+        });
+        return;
+      }
+
+      const result = await feituoImportService.import(
+        Number(tableType) as 1 | 2,
+        rows,
+        fileName,
+        Array.isArray(headers) && headers.length > 0 ? headers : undefined
+      );
+
+      res.json({
+        success: true,
+        message: `导入完成：成功 ${result.success} 条，失败 ${result.failed} 条`,
+        data: result
+      });
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      logger.error('[Import] 飞驼导入失败:', err.message, err.stack);
+      res.status(500).json({
+        success: false,
+        message: err.message || '飞驼导入失败'
+      });
+    }
+  };
 }

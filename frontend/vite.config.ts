@@ -19,20 +19,24 @@ function markdownUtf8Plugin(): Plugin {
           const fs = await import('fs')
           console.log('[Markdown Plugin] Processing request:', req.url)
 
-          // 处理 /docs/ 和 /docs-temp/ 路径
+          // 处理 /docs/ 路径（frontend/public/docs/）
           let filePath: string
 
-          if (req.url.startsWith('/docs-temp/')) {
-            // docs-temp 在项目根目录
-            const relativePath = req.url.replace('/docs-temp/', '')
-            filePath = path.resolve(__dirname, '..', 'public', 'docs-temp', relativePath)
-          } else if (req.url.startsWith('/docs/')) {
+          if (req.url.startsWith('/docs/')) {
             // docs 在 frontend/public/docs/ 或 frontend/public/
-            const relativePath = req.url.replace('/docs/', '')
+            // 解码 URL 编码的字符（如 %E5%BC%80%E5%8F%91%E6%A0%87%E5%87%86 → 开发标准）
+            let relativePath = req.url.replace('/docs/', '')
+            try {
+              relativePath = decodeURIComponent(relativePath)
+            } catch (err) {
+              console.error('[Markdown Plugin] Failed to decode URL:', relativePath, err)
+            }
+
             const publicDocsPath = path.resolve(__dirname, 'public', 'docs', relativePath)
             const publicPath = path.resolve(__dirname, 'public', relativePath)
 
             console.log('[Markdown Plugin] Checking paths:', {
+              relativePath,
               publicDocsPath,
               publicPath
             })
@@ -50,7 +54,12 @@ function markdownUtf8Plugin(): Plugin {
             }
           } else {
             // 其他路径使用原来的逻辑
-            filePath = path.join(process.cwd(), req.url)
+            try {
+              filePath = path.join(process.cwd(), decodeURIComponent(req.url))
+            } catch (err) {
+              console.error('[Markdown Plugin] Failed to decode URL:', req.url, err)
+              filePath = path.join(process.cwd(), req.url)
+            }
           }
 
           console.log('[Markdown Plugin] Resolved path:', filePath)

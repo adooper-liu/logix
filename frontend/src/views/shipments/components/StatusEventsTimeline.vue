@@ -167,8 +167,8 @@ const groupedStatusEvents = computed(() => {
               <el-tag size="small" type="warning">预计</el-tag>
             </div>
             <div class="event-time">{{ formatDate(group.planned.timestamp) }}</div>
-            <div class="event-status">{{ group.planned.status }}</div>
-            <div class="event-desc">{{ group.planned.description }}</div>
+            <div class="event-status">{{ group.planned.status || '-' }}</div>
+            <div class="event-desc">{{ group.planned.description || '-' }}</div>
           </div>
           <div v-else class="timeline-placeholder"></div>
         </div>
@@ -186,8 +186,8 @@ const groupedStatusEvents = computed(() => {
               <el-tag size="small" type="success">实际</el-tag>
             </div>
             <div class="event-time">{{ formatDate(group.actual.timestamp) }}</div>
-            <div class="event-status">{{ group.actual.status }}</div>
-            <div class="event-desc">{{ group.actual.description }}</div>
+            <div class="event-status">{{ group.actual.status || '-' }}</div>
+            <div class="event-desc">{{ group.actual.description || '-' }}</div>
           </div>
           <div v-else class="timeline-placeholder"></div>
         </div>
@@ -203,14 +203,16 @@ const groupedStatusEvents = computed(() => {
 .timeline-sort-control {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
-  padding: 12px 16px;
-  background: #f5f7fa;
-  border-radius: 8px;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+  padding: $spacing-sm $spacing-md;
+  background: $bg-page;
+  border: 1px solid $border-light;
+  border-radius: $radius-large;
+  box-shadow: $shadow-light;
 
   .sort-label {
-    font-size: 14px;
+    font-size: $font-size-sm;
     color: $text-regular;
     font-weight: 500;
   }
@@ -292,32 +294,48 @@ const groupedStatusEvents = computed(() => {
     }
 
     .timeline-event-card {
-      background: #f5f7fa;
-      border-radius: 8px;
-      padding: 12px 14px;
+      background: $bg-color;
+      border: 1px solid $border-light;
+      border-radius: $radius-large;
+      padding: $spacing-sm $spacing-md;
+      padding-left: calc(#{$spacing-md} + 3px);
       width: 100%;
-      transition: all 0.3s ease;
-      border-top: 4px solid #409eff;
+      transition: $transition-base;
+      box-shadow: $shadow-light;
+      position: relative;
+      overflow: hidden;
+
+      &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3px;
+        opacity: 0.8;
+      }
 
       &.planned {
-        border-top-color: $warning-color;
-        background: #fdf6ec;
+        &::before {
+          background: $warning-color;
+        }
+        background: color-mix(in srgb, $warning-light 30%, $bg-color);
 
         &:hover {
-          background: #fef0e6;
+          box-shadow: $shadow-base;
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(230, 162, 60, 0.2);
         }
       }
 
       &.actual {
-        border-top-color: $success-color;
-        background: #f0f9ff;
+        &::before {
+          background: $success-color;
+        }
+        background: color-mix(in srgb, $success-light 25%, $bg-color);
 
         &:hover {
-          background: #e6f7ff;
+          box-shadow: $shadow-base;
           transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(103, 194, 58, 0.2);
         }
       }
 
@@ -325,31 +343,31 @@ const groupedStatusEvents = computed(() => {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 8px;
-        gap: 8px;
+        margin-bottom: $spacing-xs;
+        gap: $spacing-sm;
 
         .event-label {
-          font-size: 14px;
+          font-size: $font-size-sm;
           font-weight: 600;
           color: $text-primary;
         }
       }
 
       .event-time {
-        font-size: 13px;
+        font-size: $font-size-xs;
         color: $primary-color;
         font-weight: 500;
-        margin-bottom: 6px;
+        margin-bottom: $spacing-xs;
       }
 
       .event-status {
-        font-size: 12px;
+        font-size: $font-size-xs;
         color: $text-secondary;
-        margin-bottom: 4px;
+        margin-bottom: 2px;
       }
 
       .event-desc {
-        font-size: 12px;
+        font-size: $font-size-xs;
         color: $text-regular;
         line-height: 1.4;
       }

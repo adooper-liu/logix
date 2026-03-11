@@ -45,8 +45,8 @@
             {{ node.location.name }} ({{ node.location.code }})
           </div>
           <div class="node-time">{{ formatDateTime(node.timestamp) }}</div>
-          <div class="node-delay" v-if="getDelayDays(index) > 0">
-            延误 {{ getDelayDays(index) }} 天
+          <div class="node-delay" v-if="getDelayDuration(index)">
+            滞留 {{ getDelayDuration(index) }}
           </div>
         </div>
       </div>
@@ -110,9 +110,9 @@ const formatDateTime = (date: Date): string => {
   });
 };
 
-// 计算两个节点之间的延误天数
-const getDelayDays = (index: number): number => {
-  if (index === 0) return 0;
+// 计算两个节点之间的滞留时长，按实际 X天Y小时 显示，不扣 24 小时基准
+const getDelayDuration = (index: number): string => {
+  if (index === 0) return '';
 
   const prevNode = props.path.nodes[index - 1];
   const currentNode = props.path.nodes[index];
@@ -121,8 +121,11 @@ const getDelayDays = (index: number): number => {
   const currTime = new Date(currentNode.timestamp);
   const diffHours = (currTime.getTime() - prevTime.getTime()) / (1000 * 60 * 60);
 
-  // 简单判断：超过24小时算延误（实际应根据业务规则）
-  return diffHours > 24 ? Math.ceil((diffHours - 24) / 24) : 0;
+  if (diffHours <= 0) return '';
+  const days = Math.floor(diffHours / 24);
+  let hours = Math.round(diffHours % 24);
+  if (hours === 24) hours = 0; // 24 整时归入天数
+  return `${days}天${hours}小时`;
 };
 
 // 获取状态图标

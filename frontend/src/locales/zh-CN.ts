@@ -3,7 +3,7 @@ export default {
   // ========== 通用 ==========
   common: {
     appName: 'LogiX',
-    slogan: '让复杂物流变得简单愉快',
+    slogan: '让复杂物流变得轻松愉快',
     logo: 'Logo',
     home: '首页',
     back: '返回',
@@ -45,14 +45,14 @@ export default {
     all: '全部',
     more: '更多',
     expand: '展开',
-    collapse: '收起'
+    collapse: '收起',
   },
 
   // ========== 导航菜单 ==========
   nav: {
-    shipments: '货柜',
+    shipments: '头程',
     system: '系统',
-    containerManagement: '集装箱管理',
+    containerManagement: '货柜管理',
     ganttChart: '货柜甘特图',
     excelImport: 'Excel数据导入',
     demurrageStandardsImport: '滞港费标准导入',
@@ -62,7 +62,7 @@ export default {
     help: '帮助文档',
     about: '关于',
     personalCenter: '个人中心',
-    logout: '退出登录'
+    logout: '退出登录',
   },
 
   // ========== 用户相关 ==========
@@ -79,7 +79,7 @@ export default {
     logoutSuccess: '退出成功',
     pleaseLogin: '请先登录',
     rememberMe: '记住我',
-    forgotPassword: '忘记密码？'
+    forgotPassword: '忘记密码？',
   },
 
   // ========== 货柜相关 ==========
@@ -100,7 +100,7 @@ export default {
       pickedUp: '已提柜',
       unloaded: '已卸柜',
       returnedEmpty: '已还箱',
-      arrivedAtTransit: '已到中转港'
+      arrivedAtTransit: '已到中转港',
     },
     // 柜型
     types: {
@@ -113,8 +113,8 @@ export default {
       '20OT': '20英尺开顶柜',
       '40OT': '40英尺开顶柜',
       '20FR': '20英尺框架柜',
-      '40FR': '40英尺框架柜'
-    }
+      '40FR': '40英尺框架柜',
+    },
   },
 
   // ========== 备货单相关 ==========
@@ -137,8 +137,8 @@ export default {
       pending: '待处理',
       processing: '处理中',
       completed: '已完成',
-      cancelled: '已取消'
-    }
+      cancelled: '已取消',
+    },
   },
 
   // ========== 港口相关 ==========
@@ -154,8 +154,8 @@ export default {
     types: {
       origin: '起运港',
       transit: '中转港',
-      destination: '目的港'
-    }
+      destination: '目的港',
+    },
   },
 
   // ========== 滞港费相关 ==========
@@ -170,12 +170,12 @@ export default {
     // 计算方式
     basis: {
       byArrival: '按到港',
-      byUnloading: '按卸船'
+      byUnloading: '按卸船',
     },
     // 免费天数基准
     freeDaysBasisTypes: {
       naturalDay: '自然日',
-      workingDay: '工作日'
+      workingDay: '工作日',
     },
     // 费用类型
     chargeTypes: {
@@ -183,8 +183,8 @@ export default {
       storage: '堆存费',
       detention: '滞箱费',
       demurrageDetention: '滞港滞箱费',
-      storageSurcharge: '堆存附加费'
-    }
+      storageSurcharge: '堆存附加费',
+    },
   },
 
   // ========== 监控相关 ==========
@@ -205,7 +205,7 @@ export default {
     healthy: '健康',
     unhealthy: '异常',
     warning: '警告',
-    critical: '严重'
+    critical: '严重',
   },
 
   // ========== 设置相关 ==========
@@ -221,7 +221,7 @@ export default {
     languageTip: '选择您的首选语言',
     themeTip: '选择界面主题',
     notificationTip: '管理通知偏好',
-    securityTip: '管理账号安全设置'
+    securityTip: '管理账号安全设置',
   },
 
   // ========== 帮助文档 ==========
@@ -234,7 +234,7 @@ export default {
     searchDoc: '搜索文档',
     noResults: '未找到相关文档',
     recentlyViewed: '最近查看',
-    popularTopics: '热门主题'
+    popularTopics: '热门主题',
   },
 
   // ========== 关于 ==========
@@ -247,7 +247,7 @@ export default {
     privacyPolicy: '隐私政策',
     contactUs: '联系我们',
     website: '官方网站',
-    github: 'GitHub仓库'
+    github: 'GitHub仓库',
   },
 
   // ========== 验证消息 ==========
@@ -260,7 +260,7 @@ export default {
     pattern: '格式不正确',
     range: '值必须在 {min} 和 {max} 之间',
     numeric: '请输入有效的数字',
-    url: '请输入有效的URL地址'
+    url: '请输入有效的URL地址',
   },
 
   // ========== 时间相关 ==========
@@ -279,7 +279,7 @@ export default {
     justNow: '刚刚',
     dateFormat: 'YYYY-MM-DD',
     dateTimeFormat: 'YYYY-MM-DD HH:mm:ss',
-    timeFormat: 'HH:mm:ss'
+    timeFormat: 'HH:mm:ss',
   },
 
   // ========== 错误消息 ==========
@@ -292,6 +292,6 @@ export default {
     timeout: '请求超时',
     unknown: '未知错误',
     retry: '重试',
-    contactAdmin: '请联系管理员'
-  }
+    contactAdmin: '请联系管理员',
+  },
 }

@@ -14,6 +14,8 @@ interface FieldMapping {
   field: string
   required: boolean
   transform?: (value: any) => any
+  /** 列名别名，用于兼容不同 Excel 模板的列名写法，按顺序尝试取值 */
+  aliases?: string[]
 }
 
 // ==================== 响应式数据 ====================
@@ -53,7 +55,7 @@ const FIELD_MAPPINGS: FieldMapping[] = [
   // ===== 备货单表 (biz_replenishment_orders) =====
   { excelField: '备货单号', table: 'biz_replenishment_orders', field: 'order_number', required: true },
   { excelField: '主备货单号', table: 'biz_replenishment_orders', field: 'main_order_number', required: false },
-  { excelField: '销往国家', table: 'biz_replenishment_orders', field: 'sell_to_country', required: false },
+  { excelField: '销往国家', table: 'biz_replenishment_orders', field: 'sell_to_country', required: false, aliases: ['进口国'] },
   { excelField: '客户名称', table: 'biz_replenishment_orders', field: 'customer_name', required: false },
   { excelField: '备货单状态', table: 'biz_replenishment_orders', field: 'order_status', required: false, transform: transformOrderStatus },
   { excelField: '是否查验', table: 'biz_replenishment_orders', field: 'inspection_required', required: false, transform: transformBoolean },
@@ -61,7 +63,7 @@ const FIELD_MAPPINGS: FieldMapping[] = [
   { excelField: '采购贸易模式', table: 'biz_replenishment_orders', field: 'procurement_trade_mode', required: false },
   { excelField: '价格条款', table: 'biz_replenishment_orders', field: 'price_terms', required: false },
   { excelField: '特殊货物体积', table: 'biz_replenishment_orders', field: 'special_cargo_volume', required: false, transform: parseDecimal },
-  { excelField: 'Wayfair SPO', table: 'biz_replenishment_orders', field: 'wayfair_spo', required: false },
+  { excelField: 'Wayfair SPO', table: 'biz_replenishment_orders', field: 'wayfair_spo', required: false, aliases: ['Wayfairspo'] },
   { excelField: '含要求打托产品', table: 'biz_replenishment_orders', field: 'pallet_required', required: false, transform: transformBoolean },
   { excelField: '箱数合计', table: 'biz_replenishment_orders', field: 'total_boxes', required: false, transform: parseDecimal },
   { excelField: '体积合计(m3)', table: 'biz_replenishment_orders', field: 'total_cbm', required: false, transform: parseDecimal },
@@ -72,7 +74,7 @@ const FIELD_MAPPINGS: FieldMapping[] = [
   { excelField: '议付金额', table: 'biz_replenishment_orders', field: 'negotiation_amount', required: false, transform: parseDecimal },
 
   // ===== 货柜表 (biz_containers) =====
-  { excelField: '集装箱号', table: 'biz_containers', field: 'container_number', required: true },
+  { excelField: '集装箱号', table: 'biz_containers', field: 'container_number', required: true, aliases: ['箱号(集装箱号)'] },
   { excelField: '柜型', table: 'biz_containers', field: 'container_type_code', required: false },
   { excelField: '货物描述', table: 'biz_containers', field: 'cargo_description', required: false },
   { excelField: '封条号', table: 'biz_containers', field: 'seal_number', required: false },
@@ -90,11 +92,11 @@ const FIELD_MAPPINGS: FieldMapping[] = [
   { excelField: '提单号', table: 'process_sea_freight', field: 'bill_of_lading_number', required: false },
   { excelField: '航次', table: 'process_sea_freight', field: 'voyage_number', required: false },
   { excelField: '船名', table: 'process_sea_freight', field: 'vessel_name', required: false },
-  { excelField: '船公司', table: 'process_sea_freight', field: 'shipping_company_id', required: false },
+  { excelField: '船公司', table: 'process_sea_freight', field: 'shipping_company_id', required: false, aliases: ['船公司名称', '船公司.供应商全称（中）'] },
   { excelField: '起运港', table: 'process_sea_freight', field: 'port_of_loading', required: false },
-  { excelField: '目的港', table: 'process_sea_freight', field: 'port_of_discharge', required: false },
-  { excelField: '途经港', table: 'process_sea_freight', field: 'transit_port_code', required: false },
-  { excelField: '起运港货代公司', table: 'process_sea_freight', field: 'freight_forwarder_id', required: false },
+  { excelField: '目的港', table: 'process_sea_freight', field: 'port_of_discharge', required: false, aliases: ['目的港名称', '目的港.名称'] },
+  { excelField: '途经港', table: 'process_sea_freight', field: 'transit_port_code', required: false, aliases: ['途径港'] },
+  { excelField: '起运港货代公司', table: 'process_sea_freight', field: 'freight_forwarder_id', required: false, aliases: ['起运港货代', '起运港货代公司.供应商全称（中）'] },
   { excelField: '运输方式', table: 'process_sea_freight', field: 'transport_mode', required: false },
   { excelField: '出运日期', table: 'process_sea_freight', field: 'shipment_date', required: false, transform: parseDate },
   { excelField: '装船日期', table: 'process_sea_freight', field: 'shipment_date', required: false, transform: parseDate },
@@ -116,7 +118,7 @@ const FIELD_MAPPINGS: FieldMapping[] = [
 
   // ===== 港口操作表 (process_port_operations) =====
   { excelField: 'ETA修正', table: 'process_port_operations', field: 'eta_correction', required: false, transform: parseDate },
-  { excelField: '预计到港日期(目的港)', table: 'process_port_operations', field: 'eta_dest_port', required: false, transform: parseDate },
+  { excelField: '预计到港日期(目的港)', table: 'process_port_operations', field: 'eta_dest_port', required: false, transform: parseDate, aliases: ['预计到港日期(ETA)'] },
   { excelField: '实际到港日期(目的港)', table: 'process_port_operations', field: 'ata_dest_port', required: false, transform: parseDate },
   { excelField: '目的港卸船/火车日期', table: 'process_port_operations', field: 'dest_port_unload_date', required: false, transform: parseDate },
   { excelField: '计划清关日期', table: 'process_port_operations', field: 'planned_customs_date', required: false, transform: parseDate },
@@ -133,6 +135,15 @@ const FIELD_MAPPINGS: FieldMapping[] = [
   { excelField: '场外免箱期(天)', table: 'process_port_operations', field: 'free_off_terminal_days', required: false, transform: parseDecimal },
   { excelField: '目的港码头', table: 'process_port_operations', field: 'gate_in_terminal', required: false },
   { excelField: '备注(物流信息表）', table: 'process_port_operations', field: 'remarks', required: false },
+  // 闸口与可提货（与飞驼 API/Excel 对齐）
+  { excelField: '进闸时间', table: 'process_port_operations', field: 'gate_in_time', required: false, transform: parseDate },
+  { excelField: '重箱进场时间', table: 'process_port_operations', field: 'gate_in_time', required: false, transform: parseDate },
+  { excelField: '出闸时间', table: 'process_port_operations', field: 'gate_out_time', required: false, transform: parseDate },
+  { excelField: '可提货日期', table: 'process_port_operations', field: 'available_time', required: false, transform: parseDate },
+  { excelField: '可提箱日期', table: 'process_port_operations', field: 'available_time', required: false, transform: parseDate },
+  { excelField: '最后免费日期', table: 'process_port_operations', field: 'last_free_date', required: false, transform: parseDate },
+  { excelField: '中转港到港日期', table: 'process_port_operations', field: 'transit_arrival_date', required: false, transform: parseDate },
+  { excelField: '中转港离港日期', table: 'process_port_operations', field: 'atd_transit', required: false, transform: parseDate },
 
   // ===== 拖卡运输表 (process_trucking_transport) =====
   { excelField: '是否预提', table: 'process_trucking_transport', field: 'is_pre_pickup', required: false, transform: transformBoolean },
@@ -177,6 +188,18 @@ const FIELD_MAPPINGS: FieldMapping[] = [
   { excelField: '还箱地点', table: 'process_empty_return', field: 'return_terminal_name', required: false },
   { excelField: '箱况', table: 'process_empty_return', field: 'container_condition', required: false },
 ]
+
+/**
+ * 从 Excel 行按列名（含别名）取第一个非空值
+ * 用于兼容不同模板的列名写法，如 销往国家/进口国、目的港/目的港.名称
+ */
+function getRowValue(row: Record<string, any>, keys: string[]): any {
+  for (const k of keys) {
+    const v = row[k]
+    if (v !== null && v !== undefined && v !== '') return v
+  }
+  return undefined
+}
 
 // ==================== 字典映射 ====================
 
@@ -464,12 +487,14 @@ const splitRowToTables = async (row: any): Promise<Record<string, any>> => {
     process_empty_return: {},
   }
 
-  const containerNumber = row['集装箱号'] || ''
+  const containerNumber = row['集装箱号'] || row['箱号(集装箱号)'] || ''
   const orderNumber = row['备货单号'] || ''
 
   // ===== 先处理所有字段映射（包括还空箱） =====
   FIELD_MAPPINGS.forEach(mapping => {
-    const excelValue = row[mapping.excelField]
+    const excelValue = mapping.aliases
+      ? getRowValue(row, [mapping.excelField, ...mapping.aliases])
+      : row[mapping.excelField]
 
     // 跳过空值
     if (excelValue === null || excelValue === undefined || excelValue === '') {
@@ -495,13 +520,18 @@ const splitRowToTables = async (row: any): Promise<Record<string, any>> => {
   const portOperations: any[] = []
   let portSequence = 1
 
+  // 港口列支持别名（兼容不同 Excel 模板）
+  const originPortRaw = getRowValue(row, ['起运港', '起运港.名称'])
+  const transitPortRaw = getRowValue(row, ['途经港', '途径港', '途经港.名称'])
+  const destPortRaw = getRowValue(row, ['目的港', '目的港名称', '目的港.名称'])
+
   // 转换港口名称为标准代码
-  const originPortCode = await convertPortNameToCode(row['起运港'])
-  const transitPortCode = await convertPortNameToCode(row['途经港'])
-  const destPortCode = await convertPortNameToCode(row['目的港'])
+  const originPortCode = await convertPortNameToCode(originPortRaw)
+  const transitPortCode = await convertPortNameToCode(transitPortRaw)
+  const destPortCode = await convertPortNameToCode(destPortRaw)
 
   // 1. 起运港 (origin)
-  const originPort = row['起运港']
+  const originPort = originPortRaw
   if (originPort) {
     portOperations.push({
       container_number: containerNumber,
@@ -513,22 +543,24 @@ const splitRowToTables = async (row: any): Promise<Record<string, any>> => {
     console.log('[splitRowToTables] 添加起运港:', originPort, '代码:', originPortCode)
   }
 
-  // 2. 途经港 (transit)
-  const transitPort = row['途经港']
+  // 2. 途经港 (transit)（与飞驼 API 对齐：transit_arrival_date、atd_transit）
+  const transitPort = transitPortRaw
   if (transitPort) {
-    portOperations.push({
+    const transitOp: any = {
       container_number: containerNumber,
       port_type: 'transit',
       port_code: transitPortCode,
       port_name: transitPort,
       port_sequence: portSequence++,
-      transit_arrival_date: parseDate(row['途经港到达日期'])
-    })
+      transit_arrival_date: parseDate(row['途经港到达日期'] || row['中转港到港日期']),
+      atd_transit: parseDate(row['途经港离港日期'] || row['中转港离港日期'])
+    }
+    portOperations.push(transitOp)
     console.log('[splitRowToTables] 添加途经港:', transitPort, '代码:', transitPortCode, '到达日期:', row['途经港到达日期'])
   }
 
   // 3. 目的港 (destination)
-  const destPort = row['目的港']
+  const destPort = destPortRaw
   if (destPort) {
     const destPortOp: any = {
       container_number: containerNumber,
@@ -538,11 +570,17 @@ const splitRowToTables = async (row: any): Promise<Record<string, any>> => {
       port_sequence: portSequence++
     }
 
-    // 目的港相关日期字段
-    if (row['预计到港日期']) destPortOp.eta_dest_port = parseDate(row['预计到港日期'])
+    // 目的港相关日期字段（与飞驼 API/Excel 对齐）
+    if (row['预计到港日期'] || row['预计到港日期(目的港)'] || row['预计到港日期(ETA)']) destPortOp.eta_dest_port = parseDate(row['预计到港日期'] || row['预计到港日期(目的港)'] || row['预计到港日期(ETA)'])
     if (row['目的港到达日期']) destPortOp.ata_dest_port = parseDate(row['目的港到达日期'])
     if (row['目的港卸船/火车日期']) destPortOp.dest_port_unload_date = parseDate(row['目的港卸船/火车日期'])
     if (row['最后免费日期']) destPortOp.last_free_date = parseDate(row['最后免费日期'])
+    if (row['进闸时间'] || row['重箱进场时间']) destPortOp.gate_in_time = parseDate(row['进闸时间'] || row['重箱进场时间'])
+    if (row['出闸时间']) destPortOp.gate_out_time = parseDate(row['出闸时间'])
+    if (row['可提货日期'] || row['可提箱日期']) destPortOp.available_time = parseDate(row['可提货日期'] || row['可提箱日期'])
+    if (row['免堆期(天)'] != null && row['免堆期(天)'] !== '') destPortOp.free_storage_days = parseDecimal(row['免堆期(天)'])
+    if (row['场内免箱期(天)'] != null && row['场内免箱期(天)'] !== '') destPortOp.free_detention_days = parseDecimal(row['场内免箱期(天)'])
+    if (row['场外免箱期(天)'] != null && row['场外免箱期(天)'] !== '') destPortOp.free_off_terminal_days = parseDecimal(row['场外免箱期(天)'])
 
     // 清关相关字段
     if (row['清关状态']) destPortOp.customs_status = row['清关状态']

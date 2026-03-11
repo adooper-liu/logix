@@ -43,4 +43,4 @@ alwaysApply: true
 
 - **状态机**：7 层简化状态由 calculateLogisticsStatus 按优先级计算（还箱 > WMS 卸柜 > 提柜 > 目的港 ATA > 中转港 ATA/进闸 > 海运出运 > 未出运）；ContainerStatusService 负责单柜/批量更新 logistics_status。
 - **滞港费/最晚提柜**：目的港 process_port_operations.last_free_date 为免费期截止日；LastPickupStatisticsService 按该日期做 expired/urgent/warning/normal/noLastFreeDate 五类统计。
-- **飞驼 API**：FeiTuoAdapter 拉取事件，FeiTuoStatusMapping 将状态码映射到核心字段（ata_dest_port、gate_in_time 等），写 process_port_operations 后需触发状态重算。详见 frontend/public/docs/BUSINESS_STATE_MACHINE_AND_FEITUO.md。
+- **飞驼 API**：FeiTuoAdapter 拉取事件，FeiTuoStatusMapping 将状态码映射到核心字段（ata_dest_port、gate_in_time 等），写 process_port_operations 后需触发状态重算。飞驼 API 文档 https://doc.freightower.com/；业务与整合详见 frontend/public/docs/05-state-machine/03-业务状态机与飞驼.md、11-project/09-飞驼节点状态码解读与接入整合方案.md。

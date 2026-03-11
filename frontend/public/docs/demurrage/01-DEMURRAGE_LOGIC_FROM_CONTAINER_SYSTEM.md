@@ -11,6 +11,7 @@
 |------------|-------------|------|
 | 滞港费     | Demurrage   | 货柜在港口停留超过免费期产生的费用 |
 | 滞箱费     | Detention   | 货柜提走后超过免费期未还空箱产生的费用 |
+| 滞港滞箱费 | Demurrage & Detention | 单费用项，覆盖到港→还箱整段，非两个费用分别计算 |
 | 免费期     | Free Period | 免收滞港费的初始时间段 |
 | 计费期     | Chargeable Period | 开始计费的时间段 |
 | 自然日     | Natural Days | 按日历天数计算，含周末和节假日 |
@@ -25,10 +26,20 @@
 - **起算日（免费期开始）**：由「计算方式」决定  
   - **按到港**：优先 **ATA**（目的港实际到港 `ata_dest_port`），无则 **ETA**（`eta_dest_port`）  
   - **按卸船**：**卸船日**（`discharge_date` / 目的港卸船时间）  
-- **截止日（计费截止）**：  
-  - 当前实现中多为「**当前日期**」或「计算日期」；若有实际提柜日，应为**实际提柜日**（提柜后不再产生滞港费）。
+- **截止日（计费截止）**：**实际提柜日**（`process_trucking_transport.pickup_date`）；无则当天。
 
 即：**滞港费 = 从到港/卸船到提柜（或到“计算日”）的停留中，超出免费期的部分按费率计费。**
+
+**滞箱费（Detention）**：货柜提走后超过免费期未还空箱产生的费用。
+- **起算日**：实际提柜日（`process_trucking_transport.pickup_date`）；**无实际提柜日则不计算此项费用**（不得用最晚提柜日 last_free_date 作为回退）
+- **截止日**：实际还空箱日期（`process_empty_return.return_time`）；无则当天。
+- 即：**滞箱费 = 从提柜到还箱（或到“计算日”）的占用中，超出免费期的部分按费率计费。**
+
+**Demurrage & Detention Charge（合并费用项）**：单费用项类型，不拆分为滞港费与滞箱费分别计算。
+- **起算日**：与滞港费一致（到港 ATA/ETA 或卸船日，由 `calculation_basis` 决定）
+- **截止日**：与滞箱费一致（实际还箱日或当天）
+- 即：**整段从到港到还箱的时长**作为一个统一计费区间，超出免费期的部分按费率计费。
+- **识别**：`charge_type_code` 或 `charge_name` 同时包含 Demurrage 与 Detention 时视为合并类型（如 `DEMURRAGE_DETENTION`、`Demurrage & Detention`、滞港滞箱费等）。
 
 ### 2.2 免费期与计费天数
 
@@ -71,10 +82,15 @@
 
 - **四字段**：进口国、目的港、船公司、货代公司。在 LogiX 的 `ext_demurrage_standards` 中：**进口国**通过 **foreign_company_code / foreign_company_name**（境外/分公司）识别；目的港、船公司、货代对应 **destination_port_code**、**shipping_company_code**、**origin_forwarder_code**。货柜侧用境外分公司或进口国维度与标准表匹配。
 - **有效期**：`effective_date <= 当前` 且（`expiry_date` 为空 或 `expiry_date >= 当前`）。
+- **兜底规则**：若有效期无一匹配，但四字段有匹配，则取四字段匹配中 **effective_date 最新** 的标准（按 effective_date 降序取最新一批）。
 - 满足条件的标准可能**多行**，每行一个费用项（滞港费、堆存费、滞箱费等）。
 
-### 4.2 多费用项分别计算
+### 4.2 费用项类型与多费用项计算
 
+- **三种费用项类型**：
+  - **滞港费（Demurrage）**：到港/卸船 → 提柜
+  - **滞箱费（Detention）**：提柜 → 还箱
+  - **Demurrage & Detention（合并）**：到港/卸船 → 还箱，单费用项覆盖整段
 - 每行标准有：**免费天数**、**免费天数基准**、**计算方式**（按到港/按卸船）、**计算类型**（自然日/工作日等）、**费率**（或阶梯）。
 - **收费标志** `is_chargeable`：`Y` = 不收费跳过，`N` = 收费并参与计算。
 - 按项算出金额后**合计**为总费用。

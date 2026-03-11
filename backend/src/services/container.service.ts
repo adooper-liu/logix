@@ -75,6 +75,7 @@ export class ContainerService {
             customsStatus: enriched.latestPortOperation?.customsStatus || null,
             destinationPort: enriched.seaFreight?.portOfDischarge || null,
             billOfLadingNumber: enriched.seaFreight?.mblNumber || enriched.seaFreight?.billOfLadingNumber || null,
+            mblNumber: enriched.seaFreight?.mblNumber || null,
             actualShipDate: enriched.orderInfo?.actualShipDate || enriched.seaFreight?.shipmentDate || null,
             sellToCountry: enriched.orderInfo?.sellToCountry || null,
             customerName: enriched.orderInfo?.customerName || null,

@@ -15,6 +15,9 @@ import externalDataRoutes from './externalData.routes.js';
 import dictMappingRoutes from './dict-mapping.routes.js';
 import universalDictMappingRoutes from './universal-dict-mapping.routes.js';
 import monitoringRoutes from './monitoring.routes.js';
+import demurrageRoutes from './demurrage.routes.js';
+import dictRoutes from './dict.routes.js';
+import auditRoutes from './audit.routes.js';
 
 const router = Router();
 
@@ -50,5 +53,8 @@ router.use('/external', externalDataRoutes);
 router.use('/dict-mapping', dictMappingRoutes);
 router.use('/dict-mapping/universal', universalDictMappingRoutes);
 router.use('', monitoringRoutes);
+router.use('/demurrage', demurrageRoutes);
+router.use('/dict', dictRoutes);
+router.use('/audit', auditRoutes);
 
 export default router;

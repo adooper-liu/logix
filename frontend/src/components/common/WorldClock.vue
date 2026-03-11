@@ -123,12 +123,13 @@ onUnmounted(() => {
 .world-clock {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 10px 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  gap: $spacing-md;
+  padding: $spacing-md $spacing-lg;
+  background: linear-gradient(135deg, $primary-color 0%, $primary-dark 100%);
+  border-radius: $radius-large;
+  box-shadow: $shadow-base;
   overflow: hidden;
+  border: 1px solid $border-lighter;
 
   .local-date {
     display: flex;

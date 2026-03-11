@@ -63,9 +63,9 @@ app.use(cors({
 // 压缩响应
 app.use(compression());
 
-// 解析请求体
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// 解析请求体（飞驼 Excel 大批量导入，放宽至 500MB；超大文件建议分批导入）
+app.use(express.json({ limit: '500mb' }));
+app.use(express.urlencoded({ extended: true, limit: '500mb' }));
 
 // 日志中间件
 if (config.nodeEnv !== 'test') {

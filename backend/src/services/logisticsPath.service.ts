@@ -136,6 +136,7 @@ export class LogisticsPathService {
             }
             nodeStatus
             isAlert
+            rawData
           }
           overallStatus
           eta
@@ -143,6 +144,9 @@ export class LogisticsPathService {
           completedAt
           createdAt
           updatedAt
+          lastFreeDate
+          isOverdue
+          isMock
         }
       }
     `;

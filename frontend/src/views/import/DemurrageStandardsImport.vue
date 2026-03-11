@@ -36,18 +36,19 @@ interface DemurrageStandardRow {
 }
 
 // Excel 列名到字段的映射（支持多种写法）
+// 四项匹配字段：优先取名称列，后端按名称解析为字典 code
 const COLUMN_ALIASES: Record<string, string[]> = {
-  foreign_company_code: ['*海外公司.编码', '海外公司.编码', '海外公司编码'],
-  foreign_company_name: ['海外公司.名称', '海外公司名称'],
+  foreign_company_code: ['海外公司.编码', '海外公司编码'],
+  foreign_company_name: ['海外公司.名称', '海外公司名称'], // ① 进口国/海外公司
   effective_date: ['生效日期'],
   expiry_date: ['结束日期'],
-  destination_port_code: ['*目的港.编码', '目的港.编码', '目的港编码'],
-  destination_port_name: ['目的港.名称', '目的港名称'],
-  shipping_company_code: ['*船公司.编码', '船公司.编码', '船公司编码'],
-  shipping_company_name: ['船公司.供应商全称（中）', '船公司名称'],
+  destination_port_code: ['目的港.编码', '目的港编码'],
+  destination_port_name: ['目的港.名称', '目的港名称'], // ② 目的港
+  shipping_company_code: ['船公司.编码', '船公司编码'],
+  shipping_company_name: ['船公司.供应商全称（中）', '船公司名称'], // ③ 船公司
   terminal: ['码头'],
-  origin_forwarder_code: ['*起运港货代公司.编码', '起运港货代公司.编码', '起运港货代公司编码'],
-  origin_forwarder_name: ['起运港货代公司.供应商全称（中）', '起运港货代公司名称'],
+  origin_forwarder_code: ['起运港货代公司.编码', '起运港货代公司编码'],
+  origin_forwarder_name: ['起运港货代公司.供应商全称（中）', '起运港货代公司名称'], // ④ 起运港货代
   transport_mode_code: ['*运输方式.运输方式编码', '运输方式.运输方式编码', '运输方式编码'],
   transport_mode_name: ['运输方式.运输方式名称', '运输方式名称'],
   free_days_basis: ['*免费天数基准', '免费天数基准'],
@@ -141,10 +142,11 @@ function parseTiersFromRow(row: Record<string, unknown>): { tiers: Record<string
 function rowToDemurrageStandard(row: Record<string, unknown>, headers: string[]): DemurrageStandardRow | null {
   const { tiers, freeDays, ratePerDay } = parseTiersFromRow(row)
 
-  const foreignCompanyCode = getExcelValue(row, 'foreign_company_code')
-  const destinationPortCode = getExcelValue(row, 'destination_port_code')
-  const shippingCompanyCode = getExcelValue(row, 'shipping_company_code')
-  const originForwarderCode = getExcelValue(row, 'origin_forwarder_code')
+  // 四项匹配：优先取名称列（海外公司.名称、目的港.名称、船公司.供应商全称（中）、起运港货代公司.供应商全称（中）），后端按名称解析为字典 code
+  const foreignCompanyCode = getExcelValue(row, 'foreign_company_name') || getExcelValue(row, 'foreign_company_code')
+  const destinationPortCode = getExcelValue(row, 'destination_port_name') || getExcelValue(row, 'destination_port_code')
+  const shippingCompanyCode = getExcelValue(row, 'shipping_company_name') || getExcelValue(row, 'shipping_company_code')
+  const originForwarderCode = getExcelValue(row, 'origin_forwarder_name') || getExcelValue(row, 'origin_forwarder_code')
   const freeDaysBasis = getExcelValue(row, 'free_days_basis')
   const calculationBasis = getExcelValue(row, 'calculation_basis')
 
@@ -223,7 +225,7 @@ const parseExcel = async () => {
       if (converted) {
         rows.push(converted)
       } else if (Object.keys(row).some(k => row[k] !== undefined && row[k] !== '')) {
-        ElMessage.warning(`第 ${i + 2} 行缺少必填字段（海外公司.编码、目的港.编码、船公司.编码、起运港货代公司.编码），已跳过`)
+        ElMessage.warning(`第 ${i + 2} 行缺少必填字段（海外公司、目的港、船公司、货代需至少填编码或名称），已跳过`)
       }
     }
 
@@ -364,9 +366,14 @@ const downloadTemplate = () => {
             <el-icon><Document /></el-icon>
             滞港费标准导入
           </span>
-          <el-button type="primary" :icon="Download" @click="downloadTemplate">
-            下载模板
-          </el-button>
+          <div class="header-actions">
+            <el-button type="primary" @click="$router.push('/import/demurrage-standard/entry')">
+              手工录入
+            </el-button>
+            <el-button type="primary" :icon="Download" @click="downloadTemplate">
+              下载模板
+            </el-button>
+          </div>
         </div>
       </template>
 
@@ -494,6 +501,11 @@ const downloadTemplate = () => {
   display: flex;
   justify-content: space-between;
   align-items: center;
+
+  .header-actions {
+    display: flex;
+    gap: 12px;
+  }
 
   .title {
     display: flex;

@@ -70,8 +70,9 @@ export class ArrivalSubqueryTemplates {
   `;
 
   /**
-   * 今日之前到港已提柜子查询模板（与状态机对齐：NOT 还箱、NOT WMS）
-   * 条件：目的港有ATA + ATA<今日 + 已提柜 + 无中转港记录 + 状态在ALL_SHIPPED范围内
+   * 今日之前到港已提柜子查询模板（含已还箱：picked_up/unloaded/returned_empty 均视为「已提柜」）
+   * 条件：目的港有ATA + ATA<今日 + 已提柜/已卸柜/已还箱 + 无中转港记录
+   * 说明：已还箱货柜也曾到港并提柜，应纳入「之前已提柜」统计
    */
   static readonly ARRIVED_BEFORE_PICKED_UP_SUBQUERY = `
     SELECT c.container_number
@@ -87,8 +88,6 @@ export class ArrivalSubqueryTemplates {
       WHERE po2.container_number = po.container_number
       AND po2.port_type = 'destination'
     )
-    AND NOT EXISTS (SELECT 1 FROM process_empty_return er WHERE er.container_number = c.container_number AND er.return_time IS NOT NULL)
-    AND NOT EXISTS (SELECT 1 FROM process_warehouse_operations wo WHERE wo.container_number = c.container_number AND (wo.wms_status = 'WMS已完成' OR wo.ebs_status = '已入库' OR wo.wms_confirm_date IS NOT NULL))
     AND NOT EXISTS (
       SELECT 1
       FROM process_port_operations transit_po

@@ -25,7 +25,6 @@ interface Props {
 
 defineProps<Props>()
 
-// 格式化日期（完整日期时间）
 const formatDate = (date: Date | string | undefined): string => {
   if (!date) return '-'
   const d = new Date(date)
@@ -33,7 +32,6 @@ const formatDate = (date: Date | string | undefined): string => {
   return d.toLocaleString('zh-CN')
 }
 
-// 格式化日期（仅日期）
 const formatDateOnly = (date: Date | string | undefined): string => {
   if (!date) return '-'
   const d = new Date(date)
@@ -43,31 +41,87 @@ const formatDateOnly = (date: Date | string | undefined): string => {
 </script>
 
 <template>
-  <div class="trucking-transport-section">
-    <div v-if="truckingTransports && truckingTransports.length > 0">
-      <div v-for="(tt, index) in truckingTransports" :key="index" class="trucking-item">
-        <h3>拖卡运输 #{{ Number(index) + 1 }}</h3>
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="拖卡单号">{{ tt.id || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="拖卡类型">
-            <el-tag>{{ tt.truckingType || '-' }}</el-tag>
-          </el-descriptions-item>
-          <el-descriptions-item label="拖卡公司">{{ tt.carrierCompany || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="司机姓名">{{ tt.driverName || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="司机电话">{{ tt.driverPhone || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="车牌号">{{ tt.truckPlate || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="计划提柜日期">{{ formatDateOnly(tt.plannedPickupDate) }}</el-descriptions-item>
-          <el-descriptions-item label="最晚提柜日期">{{ formatDateOnly(tt.lastPickupDate) }}</el-descriptions-item>
-          <el-descriptions-item label="实际提柜日期">{{ formatDate(tt.pickupDate) }}</el-descriptions-item>
-          <el-descriptions-item label="提柜地点">{{ tt.pickupLocation || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="计划送达日期">{{ formatDateOnly(tt.plannedDeliveryDate) }}</el-descriptions-item>
-          <el-descriptions-item label="实际送达日期">{{ formatDate(tt.deliveryDate) }}</el-descriptions-item>
-          <el-descriptions-item label="送达地点">{{ tt.deliveryLocation || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="卸柜方式">{{ tt.unloadModePlan || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="距离">{{ tt.distanceKm || '-' }} KM</el-descriptions-item>
-          <el-descriptions-item label="费用">${{ tt.cost || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="备注" :span="2">{{ tt.remarks || '-' }}</el-descriptions-item>
-        </el-descriptions>
+  <div class="trucking-section">
+    <div v-if="truckingTransports && truckingTransports.length > 0" class="info-cards">
+      <div
+        v-for="(tt, index) in truckingTransports"
+        :key="index"
+        class="info-card"
+        style="--accent-color: #E6A23C"
+      >
+        <div class="info-card-header">
+          <span class="info-card-icon">🚛</span>
+          <span class="info-card-title">拖卡运输 #{{ index + 1 }}</span>
+          <el-tag v-if="tt.truckingType" size="small" type="warning" effect="plain">
+            {{ tt.truckingType }}
+          </el-tag>
+        </div>
+        <div class="info-card-fields">
+          <div class="field-item">
+            <span class="field-label">拖卡单号</span>
+            <span class="field-value">{{ tt.id || '-' }}</span>
+          </div>
+          <div class="field-item">
+            <span class="field-label">拖卡公司</span>
+            <span class="field-value">{{ tt.carrierCompany || '-' }}</span>
+          </div>
+          <div class="field-item">
+            <span class="field-label">司机</span>
+            <span class="field-value">{{ tt.driverName || '-' }}</span>
+          </div>
+          <div class="field-item">
+            <span class="field-label">司机电话</span>
+            <span class="field-value">{{ tt.driverPhone || '-' }}</span>
+          </div>
+          <div class="field-item">
+            <span class="field-label">车牌号</span>
+            <span class="field-value">{{ tt.truckPlate || '-' }}</span>
+          </div>
+          <div class="field-item">
+            <span class="field-label">计划提柜</span>
+            <span class="field-value">{{ formatDateOnly(tt.plannedPickupDate) }}</span>
+          </div>
+          <div class="field-item">
+            <span class="field-label">最晚提柜</span>
+            <span class="field-value highlight">{{ formatDateOnly(tt.lastPickupDate) }}</span>
+          </div>
+          <div class="field-item">
+            <span class="field-label">实际提柜</span>
+            <span class="field-value">{{ formatDate(tt.pickupDate) }}</span>
+          </div>
+          <div class="field-item">
+            <span class="field-label">提柜地点</span>
+            <span class="field-value">{{ tt.pickupLocation || '-' }}</span>
+          </div>
+          <div class="field-item">
+            <span class="field-label">计划送达</span>
+            <span class="field-value">{{ formatDateOnly(tt.plannedDeliveryDate) }}</span>
+          </div>
+          <div class="field-item">
+            <span class="field-label">实际送达</span>
+            <span class="field-value">{{ formatDate(tt.deliveryDate) }}</span>
+          </div>
+          <div class="field-item">
+            <span class="field-label">送达地点</span>
+            <span class="field-value">{{ tt.deliveryLocation || '-' }}</span>
+          </div>
+          <div class="field-item">
+            <span class="field-label">卸柜方式</span>
+            <span class="field-value">{{ tt.unloadModePlan || '-' }}</span>
+          </div>
+          <div class="field-item">
+            <span class="field-label">距离</span>
+            <span class="field-value">{{ tt.distanceKm != null ? tt.distanceKm + ' KM' : '-' }}</span>
+          </div>
+          <div class="field-item">
+            <span class="field-label">费用</span>
+            <span class="field-value">{{ tt.cost != null ? '$' + tt.cost : '-' }}</span>
+          </div>
+          <div class="field-item field-item-full">
+            <span class="field-label">备注</span>
+            <span class="field-value">{{ tt.remarks || '-' }}</span>
+          </div>
+        </div>
       </div>
     </div>
     <el-empty v-else description="暂无拖卡运输信息" />
@@ -77,24 +131,105 @@ const formatDateOnly = (date: Date | string | undefined): string => {
 <style scoped lang="scss">
 @use '@/assets/styles/variables' as *;
 
-.trucking-transport-section {
-  .trucking-item {
-    margin-bottom: 30px;
-    padding: 15px;
-    background: #F5F7FA;
-    border-radius: 4px;
+.trucking-section {
+  padding: $spacing-sm 0;
+}
 
-    &:last-child {
-      margin-bottom: 0;
-    }
+.info-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: $spacing-md;
+}
 
-    h3 {
-      font-size: 16px;
-      color: $text-primary;
-      margin: 0 0 15px 0;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #EBEEF5;
+.info-card {
+  min-width: 0;
+
+  &:only-child {
+    grid-column: 1 / -1;
+  }
+  background: $bg-color;
+  border: 1px solid $border-light;
+  border-radius: $radius-large;
+  padding: $spacing-md;
+  padding-left: calc(#{$spacing-md} + 3px);
+  box-shadow: $shadow-light;
+  transition: $transition-base;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: var(--accent-color);
+    opacity: 0.6;
+  }
+
+  &:hover {
+    box-shadow: $shadow-base;
+    border-color: $primary-lighter;
+  }
+}
+
+.info-card-header {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  margin-bottom: $spacing-md;
+  padding-bottom: $spacing-sm;
+  border-bottom: 1px solid $border-lighter;
+
+  .info-card-icon {
+    font-size: 20px;
+  }
+
+  .info-card-title {
+    font-size: $font-size-base;
+    font-weight: 600;
+    color: $text-primary;
+  }
+}
+
+.info-card-fields {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: $spacing-xs $spacing-lg;
+
+  .field-item-full {
+    grid-column: 1 / -1;
+  }
+}
+
+.field-item {
+  display: flex;
+  align-items: baseline;
+  gap: $spacing-sm;
+  font-size: $font-size-sm;
+
+  .field-label {
+    color: $text-secondary;
+    flex-shrink: 0;
+    font-size: $font-size-xs;
+  }
+
+  .field-value {
+    color: $text-regular;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &.highlight {
+      color: $primary-color;
+      font-weight: 500;
     }
+  }
+}
+
+@media (max-width: 768px) {
+  .info-card-fields {
+    grid-template-columns: 1fr;
   }
 }
 </style>

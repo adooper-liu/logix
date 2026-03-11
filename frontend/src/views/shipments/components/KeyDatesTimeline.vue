@@ -1,64 +1,165 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
-const props = defineProps<{
-  containerData: any
-}>()
-
-// 获取目的港操作记录
-const getDestinationPortOperation = () => {
-  if (!props.containerData?.portOperations) return null
-  return props.containerData.portOperations.find(
-    (po: any) => po.portType === 'destination'
-  )
+/** 滞港费计算返回的日期（优先使用） */
+interface CalculationDates {
+  shipmentDate?: string | null
+  ataDestPort?: string | null
+  etaDestPort?: string | null
+  dischargeDate?: string | null
+  lastPickupDate?: string | null
+  lastPickupDateComputed?: string | null
+  pickupDateActual?: string | null
+  lastReturnDate?: string | null
+  lastReturnDateComputed?: string | null
+  returnTime?: string | null
+  today?: string | null
 }
 
-// 格式化日期
-const formatDate = (date: string | Date | null | undefined): string => {
-  if (!date) return '-'
-  const d = new Date(date)
-  return d.toLocaleString('zh-CN', {
+interface TimelineEvent {
+  label: string
+  fullLabel: string
+  date: Date
+  icon: string
+  type: 'primary' | 'success' | 'warning' | 'danger' | 'info'
+  /** 是否计算得出（最晚提柜/最晚还箱） */
+  isComputed?: boolean
+  /** 是否来自录入（非计算），用于显示来源 */
+  isFromDb?: boolean
+}
+
+const props = defineProps<{
+  containerData: any
+  /** 滞港费计算日期（优先于 containerData 派生） */
+  calculationDates?: CalculationDates | null
+}>()
+
+// 从 containerData 派生日期
+const derivedDates = computed(() => {
+  const c = props.containerData
+  if (!c) return null
+
+  const portOp = c.portOperations?.find((po: any) => po.portType === 'destination')
+  const seaFreight = Array.isArray(c.seaFreight) ? c.seaFreight[0] : c.seaFreight
+  const trucking = c.truckingTransports?.[0]
+  const emptyReturn = Array.isArray(c.emptyReturns) ? c.emptyReturns[0] : c.emptyReturn
+
+  const shipmentDate =
+    c.allOrders?.[0]?.actualShipDate ?? seaFreight?.shipmentDate ?? null
+  const discharge =
+    portOp?.destPortUnloadDate || portOp?.dischargedTime || portOp?.discharged_time
+  const lastPickup = portOp?.lastFreeDate || trucking?.lastPickupDate
+  const pickupActual = trucking?.pickupDate || trucking?.pickup_date
+  const lastReturn = emptyReturn?.lastReturnDate
+  const returnTime = emptyReturn?.returnTime || emptyReturn?.return_time
+
+  return {
+    shipmentDate: shipmentDate ?? null,
+    ataDestPort: portOp?.ataDestPort ?? c.ataDestPort ?? null,
+    etaDestPort: portOp?.etaDestPort ?? seaFreight?.eta ?? c.etaDestPort ?? null,
+    dischargeDate: discharge ?? null,
+    lastPickupDate: lastPickup ?? null,
+    lastPickupDateComputed: null,
+    pickupDateActual: pickupActual ?? null,
+    lastReturnDate: lastReturn ?? null,
+    lastReturnDateComputed: null,
+    returnTime: returnTime ?? null,
+    today: new Date().toISOString().slice(0, 10),
+  }
+})
+
+// 使用 calculationDates 或派生；出运日期始终从 containerData 取（滞港费接口可能不返回）
+const dates = computed(() => {
+  const base = props.calculationDates ? { ...props.calculationDates } : derivedDates.value
+  if (!base) return null
+  const shipmentDate = base.shipmentDate ?? derivedDates.value?.shipmentDate ?? null
+  return { ...base, shipmentDate }
+})
+
+// 构建时间线事件（按日期排序，仅包含有值的）
+const timelineEvents = computed((): TimelineEvent[] => {
+  const d = dates.value
+  if (!d) return []
+
+  const toDate = (v: string | Date | null | undefined): Date | null => {
+    if (!v) return null
+    const date = typeof v === 'string' ? new Date(v) : v
+    return isNaN(date.getTime()) ? null : date
+  }
+
+  const events: TimelineEvent[] = []
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const add = (
+    label: string,
+    fullLabel: string,
+    val: string | Date | null | undefined,
+    icon: string,
+    type: TimelineEvent['type'],
+    opts?: { isComputed?: boolean; isFromDb?: boolean }
+  ) => {
+    const date = toDate(val)
+    if (date) events.push({ label, fullLabel, date, icon, type, isComputed: opts?.isComputed, isFromDb: opts?.isFromDb })
+  }
+
+  add('出运', '出运日期', d.shipmentDate, '🚢', 'primary')
+  add('ETA', '目的港 ETA', d.etaDestPort, '📅', 'primary')
+  add('ATA', '目的港 ATA', d.ataDestPort, '📍', 'primary')
+  add('卸船', '卸船日', d.dischargeDate, '🚢', 'info')
+  add('最晚提柜', '最晚提柜日', d.lastPickupDateComputed ?? d.lastPickupDate, '⏰', 'danger', {
+    isComputed: !!d.lastPickupDateComputed,
+    isFromDb: !!d.lastPickupDate && !d.lastPickupDateComputed
+  })
+  add('实际提柜', '实际提柜日', d.pickupDateActual, '📦', 'success')
+  add('最晚还箱', '最晚还箱日', d.lastReturnDateComputed ?? d.lastReturnDate, '📦', 'danger', {
+    isComputed: !!d.lastReturnDateComputed,
+    isFromDb: !!d.lastReturnDate && !d.lastReturnDateComputed
+  })
+  add('实际还箱', '实际还箱日', d.returnTime, '✅', 'success')
+  events.push({
+    label: '当前',
+    fullLabel: '当前日期',
+    date: today,
+    icon: '📆',
+    type: 'info',
+  })
+
+  return events.sort((a, b) => a.date.getTime() - b.date.getTime())
+})
+
+const formatDate = (d: string | Date | null | undefined): string => {
+  if (!d) return '-'
+  const date = typeof d === 'string' ? new Date(d) : d
+  if (isNaN(date.getTime())) return '-'
+  return date.toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
   })
 }
 
-// 获取日期的警示灯颜色
 const getDateAlertColor = (date: Date): 'red' | 'orange' | 'green' => {
   const now = new Date()
   const diffTime = date.getTime() - now.getTime()
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-  if (diffDays <= 0) {
-    return 'red'
-  } else if (diffDays <= 3) {
-    return 'orange'
-  } else {
-    return 'green'
-  }
+  if (diffDays <= 0) return 'red'
+  if (diffDays <= 3) return 'orange'
+  return 'green'
 }
 
-// 获取警示灯图标
-const getAlertIcon = (color: 'red' | 'orange' | 'green'): string => {
-  const icons = {
-    red: '🔴',
-    orange: '🟠',
-    green: '🟢'
-  }
-  return icons[color]
+const getDotColor = (event: TimelineEvent): 'red' | 'orange' | 'green' => {
+  if (event.label === '当前') return 'green'
+  return getDateAlertColor(event.date)
 }
 
-// 获取日期状态文本
 const getDateStatusText = (date: Date): string => {
   const now = new Date()
   if (now > date) {
     const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
     if (diffDays === 0) return '今天到期'
-    if (diffDays === 1) return '已过期1天'
-    return `已过期${diffDays}天`
+    if (diffDays === 1) return '已历时1天'
+    return `已历时${diffDays}天`
   } else {
     const diffDays = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     if (diffDays === 0) return '今天到期'
@@ -66,109 +167,43 @@ const getDateStatusText = (date: Date): string => {
     return `剩余${diffDays}天`
   }
 }
-
-// 计算时间条相关数据
-const timelineData = computed(() => {
-  if (!props.containerData) return []
-
-  const seaFreight = Array.isArray(props.containerData.seaFreight)
-    ? props.containerData.seaFreight[0]
-    : props.containerData.seaFreight
-  const portOp = getDestinationPortOperation()
-  const trucking = props.containerData.truckingTransports?.[0]
-  const emptyReturn = Array.isArray(props.containerData.emptyReturns)
-    ? props.containerData.emptyReturns[0]
-    : props.containerData.emptyReturn
-
-  // 收集所有有值的日期
-  const events: any[] = []
-
-  // ETA (预计到港日期)
-  const eta = seaFreight?.eta || portOp?.etaDestPort
-  if (eta) {
-    events.push({
-      label: 'ETA',
-      fullLabel: '预计到港',
-      date: new Date(eta),
-      type: 'primary',
-      icon: '📅'
-    })
-  }
-
-  // 修正ETA
-  if (portOp?.etaCorrection) {
-    events.push({
-      label: '修正ETA',
-      fullLabel: '修正预计到港',
-      date: new Date(portOp.etaCorrection),
-      type: 'warning',
-      icon: '🔄'
-    })
-  }
-
-  // 最晚提柜日
-  if (trucking?.lastPickupDate) {
-    events.push({
-      label: '最晚提柜',
-      fullLabel: '最晚提柜日',
-      date: new Date(trucking.lastPickupDate),
-      type: 'danger',
-      icon: '⏰'
-    })
-  }
-
-  // 最晚还箱日
-  if (emptyReturn?.lastReturnDate) {
-    events.push({
-      label: '最晚还箱',
-      fullLabel: '最晚还箱日',
-      date: new Date(emptyReturn.lastReturnDate),
-      type: 'success',
-      icon: '📦'
-    })
-  }
-
-  // 按日期排序
-  return events.sort((a, b) => a.date.getTime() - b.date.getTime())
-})
 </script>
 
 <template>
-  <el-card class="timeline-card" v-if="timelineData.length > 0">
+  <el-card class="key-dates-card" v-if="timelineEvents.length > 0">
     <template #header>
       <div class="card-header">
-        <span class="title">
-          📅 关键日期
-        </span>
-        <span class="subtitle">货柜重要时间节点</span>
+        <span class="title">关键日期</span>
       </div>
     </template>
 
-    <div class="timeline-container">
-      <div class="timeline-line"></div>
-      <div class="timeline-events">
-        <div
-          v-for="(event, index) in timelineData"
-          :key="index"
-          class="timeline-event"
-          :class="{
-            'expired': new Date() > event.date,
-            'today': Math.abs(new Date().getTime() - event.date.getTime()) < 24 * 60 * 60 * 1000
-          }"
-        >
-          <div class="event-marker">
-            <span class="event-icon">{{ event.icon }}</span>
+    <div class="timeline-horizontal">
+      <div
+        v-for="(event, index) in timelineEvents"
+        :key="index"
+        class="timeline-item"
+        :class="{
+          'is-expired': new Date() > event.date,
+          'is-today': event.label === '当前',
+        }"
+      >
+        <div class="timeline-track">
+          <div class="timeline-dot" :class="getDotColor(event)" />
+          <div class="timeline-connector" v-if="index < timelineEvents.length - 1" />
+        </div>
+        <div class="timeline-body">
+          <div class="item-header">
+            <span class="item-label">{{ event.label }}</span>
+            <span v-if="event.isComputed" class="item-tag item-tag-computed">计算</span>
+            <span v-else-if="event.isFromDb" class="item-tag item-tag-db">录入</span>
           </div>
-          <div class="event-content">
-            <div class="event-header">
-              <span class="event-label">{{ event.label }}</span>
-              <span class="alert-light" :class="getDateAlertColor(event.date)">
-                {{ getAlertIcon(getDateAlertColor(event.date)) }}
-              </span>
-            </div>
-            <div class="event-date">{{ formatDate(event.date) }}</div>
-            <div class="event-status">{{ getDateStatusText(event.date) }}</div>
-            <div class="event-full-label">{{ event.fullLabel }}</div>
+          <div class="item-date">{{ formatDate(event.date) }}</div>
+          <div
+            v-if="event.type !== 'info'"
+            class="item-status"
+            :class="getDateAlertColor(event.date)"
+          >
+            {{ getDateStatusText(event.date) }}
           </div>
         </div>
       </div>
@@ -179,206 +214,160 @@ const timelineData = computed(() => {
 <style scoped lang="scss">
 @use '@/assets/styles/variables' as *;
 
-.timeline-card {
-  margin-bottom: 20px;
+.key-dates-card {
+  border-radius: $radius-large;
+  border: 1px solid $border-lighter;
+  box-shadow: $shadow-light;
 
-  .card-header {
+  :deep(.el-card__header) {
+    padding: $spacing-md $spacing-lg;
+    border-bottom: 1px solid $border-lighter;
+    background: $bg-page;
+  }
+
+  :deep(.el-card__body) {
+    padding: $spacing-lg;
+  }
+
+  .card-header .title {
+    font-size: $font-size-base;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  .timeline-horizontal {
     display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0;
+    overflow-x: auto;
+    padding: $spacing-sm 0;
+  }
+
+  .timeline-item {
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 15px;
+    flex: 1;
+    min-width: 100px;
+    max-width: 140px;
 
-    .title {
-      font-size: 16px;
-      font-weight: 600;
-      color: $text-primary;
-    }
-
-    .subtitle {
-      font-size: 14px;
+    &.is-expired .item-date,
+    &.is-expired .item-status {
       color: $text-secondary;
     }
+
+    &.is-today .item-date {
+      font-weight: 700;
+      color: $primary-color;
+    }
   }
 
-  .timeline-container {
+  .timeline-track {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin-bottom: $spacing-sm;
     position: relative;
-    padding: 30px 20px;
-    overflow-x: auto;
+  }
 
-    .timeline-line {
-      position: absolute;
-      left: 50px;
-      right: 50px;
-      top: 54px;
-      height: 3px;
-      background: linear-gradient(90deg, #409eff 0%, #67c23a 50%, #f56c6c 100%);
-      border-radius: 3px;
+  .timeline-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    z-index: 1;
+
+    &.red {
+      background: $danger-color;
+      box-shadow: 0 0 0 3px rgba($danger-color, 0.2);
     }
 
-    .timeline-events {
-      display: flex;
-      flex-direction: row;
-      gap: 0;
-      justify-content: space-between;
-      align-items: flex-start;
-      min-width: 100%;
+    &.orange {
+      background: $warning-color;
+      box-shadow: 0 0 0 3px rgba($warning-color, 0.2);
     }
 
-    .timeline-event {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      position: relative;
-      flex: 1;
-      text-align: center;
-
-      &.expired {
-        .event-marker {
-          background: #fef0f0;
-          border-color: $danger-color;
-
-          .event-icon {
-            filter: grayscale(0.3);
-          }
-        }
-
-        .event-content {
-          opacity: 0.8;
-        }
-      }
-
-      &.today {
-        .event-marker {
-          animation: pulse 2s infinite;
-        }
-      }
-
-      .event-marker {
-        width: 50px;
-        height: 50px;
-        border-radius: 50%;
-        background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
-        border: 4px solid #fff;
-        box-shadow: 0 2px 12px rgba(64, 158, 255, 0.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-        z-index: 2;
-        margin: 0 0 10px 0;
-        transition: all 0.3s ease;
-
-        .event-icon {
-          font-size: 22px;
-          line-height: 1;
-        }
-      }
-
-      .event-content {
-        flex: none;
-        padding: 10px 14px;
-        background: #f5f7fa;
-        border-radius: 8px;
-        border-top: 3px solid #409eff;
-        transition: all 0.3s ease;
-        min-width: 140px;
-        max-width: 180px;
-
-        .event-header {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-          align-items: center;
-          margin-bottom: 6px;
-
-          .event-label {
-            font-size: 14px;
-            font-weight: 600;
-            color: $text-primary;
-          }
-
-          .alert-light {
-            font-size: 20px;
-            line-height: 1;
-            display: inline-block;
-            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
-
-            &.red {
-              animation: blink-red 1.5s ease-in-out infinite;
-            }
-
-            &.orange {
-              animation: blink-orange 2s ease-in-out infinite;
-            }
-
-            &.green {
-              animation: none;
-            }
-          }
-        }
-
-        .event-date {
-          font-size: 13px;
-          color: $primary-color;
-          font-weight: 500;
-          margin-bottom: 3px;
-        }
-
-        .event-status {
-          font-size: 11px;
-          color: $text-regular;
-          margin-bottom: 3px;
-          font-weight: 500;
-        }
-
-        .event-full-label {
-          font-size: 11px;
-          color: $text-secondary;
-        }
-      }
-
-      &:hover {
-        .event-marker {
-          transform: scale(1.15);
-          box-shadow: 0 4px 16px rgba(64, 158, 255, 0.4);
-        }
-
-        .event-content {
-          background: #ecf5ff;
-          transform: translateY(-5px);
-        }
-      }
+    &.green {
+      background: $success-color;
+      box-shadow: 0 0 0 3px rgba($success-color, 0.2);
     }
   }
-}
 
-@keyframes pulse {
-  0%, 100% {
-    box-shadow: 0 2px 12px rgba(64, 158, 255, 0.3);
+  .timeline-item.is-today .timeline-dot {
+    background: $primary-color;
+    box-shadow: 0 0 0 3px rgba($primary-color, 0.25);
   }
-  50% {
-    box-shadow: 0 4px 20px rgba(64, 158, 255, 0.6);
-  }
-}
 
-@keyframes blink-red {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
+  .timeline-connector {
+    flex: 1;
+    height: 2px;
+    background: $border-light;
+    min-width: 8px;
   }
-  50% {
-    opacity: 0.6;
-    transform: scale(0.9);
-  }
-}
 
-@keyframes blink-orange {
-  0%, 100% {
-    opacity: 1;
-    transform: scale(1);
+  .timeline-body {
+    text-align: center;
+    width: 100%;
   }
-  50% {
-    opacity: 0.7;
-    transform: scale(0.95);
+
+  .item-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-xs;
+    margin-bottom: 2px;
+    flex-wrap: wrap;
+  }
+
+  .item-label {
+    font-size: $font-size-sm;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  .item-tag {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: $radius-small;
+    font-weight: 500;
+
+    &.item-tag-computed {
+      background: rgba($warning-color, 0.12);
+      color: darken($warning-color, 8%);
+    }
+
+    &.item-tag-db {
+      background: rgba($info-color, 0.12);
+      color: darken($info-color, 8%);
+    }
+  }
+
+  .item-date {
+    font-size: $font-size-base;
+    font-weight: 600;
+    color: $text-primary;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+
+  .item-status {
+    font-size: $font-size-xs;
+    margin-top: 2px;
+
+    &.red {
+      color: $danger-color;
+      font-weight: 500;
+    }
+
+    &.orange {
+      color: $warning-color;
+      font-weight: 500;
+    }
+
+    &.green {
+      color: $success-color;
+    }
   }
 }
 </style>

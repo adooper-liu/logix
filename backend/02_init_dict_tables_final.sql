@@ -95,8 +95,11 @@ INSERT INTO dict_ports (
 ('USSFO', '旧金山', 'San Francisco', 'PORT', 'US', 'CA', 'Los_Angeles', -8, 37.7749, -122.4194, true, true, true, 'ACTIVE', NULL, NOW(), NOW()),
 ('USMIA', '迈阿密', 'Miami', 'PORT', 'US', 'FL', 'New_York', -5, 25.7617, -80.1918, true, true, true, 'ACTIVE', NULL, NOW(), NOW()),
 ('USATL', '亚特兰大', 'Atlanta', 'PORT', 'US', 'GA', 'New_York', -5, 33.7490, -84.3880, true, true, true, 'ACTIVE', NULL, NOW(), NOW()),
+('USSAV', '萨凡纳', 'Savannah', 'PORT', 'US', 'GA', 'Savannah', -5, 32.0809, -81.0912, true, true, true, 'ACTIVE', NULL, NOW(), NOW()),
 ('USORD', '奥黑尔', 'Chicago O''Hare', 'PORT', 'US', 'IL', 'Chicago', -6, 41.9742, -87.9073, true, true, true, 'ACTIVE', NULL, NOW(), NOW()),
 ('USJFK', '肯尼迪', 'JFK Airport', 'PORT', 'US', 'NY', 'New_York', -5, 40.6413, -73.7781, true, true, true, 'ACTIVE', NULL, NOW(), NOW()),
+('USEWR', '纽瓦克', 'Newark', 'PORT', 'US', 'NJ', 'Newark', -5, 40.7357, -74.1724, true, true, true, 'ACTIVE', NULL, NOW(), NOW()),
+('USLGB', '长滩', 'Long Beach', 'PORT', 'US', 'CA', 'Long_Beach', -8, 33.7544, -118.1890, true, true, true, 'ACTIVE', NULL, NOW(), NOW()),
 
 -- 欧洲港口
 ('GBLHR', '伦敦', 'London', 'PORT', 'GB', 'ENG', 'London', 0, 51.5074, -0.1278, true, true, true, 'ACTIVE', NULL, NOW(), NOW()),
@@ -187,6 +190,7 @@ INSERT INTO dict_shipping_companies (company_code, company_name, company_name_en
 ('MCC', 'MCC运输', 'MCC Transport', 'MCPU', 'MSK', true, true, true, 'ACTIVE', NULL, NOW(), NOW()),
 ('MSC', '地中海', 'Mediterranean Shipping Company', 'MEDU', 'MSC', true, true, true, 'ACTIVE', NULL, NOW(), NOW()),
 ('MSK', '马士基', 'Maersk', 'MAEU', 'MSK', true, true, true, 'ACTIVE', NULL, NOW(), NOW()),
+('MAERSK', '马士基', 'Maersk', 'MAEU', 'MSK', true, true, true, 'ACTIVE', '同MSK，Excel常用MAERSK', NOW(), NOW()),
 ('NGP', '太古船务', 'NGPL', 'NGPL', 'NGPL', true, true, false, 'ACTIVE', NULL, NOW(), NOW()),
 ('NDS', '尼罗河', 'Nile Dutch', 'NDSU', 'HPL', true, true, true, 'ACTIVE', NULL, NOW(), NOW()),
 ('NOS', '宁波远洋外贸', 'NOSCO', 'NOSC', 'NOSCO', false, true, false, 'ACTIVE', NULL, NOW(), NOW()),
@@ -262,7 +266,14 @@ INSERT INTO dict_freight_forwarders (forwarder_code, forwarder_name, forwarder_n
 ('EXPEDITORS', '康捷空物流', 'Expeditors International', '+1-206-6743400', 'info@expeditors.com', 'ACTIVE', NULL, NOW(), NOW()),
 ('DAMCO', '丹马士物流', 'Damco', '+45-33784000', 'info@damco.com', 'ACTIVE', NULL, NOW(), NOW()),
 ('UPS_SCS', 'UPS供应链', 'UPS Supply Chain Solutions', '+1-800-7425877', 'info@ups.com', 'ACTIVE', NULL, NOW(), NOW()),
-('CEVA', '基华物流', 'CEVA Logistics', '+41-225880100', 'info@cevalogistics.com', 'ACTIVE', NULL, NOW(), NOW());
+('CEVA', '基华物流', 'CEVA Logistics', '+41-225880100', 'info@cevalogistics.com', 'ACTIVE', NULL, NOW(), NOW()),
+('SELA_VN', 'CTY TNHH SOUTHEAST LOGISTICS VIET NAM', 'CTY TNHH Southeast Logistics Viet Nam', NULL, NULL, 'ACTIVE', NULL, NOW(), NOW()),
+('MAERSK_LOG', 'MAERSK LOGISTICS & SERVICES', 'Maersk Logistics & Services', NULL, NULL, 'ACTIVE', NULL, NOW(), NOW()),
+('VN_COMPANY', 'VIETNAM COMPANY LIMITED', 'Vietnam Company Limited', NULL, NULL, 'ACTIVE', NULL, NOW(), NOW()),
+('SELA_MY', 'SOUTHEAST INTERNATIONAL LOGISTICS MALAYSIA SDN BHD', 'Southeast International Logistics Malaysia Sdn Bhd', NULL, NULL, 'ACTIVE', NULL, NOW(), NOW()),
+('JIANDA', '简达物流集团股份有限公司', 'Jianda Logistics Group Co Ltd', NULL, NULL, 'ACTIVE', NULL, NOW(), NOW()),
+('TITULIAN', '宁波天图翼联物流科技有限公司', 'Ningbo Titu Lian Logistics Technology Co Ltd', NULL, NULL, 'ACTIVE', NULL, NOW(), NOW()),
+('NINGBO_SINOTRANS', '宁波外运国际货运代理有限公司', 'Ningbo Sinotrans International Freight Forwarding Co Ltd', NULL, NULL, 'ACTIVE', NULL, NOW(), NOW());
 
 -- ============================================================
 -- 清关公司字典 (dict_customs_brokers)

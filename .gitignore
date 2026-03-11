@@ -17,9 +17,14 @@ yarn-error.log*
 dist/
 build/
 *.tsbuildinfo
+shared/**/*.js
+shared/**/*.d.ts
+shared/**/*.js.map
+shared/**/*.d.ts.map
 
 # Logs
 logs/
+backend/logs/
 *.log
 npm-debug.log*
 

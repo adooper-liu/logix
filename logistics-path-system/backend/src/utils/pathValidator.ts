@@ -45,6 +45,7 @@ const STATUS_TRANSITIONS: Record<StandardStatus, StandardStatus[]> = {
     StandardStatus.HOLD
   ],
   [StandardStatus.TRANSIT_ARRIVED]: [
+    StandardStatus.TRANSIT_BERTHED,
     StandardStatus.TRANSIT_DEPARTED,
     StandardStatus.ARRIVED,
     StandardStatus.DELAYED,
@@ -148,6 +149,48 @@ const STATUS_TRANSITIONS: Record<StandardStatus, StandardStatus[]> = {
     StandardStatus.GATE_OUT,
     StandardStatus.DUMPED
   ],
+  [StandardStatus.IN_TRANSIT_TO_DEST]: [
+    StandardStatus.GATE_OUT,
+    StandardStatus.DELIVERY_ARRIVED,
+    StandardStatus.STRIPPED,
+    StandardStatus.RETURNED_EMPTY,
+    StandardStatus.HOLD
+  ],
+  [StandardStatus.CONTAINER_STUFFED]: [
+    StandardStatus.GATE_IN,
+    StandardStatus.LOADED,
+    StandardStatus.HOLD
+  ],
+  [StandardStatus.TRANSIT_BERTHED]: [
+    StandardStatus.TRANSIT_DISCHARGED,
+    StandardStatus.TRANSIT_DEPARTED,
+    StandardStatus.ARRIVED,
+    StandardStatus.HOLD
+  ],
+  [StandardStatus.TRANSIT_DISCHARGED]: [
+    StandardStatus.TRANSIT_LOADED,
+    StandardStatus.TRANSIT_DEPARTED,
+    StandardStatus.ARRIVED,
+    StandardStatus.HOLD
+  ],
+  [StandardStatus.TRANSIT_LOADED]: [
+    StandardStatus.TRANSIT_DEPARTED,
+    StandardStatus.ARRIVED,
+    StandardStatus.HOLD
+  ],
+  [StandardStatus.RAIL_LOADED]: [StandardStatus.RAIL_DEPARTED, StandardStatus.HOLD],
+  [StandardStatus.RAIL_DEPARTED]: [StandardStatus.RAIL_ARRIVED, StandardStatus.HOLD],
+  [StandardStatus.RAIL_ARRIVED]: [StandardStatus.RAIL_DISCHARGED, StandardStatus.HOLD],
+  [StandardStatus.RAIL_DISCHARGED]: [StandardStatus.GATE_OUT, StandardStatus.HOLD],
+  [StandardStatus.FEEDER_LOADED]: [StandardStatus.FEEDER_DEPARTED, StandardStatus.HOLD],
+  [StandardStatus.FEEDER_DEPARTED]: [StandardStatus.FEEDER_ARRIVED, StandardStatus.HOLD],
+  [StandardStatus.FEEDER_ARRIVED]: [StandardStatus.FEEDER_DISCHARGED, StandardStatus.HOLD],
+  [StandardStatus.FEEDER_DISCHARGED]: [StandardStatus.GATE_OUT, StandardStatus.HOLD],
+  [StandardStatus.BERTHED]: [
+    StandardStatus.DISCHARGED,
+    StandardStatus.AVAILABLE,
+    StandardStatus.HOLD
+  ],
   [StandardStatus.UNKNOWN]: [
     StandardStatus.NOT_SHIPPED,
     StandardStatus.EMPTY_PICKED_UP,
@@ -156,6 +199,46 @@ const STATUS_TRANSITIONS: Record<StandardStatus, StandardStatus[]> = {
     StandardStatus.DEPARTED
   ]
 };
+
+/** 状态到阶段顺序的映射（与 statusPathFromDb FULL_PATH_TEMPLATE 一致，用于排序时保持逻辑顺序） */
+const STATUS_TO_STAGE_ORDER: Record<string, number> = {
+  [StandardStatus.NOT_SHIPPED]: 1,
+  [StandardStatus.EMPTY_PICKED_UP]: 2,
+  [StandardStatus.GATE_IN]: 3,
+  [StandardStatus.CONTAINER_STUFFED]: 3,
+  [StandardStatus.LOADED]: 4,
+  [StandardStatus.RAIL_LOADED]: 4,
+  [StandardStatus.FEEDER_LOADED]: 4,
+  [StandardStatus.DEPARTED]: 5,
+  [StandardStatus.RAIL_DEPARTED]: 5,
+  [StandardStatus.FEEDER_DEPARTED]: 5,
+  [StandardStatus.SAILING]: 6,
+  [StandardStatus.TRANSIT_ARRIVED]: 6,
+  [StandardStatus.TRANSIT_BERTHED]: 6,
+  [StandardStatus.TRANSIT_DISCHARGED]: 6,
+  [StandardStatus.TRANSIT_LOADED]: 6,
+  [StandardStatus.TRANSIT_DEPARTED]: 6,
+  [StandardStatus.FEEDER_ARRIVED]: 6,
+  [StandardStatus.FEEDER_DISCHARGED]: 6,
+  [StandardStatus.RAIL_ARRIVED]: 6,
+  [StandardStatus.RAIL_DISCHARGED]: 6,
+  [StandardStatus.ARRIVED]: 7,
+  [StandardStatus.BERTHED]: 7,
+  [StandardStatus.DISCHARGED]: 8,
+  [StandardStatus.AVAILABLE]: 9,
+  [StandardStatus.GATE_OUT]: 10,
+  [StandardStatus.IN_TRANSIT_TO_DEST]: 10,
+  [StandardStatus.DELIVERY_ARRIVED]: 10,
+  [StandardStatus.STRIPPED]: 10,
+  [StandardStatus.RETURNED_EMPTY]: 11,
+  [StandardStatus.COMPLETED]: 11
+};
+
+function getNodeStageOrder(node: StatusNode): number {
+  const fromRaw = (node.rawData as { stageOrder?: number })?.stageOrder;
+  if (typeof fromRaw === 'number') return fromRaw;
+  return STATUS_TO_STAGE_ORDER[node.status] ?? 99;
+}
 
 /**
  * 验证状态转换是否合法
@@ -228,8 +311,9 @@ export const calculateIsAlert = (status: StandardStatus): boolean => {
 
 /**
  * 计算路径整体状态
+ * 统一标准：节点状态（扣留/超期等）或 节点间时间延误 任一存在即标记为延误
  */
-export const calculatePathStatus = (path: StatusPath): PathStatus => {
+export const calculatePathStatus = (path: { nodes: StatusNode[] }): PathStatus => {
   const nodes = path.nodes;
 
   if (nodes.length === 0) {
@@ -264,6 +348,14 @@ export const calculatePathStatus = (path: StatusPath): PathStatus => {
   );
   if (hasDelayedStatus) {
     return PathStatus.DELAYED;
+  }
+
+  // 统一标准：节点间时间延误（超过 24h 即算延误）也计入整体状态
+  for (let i = 1; i < nodes.length; i++) {
+    const delayDays = calculateDelayDays(nodes[i - 1], nodes[i]);
+    if (delayDays > 0) {
+      return PathStatus.DELAYED;
+    }
   }
 
   return PathStatus.ON_TIME;
@@ -324,35 +416,42 @@ export const validateStatusPath = (path: StatusPath): ValidationResult => {
 export const processStatusPath = (rawPath: Partial<StatusPath>): StatusPath => {
   const nodes = rawPath.nodes || [];
 
-  const processedNodes: StatusNode[] = nodes.map((node, index) => ({
-    ...node,
-    nodeStatus: calculateNodeStatus(node, index, nodes),
-    isAlert: calculateIsAlert(node.status)
-  }));
+  const processedNodes: StatusNode[] = nodes.map((node, index) => {
+    const noData = (node.rawData as { noData?: boolean })?.noData;
+    return {
+      ...node,
+      nodeStatus: noData ? NodeStatus.PENDING : calculateNodeStatus(node, index, nodes),
+      isAlert: noData ? false : calculateIsAlert(node.status)
+    };
+  });
 
-  processedNodes.sort((a, b) =>
-    new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-  );
+  // 按阶段顺序优先、时间戳次之排序，避免「已提柜」排在「未出运 缺数据」前面（缺数据占位节点时间戳为 now）
+  processedNodes.sort((a, b) => {
+    const orderA = getNodeStageOrder(a);
+    const orderB = getNodeStageOrder(b);
+    if (orderA !== orderB) return orderA - orderB;
+    return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime();
+  });
 
   const overallStatus = calculatePathStatus({
     ...rawPath,
     nodes: processedNodes
   });
 
-  const startedAt = processedNodes.length > 0 ? new Date(processedNodes[0].timestamp) : null;
+  const startedAt = processedNodes.length > 0 ? new Date(processedNodes[0].timestamp) : undefined;
   const completedAt =
     processedNodes.length > 0 &&
     processedNodes[processedNodes.length - 1].status === StandardStatus.COMPLETED
       ? new Date(processedNodes[processedNodes.length - 1].timestamp)
-      : null;
+      : undefined;
 
   return {
     nodes: processedNodes,
     overallStatus,
-    eta: rawPath.eta || null,
+    eta: rawPath.eta ?? undefined,
     startedAt,
     completedAt
-  };
+  } as StatusPath;
 };
 
 /**

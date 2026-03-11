@@ -1,10 +1,11 @@
 /**
  * 外部数据控制器
  * 用于管理外部数据源（如飞驼）的数据同步
+ * Token 留空时飞驼同步返回友好错误，Excel 导入不受影响
  */
 
 import { Request, Response } from 'express';
-import { feituoAdapter } from '../adapters/FeiTuoAdapter';
+import { feituoAdapter, FeiTuoQueryOptions } from '../adapters/FeiTuoAdapter';
 import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
 import { Container } from '../entities/Container';
 import { PortOperation } from '../entities/PortOperation';
@@ -15,6 +16,7 @@ import { EmptyReturn } from '../entities/EmptyReturn';
 import { AppDataSource } from '../database';
 import { logger } from '../utils/logger';
 import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
+import { getCoreFieldName } from '../constants/FeiTuoStatusMapping';
 
 export class ExternalDataController {
   private eventRepository = AppDataSource.getRepository(ContainerStatusEvent);
@@ -43,72 +45,191 @@ export class ExternalDataController {
 
       logger.info(`[ExternalDataController] 收到同步请求: ${containerNumber}, 数据源: ${dataSource}`);
 
-      let events: any[] = [];
+      const result = await this.doSyncContainer(containerNumber, dataSource);
 
-      // 根据数据源类型调用不同的适配器
-      if (dataSource === 'Feituo') {
-        const result = await feituoAdapter.getContainerStatusEvents(containerNumber);
-        if (result.success && result.data) {
-          events = this.convertToStatusEvents(containerNumber, result.data);
-        } else {
-          throw new Error(result.error || '获取飞驼数据失败');
-        }
-      } else {
-        throw new Error(`不支持的数据源: ${dataSource}`);
+      if (!result.success) {
+        res.status(400).json({
+          success: false,
+          message: result.error || '同步失败',
+        });
+        return;
       }
-
-      // 保存到数据库
-      const savedEvents = await this.saveStatusEvents(events);
-
-      // 关键: 重新计算货柜的物流状态
-      await this.recalculateLogisticsStatus(containerNumber);
 
       res.json({
         success: true,
-        message: `成功同步 ${savedEvents.length} 个状态事件`,
+        message: `成功同步 ${result.savedEvents!.length} 个状态事件`,
         data: {
           containerNumber,
-          eventCount: savedEvents.length,
-          events: savedEvents,
+          eventCount: result.savedEvents!.length,
+          events: result.savedEvents,
         },
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('[ExternalDataController] 同步货柜失败:', error);
       res.status(500).json({
         success: false,
-        message: error.message || '同步失败',
+        message: error instanceof Error ? error.message : '同步失败',
       });
     }
   };
 
   /**
-   * 将适配器返回的数据转换为状态事件实体
+   * 执行同步逻辑（供 syncContainer 或 syncBatch 调用）
    */
-  private convertToStatusEvents(containerNumber: string, nodes: any[]): ContainerStatusEvent[] {
-    return nodes.map((node, index) => {
-      const event = new ContainerStatusEvent();
-      event.id = `${containerNumber}-${node.statusCode || 'STATUS'}-${Date.now()}-${index}`;
-      event.containerNumber = containerNumber;
-      event.statusCode = node.statusCode || 'STATUS';
-      event.occurredAt = node.occurredAt;
-      event.isEstimated = node.isEstimated !== undefined ? node.isEstimated : false;
-      event.locationCode = node.locationCode;
-      event.locationNameEn = node.locationNameEn;
-      event.locationNameCn = node.locationNameCn;
-      event.locationNameOriginal = node.locationNameEn || node.locationNameCn;
-      event.statusType = node.statusType || 'STATUS';
-      event.latitude = node.latitude;
-      event.longitude = node.longitude;
-      event.timezone = node.timezone;
-      event.terminalName = node.terminalName;
-      event.cargoLocation = node.cargoLocation;
-      event.dataSource = node.dataSource || 'Feituo';
-      event.descriptionEn = node.statusNameEn;
-      event.descriptionCn = node.statusNameCn;
-      event.descriptionOriginal = node.statusNameEn || node.statusNameCn;
-      return event;
+  private async doSyncContainer(
+    containerNumber: string,
+    dataSource: string
+  ): Promise<{ success: true; savedEvents: ContainerStatusEvent[] } | { success: false; error: string }> {
+    let events: ContainerStatusEvent[] = [];
+
+    if (dataSource === 'Feituo') {
+      const options = await this.buildFeiTuoQueryOptions(containerNumber);
+      const result = await feituoAdapter.getContainerStatusEvents(containerNumber, options);
+      if (result.success && result.data) {
+        events = this.convertToStatusEvents(containerNumber, result.data);
+      } else {
+        return { success: false, error: result.error || '获取飞驼数据失败' };
+      }
+    } else {
+      return { success: false, error: `不支持的数据源: ${dataSource}` };
+    }
+
+    const savedEvents = await this.saveStatusEvents(events);
+    await this.applyFeiTuoToCoreFields(containerNumber, events);
+    await this.recalculateLogisticsStatus(containerNumber);
+
+    return { success: true, savedEvents };
+  }
+
+  /**
+   * 构建飞驼查询参数（从 process_sea_freight 获取 billNo、carrierCode）
+   */
+  private async buildFeiTuoQueryOptions(containerNumber: string): Promise<FeiTuoQueryOptions> {
+    const container = await this.containerRepository.findOne({
+      where: { containerNumber },
+      relations: ['seaFreight'],
     });
+    const sf = container?.seaFreight;
+    const billNo = sf?.billOfLadingNumber;
+    const carrierCode = sf?.mblScac || sf?.hblScac || undefined;
+    return {
+      billNo: billNo || undefined,
+      carrierCode: carrierCode || undefined,
+      isExport: 'E',
+    };
+  }
+
+  /**
+   * 将适配器返回的数据转换为状态事件实体（与 ext_container_status_events 表结构对齐）
+   */
+  private convertToStatusEvents(
+    containerNumber: string,
+    nodes: Array<{
+      statusCode?: string;
+      statusNameEn?: string;
+      statusNameCn?: string;
+      occurredAt?: Date;
+      locationCode?: string;
+      locationNameEn?: string;
+      locationNameCn?: string;
+      isEstimated?: boolean;
+      dataSource?: string;
+    }>
+  ): ContainerStatusEvent[] {
+    return nodes
+      .filter((node) => node.occurredAt)
+      .map((node) => {
+        const event = new ContainerStatusEvent();
+        event.containerNumber = containerNumber;
+        event.statusCode = node.statusCode || 'STATUS';
+        event.statusName = (node.statusNameCn || node.statusNameEn || node.statusCode || 'STATUS') as string;
+        event.occurredAt = node.occurredAt!;
+        event.location = (node.locationCode || node.locationNameEn || node.locationNameCn || '') as string;
+        event.description = (node.statusNameCn || node.statusNameEn || '') as string;
+        event.dataSource = node.dataSource || 'FeituoAPI'; // API 同步标记为 FeituoAPI，与 Excel 导入的 Feituo 区分
+        event.rawData = {
+          statusCode: node.statusCode,
+          statusNameEn: node.statusNameEn,
+          statusNameCn: node.statusNameCn,
+          isEstimated: node.isEstimated,
+        };
+        return event;
+      });
+  }
+
+  /**
+   * 根据飞驼状态事件更新核心字段（process_port_operations、process_sea_freight、process_empty_return）
+   */
+  private async applyFeiTuoToCoreFields(
+    containerNumber: string,
+    events: ContainerStatusEvent[]
+  ): Promise<void> {
+    for (const event of events) {
+      const isEstimated = (event.rawData as { isEstimated?: boolean })?.isEstimated;
+      if (isEstimated) continue;
+      const fieldName = getCoreFieldName(event.statusCode || '');
+      if (!fieldName) continue;
+
+      const occurredAt = event.occurredAt;
+      if (!occurredAt) continue;
+
+      try {
+        if (fieldName === 'return_time') {
+          let er = await this.emptyReturnRepository.findOne({ where: { containerNumber } });
+          if (!er) {
+            er = this.emptyReturnRepository.create({ containerNumber });
+          }
+          er.returnTime = occurredAt;
+          await this.emptyReturnRepository.save(er);
+          logger.info(`[ExternalDataController] 写回 return_time: ${containerNumber}`);
+          continue;
+        }
+        if (fieldName === 'shipment_date') {
+          const container = await this.containerRepository.findOne({
+            where: { containerNumber },
+            relations: ['seaFreight'],
+          });
+          const bl = container?.seaFreight?.billOfLadingNumber;
+          if (bl) {
+            const sf = await this.seaFreightRepository.findOne({ where: { billOfLadingNumber: bl } });
+            if (sf) {
+              sf.shipmentDate = occurredAt;
+              await this.seaFreightRepository.save(sf);
+              logger.info(`[ExternalDataController] 写回 shipment_date: ${containerNumber}`);
+            }
+          }
+          continue;
+        }
+        const portType =
+          ['transit_arrival_date', 'atd_transit'].includes(fieldName) ? 'transit' : 'destination';
+        const po = await this.portOperationRepository
+          .createQueryBuilder('po')
+          .where('po.containerNumber = :containerNumber', { containerNumber })
+          .andWhere('po.portType = :portType', { portType })
+          .orderBy('po.portSequence', 'DESC')
+          .getOne();
+        if (po) {
+          const updates: Partial<PortOperation> = {};
+          if (fieldName === 'ata_dest_port') updates.ataDestPort = occurredAt;
+          else if (fieldName === 'eta_dest_port') updates.etaDestPort = occurredAt;
+          else if (fieldName === 'gate_in_time') updates.gateInTime = occurredAt;
+          else if (fieldName === 'gate_out_time') updates.gateOutTime = occurredAt;
+          else if (fieldName === 'dest_port_unload_date') updates.destPortUnloadDate = occurredAt;
+          else if (fieldName === 'discharged_time') updates.dischargedTime = occurredAt;
+          else if (fieldName === 'available_time') updates.availableTime = occurredAt;
+          else if (fieldName === 'transit_arrival_date') updates.transitArrivalDate = occurredAt;
+          else if (fieldName === 'atd_transit') updates.atdTransit = occurredAt;
+          if (Object.keys(updates).length > 0) {
+            Object.assign(po, updates);
+            await this.portOperationRepository.save(po);
+            logger.info(`[ExternalDataController] 写回 ${fieldName}: ${containerNumber}`);
+          }
+        }
+      } catch (err) {
+        logger.warn(`[ExternalDataController] 写回核心字段失败: ${fieldName}`, err);
+      }
+    }
   }
 
   /**
@@ -152,10 +273,9 @@ export class ExternalDataController {
    */
   private async recalculateLogisticsStatus(containerNumber: string): Promise<void> {
     try {
-      // 获取货柜
       const container = await this.containerRepository.findOne({
         where: { containerNumber },
-        relations: []
+        relations: ['seaFreight'],
       });
 
       if (!container) {
@@ -163,29 +283,27 @@ export class ExternalDataController {
         return;
       }
 
-      // 获取港口操作记录
       const portOperations = await this.portOperationRepository
         .createQueryBuilder('po')
         .where('po.containerNumber = :containerNumber', { containerNumber })
         .orderBy('po.portSequence', 'DESC')
         .getMany();
 
-      // 获取其他相关数据
-      const [seaFreight, truckingTransport, warehouseOperation, emptyReturn] = await Promise.all([
-        this.seaFreightRepository.findOne({ where: { containerNumber } }),
+      const [truckingTransport, warehouseOperation, emptyReturn] = await Promise.all([
         this.truckingTransportRepository.findOne({ where: { containerNumber } }),
         this.warehouseOperationRepository.findOne({ where: { containerNumber } }),
-        this.emptyReturnRepository.findOne({ where: { containerNumber } })
+        this.emptyReturnRepository.findOne({ where: { containerNumber } }),
       ]);
 
-      // 计算新的物流状态
+      const seaFreight = container.seaFreight ?? undefined;
+
       const result = calculateLogisticsStatus(
         container,
         portOperations,
         seaFreight,
-        truckingTransport,
-        warehouseOperation,
-        emptyReturn
+        truckingTransport ?? undefined,
+        warehouseOperation ?? undefined,
+        emptyReturn ?? undefined
       );
 
       // 更新货柜的物流状态
@@ -236,12 +354,16 @@ export class ExternalDataController {
 
       for (const containerNumber of containerNumbers) {
         try {
-          await this.syncContainer({ params: { containerNumber }, body: { dataSource } } as any);
-          result.success.push(containerNumber);
-        } catch (error: any) {
+          const syncResult = await this.doSyncContainer(containerNumber, dataSource);
+          if (syncResult.success) {
+            result.success.push(containerNumber);
+          } else {
+            result.failed.push({ containerNumber, error: syncResult.error });
+          }
+        } catch (error: unknown) {
           result.failed.push({
             containerNumber,
-            error: error.message || '未知错误',
+            error: error instanceof Error ? error.message : '未知错误',
           });
           logger.error(`[ExternalDataController] 同步货柜 ${containerNumber} 失败:`, error);
         }
@@ -334,6 +456,7 @@ export class ExternalDataController {
   /**
    * 清理过期的预计状态事件
    * POST /api/external/cleanup
+   * 通过 raw_data->>'isEstimated' 判断预计事件
    */
   cleanupExpiredEvents = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -344,7 +467,7 @@ export class ExternalDataController {
 
       const deleteResult = await this.eventRepository
         .createQueryBuilder('event')
-        .where('event.isEstimated = :isEstimated', { isEstimated: true })
+        .where("(event.rawData->>'isEstimated')::boolean = true")
         .andWhere('event.occurredAt < :cutoffDate', { cutoffDate })
         .andWhere('event.dataSource IN (:...dataSources)', {
           dataSources: ['Feituo', 'AIS'],
@@ -363,11 +486,11 @@ export class ExternalDataController {
         },
       });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
       logger.error('[ExternalDataController] 清理过期事件失败:', error);
       res.status(500).json({
         success: false,
-        message: error.message || '清理过期事件失败',
+        message: error instanceof Error ? error.message : '清理过期事件失败',
       });
     }
   };
@@ -391,19 +514,19 @@ export class ExternalDataController {
         .groupBy('event.dataSource')
         .getRawMany();
 
-      // 按是否预计统计
+      // 按是否预计统计（rawData.isEstimated）
       const estimatedStats = await eventRepository
         .createQueryBuilder('event')
-        .select('event.isEstimated', 'isEstimated')
+        .select("COALESCE((event.rawData->>'isEstimated')::boolean, false)", 'isEstimated')
         .addSelect('COUNT(*)', 'count')
-        .groupBy('event.isEstimated')
+        .groupBy("COALESCE((event.rawData->>'isEstimated')::boolean, false)")
         .getRawMany();
 
-      // 最近更新的货柜
+      // 最近更新的货柜（按 occurredAt 最大）
       const recentContainers = await eventRepository
         .createQueryBuilder('event')
         .select('event.containerNumber', 'containerNumber')
-        .addSelect('MAX(event.updated_at)', 'lastUpdate')
+        .addSelect('MAX(event.occurredAt)', 'lastUpdate')
         .addGroupBy('event.containerNumber')
         .orderBy('lastUpdate', 'DESC')
         .limit(10)
@@ -424,6 +547,64 @@ export class ExternalDataController {
       res.status(500).json({
         success: false,
         message: error.message || '获取统计信息失败',
+      });
+    }
+  };
+
+  /**
+   * 获取已有外部数据的货柜列表（用于验证页）
+   * GET /api/external/containers?dataSource=FeituoAPI&page=1&pageSize=20
+   */
+  getContainersWithExternalData = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { dataSource, page = 1, pageSize = 20 } = req.query;
+      const eventRepository = AppDataSource.getRepository(ContainerStatusEvent);
+
+      let qb = eventRepository
+        .createQueryBuilder('event')
+        .select('event.containerNumber', 'containerNumber')
+        .addSelect('array_agg(DISTINCT event.dataSource)', 'dataSources')
+        .addSelect('COUNT(*)', 'eventCount')
+        .addSelect('MIN(event.occurredAt)', 'firstEventAt')
+        .addSelect('MAX(event.occurredAt)', 'lastEventAt')
+        .groupBy('event.containerNumber');
+
+      if (dataSource && typeof dataSource === 'string') {
+        qb = qb.andWhere('event.dataSource = :ds', { ds: dataSource });
+      }
+
+      const countQb = eventRepository
+        .createQueryBuilder('event')
+        .select('COUNT(DISTINCT event.containerNumber)', 'cnt');
+      if (dataSource && typeof dataSource === 'string') {
+        countQb.andWhere('event.dataSource = :ds', { ds: dataSource });
+      }
+      const { cnt } = await countQb.getRawOne();
+      const total = parseInt(String(cnt || 0), 10);
+
+      const rows = await qb
+        .orderBy('lastEventAt', 'DESC')
+        .offset((Number(page) - 1) * Number(pageSize))
+        .limit(Number(pageSize))
+        .getRawMany();
+
+      res.json({
+        success: true,
+        data: {
+          items: rows.map((r: { dataSources?: unknown }) => ({
+            ...r,
+            dataSources: Array.isArray(r.dataSources) ? r.dataSources : (r.dataSources ? [r.dataSources] : []),
+          })),
+          total,
+          page: Number(page),
+          pageSize: Number(pageSize),
+        },
+      });
+    } catch (error: unknown) {
+      logger.error('[ExternalDataController] 获取货柜列表失败:', error);
+      res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : '获取货柜列表失败',
       });
     }
   };

@@ -1,7 +1,15 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 const props = defineProps<{
   containerData: any
 }>()
+
+const orderNumber = computed(() =>
+  (props.containerData?.orderNumber ??
+   props.containerData?.order?.orderNumber ??
+   props.containerData?.allOrders?.[0]?.orderNumber) || '-'
+)
 
 // 物流状态映射
 const statusMap: Record<
@@ -35,35 +43,37 @@ const getLogisticsStatusText = (status: string): string => {
 </script>
 
 <template>
-  <el-card class="summary-card">
+  <el-card class="summary-card" shadow="hover">
+    <template #header>
+      <div class="card-header">
+        <span class="card-icon">📦</span>
+        <span class="card-title">货柜信息</span>
+      </div>
+    </template>
     <div class="info-grid">
-      <div class="info-item">
+      <div class="info-item highlight">
         <span class="label">集装箱号</span>
-        <span class="value">{{ containerData.containerNumber }}</span>
+        <span class="value mono">{{ containerData.containerNumber }}</span>
       </div>
       <div class="info-item">
         <span class="label">备货单号</span>
-        <span class="value link">{{ containerData.orderNumber }}</span>
+        <span class="value link">{{ orderNumber }}</span>
       </div>
       <div class="info-item">
         <span class="label">柜型</span>
-        <el-tag size="small">{{ containerData.containerTypeCode }}</el-tag>
+        <el-tag size="small" effect="plain">{{ containerData.containerTypeCode }}</el-tag>
       </div>
       <div class="info-item">
         <span class="label">物流状态</span>
-        <el-tag :type="statusMap[containerData.logisticsStatus]?.type || 'info'" size="small">
+        <el-tag
+          :type="statusMap[containerData.logisticsStatus]?.type || 'info'"
+          size="small"
+          effect="light"
+        >
           {{
             getLogisticsStatusText(containerData.logisticsStatus) || containerData.logisticsStatus
           }}
         </el-tag>
-      </div>
-      <div class="info-item">
-        <span class="label">封条号</span>
-        <span class="value">{{ containerData.sealNumber || '-' }}</span>
-      </div>
-      <div class="info-item">
-        <span class="label">货物描述</span>
-        <span class="value">{{ containerData.cargoDescription || '-' }}</span>
       </div>
       <div class="info-item">
         <span class="label">备货单数</span>
@@ -77,34 +87,85 @@ const getLogisticsStatusText = (status: string): string => {
 @use '@/assets/styles/variables' as *;
 
 .summary-card {
-  margin-bottom: 20px;
+  border-radius: $radius-large;
+  border: 1px solid $border-lighter;
+  transition: $transition-base;
+
+  &:hover {
+    box-shadow: $shadow-base;
+  }
+
+  :deep(.el-card__header) {
+    padding: $spacing-md $spacing-lg;
+    border-bottom: 1px solid $border-lighter;
+    background: $bg-page;
+  }
+
+  :deep(.el-card__body) {
+    padding: $spacing-lg;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
+
+    .card-icon {
+      font-size: $font-size-lg;
+      line-height: 1;
+    }
+
+    .card-title {
+      font-size: $font-size-base;
+      font-weight: 600;
+      color: $text-primary;
+    }
+  }
 
   .info-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: $spacing-lg;
   }
 
   .info-item {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: $spacing-xs;
+    padding: $spacing-sm 0;
+
+    &.highlight .value {
+      font-size: $font-size-base;
+      font-weight: 600;
+    }
 
     .label {
-      font-size: 13px;
+      font-size: $font-size-xs;
       color: $text-secondary;
       font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
     }
 
     .value {
-      font-size: 14px;
+      font-size: $font-size-sm;
       color: $text-primary;
       font-weight: 500;
+
+      &.mono {
+        font-family: ui-monospace, monospace;
+        letter-spacing: 0.05em;
+      }
 
       &.link {
         color: $primary-color;
         cursor: pointer;
-        text-decoration: underline;
+        transition: $transition-base;
+
+        &:hover {
+          color: $primary-dark;
+          text-decoration: underline;
+        }
       }
     }
   }

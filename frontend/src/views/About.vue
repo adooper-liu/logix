@@ -4,11 +4,12 @@
     <section class="hero-section">
       <div class="hero-content">
         <h1 class="hero-title">
-          <span class="brand-highlight">LogiX</span>
-          <span class="brand-cn">乐捷行</span>
+          <span class="brand-highlight">LogiX 看见，方能掌控</span>
         </h1>
-        <p class="hero-slogan">让复杂物流变得简单愉快</p>
-        <p class="hero-subtitle">通过智能化手段将非增值的物流环节成本降至理论极限</p>
+        <p class="hero-slogan">让复杂物流变得轻松愉快</p>
+        <!-- <p class="hero-subtitle">
+          构建六个一闭环、全链路的实时数字孪生体，让每一个物理单元都得到最佳安排
+        </p> -->
         <div class="hero-actions">
           <el-button type="primary" size="large" @click="goToDashboard">
             <el-icon><DataBoard /></el-icon>
@@ -33,90 +34,144 @@
       </div>
     </section>
 
+    <!-- 基石理念：六个每一个 -->
+    <section class="cost-section">
+      <div class="section-container">
+        <h2 class="section-title">💡 基石理念：让每一个单元，都得到最好的安排</h2>
+        <div class="cost-intro">
+          <div class="cost-quote">
+            <p><strong>"物流管理的本质，是对物理世界流动的优化"</strong></p>
+            <ul>
+              <li>从「数据淹没」到「价值洞察」：可视化将数据转化为可操作的洞察</li>
+              <li>「六个每一个」的闭环：货柜、订单、包裹、库位、仓位、员工操作构成完整管理闭环</li>
+              <li>从被动响应到主动导航：可视化是实现预测性、主动性管理的基石</li>
+            </ul>
+            <!-- 闭环精髓 -->
+            <p>
+              <strong>
+                <span class="linkage-icon">🔄</span>
+                「六个每一个」的价值闭环的精髓在于联动
+              </strong>
+            </p>
+            <ul>
+              <li>一个货柜的延误，会影响其中特定订单的交付，进而导致对应包裹无法按时出库。</li>
+              <li>
+                系统会自动预警，并可能触发从其他库位调拨库存，通过优化装载的仓位发出，同时为员工生成新的拣货与发货任务。
+              </li>
+              <li>可视化系统让这个联动过程全局透明，协同响应。</li>
+            </ul>
+            <!-- 哲学总结 -->
+
+            <p><strong>从管理数据到管理价值</strong></p>
+            <ul>
+              <li>
+                当六个要素全面数字化与可视化，我们便得以从<strong>「管理数据」</strong>升维至<strong>「管理价值」</strong>。
+              </li>
+              <li>
+                通过<strong>色彩编码</strong>、<strong>空间映射</strong>、<strong>动态流动</strong>，让海量数据转化为可直接驱动行动的价值洞察，实现让每一个物理单元都得到最佳安排。
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="best-arrangement-trilogy">
+          <h3 class="trilogy-title">最好的安排三步曲</h3>
+          <div class="trilogy-steps">
+            <div class="trilogy-step">
+              <span class="step-num">一</span>
+              <span class="step-label">始于「被看见」</span>
+              <span class="step-desc">从黑箱到白箱的旅程</span>
+            </div>
+            <div class="trilogy-step">
+              <span class="step-num">二</span>
+              <span class="step-label">成于「被理解」</span>
+              <span class="step-desc">透彻洞察与前瞻调度</span>
+            </div>
+            <div class="trilogy-step">
+              <span class="step-num">三</span>
+              <span class="step-label">终于「被行动」</span>
+              <span class="step-desc">从全球到本地的无缝协同</span>
+            </div>
+          </div>
+          <div class="trilogy-link-wrap">
+            <span
+              class="trilogy-link"
+              role="button"
+              tabindex="0"
+              title="阅读第二章：以货柜为中心"
+              @click="goToChapter(2)"
+              @keydown.enter="goToChapter(2)"
+            >
+              <el-icon><ArrowRight /></el-icon>
+            </span>
+          </div>
+        </div>
+
+        <div class="focus-area">
+          <div class="six-ones-diagram-wrap">
+            <SixOnesDiagram />
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- 核心价值主张 -->
     <section class="value-section">
       <div class="section-container">
         <h2 class="section-title">🎯 核心价值主张</h2>
         <div class="value-grid">
           <div class="value-card">
-            <div class="value-icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%)">
-              <el-icon><TrendCharts /></el-icon>
-            </div>
-            <h3>智能化</h3>
-            <p>基于AI的智能调度，自动优化资源配置，减少人为决策偏差</p>
-          </div>
-          <div class="value-card">
-            <div class="value-icon" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%)">
+            <div class="value-icon value-icon-primary">
               <el-icon><Monitor /></el-icon>
             </div>
-            <h3>可视化</h3>
-            <p>全流程数字孪生，实时监控，让物流状态一目了然</p>
+            <h3>六个一闭环</h3>
+            <p>货柜、订单、包裹、库位、仓位、员工操作，六维闭环透明，让数据「说话」</p>
           </div>
           <div class="value-card">
-            <div class="value-icon" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)">
-              <el-icon><Lock /></el-icon>
+            <div class="value-icon value-icon-accent">
+              <el-icon><View /></el-icon>
             </div>
-            <h3>高安全性</h3>
-            <p>企业级数据加密，完整审计日志，确保数据安全与合规</p>
+            <h3>从黑箱到白箱</h3>
+            <p>将海运、头程、仓配、末端的最大不确定性转化为可控变量</p>
           </div>
           <div class="value-card">
-            <div class="value-icon" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)">
-              <el-icon><Coin /></el-icon>
+            <div class="value-icon value-icon-cyan">
+              <el-icon><TrendCharts /></el-icon>
             </div>
-            <h3>成本最小化</h3>
-            <p>多目标优化算法，综合考量运输、时间、风险成本，实现总费用最低</p>
+            <h3>价值驱动决策</h3>
+            <p>降低单位物流成本、提升交付准时率、提高客户满意度</p>
+          </div>
+          <div class="value-card">
+            <div class="value-icon value-icon-success">
+              <el-icon><Aim /></el-icon>
+            </div>
+            <h3>主动导航</h3>
+            <p>从「感知-响应」升维至「预测-规划-执行」，实现智能副驾驶</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- 成本控制理念 -->
-    <section class="cost-section">
+    <!-- 智慧物流愿景：序章、第一章～第六章、终章、系列结语 -->
+    <section id="vision-chapters" class="vision-chapters-section">
       <div class="section-container">
-        <h2 class="section-title">💡 成本控制理念</h2>
-        <div class="cost-intro">
-          <div class="cost-quote">
-            <p><strong>"物流本身是必要的非增值活动"</strong></p>
-            <ul>
-              <li>不创造新价值：物流环节不改变产品的形态、功能或性能</li>
-              <li>必然产生成本：运输、仓储、清关、装卸都消耗人力、物力、财力</li>
-              <li>可能产生浪费：效率低下、停滞、错误都是纯粹的浪费</li>
-            </ul>
-          </div>
-          <p class="cost-philosophy">
-            目标是以最低的成本、最高的效率、最可靠的保障，实现物品在供应链中的空间与时间转移。
-            不满足于被动记录成本，而是主动介入流程，通过<span class="highlight">可视化暴露浪费</span>、
-            <span class="highlight">智能化压缩成本</span>、<span class="highlight">预警化管控风险</span>，
-            最终将每一个"不增值的物流环节"的成本与浪费降到理论极限。
-          </p>
-        </div>
-
-        <div class="focus-area">
-          <h3>聚焦"货柜到港后调度"：成本与浪费的攻坚战</h3>
-          <div class="focus-grid">
-            <div class="focus-card">
-              <div class="focus-icon">🚢</div>
-              <h4>清关环节</h4>
-              <p><strong>浪费主要在时间</strong></p>
-              <p>通过数据接口预警查验风险，提前准备，缩短通关时间，减少码头堆存费</p>
-            </div>
-            <div class="focus-card">
-              <div class="focus-icon">📦</div>
-              <h4>提柜与还箱</h4>
-              <p><strong>浪费主要在滞港费</strong></p>
-              <p>实时监控免费用箱期，智能推荐还箱地点与时间，避免高额滞箱费</p>
-            </div>
-            <div class="focus-card">
-              <div class="focus-icon">🚛</div>
-              <h4>拖卡运输</h4>
-              <p><strong>浪费在无效行驶和等待</strong></p>
-              <p>优化路线，减少等待，避免仓库因等待浪费卸柜能力</p>
-            </div>
-            <div class="focus-card">
-              <div class="focus-icon">🔗</div>
-              <h4>整体调度</h4>
-              <p><strong>浪费在各环节脱节</strong></p>
-              <p>数字孪生和统一看板，实现"船-港-车-货"状态同步</p>
+        <h2 class="section-title">📚 智慧物流愿景</h2>
+        <p class="vision-chapters-intro">以「六个每一个」为抓手，让复杂的物流变得轻松愉快。</p>
+        <div class="vision-chapters-grid">
+          <div
+            v-for="ch in visionChapters"
+            :key="ch.id"
+            class="vision-chapter-card"
+            @click="goToChapter(ch.id)"
+          >
+            <div class="chapter-card-icon">{{ ch.icon }}</div>
+            <div class="chapter-card-badge">{{ ch.badge ?? `第 ${ch.id} 章` }}</div>
+            <h3 class="chapter-card-title">{{ ch.title }}</h3>
+            <p v-if="ch.subtitle" class="chapter-card-subtitle">{{ ch.subtitle }}</p>
+            <p class="chapter-card-summary">{{ ch.summary }}</p>
+            <div class="chapter-card-action">
+              <span>查看详情</span>
+              <el-icon><ArrowRight /></el-icon>
             </div>
           </div>
         </div>
@@ -135,7 +190,9 @@
             <div class="theory-item">
               <el-icon><Connection /></el-icon>
               <h4>供应链协同理论</h4>
-              <p>通过信息共享实现货主、货代、船公司、港口、海关等多方协同作业，减少信息不对称导致的效率损失</p>
+              <p>
+                通过信息共享实现货主、货代、船公司、港口、海关等多方协同作业，减少信息不对称导致的效率损失
+              </p>
             </div>
             <div class="theory-item">
               <el-icon><View /></el-icon>
@@ -158,7 +215,7 @@
         <!-- 核心技术方案 -->
         <div class="arch-block">
           <h3>核心技术方案</h3>
-          
+
           <el-tabs v-model="activeTab" class="tech-tabs">
             <el-tab-pane label="高可视化设计" name="visualization">
               <div class="tab-content">
@@ -166,7 +223,9 @@
                   <div class="tech-icon">🌍</div>
                   <div class="tech-detail">
                     <h4>3D数字孪生地图</h4>
-                    <p>为核心界面，集成全球AIS船舶数据接口，实时显示货轮在全球航线上的位置、航速与ETA</p>
+                    <p>
+                      为核心界面，集成全球AIS船舶数据接口，实时显示货轮在全球航线上的位置、航速与ETA
+                    </p>
                     <div class="tech-tags">
                       <el-tag type="primary">全球航线热力图</el-tag>
                       <el-tag type="success">港口数字孪生沙盘</el-tag>
@@ -178,7 +237,9 @@
                   <div class="tech-icon">📍</div>
                   <div class="tech-detail">
                     <h4>堆场智能定位</h4>
-                    <p>对接港口码头操作系统（TOS）API，自动定位货柜在堆场的具体贝位、列、层，实时更新状态</p>
+                    <p>
+                      对接港口码头操作系统（TOS）API，自动定位货柜在堆场的具体贝位、列、层，实时更新状态
+                    </p>
                   </div>
                 </div>
               </div>
@@ -241,9 +302,7 @@
                 <div class="cost-model">
                   <div class="formula-box">
                     <h4>目标函数</h4>
-                    <div class="formula">
-                      Minimize (总费用) = 运输成本 + 时间成本 + 风险成本
-                    </div>
+                    <div class="formula">Minimize (总费用) = 运输成本 + 时间成本 + 风险成本</div>
                   </div>
                   <div class="cost-breakdown">
                     <div class="cost-item">
@@ -274,7 +333,8 @@
                   <div class="evaluation">
                     <el-alert type="success" :closable="false">
                       <template #title>
-                        <strong>评价机制：</strong>系统会对每一次运输方案进行模拟打分，综合费用最优的方案，而非单纯运费最低的方案
+                        <strong>评价机制：</strong
+                        >系统会对每一次运输方案进行模拟打分，综合费用最优的方案，而非单纯运费最低的方案
                       </template>
                     </el-alert>
                   </div>
@@ -318,6 +378,40 @@
               <h4>第三方接口集成</h4>
               <p>无缝对接船公司、港口、海关系统</p>
             </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 开发计划与路线图 -->
+    <section id="roadmap" class="roadmap-section">
+      <div class="section-container">
+        <h2 class="section-title">📅 开发计划与路线图</h2>
+        <div class="roadmap-content">
+          <div class="roadmap-phase">
+            <div class="phase-badge">已实现</div>
+            <ul>
+              <li>货柜全生命周期（备货单 → 海运 → 港口 → 拖卡 → 仓库 → 还箱）</li>
+              <li>7 层物流状态机、33 种详细状态映射</li>
+              <li>飞驼 API 接入（FeiTuoAdapter、状态码映射）</li>
+              <li>滞港费表结构、最晚提柜五类统计、倒计时卡片</li>
+              <li>甘特图泳道、桑基图、Excel 导入、字典映射</li>
+            </ul>
+          </div>
+          <div class="roadmap-phase">
+            <div class="phase-badge pending">规划中</div>
+            <ul>
+              <li><strong>五节点调度</strong>：清关、拖卡、卸柜、还箱、查验的计划与可视化</li>
+              <li><strong>智能排柜</strong>：规则引擎、资源占用、计划时间生成</li>
+              <li><strong>滞港费闭环</strong>：last_free_date 自动计算、滞港费计算服务</li>
+              <li><strong>飞驼深化</strong>：异常预警推送、智能 ETA 预测</li>
+            </ul>
+          </div>
+          <div class="roadmap-actions">
+            <el-button type="primary" @click="router.push('/help')">
+              <el-icon><Document /></el-icon>
+              查看完整文档
+            </el-button>
           </div>
         </div>
       </div>
@@ -372,7 +466,7 @@
       <div class="footer-content">
         <div class="footer-brand">
           <h3>LogiX 乐捷行</h3>
-          <p>让复杂物流变得简单愉快</p>
+          <p>看见，方能掌控 · 让复杂物流变得轻松愉快</p>
         </div>
         <div class="footer-links">
           <div class="footer-section">
@@ -383,38 +477,41 @@
           </div>
           <div class="footer-section">
             <h4>文档中心</h4>
-            <a href="/index.html" target="_blank">项目文档</a>
+            <a @click="router.push('/help')">帮助文档</a>
+            <a @click="goToRoadmap">开发计划</a>
             <a href="https://vuejs.org/" target="_blank">Vue 3 文档</a>
             <a href="https://docs.timescale.com/" target="_blank">TimescaleDB 文档</a>
           </div>
         </div>
       </div>
       <div class="footer-bottom">
-        <p>&copy; 2026 LogiX. All rights reserved. 让复杂物流变得简单愉快</p>
+        <p>&copy; 2026 LogiX. All rights reserved. 看见，方能掌控 · 让复杂物流变得轻松愉快</p>
       </div>
     </footer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import SixOnesDiagram from '@/components/vision/SixOnesDiagram.vue'
+import { visionChapters } from '@/constants/visionChapters'
 import {
+  Aim,
+  ArrowRight,
+  Box,
+  CircleCheck,
+  Clock,
+  Connection,
   DataBoard,
   Document,
-  Box,
-  Ship,
-  Odometer,
-  TrendCharts,
   Monitor,
-  Lock,
-  Coin,
-  Connection,
+  Odometer,
+  Ship,
+  TrendCharts,
   View,
-  Clock,
   Wallet,
-  CircleCheck
 } from '@element-plus/icons-vue'
+import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
 const activeTab = ref('visualization')
@@ -423,32 +520,32 @@ const processSteps = [
   {
     title: '海运 → 到港',
     description: '通过外部API数据接口，预测到港时间',
-    status: 'ETA监控中'
+    status: 'ETA监控中',
   },
   {
     title: '到港 → 提柜',
     description: '系统自动监控"清关放行"状态，一旦放行，货柜变为"绿色可提"',
-    status: '状态监控'
+    status: '状态监控',
   },
   {
     title: '提柜 → 卸柜',
     description: '实时显示拖车位置，结合路况API预测拥堵，动态调整路线',
-    status: '在途追踪'
+    status: '在途追踪',
   },
   {
     title: '卸柜 → 还箱',
     description: '监控"空箱"状态，结合免费用箱期，倒计时提醒还箱',
-    status: '费用预警'
+    status: '费用预警',
   },
   {
     title: '还箱 → 结算',
     description: '自动生成费用明细，完成整个运输周期的成本核算',
-    status: '自动结算'
-  }
+    status: '自动结算',
+  },
 ]
 
 const goToDashboard = () => {
-  router.push('/dashboard').catch((err) => {
+  router.push('/dashboard').catch(err => {
     if (!err.message.includes('NavigationDuplicated')) {
       console.error('路由跳转失败:', err)
     }
@@ -456,7 +553,7 @@ const goToDashboard = () => {
 }
 
 const goToShipments = () => {
-  router.push('/shipments').catch((err) => {
+  router.push('/shipments').catch(err => {
     if (!err.message.includes('NavigationDuplicated')) {
       console.error('路由跳转失败:', err)
     }
@@ -464,7 +561,7 @@ const goToShipments = () => {
 }
 
 const goToMonitoring = () => {
-  router.push('/monitoring').catch((err) => {
+  router.push('/monitoring').catch(err => {
     if (!err.message.includes('NavigationDuplicated')) {
       console.error('路由跳转失败:', err)
     }
@@ -477,6 +574,22 @@ const scrollTo = (id: string) => {
     element.scrollIntoView({ behavior: 'smooth' })
   }
 }
+
+const goToRoadmap = () => {
+  router.push('/about').then(() => {
+    setTimeout(() => scrollTo('roadmap'), 400)
+  })
+}
+
+const goToChapter = (chapterId: number) => {
+  router.push(`/about/vision/${chapterId}`)
+}
+
+onMounted(() => {
+  if (window.location.hash === '#roadmap') {
+    setTimeout(() => scrollTo('roadmap'), 300)
+  }
+})
 </script>
 
 <style lang="scss" scoped>
@@ -484,15 +597,21 @@ const scrollTo = (id: string) => {
 
 .about-page {
   min-height: 100vh;
-  background: #f8f9fa;
+  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%);
   overflow-y: auto;
 }
 
 // Hero Section
 .hero-section {
   position: relative;
-  padding: 120px 40px 80px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  padding: 56px 32px 48px;
+  background: linear-gradient(
+    145deg,
+    $nav-bg-gradient-start 0%,
+    $nav-bg-gradient-mid 35%,
+    $nav-bg-gradient-end 70%,
+    rgba(64, 158, 255, 0.4) 100%
+  );
   overflow: hidden;
 
   &::before {
@@ -502,13 +621,17 @@ const scrollTo = (id: string) => {
     left: 0;
     right: 0;
     bottom: 0;
-    background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="0.5"/></svg>') repeat;
-    opacity: 0.3;
+    background:
+      radial-gradient(circle at 20% 80%, rgba(0, 212, 255, 0.08) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(124, 58, 237, 0.08) 0%, transparent 50%),
+      url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="0.5"/></svg>')
+        repeat;
+    opacity: 1;
   }
 
   .hero-content {
     position: relative;
-    max-width: 800px;
+    max-width: 880px;
     margin: 0 auto;
     text-align: center;
     color: white;
@@ -516,57 +639,59 @@ const scrollTo = (id: string) => {
   }
 
   .hero-title {
-    font-size: 56px;
+    font-size: 40px;
     font-weight: 800;
-    margin-bottom: 16px;
-    letter-spacing: 2px;
+    margin-bottom: 12px;
+    letter-spacing: 3px;
 
     .brand-highlight {
-      background: linear-gradient(135deg, #ffffff 0%, #f0f0ff 100%);
+      background: linear-gradient(135deg, #ffffff 0%, #e0e7ff 50%, #c7d2fe 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
       display: block;
-      font-size: 72px;
-      margin-bottom: 8px;
-    }
-
-    .brand-cn {
-      font-size: 48px;
-      font-weight: 600;
+      font-size: 44px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-shadow: 0 0 40px rgba(255, 255, 255, 0.1);
     }
   }
 
   .hero-slogan {
-    font-size: 28px;
+    font-size: 20px;
     font-weight: 600;
-    margin-bottom: 12px;
-    color: rgba(255, 255, 255, 0.95);
+    margin-bottom: 8px;
+    color: rgba(255, 255, 255, 0.98);
+    letter-spacing: 1px;
   }
 
   .hero-subtitle {
-    font-size: 18px;
-    margin-bottom: 40px;
-    color: rgba(255, 255, 255, 0.85);
-    line-height: 1.6;
+    font-size: 15px;
+    margin-bottom: 24px;
+    color: rgba(255, 255, 255, 0.88);
+    line-height: 1.7;
+    max-width: 640px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .hero-actions {
     display: flex;
-    gap: 16px;
+    gap: 14px;
     justify-content: center;
+    flex-wrap: wrap;
 
     .el-button {
-      padding: 14px 32px;
-      font-size: 16px;
-      height: 50px;
-      border-radius: 25px;
+      padding: 10px 24px;
+      font-size: 15px;
+      height: 42px;
+      border-radius: 28px;
       font-weight: 600;
-      transition: all 0.3s ease;
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 
       &:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        transform: translateY(-3px);
+        box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
       }
     }
   }
@@ -581,61 +706,69 @@ const scrollTo = (id: string) => {
 
     .floating-box {
       position: absolute;
-      width: 80px;
-      height: 80px;
-      background: rgba(255, 255, 255, 0.2);
-      backdrop-filter: blur(10px);
-      border-radius: 20px;
+      width: 88px;
+      height: 88px;
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 24px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 36px;
+      font-size: 40px;
       color: white;
-      animation: float 6s ease-in-out infinite;
+      animation: float 7s ease-in-out infinite;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
 
       .el-icon {
-        font-size: 40px;
+        font-size: 44px;
       }
 
       &.box-1 {
-        top: 15%;
-        left: 10%;
+        top: 12%;
+        left: 8%;
         animation-delay: 0s;
       }
 
       &.box-2 {
-        top: 25%;
-        right: 15%;
-        animation-delay: 2s;
+        top: 22%;
+        right: 12%;
+        animation-delay: 2.3s;
       }
 
       &.box-3 {
-        bottom: 20%;
-        left: 15%;
-        animation-delay: 4s;
+        bottom: 18%;
+        left: 12%;
+        animation-delay: 4.6s;
       }
     }
   }
 
   @keyframes float {
-    0%, 100% { transform: translateY(0) rotate(0deg); }
-    50% { transform: translateY(-20px) rotate(5deg); }
+    0%,
+    100% {
+      transform: translateY(0) rotate(0deg);
+    }
+    50% {
+      transform: translateY(-24px) rotate(4deg);
+    }
   }
 }
 
 // Common Section Styles
 .section-container {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: 0 auto;
-  padding: 60px 20px;
+  padding: 36px 24px;
 }
 
 .section-title {
-  font-size: 36px;
+  font-size: 26px;
   font-weight: 700;
   text-align: center;
-  margin-bottom: 50px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  margin-bottom: 24px;
+  letter-spacing: 1px;
+  background: linear-gradient(135deg, $primary-color 0%, $primary-dark 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -643,48 +776,70 @@ const scrollTo = (id: string) => {
 
 // Value Section
 .value-section {
-  padding: 80px 0;
+  padding: 40px 0;
+  background: $bg-color;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
 
   .value-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 30px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
 
     .value-card {
-      background: white;
-      padding: 40px 30px;
-      border-radius: 20px;
+      background: $bg-color;
+      padding: 20px 18px;
+      border-radius: 16px;
       text-align: center;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-      transition: all 0.3s ease;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+      border: 1px solid $border-extra-light;
+      transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
 
       &:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        transform: translateY(-6px);
+        box-shadow: 0 12px 32px rgba(64, 158, 255, 0.15);
+        border-color: rgba($primary-color, 0.3);
       }
 
       .value-icon {
-        width: 80px;
-        height: 80px;
-        margin: 0 auto 20px;
-        border-radius: 20px;
+        width: 60px;
+        height: 60px;
+        margin: 0 auto 16px;
+        border-radius: 16px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 36px;
+        font-size: 28px;
         color: white;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+
+        &.value-icon-primary {
+          background: linear-gradient(135deg, $primary-color 0%, $primary-dark 100%);
+        }
+
+        &.value-icon-accent {
+          background: linear-gradient(135deg, $nav-accent-pink 0%, #f5576c 100%);
+        }
+
+        &.value-icon-cyan {
+          background: linear-gradient(135deg, $nav-accent-cyan 0%, #00f2fe 100%);
+        }
+
+        &.value-icon-success {
+          background: linear-gradient(135deg, $success-color 0%, #38f9d7 100%);
+        }
       }
 
       h3 {
-        font-size: 22px;
-        margin-bottom: 12px;
-        color: #333;
+        font-size: 18px;
+        margin-bottom: 10px;
+        color: $text-primary;
+        font-weight: 600;
       }
 
       p {
-        color: #666;
+        color: $text-regular;
         line-height: 1.6;
-        font-size: 15px;
+        font-size: 14px;
       }
     }
   }
@@ -692,23 +847,136 @@ const scrollTo = (id: string) => {
 
 // Cost Section
 .cost-section {
-  padding: 80px 0;
-  background: white;
+  padding: 28px 0;
+  background: $bg-page;
+
+  .best-arrangement-trilogy {
+    margin-bottom: 20px;
+    padding: 16px 20px;
+    background: $bg-color;
+    border-radius: 12px;
+    border-left: 4px solid $primary-color;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+
+    .trilogy-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: $text-primary;
+      margin: 0 0 12px;
+      text-align: center;
+    }
+
+    .trilogy-steps {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px 24px;
+    }
+
+    .trilogy-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: $text-regular;
+
+      .step-num {
+        flex-shrink: 0;
+        width: 24px;
+        height: 24px;
+        line-height: 24px;
+        text-align: center;
+        background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+        color: white;
+        border-radius: 50%;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .step-label {
+        font-weight: 600;
+        color: $text-primary;
+      }
+
+      .step-desc {
+        color: $text-regular;
+        font-size: 13px;
+      }
+    }
+
+    .trilogy-link-wrap {
+      display: block;
+      text-align: center;
+      margin-top: 12px;
+    }
+
+    .trilogy-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba($primary-color, 0.1);
+      color: $primary-color;
+      cursor: pointer;
+      transition: color 0.2s ease, background 0.2s ease;
+      animation: trilogy-icon-float 2.5s ease-in-out infinite;
+
+      &:hover {
+        color: $primary-dark;
+        background: rgba($primary-color, 0.2);
+        animation: none;
+
+        .el-icon {
+          animation: trilogy-icon-point 0.6s ease-in-out infinite;
+        }
+      }
+
+      .el-icon {
+        font-size: 18px;
+        display: inline-block;
+      }
+    }
+  }
+
+  @keyframes trilogy-icon-float {
+    0%,
+    100% {
+      transform: translateX(0);
+      box-shadow: 0 0 0 rgba($primary-color, 0);
+    }
+    50% {
+      transform: translateX(4px);
+      box-shadow: 0 2px 12px rgba($primary-color, 0.2);
+    }
+  }
+
+  @keyframes trilogy-icon-point {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    50% {
+      transform: translateX(3px);
+    }
+  }
 
   .cost-intro {
-    margin-bottom: 50px;
+    margin-bottom: 16px;
 
     .cost-quote {
-      background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
-      padding: 30px;
-      border-radius: 16px;
-      margin-bottom: 24px;
-      border-left: 4px solid #667eea;
+      background: $bg-color;
+      padding: 14px 18px;
+      border-radius: 12px;
+      margin-bottom: 0;
+      border-left: 4px solid $primary-color;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
 
       p {
-        font-size: 18px;
-        color: #333;
-        margin-bottom: 16px;
+        font-size: 15px;
+        color: $text-primary;
+        margin-bottom: 10px;
       }
 
       ul {
@@ -717,139 +985,194 @@ const scrollTo = (id: string) => {
         margin: 0;
 
         li {
-          padding: 8px 0;
-          padding-left: 24px;
+          padding: 6px 0;
+          padding-left: 20px;
           position: relative;
-          color: #555;
+          color: $text-regular;
+          font-size: 14px;
+          line-height: 1.45;
 
           &::before {
             content: '•';
             position: absolute;
             left: 0;
-            color: #667eea;
+            color: $primary-color;
             font-weight: bold;
-            font-size: 20px;
+            font-size: 16px;
           }
         }
-      }
-    }
-
-    .cost-philosophy {
-      font-size: 16px;
-      line-height: 1.8;
-      color: #444;
-      text-align: justify;
-
-      .highlight {
-        color: #667eea;
-        font-weight: 600;
       }
     }
   }
 
   .focus-area {
     h3 {
-      font-size: 26px;
-      margin-bottom: 30px;
-      color: #333;
+      font-size: 18px;
+      margin-bottom: 12px;
+      color: $text-primary;
       text-align: center;
+      font-weight: 600;
     }
 
-    .focus-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 24px;
+    .six-ones-diagram-wrap {
+      display: flex;
+      justify-content: center;
+    }
+  }
+}
 
-      .focus-card {
-        background: #f8f9fa;
-        padding: 30px;
-        border-radius: 16px;
-        text-align: center;
-        transition: all 0.3s ease;
+// Vision Chapters Section
+.vision-chapters-section {
+  padding: 40px 0;
+  background: $bg-color;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
 
-        &:hover {
-          background: #f0f2f5;
-          transform: translateY(-4px);
-        }
+  .vision-chapters-intro {
+    text-align: center;
+    font-size: 15px;
+    color: $text-regular;
+    margin: -4px auto 24px;
+    max-width: 600px;
+    line-height: 1.6;
+  }
 
-        .focus-icon {
-          font-size: 48px;
-          margin-bottom: 16px;
-        }
+  .vision-chapters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 14px;
+  }
 
-        h4 {
-          font-size: 18px;
-          margin-bottom: 8px;
-          color: #333;
-        }
+  .vision-chapter-card {
+    min-width: 0;
+    background: $bg-page;
+    padding: 20px 18px;
+    border-radius: 16px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+    cursor: pointer;
+    transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 2px solid transparent;
+    position: relative;
 
-        p {
-          font-size: 14px;
-          color: #666;
-          line-height: 1.6;
+    &:hover {
+      transform: translateY(-6px);
+      box-shadow: 0 12px 32px rgba(64, 158, 255, 0.15);
+      border-color: $primary-color;
 
-          strong {
-            color: $danger-color;
-          }
-        }
+      .chapter-card-action {
+        color: $primary-color;
       }
+    }
+
+    .chapter-card-icon {
+      font-size: 40px;
+      margin-bottom: 14px;
+    }
+
+    .chapter-card-badge {
+      display: inline-block;
+      padding: 5px 12px;
+      background: linear-gradient(135deg, $primary-color 0%, $primary-dark 100%);
+      color: white;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 14px;
+    }
+
+    .chapter-card-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: $text-primary;
+      margin: 0 0 6px;
+    }
+
+    .chapter-card-subtitle {
+      font-size: 14px;
+      color: $primary-color;
+      margin: 0 0 12px;
+      font-weight: 500;
+    }
+
+    .chapter-card-summary {
+      font-size: 14px;
+      line-height: 1.55;
+      color: $text-regular;
+      margin: 0 0 18px;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .chapter-card-action {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: $text-regular;
+      transition: color 0.3s;
     }
   }
 }
 
 // Architecture Section
 .architecture-section {
-  padding: 80px 0;
+  padding: 40px 0;
+  background: $bg-page;
 
   .arch-block {
-    background: white;
-    padding: 40px;
-    border-radius: 20px;
-    margin-bottom: 40px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    background: $bg-color;
+    padding: 24px 28px;
+    border-radius: 14px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+    border: 1px solid $border-extra-light;
 
     h3 {
-      font-size: 24px;
-      margin-bottom: 30px;
-      color: #333;
-      border-bottom: 2px solid #667eea;
+      font-size: 19px;
+      margin-bottom: 18px;
+      color: $text-primary;
+      border-bottom: 3px solid $primary-color;
       padding-bottom: 12px;
+      font-weight: 600;
     }
   }
 
   .theory-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
 
     .theory-item {
-      padding: 24px;
-      background: #f8f9fa;
+      padding: 18px;
+      background: $bg-page;
       border-radius: 12px;
       text-align: center;
       transition: all 0.3s ease;
 
       &:hover {
-        background: #f0f2f5;
+        background: $border-extra-light;
         transform: translateY(-4px);
       }
 
       .el-icon {
-        font-size: 36px;
-        color: #667eea;
-        margin-bottom: 16px;
+        font-size: 28px;
+        color: $primary-color;
+        margin-bottom: 12px;
       }
 
       h4 {
-        font-size: 18px;
-        margin-bottom: 12px;
-        color: #333;
+        font-size: 16px;
+        margin-bottom: 8px;
+        color: $text-primary;
       }
 
       p {
-        font-size: 14px;
-        color: #666;
-        line-height: 1.6;
+        font-size: 13px;
+        color: $text-regular;
+        line-height: 1.5;
       }
     }
   }
@@ -858,40 +1181,40 @@ const scrollTo = (id: string) => {
 // Tech Tabs
 .tech-tabs {
   :deep(.el-tabs__header) {
-    margin-bottom: 30px;
+    margin-bottom: 20px;
   }
 
   .tab-content {
-    padding: 20px 0;
+    padding: 12px 0;
   }
 
   .tech-feature {
     display: flex;
-    gap: 24px;
-    padding: 24px;
-    background: #f8f9fa;
+    gap: 20px;
+    padding: 18px;
+    background: $bg-page;
     border-radius: 12px;
     margin-bottom: 20px;
 
     .tech-icon {
-      font-size: 48px;
-      min-width: 60px;
+      font-size: 36px;
+      min-width: 48px;
     }
 
     .tech-detail {
       flex: 1;
 
       h4 {
-        font-size: 18px;
-        margin-bottom: 12px;
-        color: #333;
+        font-size: 16px;
+        margin-bottom: 8px;
+        color: $text-primary;
       }
 
       p {
-        font-size: 15px;
-        color: #666;
-        line-height: 1.6;
-        margin-bottom: 16px;
+        font-size: 14px;
+        color: $text-regular;
+        line-height: 1.5;
+        margin-bottom: 12px;
       }
 
       .tech-tags {
@@ -907,26 +1230,26 @@ const scrollTo = (id: string) => {
 .process-flow {
   .process-step {
     display: flex;
-    gap: 20px;
-    padding: 24px;
-    background: #f8f9fa;
-    border-radius: 12px;
-    margin-bottom: 16px;
+    gap: 16px;
+    padding: 18px;
+    background: $bg-page;
+    border-radius: 10px;
+    margin-bottom: 12px;
     transition: all 0.3s ease;
 
     &:hover {
-      background: #f0f2f5;
+      background: $border-extra-light;
       transform: translateX(8px);
     }
 
     .step-number {
-      width: 48px;
-      height: 48px;
-      min-width: 48px;
+      width: 40px;
+      height: 40px;
+      min-width: 40px;
       border-radius: 50%;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, $primary-color 0%, $primary-dark 100%);
       color: white;
-      font-size: 20px;
+      font-size: 18px;
       font-weight: bold;
       display: flex;
       align-items: center;
@@ -937,15 +1260,15 @@ const scrollTo = (id: string) => {
       flex: 1;
 
       h4 {
-        font-size: 18px;
-        margin-bottom: 8px;
-        color: #333;
+        font-size: 16px;
+        margin-bottom: 6px;
+        color: $text-primary;
       }
 
       p {
-        font-size: 14px;
-        color: #666;
-        margin-bottom: 12px;
+        font-size: 13px;
+        color: $text-regular;
+        margin-bottom: 8px;
       }
 
       .step-status {
@@ -963,10 +1286,10 @@ const scrollTo = (id: string) => {
 // Risk Levels
 .risk-levels {
   display: grid;
-  gap: 24px;
+  gap: 16px;
 
   .risk-level {
-    padding: 24px;
+    padding: 18px;
     border-radius: 12px;
     border-left: 4px solid;
 
@@ -998,9 +1321,9 @@ const scrollTo = (id: string) => {
     }
 
     h4 {
-      font-size: 18px;
-      margin-bottom: 16px;
-      color: #333;
+      font-size: 16px;
+      margin-bottom: 12px;
+      color: $text-primary;
     }
 
     ul {
@@ -1012,7 +1335,7 @@ const scrollTo = (id: string) => {
         padding: 6px 0;
         padding-left: 24px;
         position: relative;
-        color: #555;
+        color: $text-regular;
 
         &::before {
           content: '→';
@@ -1027,20 +1350,20 @@ const scrollTo = (id: string) => {
 // Cost Model
 .cost-model {
   .formula-box {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    padding: 30px;
-    border-radius: 16px;
+    background: linear-gradient(135deg, $primary-color 0%, $primary-dark 100%);
+    padding: 20px 24px;
+    border-radius: 12px;
     text-align: center;
     margin-bottom: 30px;
 
     h4 {
       color: white;
-      font-size: 18px;
-      margin-bottom: 16px;
+      font-size: 16px;
+      margin-bottom: 12px;
     }
 
     .formula {
-      font-size: 20px;
+      font-size: 16px;
       font-weight: 600;
       color: white;
       font-family: 'Courier New', monospace;
@@ -1049,19 +1372,19 @@ const scrollTo = (id: string) => {
 
   .cost-breakdown {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 20px;
-    margin-bottom: 24px;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
 
     .cost-item {
-      background: #f8f9fa;
-      padding: 24px;
+      background: $bg-page;
+      padding: 18px;
       border-radius: 12px;
 
       h4 {
-        font-size: 16px;
-        margin-bottom: 16px;
-        color: #333;
+        font-size: 15px;
+        margin-bottom: 12px;
+        color: $text-primary;
       }
 
       ul {
@@ -1073,14 +1396,14 @@ const scrollTo = (id: string) => {
           padding: 6px 0;
           padding-left: 20px;
           position: relative;
-          color: #555;
+          color: $text-regular;
           font-size: 14px;
 
           &::before {
             content: '•';
             position: absolute;
             left: 0;
-            color: #667eea;
+            color: $primary-color;
           }
         }
       }
@@ -1100,60 +1423,128 @@ const scrollTo = (id: string) => {
 // Tech Components
 .tech-components {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 16px;
 
   .component-card {
-    background: #f8f9fa;
-    padding: 24px;
+    min-width: 0;
+    background: $bg-page;
+    padding: 18px;
     border-radius: 12px;
     text-align: center;
     transition: all 0.3s ease;
 
     &:hover {
-      background: #f0f2f5;
+      background: $border-extra-light;
       transform: translateY(-4px);
     }
 
     .component-icon {
-      font-size: 40px;
-      margin-bottom: 16px;
+      font-size: 32px;
+      margin-bottom: 12px;
     }
 
     h4 {
-      font-size: 16px;
-      margin-bottom: 8px;
-      color: #333;
+      font-size: 15px;
+      margin-bottom: 6px;
+      color: $text-primary;
     }
 
     p {
-      font-size: 13px;
-      color: #666;
-      line-height: 1.5;
+      font-size: 12px;
+      color: $text-regular;
+      line-height: 1.45;
     }
+  }
+}
+
+// Roadmap Section
+.roadmap-section {
+  padding: 40px 0;
+  background: $bg-color;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+
+  .roadmap-content {
+    max-width: 880px;
+    margin: 0 auto;
+  }
+
+  .roadmap-phase {
+    background: $bg-page;
+    padding: 20px 24px;
+    border-radius: 14px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+    border-left: 5px solid $primary-color;
+
+    .phase-badge {
+      display: inline-block;
+      padding: 8px 18px;
+      border-radius: 24px;
+      font-size: 14px;
+      font-weight: 600;
+      background: $primary-color;
+      color: white;
+      margin-bottom: 18px;
+
+      &.pending {
+        background: $warning-color;
+      }
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+
+      li {
+        padding: 10px 0;
+        padding-left: 24px;
+        position: relative;
+        color: $text-regular;
+        font-size: 15px;
+        line-height: 1.65;
+
+        &::before {
+          content: '•';
+          position: absolute;
+          left: 0;
+          color: $primary-color;
+          font-weight: bold;
+        }
+      }
+    }
+  }
+
+  .roadmap-actions {
+    text-align: center;
+    margin-top: 20px;
   }
 }
 
 // Tech Stack Section
 .tech-stack-section {
-  padding: 80px 0;
-  background: white;
+  padding: 40px 0;
+  background: $bg-page;
 
   .tech-stack-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 30px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 16px;
 
     .tech-stack-category {
-      background: #f8f9fa;
-      padding: 30px;
+      background: $bg-color;
+      padding: 20px 20px;
       border-radius: 16px;
+      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+      border: 1px solid $border-extra-light;
 
       h3 {
-        font-size: 20px;
+        font-size: 18px;
         margin-bottom: 20px;
-        color: #333;
+        color: $text-primary;
         text-align: center;
+        font-weight: 600;
       }
 
       .tech-tags-container {
@@ -1164,7 +1555,7 @@ const scrollTo = (id: string) => {
 
         .tech-tag {
           font-size: 14px;
-          padding: 8px 16px;
+          padding: 10px 18px;
         }
       }
     }
@@ -1173,48 +1564,53 @@ const scrollTo = (id: string) => {
 
 // Footer
 .about-footer {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  background: linear-gradient(145deg, $nav-bg-gradient-start 0%, $nav-bg-gradient-mid 100%);
   color: white;
-  padding: 60px 0 30px;
+  padding: 40px 0 24px;
+  margin-top: 0;
 
   .footer-content {
-    max-width: 1200px;
+    max-width: 1280px;
     margin: 0 auto;
-    padding: 0 20px 40px;
+    padding: 0 24px 28px;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 40px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 32px;
 
     .footer-brand {
       h3 {
-        font-size: 24px;
-        margin-bottom: 8px;
+        font-size: 26px;
+        margin-bottom: 12px;
+        font-weight: 700;
       }
 
       p {
-        opacity: 0.8;
-        font-size: 14px;
+        opacity: 0.88;
+        font-size: 15px;
+        line-height: 1.5;
       }
     }
 
     .footer-section {
       h4 {
         font-size: 16px;
-        margin-bottom: 20px;
-        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 18px;
+        color: rgba(255, 255, 255, 0.95);
+        font-weight: 600;
       }
 
       a {
         display: block;
-        color: rgba(255, 255, 255, 0.7);
+        color: rgba(255, 255, 255, 0.75);
         text-decoration: none;
-        padding: 8px 0;
+        padding: 10px 0;
         transition: all 0.3s ease;
         cursor: pointer;
+        font-size: 14px;
 
         &:hover {
           color: white;
-          padding-left: 8px;
+          padding-left: 10px;
         }
       }
     }
@@ -1222,31 +1618,51 @@ const scrollTo = (id: string) => {
 
   .footer-bottom {
     text-align: center;
-    padding-top: 30px;
-    border-top: 1px solid rgba(255, 255,255, 0.1);
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
 
     p {
-      opacity: 0.6;
-      font-size: 13px;
+      opacity: 0.7;
+      font-size: 14px;
       margin: 0;
     }
   }
 }
 
 // Responsive
+@media (max-width: 992px) {
+  .section-container {
+    padding: 28px 20px;
+  }
+
+  .best-arrangement-trilogy .trilogy-steps {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .value-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .vision-chapters-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+
+  .tech-components {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 @media (max-width: 768px) {
   .hero-section {
-    padding: 80px 20px 60px;
+    padding: 72px 24px 56px;
 
     .hero-title {
-      font-size: 40px;
+      font-size: 36px;
 
       .brand-highlight {
-        font-size: 52px;
-      }
-
-      .brand-cn {
-        font-size: 36px;
+        font-size: 38px;
       }
     }
 
@@ -1260,6 +1676,7 @@ const scrollTo = (id: string) => {
 
     .hero-actions {
       flex-direction: column;
+      gap: 12px;
 
       .el-button {
         width: 100%;
@@ -1271,15 +1688,42 @@ const scrollTo = (id: string) => {
     }
   }
 
-  .section-title {
-    font-size: 28px;
+  .section-container {
+    padding: 36px 20px;
   }
 
-  .value-grid,
-  .focus-grid,
+  .section-title {
+    font-size: 26px;
+    margin-bottom: 28px;
+  }
+
+  .value-grid {
+    grid-template-columns: 1fr;
+  }
+
   .theory-grid,
   .cost-breakdown,
   .tech-stack-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .tech-components {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .vision-chapters-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+
+  .architecture-section .arch-block {
+    padding: 24px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .vision-chapters-grid {
     grid-template-columns: 1fr;
   }
 }

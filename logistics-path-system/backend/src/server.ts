@@ -3,6 +3,22 @@
  * Logistics Path Visualization Microservice Entry Point
  */
 
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// 加载环境变量：与主后端共用数据库配置
+// 使用 __dirname 等价路径，避免依赖 process.cwd()（用户可能从任意目录启动）
+// 注意：本微服务应使用 PORT=4000，主后端使用 3001；最后加载本地 .env 确保端口不被 backend/.env.dev 覆盖
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname, '../../..'); // src -> backend -> logistics-path-system -> 项目根
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config({ path: path.join(rootDir, '.env') });
+dotenv.config({ path: path.join(rootDir, 'backend', '.env.dev'), override: true });
+// 最后加载本微服务配置，确保 PORT=4000（主后端占 3001）
+dotenv.config({ path: path.resolve(__dirname, '../.env'), override: true });
+
 import express from 'express';
 import cors from 'cors';
 import { ApolloServer } from '@apollo/server';

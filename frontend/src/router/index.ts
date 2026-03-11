@@ -11,6 +11,8 @@ const GanttChart = () => import('@/views/gantt/GanttChart.vue')
 const ContainerDetail = () => import('@/views/shipments/ContainerDetailRefactored.vue')
 const ExcelImport = () => import('@/views/import/ExcelImport.vue')
 const DemurrageStandardsImport = () => import('@/views/import/DemurrageStandardsImport.vue')
+const DemurrageStandardEntry = () => import('@/views/import/DemurrageStandardEntry.vue')
+const FeituoDataImport = () => import('@/views/import/FeituoDataImport.vue')
 const Monitoring = () => import('@/views/monitoring/Monitoring.vue')
 const DictMapping = () => import('@/views/system/DictMapping.vue')
 const Settings = () => import('@/views/settings/Settings.vue')
@@ -54,6 +56,15 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'shipments/demurrage-top',
+        name: 'DemurrageTopContainers',
+        component: () => import('@/views/demurrage/DemurrageTopContainers.vue'),
+        meta: {
+          title: '高费用货柜',
+          requiresAuth: true
+        }
+      },
+      {
         path: 'shipments/gantt-chart',
         name: 'GanttChart',
         component: GanttChart,
@@ -83,12 +94,41 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'import/feituo',
+        name: 'FeituoDataImport',
+        component: FeituoDataImport,
+        meta: {
+          title: '飞驼数据导入',
+          icon: 'Connection',
+          requiresAuth: true
+        }
+      },
+      {
+        path: 'import/feituo-verify',
+        name: 'FeituoVerify',
+        component: () => import('@/views/import/FeituoVerify.vue'),
+        meta: {
+          title: '飞驼数据验证',
+          icon: 'DataLine',
+          requiresAuth: true
+        }
+      },
+      {
         path: 'import/demurrage-standards',
         name: 'DemurrageStandardsImport',
         component: DemurrageStandardsImport,
         meta: {
           title: '滞港费标准导入',
           icon: 'Document',
+          requiresAuth: true
+        }
+      },
+      {
+        path: 'import/demurrage-standard/entry',
+        name: 'DemurrageStandardEntry',
+        component: DemurrageStandardEntry,
+        meta: {
+          title: '滞港费标准录入',
           requiresAuth: true
         }
       },
@@ -138,6 +178,15 @@ const routes: RouteRecordRaw[] = [
         component: About,
         meta: {
           title: '关于',
+          requiresAuth: false
+        }
+      },
+      {
+        path: 'about/vision/:chapterId',
+        name: 'VisionChapter',
+        component: () => import('@/views/vision/VisionChapterDetail.vue'),
+        meta: {
+          title: '智慧物流愿景',
           requiresAuth: false
         }
       }

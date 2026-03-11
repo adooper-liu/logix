@@ -1,11 +1,12 @@
 {
   "name": "logix-main-service",
   "version": "1.0.0",
-  "description": "LogiX - 让复杂物流变得简单愉快",
+  "description": "LogiX - 让复杂物流变得轻松愉快",
   "main": "dist/server.js",
   "scripts": {
     "dev": "cross-env NODE_ENV=development tsx watch src/server.ts",
     "dev:env": "cross-env NODE_ENV=development --env-file=.env.dev tsx watch src/server.ts",
+    "backfill:feituo-events": "node -r ./scripts/load-env.cjs ./node_modules/tsx/dist/cli.mjs scripts/backfill-status-events-from-feituo-table2.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "type-check": "tsc --noEmit",

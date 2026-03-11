@@ -661,6 +661,46 @@ CREATE TABLE IF NOT EXISTS ext_demurrage_records (
 CREATE INDEX idx_demurrage_rec_container ON ext_demurrage_records(container_number);
 CREATE INDEX idx_demurrage_rec_status ON ext_demurrage_records(charge_status);
 
+-- 25. 飞驼导入批次表 (ext_feituo_import_batch)
+CREATE TABLE IF NOT EXISTS ext_feituo_import_batch (
+    id SERIAL PRIMARY KEY,
+    table_type SMALLINT NOT NULL,
+    file_name VARCHAR(255),
+    total_rows INT DEFAULT 0,
+    success_count INT DEFAULT 0,
+    error_count INT DEFAULT 0,
+    error_details JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 26. 飞驼导入表一 (ext_feituo_import_table1) 船公司订阅维度
+CREATE TABLE IF NOT EXISTS ext_feituo_import_table1 (
+    id SERIAL PRIMARY KEY,
+    batch_id INT REFERENCES ext_feituo_import_batch(id) ON DELETE CASCADE,
+    mbl_number VARCHAR(50),
+    container_number VARCHAR(50) NOT NULL,
+    raw_data JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_feituo_t1_batch ON ext_feituo_import_table1(batch_id);
+CREATE INDEX idx_feituo_t1_container ON ext_feituo_import_table1(container_number);
+
+-- 27. 飞驼导入表二 (ext_feituo_import_table2) 码头港区维度
+CREATE TABLE IF NOT EXISTS ext_feituo_import_table2 (
+    id SERIAL PRIMARY KEY,
+    batch_id INT REFERENCES ext_feituo_import_batch(id) ON DELETE CASCADE,
+    bill_number VARCHAR(50),
+    container_number VARCHAR(50) NOT NULL,
+    port_code VARCHAR(50),
+    terminal_code VARCHAR(50),
+    raw_data JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_feituo_t2_batch ON ext_feituo_import_table2(batch_id);
+CREATE INDEX idx_feituo_t2_container ON ext_feituo_import_table2(container_number);
+
 \echo '数据库表创建完成'
 \echo 'All tables created successfully'
 \echo ''

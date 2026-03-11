@@ -6,11 +6,14 @@
 import { StatusPath, StatusNode, StandardStatus, PathStatus, NodeStatus, LocationType } from '../types';
 import {
   processStatusPath,
-  validateStatusPath,
-  calculateDelayDays
+  validateStatusPath
 } from '../utils/pathValidator';
+import {
+  getStatusPathByContainerFromDb,
+  validatePathFromDb
+} from '../services/statusPathFromDb';
 
-// 模拟数据库（实际应该使用数据库）
+// 模拟数据库（无主库数据时回退）
 const mockDatabase: Map<string, StatusPath> = new Map();
 
 // 模拟数据生成器
@@ -129,32 +132,35 @@ const generateMockPath = (containerNumber: string): StatusPath => {
     }
   ];
 
+  const processed = processStatusPath({
+    nodes,
+    overallStatus: PathStatus.ON_TIME,
+    eta: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000),
+    startedAt: null,
+    completedAt: null
+  });
   return {
+    ...processed,
     id: `path-${containerNumber}-${Date.now()}`,
     containerNumber,
-    ...processStatusPath({
-      nodes,
-      overallStatus: PathStatus.ON_TIME,
-      eta: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000),
-      startedAt: null,
-      completedAt: null
-    }),
     createdAt: now,
-    updatedAt: now
+    updatedAt: now,
+    isMock: true
   };
 };
 
 // Query Resolvers
 export const Query = {
-  // 根据集装箱号获取物流路径
+  // 根据集装箱号获取物流路径（优先主库 ext_container_status_events，无数据时回退 Mock）
   getStatusPathByContainer: async (_: any, { containerNumber }: { containerNumber: string }) => {
-    let path = mockDatabase.get(containerNumber);
+    const pathFromDb = await getStatusPathByContainerFromDb(containerNumber);
+    if (pathFromDb) return pathFromDb;
 
+    let path = mockDatabase.get(containerNumber);
     if (!path) {
       path = generateMockPath(containerNumber);
       mockDatabase.set(containerNumber, path);
     }
-
     return path;
   },
 
@@ -245,10 +251,16 @@ export const Query = {
     }));
   },
 
-  // 验证物流路径
+  // 验证物流路径（优先主库 pathId 格式 path-{containerNumber}-{ts}，否则查 mock）
   validateStatusPath: async (_: any, { pathId }: { pathId: string }) => {
-    const path = Array.from(mockDatabase.values()).find(p => p.nodes[0]?.id.startsWith(pathId));
+    if (/^path-[^-]+-\d+$/.test(pathId)) {
+      const result = await validatePathFromDb(pathId);
+      if (result) return result;
+    }
 
+    const path = Array.from(mockDatabase.values()).find(p =>
+      p.id === pathId || p.nodes[0]?.id.startsWith(pathId)
+    );
     if (!path) {
       return {
         isValid: false,
@@ -256,7 +268,6 @@ export const Query = {
         warnings: []
       };
     }
-
     return validateStatusPath(path);
   }
 };

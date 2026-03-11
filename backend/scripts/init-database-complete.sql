@@ -668,18 +668,28 @@ CREATE INDEX idx_notif_created ON sys_notifications(created_at);
 -- 7. 初始化字典数据
 -- ==========================================
 
--- 插入港口数据
+-- 插入港口数据（含常用目的港，避免「找不到港口」）
 INSERT INTO dict_ports (port_code, port_name, port_name_en, country, city) VALUES
 ('CNYTN', '盐田港', 'Yantian Port', '中国', '深圳'),
 ('CNSZX', '蛇口港', 'Shekou Port', '中国', '深圳'),
 ('CNNGS', '宁波港', 'Ningbo Port', '中国', '宁波'),
+('CNNGB', '宁波', 'Ningbo', '中国', '宁波'),
 ('CNSHG', '上海港', 'Shanghai Port', '中国', '上海'),
+('CNSHA', '上海', 'Shanghai', '中国', '上海'),
 ('CNQDG', '青岛港', 'Qingdao Port', '中国', '青岛'),
+('CNQNG', '青岛', 'Qingdao', '中国', '青岛'),
 ('USLGB', '长滩港', 'Long Beach Port', '美国', '洛杉矶'),
 ('USLAX', '洛杉矶港', 'Los Angeles Port', '美国', '洛杉矶'),
+('USSAV', '萨凡纳', 'Savannah', '美国', '萨凡纳'),
+('USNYC', '纽约', 'New York', '美国', '纽约'),
+('USCHI', '芝加哥', 'Chicago', '美国', '芝加哥'),
+('USHOU', '休斯顿', 'Houston', '美国', '休斯顿'),
 ('DEHAM', '汉堡港', 'Hamburg Port', '德国', '汉堡'),
 ('NLRTM', '鹿特丹港', 'Rotterdam Port', '荷兰', '鹿特丹'),
-('GBFXT', '菲利克斯托港', 'Felixstowe Port', '英国', '菲利克斯托')
+('GBFXT', '菲利克斯托港', 'Felixstowe Port', '英国', '菲利克斯托'),
+('SGSIN', '新加坡', 'Singapore', '新加坡', '新加坡'),
+('JPTYO', '东京', 'Tokyo', '日本', '东京'),
+('AEDXB', '迪拜', 'Dubai', '阿联酋', '迪拜')
 ON CONFLICT (port_code) DO NOTHING;
 
 -- 插入船公司数据

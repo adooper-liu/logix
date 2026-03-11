@@ -8,6 +8,7 @@ import {
   Calendar,
   Connection,
   DataBoard,
+  DataLine,
   Document,
   DocumentCopy,
   Grid,
@@ -83,6 +84,16 @@ const menuGroups = computed(() => [
         meta: { title: t('nav.excelImport'), icon: 'Upload' },
       },
       {
+        path: '/import/feituo',
+        name: 'FeituoDataImport',
+        meta: { title: '飞驼数据导入', icon: 'Connection' },
+      },
+      {
+        path: '/import/feituo-verify',
+        name: 'FeituoVerify',
+        meta: { title: '飞驼数据验证', icon: 'DataLine' },
+      },
+      {
         path: '/import/demurrage-standards',
         name: 'DemurrageStandardsImport',
         meta: { title: t('nav.demurrageStandardsImport'), icon: 'Document' },
@@ -119,6 +130,7 @@ const menuGroups = computed(() => [
 // 图标组件映射
 const iconMap: Record<string, unknown> = {
   DataBoard,
+  DataLine,
   Connection,
   Grid,
   Calendar,

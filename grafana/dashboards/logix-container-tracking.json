@@ -84,7 +84,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  time_bucket('1 hour', occurred_at) AS time,\n  COUNT(*) AS \"Status Events\"\nFROM container_status_events\nWHERE occurred_at > NOW() - INTERVAL '7 days'\nGROUP BY time\nORDER BY time;",
+          "rawSql": "SELECT\n  time_bucket('1 hour', occurred_at) AS time,\n  COUNT(*) AS \"Status Events\"\nFROM ext_ext_container_status_events\nWHERE occurred_at > NOW() - INTERVAL '7 days'\nGROUP BY time\nORDER BY time;",
           "refId": "A",
           "select": [
             [
@@ -94,7 +94,7 @@
               }
             ]
           ],
-          "table": "container_status_events",
+          "table": "ext_container_status_events",
           "timeColumn": "occurred_at",
           "timeColumnType": "timestamp",
           "where": []
@@ -208,7 +208,7 @@
           "group": [],
           "metricColumn": "none",
           "rawQuery": true,
-          "rawSql": "SELECT\n  status_code AS \"Status\",\n  COUNT(*) AS \"Count\"\nFROM container_status_events\nWHERE occurred_at > NOW() - INTERVAL '30 days'\nGROUP BY status_code\nORDER BY \"Count\" DESC\nLIMIT 10;",
+          "rawSql": "SELECT\n  status_code AS \"Status\",\n  COUNT(*) AS \"Count\"\nFROM ext_container_status_events\nWHERE occurred_at > NOW() - INTERVAL '30 days'\nGROUP BY status_code\nORDER BY \"Count\" DESC\nLIMIT 10;",
           "refId": "A",
           "select": [
             [
@@ -218,7 +218,7 @@
               }
             ]
           ],
-          "table": "container_status_events",
+          "table": "ext_container_status_events",
           "timeColumn": "occurred_at",
           "timeColumnType": "timestamp",
           "where": []

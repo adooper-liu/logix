@@ -1,26 +1,37 @@
 <script setup lang="ts">
-import { TrendCharts } from '@element-plus/icons-vue'
-
 interface CardHeaderProps {
   title: string
   icon?: any
 }
 
-const props = defineProps<CardHeaderProps>()
+defineProps<CardHeaderProps>()
 </script>
 
 <template>
   <div class="card-header">
-    <span>{{ title }}</span>
-    <el-icon v-if="icon"><component :is="icon" /></el-icon>
+    <span class="card-title">{{ title }}</span>
+    <el-icon v-if="icon" class="card-icon"><component :is="icon" /></el-icon>
   </div>
 </template>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables' as *;
+
 .card-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-weight: bold;
+  gap: $spacing-sm;
+
+  .card-title {
+    font-size: $font-size-base;
+    font-weight: 600;
+    color: $text-primary;
+  }
+
+  .card-icon {
+    font-size: 18px;
+    color: $text-secondary;
+  }
 }
 </style>

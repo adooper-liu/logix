@@ -20,6 +20,7 @@ import { ContainerService } from '../services/container.service';
 import { ContainerStatisticsService } from '../services/containerStatistics.service';
 import { ContainerStatusService } from '../services/containerStatus.service';
 import { DateFilterBuilder } from '../services/statistics/common/DateFilterBuilder';
+import { auditLogService } from '../services/auditLog.service';
 
 export class ContainerController {
   private containerRepository: Repository<Container>;
@@ -330,14 +331,18 @@ export class ContainerController {
         }));
       }
 
+      const summary = (container as any).summary;
       const responseData = {
         containerNumber: container.containerNumber,
+        orderNumber: replenishmentOrders[0]?.orderNumber ?? null,
+        mainOrderNumber: replenishmentOrders[0]?.mainOrderNumber ?? null,
         containerTypeCode: container.containerTypeCode,
         cargoDescription: container.cargoDescription,
-        grossWeight: container.grossWeight,
+        grossWeight: summary?.totalGrossWeight ?? container.grossWeight,
         netWeight: container.netWeight,
-        cbm: container.cbm,
-        packages: container.packages,
+        cbm: summary?.totalCbm ?? container.cbm,
+        packages: summary?.totalBoxes ?? container.packages,
+        shipmentTotalValue: summary?.shipmentTotalValue ?? null,
         sealNumber: container.sealNumber,
         inspectionRequired: container.inspectionRequired,
         isUnboxing: container.isUnboxing,
@@ -474,6 +479,29 @@ export class ContainerController {
 
       const updatedContainer = this.containerRepository.merge(container, updateData);
       await this.containerRepository.save(updatedContainer);
+
+      // 记录数据变更日志
+      const changedFields: Record<string, { old?: unknown; new?: unknown }> = {};
+      for (const key of Object.keys(updateData)) {
+        const oldVal = (container as any)[key];
+        const newVal = (updatedContainer as any)[key];
+        if (oldVal !== newVal) {
+          changedFields[key] = {
+            old: oldVal instanceof Date ? oldVal.toISOString() : oldVal,
+            new: newVal instanceof Date ? newVal.toISOString() : newVal
+          };
+        }
+      }
+      if (Object.keys(changedFields).length > 0) {
+        await auditLogService.logChange({
+          sourceType: 'manual',
+          entityType: 'biz_containers',
+          entityId: updatedContainer.containerNumber,
+          action: 'UPDATE',
+          changedFields,
+          operatorIp: req.ip || req.socket?.remoteAddress || undefined
+        });
+      }
 
       logger.info(`Container updated: ${updatedContainer.containerNumber}`);
 

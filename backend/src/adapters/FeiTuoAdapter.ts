@@ -2,7 +2,10 @@
  * 飞驼API适配器实现
  * FeiTuo API Adapter Implementation
  *
- * 实现飞驼API的数据适配，将飞驼数据转换为标准格式
+ * 对接飞驼官方 API：订阅+查询（POST /application/v1/query）
+ * Token 留空时返回友好错误，兼容 Excel 导入；补入 Token 后即可运行
+ *
+ * 参考: https://doc.freightower.com/ | 09-飞驼节点状态码解读与接入整合方案.md
  */
 
 import axios, { AxiosInstance } from 'axios';
@@ -18,159 +21,173 @@ import {
   ContainerChargeData,
 } from './ExternalDataAdapter.interface.js';
 
-/**
- * 飞驼API响应结构
- */
-interface FeiTuoResponse<T> {
-  code: number;
-  message: string;
-  data?: T;
+/** 飞驼查询可选参数（从 process_sea_freight 等获取） */
+export interface FeiTuoQueryOptions {
+  billNo?: string;
+  carrierCode?: string;
+  portCode?: string;
+  isExport?: 'E' | 'I';
+  billCategory?: 'BL' | 'BK';
 }
 
-interface FeiTuoStatusEvent {
-  eventId: string;
-  statusCode: string;
-  statusNameEn: string;
-  statusNameCn: string;
-  occurredAt: string;
-  location: {
-    code: string;
-    nameEn: string;
-    nameCn: string;
-    type: string;
-    latitude?: number;
-    longitude?: number;
-    timezone?: number;
+/** 飞驼 Token 接口响应 */
+interface FeiTuoTokenResponse {
+  statusCode?: string;
+  message?: string;
+  access_token?: string;
+  token_type?: string;
+  expires_in?: number;
+}
+
+/** 飞驼 status 节点（containers[].status[]） */
+interface FeiTuoStatusNode {
+  eventCode?: string;
+  eventTime?: string;
+  isEsti?: 'Y' | 'N';
+  eventPlace?: string;
+  descriptionCn?: string;
+  descriptionEn?: string;
+  [key: string]: unknown;
+}
+
+/** 飞驼 containers 项 */
+interface FeiTuoContainerItem {
+  containerNo?: string;
+  status?: FeiTuoStatusNode[];
+  [key: string]: unknown;
+}
+
+/** 飞驼 query 接口响应 */
+interface FeiTuoQueryResponse {
+  statusCode?: string;
+  message?: string;
+  data?: {
+    result?: {
+      containers?: FeiTuoContainerItem[];
+    };
   };
-  isFinal: boolean;
 }
 
-interface FeiTuoLoadingRecord {
-  recordId: string;
-  vesselName: string;
-  voyageNumber: string;
-  billOfLadingNumber: string;
-  bookingNumber: string;
-  originPortCode: string;
-  destPortCode: string;
-  etaOrigin: string;
-  ataOrigin: string;
-  etaDest: string;
-  ataDest: string;
-  loadingDate: string;
-  dischargeDate: string;
-  routeCode: string;
-  carrier: {
-    code: string;
-    name: string;
-  };
-  operator: string;
-}
-
-/**
- * 飞驼API适配器类
- */
 export class FeiTuoAdapter implements IExternalDataAdapter {
   readonly name = 'FeiTuo Adapter';
   readonly sourceType = ExternalDataSource.FEITUO;
   readonly enabled = true;
 
   private axiosInstance: AxiosInstance;
-  private apiEndpoint: string;
-  private apiKey: string;
+  private apiBaseUrl: string;
+  private tokenCache: { token: string; expiresAt: number } | null = null;
 
   constructor() {
-    this.apiEndpoint = config.feituo?.apiEndpoint || 'https://api.feituo.com/v1';
-    this.apiKey = config.feituo?.apiKey || '';
-
+    const cfg = config.feituo || {};
+    this.apiBaseUrl = (cfg as { apiBaseUrl?: string }).apiBaseUrl || 'https://openapi.freightower.com';
     this.axiosInstance = axios.create({
-      baseURL: this.apiEndpoint,
-      timeout: 30000,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key': this.apiKey,
-      },
+      baseURL: this.apiBaseUrl,
+      timeout: (cfg as { timeout?: number }).timeout || 30000,
+      headers: { 'Content-Type': 'application/json' },
     });
-
-    // 请求拦截器
-    this.axiosInstance.interceptors.request.use(
-      (requestConfig) => {
-        log.debug('FeiTuo API Request:', {
-          method: requestConfig.method,
-          url: requestConfig.url,
-        });
-        return requestConfig;
-      },
-      (error) => {
-        log.error('FeiTuo API Request Error:', { error: error.message });
-        return Promise.reject(error);
-      }
-    );
-
-    // 响应拦截器
-    this.axiosInstance.interceptors.response.use(
-      (response) => response,
-      (error) => {
-        log.error('FeiTuo API Response Error:', {
-          status: error.response?.status,
-          message: error.response?.data?.message || error.message,
-        });
-        return Promise.reject(error);
-      }
-    );
   }
 
-  /**
-   * 健康检查
-   */
-  async healthCheck(): Promise<boolean> {
-    try {
-      const response = await this.axiosInstance.get('/health');
-      return response.status === 200;
-    } catch (error) {
-      log.error('FeiTuo API Health Check Failed:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-      return false;
+  /** 是否已配置 Token（可直接用或可获取） */
+  isConfigured(): boolean {
+    const cfg = config.feituo as { accessToken?: string; clientId?: string; clientSecret?: string };
+    return !!(cfg?.accessToken || (cfg?.clientId && cfg?.clientSecret));
+  }
+
+  /** 获取 Token：优先用 accessToken，否则 clientId+secret 换取 */
+  private async getToken(): Promise<string> {
+    const cfg = config.feituo as {
+      accessToken?: string;
+      clientId?: string;
+      clientSecret?: string;
+    };
+    if (cfg?.accessToken?.trim()) {
+      return cfg.accessToken.trim();
     }
+    if (!cfg?.clientId?.trim() || !cfg?.clientSecret?.trim()) {
+      throw new Error(
+        '飞驼 Token 未配置。请在 .env 中配置 FEITUO_CLIENT_ID、FEITUO_CLIENT_SECRET，或直接配置 FEITUO_ACCESS_TOKEN。前期可继续使用 Excel 导入。'
+      );
+    }
+    if (this.tokenCache && this.tokenCache.expiresAt > Date.now() + 60000) {
+      return this.tokenCache.token;
+    }
+    const res = await this.axiosInstance.post<FeiTuoTokenResponse>('/auth/api/token', {
+      clientId: cfg.clientId.trim(),
+      secret: cfg.clientSecret.trim(),
+    });
+    const token = res.data?.access_token;
+    if (!token) {
+      throw new Error(res.data?.message || '获取飞驼 Token 失败');
+    }
+    const expiresIn = (res.data?.expires_in ?? 7200) * 1000;
+    this.tokenCache = { token, expiresAt: Date.now() + expiresIn };
+    log.info('FeiTuo Token 获取成功');
+    return token;
   }
 
   /**
    * 根据集装箱号获取状态节点列表
+   * @param containerNumber 集装箱号
+   * @param options 可选：billNo、carrierCode、portCode、isExport（从 process_sea_freight 获取）
    */
   async getContainerStatusEvents(
-    containerNumber: string
+    containerNumber: string,
+    options?: FeiTuoQueryOptions
   ): Promise<AdapterResponse<ContainerStatusNode[]>> {
     try {
-      const response = await this.axiosInstance.get<FeiTuoResponse<FeiTuoStatusEvent[]>>(
-        `/containers/${containerNumber}/events`
-      );
-
-      if (response.data.code !== 0 || !response.data.data) {
+      if (!this.isConfigured()) {
         return {
           success: false,
-          error: response.data.message || 'Failed to fetch status events',
+          error:
+            '飞驼 Token 未配置。请在 .env 中配置 FEITUO_CLIENT_ID、FEITUO_CLIENT_SECRET，或 FEITUO_ACCESS_TOKEN。前期可继续使用 Excel 导入。',
           source: this.sourceType,
           timestamp: new Date(),
         };
       }
 
-      const events: ContainerStatusNode[] = response.data.data.map((event) => ({
-        statusCode: event.statusCode,
-        statusNameEn: event.statusNameEn,
-        statusNameCn: event.statusNameCn,
-        occurredAt: new Date(event.occurredAt),
-        locationCode: event.location.code,
-        locationNameEn: event.location.nameEn,
-        locationNameCn: event.location.nameCn,
-        locationType: event.location.type,
-        latitude: event.location.latitude,
-        longitude: event.location.longitude,
-        timezone: event.location.timezone,
-        dataSource: 'FEITUO',
-        isFinal: event.isFinal,
-        isEstimated: event.isFinal ? false : true, // 非最终状态视为预计时间
-      }));
+      const token = await this.getToken();
+      const body: Record<string, string> = {
+        containerNo: containerNumber,
+      };
+      if (options?.billNo) body.billNo = options.billNo;
+      if (options?.carrierCode) body.carrierCode = options.carrierCode;
+      if (options?.portCode) body.portCode = options.portCode;
+      if (options?.isExport) body.isExport = options.isExport;
+      if (options?.billCategory) body.billCategory = options.billCategory;
+      if (!body.carrierCode && !body.portCode && options?.carrierCode !== undefined) {
+        body.carrierCode = options.carrierCode || 'AUTO';
+      }
+
+      const response = await this.axiosInstance.post<FeiTuoQueryResponse>(
+        '/application/v1/query',
+        body,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const data = response.data?.data?.result;
+      const containers = data?.containers || [];
+      const match = containers.find(
+        (c) => (c.containerNo || '').toUpperCase() === containerNumber.toUpperCase()
+      );
+      const statusList = match?.status || [];
+
+      const events: ContainerStatusNode[] = statusList.map((s) => {
+        const eventTime = s.eventTime ? new Date(s.eventTime) : new Date();
+        const isEsti = s.isEsti === 'Y';
+        return {
+          statusCode: s.eventCode || 'UNKNOWN',
+          statusNameEn: s.descriptionEn || '',
+          statusNameCn: s.descriptionCn || '',
+          occurredAt: eventTime,
+          locationCode: s.eventPlace || '',
+          locationNameEn: s.eventPlace || '',
+          locationNameCn: s.eventPlace || '',
+          locationType: '',
+          dataSource: 'FeituoAPI', // 飞驼 API 同步，与 Excel 导入的 Feituo 区分
+          isFinal: !isEsti,
+          isEstimated: isEsti,
+        };
+      });
 
       return {
         success: true,
@@ -178,220 +195,81 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
         source: this.sourceType,
         timestamp: new Date(),
       };
-    } catch (error) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      log.error('FeiTuo getContainerStatusEvents failed:', { containerNumber, error: msg });
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: msg,
         source: this.sourceType,
         timestamp: new Date(),
       };
     }
   }
 
-  /**
-   * 根据集装箱号获取装载记录
-   */
+  async healthCheck(): Promise<boolean> {
+    if (!this.isConfigured()) return false;
+    try {
+      await this.getToken();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async getContainerLoadingRecords(
-    containerNumber: string
+    _containerNumber: string
   ): Promise<AdapterResponse<ContainerLoadingData[]>> {
-    try {
-      const response = await this.axiosInstance.get<FeiTuoResponse<FeiTuoLoadingRecord[]>>(
-        `/containers/${containerNumber}/loading-records`
-      );
-
-      if (response.data.code !== 0 || !response.data.data) {
-        return {
-          success: false,
-          error: response.data.message || 'Failed to fetch loading records',
-          source: this.sourceType,
-          timestamp: new Date(),
-        };
-      }
-
-      const records: ContainerLoadingData[] = response.data.data.map((record) => ({
-        vesselName: record.vesselName,
-        voyageNumber: record.voyageNumber,
-        billOfLadingNumber: record.billOfLadingNumber,
-        bookingNumber: record.bookingNumber,
-        originPortCode: record.originPortCode,
-        destPortCode: record.destPortCode,
-        etaOrigin: new Date(record.etaOrigin),
-        ataOrigin: new Date(record.ataOrigin),
-        etaDest: new Date(record.etaDest),
-        ataDest: new Date(record.ataDest),
-        loadingDate: new Date(record.loadingDate),
-        dischargeDate: new Date(record.dischargeDate),
-        routeCode: record.routeCode,
-        carrierCode: record.carrier.code,
-        carrierName: record.carrier.name,
-        operator: record.operator,
-      }));
-
-      return {
-        success: true,
-        data: records,
-        source: this.sourceType,
-        timestamp: new Date(),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        source: this.sourceType,
-        timestamp: new Date(),
-      };
-    }
+    return {
+      success: false,
+      error: '飞驼适配器暂未实现装载记录接口',
+      source: this.sourceType,
+      timestamp: new Date(),
+    };
   }
 
-  /**
-   * 根据集装箱号获取HOLD记录
-   */
   async getContainerHoldRecords(
-    containerNumber: string
+    _containerNumber: string
   ): Promise<AdapterResponse<ContainerHoldData[]>> {
-    try {
-      const response = await this.axiosInstance.get<FeiTuoResponse<ContainerHoldData[]>>(
-        `/containers/${containerNumber}/holds`
-      );
-
-      if (response.data.code !== 0 || !response.data.data) {
-        return {
-          success: false,
-          error: response.data.message || 'Failed to fetch hold records',
-          source: this.sourceType,
-          timestamp: new Date(),
-        };
-      }
-
-      return {
-        success: true,
-        data: response.data.data,
-        source: this.sourceType,
-        timestamp: new Date(),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        source: this.sourceType,
-        timestamp: new Date(),
-      };
-    }
+    return {
+      success: false,
+      error: '飞驼适配器暂未实现 HOLD 记录接口',
+      source: this.sourceType,
+      timestamp: new Date(),
+    };
   }
 
-  /**
-   * 根据集装箱号获取费用记录
-   */
   async getContainerCharges(
-    containerNumber: string
+    _containerNumber: string
   ): Promise<AdapterResponse<ContainerChargeData[]>> {
-    try {
-      const response = await this.axiosInstance.get<FeiTuoResponse<ContainerChargeData[]>>(
-        `/containers/${containerNumber}/charges`
-      );
-
-      if (response.data.code !== 0 || !response.data.data) {
-        return {
-          success: false,
-          error: response.data.message || 'Failed to fetch charges',
-          source: this.sourceType,
-          timestamp: new Date(),
-        };
-      }
-
-      return {
-        success: true,
-        data: response.data.data,
-        source: this.sourceType,
-        timestamp: new Date(),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        source: this.sourceType,
-        timestamp: new Date(),
-      };
-    }
+    return {
+      success: false,
+      error: '飞驼适配器暂未实现费用接口',
+      source: this.sourceType,
+      timestamp: new Date(),
+    };
   }
 
-  /**
-   * 同步数据到数据库
-   */
   async syncContainerData(containerNumber: string): Promise<AdapterResponse<boolean>> {
-    try {
-      // 并行获取所有数据
-      const [statusEvents, loadingRecords, holdRecords, charges] = await Promise.all([
-        this.getContainerStatusEvents(containerNumber),
-        this.getContainerLoadingRecords(containerNumber),
-        this.getContainerHoldRecords(containerNumber),
-        this.getContainerCharges(containerNumber),
-      ]);
-
-      // TODO: 将数据保存到数据库
-      // 这里需要注入 Repository 来保存数据
-      log.info('FeiTuo Data Sync Completed:', {
-        containerNumber,
-        statusEventsCount: statusEvents.data?.length || 0,
-        loadingRecordsCount: loadingRecords.data?.length || 0,
-        holdRecordsCount: holdRecords.data?.length || 0,
-        chargesCount: charges.data?.length || 0,
-      });
-
-      return {
-        success: true,
-        data: true,
-        source: this.sourceType,
-        timestamp: new Date(),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        source: this.sourceType,
-        timestamp: new Date(),
-      };
-    }
+    const res = await this.getContainerStatusEvents(containerNumber);
+    return {
+      success: res.success,
+      data: res.success,
+      error: res.error,
+      source: this.sourceType,
+      timestamp: new Date(),
+    };
   }
 
-  /**
-   * Webhook回调处理
-   */
-  async handleWebhook(payload: any): Promise<AdapterResponse<boolean>> {
-    try {
-      log.info('FeiTuo Webhook Received:', {
-        eventType: payload.eventType,
-        containerNumber: payload.containerNumber,
-      });
-
-      // TODO: 根据webhook事件类型处理数据
-      switch (payload.eventType) {
-        case 'STATUS_UPDATE':
-          // 处理状态更新
-          break;
-        case 'LOADING_UPDATE':
-          // 处理装载更新
-          break;
-        default:
-          log.warn('Unknown FeiTuo Webhook Event:', { eventType: payload.eventType });
-      }
-
-      return {
-        success: true,
-        data: true,
-        source: this.sourceType,
-        timestamp: new Date(),
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        source: this.sourceType,
-        timestamp: new Date(),
-      };
-    }
+  async handleWebhook(payload: unknown): Promise<AdapterResponse<boolean>> {
+    log.info('FeiTuo Webhook Received:', { payload });
+    return {
+      success: true,
+      data: true,
+      source: this.sourceType,
+      timestamp: new Date(),
+    };
   }
 }
 
-// 导出单例实例
 export const feituoAdapter = new FeiTuoAdapter();

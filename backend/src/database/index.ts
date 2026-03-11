@@ -25,6 +25,10 @@ import { ContainerHoldRecord } from '../entities/ContainerHoldRecord';
 import { ContainerCharge } from '../entities/ContainerCharge';
 import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
 import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
+import { ExtFeituoImportBatch } from '../entities/ExtFeituoImportBatch';
+import { ExtFeituoImportTable1 } from '../entities/ExtFeituoImportTable1';
+import { ExtFeituoImportTable2 } from '../entities/ExtFeituoImportTable2';
+import { SysDataChangeLog } from '../entities/SysDataChangeLog';
 import { Port } from '../entities/Port';
 import { ShippingCompany } from '../entities/ShippingCompany';
 import { FreightForwarder } from '../entities/FreightForwarder';
@@ -75,7 +79,15 @@ export const dataSourceOptions: DataSourceOptions = {
 
     // 滞港费扩展表 (Demurrage Extension Tables)
     ExtDemurrageStandard,
-    ExtDemurrageRecord
+    ExtDemurrageRecord,
+
+    // 飞驼导入扩展表 (Feituo Import Extension Tables)
+    ExtFeituoImportBatch,
+    ExtFeituoImportTable1,
+    ExtFeituoImportTable2,
+
+    // 系统审计表 (System Audit Tables)
+    SysDataChangeLog
   ],
   synchronize: databaseConfig.synchronize,
   logging: databaseConfig.logging,
@@ -88,6 +100,7 @@ export const dataSourceOptions: DataSourceOptions = {
 };
 
 export const AppDataSource = new DataSource(dataSourceOptions);
+export { ContainerStatusEvent };
 
 /**
  * 初始化数据库连接

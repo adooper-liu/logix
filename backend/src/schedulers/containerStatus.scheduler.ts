@@ -10,6 +10,7 @@ import { logger } from '../utils/logger';
 export class ContainerStatusScheduler {
   private statusService: ContainerStatusService;
   private intervalId: NodeJS.Timeout | null = null;
+  private currentExecution: Promise<void> | null = null;
 
   constructor() {
     this.statusService = new ContainerStatusService();
@@ -40,7 +41,7 @@ export class ContainerStatusScheduler {
   }
 
   /**
-   * 停止定时任务
+   * 停止定时任务（同步，不等待正在执行的任务）
    */
   stop(): void {
     if (!this.intervalId) {
@@ -55,23 +56,49 @@ export class ContainerStatusScheduler {
   }
 
   /**
+   * 优雅停止：先停止定时器，再等待正在执行的任务完成
+   */
+  async stopAsync(): Promise<void> {
+    if (!this.intervalId && !this.currentExecution) {
+      logger.warn('[ContainerStatusScheduler] Scheduler not running');
+      return;
+    }
+
+    logger.info('[ContainerStatusScheduler] Stopping scheduler (waiting for current task)...');
+    if (this.intervalId) {
+      clearInterval(this.intervalId);
+      this.intervalId = null;
+    }
+    if (this.currentExecution) {
+      await this.currentExecution;
+    }
+    logger.info('[ContainerStatusScheduler] Scheduler stopped successfully');
+  }
+
+  /**
    * 执行批量更新任务
    */
   private async executeTask(): Promise<void> {
-    const startTime = Date.now();
-    logger.info('[ContainerStatusScheduler] Starting batch status update');
+    const task = (async () => {
+      const startTime = Date.now();
+      logger.info('[ContainerStatusScheduler] Starting batch status update');
 
-    try {
-      const updatedCount = await this.statusService.batchUpdateStatuses(1000);
-      const duration = Date.now() - startTime;
+      try {
+        const updatedCount = await this.statusService.batchUpdateStatuses(1000);
+        const duration = Date.now() - startTime;
 
-      logger.info('[ContainerStatusScheduler] Batch status update completed', {
-        updatedCount,
-        duration: `${duration}ms`
-      });
-    } catch (error) {
-      logger.error('[ContainerStatusScheduler] Batch status update failed', error);
-    }
+        logger.info('[ContainerStatusScheduler] Batch status update completed', {
+          updatedCount,
+          duration: `${duration}ms`
+        });
+      } catch (error) {
+        logger.error('[ContainerStatusScheduler] Batch status update failed', error);
+      } finally {
+        this.currentExecution = null;
+      }
+    })();
+    this.currentExecution = task;
+    await task;
   }
 
   /**

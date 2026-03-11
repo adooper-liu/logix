@@ -92,6 +92,9 @@ export const typeDefs = `#graphql
     completedAt: DateTime
     createdAt: DateTime!
     updatedAt: DateTime!
+    lastFreeDate: DateTime
+    isOverdue: Boolean
+    isMock: Boolean
   }
 
   # 状态事件（原始数据）

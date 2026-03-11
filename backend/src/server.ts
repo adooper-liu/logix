@@ -9,6 +9,7 @@ import { log } from './utils/logger.js';
 import { logisticsPathService } from './services/logisticsPath.service.js';
 import { initDatabase, closeDatabase } from './database/index.js';
 import { containerStatusScheduler } from './schedulers/containerStatus.scheduler.js';
+import { demurrageWriteBackScheduler } from './schedulers/demurrageWriteBack.scheduler.js';
 
 /**
  * 启动服务器
@@ -24,6 +25,12 @@ async function startServer() {
     const schedulerInterval = parseInt(process.env.STATUS_SCHEDULER_INTERVAL || '60', 10);
     containerStatusScheduler.start(schedulerInterval);
     log.info(`✅ Container status scheduler started with ${schedulerInterval} minute interval`);
+
+    // 启动滞港费日期批量写回调度器（last_free_date 为空、last_return_date 为空）
+    log.info('Starting demurrage write-back scheduler...');
+    const demurrageWriteBackInterval = parseInt(process.env.DEMURRAGE_WRITEBACK_SCHEDULER_INTERVAL || '360', 10);
+    demurrageWriteBackScheduler.start(demurrageWriteBackInterval);
+    log.info(`✅ Demurrage write-back scheduler started with ${demurrageWriteBackInterval} minute interval`);
 
     // 检查微服务健康状态
     log.info('Checking microservices health...');
@@ -62,33 +69,49 @@ async function startServer() {
   }
 }
 
+let isShuttingDown = false;
+
 /**
  * 优雅关闭
+ * 顺序：1) 停止调度器并等待正在执行的任务 2) 关闭 Socket.IO 与 HTTP 3) 关闭数据库
  */
 async function gracefulShutdown(signal: string) {
+  if (isShuttingDown) {
+    log.warn('Shutdown already in progress, ignoring duplicate signal');
+    return;
+  }
+  isShuttingDown = true;
+
   log.info(`\n⚠️  Received ${signal}, shutting down gracefully...`);
 
   try {
-    // 停止货柜状态调度器
+    // 1. 先停止调度器，并等待正在执行的异步任务完成（避免关闭连接池后仍在使用）
     log.info('Stopping container status scheduler...');
-    containerStatusScheduler.stop();
+    await containerStatusScheduler.stopAsync();
     log.info('✅ Container status scheduler stopped');
 
-    // 关闭 Socket.IO
-    io.close(() => {
-      log.info('✅ Socket.IO closed');
+    log.info('Stopping demurrage write-back scheduler...');
+    await demurrageWriteBackScheduler.stopAsync();
+    log.info('✅ Demurrage write-back scheduler stopped');
+
+    // 2. 关闭 Socket.IO 与 HTTP 服务器
+    await new Promise<void>(resolve => {
+      io.close(() => {
+        log.info('✅ Socket.IO closed');
+        resolve();
+      });
     });
 
-    // 关闭 HTTP 服务器
-    httpServer.close(() => {
-      log.info('✅ HTTP server closed');
+    await new Promise<void>(resolve => {
+      httpServer.close(() => {
+        log.info('✅ HTTP server closed');
+        resolve();
+      });
     });
 
-    // 关闭数据库连接
+    // 3. 最后关闭数据库连接池
     await closeDatabase();
-
-    // 等待所有连接关闭
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    log.info('✅ Database connection closed');
 
     log.info('✅ Graceful shutdown completed');
     process.exit(0);

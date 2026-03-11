@@ -33,10 +33,12 @@ export const config = {
     retryAttempts: 3
   },
 
-  // 飞驼API配置
+  // 飞驼API配置（Token 留空时仅 Excel 导入可用，补入后即可调用飞驼）
   feituo: {
-    apiEndpoint: process.env.FEITUO_API_ENDPOINT || 'https://api.feituo.com/v1',
-    apiKey: process.env.FEITUO_API_KEY || '',
+    apiBaseUrl: process.env.FEITUO_API_BASE_URL || 'https://openapi.freightower.com',
+    clientId: process.env.FEITUO_CLIENT_ID || '',
+    clientSecret: process.env.FEITUO_CLIENT_SECRET || '',
+    accessToken: process.env.FEITUO_ACCESS_TOKEN || '', // 可选：直接填 Token 时跳过 getToken
     timeout: 30000,
     retryAttempts: 3
   },

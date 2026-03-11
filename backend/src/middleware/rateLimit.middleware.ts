@@ -17,8 +17,11 @@ export const apiRateLimit = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  // 跳过健康检查
-  skip: (req) => req.path === '/health'
+  // 跳过健康检查、批量导入（导入会发起多批请求，不宜计入限流）
+  skip: (req) =>
+    req.path === '/health' ||
+    req.path.endsWith('/import/excel/batch') ||
+    req.path.endsWith('/import/excel')
 });
 
 // 严格的速率限制器（用于敏感操作）

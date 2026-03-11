@@ -8,6 +8,7 @@ import { EmptyReturn } from '../entities/EmptyReturn';
 import { AppDataSource } from '../database';
 import { logger } from '../utils/logger';
 import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
+import { auditLogService } from './auditLog.service';
 
 /**
  * 货柜状态服务
@@ -80,6 +81,22 @@ export class ContainerStatusService {
         logger.info(
           `[StatusUpdate] ${containerNumber}: ${container.logisticsStatus} -> ${result.status}`
         );
+
+        // 记录数据变更日志
+        await auditLogService.logChange({
+          sourceType: 'status_update',
+          entityType: 'biz_containers',
+          entityId: containerNumber,
+          action: 'UPDATE',
+          changedFields: {
+            logistics_status: {
+              old: container.logisticsStatus,
+              new: result.status
+            }
+          },
+          remark: '状态机重算'
+        });
+
         return true;
       }
 

@@ -35,4 +35,11 @@ router.post('/excel/batch', importController.importBatchExcelData.bind(importCon
  */
 router.post('/demurrage-standards', importController.importDemurrageStandards.bind(importController));
 
+/**
+ * @route   POST /api/v1/import/feituo-excel
+ * @desc    飞驼 Excel 导入（表一/表二格式）
+ * @access  Public
+ */
+router.post('/feituo-excel', importController.importFeituoExcel.bind(importController));
+
 export default router;

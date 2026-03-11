@@ -22,6 +22,14 @@ export class ExtDemurrageRecord {
   @Column({ type: 'varchar', length: 50, name: 'container_number' })
   containerNumber: string;
 
+  /** 货柜目的港（写回时保存，高费用货柜分组时直接读取） */
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'destination_port' })
+  destinationPort?: string;
+
+  /** 货柜物流状态（写回时保存，高费用货柜卡片展示） */
+  @Column({ type: 'varchar', length: 50, nullable: true, name: 'logistics_status' })
+  logisticsStatus?: string;
+
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'charge_type' })
   chargeType: string;
 
@@ -54,6 +62,14 @@ export class ExtDemurrageRecord {
 
   @Column({ type: 'varchar', length: 20, nullable: true, name: 'charge_status' })
   chargeStatus: string;
+
+  /** false=临时（未还箱，每日更新），true=永久（已还箱，不再更新） */
+  @Column({ type: 'boolean', default: false, name: 'is_final' })
+  isFinal: boolean;
+
+  /** 计算时间 */
+  @Column({ type: 'timestamp', nullable: true, name: 'computed_at' })
+  computedAt: Date;
 
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'invoice_number' })
   invoiceNumber: string;

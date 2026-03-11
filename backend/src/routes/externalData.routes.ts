@@ -47,4 +47,10 @@ router.post('/cleanup', externalDataController.cleanupExpiredEvents);
  */
 router.get('/stats', externalDataController.getStats);
 
+/**
+ * 获取已有外部数据的货柜列表（验证页用）
+ * GET /api/external/containers?dataSource=FeituoAPI&page=1&pageSize=20
+ */
+router.get('/containers', externalDataController.getContainersWithExternalData);
+
 export default router;

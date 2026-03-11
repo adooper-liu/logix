@@ -72,6 +72,7 @@ const columnLabels: Record<string, string> = {
   actualShipDate: '出运日期',
   orderNumber: '备货单号',
   billOfLadingNumber: '提单号',
+  mblNumber: 'MBL Number',
   containerTypeCode: '柜型',
   logisticsStatus: '物流状态',
   inspectionRequired: '查验',
@@ -489,7 +490,7 @@ const handleSortChange = ({ prop, order }: { prop: string; order: string | null 
 
 // 导出：将当前数据转为 CSV 并下载
 const exportToCsv = (rows: any[], filename: string) => {
-  const headers = ['集装箱号', '出运日期', '备货单号', '提单号', '柜型', '物流状态', '查验', '开箱', '目的港', '当前位置', '预计到港', '实际到港', '清关状态', '计划提柜日', '最晚提柜日', '最晚还箱日', '实际还箱日', '货物描述', '最后更新']
+  const headers = ['集装箱号', '出运日期', '备货单号', '提单号', 'MBL Number', '柜型', '物流状态', '查验', '开箱', '目的港', '当前位置', '预计到港', '实际到港', '清关状态', '计划提柜日', '最晚提柜日', '最晚还箱日', '实际还箱日', '货物描述', '最后更新']
   const escape = (v: any) => {
     const s = v == null ? '' : String(v)
     return /[,"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
@@ -499,6 +500,7 @@ const exportToCsv = (rows: any[], filename: string) => {
     formatShipmentDate(row.actualShipDate || row.createdAt),
     row.orderNumber,
     row.billOfLadingNumber,
+    row.mblNumber,
     row.containerTypeCode,
     getLogisticsStatusText(row),
     row.inspectionRequired ? '是' : '否',
@@ -605,12 +607,6 @@ onUnmounted(() => {
 
 <template>
   <div class="shipments-page">
-    <!-- 页面头部 -->
-    <div class="page-header">
-      <h2>集装箱管理</h2>
-      <p>管理所有的集装箱信息和状态跟踪</p>
-    </div>
-
     <!-- 搜索和操作栏 -->
     <el-card class="search-card">
       <div class="search-bar">
@@ -810,6 +806,9 @@ onUnmounted(() => {
         <template v-if="columnVisible.billOfLadingNumber">
           <el-table-column prop="billOfLadingNumber" label="提单号" width="140" />
         </template>
+        <template v-if="columnVisible.mblNumber">
+          <el-table-column prop="mblNumber" label="MBL Number" width="140" />
+        </template>
         <template v-if="columnVisible.containerTypeCode">
           <el-table-column prop="containerTypeCode" label="柜型" width="80">
           <template #default="{ row }">
@@ -977,21 +976,6 @@ onUnmounted(() => {
 
 .shipments-page {
   padding: 20px;
-}
-
-.page-header {
-  margin-bottom: 20px;
-
-  h2 {
-    font-size: 24px;
-    color: $text-primary;
-    margin-bottom: 10px;
-  }
-
-  p {
-    color: $text-secondary;
-    font-size: 14px;
-  }
 }
 
 .search-card {

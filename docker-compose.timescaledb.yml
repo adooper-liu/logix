@@ -136,7 +136,7 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
-      GF_INSTALL_PLUGINS: timescale-timescaledb-visualization
+      GF_USERS_ALLOW_SIGN_UP: "false"
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning:ro
@@ -147,6 +147,7 @@ services:
       - logix-timescaledb-network
     depends_on:
       - prometheus
+      - postgres
 
 volumes:
   timescaledb_dev_data:

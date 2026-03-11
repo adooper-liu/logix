@@ -2,12 +2,6 @@
   <div class="help-doc-container">
     <!-- 侧边栏 -->
     <div class="sidebar">
-      <div class="sidebar-header">
-        <div class="logo">📋</div>
-        <h1>帮助文档</h1>
-        <p class="subtitle">LogiX 系统使用指南</p>
-      </div>
-
       <div class="nav-section">
         <div class="nav-section-title">🏠 首页</div>
         <div
@@ -274,15 +268,15 @@
               <div class="quick-action-icon">🚀</div>
               <div class="quick-action-title">系统概览</div>
             </div>
-            <div class="quick-action-card" @click="loadDoc('TIMESCALEDB', '/docs/TIMESCALEDB_GUIDE.md')">
+            <div class="quick-action-card" @click="loadDoc('TIMESCALEDB', '/docs/08-deployment/01-TimescaleDB指南.md')">
               <div class="quick-action-icon">📊</div>
               <div class="quick-action-title">数据库指南</div>
             </div>
-            <div class="quick-action-card" @click="loadDoc('DEV_ENV', '/docs/DEV_ENVIRONMENT_GUIDE.md')">
+            <div class="quick-action-card" @click="loadDoc('DEV_ENV', '/docs/10-guides/03-开发环境指南.md')">
               <div class="quick-action-icon">🔧</div>
               <div class="quick-action-title">环境配置</div>
             </div>
-            <div class="quick-action-card" @click="loadDoc('QUICK_START', '/docs/QUICK_START.md')">
+            <div class="quick-action-card" @click="loadDoc('QUICK_START', '/docs/10-guides/05-快速开始.md')">
               <div class="quick-action-icon">⚡</div>
               <div class="quick-action-title">快速开始</div>
             </div>
@@ -356,10 +350,9 @@
 
           <div class="feature-section">
             <h2>⚡ 快速启动</h2>
-            <p><strong>启动开发环境:</strong> 双击 <code>start-logix-dev.bat</code></p>
-            <p><strong>停止开发环境:</strong> 双击 <code>stop-logix-dev.bat</code></p>
-            <p><strong>启动数据库:</strong> 双击 <code>tsdb-start.bat</code></p>
-            <p><strong>停止数据库:</strong> 双击 <code>tsdb-stop.bat</code></p>
+            <p><strong>启动开发环境:</strong> 运行 <code>.\start-logix-dev.ps1</code>（Windows）</p>
+            <p><strong>停止开发环境:</strong> 运行 <code>.\stop-logix-dev.ps1</code></p>
+            <p>一键启动：TimescaleDB、Redis、Prometheus、Grafana、Adminer、pgAdmin、后端、前端</p>
           </div>
 
           <div class="feature-section">
@@ -374,8 +367,8 @@
             <p><strong>开发规范</strong> - 数据库表结构是唯一不变基准</p>
             <p><strong>核心映射参考</strong> - 完整表名映射和字段映射</p>
             <p><strong>倒计时卡片逻辑</strong> - 前端倒计时功能实现说明</p>
-            <div style="margin-top: 15px; padding: 10px; background: #e3f2fd; border-radius: 8px;">
-              <p style="margin-bottom: 0;">💡 <strong>开发必读顺序</strong>: 开发规范 → 核心映射参考 → 开始编码</p>
+            <div class="dev-order-tip">
+              <p>💡 <strong>开发必读顺序</strong>: 开发规范 → 核心映射参考 → 开始编码</p>
             </div>
           </div>
 
@@ -436,24 +429,24 @@ const docHistory = ref<{ key: string; path: string }[]>([])
 // 文档定义 - 使用 public 目录下的路径
 const quickStartDocs = [
   {
-    key: 'INDEX',
-    title: '项目总纲',
+    key: 'DOC_INDEX',
+    title: '文档索引',
     icon: '📚',
-    path: '/docs/INDEX.md',
+    path: '/docs/11-project/02-文档索引.md',
     badge: '⭐⭐⭐'
   },
   {
     key: 'QUICK_START',
     title: '快速开始',
     icon: '🚀',
-    path: '/docs/QUICK_START.md',
+    path: '/docs/10-guides/05-快速开始.md',
     badge: '⭐'
   },
   {
     key: 'DEV_ENV',
     title: '开发环境指南',
     icon: '⚡',
-    path: '/docs/DEV_ENVIRONMENT_GUIDE.md',
+    path: '/docs/10-guides/03-开发环境指南.md',
     badge: '⭐'
   }
 ]
@@ -463,46 +456,70 @@ const devDocs = [
     key: 'FRONTEND',
     title: '前端文档',
     icon: '🎨',
-    path: '/docs/frontend.md'
+    path: '/docs/10-guides/04-前端文档.md'
   },
   {
     key: 'BACKEND',
     title: '后端文档',
     icon: '⚙️',
-    path: '/docs/backend.md'
+    path: '/docs/10-guides/02-后端文档.md'
   }
 ]
 
 const projectDocs = [
   {
     key: 'PROJECT_STATUS',
-    title: '项目现状与开发计划（整合container-system）',
+    title: '项目行动指南',
     icon: '📊',
-    path: '/docs-temp/PROJECT_STATUS_AND_DEVELOPMENT_PLAN.md',
+    path: '/docs/11-project/00-项目行动指南.md',
     badge: '⭐⭐⭐'
+  },
+  {
+    key: 'FIVE_NODES',
+    title: '五节点调度方案',
+    icon: '📅',
+    path: '/docs/11-project/04-五节点调度与可视化方案.md'
+  },
+  {
+    key: 'GANTT_MECHANISM',
+    title: '甘特图调度机制',
+    icon: '📈',
+    path: '/docs/11-project/07-甘特图调度与货柜资源关联机制.md'
+  },
+  {
+    key: 'FEITUO_INTEGRATION',
+    title: '飞驼接入整合',
+    icon: '🔌',
+    path: '/docs/11-project/09-飞驼节点状态码解读与接入整合方案.md'
   }
 ]
 
 const logisticsFlowDocs = [
   {
     key: 'LOGISTICS_FLOW',
-    title: '物流全流程完整指南',
+    title: '物流流程完整说明',
     icon: '📦',
-    path: '/docs/LOGISTICS_FLOW_COMPLETE.md',
+    path: '/docs/02-architecture/02-物流流程完整说明.md',
     badge: '⭐⭐⭐'
   },
   {
     key: 'LOGISTICS_STATUS_MACHINE',
     title: '物流状态机',
     icon: '🔄',
-    path: '/docs/LOGISTICS_STATUS_STATE_MACHINE.md',
+    path: '/docs/05-state-machine/02-物流状态机.md',
     badge: '⭐'
   },
   {
     key: 'UNIFIED_STATUS',
     title: '统一状态机实现',
     icon: '🔀',
-    path: '/docs/UNIFIED_STATUS_MACHINE_IMPLEMENTATION.md'
+    path: '/docs/02-architecture/05-统一状态机实现.md'
+  },
+  {
+    key: 'STATE_MACHINE_FEITUO',
+    title: '业务状态机与飞驼',
+    icon: '🔌',
+    path: '/docs/05-state-machine/03-业务状态机与飞驼.md'
   }
 ]
 
@@ -511,21 +528,28 @@ const coreDocs = [
     key: 'DEV_STANDARDS',
     title: '开发规范',
     icon: '📝',
-    path: '/docs/DEVELOPMENT_STANDARDS.md',
+    path: '/docs/01-standards/02-开发标准.md',
     badge: '⭐⭐⭐'
   },
   {
     key: 'CORE_MAPPINGS',
     title: '核心映射参考',
     icon: '🔗',
-    path: '/docs/CORE_MAPPINGS_REFERENCE.md',
+    path: '/docs/09-misc/02-核心映射参考.md',
     badge: '⭐⭐⭐'
+  },
+  {
+    key: 'CODE_STANDARDS',
+    title: '代码规范',
+    icon: '📋',
+    path: '/docs/01-standards/01-代码规范.md',
+    badge: '⭐'
   },
   {
     key: 'BACKEND_QUICK_REF',
     title: '后端快速参考',
     icon: '⚡',
-    path: '/docs/BACKEND_QUICK_REFERENCE.md'
+    path: '/docs/10-guides/01-后端快速参考.md'
   }
 ]
 
@@ -534,14 +558,14 @@ const docsArchitectureDocs = [
     key: 'ARCHITECTURE',
     title: '系统架构说明',
     icon: '🏗️',
-    path: '/docs/ARCHITECTURE_EXPLAINED.md',
+    path: '/docs/02-architecture/01-架构说明.md',
     badge: '⭐'
   },
   {
     key: 'UNIVERSAL_DICT',
     title: '通用字典映射',
     icon: '📚',
-    path: '/docs/UNIVERSAL_DICT_MAPPING_GUIDE.md'
+    path: '/docs/09-misc/05-通用字典映射指南.md'
   }
 ]
 
@@ -550,38 +574,20 @@ const docsFeatureDocs = [
     key: 'EXTERNAL_DATA',
     title: '外部数据集成',
     icon: '🔌',
-    path: '/docs/EXTERNAL_DATA_INTEGRATION_GUIDE.md',
+    path: '/docs/04-api/01-外部数据集成指南.md',
     badge: '⭐'
   },
   {
     key: 'EXTERNAL_DATA_QUICK',
     title: '外部数据快速开始',
     icon: '⚡',
-    path: '/docs/EXTERNAL_DATA_QUICKSTART.md'
-  },
-  {
-    key: 'EXTERNAL_DATA_SUMMARY',
-    title: '外部数据集成总结',
-    icon: '📋',
-    path: '/docs/EXTERNAL_DATA_INTEGRATION_SUMMARY.md'
+    path: '/docs/04-api/02-外部数据快速开始.md'
   },
   {
     key: 'MULTIPLE_ORDERS',
     title: '多订单货柜',
     icon: '📦',
-    path: '/docs/MULTIPLE_ORDERS_PER_CONTAINER.md'
-  },
-  {
-    key: 'TIME_FIX',
-    title: '时间修复实现',
-    icon: '⏰',
-    path: '/docs/IMPLEMENT_TIME_FIX_GUIDE.md'
-  },
-  {
-    key: 'TIMESTAMP_MIGRATION',
-    title: '时间戳迁移',
-    icon: '🔄',
-    path: '/docs/TIMESTAMP_MIGRATION_COMPLETE.md'
+    path: '/docs/02-architecture/03-多订单货柜设计.md'
   }
 ]
 
@@ -590,43 +596,19 @@ const docsProblemDocs = [
     key: 'EXCEL_IMPORT',
     title: 'Excel 导入',
     icon: '📊',
-    path: '/docs/EXCEL_IMPORT_GUIDE.md'
+    path: '/docs/09-misc/01-Excel导入指南.md'
   },
   {
     key: 'EXCEL_STATUS',
     title: 'Excel 状态映射',
     icon: '📈',
-    path: '/docs/EXCEL_STATUS_MAPPING.md'
-  },
-  {
-    key: 'EXCEL_STATUS_ISSUE',
-    title: 'Excel 状态映射问题',
-    icon: '⚠️',
-    path: '/docs/EXCEL_STATUS_MAPPING_ISSUE.md'
-  },
-  {
-    key: 'DATE_FIX_SUMMARY',
-    title: '日期修复总结',
-    icon: '📅',
-    path: '/docs/DATE_FIX_SUMMARY.md'
-  },
-  {
-    key: 'DATE_PARSING_FIX',
-    title: '日期解析修复',
-    icon: '🔧',
-    path: '/docs/DATE_PARSING_FIX.md'
+    path: '/docs/03-database/02-Excel状态映射.md'
   },
   {
     key: 'IMPORT_MAPPING_FIX',
     title: '导入映射修复',
     icon: '🛠️',
-    path: '/docs/IMPORT_MAPPING_FIX_SUMMARY.md'
-  },
-  {
-    key: 'FREIGHT_FIX',
-    title: '运费币种金额修复',
-    icon: '💰',
-    path: '/docs/FREIGHT_CURRENCY_AMOUNT_IMPORT_FIX.md'
+    path: '/docs/09-misc/10-导入映射修复总结.md'
   }
 ]
 
@@ -635,44 +617,20 @@ const docsDevDocs = [
     key: 'COUNTDOWN_LOGIC',
     title: '倒计时卡片逻辑',
     icon: '⏱️',
-    path: '/docs/COUNTDOWN_CARD_LOGIC.md',
+    path: '/docs/06-statistics/02-倒计时卡片逻辑.md',
     badge: '⭐'
   },
   {
-    key: 'DEVELOPMENT_SUMMARY',
-    title: '开发总结',
-    icon: '📝',
-    path: '/docs/DEVELOPMENT_SUMMARY.md'
+    key: 'STATISTICS_DESC',
+    title: '统计说明',
+    icon: '📊',
+    path: '/docs/06-statistics/01-统计说明.md'
   },
   {
-    key: 'CLEAR_PORTS',
-    title: '清除港口重复',
-    icon: '🧹',
-    path: '/docs/CLEAR_PORTS_TAB_DUPLICATION.md'
-  },
-  {
-    key: 'CONTAINER_FIX',
-    title: '集装箱号修复',
-    icon: '🔢',
-    path: '/docs/CONTAINER_NUMBER_FIX.md'
-  },
-  {
-    key: 'ARRIVAL_COUNTDOWN',
-    title: '到港倒计时验证',
-    icon: '✅',
-    path: '/docs/ARRIVAL_COUNTDOWN_VERIFICATION.md'
-  },
-  {
-    key: 'DATA_VERIFICATION',
-    title: '数据验证报告',
-    icon: '📋',
-    path: '/docs/DATA_VERIFICATION_REPORT_MRKU4896861.md'
-  },
-  {
-    key: 'TRANSFER_DATE_TYPE',
-    title: '转运日期类型变更',
-    icon: '📅',
-    path: '/docs/DOCUMENT_TRANSFER_DATE_TYPE_CHANGE.md'
+    key: 'GANTT_LOGIC',
+    title: '甘特图显示逻辑',
+    icon: '📈',
+    path: '/docs/06-statistics/03-甘特图显示逻辑.md'
   }
 ]
 
@@ -681,58 +639,61 @@ const dbDocs = [
     key: 'TIMESCALEDB',
     title: 'TimescaleDB 完整指南',
     icon: '📊',
-    path: '/docs/TIMESCALEDB_GUIDE.md',
+    path: '/docs/08-deployment/01-TimescaleDB指南.md',
     badge: '⭐'
   },
   {
     key: 'TIMESCALEDB_QUICK',
     title: 'TimescaleDB 快速参考',
     icon: '⚡',
-    path: '/docs/TIMESCALEDB_QUICK_REFERENCE.md',
+    path: '/docs/08-deployment/02-TimescaleDB快速参考.md',
     badge: '⭐'
+  },
+  {
+    key: 'DB_RELATIONS',
+    title: '数据库主表关系',
+    icon: '🔗',
+    path: '/docs/03-database/01-数据库主表关系.md'
   }
 ]
 
 const codeStandardDocs = [
   {
-    key: 'CODE_STANDARDS',
-    title: '代码规范与最佳实践',
-    icon: '📋',
-    path: '/docs/CODE_STANDARDS.md',
-    badge: '⭐⭐⭐'
-  },
-  {
     key: 'NAMING_CONVENTIONS',
     title: '命名规范',
     icon: '🏷️',
-    path: '/docs/NAMING_CONVENTIONS.md',
+    path: '/docs/01-standards/03-命名规范.md',
     badge: '⭐⭐⭐'
   },
   {
     key: 'NAMING_QUICK_REF',
-    title: '命名规范快速参考',
+    title: '命名快速参考',
     icon: '⚡',
-    path: '/docs/NAMING_QUICK_REFERENCE.md',
+    path: '/docs/01-standards/04-命名快速参考.md',
     badge: '⭐'
+  },
+  {
+    key: 'COLOR_GUIDE',
+    title: '颜色系统指南',
+    icon: '🎨',
+    path: '/docs/01-standards/06-颜色系统指南.md'
   },
   {
     key: 'LINT_GUIDE',
     title: 'Lint 使用指南',
     icon: '🔧',
-    path: '/docs/LINT_GUIDE.md',
+    path: '/docs/01-standards/05-Lint使用指南.md',
     badge: '⭐'
-  },
-  {
-    key: 'LINT_SETUP',
-    title: 'Lint 配置总结',
-    icon: '⚙️',
-    path: '/docs/LINT_SETUP_SUMMARY.md'
   }
 ]
 
 const toolDocs = [
-  // 管理工具类文档，暂时为空
-  // 如有需要，可以添加数据库管理工具、部署工具等相关文档
+  {
+    key: 'MONITORING',
+    title: '监控用户指南',
+    icon: '📈',
+    path: '/docs/08-deployment/03-监控用户指南.md'
+  }
 ]
 
 // 导航到首页
@@ -797,12 +758,28 @@ const goBack = () => {
   }
 }
 
+// 所有文档列表（用于返回按钮标题）
+const allDocLists = [
+  quickStartDocs,
+  devDocs,
+  projectDocs,
+  logisticsFlowDocs,
+  coreDocs,
+  docsArchitectureDocs,
+  docsFeatureDocs,
+  docsProblemDocs,
+  docsDevDocs,
+  dbDocs,
+  codeStandardDocs,
+  toolDocs
+]
+
 // 获取返回按钮文本
 const backButtonText = computed(() => {
   if (docHistory.value.length > 0) {
     const prevDoc = docHistory.value[docHistory.value.length - 1]
-    const docTitle = quickStartDocs.find(doc => doc.key === prevDoc.key)?.title || prevDoc.key
-    return `← 返回 ${docTitle}`
+    const doc = allDocLists.flat().find(d => d.key === prevDoc.key)
+    return `← 返回 ${doc?.title || prevDoc.key}`
   }
   return '← 返回首页'
 })
@@ -875,15 +852,12 @@ const handleSearch = () => {
   const query = searchQuery.value.toLowerCase().trim()
   if (query.length < 2) return
 
-  // 高亮匹配的文档
+  // 高亮匹配的文档（使用 CSS 变量兼容）
   const navItems = document.querySelectorAll('.nav-item')
-  navItems.forEach((item: any) => {
-    const text = item.querySelector('.nav-item-text')?.textContent?.toLowerCase() || ''
-    if (text.includes(query)) {
-      item.style.background = '#fff3cd'
-    } else {
-      item.style.background = ''
-    }
+  navItems.forEach((item: Element) => {
+    const el = item as HTMLElement
+    const text = el.querySelector('.nav-item-text')?.textContent?.toLowerCase() || ''
+    el.style.background = text.includes(query) ? 'rgba(230, 162, 60, 0.2)' : ''
   })
 }
 
@@ -1016,7 +990,7 @@ const parseMarkdown = (markdown: string): string => {
   html = html.replace(/(<li>[^<]*<\/li>\n?)+/g, '<ol>$&</ol>')
 
   // 处理水平线
-  html = html.replace(/^---$/gm, '<hr style="margin: 20px 0; border: none; border-top: 2px solid #e9ecef;">')
+  html = html.replace(/^---$/gm, '<hr style="margin: 20px 0; border: none; border-top: 2px solid #E4E7ED;">')
 
   // 处理段落
   html = html.replace(/\n\n/g, '</p><p>')
@@ -1049,98 +1023,111 @@ onMounted(() => {
 </script>
 
 <style scoped lang="scss">
+@use '@/assets/styles/variables' as *;
+
 .help-doc-container {
   display: flex;
   min-height: calc(100vh - 64px);
-  background: white;
+  background: $bg-color;
 }
 
 .sidebar {
-  width: 350px;
-  background: #f8f9fa;
-  border-right: 1px solid #e9ecef;
+  width: 280px;
+  background: $bg-page;
+  border-right: 1px solid $border-light;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
 
   .sidebar-header {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    padding: 30px 25px;
+    background: linear-gradient(135deg, $nav-bg-gradient-mid 0%, $nav-bg-gradient-end 100%);
+    color: $nav-text-primary;
+    padding: 14px 15px;
     text-align: center;
     position: sticky;
     top: 0;
     z-index: 10;
 
     .logo {
-      font-size: 3rem;
-      margin-bottom: 10px;
+      font-size: 1.8rem;
+      margin-bottom: 4px;
+      line-height: 1;
     }
 
     h1 {
-      font-size: 1.5rem;
-      margin-bottom: 5px;
+      font-size: 1.1rem;
+      margin-bottom: 2px;
+      line-height: 1.2;
     }
 
     .subtitle {
       opacity: 0.9;
-      font-size: 0.9rem;
+      font-size: 0.75rem;
+      line-height: 1.2;
     }
   }
 
   .nav-section {
-    padding: 20px 15px;
-    border-bottom: 1px solid #e9ecef;
+    padding: 10px 10px;
+    border-bottom: 1px solid $border-light;
+
+    &:last-child {
+      border-bottom: none;
+    }
 
     .nav-section-title {
       font-weight: 600;
-      color: #495057;
-      margin-bottom: 12px;
-      padding-left: 10px;
-      font-size: 0.95rem;
+      color: $text-regular;
+      margin-bottom: 6px;
+      padding-left: 6px;
+      font-size: 0.8rem;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 4px;
+      line-height: 1.2;
     }
 
     .nav-item {
-      padding: 12px 15px;
-      margin-bottom: 5px;
-      border-radius: 10px;
+      padding: 6px 10px;
+      margin-bottom: 2px;
+      border-radius: 6px;
       cursor: pointer;
       transition: all 0.2s ease;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 6px;
 
       &:hover {
-        background: #e9ecef;
+        background: $border-extra-light;
       }
 
       &.active {
-        background: #667eea;
+        background: $primary-color;
         color: white;
       }
 
       .nav-item-icon {
-        font-size: 1.2rem;
+        font-size: 0.9rem;
         flex-shrink: 0;
+        line-height: 1;
       }
 
       .nav-item-text {
         flex: 1;
-        font-size: 0.9rem;
+        font-size: 0.8rem;
+        line-height: 1.3;
       }
 
       .nav-item-badge {
-        background: #ffc107;
-        color: #212529;
-        padding: 2px 8px;
-        border-radius: 10px;
-        font-size: 0.7rem;
+        background: $warning-color;
+        color: $text-primary;
+        padding: 1px 5px;
+        border-radius: 6px;
+        font-size: 0.6rem;
         font-weight: 600;
         flex-shrink: 0;
+        line-height: 1;
       }
     }
   }
@@ -1153,32 +1140,33 @@ onMounted(() => {
   overflow: hidden;
 
   .content-header {
-    background: white;
-    padding: 20px 30px;
-    border-bottom: 1px solid #e9ecef;
+    background: $bg-color;
+    padding: 12px 20px;
+    border-bottom: 1px solid $border-light;
     display: flex;
     justify-content: flex-end;
 
     .search-box {
       display: flex;
       align-items: center;
-      background: #f8f9fa;
-      border-radius: 25px;
-      padding: 10px 20px;
+      background: $bg-page;
+      border-radius: 20px;
+      padding: 6px 15px;
       width: 100%;
-      max-width: 400px;
+      max-width: 350px;
 
       input {
         border: none;
         background: transparent;
         outline: none;
         flex: 1;
-        font-size: 0.95rem;
-        margin-left: 10px;
+        font-size: 0.9rem;
+        margin-left: 8px;
       }
 
       .search-icon {
-        color: #6c757d;
+        color: $text-secondary;
+        font-size: 0.9rem;
       }
     }
   }
@@ -1186,7 +1174,7 @@ onMounted(() => {
   .content-body {
     flex: 1;
     overflow-y: auto;
-    padding: 30px;
+    padding: 20px;
 
     .loading-state,
     .error-state {
@@ -1199,118 +1187,122 @@ onMounted(() => {
 
       .loading-icon,
       .error-icon {
-        font-size: 3rem;
-        margin-bottom: 20px;
+        font-size: 2.5rem;
+        margin-bottom: 15px;
       }
 
       h2 {
-        color: #2c3e50;
-        margin-bottom: 10px;
+        color: $text-primary;
+        margin-bottom: 8px;
+        font-size: 1.4rem;
       }
 
       p {
-        color: #6c757d;
-        margin-bottom: 20px;
+        color: $text-regular;
+        margin-bottom: 15px;
       }
     }
 
     .welcome-section {
-      max-width: 800px;
+      max-width: 750px;
       margin: 0 auto;
 
       .welcome-header {
         text-align: center;
-        margin-bottom: 40px;
+        margin-bottom: 30px;
 
         h1 {
-          font-size: 2.5rem;
-          color: #2c3e50;
-          margin-bottom: 15px;
+          font-size: 2rem;
+          color: $text-primary;
+          margin-bottom: 10px;
         }
 
         p {
-          color: #6c757d;
-          font-size: 1.1rem;
+          color: $text-regular;
+          font-size: 1rem;
         }
       }
 
       .quick-actions {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 20px;
-        margin-bottom: 40px;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
 
         .quick-action-card {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: linear-gradient(135deg, $primary-color 0%, $primary-dark 100%);
           color: white;
-          padding: 25px;
-          border-radius: 15px;
+          padding: 18px 15px;
+          border-radius: 12px;
           cursor: pointer;
           transition: all 0.3s ease;
           text-align: center;
 
           &:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(64, 158, 255, 0.3);
           }
 
           .quick-action-icon {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
+            font-size: 2rem;
+            margin-bottom: 8px;
           }
 
           .quick-action-title {
             font-weight: 600;
-            font-size: 1.1rem;
+            font-size: 0.95rem;
           }
         }
       }
 
       .feature-section {
-        background: #f8f9fa;
-        padding: 30px;
-        border-radius: 15px;
-        margin-bottom: 20px;
+        background: $bg-page;
+        padding: 20px;
+        border-radius: 12px;
+        margin-bottom: 15px;
 
         h2 {
-          color: #2c3e50;
-          margin-bottom: 20px;
+          color: $text-primary;
+          margin-bottom: 15px;
           display: flex;
           align-items: center;
-          gap: 10px;
+          gap: 8px;
+          font-size: 1.3rem;
         }
 
         h3 {
-          color: #495057;
-          margin: 20px 0 10px 0;
+          color: $text-regular;
+          margin: 15px 0 8px 0;
+          font-size: 1.05rem;
         }
 
         .service-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-          gap: 15px;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 12px;
 
           .service-item {
             background: white;
-            padding: 20px;
-            border-radius: 12px;
-            border: 2px solid #e9ecef;
+            padding: 14px;
+            border-radius: 10px;
+            border: 2px solid $border-light;
             transition: all 0.3s ease;
 
             &:hover {
-              border-color: #667eea;
-              box-shadow: 0 5px 15px rgba(102, 126, 234, 0.1);
+              border-color: $primary-color;
+              box-shadow: 0 4px 12px rgba(64, 158, 255, 0.1);
             }
 
             .service-name {
               font-weight: 600;
-              color: #2c3e50;
-              margin-bottom: 5px;
+              color: $text-primary;
+              margin-bottom: 4px;
+              font-size: 0.9rem;
             }
 
             .service-url {
-              color: #667eea;
-              font-size: 0.85rem;
+              color: $primary-color;
+              font-size: 0.8rem;
               word-break: break-all;
             }
           }
@@ -1319,53 +1311,54 @@ onMounted(() => {
         .tech-stack {
           display: flex;
           flex-wrap: wrap;
-          gap: 10px;
+          gap: 8px;
 
           .tech-badge {
-            background: #e3f2fd;
-            color: #1976d2;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 0.85rem;
+            background: $primary-extra-light;
+            color: $primary-dark;
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 0.8rem;
             font-weight: 500;
           }
         }
 
         .faq-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-          gap: 15px;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 12px;
 
           .faq-item {
             background: white;
-            padding: 15px;
-            border-radius: 10px;
-            border: 2px solid #e9ecef;
+            padding: 12px;
+            border-radius: 8px;
+            border: 2px solid $border-light;
             transition: all 0.3s ease;
 
             &:hover {
-              border-color: #667eea;
-              box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+              border-color: $primary-color;
+              box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
             }
 
             .faq-title {
               font-weight: 600;
-              color: #2c3e50;
-              margin-bottom: 8px;
+              color: $text-primary;
+              margin-bottom: 6px;
               display: flex;
               align-items: center;
               gap: 6px;
+              font-size: 0.85rem;
 
               &::before {
                 content: '❓';
-                font-size: 14px;
+                font-size: 12px;
               }
             }
 
             .faq-solution {
-              color: #667eea;
-              font-size: 0.9rem;
-              padding-left: 20px;
+              color: $primary-color;
+              font-size: 0.85rem;
+              padding-left: 18px;
               position: relative;
 
               &::before {
@@ -1373,120 +1366,139 @@ onMounted(() => {
                 position: absolute;
                 left: 0;
                 top: 0;
+                font-size: 12px;
               }
             }
           }
         }
 
         p {
-          color: #495057;
-          margin-bottom: 10px;
+          color: $text-regular;
+          margin-bottom: 8px;
+          font-size: 0.9rem;
 
           code {
-            background: #e9ecef;
-            padding: 2px 8px;
+            background: $border-extra-light;
+            padding: 2px 6px;
             border-radius: 4px;
             font-family: 'Courier New', monospace;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
           }
         }
       }
     }
 
     .back-button {
-      margin-bottom: 20px;
+      margin-bottom: 15px;
     }
 
     .markdown-content {
-      max-width: 900px;
+      max-width: 850px;
       margin: 0 auto;
-      line-height: 1.8;
+      line-height: 1.7;
+
+      .dev-order-tip {
+        margin-top: 12px;
+        padding: 8px 12px;
+        background: $primary-extra-light;
+        border-radius: 6px;
+
+        p {
+          margin-bottom: 0;
+          font-size: 0.9rem;
+        }
+      }
 
       :deep(h1) {
-        color: #2c3e50;
-        font-size: 2rem;
-        margin-bottom: 20px;
-        padding-bottom: 10px;
-        border-bottom: 2px solid #e9ecef;
+        color: $text-primary;
+        font-size: 1.8rem;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid $border-light;
       }
 
       :deep(h2) {
-        color: #2c3e50;
-        font-size: 1.5rem;
-        margin: 30px 0 15px 0;
-        padding-left: 15px;
-        border-left: 4px solid #667eea;
+        color: $text-primary;
+        font-size: 1.35rem;
+        margin: 24px 0 12px 0;
+        padding-left: 12px;
+        border-left: 4px solid $primary-color;
       }
 
       :deep(h3) {
-        color: #495057;
-        font-size: 1.2rem;
-        margin: 25px 0 10px 0;
+        color: $text-regular;
+        font-size: 1.1rem;
+        margin: 20px 0 8px 0;
       }
 
       :deep(p) {
-        color: #495057;
-        margin-bottom: 15px;
+        color: $text-regular;
+        margin-bottom: 12px;
+        font-size: 0.95rem;
       }
 
       :deep(code) {
-        background: #f8f9fa;
-        padding: 2px 8px;
+        background: $bg-page;
+        padding: 2px 6px;
         border-radius: 4px;
         font-family: 'Courier New', monospace;
-        font-size: 0.9rem;
-        color: #2c3e50;
+        font-size: 0.85rem;
+        color: $text-primary;
       }
 
       :deep(pre) {
-        background: #2c3e50;
-        color: #f8f9fa;
-        padding: 20px;
-        border-radius: 10px;
+        background: $nav-bg-gradient-end;
+        color: $nav-text-primary;
+        padding: 16px;
+        border-radius: 8px;
         overflow-x: auto;
-        margin-bottom: 20px;
+        margin-bottom: 16px;
       }
 
       :deep(pre code) {
         background: transparent;
         padding: 0;
-        color: #f8f9fa;
+        color: $nav-text-primary;
         font-family: 'Courier New', monospace;
+        font-size: 0.85rem;
       }
 
       :deep(blockquote) {
-        background: #fff3cd;
-        border-left: 4px solid #ffc107;
-        padding: 15px 20px;
-        margin: 20px 0;
-        border-radius: 0 10px 10px 0;
+        background: rgba(230, 162, 60, 0.1);
+        border-left: 4px solid $warning-color;
+        padding: 12px 16px;
+        margin: 16px 0;
+        border-radius: 0 8px 8px 0;
+        font-size: 0.95rem;
       }
 
       :deep(table) {
         width: 100%;
         border-collapse: collapse;
-        margin: 20px 0;
+        margin: 16px 0;
         background: white;
 
         th {
-          background: #667eea;
+          background: $primary-color;
           color: white;
-          padding: 12px;
+          padding: 10px 12px;
           text-align: left;
+          font-size: 0.9rem;
         }
 
         td {
-          padding: 12px;
-          border-bottom: 1px solid #e9ecef;
+          padding: 10px 12px;
+          border-bottom: 1px solid $border-light;
+          font-size: 0.9rem;
         }
 
         tr:hover {
-          background: #f8f9fa;
+          background: $bg-page;
         }
       }
 
       :deep(a) {
-        color: #667eea;
+        color: $primary-color;
         text-decoration: none;
 
         &:hover {
@@ -1496,15 +1508,16 @@ onMounted(() => {
 
       :deep(ul),
       :deep(ol) {
-        color: #495057;
-        margin: 15px 0;
-        padding-left: 30px;
+        color: $text-regular;
+        margin: 12px 0;
+        padding-left: 24px;
+        font-size: 0.95rem;
       }
 
       :deep(li) {
-        color: #495057;
-        margin: 8px 0;
-        line-height: 1.6;
+        color: $text-regular;
+        margin: 6px 0;
+        line-height: 1.5;
       }
 
       :deep(ul) {
@@ -1518,7 +1531,7 @@ onMounted(() => {
       :deep(pre ul),
       :deep(pre ol),
       :deep(pre li) {
-        color: #f8f9fa;
+        color: $nav-text-primary;
       }
     }
   }
@@ -1555,7 +1568,7 @@ onMounted(() => {
   .sidebar {
     width: 100%;
     border-right: none;
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid $border-light;
     max-height: 300px;
   }
 

@@ -1,19 +1,25 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { containerService } from '@/services/container'
+import { demurrageService, type CalculationDates } from '@/services/demurrage'
 import { ElMessage } from 'element-plus'
 import ContainerHeader from './components/ContainerHeader.vue'
 import ContainerSummary from './components/ContainerSummary.vue'
 import KeyDatesTimeline from './components/KeyDatesTimeline.vue'
-import StatusEventsTimeline from './components/StatusEventsTimeline.vue'
 import SeaFreightInfo from './components/SeaFreightInfo.vue'
+import ContainerInfo from './components/ContainerInfo.vue'
 import PortOperations from './components/PortOperations.vue'
 import TruckingTransport from './components/TruckingTransport.vue'
 import WarehouseOperations from './components/WarehouseOperations.vue'
 import EmptyReturn from './components/EmptyReturn.vue'
+import DemurrageDetailSection from '@/components/demurrage/DemurrageDetailSection.vue'
+import LogisticsPathTab from './components/LogisticsPathTab.vue'
+import ChangeLogTab from './components/ChangeLogTab.vue'
 
 const route = useRoute()
+const demurrageRef = ref<{ load: () => Promise<void> } | null>(null)
+const calculationDates = ref<CalculationDates | null>(null)
 // 路由 param 已解码；若需兼容编码柜号则 decodeURIComponent
 const containerNumber = computed(() => {
   const p = route.params.containerNumber as string
@@ -23,7 +29,7 @@ const containerNumber = computed(() => {
 // 数据加载
 const loading = ref(false)
 const containerData = ref<any>(null)
-const activeTab = ref('order')
+const activeTab = ref('logistics-path')
 
 // 加载货柜详情
 const loadContainerDetail = async () => {
@@ -51,9 +57,38 @@ const loadContainerDetail = async () => {
   }
 }
 
+const loadDemurrageDates = async () => {
+  if (!containerNumber.value?.trim()) return
+  try {
+    const res = await demurrageService.calculateForContainer(containerNumber.value)
+    if (res.success && res.data?.calculationDates) {
+      calculationDates.value = res.data.calculationDates
+    } else {
+      calculationDates.value = null
+    }
+  } catch {
+    calculationDates.value = null
+  }
+}
+
 onMounted(() => {
   loadContainerDetail()
 })
+
+watch(containerData, (data) => {
+  if (data) loadDemurrageDates()
+}, { immediate: true })
+
+// 根据路由 query.tab 打开对应页签（如从高费用货柜卡片跳转时打开滞港费页签）
+watch(
+  () => route.query.tab,
+  (tab) => {
+    if (tab === 'demurrage') activeTab.value = 'demurrage'
+    else if (tab === 'logistics-path') activeTab.value = 'logistics-path'
+    else if (tab === 'change-log') activeTab.value = 'change-log'
+  },
+  { immediate: true }
+)
 
 // 计算属性：目的港操作信息
 const destinationPortOperation = computed(() => {
@@ -62,15 +97,33 @@ const destinationPortOperation = computed(() => {
     (po: any) => po.portType === 'destination'
   )
 })
+
+// 物流状态标签：中文文案 + 类型
+const LOGISTICS_STATUS_MAP: Record<string, { text: string; type: 'success' | 'warning' | 'danger' | 'info' }> = {
+  not_shipped: { text: '未出运', type: 'info' },
+  shipped: { text: '已装船', type: 'success' },
+  in_transit: { text: '在途', type: 'success' },
+  at_port: { text: '已到目的港', type: 'success' },
+  arrived_at_transit_port: { text: '已到中转港', type: 'success' },
+  picked_up: { text: '已提柜', type: 'warning' },
+  unloaded: { text: '已卸柜', type: 'warning' },
+  returned_empty: { text: '已还箱', type: 'success' },
+  cancelled: { text: '已取消', type: 'danger' },
+  hold: { text: '扣留', type: 'danger' },
+  completed: { text: '已完成', type: 'success' },
+}
+const logisticsStatusDisplay = computed(() => {
+  const s = containerData.value?.logisticsStatus
+  return LOGISTICS_STATUS_MAP[s] || { text: s || '—', type: 'info' as const }
+})
 </script>
 
 <template>
   <div class="container-detail-page" v-loading="loading">
-    <!-- 物流状态水印标记 -->
-    <div v-if="containerData" class="logistics-status-watermark">
-      <div class="watermark-badge" :class="containerData.logisticsStatus || 'info'">
-        <div class="watermark-text">{{ containerData.logisticsStatus }}</div>
-      </div>
+    <!-- 物流状态标签（右上角） -->
+    <div v-if="containerData" class="logistics-status-badge" :class="logisticsStatusDisplay.type">
+      <span class="badge-dot"></span>
+      <span class="badge-text">{{ logisticsStatusDisplay.text }}</span>
     </div>
 
     <!-- 页面头部 -->
@@ -81,92 +134,79 @@ const destinationPortOperation = computed(() => {
     />
 
     <!-- 内容区域 -->
-    <div v-if="containerData">
-      <!-- 货柜基本信息卡片 -->
-      <ContainerSummary :container-data="containerData" />
+    <div v-if="containerData" class="detail-content">
+      <!-- 概览区：基本信息 + 关键日期 -->
+      <section class="overview-section">
+        <ContainerSummary :container-data="containerData" />
+        <KeyDatesTimeline
+          :container-data="containerData"
+          :calculation-dates="calculationDates"
+        />
+      </section>
 
-      <!-- 关键日期时间条 -->
-      <KeyDatesTimeline :container-data="containerData" />
-
-      <!-- 多页签详情 -->
-      <el-card class="detail-card">
-        <el-tabs v-model="activeTab">
-          <!-- 货柜信息页签 -->
-          <el-tab-pane label="货柜信息" name="info">
-            <div class="tab-content">
-              <h3>货柜信息</h3>
-              <el-descriptions :column="2" border>
-                <el-descriptions-item label="集装箱号">{{ containerData.containerNumber }}</el-descriptions-item>
-                <el-descriptions-item label="备货单号">
-                  {{ containerData.orderNumber || '-' }}
-                </el-descriptions-item>
-                <el-descriptions-item label="柜型">{{ containerData.containerTypeCode }}</el-descriptions-item>
-                <el-descriptions-item label="封条号">{{ containerData.sealNumber || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="危险品等级">{{ containerData.dangerClass || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="箱皮重">{{ containerData.tareWeight || '-' }} KG</el-descriptions-item>
-                <el-descriptions-item label="箱总重">{{ containerData.totalWeight || '-' }} KG</el-descriptions-item>
-                <el-descriptions-item label="超限长度">{{ containerData.overLength || '-' }} m</el-descriptions-item>
-                <el-descriptions-item label="超高">{{ containerData.overHeight || '-' }} m</el-descriptions-item>
-                <el-descriptions-item label="货物描述" :span="2">{{ containerData.cargoDescription || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="备注" :span="2">{{ containerData.remarks || '-' }}</el-descriptions-item>
-              </el-descriptions>
-
-              <h3>货物汇总信息（多个备货单合计）</h3>
-              <el-descriptions :column="2" border>
-                <el-descriptions-item label="毛重合计">{{ containerData.grossWeight || '-' }} KG</el-descriptions-item>
-                <el-descriptions-item label="体积合计">{{ containerData.cbm || '-' }} CBM</el-descriptions-item>
-                <el-descriptions-item label="箱数合计">{{ containerData.packages || '-' }}</el-descriptions-item>
-                <el-descriptions-item label="出运总价">${{ containerData.shipmentTotalValue || '-' }}</el-descriptions-item>
-              </el-descriptions>
-            </div>
-          </el-tab-pane>
-
-          <!-- 状态事件页签 -->
-          <el-tab-pane label="状态事件" name="events">
-            <div class="tab-content">
-              <StatusEventsTimeline
-                v-if="containerData.statusEvents"
-                :status-events="containerData.statusEvents"
-              />
-              <el-empty v-else description="暂无状态事件记录" />
-            </div>
-          </el-tab-pane>
-
-          <!-- 其他页签保持原样，可以继续拆分 -->
-          <el-tab-pane label="海运信息" name="seafreight">
-            <div class="tab-content">
-              <SeaFreightInfo
-                :sea-freights="containerData.seaFreight"
-                :destination-port-operation="destinationPortOperation"
-              />
-            </div>
-          </el-tab-pane>
-
-          <el-tab-pane label="港口操作" name="port">
-            <div class="tab-content">
-              <PortOperations :port-operations="containerData.portOperations" />
-            </div>
-          </el-tab-pane>
-
-          <el-tab-pane label="拖卡运输" name="trucking">
-            <div class="tab-content">
-              <TruckingTransport :trucking-transports="containerData.truckingTransports" />
-            </div>
-          </el-tab-pane>
-
-          <el-tab-pane label="仓库操作" name="warehouse">
-            <div class="tab-content">
-              <WarehouseOperations :warehouse-operations="containerData.warehouseOperations" />
-            </div>
-          </el-tab-pane>
-
-          <el-tab-pane label="还空箱" name="emptyreturn">
-            <div class="tab-content">
-              <EmptyReturn :empty-returns="containerData.emptyReturns" />
-            </div>
-          </el-tab-pane>
-        </el-tabs>
-      </el-card>
+      <!-- 详情 Tab 区 -->
+      <section class="tabs-section">
+        <el-card class="detail-card" shadow="hover">
+          <el-tabs v-model="activeTab" class="detail-tabs">
+            <el-tab-pane label="物流路径" name="logistics-path">
+              <div class="tab-content">
+                <LogisticsPathTab
+                  :container-number="containerNumber"
+                  :bill-of-lading-number="(Array.isArray(containerData?.seaFreight) ? containerData?.seaFreight?.[0] : containerData?.seaFreight)?.billOfLadingNumber"
+                />
+              </div>
+            </el-tab-pane>
+            <el-tab-pane label="货柜信息" name="info">
+              <div class="tab-content">
+                <ContainerInfo :container-data="containerData" />
+              </div>
+            </el-tab-pane>
+            <el-tab-pane label="海运信息" name="seafreight">
+              <div class="tab-content">
+                <SeaFreightInfo
+                  :sea-freights="containerData.seaFreight"
+                  :destination-port-operation="destinationPortOperation"
+                />
+              </div>
+            </el-tab-pane>
+            <el-tab-pane label="港口操作" name="port">
+              <div class="tab-content">
+                <PortOperations :port-operations="containerData.portOperations" />
+              </div>
+            </el-tab-pane>
+            <el-tab-pane label="拖卡运输" name="trucking">
+              <div class="tab-content">
+                <TruckingTransport :trucking-transports="containerData.truckingTransports" />
+              </div>
+            </el-tab-pane>
+            <el-tab-pane label="仓库操作" name="warehouse">
+              <div class="tab-content">
+                <WarehouseOperations :warehouse-operations="containerData.warehouseOperations" />
+              </div>
+            </el-tab-pane>
+            <el-tab-pane label="还空箱" name="emptyreturn">
+              <div class="tab-content">
+                <EmptyReturn :empty-returns="containerData.emptyReturns" />
+              </div>
+            </el-tab-pane>
+            <el-tab-pane label="滞港费" name="demurrage">
+              <div class="tab-content">
+                <div class="tab-header-row">
+                  <el-button type="primary" link size="small" @click="demurrageRef?.load?.()">
+                    刷新
+                  </el-button>
+                </div>
+                <DemurrageDetailSection ref="demurrageRef" :container-number="containerNumber" />
+              </div>
+            </el-tab-pane>
+            <el-tab-pane label="变更日志" name="change-log">
+              <div class="tab-content">
+                <ChangeLogTab :container-number="containerNumber" />
+              </div>
+            </el-tab-pane>
+          </el-tabs>
+        </el-card>
+      </section>
     </div>
   </div>
 </template>
@@ -175,91 +215,154 @@ const destinationPortOperation = computed(() => {
 @use '@/assets/styles/variables' as *;
 
 .container-detail-page {
-  padding: 20px;
+  padding: $spacing-lg;
   position: relative;
-}
+  max-width: 1400px;
+  margin: 0 auto;
+  min-height: 100vh;
 
-// 物流状态水印标记
-.logistics-status-watermark {
-  position: fixed;
-  top: 45px;
-  right: 120px;
-  z-index: 9999;
-  padding: 10px;
-  pointer-events: none;
-
-  .watermark-badge {
-    position: relative;
-    width: 150px;
-    height: 60px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    opacity: 0.4;
-    transform: rotate(-45deg);
-    transition: all 0.3s ease;
-
-    &.success {
-      background: linear-gradient(135deg, #67C23A 0%, #85CE61 100%);
-    }
-
-    &.warning {
-      background: linear-gradient(135deg, #E6A23C 0%, #F0AD4E 100%);
-    }
-
-    &.danger {
-      background: linear-gradient(135deg, #F56C6C 0%, #FF6B6B 100%);
-    }
-
-    &.info {
-      background: linear-gradient(135deg, #909399 0%, #A0A4A9 100%);
-    }
-
-    .watermark-text {
-      color: white;
-      font-size: 16px;
-      font-weight: 700;
-      text-align: center;
-      line-height: 1.3;
-      padding: 10px;
-      letter-spacing: 1px;
-      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    }
-
-    &:hover {
-      opacity: 0.6;
-      transform: rotate(0deg) scale(1.1);
-    }
+  @media (max-width: 768px) {
+    padding: $spacing-md;
   }
 }
 
-// 调整页面头部，避免被水印遮挡
-.page-header {
-  position: relative;
-  z-index: 100;
+.detail-content {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-lg;
+}
+
+.overview-section {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-md;
+}
+
+.tabs-section {
+  flex: 1;
+}
+
+/* 物流状态标签：右上角可视化，避开导航条 */
+.logistics-status-badge {
+  position: fixed;
+  top: 72px;
+  right: 80px;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: $font-size-sm;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  box-shadow: $shadow-base;
+  pointer-events: none;
+  transition: $transition-base;
+
+  .badge-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: badge-pulse 2s ease-in-out infinite;
+  }
+
+  .badge-text {
+    white-space: nowrap;
+  }
+
+  &.success {
+    background: linear-gradient(135deg, rgba($success-color, 0.95) 0%, $success-color 100%);
+    color: #fff;
+    .badge-dot { background: #fff; }
+  }
+
+  &.warning {
+    background: linear-gradient(135deg, rgba($warning-color, 0.95) 0%, $warning-color 100%);
+    color: #fff;
+    .badge-dot { background: #fff; }
+  }
+
+  &.danger {
+    background: linear-gradient(135deg, rgba($danger-color, 0.95) 0%, $danger-color 100%);
+    color: #fff;
+    .badge-dot { background: #fff; }
+  }
+
+  &.info {
+    background: linear-gradient(135deg, rgba($info-color, 0.95) 0%, $info-color 100%);
+    color: #fff;
+    .badge-dot { background: #fff; }
+  }
+}
+
+@keyframes badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 .detail-card {
+  border-radius: $radius-large;
+  border: 1px solid $border-lighter;
+  overflow: hidden;
+
+  :deep(.el-card__body) {
+    padding: $spacing-lg;
+  }
+
+  .detail-tabs {
+    :deep(.el-tabs__header) {
+      margin-bottom: $spacing-lg;
+      border-bottom: 1px solid $border-lighter;
+    }
+
+    :deep(.el-tabs__nav-wrap::after) {
+      display: none;
+    }
+
+    :deep(.el-tabs__item) {
+      font-size: $font-size-sm;
+      font-weight: 500;
+    }
+
+    :deep(.el-tabs__item.is-active) {
+      color: $primary-color;
+      font-weight: 600;
+    }
+
+    :deep(.el-tabs__active-bar) {
+      background: $primary-color;
+      height: 3px;
+    }
+
+    :deep(.el-tabs__indicator) {
+      background: $primary-color;
+    }
+
+    :deep(.el-tabs__content) {
+      overflow: visible;
+    }
+
+  }
+
   .tab-content {
-    h3 {
-      font-size: 16px;
+    .tab-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: $spacing-md;
+    }
+
+    .tab-title {
+      font-size: $font-size-lg;
+      font-weight: 600;
       color: $text-primary;
-      margin: 0 0 16px 0;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #EBEEF5;
+      margin: 0;
+      padding-bottom: $spacing-sm;
+      border-bottom: 1px solid $border-lighter;
     }
   }
-}
 
-.info-item {
-  margin-bottom: 30px;
-  padding: 15px;
-  background: #F5F7FA;
-  border-radius: 4px;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
 }
 </style>

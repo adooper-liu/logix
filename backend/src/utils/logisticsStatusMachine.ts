@@ -186,17 +186,23 @@ export const ExcelStatusToSimplifiedMap: Record<string, SimplifiedStatus> = {
  * Map external API status codes to detailed statuses (example for FeiTuo)
  */
 export const ExternalApiToDetailedMap: Record<string, DetailedStatus> = {
-  // 飞驼API状态代码映射
+  // 飞驼API状态代码映射 (含 Freightower 文档 https://doc.freightower.com/7113318m0)
   'BO': DetailedStatus.LOADED,           // 装船
+  'LOAD': DetailedStatus.LOADED,          // 装船 (equipmentEvents LOAD+LADEN)
   'DLPT': DetailedStatus.SAILING,        // 航行
   'ARRIVE': DetailedStatus.ARRIVED,       // 到达
   'ATA': DetailedStatus.ARRIVED,          // 实际到港
+  'ARRI': DetailedStatus.ARRIVED,        // 靠泊 (transportEvents ARRI+BRTH)
   'ETA': DetailedStatus.SAILING,          // 预计到港
   'GATE_IN': DetailedStatus.GATE_IN,      // 进闸
   'GATE_OUT': DetailedStatus.GATE_OUT,    // 出闸
+  'GTIN': DetailedStatus.GATE_IN,         // 进场 (equipmentEvents GTIN+LADEN)
+  'GTOT': DetailedStatus.GATE_OUT,        // 提货 (equipmentEvents GTOT+LADEN)
   'DISCHARGED': DetailedStatus.DISCHARGED,// 卸货
+  'DISC': DetailedStatus.DISCHARGED,      // 卸船 (equipmentEvents DISC+LADEN)
   'AVAIL': DetailedStatus.AVAILABLE,     // 可提货
   'EMPTY_RETURN': DetailedStatus.RETURNED_EMPTY, // 还空箱
+  'DUMP': DetailedStatus.DUMPED,          // 甩柜 (equipmentEvents DUMP+LADEN)
   'HOLD': DetailedStatus.HOLD,           // 扣货
   'CUSTOMS_HOLD': DetailedStatus.CUSTOMS_HOLD,  // 清关扣货
   'CARRIER_HOLD': DetailedStatus.CARRIER_HOLD,  // 承运人扣货

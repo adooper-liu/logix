@@ -13,8 +13,8 @@ import {
   shouldUpdateCoreField,
   getCoreFieldName,
   getPortTypeForStatusCode,
-  FEITUO_STATUS_TO_CORE_FIELD_MAP,
 } from '../constants/FeiTuoStatusMapping';
+import { auditLogService } from './auditLog.service';
 
 /**
  * 飞驼API响应数据结构
@@ -386,6 +386,7 @@ export class ExternalDataService {
       }
 
       let updatedCount = 0;
+      const changedFields: Record<string, { old?: unknown; new?: unknown }> = {};
 
       // 遍历飞驼事件,更新对应的核心时间字段
       for (const event of feituoEvents) {
@@ -430,6 +431,10 @@ export class ExternalDataService {
 
         // 只有当飞驼数据更新时才更新字段
         if (!currentValue || eventTime > currentValue) {
+          changedFields[coreFieldName] = {
+            old: currentValue ? (currentValue instanceof Date ? currentValue.toISOString() : currentValue) : null,
+            new: eventTime.toISOString()
+          };
           (targetPortOperation as any)[coreFieldName] = eventTime;
 
           // 标记数据源
@@ -446,6 +451,16 @@ export class ExternalDataService {
       if (updatedCount > 0) {
         await this.portOperationRepository.save(portOperations);
         logger.info(`[ExternalDataService] 成功更新货柜 ${containerNumber} 的 ${updatedCount} 个核心字段`);
+
+        // 记录数据变更日志
+        await auditLogService.logChange({
+          sourceType: 'feituo_api',
+          entityType: 'process_port_operations',
+          entityId: containerNumber,
+          action: 'UPDATE',
+          changedFields: Object.keys(changedFields).length > 0 ? changedFields : null,
+          remark: `飞驼API同步，更新 ${updatedCount} 个核心字段`
+        });
       }
 
     } catch (error) {
