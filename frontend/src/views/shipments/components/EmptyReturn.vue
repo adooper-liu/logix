@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import LastReturnDateDisplay from '@/components/common/LastReturnDateDisplay.vue'
+
 interface EmptyReturn {
   id?: string
   returnTerminalName?: string
@@ -68,7 +70,11 @@ const formatDateOnly = (date: Date | string | undefined): string => {
           </div>
           <div class="field-item">
             <span class="field-label">最晚还箱日</span>
-            <span class="field-value">{{ formatDateOnly(er.lastReturnDate) }}</span>
+            <LastReturnDateDisplay
+              :last-return-date="er.lastReturnDate"
+              :show-details="false"
+              :show-status="false"
+            />
           </div>
           <div class="field-item">
             <span class="field-label">箱况</span>

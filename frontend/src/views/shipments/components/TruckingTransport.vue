@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import LastPickupDateDisplay from '@/components/common/LastPickupDateDisplay.vue'
+
 interface TruckingTransport {
   id?: string
   truckingType?: string
@@ -83,7 +85,11 @@ const formatDateOnly = (date: Date | string | undefined): string => {
           </div>
           <div class="field-item">
             <span class="field-label">最晚提柜</span>
-            <span class="field-value highlight">{{ formatDateOnly(tt.lastPickupDate) }}</span>
+            <LastPickupDateDisplay
+              :last-pickup-date="tt.lastPickupDate"
+              :show-details="false"
+              :show-status="false"
+            />
           </div>
           <div class="field-item">
             <span class="field-label">实际提柜</span>

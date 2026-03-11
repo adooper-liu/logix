@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import LastPickupDateDisplay from '@/components/common/LastPickupDateDisplay.vue'
 
 interface PortOperation {
   id?: string
@@ -140,9 +141,11 @@ const getCustomsDisplay = (status: string | undefined) => {
                 </div>
                 <div class="field-item">
                   <span class="field-label">最晚提柜</span>
-                  <span class="field-value" :class="getLastFreeDateStatus(po.lastFreeDate)">
-                    {{ formatDateOnly(po.lastFreeDate) }}
-                  </span>
+                  <LastPickupDateDisplay
+                    :last-pickup-date="po.lastFreeDate"
+                    :show-details="false"
+                    :show-status="false"
+                  />
                 </div>
               </div>
 
