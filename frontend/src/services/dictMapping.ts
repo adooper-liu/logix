@@ -43,19 +43,49 @@ export async function getPortCodeByChineseName(portName: string): Promise<PortMa
 }
 
 /**
- * 批量获取港口代码映射
+ * 批量获取港口代码映射（新增）
  */
-export async function getPortCodeMappings(portNames: string[]): Promise<PortMappingBatchResult> {
+export async function getPortCodeMappingsBatch(portNames: string[]): Promise<PortMappingBatchResult> {
   try {
     const response = await axios.post(`${API_BASE}/dict-mapping/port/batch`, { portNames })
     return response.data
   } catch (error: any) {
-    console.error('[getPortCodeMappings] Error:', error)
+    console.error('[getPortCodeMappingsBatch] Error:', error)
     return {
       success: false,
       data: {}
     }
   }
+}
+
+/**
+ * 批量获取港口代码(带缓存)
+ */
+export async function getPortCodesCachedBatch(portNames: string[]): Promise<Record<string, string | null>> {
+  const result: Record<string, string | null> = {}
+
+  // 先从缓存查找
+  const uncachedNames: string[] = []
+  portNames.forEach(name => {
+    if (portMappingCache[name]) {
+      result[name] = portMappingCache[name]
+    } else {
+      uncachedNames.push(name)
+    }
+  })
+
+  // 批量查询未缓存的
+  if (uncachedNames.length > 0) {
+    const batchResult = await getPortCodeMappingsBatch(uncachedNames)
+    if (batchResult.success && batchResult.data) {
+      Object.entries(batchResult.data).forEach(([name, mapping]) => {
+        result[name] = mapping.port_code
+        portMappingCache[name] = mapping.port_code
+      })
+    }
+  }
+
+  return result
 }
 
 /**
@@ -153,7 +183,7 @@ export async function getPortCodeCached(portName: string): Promise<string | null
 }
 
 /**
- * 批量获取港口代码(带缓存)
+ * 批量获取港口代码(带缓存,使用新的批量接口)
  */
 export async function getPortCodesCached(portNames: string[]): Promise<Record<string, string | null>> {
   const result: Record<string, string | null> = {}
@@ -168,9 +198,9 @@ export async function getPortCodesCached(portNames: string[]): Promise<Record<st
     }
   })
 
-  // 批量查询未缓存的
+  // 使用新的批量接口一次性获取所有未缓存的映射
   if (uncachedNames.length > 0) {
-    const batchResult = await getPortCodeMappings(uncachedNames)
+    const batchResult = await getPortCodeMappingsBatch(uncachedNames)
     if (batchResult.success && batchResult.data) {
       Object.entries(batchResult.data).forEach(([name, mapping]) => {
         result[name] = mapping.port_code

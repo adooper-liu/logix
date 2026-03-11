@@ -45,6 +45,18 @@ export class ExtDemurrageRecord {
   @Column({ type: 'varchar', length: 20, nullable: true, name: 'calculation_basis' })
   calculationBasis: string;
 
+  @Column({ type: 'varchar', length: 10, nullable: true, name: 'calculation_mode' })
+  calculationMode: string;
+
+  @Column({ type: 'varchar', length: 10, nullable: true, name: 'start_date_mode' })
+  startDateMode: string;
+
+  @Column({ type: 'varchar', length: 10, nullable: true, name: 'last_free_date_mode' })
+  lastFreeDateMode: string;
+
+  @Column({ type: 'varchar', length: 10, nullable: true, name: 'end_date_mode' })
+  endDateMode: string;
+
   @Column({ type: 'date', nullable: true, name: 'charge_start_date' })
   chargeStartDate: Date;
 

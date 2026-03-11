@@ -81,11 +81,12 @@ watch(() => props.content, async (newContent) => {
   if (newContent) {
     htmlContent.value = await parseMarkdown(newContent)
   }
-}, { immediate: true })
+})
 
 // 监听高亮器就绪状态，重新高亮代码
 watch(highlighterReady, async (ready) => {
   if (ready && props.content) {
+    console.log('Shiki 高亮器就绪，重新解析内容')
     htmlContent.value = await parseMarkdown(props.content)
   }
 })

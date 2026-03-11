@@ -51,12 +51,18 @@ export class DictMappingController {
   /**
    * 批量获取港口代码映射
    */
-  getPortCodeMappings = async (req: Request, res: Response): Promise<void> => {
+  getPortCodeMappingsBatch = async (req: Request, res: Response): Promise<void> => {
     try {
       const { portNames } = req.body;
 
       if (!Array.isArray(portNames) || portNames.length === 0) {
         res.status(400).json({ error: '港口名称数组不能为空' });
+        return;
+      }
+
+      // 限制批量查询最多50个港口,防止超时
+      if (portNames.length > 50) {
+        res.status(400).json({ error: '单次批量查询最多支持50个港口名称' });
         return;
       }
 
@@ -87,7 +93,7 @@ export class DictMappingController {
         data: mapping
       });
     } catch (error: any) {
-      logger.error('[getPortCodeMappings] Error:', error);
+      logger.error('[getPortCodeMappingsBatch] Error:', error);
       res.status(500).json({ error: error.message });
     }
   };

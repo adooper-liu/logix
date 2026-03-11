@@ -1,22 +1,34 @@
 <script setup lang="ts">
-import { ref, shallowRef, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { containerService } from '@/services/container'
-import type { PaginationParams } from '@/types'
-import type { PortOperation, TruckingTransport, EmptyReturn } from '@/types/container'
-import { Search, Refresh, View, Edit, Calendar, Download, ArrowDown, Setting } from '@element-plus/icons-vue'
-import { ElMessage } from 'element-plus'
 import CountdownCard from '@/components/CountdownCard.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import { useContainerCountdown } from '@/composables/useContainerCountdown'
+import { containerService } from '@/services/container'
+import type { PaginationParams } from '@/types'
+import type { PortOperation } from '@/types/container'
 import {
-  getLogisticsStatusText as getStatusText,
   getLogisticsStatusType,
-  SimplifiedStatus
+  getLogisticsStatusText as getStatusText,
+  SimplifiedStatus,
 } from '@/utils/logisticsStatusMachine'
+import {
+  ArrowDown,
+  Calendar,
+  Download,
+  Edit,
+  Refresh,
+  Search,
+  Setting,
+  View,
+} from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
+import { ElMessage } from 'element-plus'
+import { computed, h, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
+
+// 组件卸载标记，防止卸载后响应式更新
+const isUnmounted = ref(false)
 
 // 表格数据 - 使用 shallowRef 减少深度响应式开销
 const containers = shallowRef<any[]>([])
@@ -35,16 +47,14 @@ const searchKeyword = ref('')
 // 顶部时间窗口默认为本年（出运日期口径）
 const shipmentDateRange = ref<[Date, Date]>([
   dayjs().startOf('year').toDate(),
-  dayjs().endOf('day').toDate()
+  dayjs().endOf('day').toDate(),
 ])
-
-
 
 // 分页参数
 const pagination = ref<PaginationParams>({
   page: 1,
   pageSize: 10,
-  total: 0
+  total: 0,
 })
 
 // 过滤条件（type 为卡片标题，用于展示）
@@ -54,7 +64,10 @@ const activeFilter = ref<{
 }>({ type: '', days: '' })
 
 // 表格排序（前端排序：当前页/当前数据集）
-const tableSort = ref<{ prop: string; order: 'ascending' | 'descending' | null }>({ prop: '', order: null })
+const tableSort = ref<{ prop: string; order: 'ascending' | 'descending' | null }>({
+  prop: '',
+  order: null,
+})
 
 // 表格密度（存 localStorage）
 const STORAGE_KEY_TABLE_SIZE = 'shipments-table-size'
@@ -63,13 +76,17 @@ try {
   const s = localStorage.getItem(STORAGE_KEY_TABLE_SIZE)
   if (s === 'large' || s === 'small') tableSize.value = s
 } catch (_) {}
-watch(tableSize, (v) => { try { localStorage.setItem(STORAGE_KEY_TABLE_SIZE, v) } catch (_) {} })
+watch(tableSize, v => {
+  try {
+    localStorage.setItem(STORAGE_KEY_TABLE_SIZE, v)
+  } catch (_) {}
+})
 
-// 列显隐（默认全部显示；存 localStorage 仅用于“保存”后下次恢复）
+// 列显隐（默认全部显示；存 localStorage 仅用于"保存"后下次恢复）
 const STORAGE_KEY_COLUMNS = 'shipments-table-column-visible'
+const STORAGE_KEY_COLUMN_ORDER = 'shipments-table-column-order'
 const columnLabels: Record<string, string> = {
   containerNumber: '集装箱号',
-  actualShipDate: '出运日期',
   orderNumber: '备货单号',
   billOfLadingNumber: '提单号',
   mblNumber: 'MBL Number',
@@ -79,6 +96,7 @@ const columnLabels: Record<string, string> = {
   isUnboxing: '开箱',
   destinationPort: '目的港',
   location: '当前位置',
+  actualShipDate: '出运日期',
   etaDestPort: '预计到港',
   etaCorrection: '修正ETA',
   ataDestPort: '实际到港',
@@ -89,42 +107,105 @@ const columnLabels: Record<string, string> = {
   returnTime: '实际还箱日',
   cargoDescription: '货物描述',
   lastUpdated: '最后更新',
-  actions: '操作'
+  actions: '操作',
 }
+
+// 默认列顺序
+const defaultColumnOrder: string[] = Object.keys(columnLabels)
+
 // 默认显示全部列（与 columnLabels 保持一致）
 const defaultColumnVisible: Record<string, boolean> = Object.fromEntries(
-  Object.keys(columnLabels).map((k) => [k, true])
+  Object.keys(columnLabels).map(k => [k, true])
 )
+
+// 列顺序（支持拖动排序）
+const columnOrder = ref<string[]>([...defaultColumnOrder])
+
+// 列设置弹窗
+const columnSettingOpen = ref(false)
+const draggedColumnKey = ref<string | null>(null)
+
 // 默认始终显示全部列，不读取 localStorage，保证每次进入页面都是全部字段
 const columnVisible = ref<Record<string, boolean>>({ ...defaultColumnVisible })
-const columnSettingOpen = ref(false)
+
+// 保存列设置
 const saveColumnVisible = () => {
   try {
     localStorage.setItem(STORAGE_KEY_COLUMNS, JSON.stringify(columnVisible.value))
+    localStorage.setItem(STORAGE_KEY_COLUMN_ORDER, JSON.stringify(columnOrder.value))
     columnSettingOpen.value = false
     ElMessage.success('列设置已保存')
   } catch (_) {
     ElMessage.error('保存失败')
   }
 }
+
+// 重置列设置
 const resetColumnVisible = () => {
   columnVisible.value = { ...defaultColumnVisible }
+  columnOrder.value = [...defaultColumnOrder]
+  try {
+    localStorage.removeItem(STORAGE_KEY_COLUMNS)
+    localStorage.removeItem(STORAGE_KEY_COLUMN_ORDER)
+  } catch (_) {}
 }
 
-// 列显隐与 checkbox-group 双向绑定（勾选 = 显示的列）
-const columnVisibleKeys = computed({
-  get: () => Object.keys(columnLabels).filter(k => columnVisible.value[k] !== false),
-  set: (keys: string[]) => {
-    Object.keys(columnLabels).forEach(k => { columnVisible.value[k] = keys.includes(k) })
+// 拖动相关方法
+const handleDragStart = (e: DragEvent, columnKey: string) => {
+  draggedColumnKey.value = columnKey
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move'
+    // 设置拖动时的透明度
+    setTimeout(() => {
+      ;(e.target as HTMLElement)?.classList.add('dragging')
+    }, 0)
   }
+}
+
+const handleDragOver = (e: DragEvent) => {
+  e.preventDefault()
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'move'
+  }
+}
+
+const handleDragEnd = (e: DragEvent) => {
+  draggedColumnKey.value = null
+  // 移除拖动样式
+  ;(e.target as HTMLElement)?.classList.remove('dragging')
+}
+
+const handleDrop = (e: DragEvent, targetKey: string) => {
+  e.preventDefault()
+  const sourceKey = draggedColumnKey.value
+  if (!sourceKey || sourceKey === targetKey) return
+
+  const sourceIndex = columnOrder.value.indexOf(sourceKey)
+  const targetIndex = columnOrder.value.indexOf(targetKey)
+
+  // 移动数组元素
+  const newOrder = [...columnOrder.value]
+  newOrder.splice(sourceIndex, 1)
+  newOrder.splice(targetIndex, 0, sourceKey)
+  columnOrder.value = newOrder
+
+  draggedColumnKey.value = null
+}
+
+// 根据列顺序过滤并排序
+const sortedVisibleColumnKeys = computed(() => {
+  return columnOrder.value.filter(k => columnVisible.value[k] !== false)
 })
 
 // 清关状态映射
-const customsStatusMap: Record<string, { text: string; type: '' | 'success' | 'warning' | 'danger' | 'info' }> = {
-  'NOT_STARTED': { text: '未开始', type: 'info' },
-  'IN_PROGRESS': { text: '进行中', type: 'warning' },
-  'COMPLETED': { text: '已完成', type: 'success' },
-  'FAILED': { text: '失败', type: 'danger' }
+const customsStatusMap: Record<
+  string,
+  { text: string; type: '' | 'success' | 'warning' | 'danger' | 'info' }
+> = {
+  NOT_STARTED: { text: '未开始', type: 'info' },
+  IN_PROGRESS: { text: '进行中', type: 'warning' },
+  COMPLETED: { text: '已完成', type: 'success' },
+  FAILED: { text: '失败', type: 'danger' },
 }
 
 // 使用倒计时composable（传入统计数据，不再依赖allContainers）
@@ -135,17 +216,19 @@ const {
   countdownByReturn,
   countdownByStatus,
   startTimer,
-  stopTimer
+  stopTimer,
 } = useContainerCountdown(statisticsData)
 
 // 获取集装箱列表
 const loadContainers = async () => {
+  if (isUnmounted.value) return
+
   loading.value = true
   try {
     const params: any = {
       page: pagination.value.page,
       pageSize: pagination.value.pageSize,
-      search: searchKeyword.value
+      search: searchKeyword.value,
     }
 
     // 使用Dashboard风格的日期筛选
@@ -157,21 +240,27 @@ const loadContainers = async () => {
     // 只加载当前页数据（用于表格显示）
     const response = await containerService.getContainers(params)
 
-    containers.value = response.items ?? []
-    pagination.value.total = response.pagination?.total ?? 0
-    if (response.dateFilterFallback) {
-      ElMessage.info('所选日期范围内无出运记录，已显示全部货柜')
+    if (!isUnmounted.value) {
+      containers.value = response.items ?? []
+      pagination.value.total = response.pagination?.total ?? 0
+      if (response.dateFilterFallback) {
+        ElMessage.info('所选日期范围内无出运记录，已显示全部货柜')
+      }
     }
   } catch (error) {
     console.error('Failed to load containers:', error)
     ElMessage.error('获取集装箱列表失败')
   } finally {
-    loading.value = false
+    if (!isUnmounted.value) {
+      loading.value = false
+    }
   }
 }
 
 // 获取统计数据（后端聚合），与顶部日期范围一致
 const loadStatistics = async () => {
+  if (isUnmounted.value) return
+
   try {
     let startDate: string | undefined
     let endDate: string | undefined
@@ -180,7 +269,7 @@ const loadStatistics = async () => {
       endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
     }
     const response = await containerService.getStatisticsDetailed(startDate, endDate)
-    if (response.success && response.data) {
+    if (response.success && response.data && !isUnmounted.value) {
       statisticsData.value = response.data
       if (response.dateFilterFallback) {
         ElMessage.info('所选日期范围内无出运记录，统计已显示全部货柜')
@@ -195,6 +284,8 @@ const loadStatistics = async () => {
 // 根据过滤条件从数据库加载货柜（使用后端过滤）
 // 与顶部日期范围联动：表格同时受「日期范围 + 卡片条件」约束
 const loadContainersByFilter = async () => {
+  if (isUnmounted.value) return
+
   const filterCondition = activeFilter.value.days
   if (!filterCondition || !filterCondition.trim()) {
     loadContainers()
@@ -217,10 +308,10 @@ const loadContainersByFilter = async () => {
       endDate
     )
 
-    if (response.success && response.items) {
+    if (response.success && response.items && !isUnmounted.value) {
       containers.value = response.items
       pagination.value.total = response.count
-    } else {
+    } else if (!isUnmounted.value) {
       containers.value = []
       pagination.value.total = 0
       console.warn('⚠️ [Shipments] 后端返回空数据')
@@ -229,11 +320,11 @@ const loadContainersByFilter = async () => {
     console.error('❌ [Shipments] loadContainersByFilter 失败:', error)
     ElMessage.error('获取集装箱列表失败')
   } finally {
-    loading.value = false
+    if (!isUnmounted.value) {
+      loading.value = false
+    }
   }
 }
-
-
 
 // 搜索处理
 const handleSearch = () => {
@@ -254,10 +345,7 @@ const handleShipmentDateChange = async (value: [Date, Date] | null) => {
   if (value) {
     shipmentDateRange.value = value
     pagination.value.page = 1
-    await Promise.all([
-      loadStatistics(),
-      loadContainers()
-    ])
+    await Promise.all([loadStatistics(), loadContainers()])
   }
 }
 
@@ -325,7 +413,7 @@ const formatDate = (date: string | Date): string => {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   })
 }
 
@@ -335,7 +423,7 @@ const formatShipmentDate = (date: string | Date): string => {
   return d.toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
-    day: '2-digit'
+    day: '2-digit',
   })
 }
 
@@ -356,25 +444,25 @@ const getStatusType = (status: string): string => {
 // 获取过滤条件标签
 const getFilterLabel = (days: string): string => {
   const labels: Record<string, string> = {
-    'all': '全部',
-    'overdue': '已逾期未到港',
-    'transit': '已到中转港',
-    'today': '今日到港',
-    'arrivedBeforeTodayNotPickedUp': '今日之前到港未提柜',
-    'arrivedBeforeTodayPickedUp': '今日之前到港已提柜',
-    'arrivedBeforeTodayNoATA': '今日之前到港，但无ATA',
-    'other': '其他记录',
+    all: '全部',
+    overdue: '已逾期未到港',
+    transit: '已到中转港',
+    today: '今日到港',
+    arrivedBeforeTodayNotPickedUp: '今日之前到港未提柜',
+    arrivedBeforeTodayPickedUp: '今日之前到港已提柜',
+    arrivedBeforeTodayNoATA: '今日之前到港，但无ATA',
+    other: '其他记录',
     '0': '已超时',
     '0-3': '3天内',
     '4-7': '7天内',
     '7+': '7天以上',
     '8+': '还箱日倒计时>7天',
-    'overduePickup': '逾期未提柜',
-    'todayPlanned': '今日计划提柜',
-    'pending': '待安排提柜',
+    overduePickup: '逾期未提柜',
+    todayPlanned: '今日计划提柜',
+    pending: '待安排提柜',
     'no-last-free-date': '最晚提柜日为空',
     'no-last-return-date': '最后还箱日为空',
-    '1-3': '1-3天'
+    '1-3': '1-3天',
   }
   return labels[days] || days
 }
@@ -414,7 +502,7 @@ const isShippedButNotArrived = (status: string) => {
     SimplifiedStatus.AT_PORT,
     SimplifiedStatus.PICKED_UP,
     SimplifiedStatus.UNLOADED,
-    SimplifiedStatus.RETURNED_EMPTY
+    SimplifiedStatus.RETURNED_EMPTY,
   ].indexOf(status as SimplifiedStatus)
 
   // 已出运（SHIPPED、IN_TRANSIT、AT_PORT）
@@ -431,7 +519,7 @@ const isNotPickedUp = (status: string) => {
     SimplifiedStatus.AT_PORT,
     SimplifiedStatus.PICKED_UP,
     SimplifiedStatus.UNLOADED,
-    SimplifiedStatus.RETURNED_EMPTY
+    SimplifiedStatus.RETURNED_EMPTY,
   ].indexOf(status as SimplifiedStatus)
 
   // 未提柜及之后状态（NOT_SHIPPED、SHIPPED、IN_TRANSIT、AT_PORT）
@@ -453,7 +541,7 @@ const paginatedContainers = computed(() => {
 
 // 取可排序列的原始值（日期列用时间戳，便于比较）
 const getSortValue = (row: any, prop: string): number | string => {
-  const val = prop === 'actualShipDate' ? (row.actualShipDate || row.createdAt) : row[prop]
+  const val = prop === 'actualShipDate' ? row.actualShipDate || row.createdAt : row[prop]
   if (val == null || val === '') return ''
   if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val)) return new Date(val).getTime()
   if (val instanceof Date) return val.getTime()
@@ -479,7 +567,10 @@ const filteredContainers = computed(() => {
     if (va === vb) return 0
     if (va === '' || va === null) return asc ? 1 : -1
     if (vb === '' || vb === null) return asc ? -1 : 1
-    const cmp = typeof va === 'number' && typeof vb === 'number' ? va - vb : String(va).localeCompare(String(vb))
+    const cmp =
+      typeof va === 'number' && typeof vb === 'number'
+        ? va - vb
+        : String(va).localeCompare(String(vb))
     return asc ? cmp : -cmp
   })
 })
@@ -490,33 +581,57 @@ const handleSortChange = ({ prop, order }: { prop: string; order: string | null 
 
 // 导出：将当前数据转为 CSV 并下载
 const exportToCsv = (rows: any[], filename: string) => {
-  const headers = ['集装箱号', '出运日期', '备货单号', '提单号', 'MBL Number', '柜型', '物流状态', '查验', '开箱', '目的港', '当前位置', '预计到港', '实际到港', '清关状态', '计划提柜日', '最晚提柜日', '最晚还箱日', '实际还箱日', '货物描述', '最后更新']
+  const headers = [
+    '集装箱号',
+    '出运日期',
+    '备货单号',
+    '提单号',
+    'MBL Number',
+    '柜型',
+    '物流状态',
+    '查验',
+    '开箱',
+    '目的港',
+    '当前位置',
+    '预计到港',
+    '实际到港',
+    '清关状态',
+    '计划提柜日',
+    '最晚提柜日',
+    '最晚还箱日',
+    '实际还箱日',
+    '货物描述',
+    '最后更新',
+  ]
   const escape = (v: any) => {
     const s = v == null ? '' : String(v)
     return /[,"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
   }
-  const line = (row: any) => [
-    row.containerNumber,
-    formatShipmentDate(row.actualShipDate || row.createdAt),
-    row.orderNumber,
-    row.billOfLadingNumber,
-    row.mblNumber,
-    row.containerTypeCode,
-    getLogisticsStatusText(row),
-    row.inspectionRequired ? '是' : '否',
-    row.isUnboxing ? '是' : '否',
-    row.destinationPort,
-    row.location,
-    row.etaDestPort ? formatDate(row.etaDestPort) : '',
-    row.ataDestPort ? formatDate(row.ataDestPort) : '',
-    row.customsStatus ? customsStatusMap[row.customsStatus]?.text ?? row.customsStatus : '',
-    row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '',
-    row.lastFreeDate ? formatDate(row.lastFreeDate) : '',
-    row.lastReturnDate ? formatDate(row.lastReturnDate) : '',
-    row.returnTime ? formatDate(row.returnTime) : '',
-    row.cargoDescription ?? '',
-    row.lastUpdated ? formatDate(row.lastUpdated) : ''
-  ].map(escape).join(',')
+  const line = (row: any) =>
+    [
+      row.containerNumber,
+      formatShipmentDate(row.actualShipDate || row.createdAt),
+      row.orderNumber,
+      row.mblNumber || row.billOfLadingNumber, // 优先取 MBL Number，没有则用提单号
+      row.mblNumber,
+      row.containerTypeCode,
+      getLogisticsStatusText(row),
+      row.inspectionRequired ? '是' : '否',
+      row.isUnboxing ? '是' : '否',
+      row.destinationPort,
+      row.location,
+      row.etaDestPort ? formatDate(row.etaDestPort) : '',
+      row.ataDestPort ? formatDate(row.ataDestPort) : '',
+      row.customsStatus ? (customsStatusMap[row.customsStatus]?.text ?? row.customsStatus) : '',
+      row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '',
+      row.lastFreeDate ? formatDate(row.lastFreeDate) : '',
+      row.lastReturnDate ? formatDate(row.lastReturnDate) : '',
+      row.returnTime ? formatDate(row.returnTime) : '',
+      row.cargoDescription ?? '',
+      row.lastUpdated ? formatDate(row.lastUpdated) : '',
+    ]
+      .map(escape)
+      .join(',')
   const csv = '\uFEFF' + headers.map(escape).join(',') + '\n' + rows.map(line).join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
@@ -555,19 +670,26 @@ const handleExportAll = () => {
 // 多选与批量导出
 const tableRef = ref<InstanceType<typeof import('element-plus').ElTable>>()
 const selectedRows = ref<any[]>([])
-const handleSelectionChange = (rows: any[]) => { selectedRows.value = rows }
+const handleSelectionChange = (rows: any[]) => {
+  selectedRows.value = rows
+}
 const handleBatchExport = () => {
   if (selectedRows.value.length === 0) {
     ElMessage.warning('请先勾选要导出的行')
     return
   }
-  exportToCsv(selectedRows.value, `货柜列表-已选${selectedRows.value.length}条-${dayjs().format('YYYY-MM-DD-HHmm')}.csv`)
+  exportToCsv(
+    selectedRows.value,
+    `货柜列表-已选${selectedRows.value.length}条-${dayjs().format('YYYY-MM-DD-HHmm')}.csv`
+  )
   ElMessage.success(`已导出 ${selectedRows.value.length} 条`)
 }
 
 // 跳转甘特图：与统计卡片一致，带出运日期、卡片筛选条件、选中柜号
 const goGanttChart = () => {
-  const ids = selectedRows.value.length ? selectedRows.value.map((r: any) => r.containerNumber).filter(Boolean) : []
+  const ids = selectedRows.value.length
+    ? selectedRows.value.map((r: any) => r.containerNumber).filter(Boolean)
+    : []
   const query: Record<string, string> = {}
   if (shipmentDateRange.value?.length === 2) {
     query.startDate = dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD')
@@ -581,26 +703,36 @@ const goGanttChart = () => {
 }
 
 onMounted(() => {
+  // 从 localStorage 加载列顺序
+  try {
+    const savedOrder = localStorage.getItem(STORAGE_KEY_COLUMN_ORDER)
+    if (savedOrder) {
+      const parsed = JSON.parse(savedOrder)
+      // 验证保存的顺序是否包含所有列
+      if (Array.isArray(parsed) && parsed.length === defaultColumnOrder.length) {
+        columnOrder.value = parsed
+      }
+    }
+  } catch (_) {}
+
   // 检查是否从Dashboard跳转过来，带有时间参数
   const route = router.currentRoute.value
   if (route.query.startDate && route.query.endDate && route.query.timeDimension) {
     // 从Dashboard传来的时间范围，应用到Dashboard风格的日期选择器
     shipmentDateRange.value = [
       new Date(route.query.startDate as string),
-      new Date(route.query.endDate as string)
+      new Date(route.query.endDate as string),
     ]
   }
 
   // 并行加载统计数据和表格数据
-  Promise.all([
-    loadStatistics(),
-    loadContainers()
-  ]).then(() => {
+  Promise.all([loadStatistics(), loadContainers()]).then(() => {
     startTimer()
   })
 })
 
 onUnmounted(() => {
+  isUnmounted.value = true
   stopTimer()
 })
 </script>
@@ -614,7 +746,7 @@ onUnmounted(() => {
           v-model="searchKeyword"
           placeholder="搜索集装箱号、备货单号、提单号..."
           :prefix-icon="Search"
-          style="width: 300px; margin-right: 15px;"
+          style="width: 300px; margin-right: 15px"
           @keyup.enter="handleSearch"
         />
         <el-button type="primary" @click="handleSearch">
@@ -627,7 +759,10 @@ onUnmounted(() => {
         </el-button>
 
         <!-- 共用的日期范围选择器 -->
-        <DateRangePicker v-model="shipmentDateRange" @update:modelValue="handleShipmentDateChange" />
+        <DateRangePicker
+          v-model="shipmentDateRange"
+          @update:modelValue="handleShipmentDateChange"
+        />
 
         <!-- 甘特图按钮 -->
         <el-button type="success" @click="goGanttChart()">
@@ -641,7 +776,12 @@ onUnmounted(() => {
         </el-tag>
 
         <div class="spacer"></div>
-        <el-dropdown trigger="click" @command="(cmd: string) => cmd === 'page' ? handleExportCurrentPage() : handleExportAll()">
+        <el-dropdown
+          trigger="click"
+          @command="
+            (cmd: string) => (cmd === 'page' ? handleExportCurrentPage() : handleExportAll())
+          "
+        >
           <el-button type="primary" plain>
             <el-icon><Download /></el-icon>
             导出
@@ -727,7 +867,7 @@ onUnmounted(() => {
           placeholder="全部"
           clearable
           size="small"
-          style="width: 220px; margin-right: 12px;"
+          style="width: 220px; margin-right: 12px"
         >
           <el-option label="未出运" :value="SimplifiedStatus.NOT_SHIPPED" />
           <el-option label="已出运" :value="SimplifiedStatus.SHIPPED" />
@@ -741,7 +881,12 @@ onUnmounted(() => {
           <el-icon><Setting /></el-icon>
           列设置
         </el-button>
-        <el-button type="success" plain :disabled="selectedRows.length === 0" @click="handleBatchExport">
+        <el-button
+          type="success"
+          plain
+          :disabled="selectedRows.length === 0"
+          @click="handleBatchExport"
+        >
           <el-icon><Download /></el-icon>
           批量导出
         </el-button>
@@ -762,15 +907,22 @@ onUnmounted(() => {
           <template #default="{ row }">
             <div class="table-expand-detail">
               <div class="expand-row">
-                <span class="expand-label">目的港</span><span>{{ row.destinationPort || '-' }}</span>
-                <span class="expand-label">预计到港</span><span>{{ row.etaDestPort ? formatDate(row.etaDestPort) : '-' }}</span>
-                <span class="expand-label">实际到港</span><span>{{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }}</span>
+                <span class="expand-label">目的港</span
+                ><span>{{ row.destinationPort || '-' }}</span>
+                <span class="expand-label">预计到港</span
+                ><span>{{ row.etaDestPort ? formatDate(row.etaDestPort) : '-' }}</span>
+                <span class="expand-label">实际到港</span
+                ><span>{{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }}</span>
               </div>
               <div class="expand-row">
-                <span class="expand-label">计划提柜日</span><span>{{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }}</span>
-                <span class="expand-label">最晚提柜日</span><span>{{ row.lastFreeDate ? formatDate(row.lastFreeDate) : '-' }}</span>
-                <span class="expand-label">最晚还箱日</span><span>{{ row.lastReturnDate ? formatDate(row.lastReturnDate) : '-' }}</span>
-                <span class="expand-label">实际还箱日</span><span>{{ row.returnTime ? formatDate(row.returnTime) : '-' }}</span>
+                <span class="expand-label">计划提柜日</span
+                ><span>{{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }}</span>
+                <span class="expand-label">最晚提柜日</span
+                ><span>{{ row.lastFreeDate ? formatDate(row.lastFreeDate) : '-' }}</span>
+                <span class="expand-label">最晚还箱日</span
+                ><span>{{ row.lastReturnDate ? formatDate(row.lastReturnDate) : '-' }}</span>
+                <span class="expand-label">实际还箱日</span
+                ><span>{{ row.returnTime ? formatDate(row.returnTime) : '-' }}</span>
               </div>
               <div v-if="row.cargoDescription" class="expand-row">
                 <span class="expand-label">货物描述</span><span>{{ row.cargoDescription }}</span>
@@ -782,7 +934,9 @@ onUnmounted(() => {
           <div class="table-empty">
             <el-empty description="暂无数据">
               <template v-if="activeFilter.type">
-                <span class="empty-hint">当前筛选条件下没有货柜记录，可尝试调整日期范围或清除筛选。</span>
+                <span class="empty-hint"
+                  >当前筛选条件下没有货柜记录，可尝试调整日期范围或清除筛选。</span
+                >
               </template>
               <template v-else>
                 <span class="empty-hint">在所选日期范围内暂无出运记录。</span>
@@ -790,164 +944,180 @@ onUnmounted(() => {
             </el-empty>
           </div>
         </template>
-        <template v-if="columnVisible.containerNumber">
-          <el-table-column prop="containerNumber" label="集装箱号" width="140" fixed />
-        </template>
-        <template v-if="columnVisible.actualShipDate">
-          <el-table-column prop="actualShipDate" label="出运日期" width="120" sortable="custom">
-          <template #default="{ row }">
-            {{ formatShipmentDate(row.actualShipDate || row.createdAt) }}
-          </template>
-        </el-table-column>
-        </template>
-        <template v-if="columnVisible.orderNumber">
-          <el-table-column prop="orderNumber" label="备货单号" width="140" />
-        </template>
-        <template v-if="columnVisible.billOfLadingNumber">
-          <el-table-column prop="billOfLadingNumber" label="提单号" width="140" />
-        </template>
-        <template v-if="columnVisible.mblNumber">
-          <el-table-column prop="mblNumber" label="MBL Number" width="140" />
-        </template>
-        <template v-if="columnVisible.containerTypeCode">
-          <el-table-column prop="containerTypeCode" label="柜型" width="80">
-          <template #default="{ row }">
-            <el-tag size="small">{{ row.containerTypeCode || '-' }}</el-tag>
-          </template>
-        </el-table-column>
-        </template>
-        <template v-if="columnVisible.logisticsStatus">
-          <el-table-column prop="logisticsStatus" label="物流状态" width="120">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.logisticsStatus)" size="small">
-              {{ getLogisticsStatusText(row) || '-' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        </template>
-        <template v-if="columnVisible.inspectionRequired">
-          <el-table-column prop="inspectionRequired" label="查验" width="70" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.inspectionRequired ? 'warning' : 'info'" size="small">
-              {{ row.inspectionRequired ? '是' : '否' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        </template>
-        <template v-if="columnVisible.isUnboxing">
-          <el-table-column prop="isUnboxing" label="开箱" width="70" align="center">
-          <template #default="{ row }">
-            <el-tag :type="row.isUnboxing ? 'warning' : 'info'" size="small">
-              {{ row.isUnboxing ? '是' : '否' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        </template>
-        <template v-if="columnVisible.destinationPort">
-          <el-table-column prop="destinationPort" label="目的港" width="100" />
-        </template>
-        <template v-if="columnVisible.location">
-          <el-table-column prop="location" label="当前位置" width="100" />
-        </template>
-        <template v-if="columnVisible.etaDestPort">
-          <el-table-column prop="etaDestPort" label="预计到港" width="110" sortable="custom">
-          <template #default="{ row }">
-            {{ row.etaDestPort ? formatDate(row.etaDestPort) : '-' }}
-          </template>
-        </el-table-column>
-        </template>
-        <template v-if="columnVisible.etaCorrection">
-          <el-table-column label="修正ETA" width="110">
-          <template #default="{ row }">
-            <template v-if="row.etaCorrection ?? getEtaCorrection(row)">
-              <el-tag type="success" size="small">
-                {{ formatDate((row.etaCorrection ?? getEtaCorrection(row)) as string | Date) }}
+        <template v-for="key in sortedVisibleColumnKeys" :key="key">
+          <!-- 集装箱号 -->
+          <el-table-column v-if="key === 'containerNumber'" prop="containerNumber" label="集装箱号" width="140" fixed />
+
+          <!-- 出运日期 -->
+          <el-table-column v-else-if="key === 'actualShipDate'" prop="actualShipDate" label="出运日期" width="120" sortable="custom">
+            <template #default="{ row }">
+              {{ formatShipmentDate(row.actualShipDate || row.createdAt) }}
+            </template>
+          </el-table-column>
+
+          <!-- 备货单号 -->
+          <el-table-column v-else-if="key === 'orderNumber'" prop="orderNumber" label="备货单号" width="140" />
+
+          <!-- 提单号 -->
+          <el-table-column v-else-if="key === 'billOfLadingNumber'" prop="billOfLadingNumber" label="提单号" width="140" />
+
+          <!-- MBL Number -->
+          <el-table-column v-else-if="key === 'mblNumber'" prop="mblNumber" label="MBL Number" width="140" />
+
+          <!-- 柜型 -->
+          <el-table-column v-else-if="key === 'containerTypeCode'" prop="containerTypeCode" label="柜型" width="80">
+            <template #default="{ row }">
+              <el-tag size="small">{{ row.containerTypeCode || '-' }}</el-tag>
+            </template>
+          </el-table-column>
+
+          <!-- 物流状态 -->
+          <el-table-column v-else-if="key === 'logisticsStatus'" prop="logisticsStatus" label="物流状态" width="120">
+            <template #default="{ row }">
+              <el-tag :type="getStatusType(row.logisticsStatus)" size="small">
+                {{ getLogisticsStatusText(row) || '-' }}
               </el-tag>
             </template>
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-        </template>
-        <template v-if="columnVisible.ataDestPort">
-          <el-table-column prop="ataDestPort" label="实际到港" width="110" sortable="custom">
-          <template #default="{ row }">
-            {{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }}
-          </template>
-        </el-table-column>
-        </template>
-        <template v-if="columnVisible.customsStatus">
-          <el-table-column prop="customsStatus" label="清关状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="customsStatusMap[row.customsStatus]?.type || 'info'" size="small" v-if="row.customsStatus">
-              {{ customsStatusMap[row.customsStatus]?.text || row.customsStatus }}
-            </el-tag>
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-        </template>
-        <template v-if="columnVisible.plannedPickupDate">
-          <el-table-column prop="plannedPickupDate" label="计划提柜日" width="110" sortable="custom">
-          <template #default="{ row }">
-            {{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }}
-          </template>
-        </el-table-column>
-        </template>
-        <template v-if="columnVisible.lastFreeDate">
-          <el-table-column prop="lastFreeDate" label="最晚提柜日" width="110" sortable="custom">
-          <template #default="{ row }">
-            {{ row.lastFreeDate ? formatDate(row.lastFreeDate) : '-' }}
-          </template>
-        </el-table-column>
-        </template>
-        <template v-if="columnVisible.lastReturnDate">
-          <el-table-column prop="lastReturnDate" label="最晚还箱日" width="110" sortable="custom">
-          <template #default="{ row }">
-            {{ row.lastReturnDate ? formatDate(row.lastReturnDate) : '-' }}
-          </template>
-        </el-table-column>
-        </template>
-        <template v-if="columnVisible.returnTime">
-          <el-table-column prop="returnTime" label="实际还箱日" width="110" sortable="custom">
-          <template #default="{ row }">
-            {{ row.returnTime ? formatDate(row.returnTime) : '-' }}
-          </template>
-        </el-table-column>
-        </template>
-        <template v-if="columnVisible.cargoDescription">
-          <el-table-column prop="cargoDescription" label="货物描述" min-width="150" show-overflow-tooltip />
-        </template>
-        <template v-if="columnVisible.lastUpdated">
-          <el-table-column prop="lastUpdated" label="最后更新" width="160" sortable="custom">
-          <template #default="{ row }">
-            {{ row.lastUpdated ? formatDate(row.lastUpdated) : '-' }}
-          </template>
-        </el-table-column>
-        </template>
-        <template v-if="columnVisible.actions">
-          <el-table-column label="操作" width="100" fixed="right" align="center">
-          <template #default="{ row }">
-            <el-button size="small" type="primary" circle @click="viewDetails(row)" title="查看">
-              <el-icon><View /></el-icon>
-            </el-button>
-            <el-button size="small" circle @click="editContainer(row)" title="编辑">
-              <el-icon><Edit /></el-icon>
-            </el-button>
-          </template>
-        </el-table-column>
+          </el-table-column>
+
+          <!-- 查验 -->
+          <el-table-column v-else-if="key === 'inspectionRequired'" prop="inspectionRequired" label="查验" width="70" align="center">
+            <template #default="{ row }">
+              <el-tag :type="row.inspectionRequired ? 'warning' : 'info'" size="small">
+                {{ row.inspectionRequired ? '是' : '否' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+
+          <!-- 开箱 -->
+          <el-table-column v-else-if="key === 'isUnboxing'" prop="isUnboxing" label="开箱" width="70" align="center">
+            <template #default="{ row }">
+              <el-tag :type="row.isUnboxing ? 'warning' : 'info'" size="small">
+                {{ row.isUnboxing ? '是' : '否' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+
+          <!-- 目的港 -->
+          <el-table-column v-else-if="key === 'destinationPort'" prop="destinationPort" label="目的港" width="100" />
+
+          <!-- 当前位置 -->
+          <el-table-column v-else-if="key === 'location'" prop="location" label="当前位置" width="100" />
+
+          <!-- 预计到港 -->
+          <el-table-column v-else-if="key === 'etaDestPort'" prop="etaDestPort" label="预计到港" width="110" sortable="custom">
+            <template #default="{ row }">
+              {{ row.etaDestPort ? formatDate(row.etaDestPort) : '-' }}
+            </template>
+          </el-table-column>
+
+          <!-- 修正ETA -->
+          <el-table-column v-else-if="key === 'etaCorrection'" label="修正ETA" width="110">
+            <template #default="{ row }">
+              <template v-if="row.etaCorrection ?? getEtaCorrection(row)">
+                <el-tag type="success" size="small">
+                  {{ formatDate((row.etaCorrection ?? getEtaCorrection(row)) as string | Date) }}
+                </el-tag>
+              </template>
+              <span v-else>-</span>
+            </template>
+          </el-table-column>
+
+          <!-- 实际到港 -->
+          <el-table-column v-else-if="key === 'ataDestPort'" prop="ataDestPort" label="实际到港" width="110" sortable="custom">
+            <template #default="{ row }">
+              {{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }}
+            </template>
+          </el-table-column>
+
+          <!-- 清关状态 -->
+          <el-table-column v-else-if="key === 'customsStatus'" prop="customsStatus" label="清关状态" width="100">
+            <template #default="{ row }">
+              <el-tag
+                :type="customsStatusMap[row.customsStatus]?.type || 'info'"
+                size="small"
+                v-if="row.customsStatus"
+              >
+                {{ customsStatusMap[row.customsStatus]?.text || row.customsStatus }}
+              </el-tag>
+              <span v-else>-</span>
+            </template>
+          </el-table-column>
+
+          <!-- 计划提柜日 -->
+          <el-table-column v-else-if="key === 'plannedPickupDate'" prop="plannedPickupDate" label="计划提柜日" width="110" sortable="custom">
+            <template #default="{ row }">
+              {{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }}
+            </template>
+          </el-table-column>
+
+          <!-- 最晚提柜日 -->
+          <el-table-column v-else-if="key === 'lastFreeDate'" prop="lastFreeDate" label="最晚提柜日" width="110" sortable="custom">
+            <template #default="{ row }">
+              {{ row.lastFreeDate ? formatDate(row.lastFreeDate) : '-' }}
+            </template>
+          </el-table-column>
+
+          <!-- 最晚还箱日 -->
+          <el-table-column v-else-if="key === 'lastReturnDate'" prop="lastReturnDate" label="最晚还箱日" width="110" sortable="custom">
+            <template #default="{ row }">
+              {{ row.lastReturnDate ? formatDate(row.lastReturnDate) : '-' }}
+            </template>
+          </el-table-column>
+
+          <!-- 实际还箱日 -->
+          <el-table-column v-else-if="key === 'returnTime'" prop="returnTime" label="实际还箱日" width="110" sortable="custom">
+            <template #default="{ row }">
+              {{ row.returnTime ? formatDate(row.returnTime) : '-' }}
+            </template>
+          </el-table-column>
+
+          <!-- 货物描述 -->
+          <el-table-column v-else-if="key === 'cargoDescription'" prop="cargoDescription" label="货物描述" min-width="150" show-overflow-tooltip />
+
+          <!-- 最后更新 -->
+          <el-table-column v-else-if="key === 'lastUpdated'" prop="lastUpdated" label="最后更新" width="160" sortable="custom">
+            <template #default="{ row }">
+              {{ row.lastUpdated ? formatDate(row.lastUpdated) : '-' }}
+            </template>
+          </el-table-column>
+
+          <!-- 操作 -->
+          <el-table-column v-else-if="key === 'actions'" label="操作" width="100" fixed="right" align="center">
+            <template #default="{ row }">
+              <el-button size="small" type="primary" circle @click="viewDetails(row)" title="查看">
+                <el-icon><View /></el-icon>
+              </el-button>
+              <el-button size="small" circle @click="editContainer(row)" title="编辑">
+                <el-icon><Edit /></el-icon>
+              </el-button>
+            </template>
+          </el-table-column>
         </template>
       </el-table>
 
       <!-- 列设置抽屉 -->
-      <el-drawer v-model="columnSettingOpen" title="列显示设置" size="320px">
+      <el-drawer v-model="columnSettingOpen" title="列显示设置" size="400px">
         <div class="column-setting-body">
-          <p class="column-setting-hint">勾选需要在表格中显示的列</p>
-          <el-checkbox-group v-model="columnVisibleKeys">
-            <div v-for="key in Object.keys(columnLabels)" :key="key" class="column-setting-item">
-              <el-checkbox :value="key" :label="key">
+          <p class="column-setting-hint">拖动列项调整顺序，勾选显示/隐藏列</p>
+          <div class="column-setting-list">
+            <div
+              v-for="key in columnOrder"
+              :key="key"
+              class="column-setting-item"
+              :class="{ 'is-dragging': draggedColumnKey === key }"
+              draggable="true"
+              @dragstart="e => handleDragStart(e, key)"
+              @dragover="handleDragOver"
+              @drop="e => handleDrop(e, key)"
+              @dragend="handleDragEnd"
+            >
+              <el-icon class="drag-handle"><ArrowDown /></el-icon>
+              <el-checkbox v-model="columnVisible[key]" @mousedown.stop :label="key">
                 {{ columnLabels[key] }}
               </el-checkbox>
             </div>
-          </el-checkbox-group>
+          </div>
         </div>
         <template #footer>
           <el-button @click="resetColumnVisible">恢复默认</el-button>
@@ -1035,8 +1205,44 @@ onUnmounted(() => {
     margin-bottom: 16px;
   }
 
+  .column-setting-list {
+    max-height: 600px;
+    overflow-y: auto;
+  }
+
   .column-setting-item {
-    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: var(--el-fill-color-light);
+    border-radius: 4px;
+    cursor: move;
+    transition: all 0.2s;
+    user-select: none;
+
+    &:hover {
+      background: var(--el-fill-color-lighter);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    &.is-dragging {
+      opacity: 0.4;
+      background: var(--el-color-primary-light-9);
+      transform: scale(0.98);
+    }
+
+    .drag-handle {
+      color: var(--el-text-color-secondary);
+      cursor: move;
+      flex-shrink: 0;
+    }
+
+    .el-checkbox {
+      flex: 1;
+    }
   }
 }
 
@@ -1082,7 +1288,6 @@ onUnmounted(() => {
     gap: 8px !important;
   }
 }
-
 
 /* 最小标签布局：卡片网格 */
 .countdown-cards {

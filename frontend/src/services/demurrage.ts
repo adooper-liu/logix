@@ -59,6 +59,10 @@ export interface DemurrageItemResult {
   chargeDays: number
   amount: number
   currency: string
+  calculationMode?: 'actual' | 'forecast'
+  startDateMode?: 'actual' | 'forecast'
+  endDateMode?: 'actual' | 'forecast'
+  lastFreeDateMode?: 'actual' | 'forecast'
   tierBreakdown: Array<{
     fromDay: number
     toDay: number
@@ -72,11 +76,19 @@ export interface DemurrageItemResult {
 export interface CalculationDates {
   ataDestPort?: string | null
   etaDestPort?: string | null
+  revisedEtaDestPort?: string | null
   dischargeDate?: string | null
+  /** 最晚提柜日（从 process_port_operations.last_free_date 读取） */
   lastPickupDate?: string | null
+  /** 计划提柜日（从 process_trucking_transport.last_pickup_date 读取，用于预测模式前置条件） */
+  plannedPickupDate?: string | null
+  /** 最晚提柜日（计算出的） */
   lastPickupDateComputed?: string | null
+  /** 最晚提柜日计算模式 */
+  lastPickupDateMode?: 'actual' | 'forecast' | null
   lastReturnDate?: string | null
   lastReturnDateComputed?: string | null
+  lastReturnDateMode?: 'actual' | 'forecast' | null
   pickupDateActual?: string | null
   returnTime?: string | null
   today: string
@@ -91,13 +103,19 @@ export interface DemurrageCalculationResponse {
     startDateSource?: string | null
     endDateSource?: string | null
     calculationDates?: CalculationDates
+    calculationMode?: 'actual' | 'forecast'
     matchedStandards: MatchedDemurrageStandard[]
     items: DemurrageItemResult[]
     totalAmount: number
     currency: string
   }
   message?: string
-  /** 无法计算时的原因，用于前端区分展示样式：no_arrival_at_dest=未到港（友好提示），其他=报错 */
+  /** 无法计算时的原因，用于前端区分展示样式：
+   *   - no_arrival_at_dest: 未到港友好提示（预测模式下无计划提柜日）
+   *   - missing_dates: 缺少必要日期（包括预测模式下未实际到港且无计划提柜日）
+   *   - no_matching_standards: 未匹配到滞港费标准
+   *   - missing_arrival_dates: 已有实际提柜但缺少到港/ETA/卸船日
+   */
   reason?: 'no_arrival_at_dest' | 'missing_arrival_dates' | 'no_matching_standards' | 'missing_dates'
 }
 

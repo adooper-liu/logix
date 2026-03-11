@@ -152,7 +152,10 @@ const logisticsStatusDisplay = computed(() => {
               <div class="tab-content">
                 <LogisticsPathTab
                   :container-number="containerNumber"
-                  :bill-of-lading-number="(Array.isArray(containerData?.seaFreight) ? containerData?.seaFreight?.[0] : containerData?.seaFreight)?.billOfLadingNumber"
+                  :bill-of-lading-number="(() => {
+                    const sf = Array.isArray(containerData?.seaFreight) ? containerData?.seaFreight?.[0] : containerData?.seaFreight
+                    return sf?.mblNumber || sf?.billOfLadingNumber || ''
+                  })()"
                 />
               </div>
             </el-tab-pane>

@@ -839,6 +839,7 @@ export class ImportController {
           // 1. 先创建海运（biz_containers.bill_of_lading_number 外键依赖 process_sea_freight）
           // 2. 再创建货柜（biz_replenishment_orders.container_number 外键依赖 biz_containers）
           // 3. 最后创建备货单
+          logger.info(`[Import] 第${i + 1}行: 海运数据 - ${JSON.stringify(seaFreightData)}`);
           if (seaFreightData?.containerNumber || getBlNumber(seaFreightData)) {
             if (seaFreightData && !seaFreightData.billOfLadingNumber && seaFreightData['提单号']) {
               seaFreightData.billOfLadingNumber = seaFreightData['提单号'];

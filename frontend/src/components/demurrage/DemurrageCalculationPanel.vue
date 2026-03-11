@@ -31,6 +31,7 @@ function formatDate(d: string | Date | null): string {
 const SOURCE_LABELS_SHORT: Record<string, string> = {
   ata_dest_port: '目的港ATA',
   eta_dest_port: '目的港ETA',
+  revised_eta_dest_port: '修正ETA',
   dest_port_unload_date: '卸船日',
   discharged_time: '卸船时间',
   'process_port_operations.last_free_date': '最晚提柜日',
@@ -47,6 +48,17 @@ function sourceLabelShort(source: string | null | undefined): string {
   return SOURCE_LABELS_SHORT[source] ?? source
 }
 
+/** 计算模式标签配置 */
+const MODE_LABELS = {
+  actual: { text: '实际模式', type: 'success' as const, desc: '基于实际到港数据计算' },
+  forecast: { text: '预测模式', type: 'info' as const, desc: '基于ETA预测费用' }
+}
+
+/** 获取计算模式标签配置 */
+function getModeLabel(mode: string | undefined) {
+  return MODE_LABELS[mode as keyof typeof MODE_LABELS] || { text: '未知模式', type: 'info' as const, desc: '' }
+}
+
 /** 获取单项费用的计算逻辑说明（用于展开内容，表达精简） */
 function getLogicNoteForItem(idx: number): string[] {
   const item = props.data?.items?.[idx]
@@ -60,8 +72,13 @@ function getLogicNoteForItem(idx: number): string[] {
   const freeBasis = std?.freeDaysBasis || '自然日'
 
   if (isDetention && !name.includes('demurrage')) {
+    // 根据计算模式显示不同的起算日描述
+    const mode = props.data?.lastReturnDateMode || 'actual'
+    const startDesc = mode === 'actual'
+      ? '起算：实际提柜日'
+      : '起算：计划提柜日（预测）'
     return [
-      '起算：实际提柜日 → 无则最晚提柜日',
+      startDesc,
       '截止：实际还箱日 → 无则当天',
       `最晚还箱日 = 起算日 + 免费天数（${freeBasis}）`,
     ]
@@ -86,6 +103,9 @@ const firstStd = computed(() => props.data?.matchedStandards?.[0] ?? null)
         <div class="card-header">
           <span class="card-icon">📊</span>
           <span class="card-title">滞港费合计</span>
+          <el-tag v-if="data.calculationMode" :type="getModeLabel(data.calculationMode).type" size="small" effect="plain">
+            {{ getModeLabel(data.calculationMode).text }}
+          </el-tag>
           <div v-if="firstStd" class="match-dims">
             <el-tag v-if="firstStd.destinationPortCode" size="small" type="info" effect="plain">
               目的港 {{ firstStd.destinationPortName || firstStd.destinationPortCode }}
@@ -98,6 +118,10 @@ const firstStd = computed(() => props.data?.matchedStandards?.[0] ?? null)
             </el-tag>
           </div>
           <span class="total-amount">{{ data.totalAmount.toFixed(2) }} {{ data.currency }}</span>
+        </div>
+        <div v-if="data.calculationMode === 'forecast'" class="mode-hint">
+          <span class="hint-icon">ℹ️</span>
+          <span class="hint-text">预测模式基于ETA计算，仅供参考。实际费用以实际到港后的计算为准。</span>
         </div>
       </div>
 
@@ -119,6 +143,19 @@ const firstStd = computed(() => props.data?.matchedStandards?.[0] ?? null)
                   <li v-for="(line, i) in getLogicNoteForItem($index)" :key="i">{{ line }}</li>
                 </ul>
               </div>
+              <div v-if="row.calculationMode" class="expand-block">
+                <span class="expand-label">计算模式</span>
+                <el-tag :type="getModeLabel(row.calculationMode).type" size="small" effect="plain">
+                  {{ getModeLabel(row.calculationMode).text }}
+                </el-tag>
+                <span class="mode-detail">({{
+                  row.startDateMode === 'actual' ? '起算日:实际' : '起算日:预测'
+                }} {{
+                  row.endDateMode === 'actual' ? '截止日:实际' : '截止日:预测'
+                }} {{
+                  row.lastFreeDateMode === 'actual' ? '最晚免费日:实际' : '最晚免费日:预测'
+                }})</span>
+              </div>
               <div v-if="getStd($index)?.tiers?.length" class="expand-block">
                 <span class="expand-label">阶梯费率</span>
                 <span v-for="(t, i) in getStd($index)?.tiers" :key="i" class="tier-chip">
@@ -139,6 +176,14 @@ const firstStd = computed(() => props.data?.matchedStandards?.[0] ?? null)
           </template>
         </el-table-column>
         <el-table-column prop="chargeName" label="费用名称" min-width="120" />
+        <el-table-column label="计算模式" width="90" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.calculationMode" :type="getModeLabel(row.calculationMode).type" size="small" effect="plain">
+              {{ getModeLabel(row.calculationMode).text }}
+            </el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column label="标记" width="70" align="center">
           <template #default="{ $index }">
             {{ chargeableLabel(getStd($index)?.isChargeable) }}
@@ -352,6 +397,34 @@ const firstStd = computed(() => props.data?.matchedStandards?.[0] ?? null)
     color: $text-secondary;
     line-height: 1.6;
   }
+}
+
+.mode-hint {
+  margin-top: $spacing-sm;
+  padding: $spacing-sm $spacing-md;
+  background: rgba($info-color, 0.05);
+  border-left: 3px solid $info-color;
+  border-radius: $radius-base;
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+
+  .hint-icon {
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .hint-text {
+    font-size: $font-size-sm;
+    color: $text-secondary;
+    line-height: 1.5;
+  }
+}
+
+.mode-detail {
+  margin-left: $spacing-sm;
+  font-size: $font-size-xs;
+  color: $text-secondary;
 }
 
 @media (max-width: 768px) {

@@ -314,6 +314,7 @@ export class FeituoImportService {
     if (!sf) {
       sf = seaFreightRepo.create({
         billOfLadingNumber: bl,
+        mblNumber: mbl,  // 飞驼的 MBL Number 写入 mbl_number 字段
         mblScac: getVal(row, '船公司SCAC'),
         shippingCompanyId: getVal(row, '船公司代码'),
         portOfLoading: getVal(row, '接货地名称（标准）', '接货地名称(标准)'),
@@ -333,6 +334,7 @@ export class FeituoImportService {
       await seaFreightRepo.save(sf);
     } else {
       if (!sf.shipmentDate) sf.shipmentDate = parseDate(getVal(row, '实际装船时间', '装船日期'));
+      if (!sf.mblNumber && mbl) sf.mblNumber = mbl;  // 更新 mbl_number
       if (!sf.eta) sf.eta = parseDate(getVal(row, '交货地预计到达时间') || getVal(row, 5, '预计到达时间'));
       if (!sf.ata) sf.ata = parseDate(getVal(row, '交货地实际到达时间') || getVal(row, 5, '实际到达时间'));
       await seaFreightRepo.save(sf);
@@ -397,6 +399,8 @@ export class FeituoImportService {
   /** 表二合并到核心表 */
   private async mergeTable2ToCore(row: FeituoRowData): Promise<void> {
     const billNumber = getVal(row, '提单号', '提单号（一）') || `FEITUO_${getVal(row, '集装箱号', '集装箱号（一）')}`;
+    const mblNumber = getVal(row, 'MBL Number', 'MBL Number（一）', 'MBLNumber');  // 获取 MBL
+    const hblNumber = getVal(row, 'HBL Number', 'HBL Number（一）', 'HBLNumber');  // 获取 HBL
     const containerNumber = getVal(row, '集装箱号', '集装箱号（一）', 'container_number');
     if (!containerNumber) return;
 
@@ -426,9 +430,16 @@ export class FeituoImportService {
     if (!sf) {
       sf = seaFreightRepo.create({
         billOfLadingNumber: billNumber,
+        mblNumber: mblNumber,  // 写入 MBL Number
+        hblNumber: hblNumber,  // 写入 HBL Number
         mblScac: getVal(row, '船公司SCAC'),
         shippingCompanyId: getVal(row, '船公司代码')
       });
+      await seaFreightRepo.save(sf);
+    } else {
+      // 更新已存在的记录
+      if (!sf.mblNumber && mblNumber) sf.mblNumber = mblNumber;
+      if (!sf.hblNumber && hblNumber) sf.hblNumber = hblNumber;
       await seaFreightRepo.save(sf);
     }
 

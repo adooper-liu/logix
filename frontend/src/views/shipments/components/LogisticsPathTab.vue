@@ -16,9 +16,21 @@
             <el-radio-button value="map">地图</el-radio-button>
           </el-radio-group>
         </div>
-        <el-button type="primary" link size="small" class="refresh-btn" @click="loadPath">
-          刷新
-        </el-button>
+        <div class="view-mode-actions">
+          <router-link
+            :to="{
+              path: '/docs/help/时间概念说明-历时倒计时超期.md',
+              query: { from: router.currentRoute.value.fullPath }
+            }"
+            class="help-link"
+          >
+            <el-icon><QuestionFilled /></el-icon>
+            <span>历时/超期说明</span>
+          </router-link>
+          <el-button type="primary" link size="small" class="refresh-btn" @click="loadPath">
+            刷新
+          </el-button>
+        </div>
       </div>
 
       <!-- 超期预警 -->
@@ -95,7 +107,14 @@
                   <div class="stage-node-meta">
                     <span class="stage-node-time">{{ isNoDataNode(item.node) ? '—' : formatDateTime(item.node.timestamp) }}</span>
                     <span v-if="item.node.location" class="stage-node-loc">{{ item.node.location.name }} ({{ item.node.location.code }})</span>
-                    <span v-if="getDelayDuration(item.globalIndex)" class="stage-node-delay-tag">滞留 {{ getDelayDuration(item.globalIndex) }}</span>
+                    <!-- 历时：所有节点都显示（衡量历史衔接效率） -->
+                    <span v-if="getNodeDurationInfo(item.node, item.globalIndex).elapsed" class="stage-node-elapsed-tag">
+                      历时 {{ getNodeDurationInfo(item.node, item.globalIndex).elapsed }}
+                    </span>
+                    <!-- 超期：仅当前节点显示（风险预警） -->
+                    <span v-if="getNodeDurationInfo(item.node, item.globalIndex).overdue" class="stage-node-overdue-tag">
+                      超期 {{ getNodeDurationInfo(item.node, item.globalIndex).overdue }}
+                    </span>
                   </div>
                   <el-tag v-if="getNodeDataSource(item.node)" :type="getNodeDataSourceTagType(getNodeDataSource(item.node))" size="small" class="stage-ds-tag">
                     {{ getNodeDataSourceLabel(getNodeDataSource(item.node)) }}
@@ -179,10 +198,13 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
+import { useRouter } from 'vue-router'
 import { Loading, QuestionFilled } from '@element-plus/icons-vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { logisticsPathService, type StatusPath, type StatusNode } from '@/services/logisticsPath'
+
+const router = useRouter()
 
 const props = defineProps<{
   containerNumber: string
@@ -253,8 +275,30 @@ defineExpose({ load: loadPath })
 /** 超期预警文案 */
 const overdueAlertText = computed(() => {
   if (!path.value?.isOverdue) return ''
+
+  // 判断货柜是否实际到港
+  // 有数据来源（FeituoAPI/Feituo/ProcessTable）= 真正到港
+  // dataSource=null = 占位节点（未真正到港）
+  const hasActualArrivalEvent = path.value.nodes?.some(
+    (n) =>
+      (n.status === 'ARRIVED' ||
+        n.status === 'BERTHED' ||
+        n.status === 'DISCHARGED' ||
+        n.status === 'AVAILABLE') &&
+      getNodeDataSource(n) !== null
+  )
+
   const lfd = path.value.lastFreeDate
   const d = lfd ? new Date(lfd).toLocaleDateString('zh-CN') : ''
+
+  // 如果未实际到港（只有占位节点），提示ETA超期
+  if (!hasActualArrivalEvent) {
+    const eta = path.value.eta
+    const etaStr = eta ? new Date(eta).toLocaleDateString('zh-CN') : ''
+    return `ETA已超期未到港${etaStr ? `（${etaStr}）` : ''}，请关注货柜状态。`
+  }
+
+  // 如果已实际到港，提示最晚提柜日已过
   return `最晚提柜日${d ? `（${d}）` : ''}已过，货柜尚未还箱，请尽快安排提柜与还箱。`
 })
 
@@ -455,8 +499,66 @@ watch([() => path.value, viewMode], () => {
 
 onBeforeUnmount(destroyLeafletMap)
 
-/** 4. 滞留时长：节点间实际时长，按 X天Y小时 显示，不扣 24 小时基准 */
-const getDelayDuration = (index: number): string => {
+/** 节点标准耗时配置（小时）- 用于计算超期时间
+ * TODO: 后续可从后端配置或字典表读取
+ */
+const STANDARD_DURATIONS: Record<string, number> = {
+  // 起运阶段（标准：24小时内完成）
+  EMPTY_PICKED_UP: 24,
+  CONTAINER_STUFFED: 24,
+  GATE_IN: 24,
+  LOADED: 24,
+  DEPARTED: 12,
+
+  // 铁路运输（标准：6-12小时）
+  RAIL_LOADED: 6,
+  RAIL_DEPARTED: 12,
+  RAIL_ARRIVED: 6,
+  RAIL_DISCHARGED: 6,
+
+  // 驳船运输（标准：6-12小时）
+  FEEDER_LOADED: 6,
+  FEEDER_DEPARTED: 12,
+  FEEDER_ARRIVED: 6,
+  FEEDER_DISCHARGED: 6,
+
+  // 海运（标准：2小时内完成操作）
+  SAILING: 0, // 航行不计超期
+  TRANSIT_ARRIVED: 4,
+  TRANSIT_BERTHED: 6,
+  TRANSIT_DISCHARGED: 6,
+  TRANSIT_LOADED: 6,
+  TRANSIT_DEPARTED: 12,
+
+  // 到港阶段（标准：24小时内完成卸船）
+  ARRIVED: 4,
+  BERTHED: 6,
+  DISCHARGED: 12,
+  AVAILABLE: 24,
+
+  // 提柜阶段（标准：48小时内完成）
+  GATE_OUT: 12,
+  IN_TRANSIT_TO_DEST: 24,
+  DELIVERY_ARRIVED: 12,
+  STRIPPED: 24,
+
+  // 还箱阶段（标准：24小时内完成）
+  RETURNED_EMPTY: 24,
+  COMPLETED: 0
+}
+
+/** 判断是否为当前正在进行的节点 */
+const isCurrentNode = (node: StatusNode, index: number): boolean => {
+  // 节点状态为进行中 或 是最后一个节点
+  return node.nodeStatus === 'IN_PROGRESS' || index === path.value.nodes.length - 1
+}
+
+/** 4. 历时：节点间实际衔接时长
+ * 定义：从上一节点结束到当前节点开始的时间差
+ * 用途：衡量流程衔接效率（向后看历史）
+ * 标记：历时 2天 3小时
+ */
+const getElapsedDuration = (index: number): string => {
   if (!path.value?.nodes?.length || index === 0) return ''
   const prev = path.value.nodes[index - 1]
   const curr = path.value.nodes[index]
@@ -468,6 +570,53 @@ const getDelayDuration = (index: number): string => {
   let hours = Math.round(diffHours % 24)
   if (hours === 24) { hours = 0 } // 24 整时归入天数
   return `${days}天${hours}小时`
+}
+
+/** 5. 超期：当前节点已停留时间与标准耗时的差值
+ * 定义：当前时间 - 当前节点开始时间 - 标准耗时
+ * 用途：风险预警（向前看风险）
+ * 标记：超期 1天 5小时
+ * 说明：仅适用于当前正在进行的节点
+ */
+const getOverdueDuration = (node: StatusNode, index: number): string | null => {
+  // 仅计算当前正在进行的节点
+  if (!isCurrentNode(node, index)) return null
+
+  const standardHours = STANDARD_DURATIONS[node.status] ?? 0
+  if (standardHours === 0) return null // 无标准耗时不计算超期
+
+  const nodeStartTime = new Date(node.timestamp).getTime()
+  const now = Date.now()
+  const elapsedHours = (now - nodeStartTime) / (1000 * 60 * 60)
+
+  // 计算超期时长
+  const overdueHours = elapsedHours - standardHours
+  if (overdueHours <= 0) return null // 未超期
+
+  const days = Math.floor(overdueHours / 24)
+  let hours = Math.round(overdueHours % 24)
+  if (hours === 24) { hours = 0 }
+  return `${days}天${hours}小时`
+}
+
+/** 获取节点的时长信息（包含历时和超期） */
+const getNodeDurationInfo = (node: StatusNode, index: number): {
+  elapsed?: string
+  overdue?: string
+  isOverdue: boolean
+} => {
+  const elapsed = getElapsedDuration(index)
+  const overdue = getOverdueDuration(node, index)
+  return {
+    elapsed,
+    overdue,
+    isOverdue: !!overdue
+  }
+}
+
+/** 保留旧方法名用于兼容（内部调用 getElapsedDuration） */
+const getDelayDuration = (index: number): string => {
+  return getElapsedDuration(index)
 }
 
 const getPathStatusLabel = (status?: string): string => {
@@ -629,6 +778,36 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
   }
 }
 
+.view-mode-actions {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+}
+
+.help-link {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--el-color-primary);
+  text-decoration: none;
+  font-size: $font-size-sm;
+  transition: all $transition-base;
+  padding: 6px 12px;
+  border-radius: $radius-base;
+  background: rgba(var(--el-color-primary-rgb), 0.04);
+
+  &:hover {
+    color: lighten($primary-color, 10%);
+    text-decoration: none;
+    background: rgba(var(--el-color-primary-rgb), 0.08);
+  }
+
+  span {
+    font-size: 12px;
+    font-weight: 500;
+  }
+}
+
 .refresh-btn {
   flex-shrink: 0;
 }
@@ -772,13 +951,39 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
   color: var(--el-text-color-secondary);
 }
 
-.stage-node-delay-tag {
-  color: var(--el-color-warning-dark-2);
-  background: rgba($warning-color, 0.15);
+/* 历时标签 - 中性指标（用于分析） */
+.stage-node-elapsed-tag {
+  color: var(--el-color-info-dark-2);
+  background: rgba($info-color, 0.12);
+  padding: 2px 8px;
+  border-radius: $radius-base;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+/* 超期标签 - 负面指标（用于干预） */
+.stage-node-overdue-tag {
+  color: var(--el-color-danger-dark-2);
+  background: rgba($danger-color, 0.12);
   padding: 2px 8px;
   border-radius: $radius-base;
   font-size: 11px;
   font-weight: 600;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+/* 保留旧样式名用于兼容 */
+.stage-node-delay-tag {
+  @extend .stage-node-elapsed-tag;
 }
 
 .stage-node-no-data .stage-node-desc {

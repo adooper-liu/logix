@@ -173,6 +173,15 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
+        path: 'docs/:pathMatch(.*)*',
+        name: 'DocViewer',
+        component: () => import('@/views/docs/DocViewer.vue'),
+        meta: {
+          title: '文档查看器',
+          requiresAuth: true
+        }
+      },
+      {
         path: 'about',
         name: 'About',
         component: About,

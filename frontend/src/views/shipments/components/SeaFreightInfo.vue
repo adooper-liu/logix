@@ -47,8 +47,16 @@ const formatDateOnly = (date: Date | string | undefined): string => {
         </div>
         <div class="info-card-fields">
           <div class="field-item">
+            <span class="field-label">MBL号</span>
+            <span class="field-value">{{ sf.mblNumber || '-' }}</span>
+          </div>
+          <div class="field-item">
+            <span class="field-label">HBL号</span>
+            <span class="field-value">{{ sf.hblNumber || '-' }}</span>
+          </div>
+          <div class="field-item">
             <span class="field-label">提单号</span>
-            <span class="field-value">{{ sf.billOfLadingNumber || '-' }}</span>
+            <span class="field-value">{{ sf.mblNumber || sf.billOfLadingNumber || '-' }}</span>
           </div>
           <div class="field-item">
             <span class="field-label">航次号</span>

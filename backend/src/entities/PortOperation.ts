@@ -37,6 +37,9 @@ export class PortOperation {
   @Column({ type: 'timestamp', nullable: true, name: 'eta_dest_port' })
   etaDestPort: Date;
 
+  @Column({ type: 'timestamp', nullable: true, name: 'revised_eta_dest_port' })
+  revisedEtaDestPort: Date; // 修正ETA（船公司更新的预计到港日）
+
   @Column({ type: 'timestamp', nullable: true, name: 'ata_dest_port' })
   ataDestPort: Date;
 

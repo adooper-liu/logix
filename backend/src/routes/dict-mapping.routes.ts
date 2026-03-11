@@ -18,10 +18,10 @@ router.get('/port/:portName', controller.getPortCodeByChineseName);
 
 /**
  * @route   POST /api/dict-mapping/port/batch
- * @desc    批量获取港口代码映射
+ * @desc    批量获取港口代码映射(优化版)
  * @access  Public
  */
-router.post('/port/batch', controller.getPortCodeMappings);
+router.post('/port/batch', controller.getPortCodeMappingsBatch);
 
 /**
  * @route   GET /api/dict-mapping/port/all

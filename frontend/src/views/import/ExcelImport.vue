@@ -4,7 +4,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Document, Download, Loading } from '@element-plus/icons-vue'
 import * as XLSX from 'xlsx'
 import axios from 'axios'
-import { getPortCodeCached, preloadPortMappings } from '../../services/dictMapping'
+import { getStandardCodesBatch, DictType } from '../../services/universalDictMapping'
 
 // ==================== 类型定义 ====================
 
@@ -107,12 +107,12 @@ const FIELD_MAPPINGS: FieldMapping[] = [
   { excelField: '母船船名', table: 'process_sea_freight', field: 'mother_vessel_name', required: false },
   { excelField: '母船船次', table: 'process_sea_freight', field: 'mother_voyage_number', required: false },
   { excelField: '母船出运日期', table: 'process_sea_freight', field: 'mother_shipment_date', required: false, transform: parseDate },
-  { excelField: 'MBL Number', table: 'process_sea_freight', field: 'mbl_number', required: false },
-  { excelField: 'HBL Number', table: 'process_sea_freight', field: 'hbl_number', required: false },
-  { excelField: 'AMS Number', table: 'process_sea_freight', field: 'ams_number', required: false },
+  { excelField: 'MBL Number', table: 'process_sea_freight', field: 'mbl_number', required: false, aliases: ['MBL NO.', 'MBL NO', 'MBL', '主提单号'] },
+  { excelField: 'HBL Number', table: 'process_sea_freight', field: 'hbl_number', required: false, aliases: ['HBL NO.', 'HBL NO', 'HBL', '分提单号'] },
+  { excelField: 'AMS Number', table: 'process_sea_freight', field: 'ams_number', required: false, aliases: ['AMS NO.', 'AMS NO', 'AMS', 'AMS申报号'] },
   { excelField: '放单日期', table: 'process_sea_freight', field: 'document_release_date', required: false, transform: parseDate },
-  { excelField: 'MBL SCAC', table: 'process_sea_freight', field: 'mbl_scac', required: false },
-  { excelField: 'HBL SCAC', table: 'process_sea_freight', field: 'hbl_scac', required: false },
+  { excelField: 'MBL SCAC', table: 'process_sea_freight', field: 'mbl_scac', required: false, aliases: ['船公司代码', '主提单船公司代码'] },
+  { excelField: 'HBL SCAC', table: 'process_sea_freight', field: 'hbl_scac', required: false, aliases: ['货代船公司代码', '分提单船公司代码'] },
   { excelField: '进火车堆场日期', table: 'process_sea_freight', field: 'rail_yard_entry_date', required: false, transform: parseDate },
   { excelField: '进卡车堆场日期', table: 'process_sea_freight', field: 'truck_yard_entry_date', required: false, transform: parseDate },
 
@@ -457,26 +457,14 @@ const parseExcel = async () => {
 }
 
 /**
- * 将中文港口名称转换为标准 port_code
- */
-const convertPortNameToCode = async (portName: string): Promise<string> => {
-  if (!portName) return portName
-
-  // 如果已经是标准代码格式(如 CNSHG、USLAX),直接返回
-  if (/^[A-Z]{2}[A-Z]{3}$/.test(portName)) {
-    return portName
-  }
-
-  // 否则尝试从缓存或API获取标准代码
-  const portCode = await getPortCodeCached(portName)
-  return portCode || portName // 如果找不到映射,返回原名称
-}
-
-/**
  * 将Excel行数据拆分到各数据库表
- * 支持多港经停场景，生成多条港口操作记录
+ * 支持多港经停场景,生成多条港口操作记录
+ * 使用批量API查询港口映射以提高性能
  */
-const splitRowToTables = async (row: any): Promise<Record<string, any>> => {
+const splitRowToTables = async (
+  row: any,
+  portMappings?: Record<string, string>
+): Promise<Record<string, any>> => {
   const tables: Record<string, any> = {
     biz_replenishment_orders: {},
     biz_containers: {},
@@ -525,10 +513,18 @@ const splitRowToTables = async (row: any): Promise<Record<string, any>> => {
   const transitPortRaw = getRowValue(row, ['途经港', '途径港', '途经港.名称'])
   const destPortRaw = getRowValue(row, ['目的港', '目的港名称', '目的港.名称'])
 
-  // 转换港口名称为标准代码
-  const originPortCode = await convertPortNameToCode(originPortRaw)
-  const transitPortCode = await convertPortNameToCode(transitPortRaw)
-  const destPortCode = await convertPortNameToCode(destPortRaw)
+  // 转换港口名称为标准代码（使用预加载的映射或API）
+  const getPortCodeFromMapping = (portName: string | undefined): string | null => {
+    if (!portName) return null
+    // 如果已经是标准代码格式(如 CNSHG、USLAX),直接返回
+    if (/^[A-Z]{2}[A-Z]{3}$/.test(portName)) return portName
+    // 从预加载映射中查找
+    return portMappings?.[portName] || null
+  }
+
+  const originPortCode = getPortCodeFromMapping(originPortRaw)
+  const transitPortCode = getPortCodeFromMapping(transitPortRaw)
+  const destPortCode = getPortCodeFromMapping(destPortRaw)
 
   // 1. 起运港 (origin)
   const originPort = originPortRaw
@@ -667,15 +663,36 @@ const uploadAndImport = async () => {
   })
 
   try {
+    // 批量预加载所有港口映射
+    const allPortNames: string[] = []
+    previewData.value.forEach(row => {
+      const originPort = getRowValue(row, ['起运港', '起运港.名称'])
+      const transitPort = getRowValue(row, ['途经港', '途径港', '途经港.名称'])
+      const destPort = getRowValue(row, ['目的港', '目的港名称', '目的港.名称'])
+      if (originPort && !allPortNames.includes(originPort)) allPortNames.push(originPort)
+      if (transitPort && !allPortNames.includes(transitPort)) allPortNames.push(transitPort)
+      if (destPort && !allPortNames.includes(destPort)) allPortNames.push(destPort)
+    })
+
+    // 批量查询港口映射（一次性获取所有港口代码）
+    let portMappings: Record<string, string> = {}
+    if (allPortNames.length > 0) {
+      const batchResult = await getStandardCodesBatch(DictType.PORT, allPortNames)
+      if (batchResult.success && batchResult.data) {
+        portMappings = batchResult.data
+        console.log(`[ExcelImport] 预加载港口映射完成，共 ${Object.keys(portMappings).length} 个`)
+      }
+    }
+
     // 批量处理数据，每次批量导入50条
     const batchSize = 50
     for (let i = 0; i < previewData.value.length; i += batchSize) {
       const batch = previewData.value.slice(i, i + batchSize)
 
-      // 将批次数据转换为批量导入格式(异步,因为splitRowToTables现在是async)
+      // 将批次数据转换为批量导入格式(异步,传入港口映射)
       const batchData = await Promise.all(
         batch.map(async row => {
-          const tables = await splitRowToTables(row)
+          const tables = await splitRowToTables(row, portMappings)
           return { tables }
         })
       )
@@ -771,7 +788,20 @@ const downloadTemplate = () => {
     '中转港': '',
     '起运港货代公司': '',
     '运输方式': '海运',
+    'MBL Number': 'MBL123456',
+    'HBL Number': '',
+    'AMS Number': '',
+    '放单日期': '',
+    'MBL SCAC': '',
+    'HBL SCAC': '',
+    '母船船名': '',
+    '母船船次': '',
+    '母船出运日期': '',
     '装船日期': '2026-02-20',
+    '标准海运费金额': '',
+    '海运费币种': 'USD',
+    '进火车堆场日期': '',
+    '进卡车堆场日期': '',
     '预计到港日期': '2026-03-15',
     '实际到港日期': '',
     '目的港码头': '',
@@ -816,9 +846,9 @@ const downloadTemplate = () => {
   ElMessage.success('模板下载成功')
 }
 
-// 组件挂载时预加载端口映射
-onMounted(async () => {
-  await preloadPortMappings()
+// 组件挂载时不需要预加载，改为在导入时批量查询
+onMounted(() => {
+  // 预加载逻辑已移至导入时按需批量查询
 })
 </script>
 
