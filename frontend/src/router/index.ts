@@ -1,5 +1,5 @@
-import { createRouter, createWebHashHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHashHistory } from 'vue-router'
 
 // 布局组件
 import Layout from '@/components/layout/Layout.vue'
@@ -28,8 +28,8 @@ const routes: RouteRecordRaw[] = [
     component: Login,
     meta: {
       title: '登录',
-      requiresAuth: false
-    }
+      requiresAuth: false,
+    },
   },
   {
     path: '/',
@@ -43,8 +43,8 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '仪表板',
           icon: 'House',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: 'shipments',
@@ -53,8 +53,8 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '集装箱管理',
           icon: 'Box',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: 'shipments/demurrage-top',
@@ -62,8 +62,8 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/demurrage/DemurrageTopContainers.vue'),
         meta: {
           title: '高费用货柜',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: 'shipments/gantt-chart',
@@ -72,17 +72,17 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '货柜甘特图',
           icon: 'Calendar',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: 'gantt-chart',
         name: 'SimpleGanttChart',
-        component: SimpleGanttChart,
+        component: () => import('@/components/common/SimpleGanttChartRefactored.vue'),
         meta: {
           title: '货柜时间分布甘特图',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: 'shipments/:containerNumber',
@@ -90,8 +90,8 @@ const routes: RouteRecordRaw[] = [
         component: ContainerDetail,
         meta: {
           title: '货柜详情',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: 'import',
@@ -100,8 +100,8 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: 'Excel数据导入',
           icon: 'Upload',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: 'import/feituo',
@@ -110,8 +110,8 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '飞驼数据导入',
           icon: 'Connection',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: 'import/feituo-verify',
@@ -120,8 +120,8 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '飞驼数据验证',
           icon: 'DataLine',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: 'import/demurrage-standards',
@@ -130,8 +130,8 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '滞港费标准导入',
           icon: 'Document',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: 'import/demurrage-standard/entry',
@@ -139,8 +139,8 @@ const routes: RouteRecordRaw[] = [
         component: DemurrageStandardEntry,
         meta: {
           title: '滞港费标准录入',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: 'monitoring',
@@ -149,8 +149,8 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '看板',
           icon: 'DataBoard',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: 'dict-mapping',
@@ -159,8 +159,8 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '通用字典映射',
           icon: 'Document',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: 'settings',
@@ -169,8 +169,8 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '系统设置',
           icon: 'Setting',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: 'help',
@@ -179,8 +179,8 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '帮助文档',
           icon: 'Reading',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: 'docs/:pathMatch(.*)*',
@@ -188,8 +188,8 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/docs/DocViewer.vue'),
         meta: {
           title: '文档查看器',
-          requiresAuth: true
-        }
+          requiresAuth: true,
+        },
       },
       {
         path: 'about',
@@ -197,8 +197,8 @@ const routes: RouteRecordRaw[] = [
         component: About,
         meta: {
           title: '关于',
-          requiresAuth: false
-        }
+          requiresAuth: false,
+        },
       },
       {
         path: 'about/vision/:chapterId',
@@ -206,29 +206,29 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/vision/VisionChapterDetail.vue'),
         meta: {
           title: '智慧物流愿景',
-          requiresAuth: false
-        }
-      }
-    ]
+          requiresAuth: false,
+        },
+      },
+    ],
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/login'
-  }
+    redirect: '/login',
+  },
 ]
 
 const router = createRouter({
   history: createWebHashHistory(),
-  routes
+  routes,
 })
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
   console.log('路由守卫:', { to: to.path, from: from?.path })
-  
+
   const isAuthenticated = !!localStorage.getItem('token')
   console.log('认证状态:', isAuthenticated)
-  
+
   if (to.meta.requiresAuth && !isAuthenticated) {
     console.log('需要认证，跳转到登录页')
     next('/login')

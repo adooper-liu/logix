@@ -7,14 +7,14 @@
 import { Repository } from 'typeorm';
 import { Container } from '../entities/Container';
 import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
+import { EmptyReturn } from '../entities/EmptyReturn';
 import { PortOperation } from '../entities/PortOperation';
+import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { SeaFreight } from '../entities/SeaFreight';
 import { TruckingTransport } from '../entities/TruckingTransport';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
-import { EmptyReturn } from '../entities/EmptyReturn';
-import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { logger } from '../utils/logger';
-import { SimplifiedStatus, calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
+import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
 
 interface ContainerWithStatus {
   container: Container;
@@ -46,32 +46,33 @@ export class ContainerService {
    * 使用批量查询替代N+1查询，提升性能
    */
   async enrichContainersList(containers: Container[]): Promise<any[]> {
-    const startTime = Date.now()
+    const startTime = Date.now();
 
     // 批量查询优化：收集所有container_number
-    const containerNumbers = containers.map(c => c.containerNumber)
+    const containerNumbers = containers.map((c) => c.containerNumber);
 
     // 批量查询所有相关数据
-    const [ordersMap, eventsMap, portOperationsMap, truckingMap, warehouseMap, emptyReturnsMap] = await Promise.all([
-      this.batchFetchOrders(containerNumbers),
-      this.batchFetchStatusEvents(containerNumbers),
-      this.batchFetchPortOperations(containerNumbers),
-      this.batchFetchTruckingTransports(containerNumbers),
-      this.batchFetchWarehouseOperations(containerNumbers),
-      this.batchFetchEmptyReturns(containerNumbers)
-    ])
+    const [ordersMap, eventsMap, portOperationsMap, truckingMap, warehouseMap, emptyReturnsMap] =
+      await Promise.all([
+        this.batchFetchOrders(containerNumbers),
+        this.batchFetchStatusEvents(containerNumbers),
+        this.batchFetchPortOperations(containerNumbers),
+        this.batchFetchTruckingTransports(containerNumbers),
+        this.batchFetchWarehouseOperations(containerNumbers),
+        this.batchFetchEmptyReturns(containerNumbers)
+      ]);
 
-    const enrichedContainers = containers.map(container => {
+    const enrichedContainers = containers.map((container) => {
       try {
-        const containerNumber = container.containerNumber
+        const containerNumber = container.containerNumber;
 
         // 从批量查询结果中获取数据
-        const orderInfo = ordersMap.get(containerNumber)
-        const latestEvent = eventsMap.get(containerNumber)
-        const portOperations = portOperationsMap.get(containerNumber) || []
-        const truckingTransport = truckingMap.get(containerNumber)
-        const warehouseOperation = warehouseMap.get(containerNumber)
-        const emptyReturn = emptyReturnsMap.get(containerNumber)
+        const orderInfo = ordersMap.get(containerNumber);
+        const latestEvent = eventsMap.get(containerNumber);
+        const portOperations = portOperationsMap.get(containerNumber) || [];
+        const truckingTransport = truckingMap.get(containerNumber);
+        const warehouseOperation = warehouseMap.get(containerNumber);
+        const emptyReturn = emptyReturnsMap.get(containerNumber);
 
         // 计算物流状态
         const logisticsResult = calculateLogisticsStatus(
@@ -81,10 +82,10 @@ export class ContainerService {
           warehouseOperation,
           emptyReturn,
           latestEvent
-        )
+        );
 
-        const currentPortType = logisticsResult.currentPortType
-        const latestPortOperation = logisticsResult.latestPortOperation
+        const currentPortType = logisticsResult.currentPortType;
+        const latestPortOperation = logisticsResult.latestPortOperation;
 
         // 计算当前位置
         const currentLocation = this.calculateCurrentLocation(
@@ -92,7 +93,7 @@ export class ContainerService {
           container.logisticsStatus,
           latestPortOperation,
           currentPortType
-        )
+        );
 
         return {
           ...container,
@@ -105,12 +106,14 @@ export class ContainerService {
           // 扩展字段（与列表表头绑定一致）
           etaDestPort: latestPortOperation?.etaDestPort || container.seaFreight?.eta || null,
           etaCorrection: latestPortOperation?.etaCorrection || null,
-          ataDestPort: currentPortType === 'transit'
-            ? (latestPortOperation?.transitArrivalDate || null)
-            : (latestPortOperation?.ataDestPort || null),
+          ataDestPort:
+            currentPortType === 'transit'
+              ? latestPortOperation?.transitArrivalDate || null
+              : latestPortOperation?.ataDestPort || null,
           customsStatus: latestPortOperation?.customsStatus || null,
           destinationPort: container.seaFreight?.portOfDischarge || null,
-          billOfLadingNumber: container.seaFreight?.mblNumber || container.seaFreight?.billOfLadingNumber || null,
+          billOfLadingNumber:
+            container.seaFreight?.mblNumber || container.seaFreight?.billOfLadingNumber || null,
           mblNumber: container.seaFreight?.mblNumber || null,
           actualShipDate: orderInfo?.actualShipDate || container.seaFreight?.shipmentDate || null,
           sellToCountry: orderInfo?.sellToCountry || null,
@@ -121,21 +124,24 @@ export class ContainerService {
           lastReturnDate: emptyReturn?.lastReturnDate || null,
           returnTime: emptyReturn?.returnTime || null,
           // 关联数据（用于前端过滤）
+          portOperations, // ← 新增：完整的港口操作数组
           truckingTransports: truckingTransport ? [truckingTransport] : [],
           emptyReturns: emptyReturn ? [emptyReturn] : [],
-          // SeaFreight用于详情
+          // SeaFreight 用于详情
           seaFreight: container.seaFreight || null
-        }
+        };
       } catch (error) {
-        logger.warn(`[ContainerService] Failed to enrich ${container.containerNumber}:`, error)
-        return { ...container, latestStatus: null, location: '-' }
+        logger.warn(`[ContainerService] Failed to enrich ${container.containerNumber}:`, error);
+        return { ...container, latestStatus: null, location: '-' };
       }
-    })
+    });
 
-    const endTime = Date.now()
-    logger.info(`[enrichContainersList] Processed ${containers.length} containers in ${(endTime - startTime).toFixed(2)}ms`)
+    const endTime = Date.now();
+    logger.info(
+      `[enrichContainersList] Processed ${containers.length} containers in ${(endTime - startTime).toFixed(2)}ms`
+    );
 
-    return enrichedContainers
+    return enrichedContainers;
   }
 
   /**
@@ -157,15 +163,21 @@ export class ContainerService {
   private async enrichSingleContainer(container: Container): Promise<ContainerWithStatus> {
     // 并行查询所有相关数据
     const firstOrderNumber = await this.getFirstOrderNumberForContainer(container.containerNumber);
-    const [orderInfo, latestEvent, portOperations, truckingTransport, warehouseOperation, emptyReturn] =
-      await Promise.allSettled([
-        this.fetchOrderInfo(firstOrderNumber),
-        this.fetchLatestStatusEvent(container.containerNumber),
-        this.fetchPortOperations(container.containerNumber),
-        this.fetchTruckingTransport(container.containerNumber),
-        this.fetchWarehouseOperation(container.containerNumber),
-        this.fetchEmptyReturn(container.containerNumber)
-      ]);
+    const [
+      orderInfo,
+      latestEvent,
+      portOperations,
+      truckingTransport,
+      warehouseOperation,
+      emptyReturn
+    ] = await Promise.allSettled([
+      this.fetchOrderInfo(firstOrderNumber),
+      this.fetchLatestStatusEvent(container.containerNumber),
+      this.fetchPortOperations(container.containerNumber),
+      this.fetchTruckingTransport(container.containerNumber),
+      this.fetchWarehouseOperation(container.containerNumber),
+      this.fetchEmptyReturn(container.containerNumber)
+    ]);
 
     // 处理查询结果（SeaFreight 通过 Container.seaFreight 关联加载，process_sea_freight 表无 container_number）
     const orderInfoData = orderInfo.status === 'fulfilled' ? orderInfo.value : null;
@@ -174,13 +186,18 @@ export class ContainerService {
     let seaFreightData = container.seaFreight ?? null;
     if (!seaFreightData && (container as any).bill_of_lading_number) {
       try {
-        seaFreightData = await this.seaFreightRepository.findOne({
-          where: { billOfLadingNumber: (container as any).bill_of_lading_number }
-        }) ?? null;
-      } catch (_) { /* ignore */ }
+        seaFreightData =
+          (await this.seaFreightRepository.findOne({
+            where: { billOfLadingNumber: (container as any).bill_of_lading_number }
+          })) ?? null;
+      } catch (_) {
+        /* ignore */
+      }
     }
-    const truckingTransportData = truckingTransport.status === 'fulfilled' ? truckingTransport.value : null;
-    const warehouseOperationData = warehouseOperation.status === 'fulfilled' ? warehouseOperation.value : null;
+    const truckingTransportData =
+      truckingTransport.status === 'fulfilled' ? truckingTransport.value : null;
+    const warehouseOperationData =
+      warehouseOperation.status === 'fulfilled' ? warehouseOperation.value : null;
     const emptyReturnData = emptyReturn.status === 'fulfilled' ? emptyReturn.value : null;
 
     // 计算物流状态
@@ -570,7 +587,9 @@ export class ContainerService {
     }
   }
 
-  private async fetchLatestStatusEvent(containerNumber: string): Promise<ContainerStatusEvent | null> {
+  private async fetchLatestStatusEvent(
+    containerNumber: string
+  ): Promise<ContainerStatusEvent | null> {
     try {
       return await this.statusEventRepository
         .createQueryBuilder('event')
@@ -608,7 +627,9 @@ export class ContainerService {
     }
   }
 
-  private async fetchWarehouseOperation(containerNumber: string): Promise<WarehouseOperation | null> {
+  private async fetchWarehouseOperation(
+    containerNumber: string
+  ): Promise<WarehouseOperation | null> {
     try {
       return await this.warehouseOperationRepository
         .createQueryBuilder('wo')
@@ -637,64 +658,71 @@ export class ContainerService {
   /**
    * 批量查询备货单信息
    */
-  private async batchFetchOrders(containerNumbers: string[]): Promise<Map<string, ReplenishmentOrder | null>> {
-    const result = new Map<string, ReplenishmentOrder | null>()
+  private async batchFetchOrders(
+    containerNumbers: string[]
+  ): Promise<Map<string, ReplenishmentOrder | null>> {
+    const result = new Map<string, ReplenishmentOrder | null>();
 
     try {
       // 获取所有货柜的订单号
       const firstOrderNumbers = await Promise.all(
         containerNumbers.map(async (cn) => {
-          const orderNumber = await this.getFirstOrderNumberForContainer(cn)
-          return { containerNumber: cn, orderNumber }
+          const orderNumber = await this.getFirstOrderNumberForContainer(cn);
+          return { containerNumber: cn, orderNumber };
         })
-      )
+      );
 
       const orderNumbers = firstOrderNumbers
-        .map(item => item.orderNumber)
-        .filter((orderNumber): orderNumber is string => orderNumber !== null)
+        .map((item) => item.orderNumber)
+        .filter((orderNumber): orderNumber is string => orderNumber !== null);
 
       if (orderNumbers.length === 0) {
-        containerNumbers.forEach(cn => result.set(cn, null))
-        return result
+        containerNumbers.forEach((cn) => result.set(cn, null));
+        return result;
       }
 
       // 批量查询订单
       const orders = await this.orderRepository
         .createQueryBuilder('ro')
         .where('ro.orderNumber IN (:...orderNumbers)', { orderNumbers })
-        .getMany()
+        .getMany();
 
-      const ordersByNumber = new Map(orders.map(o => [o.orderNumber, o]))
+      const ordersByNumber = new Map(orders.map((o) => [o.orderNumber, o]));
 
       // 构建结果Map
-      firstOrderNumbers.forEach(item => {
-        result.set(item.containerNumber, ordersByNumber.get(item.orderNumber ?? '') ?? null)
-      })
+      firstOrderNumbers.forEach((item) => {
+        result.set(item.containerNumber, ordersByNumber.get(item.orderNumber ?? '') ?? null);
+      });
     } catch (error) {
-      logger.warn('[batchFetchOrders] Failed:', error)
-      containerNumbers.forEach(cn => result.set(cn, null))
+      logger.warn('[batchFetchOrders] Failed:', error);
+      containerNumbers.forEach((cn) => result.set(cn, null));
     }
 
-    return result
+    return result;
   }
 
   /**
    * 批量查询最新状态事件
    */
-  private async batchFetchStatusEvents(containerNumbers: string[]): Promise<Map<string, ContainerStatusEvent | null>> {
-    const result = new Map<string, ContainerStatusEvent | null>()
+  private async batchFetchStatusEvents(
+    containerNumbers: string[]
+  ): Promise<Map<string, ContainerStatusEvent | null>> {
+    const result = new Map<string, ContainerStatusEvent | null>();
 
     try {
       // 使用子查询批量查询每个container的最新事件
       const events = await this.statusEventRepository
         .createQueryBuilder('event')
-        .where(`(event.container_number, event.occurred_at) IN (
+        .where(
+          `(event.container_number, event.occurred_at) IN (
           SELECT container_number, MAX(occurred_at)
           FROM biz_container_status_events
           WHERE container_number IN (:...containerNumbers)
           GROUP BY container_number
-        )`, { containerNumbers })
-        .getRawMany()
+        )`,
+          { containerNumbers }
+        )
+        .getRawMany();
 
       events.forEach((event: any) => {
         result.set(event.event_container_number, {
@@ -704,123 +732,131 @@ export class ContainerService {
           locationNameCn: event.event_location_name_cn,
           locationNameEn: event.event_location_name_en,
           occurredAt: event.event_occurred_at
-        } as ContainerStatusEvent)
-      })
+        } as ContainerStatusEvent);
+      });
     } catch (error) {
-      logger.warn('[batchFetchStatusEvents] Failed:', error)
-      containerNumbers.forEach(cn => result.set(cn, null))
+      logger.warn('[batchFetchStatusEvents] Failed:', error);
+      containerNumbers.forEach((cn) => result.set(cn, null));
     }
 
-    return result
+    return result;
   }
 
   /**
    * 批量查询港口操作记录
    */
-  private async batchFetchPortOperations(containerNumbers: string[]): Promise<Map<string, PortOperation[]>> {
-    const result = new Map<string, PortOperation[]>()
+  private async batchFetchPortOperations(
+    containerNumbers: string[]
+  ): Promise<Map<string, PortOperation[]>> {
+    const result = new Map<string, PortOperation[]>();
 
     try {
       const portOperations = await this.portOperationRepository
         .createQueryBuilder('po')
         .where('po.containerNumber IN (:...containerNumbers)', { containerNumbers })
         .orderBy('po.updatedAt', 'DESC')
-        .getMany()
+        .getMany();
 
       // 按containerNumber分组
-      portOperations.forEach(po => {
-        const operations = result.get(po.containerNumber) || []
-        operations.push(po)
-        result.set(po.containerNumber, operations)
-      })
+      portOperations.forEach((po) => {
+        const operations = result.get(po.containerNumber) || [];
+        operations.push(po);
+        result.set(po.containerNumber, operations);
+      });
 
       // 确保所有container都有记录
-      containerNumbers.forEach(cn => {
+      containerNumbers.forEach((cn) => {
         if (!result.has(cn)) {
-          result.set(cn, [])
+          result.set(cn, []);
         }
-      })
+      });
     } catch (error) {
-      logger.warn('[batchFetchPortOperations] Failed:', error)
-      containerNumbers.forEach(cn => result.set(cn, []))
+      logger.warn('[batchFetchPortOperations] Failed:', error);
+      containerNumbers.forEach((cn) => result.set(cn, []));
     }
 
-    return result
+    return result;
   }
 
   /**
    * 批量查询拖卡运输记录
    */
-  private async batchFetchTruckingTransports(containerNumbers: string[]): Promise<Map<string, TruckingTransport | null>> {
-    const result = new Map<string, TruckingTransport | null>()
+  private async batchFetchTruckingTransports(
+    containerNumbers: string[]
+  ): Promise<Map<string, TruckingTransport | null>> {
+    const result = new Map<string, TruckingTransport | null>();
 
     try {
       const truckingTransports = await this.truckingTransportRepository
         .createQueryBuilder('tt')
         .where('tt.containerNumber IN (:...containerNumbers)', { containerNumbers })
-        .getMany()
+        .getMany();
 
-      const transportMap = new Map(truckingTransports.map(tt => [tt.containerNumber, tt]))
+      const transportMap = new Map(truckingTransports.map((tt) => [tt.containerNumber, tt]));
 
-      containerNumbers.forEach(cn => {
-        result.set(cn, transportMap.get(cn) ?? null)
-      })
+      containerNumbers.forEach((cn) => {
+        result.set(cn, transportMap.get(cn) ?? null);
+      });
     } catch (error) {
-      logger.warn('[batchFetchTruckingTransports] Failed:', error)
-      containerNumbers.forEach(cn => result.set(cn, null))
+      logger.warn('[batchFetchTruckingTransports] Failed:', error);
+      containerNumbers.forEach((cn) => result.set(cn, null));
     }
 
-    return result
+    return result;
   }
 
   /**
    * 批量查询仓库操作记录
    */
-  private async batchFetchWarehouseOperations(containerNumbers: string[]): Promise<Map<string, WarehouseOperation | null>> {
-    const result = new Map<string, WarehouseOperation | null>()
+  private async batchFetchWarehouseOperations(
+    containerNumbers: string[]
+  ): Promise<Map<string, WarehouseOperation | null>> {
+    const result = new Map<string, WarehouseOperation | null>();
 
     try {
       const warehouseOperations = await this.warehouseOperationRepository
         .createQueryBuilder('wo')
         .where('wo.containerNumber IN (:...containerNumbers)', { containerNumbers })
-        .getMany()
+        .getMany();
 
-      const operationMap = new Map(warehouseOperations.map(wo => [wo.containerNumber, wo]))
+      const operationMap = new Map(warehouseOperations.map((wo) => [wo.containerNumber, wo]));
 
-      containerNumbers.forEach(cn => {
-        result.set(cn, operationMap.get(cn) ?? null)
-      })
+      containerNumbers.forEach((cn) => {
+        result.set(cn, operationMap.get(cn) ?? null);
+      });
     } catch (error) {
-      logger.warn('[batchFetchWarehouseOperations] Failed:', error)
-      containerNumbers.forEach(cn => result.set(cn, null))
+      logger.warn('[batchFetchWarehouseOperations] Failed:', error);
+      containerNumbers.forEach((cn) => result.set(cn, null));
     }
 
-    return result
+    return result;
   }
 
   /**
    * 批量查询还空箱记录
    */
-  private async batchFetchEmptyReturns(containerNumbers: string[]): Promise<Map<string, EmptyReturn | null>> {
-    const result = new Map<string, EmptyReturn | null>()
+  private async batchFetchEmptyReturns(
+    containerNumbers: string[]
+  ): Promise<Map<string, EmptyReturn | null>> {
+    const result = new Map<string, EmptyReturn | null>();
 
     try {
       const emptyReturns = await this.emptyReturnRepository
         .createQueryBuilder('er')
         .where('er.containerNumber IN (:...containerNumbers)', { containerNumbers })
-        .getMany()
+        .getMany();
 
-      const returnMap = new Map(emptyReturns.map(er => [er.containerNumber, er]))
+      const returnMap = new Map(emptyReturns.map((er) => [er.containerNumber, er]));
 
-      containerNumbers.forEach(cn => {
-        result.set(cn, returnMap.get(cn) ?? null)
-      })
+      containerNumbers.forEach((cn) => {
+        result.set(cn, returnMap.get(cn) ?? null);
+      });
     } catch (error) {
-      logger.warn('[batchFetchEmptyReturns] Failed:', error)
-      containerNumbers.forEach(cn => result.set(cn, null))
+      logger.warn('[batchFetchEmptyReturns] Failed:', error);
+      containerNumbers.forEach((cn) => result.set(cn, null));
     }
 
-    return result
+    return result;
   }
 
   // ==================== 格式化辅助方法 ====================
@@ -832,21 +868,24 @@ export class ContainerService {
     currentPortType: 'transit' | 'destination' | null
   ): string {
     if (latestEvent) {
-      return latestEvent.locationNameCn || latestEvent.locationNameEn || latestEvent.locationCode || '-';
+      return (
+        latestEvent.locationNameCn || latestEvent.locationNameEn || latestEvent.locationCode || '-'
+      );
     }
 
     if (!logisticsStatus) return '-';
 
     const statusLocationMap: Record<string, string> = {
-      'not_shipped': '未出运',
-      'shipped': '已装船',
-      'in_transit': '在途',
-      'at_port': currentPortType === 'transit'
-        ? `${latestPortOperation?.portName || '中转港'} (中转)`
-        : `${latestPortOperation?.portName || '目的港'} (目的)`,
-      'picked_up': '提柜中',
-      'unloaded': '仓库',
-      'returned_empty': '已还箱'
+      not_shipped: '未出运',
+      shipped: '已装船',
+      in_transit: '在途',
+      at_port:
+        currentPortType === 'transit'
+          ? `${latestPortOperation?.portName || '中转港'} (中转)`
+          : `${latestPortOperation?.portName || '目的港'} (目的)`,
+      picked_up: '提柜中',
+      unloaded: '仓库',
+      returned_empty: '已还箱'
     };
 
     // 如果状态不是 at_port 但有最新的港口操作记录且有到港时间
