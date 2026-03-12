@@ -39,22 +39,27 @@ export class DemurrageWriteBackScheduler {
   /**
    * 启动定时任务
    * @param intervalMinutes 间隔时间（分钟），默认 360（6 小时）
+   * @param delaySeconds 首次执行延迟（秒），默认5秒（启动优化：避免启动时阻塞）
    */
-  start(intervalMinutes: number = 360): void {
+  start(intervalMinutes: number = 360, delaySeconds: number = 5): void {
     if (this.intervalId) {
       logger.warn('[DemurrageWriteBackScheduler] Scheduler already running');
       return;
     }
 
-    logger.info(`[DemurrageWriteBackScheduler] Starting scheduler with ${intervalMinutes} minute interval`);
-
-    // 立即执行一次
-    this.executeTask();
+    logger.info(`[DemurrageWriteBackScheduler] Starting scheduler with ${intervalMinutes} minute interval, first execution delayed ${delaySeconds}s`);
 
     const intervalMs = intervalMinutes * 60 * 1000;
     this.intervalId = setInterval(() => {
       this.executeTask();
     }, intervalMs);
+
+    // 延迟首次执行（启动优化）
+    const delayMs = delaySeconds * 1000;
+    setTimeout(() => {
+      this.executeTask();
+      logger.info('[DemurrageWriteBackScheduler] First execution completed after initial delay');
+    }, delayMs);
 
     logger.info('[DemurrageWriteBackScheduler] Scheduler started successfully');
   }

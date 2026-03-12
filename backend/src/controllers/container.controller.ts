@@ -13,7 +13,7 @@ import { TruckingTransport } from '../entities/TruckingTransport';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
-import { In, Repository } from 'typeorm';
+import { In, Repository, MoreThanOrEqual } from 'typeorm';
 import { logger } from '../utils/logger';
 import { snakeToCamel } from '../utils/snakeToCamel';
 import { ContainerService } from '../services/container.service';
@@ -577,7 +577,7 @@ export class ContainerController {
       today.setHours(0, 0, 0, 0);
       const todayUpdated = await this.containerRepository.count({
         where: {
-          updatedAt: { $gte: today } as any
+          updatedAt: MoreThanOrEqual(today)
         }
       });
 

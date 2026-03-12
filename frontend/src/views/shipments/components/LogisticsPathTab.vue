@@ -93,8 +93,7 @@
                 class="stage-node"
                 :class="{
                   'stage-node-no-data': isNoDataNode(item.node),
-                  'stage-node-alert': item.node.isAlert,
-                  'stage-node-delay': !!getDelayDuration(item.globalIndex)
+                  'stage-node-alert': item.node.isAlert
                 }"
                 @click="selectedNode = item.node"
               >
@@ -107,14 +106,16 @@
                   <div class="stage-node-meta">
                     <span class="stage-node-time">{{ isNoDataNode(item.node) ? '—' : formatDateTime(item.node.timestamp) }}</span>
                     <span v-if="item.node.location" class="stage-node-loc">{{ item.node.location.name }} ({{ item.node.location.code }})</span>
-                    <!-- 历时：所有节点都显示（衡量历史衔接效率） -->
-                    <span v-if="getNodeDurationInfo(item.node, item.globalIndex).elapsed" class="stage-node-elapsed-tag">
-                      历时 {{ getNodeDurationInfo(item.node, item.globalIndex).elapsed }}
-                    </span>
-                    <!-- 超期：仅当前节点显示（风险预警） -->
-                    <span v-if="getNodeDurationInfo(item.node, item.globalIndex).overdue" class="stage-node-overdue-tag">
-                      超期 {{ getNodeDurationInfo(item.node, item.globalIndex).overdue }}
-                    </span>
+                    <!-- 使用 NodeDurationDisplay 组件显示节点时长 -->
+                    <NodeDurationDisplay
+                      :timestamp="item.node.timestamp"
+                      :prev-timestamp="item.globalIndex > 0 ? path.nodes[item.globalIndex - 1]?.timestamp : null"
+                      :index="item.globalIndex"
+                      :total-count="path.nodes?.length ?? 0"
+                      :standard-hours="STANDARD_DURATIONS[item.node.status] ?? 0"
+                      :is-in-progress="isCurrentNode(item.node, item.globalIndex)"
+                      :is-no-data="isNoDataNode(item.node)"
+                    />
                   </div>
                   <el-tag v-if="getNodeDataSource(item.node)" :type="getNodeDataSourceTagType(getNodeDataSource(item.node))" size="small" class="stage-ds-tag">
                     {{ getNodeDataSourceLabel(getNodeDataSource(item.node)) }}
@@ -203,6 +204,7 @@ import { Loading, QuestionFilled } from '@element-plus/icons-vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { logisticsPathService, type StatusPath, type StatusNode } from '@/services/logisticsPath'
+import NodeDurationDisplay from '@/components/common/NodeDurationDisplay.vue'
 
 const router = useRouter()
 
@@ -553,71 +555,6 @@ const isCurrentNode = (node: StatusNode, index: number): boolean => {
   return node.nodeStatus === 'IN_PROGRESS' || index === path.value.nodes.length - 1
 }
 
-/** 4. 历时：节点间实际衔接时长
- * 定义：从上一节点结束到当前节点开始的时间差
- * 用途：衡量流程衔接效率（向后看历史）
- * 标记：历时 2天 3小时
- */
-const getElapsedDuration = (index: number): string => {
-  if (!path.value?.nodes?.length || index === 0) return ''
-  const prev = path.value.nodes[index - 1]
-  const curr = path.value.nodes[index]
-  const prevTime = new Date(prev.timestamp).getTime()
-  const currTime = new Date(curr.timestamp).getTime()
-  const diffHours = (currTime - prevTime) / (1000 * 60 * 60)
-  if (diffHours <= 0) return ''
-  const days = Math.floor(diffHours / 24)
-  let hours = Math.round(diffHours % 24)
-  if (hours === 24) { hours = 0 } // 24 整时归入天数
-  return `${days}天${hours}小时`
-}
-
-/** 5. 超期：当前节点已停留时间与标准耗时的差值
- * 定义：当前时间 - 当前节点开始时间 - 标准耗时
- * 用途：风险预警（向前看风险）
- * 标记：超期 1天 5小时
- * 说明：仅适用于当前正在进行的节点
- */
-const getOverdueDuration = (node: StatusNode, index: number): string | null => {
-  // 仅计算当前正在进行的节点
-  if (!isCurrentNode(node, index)) return null
-
-  const standardHours = STANDARD_DURATIONS[node.status] ?? 0
-  if (standardHours === 0) return null // 无标准耗时不计算超期
-
-  const nodeStartTime = new Date(node.timestamp).getTime()
-  const now = Date.now()
-  const elapsedHours = (now - nodeStartTime) / (1000 * 60 * 60)
-
-  // 计算超期时长
-  const overdueHours = elapsedHours - standardHours
-  if (overdueHours <= 0) return null // 未超期
-
-  const days = Math.floor(overdueHours / 24)
-  let hours = Math.round(overdueHours % 24)
-  if (hours === 24) { hours = 0 }
-  return `${days}天${hours}小时`
-}
-
-/** 获取节点的时长信息（包含历时和超期） */
-const getNodeDurationInfo = (node: StatusNode, index: number): {
-  elapsed?: string
-  overdue?: string
-  isOverdue: boolean
-} => {
-  const elapsed = getElapsedDuration(index)
-  const overdue = getOverdueDuration(node, index)
-  return {
-    elapsed,
-    overdue,
-    isOverdue: !!overdue
-  }
-}
-
-/** 保留旧方法名用于兼容（内部调用 getElapsedDuration） */
-const getDelayDuration = (index: number): string => {
-  return getElapsedDuration(index)
-}
 
 const getPathStatusLabel = (status?: string): string => {
   const LABELS: Record<string, string> = {

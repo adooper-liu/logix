@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import dayjs from 'dayjs'
 import isBetween from 'dayjs/plugin/isBetween'
 dayjs.extend(isBetween)
@@ -23,6 +24,8 @@ import {
   getGroupContainers
 } from './composables/useGanttFilters'
 
+const route = useRoute()
+
 interface ContainerGanttChartProps {
   containers: ContainerItem[]
   /** 与 Shipments 统计卡片同源：有则泳道行数量用此数据，圆点仍用 containers */
@@ -41,9 +44,126 @@ const emit = defineEmits<{
 // 所有泳道配置
 const allLanes = ref<LaneConfig[]>(createAllLanes())
 
-// 从 localStorage 恢复或使用默认值
-const storedLaneName = localStorage.getItem('ganttSelectedLaneName')
-const selectedLaneName = ref<string>(storedLaneName || '按到港')
+// 根据 filterCondition 确定初始泳道
+const getInitialLaneName = (): string => {
+  const filterCondition = route.query.filterCondition as string
+  if (!filterCondition) {
+    // 从 localStorage 恢复或使用默认值
+    const storedLaneName = localStorage.getItem('ganttSelectedLaneName')
+    return storedLaneName || '按到港'
+  }
+
+  // 根据 filterCondition 映射到泳道名称
+  const arrivalFilters = [
+    'arrivalToday', 'arrivedBeforeNotPickedUp', 'arrivedBeforePickedUp',
+    'arrivedAtTransit', 'transitOverdue', 'transitWithin3Days', 'transitWithin7Days',
+    'transitOver7Days', 'transitNoEta', 'arrivedTodayNoAta', 'etaOverdue',
+    'etaWithin3Days', 'etaWithin7Days', 'etaOver7Days', 'etaNoRecord'
+  ]
+  if (arrivalFilters.includes(filterCondition)) return '按到港'
+
+  const pickupFilters = [
+    'overduePlanned', 'todayPlanned', 'plannedWithin3Days',
+    'plannedWithin7Days', 'pendingArrangement'
+  ]
+  if (pickupFilters.includes(filterCondition)) return '按提柜计划'
+
+  const lastPickupFilters = [
+    'lastPickupExpired', 'lastPickupUrgent', 'lastPickupWarning',
+    'lastPickupNormal', 'lastPickupNoDate'
+  ]
+  if (lastPickupFilters.includes(filterCondition)) return '按最晚提柜'
+
+  const returnFilters = [
+    'returnExpired', 'returnUrgent', 'returnWarning',
+    'returnNormal', 'returnNoDate'
+  ]
+  if (returnFilters.includes(filterCondition)) return '按最晚还箱'
+
+  return '按到港'
+}
+
+// 根据 filterCondition 过滤可用的泳道
+const filteredLanes = computed<LaneConfig[]>(() => {
+  const filterCondition = route.query.filterCondition as string
+  if (!filterCondition) {
+    // 没有 filterCondition 时显示所有泳道
+    return allLanes.value
+  }
+
+  const initialLaneName = getInitialLaneName()
+  // 有 filterCondition 时只显示对应的泳道
+  return allLanes.value.filter(lane => lane.name === initialLaneName)
+})
+
+// 根据 filterCondition 获取对应的子维度标签
+const getFilteredTimeGroups = computed(() => {
+  const filterCondition = route.query.filterCondition as string
+  console.log(`[Gantt Debug] filterCondition = "${filterCondition}"`)
+
+  if (!filterCondition) {
+    console.log(`[Gantt Debug] No filterCondition, showing all timeGroups`)
+    // 没有 filterCondition 时显示所有时间分组
+    return timeGroups.value
+  }
+
+  // 创建 filterCondition 到子维度标签的映射
+  // 注意：标签必须与 useGanttFilters.ts 中的 groupLabel 完全一致
+  const filterToSubDimensionMap: Record<string, string> = {
+    // 按到港子维度（与 useGanttFilters.ts 的 getArrivalSubset 一致）
+    arrivalToday: '今日到港',
+    arrivedBeforeNotPickedUp: '今日之前到港未提柜',
+    arrivedBeforePickedUp: '今日之前到港已提柜',
+    arrivedAtTransit: '已到中转港',
+    transitOverdue: '中转港已逾期',
+    transitWithin3Days: '中转港3日内到港',
+    transitWithin7Days: '中转港7日内到港',
+    transitOver7Days: '中转港7日后到港',
+    transitNoEta: '中转港无ETA',
+    arrivedTodayNoAta: '今日之前到港但无ATA',
+    etaOverdue: '已逾期到港',
+    etaWithin3Days: '3日内预计到港',
+    etaWithin7Days: '7日内预计到港',
+    etaOver7Days: '7日后预计到港',
+    etaNoRecord: '无ETA记录',
+
+    // 按提柜计划子维度（与 useGanttFilters.ts 的 getPickupSubset 一致）
+    overduePlanned: '逾期未提柜',
+    todayPlanned: '今日计划提柜',
+    plannedWithin3Days: '3天内预计提柜',
+    plannedWithin7Days: '7天内预计提柜',
+    pendingArrangement: '待安排提柜',
+
+    // 按最晚提柜子维度（与 useGanttFilters.ts 的 getLastPickupSubset 一致）
+    lastPickupExpired: '已逾期',
+    lastPickupUrgent: '紧急',
+    lastPickupWarning: '警告',
+    lastPickupNormal: '正常',
+    lastPickupNoDate: '最晚提柜日为空',
+
+    // 按最晚还箱子维度（与 useGanttFilters.ts 的 getReturnSubset 一致）
+    returnExpired: '已逾期',
+    returnUrgent: '紧急',
+    returnWarning: '警告',
+    returnNormal: '正常',
+    returnNoDate: '最后还箱日为空'
+  }
+
+  const targetLabel = filterToSubDimensionMap[filterCondition]
+  console.log(`[Gantt Debug] targetLabel = "${targetLabel}"`)
+
+  if (!targetLabel) {
+    console.warn(`[Gantt Debug] filterCondition "${filterCondition}" not found in map, showing all timeGroups`)
+    return timeGroups.value
+  }
+
+  // 只显示匹配的子维度
+  const filtered = timeGroups.value.filter(group => group.label === targetLabel)
+  console.log(`[Gantt Debug] Filtered to ${filtered.length} timeGroups with label "${targetLabel}"`)
+  return filtered
+})
+
+const selectedLaneName = ref<string>(getInitialLaneName())
 
 // 计算当前选中的泳道对象
 const selectedLane = computed<LaneConfig>(() => {
@@ -57,6 +177,18 @@ watch(selectedLaneName, (newName) => {
   const dimension = laneNameToDimension[newName]
   if (dimension) {
     emit('laneChange', dimension)
+  }
+})
+
+// 组件挂载时，如果有 filterCondition，发出 laneChange 事件
+onMounted(() => {
+  const filterCondition = route.query.filterCondition as string
+  if (filterCondition) {
+    const initialLaneName = getInitialLaneName()
+    const dimension = laneNameToDimension[initialLaneName]
+    if (dimension) {
+      emit('laneChange', dimension)
+    }
   }
 })
 
@@ -124,14 +256,22 @@ const timeGroups = useTimeGroups(
   props.statistics ?? null
 )
 
-// 为 tooltip 生成完整文案（柜号、日期、状态、目的港）
-const getContainerTooltipContent = (container: ContainerItem, lane: LaneConfig): string => {
-  const date = extractDateFromContainer(container, lane.dateField)
-  const dateStr = date ? formatFullDate(date) : '-'
-  const status = (container as any).logisticsStatus ?? (container as any).logistics_status ?? '-'
-  const destPort = getDestPortFromContainer(container)
-  return `${container.containerNumber} · 日期：${dateStr} · 状态：${status} · 目的港：${destPort}`
-}
+// 调试日志：监控圆点渲染
+watch([() => props.containers, () => timeGroups.value], ([newContainers, newTimeGroups]) => {
+  console.log('[Gantt Debug] Containers:', newContainers?.length || 0)
+  console.log('[Gantt Debug] Time Groups:', newTimeGroups?.length || 0)
+  console.log('[Gantt Debug] Filtered Time Groups:', getFilteredTimeGroups.value.length)
+  console.log('[Gantt Debug] Selected Lane:', selectedLane.value.name)
+  console.log('[Gantt Debug] filterCondition:', route.query.filterCondition)
+  newTimeGroups?.forEach(group => {
+    const subset = getGroupContainersSubset(props.containers, selectedLane.value.name, group.label)
+    console.log(`[Gantt Debug] Group "${group.label}": count=${group.count}, subset.length=${subset.length}`)
+    // 检查 subset 中的货柜是否有 extractedDate
+    subset.slice(0, 3).forEach(container => {
+      console.log(`[Gantt Debug]   Container ${container.containerNumber}: extractedDate=${container.extractedDate ? dayjs(container.extractedDate).format('YYYY-MM-DD') : 'null'}`)
+    })
+  })
+}, { deep: true, immediate: true })
 
 // 当前泳道对应的「日期」含义（tooltip 中日期行的标签）
 const DATE_LABEL_BY_LANE_NAME: Record<string, string> = {
@@ -156,18 +296,6 @@ function getDestPortFromContainer(container: ContainerItem): string {
   return '-'
 }
 
-// 返回结构化数据供卡片 tooltip 使用
-const getContainerTooltipData = (container: ContainerItem, lane: LaneConfig) => {
-  const date = extractDateFromContainer(container, lane.dateField)
-  return {
-    containerNumber: container.containerNumber,
-    dateLabel: getDateLabelForLane(lane),
-    dateStr: date ? formatFullDate(date) : '-',
-    status: (container as any).logisticsStatus ?? (container as any).logistics_status ?? '-',
-    destPort: getDestPortFromContainer(container)
-  }
-}
-
 const isToday = (d: Date) => dayjs(d).isSame(dayjs(), 'day')
 
 // 监听 timeGroups 变化，重新收集 ref
@@ -184,7 +312,7 @@ watch(() => timeGroups, () => {
         <span class="selector-label">选择泳道：</span>
         <div class="lane-radio-group">
           <div
-            v-for="lane in allLanes"
+            v-for="lane in filteredLanes"
             :key="lane.name"
             class="lane-radio-item"
             :class="{ active: selectedLaneName === lane.name }"
@@ -228,7 +356,7 @@ watch(() => timeGroups, () => {
 
     <div class="gantt-body">
       <!-- 时间分组泳道 -->
-      <div v-for="group in timeGroups" :key="group.label" class="gantt-lane time-group-lane">
+      <div v-for="group in getFilteredTimeGroups" :key="group.label" class="gantt-lane time-group-lane">
         <div class="lane-label" :style="{ borderLeftColor: group.color }">
           <div class="lane-label-content">
             <span class="lane-label-text">{{ group.label }}</span>
@@ -246,37 +374,37 @@ watch(() => timeGroups, () => {
               'today': isToday(date)
             }"
           >
-            <el-tooltip
-              v-for="container in getGroupContainers(getGroupContainersSubset(props.containers, selectedLane.name, group.label), date)"
-              :key="container.containerNumber"
-              placement="top"
-              effect="dark"
-              popper-class="gantt-dot-tooltip-card-popper"
-            >
-              <template #content>
-                <div class="gantt-dot-tooltip-card">
-                  <div class="tooltip-card-title">{{ getContainerTooltipData(container, selectedLane).containerNumber }}</div>
-                  <div class="tooltip-card-body">
-                    <div class="tooltip-card-row">
-                      <span class="tooltip-card-label">{{ getContainerTooltipData(container, selectedLane).dateLabel }}</span>
-                      <span class="tooltip-card-value">{{ getContainerTooltipData(container, selectedLane).dateStr }}</span>
-                    </div>
-                    <div class="tooltip-card-row">
-                      <span class="tooltip-card-label">状态</span>
-                      <span class="tooltip-card-value">{{ getContainerTooltipData(container, selectedLane).status }}</span>
-                    </div>
-                    <div class="tooltip-card-row">
-                      <span class="tooltip-card-label">目的港</span>
-                      <span class="tooltip-card-value">{{ getContainerTooltipData(container, selectedLane).destPort }}</span>
+            <template v-for="container in getGroupContainers(getGroupContainersSubset(props.containers, selectedLane.name, group.label), date)" :key="container.containerNumber">
+              <el-tooltip
+                placement="top"
+                effect="dark"
+                popper-class="gantt-dot-tooltip-card-popper"
+              >
+                <template #content>
+                  <div class="gantt-dot-tooltip-card">
+                    <div class="tooltip-card-title">{{ container.containerNumber }}</div>
+                    <div class="tooltip-card-body">
+                      <div class="tooltip-card-row">
+                        <span class="tooltip-card-label">{{ getDateLabelForLane(selectedLane) }}</span>
+                        <span class="tooltip-card-value">{{ formatFullDate(extractDateFromContainer(container, selectedLane.dateField)) }}</span>
+                      </div>
+                      <div class="tooltip-card-row">
+                        <span class="tooltip-card-label">状态</span>
+                        <span class="tooltip-card-value">{{ (container as any).logisticsStatus ?? (container as any).logistics_status ?? '-' }}</span>
+                      </div>
+                      <div class="tooltip-card-row">
+                        <span class="tooltip-card-label">目的港</span>
+                        <span class="tooltip-card-value">{{ getDestPortFromContainer(container) }}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </template>
-              <div
-                class="container-dot"
-                :style="{ backgroundColor: group.color }"
-              ></div>
-            </el-tooltip>
+                </template>
+                <div
+                  class="container-dot"
+                  :style="{ backgroundColor: group.color }"
+                ></div>
+              </el-tooltip>
+            </template>
           </div>
         </div>
       </div>

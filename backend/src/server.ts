@@ -20,17 +20,19 @@ async function startServer() {
     log.info('Initializing database connection...');
     await initDatabase();
 
-    // 启动货柜状态调度器
-    log.info('Starting container status scheduler...');
+    // 启动货柜状态调度器（优化：延迟5秒首次执行）
+    log.info('Starting container status scheduler (optimized: delayed start)...');
     const schedulerInterval = parseInt(process.env.STATUS_SCHEDULER_INTERVAL || '60', 10);
-    containerStatusScheduler.start(schedulerInterval);
-    log.info(`✅ Container status scheduler started with ${schedulerInterval} minute interval`);
+    const schedulerDelay = parseInt(process.env.STATUS_SCHEDULER_DELAY || '5', 10);
+    containerStatusScheduler.start(schedulerInterval, schedulerDelay);
+    log.info(`✅ Container status scheduler started with ${schedulerInterval} minute interval, first execution in ${schedulerDelay}s`);
 
-    // 启动滞港费日期批量写回调度器（last_free_date 为空、last_return_date 为空）
-    log.info('Starting demurrage write-back scheduler...');
+    // 启动滞港费日期批量写回调度器（优化：延迟5秒首次执行）
+    log.info('Starting demurrage write-back scheduler (optimized: delayed start)...');
     const demurrageWriteBackInterval = parseInt(process.env.DEMURRAGE_WRITEBACK_SCHEDULER_INTERVAL || '360', 10);
-    demurrageWriteBackScheduler.start(demurrageWriteBackInterval);
-    log.info(`✅ Demurrage write-back scheduler started with ${demurrageWriteBackInterval} minute interval`);
+    const demurrageWriteBackDelay = parseInt(process.env.DEMURRAGE_WRITEBACK_SCHEDULER_DELAY || '5', 10);
+    demurrageWriteBackScheduler.start(demurrageWriteBackInterval, demurrageWriteBackDelay);
+    log.info(`✅ Demurrage write-back scheduler started with ${demurrageWriteBackInterval} minute interval, first execution in ${demurrageWriteBackDelay}s`);
 
     // 检查微服务健康状态
     log.info('Checking microservices health...');

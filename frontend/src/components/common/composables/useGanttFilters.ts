@@ -27,8 +27,37 @@ export const getArrivalSubset = (
       const ataDate = container.ataDestPort
       const currentPortType = container.currentPortType
 
+      // 已到中转港分组
+      if (groupLabel === '已到中转港') {
+        return hasArrivedAtTransit(container)
+      }
+
+      // 中转港相关分组
+      if (groupLabel === '中转港已逾期' || groupLabel === '中转港3日内到港' ||
+          groupLabel === '中转港7日内到港' || groupLabel === '中转港7日后到港' ||
+          groupLabel === '中转港无ETA') {
+        if (!hasArrivedAtTransit(container)) return false
+        if (!etaDate) return groupLabel === '中转港无ETA'
+
+        const eta = new Date(etaDate)
+        eta.setHours(0, 0, 0, 0)
+        const diffTime = eta.getTime() - today.getTime()
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+        if (groupLabel === '中转港已逾期') return diffDays < 0
+        if (groupLabel === '中转港3日内到港') return diffDays >= 0 && diffDays <= 3
+        if (groupLabel === '中转港7日内到港') return diffDays > 3 && diffDays <= 7
+        if (groupLabel === '中转港7日后到港') return diffDays > 7
+        return false
+      }
+
+      // 今日之前到港但无ATA分组
+      if (groupLabel === '今日之前到港但无ATA') {
+        return !ataDate && !etaDate && !hasArrivedAtTransit(container)
+      }
+
       // 其他记录：目的港无 ETA 且无 ATA（与后端 otherRecords 一致）
-      if (groupLabel === '其他记录') {
+      if (groupLabel === '无ETA记录') {
         return !etaDate && !ataDate
       }
       if (!etaDate && !ataDate) return false
@@ -385,8 +414,19 @@ export const getGroupContainersSubset = (
 export const getGroupContainers = (groupSubset: ContainerItem[], date: Date): ContainerItem[] => {
   // 所有货柜都显示在实际提取的日期上
   const targetDate = dayjs(date)
-  return groupSubset.filter(item => {
-    if (!item.extractedDate) return false
-    return dayjs(item.extractedDate).isSame(targetDate, 'day')
+  const filtered = groupSubset.filter(item => {
+    if (!item.extractedDate) {
+      console.warn(`[Gantt Debug] Container ${item.containerNumber} has no extractedDate`)
+      return false
+    }
+    const isMatch = dayjs(item.extractedDate).isSame(targetDate, 'day')
+    if (!isMatch) {
+      console.log(`[Gantt Debug] Container ${item.containerNumber}: extractedDate=${dayjs(item.extractedDate).format('YYYY-MM-DD')}, targetDate=${dayjs(targetDate).format('YYYY-MM-DD')}`)
+    }
+    return isMatch
   })
+  if (filtered.length > 0) {
+    console.log(`[Gantt Debug] getGroupContainers: subset.length=${groupSubset.length}, filtered.length=${filtered.length}, targetDate=${dayjs(targetDate).format('YYYY-MM-DD')}`)
+  }
+  return filtered
 }

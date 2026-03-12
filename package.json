@@ -21,7 +21,9 @@
     "type-check": "npm run type-check:backend && npm run type-check:frontend",
     "type-check:backend": "cd backend && npm run type-check",
     "type-check:frontend": "cd frontend && npm run type-check",
-    "validate": "npm run type-check && npm run lint && npm run lint:naming"
+    "validate": "npm run type-check && npm run lint && npm run lint:naming",
+    "diagnose:country-filter": "node scripts/diagnose-country-filter.js",
+    "test:statistics-fix": "node scripts/test-statistics-fix.js"
   },
   "devDependencies": {
     "cross-env": "^10.1.0",

@@ -41,8 +41,12 @@ const countryOptions = ref<Array<{ value: string; label: string }>>([])
 
 onMounted(async () => {
   try {
+    console.log('[国家筛选] 开始加载国家列表...')
     const res = await containerService.getCountries()
+    console.log('[国家筛选] API响应:', res)
+    
     if (res?.success && Array.isArray(res.data)) {
+      console.log('[国家筛选] 成功获取国家数据，数量:', res.data.length)
       countryOptions.value = [
         { value: '', label: t('common.allCountries') || '全部国家' },
         ...res.data.map((c: { code: string; nameCn: string; nameEn: string }) => ({
@@ -50,8 +54,13 @@ onMounted(async () => {
           label: c.nameCn || c.nameEn || c.code
         }))
       ]
+      console.log('[国家筛选] 国家选项设置完成，总数:', countryOptions.value.length)
+    } else {
+      console.error('[国家筛选] API返回数据格式不正确:', res)
+      countryOptions.value = [{ value: '', label: t('common.allCountries') || '全部国家' }]
     }
-  } catch {
+  } catch (error) {
+    console.error('[国家筛选] 加载国家列表失败:', error)
     countryOptions.value = [{ value: '', label: t('common.allCountries') || '全部国家' }]
   }
 })

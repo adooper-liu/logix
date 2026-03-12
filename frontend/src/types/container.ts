@@ -63,6 +63,13 @@ export interface Container {
   location?: string;
   lastUpdated?: Date;
   status?: string;
+  currentPortType?: string;
+  latestPortOperation?: {
+    portType?: string;
+    portName?: string;
+    portCode?: string;
+    portSequence?: number;
+  };
   // 港口和海运信息
   etaDestPort?: Date;
   etaCorrection?: Date;

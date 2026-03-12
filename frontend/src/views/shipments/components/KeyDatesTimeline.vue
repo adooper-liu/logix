@@ -2,6 +2,7 @@
 import { QuestionFilled } from '@element-plus/icons-vue'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
+import DurationDisplay from '@/components/common/DurationDisplay.vue'
 
 const router = useRouter()
 
@@ -191,7 +192,7 @@ const formatDate = (d: string | Date | null | undefined): string => {
 }
 
 /**
- * 获取日期颜色
+ * 获取日期颜色（用于timeline dot颜色）
  * 1. 未来日期：倒计时
  *    - 今天到期：橙色
  *    - 剩余1-3天：橙色
@@ -241,49 +242,6 @@ const STANDARD_DURATIONS: Record<string, number> = {
 }
 
 /**
- * 获取日期状态文字
- * 1. 未来日期：显示"倒计时"
- * 2. 过去日期：
- *    - 普通节点：显示"历时"
- *    - 关键节点（最晚提柜/最晚还箱）：判断是否超期
- *      - 未超期：显示"历时"
- *      - 已超期：显示"超期"
- */
-const getDateStatusText = (date: Date, label?: string): string => {
-  const now = new Date()
-
-  // 1. 未来日期：显示倒计时
-  if (date > now) {
-    const diffDays = Math.floor((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-    if (diffDays === 0) return '今天到期'
-    if (diffDays === 1) return '倒计时1天'
-    return `倒计时${diffDays}天`
-  }
-
-  // 2. 过去日期
-  const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
-  if (diffDays === 0) return '今天到期'
-
-  // 2.1 关键节点（最晚提柜/最晚还箱）：判断是否超期
-  if (label && (label === '最晚提柜' || label === '最晚还箱')) {
-    const standardHours = STANDARD_DURATIONS[label] ?? 0
-    if (standardHours > 0) {
-      const standardDays = standardHours / 24
-      // 如果已超过标准时间，显示"超期"
-      if (diffDays > standardDays) {
-        const overdueDays = diffDays - standardDays
-        if (overdueDays === 1) return '超期1天'
-        return `超期${overdueDays}天`
-      }
-    }
-  }
-
-  // 2.2 普通节点或未超期：显示"历时"
-  if (diffDays === 1) return '历时1天'
-  return `历时${diffDays}天`
-}
-
-/**
  * 获取最晚提柜日的计算来源文字
  * @param mode 计算模式（actual/forecast）
  * @param ataDestPort 实际到港日期
@@ -330,28 +288,6 @@ const getCalculationSourceText = (
 const getCalculationSourceTextForReturn = (pickupDateActual?: string | null): string | null => {
   if (!pickupDateActual) return null
   return '按实际提柜日计算'
-}
-
-/**
- * 获取状态图标
- * @param date 日期
- * @param label 标签
- */
-const getStatusIcon = (date: Date, label?: string): string => {
-  const now = new Date()
-  const alertColor = getDateAlertColor(date, label)
-
-  // 超期状态：红色警告图标
-  if (alertColor === 'red') return '⚠️'
-
-  // 即将到期：橙色时钟图标
-  if (alertColor === 'orange') return '⏰'
-
-  // 安全/当前：绿色对勾图标
-  if (alertColor === 'green') return '✅'
-
-  // 历时：蓝色时钟图标
-  return '⏱️'
 }
 </script>
 
@@ -407,13 +343,15 @@ const getStatusIcon = (date: Date, label?: string): string => {
           <div class="item-date-wrapper">
             <span class="item-date">{{ formatDate(event.date) }}</span>
           </div>
-          <div
-            v-if="event.type !== 'info'"
-            class="item-status"
-            :class="getDateAlertColor(event.date)"
-          >
-            <span class="status-icon">{{ getStatusIcon(event.date, event.label) }}</span>
-            <span class="status-text">{{ getDateStatusText(event.date, event.label) }}</span>
+          <!-- 使用 DurationDisplay 组件显示时间状态 -->
+          <div v-if="event.type !== 'info'" class="item-status">
+            <DurationDisplay
+              :date="event.date"
+              :label="event.label"
+              :is-key-node="event.label === '最晚提柜' || event.label === '最晚还箱'"
+              :standard-hours="STANDARD_DURATIONS[event.label] ?? 0"
+              mode="auto"
+            />
           </div>
         </div>
       </div>

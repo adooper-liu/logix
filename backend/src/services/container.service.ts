@@ -42,60 +42,100 @@ export class ContainerService {
   ) {}
 
   /**
-   * 为货柜列表添加扩展信息
+   * 为货柜列表添加扩展信息（优化版本）
+   * 使用批量查询替代N+1查询，提升性能
    */
   async enrichContainersList(containers: Container[]): Promise<any[]> {
-    const enrichedContainers = await Promise.all(
-      containers.map(async (container) => {
-        try {
-          const enriched = await this.enrichSingleContainer(container);
+    const startTime = Date.now()
 
-          // 计算当前位置
-          const currentLocation = this.calculateCurrentLocation(
-            enriched.latestEvent,
-            enriched.container.logisticsStatus,
-            enriched.latestPortOperation,
-            enriched.currentPortType
-          );
+    // 批量查询优化：收集所有container_number
+    const containerNumbers = containers.map(c => c.containerNumber)
 
-          return {
-            ...enriched.container,
-            orderNumber: enriched.orderInfo?.orderNumber ?? enriched.firstOrderNumber ?? null,
-            latestStatus: this.formatLatestStatus(enriched.latestEvent),
-            location: currentLocation,
-            lastUpdated: enriched.container.updatedAt,
-            currentPortType: enriched.currentPortType,
-            latestPortOperation: this.formatPortOperation(enriched.latestPortOperation),
-            // 扩展字段（与列表表头绑定一致）
-            etaDestPort: enriched.latestPortOperation?.etaDestPort || null,
-            etaCorrection: enriched.latestPortOperation?.etaCorrection || null,
-            ataDestPort: enriched.currentPortType === 'transit'
-              ? (enriched.latestPortOperation?.transitArrivalDate || null)
-              : (enriched.latestPortOperation?.ataDestPort || null),
-            customsStatus: enriched.latestPortOperation?.customsStatus || null,
-            destinationPort: enriched.seaFreight?.portOfDischarge || null,
-            billOfLadingNumber: enriched.seaFreight?.mblNumber || enriched.seaFreight?.billOfLadingNumber || null,
-            mblNumber: enriched.seaFreight?.mblNumber || null,
-            actualShipDate: enriched.orderInfo?.actualShipDate || enriched.seaFreight?.shipmentDate || null,
-            sellToCountry: enriched.orderInfo?.sellToCountry || null,
-            customerName: enriched.orderInfo?.customerName || null,
-            // 计划提柜日 / 最晚提柜日 / 最晚还箱日 / 实际还箱日（列表表头用）
-            plannedPickupDate: enriched.truckingTransport?.plannedPickupDate || null,
-            lastFreeDate: enriched.latestPortOperation?.lastFreeDate || null,
-            lastReturnDate: enriched.emptyReturn?.lastReturnDate || null,
-            returnTime: enriched.emptyReturn?.returnTime || null,
-            // 关联数据（用于前端过滤）
-            truckingTransports: enriched.truckingTransport ? [enriched.truckingTransport] : [],
-            emptyReturns: enriched.emptyReturn ? [enriched.emptyReturn] : []
-          };
-        } catch (error) {
-          logger.warn(`[ContainerService] Failed to enrich ${container.containerNumber}:`, error);
-          return { ...container, latestStatus: null, location: '-' };
+    // 批量查询所有相关数据
+    const [ordersMap, eventsMap, portOperationsMap, truckingMap, warehouseMap, emptyReturnsMap] = await Promise.all([
+      this.batchFetchOrders(containerNumbers),
+      this.batchFetchStatusEvents(containerNumbers),
+      this.batchFetchPortOperations(containerNumbers),
+      this.batchFetchTruckingTransports(containerNumbers),
+      this.batchFetchWarehouseOperations(containerNumbers),
+      this.batchFetchEmptyReturns(containerNumbers)
+    ])
+
+    const enrichedContainers = containers.map(container => {
+      try {
+        const containerNumber = container.containerNumber
+
+        // 从批量查询结果中获取数据
+        const orderInfo = ordersMap.get(containerNumber)
+        const latestEvent = eventsMap.get(containerNumber)
+        const portOperations = portOperationsMap.get(containerNumber) || []
+        const truckingTransport = truckingMap.get(containerNumber)
+        const warehouseOperation = warehouseMap.get(containerNumber)
+        const emptyReturn = emptyReturnsMap.get(containerNumber)
+
+        // 计算物流状态
+        const logisticsResult = calculateLogisticsStatus(
+          container,
+          portOperations,
+          truckingTransport,
+          warehouseOperation,
+          emptyReturn,
+          latestEvent
+        )
+
+        const currentPortType = logisticsResult.currentPortType
+        const latestPortOperation = logisticsResult.latestPortOperation
+
+        // 计算当前位置
+        const currentLocation = this.calculateCurrentLocation(
+          latestEvent,
+          container.logisticsStatus,
+          latestPortOperation,
+          currentPortType
+        )
+
+        return {
+          ...container,
+          orderNumber: orderInfo?.orderNumber ?? null,
+          latestStatus: this.formatLatestStatus(latestEvent),
+          location: currentLocation,
+          lastUpdated: container.updatedAt,
+          currentPortType,
+          latestPortOperation: this.formatPortOperation(latestPortOperation),
+          // 扩展字段（与列表表头绑定一致）
+          etaDestPort: latestPortOperation?.etaDestPort || container.seaFreight?.eta || null,
+          etaCorrection: latestPortOperation?.etaCorrection || null,
+          ataDestPort: currentPortType === 'transit'
+            ? (latestPortOperation?.transitArrivalDate || null)
+            : (latestPortOperation?.ataDestPort || null),
+          customsStatus: latestPortOperation?.customsStatus || null,
+          destinationPort: container.seaFreight?.portOfDischarge || null,
+          billOfLadingNumber: container.seaFreight?.mblNumber || container.seaFreight?.billOfLadingNumber || null,
+          mblNumber: container.seaFreight?.mblNumber || null,
+          actualShipDate: orderInfo?.actualShipDate || container.seaFreight?.shipmentDate || null,
+          sellToCountry: orderInfo?.sellToCountry || null,
+          customerName: orderInfo?.customerName || null,
+          // 计划提柜日 / 最晚提柜日 / 最晚还箱日 / 实际还箱日（列表表头用）
+          plannedPickupDate: truckingTransport?.plannedPickupDate || null,
+          lastFreeDate: latestPortOperation?.lastFreeDate || null,
+          lastReturnDate: emptyReturn?.lastReturnDate || null,
+          returnTime: emptyReturn?.returnTime || null,
+          // 关联数据（用于前端过滤）
+          truckingTransports: truckingTransport ? [truckingTransport] : [],
+          emptyReturns: emptyReturn ? [emptyReturn] : [],
+          // SeaFreight用于详情
+          seaFreight: container.seaFreight || null
         }
-      })
-    );
+      } catch (error) {
+        logger.warn(`[ContainerService] Failed to enrich ${container.containerNumber}:`, error)
+        return { ...container, latestStatus: null, location: '-' }
+      }
+    })
 
-    return enrichedContainers;
+    const endTime = Date.now()
+    logger.info(`[enrichContainersList] Processed ${containers.length} containers in ${(endTime - startTime).toFixed(2)}ms`)
+
+    return enrichedContainers
   }
 
   /**
@@ -590,6 +630,197 @@ export class ContainerService {
       logger.warn(`[fetchEmptyReturn] Failed for ${containerNumber}:`, error);
       return null;
     }
+  }
+
+  // ==================== 批量查询优化方法 ====================
+
+  /**
+   * 批量查询备货单信息
+   */
+  private async batchFetchOrders(containerNumbers: string[]): Promise<Map<string, ReplenishmentOrder | null>> {
+    const result = new Map<string, ReplenishmentOrder | null>()
+
+    try {
+      // 获取所有货柜的订单号
+      const firstOrderNumbers = await Promise.all(
+        containerNumbers.map(async (cn) => {
+          const orderNumber = await this.getFirstOrderNumberForContainer(cn)
+          return { containerNumber: cn, orderNumber }
+        })
+      )
+
+      const orderNumbers = firstOrderNumbers
+        .map(item => item.orderNumber)
+        .filter((orderNumber): orderNumber is string => orderNumber !== null)
+
+      if (orderNumbers.length === 0) {
+        containerNumbers.forEach(cn => result.set(cn, null))
+        return result
+      }
+
+      // 批量查询订单
+      const orders = await this.orderRepository
+        .createQueryBuilder('ro')
+        .where('ro.orderNumber IN (:...orderNumbers)', { orderNumbers })
+        .getMany()
+
+      const ordersByNumber = new Map(orders.map(o => [o.orderNumber, o]))
+
+      // 构建结果Map
+      firstOrderNumbers.forEach(item => {
+        result.set(item.containerNumber, ordersByNumber.get(item.orderNumber ?? '') ?? null)
+      })
+    } catch (error) {
+      logger.warn('[batchFetchOrders] Failed:', error)
+      containerNumbers.forEach(cn => result.set(cn, null))
+    }
+
+    return result
+  }
+
+  /**
+   * 批量查询最新状态事件
+   */
+  private async batchFetchStatusEvents(containerNumbers: string[]): Promise<Map<string, ContainerStatusEvent | null>> {
+    const result = new Map<string, ContainerStatusEvent | null>()
+
+    try {
+      // 使用子查询批量查询每个container的最新事件
+      const events = await this.statusEventRepository
+        .createQueryBuilder('event')
+        .where(`(event.container_number, event.occurred_at) IN (
+          SELECT container_number, MAX(occurred_at)
+          FROM biz_container_status_events
+          WHERE container_number IN (:...containerNumbers)
+          GROUP BY container_number
+        )`, { containerNumbers })
+        .getRawMany()
+
+      events.forEach((event: any) => {
+        result.set(event.event_container_number, {
+          containerNumber: event.event_container_number,
+          eventType: event.event_event_type,
+          locationCode: event.event_location_code,
+          locationNameCn: event.event_location_name_cn,
+          locationNameEn: event.event_location_name_en,
+          occurredAt: event.event_occurred_at
+        } as ContainerStatusEvent)
+      })
+    } catch (error) {
+      logger.warn('[batchFetchStatusEvents] Failed:', error)
+      containerNumbers.forEach(cn => result.set(cn, null))
+    }
+
+    return result
+  }
+
+  /**
+   * 批量查询港口操作记录
+   */
+  private async batchFetchPortOperations(containerNumbers: string[]): Promise<Map<string, PortOperation[]>> {
+    const result = new Map<string, PortOperation[]>()
+
+    try {
+      const portOperations = await this.portOperationRepository
+        .createQueryBuilder('po')
+        .where('po.containerNumber IN (:...containerNumbers)', { containerNumbers })
+        .orderBy('po.updatedAt', 'DESC')
+        .getMany()
+
+      // 按containerNumber分组
+      portOperations.forEach(po => {
+        const operations = result.get(po.containerNumber) || []
+        operations.push(po)
+        result.set(po.containerNumber, operations)
+      })
+
+      // 确保所有container都有记录
+      containerNumbers.forEach(cn => {
+        if (!result.has(cn)) {
+          result.set(cn, [])
+        }
+      })
+    } catch (error) {
+      logger.warn('[batchFetchPortOperations] Failed:', error)
+      containerNumbers.forEach(cn => result.set(cn, []))
+    }
+
+    return result
+  }
+
+  /**
+   * 批量查询拖卡运输记录
+   */
+  private async batchFetchTruckingTransports(containerNumbers: string[]): Promise<Map<string, TruckingTransport | null>> {
+    const result = new Map<string, TruckingTransport | null>()
+
+    try {
+      const truckingTransports = await this.truckingTransportRepository
+        .createQueryBuilder('tt')
+        .where('tt.containerNumber IN (:...containerNumbers)', { containerNumbers })
+        .getMany()
+
+      const transportMap = new Map(truckingTransports.map(tt => [tt.containerNumber, tt]))
+
+      containerNumbers.forEach(cn => {
+        result.set(cn, transportMap.get(cn) ?? null)
+      })
+    } catch (error) {
+      logger.warn('[batchFetchTruckingTransports] Failed:', error)
+      containerNumbers.forEach(cn => result.set(cn, null))
+    }
+
+    return result
+  }
+
+  /**
+   * 批量查询仓库操作记录
+   */
+  private async batchFetchWarehouseOperations(containerNumbers: string[]): Promise<Map<string, WarehouseOperation | null>> {
+    const result = new Map<string, WarehouseOperation | null>()
+
+    try {
+      const warehouseOperations = await this.warehouseOperationRepository
+        .createQueryBuilder('wo')
+        .where('wo.containerNumber IN (:...containerNumbers)', { containerNumbers })
+        .getMany()
+
+      const operationMap = new Map(warehouseOperations.map(wo => [wo.containerNumber, wo]))
+
+      containerNumbers.forEach(cn => {
+        result.set(cn, operationMap.get(cn) ?? null)
+      })
+    } catch (error) {
+      logger.warn('[batchFetchWarehouseOperations] Failed:', error)
+      containerNumbers.forEach(cn => result.set(cn, null))
+    }
+
+    return result
+  }
+
+  /**
+   * 批量查询还空箱记录
+   */
+  private async batchFetchEmptyReturns(containerNumbers: string[]): Promise<Map<string, EmptyReturn | null>> {
+    const result = new Map<string, EmptyReturn | null>()
+
+    try {
+      const emptyReturns = await this.emptyReturnRepository
+        .createQueryBuilder('er')
+        .where('er.containerNumber IN (:...containerNumbers)', { containerNumbers })
+        .getMany()
+
+      const returnMap = new Map(emptyReturns.map(er => [er.containerNumber, er]))
+
+      containerNumbers.forEach(cn => {
+        result.set(cn, returnMap.get(cn) ?? null)
+      })
+    } catch (error) {
+      logger.warn('[batchFetchEmptyReturns] Failed:', error)
+      containerNumbers.forEach(cn => result.set(cn, null))
+    }
+
+    return result
   }
 
   // ==================== 格式化辅助方法 ====================

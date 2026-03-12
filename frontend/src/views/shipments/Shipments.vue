@@ -309,8 +309,17 @@ const loadContainersByFilter = async () => {
     )
 
     if (response.success && response.items && !isUnmounted.value) {
-      containers.value = response.items
-      pagination.value.total = response.count
+      // 只显示前 100 条数据，避免卡顿
+      const displayLimit = 100
+      const allItems = response.items
+      pagination.value.total = allItems.length
+
+      if (allItems.length > displayLimit) {
+        containers.value = allItems.slice(0, displayLimit)
+        ElMessage.warning(`结果包含 ${allItems.length} 条记录，仅显示前 ${displayLimit} 条。请缩小日期范围或添加更多筛选条件。`)
+      } else {
+        containers.value = allItems
+      }
     } else if (!isUnmounted.value) {
       containers.value = []
       pagination.value.total = 0
@@ -381,6 +390,24 @@ const viewDetails = (container: any) => {
 // 编辑集装箱
 const editContainer = (container: any) => {
   ElMessage.info(`编辑集装箱 ${container.containerNumber}`)
+}
+
+// 跳转到甘特图
+const goToGantt = () => {
+  const filterCondition = activeFilter.value.days
+  const filterLabel = getFilterLabel(filterCondition)
+  const startDate = dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD')
+  const endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
+
+  router.push({
+    path: '/gantt-chart',
+    query: {
+      filterCondition,
+      startDate,
+      endDate,
+      filterLabel
+    }
+  })
 }
 
 // 分页改变
@@ -697,9 +724,10 @@ const goGanttChart = () => {
   }
   if (activeFilter.value.type && activeFilter.value.days) {
     query.filterCondition = activeFilter.value.days
+    query.filterLabel = getFilterLabel(activeFilter.value.days)
   }
   if (ids.length) query.containers = ids.join(',')
-  router.push({ path: '/shipments/gantt-chart', query })
+  router.push({ path: '/gantt-chart', query })
 }
 
 onMounted(() => {
@@ -898,6 +926,7 @@ onUnmounted(() => {
         :default-sort="{ prop: tableSort.prop || undefined, order: tableSort.order || undefined }"
         v-loading="loading"
         stripe
+        height="calc(100vh - 380px)"
         style="width: 100%"
         @sort-change="handleSortChange"
         @selection-change="handleSelectionChange"

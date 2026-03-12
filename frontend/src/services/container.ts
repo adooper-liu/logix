@@ -21,7 +21,7 @@ class ContainerService {
   constructor() {
     this.api = axios.create({
       baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1',
-      timeout: 30000
+      timeout: 120000
     });
 
     // 请求拦截器

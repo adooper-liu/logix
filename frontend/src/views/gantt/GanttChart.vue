@@ -1,14 +1,16 @@
 <script setup lang="ts">
+import { Refresh, RefreshRight } from '@element-plus/icons-vue'
 import ContainerGanttChart from '@/components/common/ContainerGanttChart.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import { containerService } from '@/services/container'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
-import { onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
-const loading = ref(false)
+const router = useRouter()
+const loading = ref(true)
 const containers = ref<any[]>([])
 /** 与 Shipments 统计卡片同源：getStatisticsDetailed，用于驱动甘特图泳道行数量 */
 const statisticsFromApi = ref<{
@@ -17,6 +19,12 @@ const statisticsFromApi = ref<{
   lastPickupDistribution: Record<string, number>
   returnDistribution: Record<string, number>
 } | null>(null)
+const error = ref<string | null>(null)
+const isInitialLoad = ref(true)
+
+// 缓存配置
+const CACHE_TTL = 5 * 60 * 1000 // 5分钟缓存过期时间
+const dataCache = new Map<string, { data: any[]; statistics: any; timestamp: number }>()
 
 // 甘特图默认时间窗口：本年（1 月 1 日～12 月 31 日）
 function getDefaultDateRange(): [Date, Date] {
@@ -170,26 +178,67 @@ const calculateDisplayRange = (
 
 // 与 Shipments 统计卡片一致：出运日期 [startDate,endDate]；若有 filterCondition 则用 by-filter 接口
 const loadData = async () => {
+  const startTime = performance.now()
   loading.value = true
+  error.value = null
+
   try {
     const startDate = dayjs(loadDataDateRange.value[0]).format('YYYY-MM-DD')
     const endDate = dayjs(loadDataDateRange.value[1]).format('YYYY-MM-DD')
     const filterCondition = route.query.filterCondition as string | undefined
     const containersQuery = (route.query.containers as string) || ''
 
+    // 生成缓存键
+    const cacheKey = `${filterCondition || 'all'}-${startDate}-${endDate}`
+
+    // 检查缓存
+    const cached = dataCache.get(cacheKey)
+    const now = Date.now()
+
+    if (cached && now - cached.timestamp < CACHE_TTL) {
+      const cacheAge = ((now - cached.timestamp) / 1000).toFixed(1)
+      console.log(`[Performance] Using cached data for ${cacheKey}, age: ${cacheAge}s`)
+
+      containers.value = cached.data
+      statisticsFromApi.value = cached.statistics
+
+      // 计算显示范围：根据 filterCondition 确定维度
+      const dimension = getDimensionFromFilterCondition(filterCondition)
+      const range = calculateDisplayRange(containers.value, dimension)
+      if (range) {
+        displayRange.value = range
+      }
+
+      const endTime = performance.now()
+      console.log(`[Performance] Cache hit, load time: ${(endTime - startTime).toFixed(2)}ms`)
+
+      ElMessage.info('使用缓存数据，加载更快')
+      loading.value = false
+      isInitialLoad.value = false
+      return
+    }
+
+    console.log(`[Performance] Cache miss, loading from API...`)
+
     let list: any[] = []
+    const apiStartTime = performance.now()
+
     const [containersRes, statisticsRes] = await Promise.all([
       filterCondition
         ? containerService.getContainersByFilterCondition(filterCondition, startDate, endDate)
         : containerService.getContainers({
             page: 1,
-            pageSize: 5000,
+            pageSize: 500,
             search: '',
             startDate,
             endDate
           }),
       containerService.getStatisticsDetailed(startDate, endDate)
     ])
+
+    const apiEndTime = performance.now()
+    console.log(`[Performance] API call completed in ${(apiEndTime - apiStartTime).toFixed(2)}ms`)
+
     list = (containersRes as any)?.items ?? []
     if (statisticsRes?.success && statisticsRes.data) {
       statisticsFromApi.value = {
@@ -208,19 +257,179 @@ const loadData = async () => {
     }
 
     containers.value = list
-    ElMessage.success(`加载了 ${containers.value.length} 个货柜数据`)
 
-    const range = calculateDisplayRange(containers.value, 'arrival')
+    // 缓存数据
+    dataCache.set(cacheKey, {
+      data: list,
+      statistics: statisticsFromApi.value,
+      timestamp: now
+    })
+    console.log(`[Performance] Cached ${list.length} containers for ${cacheKey}`)
+
+    // 清理过期缓存
+    cleanExpiredCache()
+
+    // 根据过滤条件显示提示信息
+    if (filterCondition) {
+      const filterType = getFilterTypeText(filterCondition)
+      ElMessage.success(`已加载 ${filterType} 的 ${containers.value.length} 个货柜`)
+    } else {
+      ElMessage.success(`加载了 ${containers.value.length} 个货柜数据`)
+    }
+
+    // 计算显示范围：根据 filterCondition 确定维度
+    const dimension = getDimensionFromFilterCondition(filterCondition)
+    const range = calculateDisplayRange(containers.value, dimension)
     if (range) {
       displayRange.value = range
     }
-  } catch (error) {
+
+    const endTime = performance.now()
+    console.log(`[Performance] Total load time: ${(endTime - startTime).toFixed(2)}ms`)
+  } catch (error: any) {
     console.error('Failed to load containers:', error)
-    ElMessage.error('加载货柜数据失败')
+    error.value = error.message || '未知错误'
+    if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
+      ElMessage.error('加载货柜数据超时，请检查后端服务是否正常运行')
+    } else if (error.response?.status === 401) {
+      ElMessage.error('请先登录')
+    } else if (error.response?.status === 500) {
+      ElMessage.error('服务器内部错误，请稍后重试')
+    } else {
+      ElMessage.error(`加载货柜数据失败：${error.message || '未知错误'}`)
+    }
   } finally {
     loading.value = false
+    isInitialLoad.value = false
   }
 }
+
+// 清理过期缓存
+const cleanExpiredCache = () => {
+  const now = Date.now()
+  let cleanedCount = 0
+
+  for (const [key, value] of dataCache.entries()) {
+    if (now - value.timestamp >= CACHE_TTL) {
+      dataCache.delete(key)
+      cleanedCount++
+    }
+  }
+
+  if (cleanedCount > 0) {
+    console.log(`[Cache] Cleaned ${cleanedCount} expired cache entries`)
+  }
+}
+
+// 强制刷新数据（跳过缓存）
+const forceRefresh = async () => {
+  const cacheKey = `${route.query.filterCondition || 'all'}-${dayjs(loadDataDateRange.value[0]).format('YYYY-MM-DD')}-${dayjs(loadDataDateRange.value[1]).format('YYYY-MM-DD')}`
+  dataCache.delete(cacheKey)
+  console.log(`[Cache] Force refresh: deleted cache for ${cacheKey}`)
+  await loadData()
+}
+
+// 根据filterCondition获取过滤类型文本
+function getFilterTypeText(filterCondition: string): string {
+  const filterMap: Record<string, string> = {
+    arrivalToday: '今日到港',
+    arrivedBeforeNotPickedUp: '今日之前到港未提柜',
+    arrivedBeforePickedUp: '今日之前到港已提柜',
+    arrivedAtTransit: '已到中转港',
+    transitOverdue: '中转港已逾期',
+    transitWithin3Days: '中转港3日内到港',
+    transitWithin7Days: '中转港7日内到港',
+    transitOver7Days: '中转港7日后到港',
+    transitNoEta: '中转港无ETA',
+    arrivedTodayNoAta: '今日之前到港但无ATA',
+    etaOverdue: 'ETA已逾期',
+    etaWithin3Days: '预计3日内到港',
+    etaWithin7Days: '预计7日内到港',
+    etaOver7Days: '预计7日后到港',
+    etaNoRecord: '无ETA记录',
+    overduePlanned: '逾期计划提柜',
+    todayPlanned: '今日计划提柜',
+    plannedWithin3Days: '计划提柜3日内',
+    plannedWithin7Days: '计划提柜7日内',
+    pendingArrangement: '待安排',
+    lastPickupExpired: '最晚提柜已超时',
+    lastPickupUrgent: '最晚提柜即将超时（1-3天）',
+    lastPickupWarning: '最晚提柜预警（4-7天）',
+    lastPickupNormal: '最晚提柜时间充裕（7天以上）',
+    lastPickupNoDate: '无最晚提柜日',
+    returnExpired: '最晚还箱已超时',
+    returnUrgent: '最晚还箱即将超时（1-3天）',
+    returnWarning: '最晚还箱预警（4-7天）',
+    returnNormal: '最晚还箱时间充裕（7天以上）',
+    returnNoDate: '无最晚还箱日'
+  }
+  return filterMap[filterCondition] || '筛选结果'
+}
+
+// 根据filterCondition确定显示维度
+function getDimensionFromFilterCondition(filterCondition?: string): string {
+  if (!filterCondition) return 'arrival'
+
+  // 按到港维度
+  const arrivalFilters = [
+    'arrivalToday',
+    'arrivedBeforeNotPickedUp',
+    'arrivedBeforePickedUp',
+    'arrivedAtTransit',
+    'transitOverdue',
+    'transitWithin3Days',
+    'transitWithin7Days',
+    'transitOver7Days',
+    'transitNoEta',
+    'arrivedTodayNoAta',
+    'etaOverdue',
+    'etaWithin3Days',
+    'etaWithin7Days',
+    'etaOver7Days',
+    'etaNoRecord'
+  ]
+  if (arrivalFilters.includes(filterCondition)) return 'arrival'
+
+  // 按计划提柜维度
+  const pickupFilters = [
+    'overduePlanned',
+    'todayPlanned',
+    'plannedWithin3Days',
+    'plannedWithin7Days',
+    'pendingArrangement'
+  ]
+  if (pickupFilters.includes(filterCondition)) return 'pickup'
+
+  // 按最晚提柜维度
+  const lastPickupFilters = [
+    'lastPickupExpired',
+    'lastPickupUrgent',
+    'lastPickupWarning',
+    'lastPickupNormal',
+    'lastPickupNoDate'
+  ]
+  if (lastPickupFilters.includes(filterCondition)) return 'lastPickup'
+
+  // 按最晚还箱维度
+  const returnFilters = [
+    'returnExpired',
+    'returnUrgent',
+    'returnWarning',
+    'returnNormal',
+    'returnNoDate'
+  ]
+  if (returnFilters.includes(filterCondition)) return 'return'
+
+  // 默认按到港
+  return 'arrival'
+}
+
+// 当前过滤条件文本
+const currentFilterText = computed(() => {
+  const filterCondition = route.query.filterCondition as string | undefined
+  if (!filterCondition) return ''
+  return getFilterTypeText(filterCondition)
+})
 
 // 处理日期变化
 const handleDateChange = async (value: [Date, Date] | null) => {
@@ -233,6 +442,16 @@ const handleDateChange = async (value: [Date, Date] | null) => {
 const reloadWithDisplayRange = () => {
   loadDataDateRange.value = [displayRange.value[0], displayRange.value[1]]
   loadData()
+}
+
+// 强制刷新数据
+const handleForceRefresh = () => {
+  forceRefresh()
+}
+
+// 重置过滤器
+const resetFilter = () => {
+  router.push({ path: '/shipments/gantt-chart', query: {} })
 }
 
 // 处理泳道变化，更新显示范围
@@ -260,8 +479,13 @@ const handleLaneChange = (dimension: string) => {
   }
 }
 
+// 异步加载数据，避免阻塞初始渲染
 onMounted(() => {
-  loadData()
+  // 使用 setTimeout 将数据加载推迟到下一个事件循环
+  // 让页面先渲染骨架屏，再开始加载真实数据
+  setTimeout(() => {
+    loadData()
+  }, 0)
 })
 </script>
 
@@ -279,12 +503,23 @@ onMounted(() => {
         </div>
         <div class="header-meta">
           <router-link to="/shipments" class="back-link">← 返回发运看板</router-link>
+          <!-- 显示当前过滤条件 -->
+          <el-tag v-if="currentFilterText" type="warning" closable @close="resetFilter">
+            {{ currentFilterText }}
+          </el-tag>
         </div>
       </div>
       <div class="header-actions">
         <DateRangePicker v-model="displayRange" @update:modelValue="handleDateChange" />
         <el-button @click="reloadWithDisplayRange" :loading="loading">按当前范围加载</el-button>
-        <el-button type="primary" @click="loadData" :loading="loading">刷新数据</el-button>
+        <el-button type="primary" @click="loadData" :loading="loading">
+          <el-icon><Refresh /></el-icon>
+          刷新数据
+        </el-button>
+        <el-button type="warning" @click="handleForceRefresh" :loading="loading">
+          <el-icon><RefreshRight /></el-icon>
+          强制刷新
+        </el-button>
       </div>
     </div>
 
@@ -412,17 +647,44 @@ onMounted(() => {
     <!-- 甘特图 -->
     <div class="gantt-section">
       <el-card class="gantt-card" v-loading="loading">
-        <ContainerGanttChart
-          v-if="displayRange"
-          :key="`${displayRange[0].getTime()}-${displayRange[1].getTime()}`"
-          :containers="containers"
-          :statistics="statisticsFromApi"
-          :startDate="displayRange[0]"
-          :endDate="displayRange[1]"
-          @laneChange="handleLaneChange"
-        />
-        <div v-else class="no-data">
-          <el-empty description="暂无货柜数据，请选择日期范围后点击「刷新数据」或「按当前范围加载」" />
+        <!-- 骨架屏：初始加载时显示 -->
+        <div v-if="isInitialLoad && loading" class="gantt-skeleton">
+          <div class="skeleton-header">
+            <div class="skeleton-title"></div>
+          </div>
+          <div class="skeleton-lanes">
+            <div v-for="i in 4" :key="i" class="skeleton-lane">
+              <div class="skeleton-lane-title"></div>
+              <div class="skeleton-lane-content"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 正常内容：加载完成或刷新时显示 -->
+        <template v-else>
+          <ContainerGanttChart
+            v-if="displayRange"
+            :key="`${displayRange[0].getTime()}-${displayRange[1].getTime()}`"
+            :containers="containers"
+            :statistics="statisticsFromApi"
+            :startDate="displayRange[0]"
+            :endDate="displayRange[1]"
+            @laneChange="handleLaneChange"
+          />
+          <div v-else class="no-data">
+            <el-empty description="暂无货柜数据，请选择日期范围后点击「刷新数据」或「按当前范围加载」" />
+          </div>
+        </template>
+
+        <!-- 错误提示 -->
+        <div v-if="error && !loading" class="error-message">
+          <el-alert
+            type="error"
+            title="数据加载失败"
+            :description="error"
+            :closable="false"
+            show-icon
+          />
         </div>
       </el-card>
     </div>
@@ -785,6 +1047,79 @@ onMounted(() => {
         font-size: 15px;
         color: $text-secondary;
       }
+    }
+  }
+
+  // 骨架屏样式
+  .gantt-skeleton {
+    padding: 24px;
+    background: #f8f9fa;
+
+    .skeleton-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding: 0 8px;
+
+      .skeleton-title {
+        width: 200px;
+        height: 24px;
+        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.5s infinite;
+        border-radius: 4px;
+      }
+    }
+
+    .skeleton-lanes {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+
+      .skeleton-lane {
+        display: flex;
+        gap: 12px;
+
+        .skeleton-lane-title {
+          width: 120px;
+          height: 40px;
+          background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite;
+          border-radius: 4px;
+          flex-shrink: 0;
+        }
+
+        .skeleton-lane-content {
+          flex: 1;
+          height: 40px;
+          background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+          background-size: 200% 100%;
+          animation: shimmer 1.5s infinite;
+          border-radius: 4px;
+        }
+      }
+    }
+  }
+
+  // 错误提示样式
+  .error-message {
+    padding: 16px;
+    margin-top: 16px;
+
+    :deep(.el-alert) {
+      border-radius: 8px;
+    }
+  }
+
+  // 骨架屏动画
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
     }
   }
 }

@@ -108,35 +108,72 @@ export class ContainerStatusService {
   }
 
   /**
-   * 批量更新状态
+   * 批量更新状态（优化版本 - 批量查询减少数据库往返）
    * @param limit 每次更新的数量限制
    * @returns 更新的数量
    */
   async batchUpdateStatuses(limit: number = 1000): Promise<number> {
-    logger.info(`[StatusUpdate] 开始批量更新状态，限制 ${limit} 条`);
+    logger.info(`[StatusUpdate] 开始批量更新状态（优化版本），限制 ${limit} 条`);
 
     try {
       const containers = await this.containerRepository.find({
         take: limit,
-        relations: ['seaFreight'] // 需通过关联取海运信息，SeaFreight 表无 container_number
+        relations: ['seaFreight']
       });
 
-      let updatedCount = 0;
+      const containerNumbers = containers.map(c => c.containerNumber);
+
+      // 批量查询所有相关数据（减少数据库往返次数）
+      const [allPortOperations, allTruckingTransports, allWarehouseOperations, allEmptyReturns] =
+        await Promise.all([
+          this.portOperationRepository.find({
+            where: { containerNumber: containerNumbers },
+            order: { portSequence: 'ASC' }
+          }),
+          this.truckingTransportRepository.find({
+            where: { containerNumber: containerNumbers }
+          }),
+          this.warehouseOperationRepository.find({
+            where: { containerNumber: containerNumbers }
+          }),
+          this.emptyReturnRepository.find({
+            where: { containerNumber: containerNumbers }
+          })
+        ]);
+
+      // 构建查找映射，提高查找效率
+      const portOperationsMap = new Map<string, PortOperation[]>();
+      const truckingTransportMap = new Map<string, TruckingTransport>();
+      const warehouseOperationMap = new Map<string, WarehouseOperation>();
+      const emptyReturnMap = new Map<string, EmptyReturn>();
+
+      allPortOperations.forEach(po => {
+        if (!portOperationsMap.has(po.containerNumber)) {
+          portOperationsMap.set(po.containerNumber, []);
+        }
+        portOperationsMap.get(po.containerNumber)!.push(po);
+      });
+
+      allTruckingTransports.forEach(tt => {
+        truckingTransportMap.set(tt.containerNumber, tt);
+      });
+
+      allWarehouseOperations.forEach(wo => {
+        warehouseOperationMap.set(wo.containerNumber, wo);
+      });
+
+      allEmptyReturns.forEach(er => {
+        emptyReturnMap.set(er.containerNumber, er);
+      });
+
+      const updatePromises: Promise<boolean>[] = [];
 
       for (const container of containers) {
         const seaFreight = container.seaFreight ?? null;
-
-        // 获取其余相关数据
-        const [portOperations, truckingTransport, warehouseOperation, emptyReturn] =
-          await Promise.all([
-            this.portOperationRepository.find({
-              where: { containerNumber: container.containerNumber },
-              order: { portSequence: 'ASC' }
-            }),
-            this.truckingTransportRepository.findOne({ where: { containerNumber: container.containerNumber } }),
-            this.warehouseOperationRepository.findOne({ where: { containerNumber: container.containerNumber } }),
-            this.emptyReturnRepository.findOne({ where: { containerNumber: container.containerNumber } })
-          ]);
+        const portOperations = portOperationsMap.get(container.containerNumber) || [];
+        const truckingTransport = truckingTransportMap.get(container.containerNumber) || null;
+        const warehouseOperation = warehouseOperationMap.get(container.containerNumber) || null;
+        const emptyReturn = emptyReturnMap.get(container.containerNumber) || null;
 
         // 使用状态机计算状态
         const result = calculateLogisticsStatus(
@@ -150,16 +187,23 @@ export class ContainerStatusService {
 
         // 如果状态需要更新
         if (result.status !== container.logisticsStatus) {
-          await this.containerRepository.update(
-            { containerNumber: container.containerNumber },
-            { logisticsStatus: result.status }
-          );
-          updatedCount++;
-          logger.debug(
-            `[StatusUpdate] ${container.containerNumber}: ${container.logisticsStatus} -> ${result.status}`
+          updatePromises.push(
+            this.containerRepository.update(
+              { containerNumber: container.containerNumber },
+              { logisticsStatus: result.status }
+            ).then(() => {
+              logger.debug(
+                `[StatusUpdate] ${container.containerNumber}: ${container.logisticsStatus} -> ${result.status}`
+              );
+              return true;
+            })
           );
         }
       }
+
+      // 批量执行更新
+      const updateResults = await Promise.all(updatePromises);
+      const updatedCount = updateResults.filter(Boolean).length;
 
       logger.info(`[StatusUpdate] 批量更新完成，更新了 ${updatedCount} 条记录`);
       return updatedCount;
