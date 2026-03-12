@@ -395,8 +395,11 @@
 
           <div class="feature-section">
             <h2>🤖 AI 开发助手技能体系 ⭐ NEW</h2>
-            <p>LogiX项目已建立完整的 AI助手技能体系，使用 Cursor、CodeBuddy 等工具时会自动应用这些规范！</p>
-            
+            <p>
+              LogiX项目已建立完整的 AI助手技能体系，使用 Cursor、CodeBuddy
+              等工具时会自动应用这些规范！
+            </p>
+
             <div class="skills-grid">
               <div class="skill-card" @click="loadDoc('SKILLS_INDEX', '/.cursor/skills/README.md')">
                 <div class="skill-icon">📚</div>
@@ -404,46 +407,71 @@
                 <div class="skill-desc">完整的技能列表和使用指南</div>
                 <div class="skill-badge">⭐⭐⭐</div>
               </div>
-              
-              <div class="skill-card" @click="loadDoc('QUICK_REF', '/.cursor/skills/QUICK_REFERENCE.md')">
+
+              <div
+                class="skill-card"
+                @click="loadDoc('QUICK_REF', '/.cursor/skills/QUICK_REFERENCE.md')"
+              >
                 <div class="skill-icon">⚡</div>
                 <div class="skill-title">快速参考</div>
                 <div class="skill-desc">按任务类型查找合适的技能</div>
                 <div class="skill-badge">⭐⭐</div>
               </div>
-              
-              <div class="skill-card" @click="loadDoc('DEV_SKILL', '/.cursor/skills/logix-development/SKILL.md')">
+
+              <div
+                class="skill-card"
+                @click="loadDoc('DEV_SKILL', '/.cursor/skills/logix-development/SKILL.md')"
+              >
                 <div class="skill-icon">🎯</div>
                 <div class="skill-title">核心开发技能</div>
                 <div class="skill-desc">完整开发流程和规范</div>
                 <div class="skill-badge">⭐⭐⭐</div>
               </div>
-              
-              <div class="skill-card" @click="loadDoc('DB_QUERY', '/.cursor/skills/database-query/SKILL.md')">
+
+              <div
+                class="skill-card"
+                @click="loadDoc('DB_QUERY', '/.cursor/skills/database-query/SKILL.md')"
+              >
                 <div class="skill-icon">🗄️</div>
                 <div class="skill-title">数据库查询</div>
                 <div class="skill-desc">SQL 编写和数据分析</div>
                 <div class="skill-badge">⭐⭐⭐</div>
               </div>
-              
-              <div class="skill-card" @click="loadDoc('DOC_PROC', '/.cursor/skills/document-processing/SKILL.md')">
+
+              <div
+                class="skill-card"
+                @click="loadDoc('DOC_PROC', '/.cursor/skills/document-processing/SKILL.md')"
+              >
                 <div class="skill-icon">📄</div>
                 <div class="skill-title">文档处理</div>
                 <div class="skill-desc">Excel/PDF导入导出</div>
                 <div class="skill-badge">⭐⭐</div>
               </div>
-              
-              <div class="skill-card" @click="loadDoc('CODE_REV', '/.cursor/skills/code-review/SKILL.md')">
+
+              <div
+                class="skill-card"
+                @click="loadDoc('CODE_REV', '/.cursor/skills/code-review/SKILL.md')"
+              >
                 <div class="skill-icon">🔍</div>
                 <div class="skill-title">代码审查</div>
                 <div class="skill-desc">代码质量检查清单</div>
                 <div class="skill-badge">⭐⭐</div>
               </div>
             </div>
-            
+
             <div class="skills-tip">
-              <p>💡 <strong>使用方式</strong>: 在使用AI助手（Cursor、CodeBuddy）时，这些技能会自动应用，提供符合项目规范的建议！</p>
-              <p><strong>整合详情</strong>: 查看 <a href="#" @click.prevent="loadDoc('INTEGRATION', '/.cursor/skills/INTEGRATION_SUMMARY.md')">Skills 整合总结</a></p>
+              <p>
+                💡 <strong>使用方式</strong>:
+                在使用AI助手（Cursor、CodeBuddy）时，这些技能会自动应用，提供符合项目规范的建议！
+              </p>
+              <p>
+                <strong>整合详情</strong>: 查看
+                <a
+                  href="#"
+                  @click.prevent="loadDoc('INTEGRATION', '/.cursor/skills/INTEGRATION_SUMMARY.md')"
+                  >Skills 整合总结</a
+                >
+              </p>
             </div>
           </div>
 
@@ -1711,6 +1739,100 @@ onMounted(() => {
       :deep(pre ol),
       :deep(pre li) {
         color: $nav-text-primary;
+      }
+
+      // Skills 卡片样式
+      .skills-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+        margin: 20px 0;
+      }
+
+      .skill-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        padding: 20px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        position: relative;
+        overflow: hidden;
+
+        &:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        &::before {
+          content: '';
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: linear-gradient(
+            135deg,
+            rgba(255, 255, 255, 0.1) 0%,
+            rgba(255, 255, 255, 0) 100%
+          );
+          pointer-events: none;
+        }
+      }
+
+      .skill-icon {
+        font-size: 2.5rem;
+        margin-bottom: 12px;
+        display: block;
+      }
+
+      .skill-title {
+        color: white;
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+      }
+
+      .skill-desc {
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 0.9rem;
+        line-height: 1.4;
+      }
+
+      .skill-badge {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        background: rgba(255, 255, 255, 0.2);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+
+      .skills-tip {
+        background: rgba(52, 152, 219, 0.1);
+        border-left: 4px solid $primary-color;
+        padding: 16px;
+        margin-top: 20px;
+        border-radius: 0 8px 8px 0;
+        font-size: 0.9rem;
+
+        p {
+          margin: 8px 0;
+          color: $text-primary;
+        }
+
+        a {
+          color: $primary-color;
+          text-decoration: none;
+          font-weight: 600;
+
+          &:hover {
+            text-decoration: underline;
+          }
+        }
       }
     }
   }

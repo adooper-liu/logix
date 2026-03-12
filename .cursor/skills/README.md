@@ -195,7 +195,8 @@
 3. **实践**: 按照开发任务检查清单完成第一个功能
 4. **审查**: 使用 `code-review/SKILL.md` 自我检查
 5. **快速查找**: 查看 [`QUICK_REFERENCE.md`](./QUICK_REFERENCE.md) - 按任务类型找到合适的技能
-6. **了解整合**: 查看 [`INTEGRATION_SUMMARY.md`](./INTEGRATION_SUMMARY.md) - 理解技能体系设计
+6. **学习使用**: 查看 [`HOW_TO_USE_SKILLS.md`](./HOW_TO_USE_SKILLS.md) - 详细使用指南
+7. **了解整合**: 查看 [`INTEGRATION_SUMMARY.md`](./INTEGRATION_SUMMARY.md) - 理解技能体系设计
 
 ### AI 助手自动应用
 

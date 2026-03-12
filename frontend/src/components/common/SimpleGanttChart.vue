@@ -5,7 +5,10 @@
       <div class="header-left">
         <h2>货柜时间分布甘特图</h2>
         <div class="filter-info">
-          当前筛选：{{ filterLabel }}（{{ filteredContainers.length }}个货柜）
+          <strong>当前维度：</strong>{{ filterLabel || '全部货柜' }}（<span
+            class="container-count"
+            >{{ filteredContainers.length }}</span
+          >个货柜）
         </div>
       </div>
       <div class="header-right">
@@ -32,10 +35,21 @@
         <el-radio-button :value="7">7天</el-radio-button>
         <el-radio-button :value="15">15天</el-radio-button>
         <el-radio-button :value="30">30天</el-radio-button>
+        <el-radio-button :value="9999">自定义</el-radio-button>
       </el-radio-group>
       <span class="date-display">
         {{ formatDate(displayRange[0]) }} ~ {{ formatDate(displayRange[1]) }}
       </span>
+      <el-date-picker
+        v-if="rangeType === 9999"
+        v-model="customDateRange"
+        type="daterange"
+        range-separator="至"
+        start-placeholder="开始日期"
+        end-placeholder="结束日期"
+        size="small"
+        @change="onCustomDateChange"
+      />
     </div>
 
     <!-- 甘特图主体 -->
@@ -60,35 +74,43 @@
 
         <!-- 按目的港分组的货柜分布 -->
         <div v-for="(containersByPort, port) in groupedByPort" :key="port" class="port-group">
-          <div class="port-name">{{ getPortDisplayName(containersByPort) }}</div>
-          <div
-            v-for="date in dateRange"
-            :key="date.getTime()"
-            class="date-cell"
-            :class="{
-              'is-weekend': isWeekend(date),
-              'is-today': isToday(date),
-              'is-drop-zone': dragOverDate && dayjs(dragOverDate).isSame(date, 'day'),
-            }"
-          >
-            <div class="dots-container">
-              <div
-                v-for="container in getContainersByDateAndPort(date, port)"
-                :key="container.containerNumber"
-                class="container-dot"
-                :class="{
-                  'clickable': true,
-                  'is-dragging': draggingContainer?.containerNumber === container.containerNumber,
-                }"
-                :style="{ backgroundColor: getStatusColor(container.logisticsStatus) }"
-                @mouseenter="showTooltip(container, $event)"
-                @mouseleave="hideTooltip"
-                @click="handleDotClick(container)"
-                @contextmenu.prevent="openContextMenu(container, $event)"
-                draggable="true"
-                @dragstart="handleDragStart(container, $event)"
-                @dragend="handleDragEnd"
-              ></div>
+          <div class="port-name" @click="toggleGroupCollapse(port)" style="cursor: pointer">
+            <el-icon class="collapse-icon" :class="{ collapsed: isGroupCollapsed(port) }">
+              <arrow-right />
+            </el-icon>
+            {{ getPortDisplayName(containersByPort) }}
+            <span class="group-count">({{ containersByPort.length }})</span>
+          </div>
+          <div v-if="!isGroupCollapsed(port)" class="port-group-cells">
+            <div
+              v-for="date in dateRange"
+              :key="date.getTime()"
+              class="date-cell"
+              :class="{
+                'is-weekend': isWeekend(date),
+                'is-today': isToday(date),
+                'is-drop-zone': dragOverDate && dayjs(dragOverDate).isSame(date, 'day'),
+              }"
+            >
+              <div class="dots-container">
+                <div
+                  v-for="container in getContainersByDateAndPort(date, port)"
+                  :key="container.containerNumber"
+                  class="container-dot"
+                  :class="{
+                    clickable: true,
+                    'is-dragging': draggingContainer?.containerNumber === container.containerNumber,
+                  }"
+                  :style="{ backgroundColor: getStatusColor(container.logisticsStatus) }"
+                  @mouseenter="showTooltip(container, $event)"
+                  @mouseleave="hideTooltip"
+                  @click="handleDotClick(container)"
+                  @contextmenu.prevent="openContextMenu(container, $event)"
+                  draggable="true"
+                  @dragstart="handleDragStart(container, $event)"
+                  @dragend="handleDragEnd"
+                ></div>
+              </div>
             </div>
           </div>
         </div>
@@ -145,25 +167,46 @@
     </div>
 
     <!-- 状态筛选抽屉 -->
-    <el-drawer v-model="showFilterDrawer" title="状态筛选" size="300px">
-      <el-checkbox-group v-model="selectedStatuses">
-        <div
-          v-for="option in logisticsStatusOptions"
-          :key="option.value"
-          class="status-filter-item"
-        >
-          <el-checkbox :label="option.value" :value="option.value">
-            <span class="status-label">
-              <span class="status-dot" :style="{ backgroundColor: option.color }"></span>
-              {{ option.label }}
-            </span>
-          </el-checkbox>
-        </div>
-      </el-checkbox-group>
+    <el-drawer v-model="showFilterDrawer" title="筛选条件" size="400px">
+      <!-- 状态筛选 -->
+      <div class="filter-section">
+        <h4>状态筛选</h4>
+        <el-checkbox-group v-model="selectedStatuses">
+          <div
+            v-for="option in logisticsStatusOptions"
+            :key="option.value"
+            class="status-filter-item"
+          >
+            <el-checkbox :label="option.value" :value="option.value">
+              <span class="status-label">
+                <span class="status-dot" :style="{ backgroundColor: option.color }"></span>
+                {{ option.label }}
+              </span>
+            </el-checkbox>
+          </div>
+        </el-checkbox-group>
+      </div>
+
+      <!-- 高级筛选 -->
+      <div class="filter-section">
+        <h4>高级筛选</h4>
+        <el-form :inline="false" size="small">
+          <el-form-item label="船名航次">
+            <el-input v-model="advancedFilters.shipVoyage" placeholder="请输入船名航次" />
+          </el-form-item>
+          <el-form-item label="起运港">
+            <el-input v-model="advancedFilters.originPort" placeholder="请输入起运港" />
+          </el-form-item>
+          <el-form-item label="货代公司">
+            <el-input v-model="advancedFilters.forwarder" placeholder="请输入货代公司" />
+          </el-form-item>
+        </el-form>
+      </div>
+
       <template #footer>
         <div class="drawer-footer">
-          <el-button @click="resetStatusFilter">重置</el-button>
-          <el-button type="primary" @click="applyStatusFilter"
+          <el-button @click="resetAllFilters">重置</el-button>
+          <el-button type="primary" @click="applyAllFilters"
             >应用（{{ selectedStatuses.length }}）</el-button
           >
         </div>
@@ -171,10 +214,7 @@
     </el-drawer>
 
     <!-- 详情侧边栏 -->
-    <ContainerDetailSidebar
-      v-model:visible="showDetailSidebar"
-      :container="selectedContainer"
-    />
+    <ContainerDetailSidebar v-model:visible="showDetailSidebar" :container="selectedContainer" />
 
     <!-- 右键菜单 -->
     <ContainerContextMenu
@@ -211,14 +251,14 @@
 <script setup lang="ts">
 import { containerService } from '@/services/container'
 import type { Container } from '@/types/container'
-import { Download, Filter } from '@element-plus/icons-vue'
+import { ArrowRight, Download, Filter } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import ContainerDetailSidebar from './ContainerDetailSidebar.vue'
 import ContainerContextMenu from './ContainerContextMenu.vue'
 import ContainerDateEditDialog from './ContainerDateEditDialog.vue'
+import ContainerDetailSidebar from './ContainerDetailSidebar.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -244,20 +284,65 @@ const logisticsStatusOptions = [
   { label: '已还箱', value: 'returned_empty', color: '#C0C4CC' },
 ]
 
+// 高级筛选
+const advancedFilters = ref({
+  shipVoyage: '',
+  originPort: '',
+  forwarder: '',
+})
+
 // 过滤后的货柜
 const filteredContainers = computed(() => {
-  if (selectedStatuses.value.length === 0) {
-    return containers.value
+  let result = [...containers.value]
+
+  // 状态筛选
+  if (selectedStatuses.value.length > 0) {
+    result = result.filter(c =>
+      selectedStatuses.value.includes(c.logisticsStatus?.toLowerCase() || '')
+    )
   }
-  return containers.value.filter(c =>
-    selectedStatuses.value.includes(c.logisticsStatus?.toLowerCase() || '')
-  )
+
+  // 高级筛选
+  if (advancedFilters.value.shipVoyage) {
+    const shipVoyage = advancedFilters.value.shipVoyage.toLowerCase()
+    result = result.filter(c => c.shipVoyage?.toLowerCase().includes(shipVoyage))
+  }
+
+  if (advancedFilters.value.originPort) {
+    const originPort = advancedFilters.value.originPort.toLowerCase()
+    result = result.filter(c => c.originPort?.toLowerCase().includes(originPort))
+  }
+
+  if (advancedFilters.value.forwarder) {
+    const forwarder = advancedFilters.value.forwarder.toLowerCase()
+    result = result.filter(c => c.forwarderName?.toLowerCase().includes(forwarder))
+  }
+
+  return result
 })
 
 // 日期范围
 const rangeType = ref(7)
 const displayRange = ref<[Date, Date]>([new Date(), new Date()])
 const dateRange = ref<Date[]>([])
+const customDateRange = ref<[Date, Date] | null>(null)
+
+// 展开/折叠状态
+const collapsedGroups = ref<Set<string>>(new Set())
+
+// 切换分组折叠状态
+const toggleGroupCollapse = (groupKey: string) => {
+  if (collapsedGroups.value.has(groupKey)) {
+    collapsedGroups.value.delete(groupKey)
+  } else {
+    collapsedGroups.value.add(groupKey)
+  }
+}
+
+// 检查分组是否折叠
+const isGroupCollapsed = (groupKey: string): boolean => {
+  return collapsedGroups.value.has(groupKey)
+}
 
 // Tooltip
 const tooltipVisible = ref(false)
@@ -336,6 +421,7 @@ const generateDateRange = (start: Date, end: Date): Date[] => {
 }
 
 // 加载数据
+
 const loadData = async () => {
   loading.value = true
   try {
@@ -367,17 +453,24 @@ const loadData = async () => {
     }
 
     containers.value = response.items ?? []
-    console.log(`[SimpleGantt] Loaded ${containers.value.length} containers for filter: ${condition}, date range: ${startDate} ~ ${endDate}`)
+    console.log(
+      `[SimpleGantt] Loaded ${containers.value.length} containers for filter: ${condition}, date range: ${startDate} ~ ${endDate}`
+    )
 
     // 调试：打印第一个货柜的完整数据
     if (containers.value.length > 0) {
-      console.log('[SimpleGantt] First container data:', JSON.stringify(containers.value[0], null, 2))
+      console.log(
+        '[SimpleGantt] First container data:',
+        JSON.stringify(containers.value[0], null, 2)
+      )
     }
 
     // 计算显示范围：优先使用 URL 传来的日期范围，否则使用默认的 7/15/30 天
     if (startDate && endDate) {
       displayRange.value = [new Date(startDate), new Date(endDate)]
-      console.log(`[SimpleGantt] Using URL date range: ${displayRange.value[0]} ~ ${displayRange.value[1]}`)
+      console.log(
+        `[SimpleGantt] Using URL date range: ${displayRange.value[0]} ~ ${displayRange.value[1]}`
+      )
       // 自动调整 rangeType 以匹配实际天数
       const daysDiff = dayjs(endDate).diff(dayjs(startDate), 'day') + 1
       if (daysDiff > 30) {
@@ -389,10 +482,28 @@ const loadData = async () => {
       }
     } else {
       displayRange.value = calculateDateRange(rangeType.value)
-      console.log(`[SimpleGantt] Using calculated date range: ${displayRange.value[0]} ~ ${displayRange.value[1]}`)
+      console.log(
+        `[SimpleGantt] Using calculated date range: ${displayRange.value[0]} ~ ${displayRange.value[1]}`
+      )
     }
+    // 计算当前维度下的最小和最大日期
+    const containerDates = containers.value
+      .map(container => getContainerDate(container))
+      .filter((date): date is Date => date !== null)
+
+    if (containerDates.length > 0) {
+      const minDate = new Date(Math.min(...containerDates.map(d => d.getTime())))
+      const maxDate = new Date(Math.max(...containerDates.map(d => d.getTime())))
+      displayRange.value = [minDate, maxDate]
+      console.log(
+        `[SimpleGantt] Calculated date range: ${displayRange.value[0]} ~ ${displayRange.value[1]}`
+      )
+    }
+
     dateRange.value = generateDateRange(displayRange.value[0], displayRange.value[1])
-    console.log(`[SimpleGantt] Display range: ${displayRange.value[0]} ~ ${displayRange.value[1]}, total days: ${dateRange.value.length}`)
+    console.log(
+      `[SimpleGantt] Display range: ${displayRange.value[0]} ~ ${displayRange.value[1]}, total days: ${dateRange.value.length}`
+    )
   } catch (error) {
     console.error('加载甘特图数据失败:', error)
   } finally {
@@ -442,26 +553,36 @@ const getContainerDate = (container: Container): Date | null => {
 }
 
 // 获取指定日期和目的港的货柜
-const getContainersByDateAndPort = (date: Date, port: string): Container[] => {
+const getContainersByDateAndGroup = (date: Date, groupKey: string): Container[] => {
   const dateStr = dayjs(date).format('YYYY-MM-DD')
 
-  const portContainers = groupedByPort.value[port] || []
+  const groupContainers = currentGroupedData.value[groupKey] || []
 
-  const filtered = portContainers.filter(container => {
+  const filtered = groupContainers.filter(container => {
     const containerDate = getContainerDate(container)
     if (!containerDate) {
-      console.log(`[SimpleGantt] Container ${container.containerNumber} has no date (port=${port})`)
+      console.log(
+        `[SimpleGantt] Container ${container.containerNumber} has no date (group=${groupKey})`
+      )
       return false
     }
     const containerDateStr = dayjs(containerDate).format('YYYY-MM-DD')
     const isMatch = containerDateStr === dateStr
     if (isMatch) {
-      console.log(`[SimpleGantt] Container ${container.containerNumber} matches date ${dateStr} (port=${port})`)
+      console.log(
+        `[SimpleGantt] Container ${container.containerNumber} matches date ${dateStr} (group=${groupKey})`
+      )
     }
     return isMatch
   })
 
   return filtered
+}
+
+// 获取状态标签
+const getStatusLabel = (statusKey: string): string => {
+  const option = logisticsStatusOptions.find(opt => opt.value === statusKey)
+  return option?.label || statusKey
 }
 
 // 获取状态颜色
@@ -511,23 +632,75 @@ const getPortDisplayName = (containers: Container[]): string => {
   return portName || portCode || '未指定'
 }
 
+// 根据日期和港口获取货柜
+const getContainersByDateAndPort = (date: Date, port: string): Container[] => {
+  const dateStr = dayjs(date).format('YYYY-MM-DD')
+
+  const portContainers = groupedByPort.value[port] || []
+
+  const filtered = portContainers.filter(container => {
+    const containerDate = getContainerDate(container)
+    if (!containerDate) {
+      console.log(`[SimpleGantt] Container ${container.containerNumber} has no date (port=${port})`)
+      return false
+    }
+    const containerDateStr = dayjs(containerDate).format('YYYY-MM-DD')
+    const isMatch = containerDateStr === dateStr
+    if (isMatch) {
+      console.log(
+        `[SimpleGantt] Container ${container.containerNumber} matches date ${dateStr} (port=${port})`
+      )
+    }
+    return isMatch
+  })
+
+  return filtered
+}
+
 // 日期范围切换
 const onRangeChange = () => {
-  displayRange.value = calculateDateRange(rangeType.value)
-  dateRange.value = generateDateRange(displayRange.value[0], displayRange.value[1])
+  if (rangeType.value === 9999) {
+    // 切换到自定义范围时，使用当前日期作为默认值
+    if (!customDateRange.value) {
+      const today = new Date()
+      const weekAgo = new Date()
+      weekAgo.setDate(today.getDate() - 7)
+      customDateRange.value = [weekAgo, today]
+    }
+  } else {
+    displayRange.value = calculateDateRange(rangeType.value)
+    dateRange.value = generateDateRange(displayRange.value[0], displayRange.value[1])
+  }
+}
+
+// 自定义日期范围变更
+const onCustomDateChange = (value: [Date, Date] | null) => {
+  if (value) {
+    displayRange.value = [value[0], value[1]]
+    dateRange.value = generateDateRange(displayRange.value[0], displayRange.value[1])
+  }
 }
 
 // 应用状态筛选
-const applyStatusFilter = () => {
+const applyAllFilters = () => {
   showFilterDrawer.value = false
-  ElMessage.success(`已筛选 ${selectedStatuses.value.length} 个状态`)
+  let filterCount = selectedStatuses.value.length
+  if (advancedFilters.value.shipVoyage) filterCount++
+  if (advancedFilters.value.originPort) filterCount++
+  if (advancedFilters.value.forwarder) filterCount++
+  ElMessage.success(`已应用 ${filterCount} 个筛选条件`)
 }
 
-// 重置状态筛选
-const resetStatusFilter = () => {
+// 重置所有筛选
+const resetAllFilters = () => {
   selectedStatuses.value = []
+  advancedFilters.value = {
+    shipVoyage: '',
+    originPort: '',
+    forwarder: '',
+  }
   showFilterDrawer.value = false
-  ElMessage.info('已重置状态筛选')
+  ElMessage.info('已重置所有筛选条件')
 }
 
 // 跳转到货柜详情
@@ -663,16 +836,18 @@ const handleDrop = (date: Date) => {
       cancelButtonText: '取消',
       type: 'warning',
     }
-  ).then(() => {
-    // TODO: 调用后端API更新日期
-    console.log('Move container to date:', newDate)
-    ElMessage.success('日期调整成功')
+  )
+    .then(() => {
+      // TODO: 调用后端API更新日期
+      console.log('Move container to date:', newDate)
+      ElMessage.success('日期调整成功')
 
-    // 刷新数据
-    loadData()
-  }).catch(() => {
-    ElMessage.info('已取消操作')
-  })
+      // 刷新数据
+      loadData()
+    })
+    .catch(() => {
+      ElMessage.info('已取消操作')
+    })
 }
 
 // 保存日期编辑
@@ -765,6 +940,23 @@ const handleGlobalDrop = (event: DragEvent) => {
 .filter-info {
   font-size: 14px;
   color: #606266;
+  background: #f5f7fa;
+  padding: 8px 12px;
+  border-radius: 4px;
+  border-left: 4px solid #409eff;
+  margin-top: 8px;
+  display: inline-block;
+}
+
+.filter-info strong {
+  color: #303133;
+  font-weight: 600;
+}
+
+.filter-info .container-count {
+  color: #409eff;
+  font-weight: 600;
+  margin-left: 4px;
 }
 
 .date-range-selector {
@@ -831,20 +1023,43 @@ const handleGlobalDrop = (event: DragEvent) => {
   border-bottom: 2px solid #e4e7ed;
 }
 
+.port-group-cells {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
 .port-name {
   flex: 0 0 120px;
   min-height: 150px;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   font-weight: bold;
   color: #303133;
   border-right: 1px solid #e4e7ed;
   background: #fafafa;
   padding: 10px;
   font-size: 13px;
-  text-align: center;
+  text-align: left;
   word-break: break-word;
+  gap: 8px;
+}
+
+.collapse-icon {
+  transition: transform 0.3s ease;
+  flex-shrink: 0;
+}
+
+.collapse-icon.collapsed {
+  transform: rotate(90deg);
+}
+
+.group-count {
+  font-size: 12px;
+  color: #909399;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 .date-cell {
