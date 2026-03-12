@@ -1,8 +1,8 @@
-import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import type { Plugin } from 'vite'
+import { defineConfig } from 'vite'
 
 // ESM 模块中获取 __dirname
 const __filename = fileURLToPath(import.meta.url)
@@ -38,7 +38,7 @@ function markdownUtf8Plugin(): Plugin {
             console.log('[Markdown Plugin] Checking paths:', {
               relativePath,
               publicDocsPath,
-              publicPath
+              publicPath,
             })
 
             // 优先查找 public/docs/，然后查找 public/
@@ -50,6 +50,29 @@ function markdownUtf8Plugin(): Plugin {
               console.log('[Markdown Plugin] File not found:', req.url)
               res.statusCode = 404
               res.end('File not found')
+              return
+            }
+          } else if (req.url.startsWith('/.cursor/skills/')) {
+            // 处理 /.cursor/skills/ 路径
+            let relativePath = req.url.replace('/.cursor/skills/', '')
+            try {
+              relativePath = decodeURIComponent(relativePath)
+            } catch (err) {
+              console.error('[Markdown Plugin] Failed to decode URL:', relativePath, err)
+            }
+
+            const skillsPath = path.resolve(__dirname, '..', '.cursor', 'skills', relativePath)
+            console.log('[Markdown Plugin] Skills path:', {
+              relativePath,
+              skillsPath,
+            })
+
+            if (fs.existsSync(skillsPath)) {
+              filePath = skillsPath
+            } else {
+              console.log('[Markdown Plugin] Skill file not found:', req.url)
+              res.statusCode = 404
+              res.end('Skill file not found')
               return
             }
           } else {
@@ -80,7 +103,7 @@ function markdownUtf8Plugin(): Plugin {
         }
         next()
       })
-    }
+    },
   }
 }
 
@@ -90,8 +113,8 @@ export default defineConfig({
   root: path.resolve(__dirname),
   resolve: {
     alias: {
-      '@': path.resolve(__dirname, 'src')
-    }
+      '@': path.resolve(__dirname, 'src'),
+    },
   },
   publicDir: 'public',
   server: {
@@ -102,25 +125,26 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
-        secure: false
-      }
+        secure: false,
+      },
     },
     fs: {
       // 允许访问项目根目录和上级目录的文件
       allow: [
         path.resolve(__dirname),
-        path.resolve(__dirname, '..')
+        path.resolve(__dirname, '..'),
+        path.resolve(__dirname, '..', '.cursor'),
       ],
-      strict: false
-    }
+      strict: false,
+    },
   },
   css: {
     preprocessorOptions: {
       scss: {
         api: 'modern-compiler',
-        additionalData: `@use "@/assets/styles/variables.scss" as *;`
-      }
-    }
+        additionalData: `@use "@/assets/styles/variables.scss" as *;`,
+      },
+    },
   },
   // 性能优化配置
   build: {
@@ -134,11 +158,11 @@ export default defineConfig({
           // Element Plus
           'element-plus': ['element-plus', '@element-plus/icons-vue'],
           // 工具库
-          'utils': ['axios'],
+          utils: ['axios'],
           // 图表库
-          'charts': ['echarts']
-        }
-      }
+          charts: ['echarts'],
+        },
+      },
     },
     // 启用 gzip 压缩
     reportCompressedSize: true,
@@ -149,13 +173,13 @@ export default defineConfig({
     terserOptions: {
       compress: {
         drop_console: process.env.NODE_ENV === 'production',
-        drop_debugger: process.env.NODE_ENV === 'production'
-      }
+        drop_debugger: process.env.NODE_ENV === 'production',
+      },
     },
     // CSS 代码分割
     cssCodeSplit: true,
     // Source map 配置
-    sourcemap: process.env.NODE_ENV === 'development' ? 'inline' : false
+    sourcemap: process.env.NODE_ENV === 'development' ? 'inline' : false,
   },
   // 预构建优化
   optimizeDeps: {
@@ -166,13 +190,13 @@ export default defineConfig({
       'element-plus',
       '@element-plus/icons-vue',
       'axios',
-      'echarts'
+      'echarts',
     ],
-    exclude: []
+    exclude: [],
   },
   // ESBuild 配置
   esbuild: {
     // 生产环境移除 console
-    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : []
-  }
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : [],
+  },
 })

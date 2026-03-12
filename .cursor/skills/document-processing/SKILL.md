@@ -3,7 +3,9 @@ name: document-processing
 description: Process Excel and PDF files for import, export, and analysis. Use when working with Excel spreadsheets, PDF documents, or when the user mentions xlsx, xls, PDF, forms, or document extraction.
 ---
 
-# Document Processing
+# Document Processing Skill
+
+> 💡 **提示**: 本技能专注于文档处理。Excel 导入映射规范请参考 `logix-development` 主技能文档。
 
 ## Excel
 
@@ -22,28 +24,29 @@ description: Process Excel and PDF files for import, export, and analysis. Use w
 ### 读取示例（xlsx）
 
 ```javascript
-import * as XLSX from 'xlsx'
+import * as XLSX from "xlsx";
 
-const wb = XLSX.readFile('file.xlsx')
-const ws = wb.Sheets[wb.SheetNames[0]]
-const data = XLSX.utils.sheet_to_json(ws, { header: 1 })
+const wb = XLSX.readFile("file.xlsx");
+const ws = wb.Sheets[wb.SheetNames[0]];
+const data = XLSX.utils.sheet_to_json(ws, { header: 1 });
 ```
 
 ### 写入示例（exceljs）
 
 ```javascript
-import ExcelJS from 'exceljs'
+import ExcelJS from "exceljs";
 
-const wb = new ExcelJS.Workbook()
-const ws = wb.addWorksheet('Sheet1')
-ws.columns = [{ header: 'container_number', key: 'container_number', width: 20 }]
-ws.addRow({ container_number: 'ABCD1234567' })
-await wb.xlsx.writeFile('output.xlsx')
+const wb = new ExcelJS.Workbook();
+const ws = wb.addWorksheet("Sheet1");
+ws.columns = [{ header: "container_number", key: "container_number", width: 20 }];
+ws.addRow({ container_number: "ABCD1234567" });
+await wb.xlsx.writeFile("output.xlsx");
 ```
 
 ### 字段映射校验
 
 新增或修改 Excel 导入时，确保：
+
 - `table` 对应 `backend/03_create_tables.sql` 中的表名
 - `field` 对应表中字段名（snake_case）
 - 参考 `logix-project-map.mdc` 中的表结构
