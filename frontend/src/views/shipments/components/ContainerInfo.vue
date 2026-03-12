@@ -196,11 +196,11 @@ const shipmentTotalValue = computed(() =>
     font-size: $font-size-xs;
   }
 
-  .field-value {
-    color: $text-regular;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
+.field-value {
+  color: $text-regular;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 }
 
 @media (max-width: 768px) {

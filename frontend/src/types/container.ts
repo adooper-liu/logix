@@ -53,6 +53,25 @@ export interface Container {
   truckingTransports?: TruckingTransport[];
   warehouseOperations?: WarehouseOperation[];
   emptyReturns?: EmptyReturn[];
+  // 滞港费汇总
+  demurrageSummary?: {
+    totalAmount: number;
+    currency: string;
+    chargeTypes: Array<{
+      chargeType: string;
+      chargeName: string;
+      totalAmount: number;
+      records: Array<{
+        id: number;
+        chargeStartDate: Date;
+        chargeEndDate: Date;
+        chargeDays: number;
+        chargeAmount: number;
+        currency: string;
+        isFinal: boolean;
+      }>;
+    }>;
+  };
   // 扩展字段
   latestStatus?: {
     statusCode: string;

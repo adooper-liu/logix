@@ -110,6 +110,7 @@
                     <NodeDurationDisplay
                       :timestamp="item.node.timestamp"
                       :prev-timestamp="item.globalIndex > 0 ? path.nodes[item.globalIndex - 1]?.timestamp : null"
+                      :next-timestamp="item.globalIndex < (path.nodes?.length ?? 0) - 1 ? path.nodes[item.globalIndex + 1]?.timestamp : null"
                       :index="item.globalIndex"
                       :total-count="path.nodes?.length ?? 0"
                       :standard-hours="STANDARD_DURATIONS[item.node.status] ?? 0"

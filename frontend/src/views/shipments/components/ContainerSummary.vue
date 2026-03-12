@@ -1,14 +1,22 @@
 <script setup lang="ts">
+import type { DemurrageCalculationResponse } from '@/services/demurrage'
 import { computed } from 'vue'
+
+const emit = defineEmits<{
+  openDemurrageTab: []
+}>()
 
 const props = defineProps<{
   containerData: any
+  demurrageCalculation?: DemurrageCalculationResponse['data'] | null
 }>()
 
-const orderNumber = computed(() =>
-  (props.containerData?.orderNumber ??
-   props.containerData?.order?.orderNumber ??
-   props.containerData?.allOrders?.[0]?.orderNumber) || '-'
+const orderNumber = computed(
+  () =>
+    (props.containerData?.orderNumber ??
+      props.containerData?.order?.orderNumber ??
+      props.containerData?.allOrders?.[0]?.orderNumber) ||
+    '-'
 )
 
 // 物流状态映射
@@ -40,6 +48,50 @@ const statusMap: Record<
 const getLogisticsStatusText = (status: string): string => {
   return statusMap[status]?.text || status
 }
+
+// 滞港费汇总（从计算结果中提取）
+const demurrageSummary = computed(() => {
+  console.log('[ContainerSummary] demurrageCalculation:', props.demurrageCalculation)
+
+  if (!props.demurrageCalculation?.items) {
+    console.log('[ContainerSummary] No items, returning null')
+    return null
+  }
+
+  console.log('[ContainerSummary] Items:', props.demurrageCalculation.items)
+
+  // 按费用类型分组汇总
+  const chargeTypeMap = new Map<
+    string,
+    {
+      chargeType: string
+      chargeName: string
+      totalAmount: number
+    }
+  >()
+
+  for (const item of props.demurrageCalculation.items) {
+    const type = item.chargeTypeCode || 'UNKNOWN'
+    if (!chargeTypeMap.has(type)) {
+      chargeTypeMap.set(type, {
+        chargeType: type,
+        chargeName: item.chargeName || type,
+        totalAmount: 0,
+      })
+    }
+    const typeSummary = chargeTypeMap.get(type)!
+    typeSummary.totalAmount += item.amount
+  }
+
+  const chargeTypes = Array.from(chargeTypeMap.values())
+
+  // 只要有费用项就显示，即使金额为0
+  return {
+    totalAmount: props.demurrageCalculation.totalAmount,
+    currency: props.demurrageCalculation.currency,
+    chargeTypes,
+  }
+})
 </script>
 
 <template>
@@ -50,7 +102,7 @@ const getLogisticsStatusText = (status: string): string => {
         <span class="card-title">货柜信息</span>
       </div>
     </template>
-    <div class="info-grid">
+    <div class="info-row">
       <div class="info-item highlight">
         <span class="label">集装箱号</span>
         <span class="value mono">{{ containerData.containerNumber }}</span>
@@ -58,10 +110,6 @@ const getLogisticsStatusText = (status: string): string => {
       <div class="info-item">
         <span class="label">备货单号</span>
         <span class="value link">{{ orderNumber }}</span>
-      </div>
-      <div class="info-item">
-        <span class="label">柜型</span>
-        <el-tag size="small" effect="plain">{{ containerData.containerTypeCode }}</el-tag>
       </div>
       <div class="info-item">
         <span class="label">物流状态</span>
@@ -75,9 +123,27 @@ const getLogisticsStatusText = (status: string): string => {
           }}
         </el-tag>
       </div>
-      <div class="info-item">
-        <span class="label">备货单数</span>
-        <span class="value">{{ containerData.summary?.orderCount || 1 }} 个</span>
+      <!-- 滞港费汇总 -->
+      <div v-if="demurrageSummary" class="demurrage-inline" @click="emit('openDemurrageTab')">
+        <span class="demurrage-icon">💰</span>
+        <span class="demurrage-title">滞港费汇总</span>
+        <span class="demurrage-total">
+          {{ demurrageSummary.currency }} {{ demurrageSummary.totalAmount.toFixed(2) }}
+        </span>
+      </div>
+    </div>
+
+    <!-- 滞港费详细 -->
+    <div v-if="demurrageSummary && demurrageSummary.chargeTypes.length > 0" class="demurrage-details">
+      <div
+        v-for="chargeType in demurrageSummary.chargeTypes"
+        :key="chargeType.chargeType"
+        class="demurrage-type-item"
+      >
+        <span class="charge-type-name">{{ chargeType.chargeName || chargeType.chargeType }}</span>
+        <span class="charge-type-amount">
+          {{ demurrageSummary.currency }} {{ chargeType.totalAmount.toFixed(2) }}
+        </span>
       </div>
     </div>
   </el-card>
@@ -122,17 +188,19 @@ const getLogisticsStatusText = (status: string): string => {
     }
   }
 
-  .info-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  .info-row {
+    display: flex;
+    align-items: center;
     gap: $spacing-lg;
+    flex-wrap: nowrap;
+    white-space: nowrap;
   }
 
   .info-item {
     display: flex;
     flex-direction: column;
     gap: $spacing-xs;
-    padding: $spacing-sm 0;
+    min-width: 0;
 
     &.highlight .value {
       font-size: $font-size-base;
@@ -167,6 +235,74 @@ const getLogisticsStatusText = (status: string): string => {
           text-decoration: underline;
         }
       }
+    }
+  }
+
+  .demurrage-inline {
+    display: flex;
+    align-items: center;
+    gap: $spacing-xs;
+    padding: $spacing-sm $spacing-md;
+    background: linear-gradient(135deg, #FFF7E6 0%, #FFE8CC 100%);
+    border-radius: $radius-base;
+    border: 1px solid #E6A23C;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: $transition-base;
+
+    &:hover {
+      box-shadow: $shadow-light;
+      transform: translateY(-1px);
+      border-color: $warning-color;
+    }
+
+    &:active {
+      transform: translateY(0);
+    }
+
+    .demurrage-icon {
+      font-size: $font-size-base;
+    }
+
+    .demurrage-title {
+      font-size: $font-size-sm;
+      font-weight: 600;
+      color: #E6A23C;
+    }
+
+    .demurrage-total {
+      font-size: $font-size-base;
+      font-weight: 700;
+      color: $danger-color;
+    }
+  }
+
+  .demurrage-details {
+    display: grid;
+    gap: $spacing-xs;
+    margin-top: $spacing-md;
+    padding: $spacing-md;
+    background: linear-gradient(135deg, #FFF7E6 0%, #FFE8CC 100%);
+    border-radius: $radius-base;
+    border: 1px solid #E6A23C;
+  }
+
+  .demurrage-type-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: $spacing-xs $spacing-sm;
+    background: rgba(255, 255, 255, 0.6);
+    border-radius: $radius-small;
+    font-size: $font-size-sm;
+
+    .charge-type-name {
+      color: $text-secondary;
+    }
+
+    .charge-type-amount {
+      font-weight: 600;
+      color: $text-primary;
     }
   }
 }

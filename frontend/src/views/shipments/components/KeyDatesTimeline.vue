@@ -131,6 +131,7 @@ const timelineEvents = computed((): TimelineEvent[] => {
 
   add('出运', '出运日期', d.shipmentDate, '🚢', 'primary')
   add('ETA', '目的港 ETA', d.etaDestPort, '📅', 'primary')
+  add('修正ETA', '修正 ETA', d.revisedEtaDestPort, '📝', 'primary')
   add('ATA', '目的港 ATA', d.ataDestPort, '📍', 'primary')
   add('卸船', '卸船日', d.dischargeDate, '🚢', 'info')
 
@@ -191,21 +192,43 @@ const formatDate = (d: string | Date | null | undefined): string => {
   })
 }
 
+// 定义时间线节点顺序（用于判断后一节点）
+const TIMELINE_NODE_ORDER = [
+  '出运',
+  'ETA',
+  '修正ETA',
+  'ATA',
+  '卸船',
+  '最晚提柜',
+  '实际提柜',
+  '最晚还箱',
+  '实际还箱',
+] as const
+
 /**
- * 获取日期颜色（用于timeline dot颜色）
- * 1. 未来日期：倒计时
- *    - 今天到期：橙色
- *    - 剩余1-3天：橙色
- *    - 剩余>3天：绿色
- * 2. 过去日期：
- *    - 关键节点超期：红色
- *    - 关键节点未超期或普通节点：蓝色
+ * 根据时间线节点顺序和后一节点是否存在，判断颜色类型
+ * 
+ * 规则：
+ * 1. 历时：当前节点和后一节点都存在 → 蓝色
+ * 2. 倒计时：后一节点不存在 + 当前节点在未来 → 橙色/绿色
+ * 3. 超期：后一节点不存在 + 当前节点在过去 + 已过天数超过标准 → 红色
+ * 4. 历时（普通）：后一节点不存在 + 当前节点在过去 + 未超过标准 → 蓝色
  */
-const getDateAlertColor = (date: Date, label?: string): 'red' | 'orange' | 'green' | 'blue' => {
+const getDateAlertColor = (
+  date: Date,
+  label?: string,
+  hasNextNode = false
+): 'red' | 'orange' | 'green' | 'blue' => {
   const now = new Date()
 
-  // 未来日期：倒计时
+  // 有后一节点：显示历时（蓝色）
+  if (hasNextNode) {
+    return 'blue'
+  }
+
+  // 无后一节点：判断倒计时/超期
   if (date > now) {
+    // 未来日期：倒计时
     const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     if (diffDays <= 3) return 'orange'
     return 'green'
@@ -228,9 +251,35 @@ const getDateAlertColor = (date: Date, label?: string): 'red' | 'orange' | 'gree
   return 'blue'
 }
 
-const getDotColor = (event: TimelineEvent): 'red' | 'orange' | 'green' | 'blue' => {
+/**
+ * 判断是否有「有效」后一节点（用于历时/倒计时/超期显示）
+ * - 最晚提柜：后一节点为实际提柜，只有实际提柜已发生（有日期）才算有后一节点
+ * - 最晚还箱：后一节点为实际还箱，只有实际还箱已发生（有日期）才算有后一节点
+ * - 其他节点：按时间线数组中是否存在下一项判断
+ */
+const getEffectiveHasNextNode = (
+  event: TimelineEvent,
+  index: number,
+  allEvents: TimelineEvent[]
+): boolean => {
+  if (event.label === '最晚提柜') {
+    return !!dates.value?.pickupDateActual
+  }
+  if (event.label === '最晚还箱') {
+    return !!dates.value?.returnTime
+  }
+  return index < allEvents.length - 1
+}
+
+const getDotColor = (
+  event: TimelineEvent,
+  index: number,
+  allEvents: TimelineEvent[]
+): 'red' | 'orange' | 'green' | 'blue' => {
   if (event.label === '当前') return 'green'
-  return getDateAlertColor(event.date, event.label)
+
+  const hasNextNode = getEffectiveHasNextNode(event, index, allEvents)
+  return getDateAlertColor(event.date, event.label, hasNextNode)
 }
 
 /** 关键日期标准耗时配置（小时）- 用于判断是否超期
@@ -320,7 +369,7 @@ const getCalculationSourceTextForReturn = (pickupDateActual?: string | null): st
         }"
       >
         <div class="timeline-track">
-          <div class="timeline-dot" :class="getDotColor(event)" />
+          <div class="timeline-dot" :class="getDotColor(event, index, timelineEvents)" />
           <div class="timeline-connector" v-if="index < timelineEvents.length - 1" />
         </div>
         <div class="timeline-body">
@@ -350,6 +399,10 @@ const getCalculationSourceTextForReturn = (pickupDateActual?: string | null): st
               :label="event.label"
               :is-key-node="event.label === '最晚提柜' || event.label === '最晚还箱'"
               :standard-hours="STANDARD_DURATIONS[event.label] ?? 0"
+              :is-current-node="index === timelineEvents.length - 1"
+              :prev-date="index > 0 ? timelineEvents[index - 1].date : null"
+              :next-date="index < timelineEvents.length - 1 ? timelineEvents[index + 1].date : null"
+              :has-next-node="getEffectiveHasNextNode(event, index, timelineEvents)"
               mode="auto"
             />
           </div>

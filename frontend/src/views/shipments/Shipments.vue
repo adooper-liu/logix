@@ -727,7 +727,10 @@ const goGanttChart = () => {
     query.filterLabel = getFilterLabel(activeFilter.value.days)
   }
   if (ids.length) query.containers = ids.join(',')
-  router.push({ path: '/gantt-chart', query })
+
+  // 在新窗口打开甘特图
+  const url = router.resolve({ path: '/gantt-chart', query })
+  window.open(url.href, '_blank')
 }
 
 onMounted(() => {

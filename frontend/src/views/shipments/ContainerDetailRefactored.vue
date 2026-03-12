@@ -20,6 +20,7 @@ import ChangeLogTab from './components/ChangeLogTab.vue'
 const route = useRoute()
 const demurrageRef = ref<{ load: () => Promise<void> } | null>(null)
 const calculationDates = ref<CalculationDates | null>(null)
+const demurrageCalculation = ref<any>(null) // 滞港费计算结果
 // 路由 param 已解码；若需兼容编码柜号则 decodeURIComponent
 const containerNumber = computed(() => {
   const p = route.params.containerNumber as string
@@ -61,13 +62,20 @@ const loadDemurrageDates = async () => {
   if (!containerNumber.value?.trim()) return
   try {
     const res = await demurrageService.calculateForContainer(containerNumber.value)
-    if (res.success && res.data?.calculationDates) {
-      calculationDates.value = res.data.calculationDates
+    console.log('[ContainerDetail] Demurrage API response:', res)
+
+    // 即使没有完整计算结果，只要有items就保存
+    if (res.success && (res.data || res.reason)) {
+      calculationDates.value = res.data?.calculationDates || null
+      demurrageCalculation.value = res.data || { items: [], totalAmount: 0, currency: 'USD' }
     } else {
       calculationDates.value = null
+      demurrageCalculation.value = null
     }
-  } catch {
+  } catch (error) {
+    console.error('[ContainerDetail] Failed to load demurrage dates:', error)
     calculationDates.value = null
+    demurrageCalculation.value = null
   }
 }
 
@@ -137,7 +145,11 @@ const logisticsStatusDisplay = computed(() => {
     <div v-if="containerData" class="detail-content">
       <!-- 概览区：基本信息 + 关键日期 -->
       <section class="overview-section">
-        <ContainerSummary :container-data="containerData" />
+        <ContainerSummary
+          :container-data="containerData"
+          :demurrage-calculation="demurrageCalculation"
+          @open-demurrage-tab="activeTab = 'demurrage'"
+        />
         <KeyDatesTimeline
           :container-data="containerData"
           :calculation-dates="calculationDates"

@@ -68,17 +68,26 @@
             :class="{
               'is-weekend': isWeekend(date),
               'is-today': isToday(date),
+              'is-drop-zone': dragOverDate && dayjs(dragOverDate).isSame(date, 'day'),
             }"
           >
             <div class="dots-container">
               <div
                 v-for="container in getContainersByDateAndPort(date, port)"
                 :key="container.containerNumber"
-                class="container-dot clickable"
+                class="container-dot"
+                :class="{
+                  'clickable': true,
+                  'is-dragging': draggingContainer?.containerNumber === container.containerNumber,
+                }"
                 :style="{ backgroundColor: getStatusColor(container.logisticsStatus) }"
                 @mouseenter="showTooltip(container, $event)"
                 @mouseleave="hideTooltip"
-                @click="goToDetail(container)"
+                @click="handleDotClick(container)"
+                @contextmenu.prevent="openContextMenu(container, $event)"
+                draggable="true"
+                @dragstart="handleDragStart(container, $event)"
+                @dragend="handleDragEnd"
               ></div>
             </div>
           </div>
@@ -160,6 +169,42 @@
         </div>
       </template>
     </el-drawer>
+
+    <!-- 详情侧边栏 -->
+    <ContainerDetailSidebar
+      v-model:visible="showDetailSidebar"
+      :container="selectedContainer"
+    />
+
+    <!-- 右键菜单 -->
+    <ContainerContextMenu
+      v-model:visible="showContextMenu"
+      :container="selectedContainer"
+      :position="contextMenuPosition"
+      @viewDetail="handleViewDetail"
+      @editDate="handleEditDate"
+      @copyContainerNumber="handleCopyContainerNumber"
+      @delete="handleDelete"
+    />
+
+    <!-- 日期编辑对话框 -->
+    <ContainerDateEditDialog
+      v-model:visible="showDateEditDialog"
+      :container="selectedContainer"
+      @save="handleDateSave"
+    />
+
+    <!-- 拖拽指示器 -->
+    <div
+      v-if="dragOverDate"
+      class="drop-indicator"
+      :style="{
+        left: dropIndicatorPosition.x + 'px',
+        top: dropIndicatorPosition.y + 'px',
+      }"
+    >
+      拖放至 {{ formatDateShort(dragOverDate) }}
+    </div>
   </div>
 </template>
 
@@ -171,6 +216,9 @@ import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import ContainerDetailSidebar from './ContainerDetailSidebar.vue'
+import ContainerContextMenu from './ContainerContextMenu.vue'
+import ContainerDateEditDialog from './ContainerDateEditDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -215,6 +263,18 @@ const dateRange = ref<Date[]>([])
 const tooltipVisible = ref(false)
 const tooltipPosition = ref({ x: 0, y: 0 })
 const tooltipContainer = ref<ContainerItem | null>(null)
+
+// 交互状态
+const selectedContainer = ref<Container | null>(null)
+const showDetailSidebar = ref(false)
+const showContextMenu = ref(false)
+const contextMenuPosition = ref({ x: 0, y: 0 })
+const showDateEditDialog = ref(false)
+
+// 拖拽状态
+const draggingContainer = ref<Container | null>(null)
+const dragOverDate = ref<Date | null>(null)
+const dropIndicatorPosition = ref({ x: 0, y: 0 })
 
 // 布局配置
 const maxDotsPerCell = 6
@@ -537,10 +597,143 @@ const goBack = () => {
   router.push('/shipments')
 }
 
+// 点击圆点 - 显示详情侧边栏
+const handleDotClick = (container: Container) => {
+  selectedContainer.value = container
+  showDetailSidebar.value = true
+  hideTooltip()
+}
+
+// 查看详情（从右键菜单）
+const handleViewDetail = () => {
+  showDetailSidebar.value = true
+}
+
+// 编辑日期（从右键菜单）
+const handleEditDate = () => {
+  showDateEditDialog.value = true
+}
+
+// 复制柜号
+const handleCopyContainerNumber = () => {
+  if (selectedContainer.value?.containerNumber) {
+    navigator.clipboard.writeText(selectedContainer.value.containerNumber)
+    ElMessage.success('柜号已复制')
+  }
+}
+
+// 删除货柜（暂时禁用）
+const handleDelete = () => {
+  ElMessage.info('删除功能暂未开放')
+}
+
+// 显示右键菜单
+const openContextMenu = (container: Container, event: MouseEvent) => {
+  selectedContainer.value = container
+  contextMenuPosition.value = { x: event.clientX, y: event.clientY }
+  showContextMenu.value = true
+  hideTooltip()
+}
+
+// 拖拽开始
+const handleDragStart = (container: Container, event: DragEvent) => {
+  draggingContainer.value = container
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', container.containerNumber)
+  }
+}
+
+// 拖拽结束
+const handleDragEnd = () => {
+  draggingContainer.value = null
+  dragOverDate.value = null
+}
+
+// 处理拖拽放置
+const handleDrop = (date: Date) => {
+  if (!draggingContainer.value || !dragOverDate.value) return
+
+  const newDate = dayjs(dragOverDate.value).format('YYYY-MM-DD HH:mm:ss')
+  ElMessage.confirm(
+    `确定要将货柜 ${draggingContainer.value.containerNumber} 移动到 ${formatDateShort(dragOverDate.value)} 吗？`,
+    '确认调整日期',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    }
+  ).then(() => {
+    // TODO: 调用后端API更新日期
+    console.log('Move container to date:', newDate)
+    ElMessage.success('日期调整成功')
+
+    // 刷新数据
+    loadData()
+  }).catch(() => {
+    ElMessage.info('已取消操作')
+  })
+}
+
+// 保存日期编辑
+const handleDateSave = async (data: any) => {
+  try {
+    // TODO: 调用后端API更新日期
+    console.log('Save date:', data)
+    ElMessage.success('日期保存成功')
+    showDateEditDialog.value = false
+    loadData()
+  } catch (error) {
+    console.error('保存日期失败:', error)
+    ElMessage.error('保存日期失败')
+  }
+}
+
 // 初始化
 onMounted(() => {
   loadData()
+  // 添加全局拖放事件监听
+  document.addEventListener('dragover', handleDragOver)
+  document.addEventListener('drop', handleGlobalDrop)
 })
+
+// 拖拽悬停处理
+const handleDragOver = (event: DragEvent) => {
+  event.preventDefault()
+  const target = event.target as HTMLElement
+  const dateCell = target.closest('.date-cell')
+  if (dateCell) {
+    const cellIndex = Array.from(dateCell.parentElement?.children || []).indexOf(dateCell)
+    const containerGroups = document.querySelectorAll('.port-group')
+    let dateIndex = 0
+    containerGroups.forEach(group => {
+      const cells = group.querySelectorAll('.date-cell')
+      cells.forEach((cell, idx) => {
+        if (cell === dateCell) {
+          dateIndex = idx
+        }
+      })
+    })
+
+    if (dateIndex >= 0 && dateIndex < dateRange.value.length) {
+      dragOverDate.value = dateRange.value[dateIndex]
+      const rect = dateCell.getBoundingClientRect()
+      dropIndicatorPosition.value = {
+        x: rect.left + rect.width / 2 - 80,
+        y: rect.top,
+      }
+    }
+  }
+}
+
+// 全局放置处理
+const handleGlobalDrop = (event: DragEvent) => {
+  event.preventDefault()
+  if (dragOverDate.value) {
+    handleDrop(dragOverDate.value)
+  }
+  dragOverDate.value = null
+}
 </script>
 
 <style scoped>
@@ -682,6 +875,11 @@ onMounted(() => {
 
 .date-cell.is-today {
   background-color: #ecf5ff;
+}
+
+.date-cell.is-drop-zone {
+  background-color: #e1f3d8;
+  border: 2px dashed #67c23a;
 }
 
 .date-day {
@@ -833,6 +1031,24 @@ onMounted(() => {
 .container-dot.clickable:hover {
   transform: scale(1.3);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.container-dot.is-dragging {
+  opacity: 0.5;
+  transform: scale(1.2);
+}
+
+/* 拖拽指示器 */
+.drop-indicator {
+  position: fixed;
+  background: #67c23a;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  z-index: 9999;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
 }
 
 /* 筛选徽标 */

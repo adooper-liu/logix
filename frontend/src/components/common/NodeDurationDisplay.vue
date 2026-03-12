@@ -10,6 +10,8 @@ interface Props {
   timestamp: Date | string | null
   /** 上一节点结束时间（用于计算历时） */
   prevTimestamp?: Date | string | null
+  /** 下一节点开始时间（用于判断是否显示倒计时/超期） */
+  nextTimestamp?: Date | string | null
   /** 当前节点的全局索引 */
   index?: number
   /** 节点总数（用于判断是否为最后一个节点） */
@@ -36,16 +38,17 @@ const toTimestamp = (date: Date | string | null | undefined): number | null => {
   return isNaN(d.getTime()) ? null : d.getTime()
 }
 
-// 判断是否为当前节点或最后一个节点
-const isCurrentOrLastNode = computed(() => {
-  return props.isInProgress !== undefined
-    ? props.isInProgress
-    : props.index === (props.totalCount || 0) - 1
+// 判断是否有后一节点
+const hasNextNode = computed(() => {
+  const next = toTimestamp(props.nextTimestamp)
+  return next !== null
 })
 
-// 计算历时（从上一节点到当前节点）
+// 计算历时（从上一节点到当前节点）- 只在有后一节点时显示
 const elapsedInfo = computed(() => {
   if (!props.showElapsed) return null
+  // 统一标准：只有有后一节点时才显示历时
+  if (!hasNextNode.value) return null
 
   const current = toTimestamp(props.timestamp)
   const prev = toTimestamp(props.prevTimestamp)
@@ -72,29 +75,73 @@ const elapsedInfo = computed(() => {
   }
 })
 
-// 计算超期（当前节点已停留时间 - 标准耗时）
-const overdueInfo = computed(() => {
+// 计算倒计时/超期 - 只在没有后一节点时显示
+const countdownOrOverdueInfo = computed(() => {
   if (!props.showOverdue) return null
-  if (!isCurrentOrLastNode.value) return null
-  if (!props.standardHours || props.standardHours <= 0) return null
+  // 统一标准：只有没有后一节点时才显示倒计时/超期
+  if (hasNextNode.value) return null
 
   const current = toTimestamp(props.timestamp)
   if (!current) return null
 
   const now = Date.now()
-  const elapsedMs = now - current
-  const elapsedHours = elapsedMs / (1000 * 60 * 60)
+  const diffMs = now - current
+  const diffHours = diffMs / (1000 * 60 * 60)
+  const diffDays = Math.floor(diffHours / 24)
 
-  // 未达到标准时间，不显示超期
-  if (elapsedHours <= props.standardHours) return null
+  // 未来日期：倒计时
+  if (diffHours < 0) {
+    const remainingHours = Math.abs(diffHours)
+    const days = Math.floor(remainingHours / 24)
+    const hours = Math.round(remainingHours % 24)
 
-  const overdueHours = elapsedHours - props.standardHours
+    if (days === 0 && hours === 0) return null
+
+    return {
+      type: 'countdown' as const,
+      days,
+      hours,
+      text: days === 0
+        ? `${hours}小时`
+        : hours === 0
+          ? `${days}天`
+          : `${days}天${hours}小时`
+    }
+  }
+
+  // 过去日期：判断是否超期
+  if (!props.standardHours || props.standardHours <= 0) return null
+
+  // 已过时间未超过标准，不显示超期
+  if (diffHours <= props.standardHours) {
+    // 显示为"历时"（蓝色），不是超期
+    const hours = Math.floor(diffHours)
+    const days = Math.floor(hours / 24)
+    const remainingHours = hours % 24
+
+    if (days === 0 && remainingHours === 0) return null
+
+    return {
+      type: 'elapsed' as const,
+      days,
+      hours: remainingHours,
+      text: days === 0
+        ? `${remainingHours}小时`
+        : remainingHours === 0
+          ? `${days}天`
+          : `${days}天${remainingHours}小时`
+    }
+  }
+
+  // 已超过标准时间，显示超期
+  const overdueHours = diffHours - props.standardHours
   const days = Math.floor(overdueHours / 24)
   const hours = Math.round(overdueHours % 24)
 
   if (days === 0 && hours === 0) return null
 
   return {
+    type: 'overdue' as const,
     days,
     hours,
     text: days === 0
@@ -108,14 +155,24 @@ const overdueInfo = computed(() => {
 
 <template>
   <div class="node-duration-display">
-    <!-- 历时：所有节点都显示 -->
+    <!-- 历时：有后一节点时显示 -->
     <span v-if="elapsedInfo" class="duration-tag duration-tag--elapsed">
       历时 {{ elapsedInfo.text }}
     </span>
 
-    <!-- 超期：仅当前节点或最后一个节点显示 -->
-    <span v-if="overdueInfo" class="duration-tag duration-tag--overdue">
-      超期 {{ overdueInfo.text }}
+    <!-- 倒计时：无后一节点 + 未来日期时显示 -->
+    <span v-if="countdownOrOverdueInfo?.type === 'countdown'" class="duration-tag duration-tag--countdown">
+      倒计时 {{ countdownOrOverdueInfo.text }}
+    </span>
+
+    <!-- 超期：无后一节点 + 过去日期 + 已超过标准时显示 -->
+    <span v-if="countdownOrOverdueInfo?.type === 'overdue'" class="duration-tag duration-tag--overdue">
+      超期 {{ countdownOrOverdueInfo.text }}
+    </span>
+
+    <!-- 普通历时（未超过标准）：无后一节点 + 过去日期 + 未超过标准时显示 -->
+    <span v-if="countdownOrOverdueInfo?.type === 'elapsed'" class="duration-tag duration-tag--elapsed">
+      历时 {{ countdownOrOverdueInfo.text }}
     </span>
   </div>
 </template>
@@ -145,10 +202,23 @@ const overdueInfo = computed(() => {
     background: rgba($info-color, 0.12);
   }
 
+  // 倒计时：绿色（安全）或橙色（即将到期）
+  &--countdown {
+    color: $success-color;
+    background: rgba($success-color, 0.12);
+  }
+
   // 超期：红色（负面指标，用于干预）
   &--overdue {
     color: $danger-color;
     background: rgba($danger-color, 0.12);
+    animation: pulse 2s ease-in-out infinite;
   }
+}
+
+// 超期脉冲动画
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
 }
 </style>
