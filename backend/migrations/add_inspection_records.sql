@@ -1,3 +1,6 @@
+-- 添加查验记录表和事件履历表
+-- 执行顺序：在 03_create_tables.sql 之后执行
+
 -- 查验记录表
 CREATE TABLE IF NOT EXISTS ext_inspection_records (
     id SERIAL PRIMARY KEY,

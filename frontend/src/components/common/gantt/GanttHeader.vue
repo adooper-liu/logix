@@ -12,10 +12,6 @@
       </div>
     </div>
     <div class="header-right">
-      <el-button :icon="Filter" @click="$emit('filter')" size="small">
-        状态筛选
-        <el-badge v-if="filterCount > 0" :value="filterCount" class="filter-badge" />
-      </el-button>
       <el-button :icon="Download" @click="$emit('export')" size="small">导出数据</el-button>
       <el-button @click="$emit('back')" size="small">返回</el-button>
       <el-button @click="$emit('refresh')" type="primary" size="small" :loading="loading">
@@ -26,17 +22,15 @@
 </template>
 
 <script setup lang="ts">
-import { Download, Filter } from '@element-plus/icons-vue'
+import { Download } from '@element-plus/icons-vue'
 
 defineProps<{
   filterLabel?: string
   containerCount: number
-  filterCount: number
   loading: boolean
 }>()
 
 defineEmits<{
-  filter: []
   export: []
   back: []
   refresh: []

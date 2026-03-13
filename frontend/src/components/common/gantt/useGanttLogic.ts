@@ -1,4 +1,5 @@
 import { containerService } from '@/services/container'
+import { useGanttFilterStore } from '@/store/ganttFilters'
 import type { Container } from '@/types/container'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -12,6 +13,7 @@ import { useRoute, useRouter } from 'vue-router'
 export function useGanttLogic() {
   const route = useRoute()
   const router = useRouter()
+  const ganttFilterStore = useGanttFilterStore()
 
   // 数据状态
   const containers = ref<Container[]>([])
@@ -48,18 +50,7 @@ export function useGanttLogic() {
   const dragOverDate = ref<Date | null>(null)
   const dropIndicatorPosition = ref({ x: 0, y: 0 })
 
-  // 状态筛选
-  const showFilterDrawer = ref(false)
-  const selectedStatuses = ref<string[]>([])
-  const logisticsStatusOptions = [
-    { label: '未出运', value: 'not_shipped', color: '#909399' },
-    { label: '已出运', value: 'shipped', color: '#409EFF' },
-    { label: '在途', value: 'in_transit', color: '#67C23A' },
-    { label: '已到港', value: 'at_port', color: '#E6A23C' },
-    { label: '已提柜', value: 'picked_up', color: '#F56C6C' },
-    { label: '已卸柜', value: 'unloaded', color: '#909399' },
-    { label: '已还箱', value: 'returned_empty', color: '#C0C4CC' },
-  ]
+
 
   // 高级筛选
   const advancedFilters = ref({
@@ -213,13 +204,6 @@ export function useGanttLogic() {
   const filteredContainers = computed(() => {
     let result = [...containers.value]
 
-    // 状态筛选
-    if (selectedStatuses.value.length > 0) {
-      result = result.filter(c =>
-        selectedStatuses.value.includes(c.logisticsStatus?.toLowerCase() || '')
-      )
-    }
-
     // 高级筛选
     if (advancedFilters.value.shipVoyage) {
       const shipVoyage = advancedFilters.value.shipVoyage.toLowerCase()
@@ -340,10 +324,23 @@ export function useGanttLogic() {
     loading.value = true
     error.value = null
     try {
-      const condition = route.query.filterCondition as string
-      const startDate = route.query.startDate as string
-      const endDate = route.query.endDate as string
-      const label = route.query.filterLabel as string
+      // 优先从 Pinia Store 读取，如果没有则从 URL 读取
+      let condition: string
+      let startDate: string
+      let endDate: string
+      let label: string
+      
+      if (ganttFilterStore.filterCondition) {
+        condition = ganttFilterStore.filterCondition
+        startDate = ganttFilterStore.startDate
+        endDate = ganttFilterStore.endDate
+        label = ganttFilterStore.filterLabel
+      } else {
+        condition = route.query.filterCondition as string
+        startDate = route.query.startDate as string
+        endDate = route.query.endDate as string
+        label = route.query.filterLabel as string
+      }
 
       filterCondition.value = condition
       filterLabel.value = label
@@ -358,27 +355,33 @@ export function useGanttLogic() {
       )
 
       let response: any
-      if (condition) {
-        console.log('[useGanttLogic] 调用 getContainersByFilterCondition')
-        response = await containerService.getContainersByFilterCondition(
-          condition,
-          startDate,
-          endDate
-        )
-        console.log('[useGanttLogic] API 返回数据:', response)
-      } else {
-        console.log('[useGanttLogic] 调用 getContainers')
-        response = await containerService.getContainers({
-          page: 1,
-          pageSize: 500,
-          search: '',
-          startDate,
-          endDate,
-        })
-      }
+      try {
+        if (condition) {
+          console.log('[useGanttLogic] 调用 getContainersByFilterCondition')
+          response = await containerService.getContainersByFilterCondition(
+            condition,
+            startDate,
+            endDate
+          )
+          console.log('[useGanttLogic] API 返回数据:', response)
+        } else {
+          console.log('[useGanttLogic] 调用 getContainers')
+          response = await containerService.getContainers({
+            page: 1,
+            pageSize: 500,
+            search: '',
+            startDate,
+            endDate,
+          })
+        }
 
-      console.log('[useGanttLogic] 设置 containers，数量:', response.items?.length || 0)
-      containers.value = response.items ?? []
+        console.log('[useGanttLogic] 设置 containers，数量:', response.items?.length || 0)
+        containers.value = response.items ?? []
+      } catch (err: any) {
+        console.error('[useGanttLogic] API 调用失败:', err)
+        // 如果 API 调用失败，使用空数组
+        containers.value = []
+      }
 
       // 计算显示范围
       if (startDate && endDate) {
@@ -535,12 +538,21 @@ export function useGanttLogic() {
   const handleDateSave = async (data: any) => {
     try {
       console.log('Save date:', data)
+      
+      // 准备更新数据
+      const updateData: any = {
+        [data.field]: data.value
+      }
+      
+      // 调用API更新货柜日期
+      await containerService.updateContainer(data.containerNumber, updateData)
+      
       ElMessage.success('日期保存成功')
       showDateEditDialog.value = false
       loadData()
     } catch (err: any) {
       console.error('保存日期失败:', err)
-      ElMessage.error('保存日期失败')
+      ElMessage.error('保存日期失败: ' + (err.response?.data?.message || err.message))
     }
   }
 
@@ -570,29 +582,31 @@ export function useGanttLogic() {
     }
   }
 
-  // 筛选应用
+  // 应用所有过滤器
   const applyAllFilters = () => {
-    showFilterDrawer.value = false
-    let filterCount = selectedStatuses.value.length
-    if (advancedFilters.value.shipVoyage) filterCount++
-    if (advancedFilters.value.originPort) filterCount++
-    if (advancedFilters.value.forwarder) filterCount++
-    ElMessage.success(`已应用 ${filterCount} 个筛选条件`)
+    loadData()
   }
 
+  // 重置所有过滤器
   const resetAllFilters = () => {
-    selectedStatuses.value = []
     advancedFilters.value = {
       shipVoyage: '',
       originPort: '',
       forwarder: '',
     }
-    showFilterDrawer.value = false
-    ElMessage.info('已重置所有筛选条件')
+    loadData()
   }
 
   const goBack = () => {
-    router.push('/shipments')
+    // 使用 Pinia Store 中的状态返回
+    router.push({
+      path: '/shipments',
+      query: {
+        startDate: ganttFilterStore.startDate,
+        endDate: ganttFilterStore.endDate,
+        filterCondition: ganttFilterStore.filterCondition
+      }
+    })
   }
 
   const exportData = () => {
@@ -672,6 +686,11 @@ export function useGanttLogic() {
 
   // 生命周期
   onMounted(() => {
+    // 从 URL 同步参数到 Store
+    if (route.query.startDate || route.query.endDate || route.query.filterCondition) {
+      ganttFilterStore.initFromQuery(route.query)
+    }
+    
     loadData()
     document.addEventListener('dragover', handleDragOver)
     document.addEventListener('drop', handleGlobalDrop)
@@ -691,10 +710,7 @@ export function useGanttLogic() {
     groupedByPort,
     // 过滤
     filterLabel,
-    selectedStatuses,
     advancedFilters,
-    logisticsStatusOptions,
-    showFilterDrawer,
     // 日期
     rangeType,
     displayRange,

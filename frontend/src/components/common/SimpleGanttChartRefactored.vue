@@ -4,9 +4,7 @@
     <GanttHeader
       :filter-label="filterLabel"
       :container-count="finalFilteredContainers.length"
-      :filter-count="selectedStatuses.length"
       :loading="loading"
-      @filter="showFilterDrawer = true"
       @export="exportData"
       @back="goBack"
       @refresh="loadData"
@@ -76,7 +74,7 @@
               :class="{
                 'is-weekend': isWeekend(date),
                 'is-today': isToday(date),
-                'is-drop-zone': isDropZone && dayjs(dragOverDate).isSame(date, 'day'),
+                'is-drop-zone': isDropZone && dragOverDate && dayjs(dragOverDate).isSame(date, 'day'),
               }"
               @dragover="handleDragOver($event, date)"
               @drop="handleDrop(date)"
@@ -103,6 +101,171 @@
                   @dragstart="handleDragStart(container, $event)"
                   @dragend="handleDragEnd"
                 ></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 五节点泳道 -->
+        <div class="five-node-lanes" v-if="finalFilteredContainers.length > 0">
+          <div class="lane-header">
+            <div class="lane-title">五节点状态</div>
+            <div class="lane-dates">
+              <div
+                v-for="date in dateRange"
+                :key="date.getTime()"
+                class="lane-date-cell"
+                :class="{
+                  'is-weekend': isWeekend(date),
+                  'is-today': isToday(date),
+                }"
+              >
+                {{ formatDateShort(date) }}
+              </div>
+            </div>
+          </div>
+          
+          <!-- 清关泳道 -->
+          <div class="node-lane">
+            <div class="node-title">清关</div>
+            <div class="node-dates">
+              <div
+                v-for="date in dateRange"
+                :key="date.getTime()"
+                class="node-date-cell"
+              >
+                <div class="node-events">
+                  <div
+                    v-for="container in getContainersByNodeDate(date, 'customs')"
+                    :key="container.containerNumber"
+                    class="node-event"
+                    :class="{
+                      'event-customs': true,
+                      'event-planned': isPlannedDate(container, 'customs', date),
+                      'event-actual': isActualDate(container, 'customs', date),
+                      'has-warning': hasAlert(container),
+                    }"
+                    @mouseenter="showTooltip(container, $event)"
+                    @mouseleave="hideTooltip"
+                    @click="handleDotClick(container)"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 拖卡泳道 -->
+          <div class="node-lane">
+            <div class="node-title">拖卡</div>
+            <div class="node-dates">
+              <div
+                v-for="date in dateRange"
+                :key="date.getTime()"
+                class="node-date-cell"
+              >
+                <div class="node-events">
+                  <div
+                    v-for="container in getContainersByNodeDate(date, 'trucking')"
+                    :key="container.containerNumber"
+                    class="node-event"
+                    :class="{
+                      'event-trucking': true,
+                      'event-planned': isPlannedDate(container, 'trucking', date),
+                      'event-actual': isActualDate(container, 'trucking', date),
+                      'has-warning': hasAlert(container),
+                    }"
+                    @mouseenter="showTooltip(container, $event)"
+                    @mouseleave="hideTooltip"
+                    @click="handleDotClick(container)"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 卸柜泳道 -->
+          <div class="node-lane">
+            <div class="node-title">卸柜</div>
+            <div class="node-dates">
+              <div
+                v-for="date in dateRange"
+                :key="date.getTime()"
+                class="node-date-cell"
+              >
+                <div class="node-events">
+                  <div
+                    v-for="container in getContainersByNodeDate(date, 'unloading')"
+                    :key="container.containerNumber"
+                    class="node-event"
+                    :class="{
+                      'event-unloading': true,
+                      'event-planned': isPlannedDate(container, 'unloading', date),
+                      'event-actual': isActualDate(container, 'unloading', date),
+                      'has-warning': hasAlert(container),
+                    }"
+                    @mouseenter="showTooltip(container, $event)"
+                    @mouseleave="hideTooltip"
+                    @click="handleDotClick(container)"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 还箱泳道 -->
+          <div class="node-lane">
+            <div class="node-title">还箱</div>
+            <div class="node-dates">
+              <div
+                v-for="date in dateRange"
+                :key="date.getTime()"
+                class="node-date-cell"
+              >
+                <div class="node-events">
+                  <div
+                    v-for="container in getContainersByNodeDate(date, 'return')"
+                    :key="container.containerNumber"
+                    class="node-event"
+                    :class="{
+                      'event-return': true,
+                      'event-planned': isPlannedDate(container, 'return', date),
+                      'event-actual': isActualDate(container, 'return', date),
+                      'has-warning': hasAlert(container),
+                    }"
+                    @mouseenter="showTooltip(container, $event)"
+                    @mouseleave="hideTooltip"
+                    @click="handleDotClick(container)"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 查验泳道 -->
+          <div class="node-lane">
+            <div class="node-title">查验</div>
+            <div class="node-dates">
+              <div
+                v-for="date in dateRange"
+                :key="date.getTime()"
+                class="node-date-cell"
+              >
+                <div class="node-events">
+                  <div
+                    v-for="container in getContainersByNodeDate(date, 'inspection')"
+                    :key="container.containerNumber"
+                    class="node-event"
+                    :class="{
+                      'event-inspection': true,
+                      'event-planned': isPlannedDate(container, 'inspection', date),
+                      'event-actual': isActualDate(container, 'inspection', date),
+                      'has-warning': hasAlert(container),
+                    }"
+                    @mouseenter="showTooltip(container, $event)"
+                    @mouseleave="hideTooltip"
+                    @click="handleDotClick(container)"
+                  ></div>
+                </div>
               </div>
             </div>
           </div>
@@ -315,11 +478,8 @@ const isDropZone = computed(() => !!dragOverDate)
 const {
   containers,
   loading,
-  filteredContainers,
   groupedByPort,
   filterLabel,
-  selectedStatuses,
-  showFilterDrawer,
   rangeType,
   displayRange,
   dateRange,
@@ -392,6 +552,73 @@ const getTooltipDateClass = (container: any) => {
   return ''
 }
 
+// 五节点相关方法
+const getContainersByNodeDate = (date: Date, node: string): any[] => {
+  const dateStr = dayjs(date).format('YYYY-MM-DD')
+  return finalFilteredContainers.value.filter(container => {
+    switch (node) {
+      case 'customs':
+        return isPlannedDate(container, 'customs', date) || isActualDate(container, 'customs', date)
+      case 'trucking':
+        return isPlannedDate(container, 'trucking', date) || isActualDate(container, 'trucking', date)
+      case 'unloading':
+        return isPlannedDate(container, 'unloading', date) || isActualDate(container, 'unloading', date)
+      case 'return':
+        return isPlannedDate(container, 'return', date) || isActualDate(container, 'return', date)
+      case 'inspection':
+        return isPlannedDate(container, 'inspection', date) || isActualDate(container, 'inspection', date)
+      default:
+        return false
+    }
+  })
+}
+
+const isPlannedDate = (container: any, node: string, date: Date): boolean => {
+  const dateStr = dayjs(date).format('YYYY-MM-DD')
+  switch (node) {
+    case 'customs':
+      // 清关计划日期
+      return container.customsPlannedDate && dayjs(container.customsPlannedDate).format('YYYY-MM-DD') === dateStr
+    case 'trucking':
+      // 拖卡计划日期
+      return container.truckingTransports?.[0]?.plannedPickupDate && dayjs(container.truckingTransports[0].plannedPickupDate).format('YYYY-MM-DD') === dateStr
+    case 'unloading':
+      // 卸柜计划日期
+      return container.unloadingPlannedDate && dayjs(container.unloadingPlannedDate).format('YYYY-MM-DD') === dateStr
+    case 'return':
+      // 还箱计划日期
+      return container.returnPlannedDate && dayjs(container.returnPlannedDate).format('YYYY-MM-DD') === dateStr
+    case 'inspection':
+      // 查验计划日期
+      return container.inspectionPlannedDate && dayjs(container.inspectionPlannedDate).format('YYYY-MM-DD') === dateStr
+    default:
+      return false
+  }
+}
+
+const isActualDate = (container: any, node: string, date: Date): boolean => {
+  const dateStr = dayjs(date).format('YYYY-MM-DD')
+  switch (node) {
+    case 'customs':
+      // 清关实际日期
+      return container.customsActualDate && dayjs(container.customsActualDate).format('YYYY-MM-DD') === dateStr
+    case 'trucking':
+      // 拖卡实际日期
+      return container.truckingTransports?.[0]?.actualPickupDate && dayjs(container.truckingTransports[0].actualPickupDate).format('YYYY-MM-DD') === dateStr
+    case 'unloading':
+      // 卸柜实际日期
+      return container.unloadingActualDate && dayjs(container.unloadingActualDate).format('YYYY-MM-DD') === dateStr
+    case 'return':
+      // 还箱实际日期
+      return container.returnActualDate && dayjs(container.returnActualDate).format('YYYY-MM-DD') === dateStr
+    case 'inspection':
+      // 查验实际日期
+      return container.inspectionActualDate && dayjs(container.inspectionActualDate).format('YYYY-MM-DD') === dateStr
+    default:
+      return false
+  }
+}
+
 // 搜索处理
 const handleSearch = (keyword: string) => {
   searchKeyword.value = keyword
@@ -460,7 +687,7 @@ const handleDotDblClick = (container: any) => {
 
 // 最终的过滤容器（结合 URL 筛选和搜索）
 const finalFilteredContainers = computed(() => {
-  let result = filteredContainers.value
+  let result = containers.value
 
   // 应用搜索关键词
   if (searchKeyword.value) {
@@ -509,7 +736,8 @@ const finalFilteredContainers = computed(() => {
             container.seaFreight?.voyageNumber?.toLowerCase().includes(keyword)
           )
         default:
-          return false
+          // 默认返回 true，避免所有货柜被过滤掉
+          return true
       }
     })
   }
@@ -544,6 +772,12 @@ onUnmounted(() => {
   document.removeEventListener('dragover', handleDragOver)
   document.removeEventListener('drop', handleGlobalDrop)
 })
+</script>
+
+<script lang="ts">
+export default {
+  name: 'SimpleGanttChart'
+}
 </script>
 
 <style scoped>
@@ -892,5 +1126,177 @@ onUnmounted(() => {
   color: #909399;
   margin-left: auto;
   flex-shrink: 0;
+}
+
+/* 五节点泳道样式 */
+.five-node-lanes {
+  margin-top: 30px;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.lane-header {
+  display: flex;
+  background: #f5f7fa;
+  border-bottom: 1px solid #e4e7ed;
+  min-width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.lane-title {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #303133;
+  border-right: 1px solid #e4e7ed;
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  background: #f5f7fa;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+}
+
+.lane-dates {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.lane-date-cell {
+  width: 150px;
+  min-width: 150px;
+  border-right: 1px solid #e4e7ed;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  color: #303133;
+  flex-shrink: 0;
+}
+
+.lane-date-cell.is-weekend {
+  background-color: #fef0f0;
+}
+
+.lane-date-cell.is-today {
+  background-color: #ecf5ff;
+}
+
+.node-lane {
+  display: flex;
+  min-width: 100%;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.node-lane:last-child {
+  border-bottom: none;
+}
+
+.node-title {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #303133;
+  border-right: 1px solid #e4e7ed;
+  background: #fafafa;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+}
+
+.node-dates {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.node-date-cell {
+  width: 150px;
+  min-width: 150px;
+  border-right: 1px solid #e4e7ed;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.node-events {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: center;
+  gap: 4px;
+  width: 100%;
+  height: 100%;
+  padding: 4px;
+}
+
+.node-event {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.node-event:hover {
+  transform: scale(1.3);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 节点事件类型样式 */
+.event-customs {
+  background-color: #409eff;
+}
+
+.event-trucking {
+  background-color: #e6a23c;
+}
+
+.event-unloading {
+  background-color: #67c23a;
+}
+
+.event-return {
+  background-color: #909399;
+}
+
+.event-inspection {
+  background-color: #f56c6c;
+}
+
+/* 计划 vs 实际 */
+.event-planned {
+  border: 2px solid #fff;
+}
+
+.event-actual {
+  border: 2px solid #000;
+}
+
+/* 预警状态 */
+.node-event.has-warning {
+  box-shadow: 0 0 8px rgba(245, 108, 108, 0.6);
+  animation: pulse-warning 2s ease-in-out infinite;
 }
 </style>

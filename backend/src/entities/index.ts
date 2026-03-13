@@ -37,3 +37,7 @@ export { ContainerHoldRecord } from './ContainerHoldRecord';
 export { ContainerCharge } from './ContainerCharge';
 export { ExtDemurrageStandard } from './ExtDemurrageStandard';
 export { ExtDemurrageRecord } from './ExtDemurrageRecord';
+
+// 查验扩展表 (Inspection Extension Tables)
+export { InspectionRecord } from './InspectionRecord';
+export { InspectionEvent } from './InspectionEvent';

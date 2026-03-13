@@ -7,8 +7,6 @@ import Layout from '@/components/layout/Layout.vue'
 // 页面组件
 const Dashboard = () => import('@/views/dashboard/Dashboard.vue')
 const Shipments = () => import('@/views/shipments/Shipments.vue')
-const GanttChart = () => import('@/views/gantt/GanttChart.vue')
-const SimpleGanttChart = () => import('@/views/gantt/SimpleGanttChart.vue')
 const ContainerDetail = () => import('@/views/shipments/ContainerDetailRefactored.vue')
 const ExcelImport = () => import('@/views/import/ExcelImport.vue')
 const DemurrageStandardsImport = () => import('@/views/import/DemurrageStandardsImport.vue')
@@ -66,21 +64,12 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
-        path: 'shipments/gantt-chart',
+        path: 'gantt-chart',
         name: 'GanttChart',
-        component: GanttChart,
+        component: () => import('@/components/common/SimpleGanttChartRefactored.vue'),
         meta: {
           title: '货柜甘特图',
           icon: 'Calendar',
-          requiresAuth: true,
-        },
-      },
-      {
-        path: 'gantt-chart',
-        name: 'SimpleGanttChart',
-        component: () => import('@/components/common/SimpleGanttChartRefactored.vue'),
-        meta: {
-          title: '货柜时间分布甘特图',
           requiresAuth: true,
         },
       },

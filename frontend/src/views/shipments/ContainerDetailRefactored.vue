@@ -7,6 +7,7 @@ import { ElMessage } from 'element-plus'
 import ContainerHeader from './components/ContainerHeader.vue'
 import ContainerSummary from './components/ContainerSummary.vue'
 import KeyDatesTimeline from './components/KeyDatesTimeline.vue'
+import FiveNodeTimeline from './components/FiveNodeTimeline.vue'
 import SeaFreightInfo from './components/SeaFreightInfo.vue'
 import ContainerInfo from './components/ContainerInfo.vue'
 import PortOperations from './components/PortOperations.vue'
@@ -16,6 +17,7 @@ import EmptyReturn from './components/EmptyReturn.vue'
 import DemurrageDetailSection from '@/components/demurrage/DemurrageDetailSection.vue'
 import LogisticsPathTab from './components/LogisticsPathTab.vue'
 import ChangeLogTab from './components/ChangeLogTab.vue'
+import InspectionRecord from './components/InspectionRecord.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -152,6 +154,7 @@ watch(
     if (tab === 'demurrage') activeTab.value = 'demurrage'
     else if (tab === 'logistics-path') activeTab.value = 'logistics-path'
     else if (tab === 'change-log') activeTab.value = 'change-log'
+    else if (tab === 'inspection') activeTab.value = 'inspection'
   },
   { immediate: true }
 )
@@ -207,7 +210,7 @@ const logisticsStatusDisplay = computed(() => {
 
     <!-- 内容区域 -->
     <div v-if="containerData" class="detail-content">
-      <!-- 概览区：基本信息 + 关键日期 -->
+      <!-- 概览区：基本信息 + 关键日期 + 五节点时间线 -->
       <section class="overview-section">
         <ContainerSummary
           :container-data="containerData"
@@ -217,6 +220,10 @@ const logisticsStatusDisplay = computed(() => {
         <KeyDatesTimeline
           :container-data="containerData"
           :calculation-dates="calculationDates"
+        />
+        <FiveNodeTimeline
+          :container-data="containerData"
+          :demurrage-calculation="demurrageCalculation"
         />
       </section>
 
@@ -281,6 +288,11 @@ const logisticsStatusDisplay = computed(() => {
             <el-tab-pane label="变更日志" name="change-log">
               <div class="tab-content">
                 <ChangeLogTab :container-number="containerNumber" />
+              </div>
+            </el-tab-pane>
+            <el-tab-pane label="查验记录" name="inspection">
+              <div class="tab-content">
+                <InspectionRecord :container-number="containerNumber" />
               </div>
             </el-tab-pane>
           </el-tabs>

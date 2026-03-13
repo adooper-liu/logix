@@ -3,29 +3,33 @@ import CountdownCard from '@/components/CountdownCard.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import { useContainerCountdown } from '@/composables/useContainerCountdown'
 import { containerService } from '@/services/container'
+import { useGanttFilterStore } from '@/store/ganttFilters'
 import type { PaginationParams } from '@/types'
 import type { PortOperation } from '@/types/container'
 import {
-  getLogisticsStatusType,
-  getLogisticsStatusText as getStatusText,
-  SimplifiedStatus,
+    getLogisticsStatusType,
+    getLogisticsStatusText as getStatusText,
+    SimplifiedStatus,
 } from '@/utils/logisticsStatusMachine'
 import {
-  ArrowDown,
-  Calendar,
-  Download,
-  Edit,
-  Refresh,
-  Search,
-  Setting,
-  View,
+    ArrowDown,
+    Calendar,
+    Download,
+    Edit,
+    Refresh,
+    Search,
+    Setting,
+    View,
+    Warning,
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
-import { computed, h, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const router = useRouter()
+const route = useRoute()
+const ganttFilterStore = useGanttFilterStore()
 
 // 组件卸载标记，防止卸载后响应式更新
 const isUnmounted = ref(false)
@@ -63,6 +67,37 @@ const activeFilter = ref<{
   days: string
 }>({ type: '', days: '' })
 
+// 从URL参数初始化过滤条件
+const initFiltersFromUrl = () => {
+  const route = useRoute()
+  const filterCondition = route.query.filterCondition as string
+  const startDate = route.query.startDate as string
+  const endDate = route.query.endDate as string
+  
+  if (startDate && endDate) {
+    shipmentDateRange.value = [
+      dayjs(startDate).toDate(),
+      dayjs(endDate).toDate()
+    ]
+  }
+  
+  if (filterCondition) {
+    activeFilter.value.days = filterCondition
+    // 根据过滤条件设置类型
+    if (filterCondition.includes('status')) {
+      activeFilter.value.type = '按状态'
+    } else if (filterCondition.includes('arrival')) {
+      activeFilter.value.type = '按到港'
+    } else if (filterCondition.includes('pickup')) {
+      activeFilter.value.type = '按提柜计划'
+    } else if (filterCondition.includes('last_pickup')) {
+      activeFilter.value.type = '按最晚提柜'
+    } else if (filterCondition.includes('return')) {
+      activeFilter.value.type = '按最晚还箱'
+    }
+  }
+}
+
 // 表格排序（前端排序：当前页/当前数据集）
 const tableSort = ref<{ prop: string; order: 'ascending' | 'descending' | null }>({
   prop: '',
@@ -92,6 +127,9 @@ const columnLabels: Record<string, string> = {
   mblNumber: 'MBL Number',
   containerTypeCode: '柜型',
   logisticsStatus: '物流状态',
+  fiveNodeStatus: '五节点状态',
+  alerts: '预警',
+  totalCost: '总费用',
   inspectionRequired: '查验',
   isUnboxing: '开箱',
   destinationPort: '目的港',
@@ -716,25 +754,48 @@ const handleBatchExport = () => {
   ElMessage.success(`已导出 ${selectedRows.value.length} 条`)
 }
 
+// 辅助函数：根据筛选条件确定时间维度
+const getTimeDimensionFromFilter = (filterCondition: string): 'arrival' | 'pickup' | 'lastPickup' | 'return' => {
+  if (!filterCondition) return 'arrival'
+  if (filterCondition.includes('arrival')) return 'arrival'
+  if (filterCondition.includes('pickup') && !filterCondition.includes('last')) return 'pickup'
+  if (filterCondition.includes('last_pickup')) return 'lastPickup'
+  if (filterCondition.includes('return')) return 'return'
+  return 'arrival'
+}
+
 // 跳转甘特图：与统计卡片一致，带出运日期、卡片筛选条件、选中柜号
 const goGanttChart = () => {
   const ids = selectedRows.value.length
     ? selectedRows.value.map((r: any) => r.containerNumber).filter(Boolean)
     : []
+  
+  // 1. 保存到全局 Store（自动持久化到 localStorage）
+  ganttFilterStore.setFilters({
+    startDate: shipmentDateRange.value?.[0] 
+      ? dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD') 
+      : '',
+    endDate: shipmentDateRange.value?.[1] 
+      ? dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD') 
+      : '',
+    filterCondition: activeFilter.value.days || '',
+    filterLabel: activeFilter.value.days ? getFilterLabel(activeFilter.value.days) : '',
+    selectedContainers: ids,
+    timeDimension: getTimeDimensionFromFilter(activeFilter.value.days)
+  })
+  
+  // 2. 构建 query 参数（用于 URL 显示和分享）
   const query: Record<string, string> = {}
-  if (shipmentDateRange.value?.length === 2) {
-    query.startDate = dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD')
-    query.endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
-  }
-  if (activeFilter.value.type && activeFilter.value.days) {
-    query.filterCondition = activeFilter.value.days
-    query.filterLabel = getFilterLabel(activeFilter.value.days)
+  if (ganttFilterStore.startDate) query.startDate = ganttFilterStore.startDate
+  if (ganttFilterStore.endDate) query.endDate = ganttFilterStore.endDate
+  if (ganttFilterStore.filterCondition) {
+    query.filterCondition = ganttFilterStore.filterCondition
+    query.filterLabel = ganttFilterStore.filterLabel
   }
   if (ids.length) query.containers = ids.join(',')
-
-  // 在新窗口打开甘特图
-  const url = router.resolve({ path: '/gantt-chart', query })
-  window.open(url.href, '_blank')
+  
+  // 3. 在同窗口打开甘特图（使用 router.push）
+  router.push({ path: '/gantt-chart', query })
 }
 
 onMounted(() => {
@@ -750,6 +811,9 @@ onMounted(() => {
     }
   } catch (_) {}
 
+  // 从URL参数初始化过滤条件（包括从甘特图返回的情况）
+  initFiltersFromUrl()
+
   // 检查是否从Dashboard跳转过来，带有时间参数
   const route = router.currentRoute.value
   if (route.query.startDate && route.query.endDate && route.query.timeDimension) {
@@ -761,7 +825,16 @@ onMounted(() => {
   }
 
   // 并行加载统计数据和表格数据
-  Promise.all([loadStatistics(), loadContainers()]).then(() => {
+  const loadData = async () => {
+    await loadStatistics()
+    if (activeFilter.value.days) {
+      await loadContainersByFilter()
+    } else {
+      await loadContainers()
+    }
+  }
+
+  loadData().then(() => {
     startTimer()
   })
 })
@@ -770,6 +843,12 @@ onUnmounted(() => {
   isUnmounted.value = true
   stopTimer()
 })
+</script>
+
+<script lang="ts">
+export default {
+  name: 'Shipments'
+}
 </script>
 
 <style scoped>
@@ -1028,6 +1107,39 @@ onUnmounted(() => {
               <el-tag :type="getStatusType(row.logisticsStatus)" size="small">
                 {{ getLogisticsStatusText(row) || '-' }}
               </el-tag>
+            </template>
+          </el-table-column>
+
+          <!-- 五节点状态 -->
+          <el-table-column v-else-if="key === 'fiveNodeStatus'" label="五节点状态" width="180">
+            <template #default="{ row }">
+              <div class="five-node-status">
+                <el-tag size="small" type="info" class="status-tag">
+                  {{ row.customsStatus ? customsStatusMap[row.customsStatus]?.text : '未清关' }}
+                </el-tag>
+                <el-tag size="small" type="warning" class="status-tag">
+                  {{ row.plannedPickupDate ? '已计划提柜' : '未计划提柜' }}
+                </el-tag>
+                <el-tag size="small" type="success" class="status-tag">
+                  {{ row.returnTime ? '已还箱' : '未还箱' }}
+                </el-tag>
+              </div>
+            </template>
+          </el-table-column>
+
+          <!-- 预警 -->
+          <el-table-column v-else-if="key === 'alerts'" label="预警" width="80" align="center">
+            <template #default="{ row }">
+              <el-badge :value="row.alertCount || 0" type="danger" :hidden="!(row.alertCount > 0)">
+                <el-icon><Warning /></el-icon>
+              </el-badge>
+            </template>
+          </el-table-column>
+
+          <!-- 总费用 -->
+          <el-table-column v-else-if="key === 'totalCost'" label="总费用" width="100" align="right">
+            <template #default="{ row }">
+              {{ row.totalCost ? `$${row.totalCost.toFixed(2)}` : '-' }}
             </template>
           </el-table-column>
 
@@ -1316,6 +1428,17 @@ onUnmounted(() => {
       color: var(--el-text-color-secondary);
       min-width: 80px;
     }
+  }
+}
+
+.five-node-status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+
+  .status-tag {
+    font-size: 11px;
+    padding: 2px 6px;
   }
 }
 
