@@ -992,6 +992,8 @@ const handleGlobalDrop = (event: DragEvent) => {
   flex: 1;
   display: flex;
   flex-direction: column;
+  position: relative;
+  min-width: 0;
 }
 
 .timeline-header {
@@ -1015,6 +1017,10 @@ const handleGlobalDrop = (event: DragEvent) => {
   border-right: 1px solid #e4e7ed;
   background: #f5f7fa;
   flex-shrink: 0;
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
 }
 
 .port-group {
@@ -1044,6 +1050,10 @@ const handleGlobalDrop = (event: DragEvent) => {
   text-align: left;
   word-break: break-word;
   gap: 8px;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
 }
 
 .collapse-icon {

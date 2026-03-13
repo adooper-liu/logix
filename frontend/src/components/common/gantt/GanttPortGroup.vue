@@ -49,9 +49,11 @@
 </template>
 
 <script setup lang="ts">
+import { dictService } from '@/services/dict'
 import type { Container } from '@/types/container'
 import { ArrowRight } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
+import { onMounted, ref } from 'vue'
 
 const props = defineProps<{
   portKey: string
@@ -80,12 +82,48 @@ const emit = defineEmits<{
   drop: [date: Date]
 }>()
 
+// 港口字典数据
+const ports = ref<Map<string, string>>(new Map())
+
+// 加载港口字典
+const loadPorts = async () => {
+  try {
+    const response = await dictService.getPorts()
+    if (response.success && response.data) {
+      const portMap = new Map<string, string>()
+      response.data.forEach(port => {
+        portMap.set(port.code, port.name)
+      })
+      ports.value = portMap
+    }
+  } catch (error) {
+    console.error('加载港口字典失败:', error)
+  }
+}
+
+// 生命周期
+onMounted(() => {
+  loadPorts()
+})
+
 const getPortDisplayName = (containers: Container[]): string => {
-  if (containers.length === 0) return '未指定'
+  if (!containers || containers.length === 0) return '未指定'
   const firstContainer = containers[0]
-  const portName = firstContainer.latestPortOperation?.portName
+  if (!firstContainer) return '未指定'
+
+  // 优先使用 latestPortOperation 中的港口名称
+  if (firstContainer.latestPortOperation?.portName) {
+    return firstContainer.latestPortOperation.portName
+  }
+
+  // 其次从港口字典中根据港口代码获取名称
   const portCode = firstContainer.destinationPort
-  return portName || portCode || '未指定'
+  if (portCode && ports.value.has(portCode)) {
+    return ports.value.get(portCode) || portCode
+  }
+
+  // 最后使用港口代码
+  return portCode || '未指定'
 }
 
 const getContainersByDate = (date: Date): Container[] => {
@@ -151,6 +189,7 @@ const isToday = (date: Date): boolean => {
   display: flex;
   min-width: 100%;
   border-bottom: 2px solid #e4e7ed;
+  position: relative;
 }
 
 .port-group-cells {
@@ -160,7 +199,9 @@ const isToday = (date: Date): boolean => {
 }
 
 .port-name {
-  flex: 0 0 120px;
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
   min-height: 150px;
   display: flex;
   align-items: center;
@@ -174,6 +215,11 @@ const isToday = (date: Date): boolean => {
   text-align: left;
   word-break: break-word;
   gap: 8px;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
 }
 
 .collapse-icon {

@@ -268,6 +268,43 @@ export function useGanttLogic() {
     return [startDate, endDate]
   }
 
+  // 根据数据计算动态日期范围
+  const calculateDynamicDateRange = (containers: Container[]): [Date, Date] => {
+    if (containers.length === 0) {
+      return calculateDateRange(7) // 默认7天
+    }
+
+    let minDate: Date | null = null
+    let maxDate: Date | null = null
+
+    containers.forEach(container => {
+      const containerDate = getContainerDate(container)
+      if (containerDate) {
+        if (!minDate || containerDate < minDate) {
+          minDate = containerDate
+        }
+        if (!maxDate || containerDate > maxDate) {
+          maxDate = containerDate
+        }
+      }
+    })
+
+    if (!minDate || !maxDate) {
+      return calculateDateRange(7) // 默认7天
+    }
+
+    // 扩展日期范围，前后各加2天，确保有足够的空间
+    const startDate = new Date(minDate)
+    startDate.setDate(startDate.getDate() - 2)
+    startDate.setHours(0, 0, 0, 0)
+
+    const endDate = new Date(maxDate)
+    endDate.setDate(endDate.getDate() + 2)
+    endDate.setHours(0, 0, 0, 0)
+
+    return [startDate, endDate]
+  }
+
   // 生成日期列表
   const generateDateRange = (start: Date, end: Date): Date[] => {
     const dates: Date[] = []
@@ -355,7 +392,17 @@ export function useGanttLogic() {
           rangeType.value = 7
         }
       } else {
-        displayRange.value = calculateDateRange(rangeType.value)
+        // 使用动态日期范围
+        displayRange.value = calculateDynamicDateRange(containers.value)
+        // 根据动态范围计算合适的 rangeType
+        const daysDiff = dayjs(displayRange.value[1]).diff(dayjs(displayRange.value[0]), 'day') + 1
+        if (daysDiff > 30) {
+          rangeType.value = 30
+        } else if (daysDiff > 15) {
+          rangeType.value = 15
+        } else {
+          rangeType.value = 7
+        }
       }
 
       dateRange.value = generateDateRange(displayRange.value[0], displayRange.value[1])
@@ -402,6 +449,12 @@ export function useGanttLogic() {
 
   const formatDateShort = (date: Date): string => {
     return dayjs(date).format('MM-DD')
+  }
+
+  // 获取状态颜色
+  const getStatusColor = (status?: string): string => {
+    if (!status) return '#909399' // 默认灰色
+    return statusColors[status.toLowerCase()] || '#909399'
   }
 
   const getWeekday = (date: Date): string => {
@@ -692,6 +745,7 @@ export function useGanttLogic() {
     isWeekend,
     isToday,
     getContainerDate,
+    getStatusColor,
     handleDotClick,
     handleViewDetail,
     handleEditDate,

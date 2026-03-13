@@ -25,9 +25,9 @@
     <el-divider direction="vertical" />
 
     <el-checkbox-group v-model="quickFilters" @change="$emit('filterChange', quickFilters)">
-      <el-checkbox label="critical">即将超期 (3 天)</el-checkbox>
-      <el-checkbox label="overdue">已超期</el-checkbox>
-      <el-checkbox label="atPort">已到港</el-checkbox>
+      <el-checkbox label="即将超期 (3 天)" value="critical" />
+      <el-checkbox label="已超期" value="overdue" />
+      <el-checkbox label="已到港" value="atPort" />
     </el-checkbox-group>
   </div>
 </template>

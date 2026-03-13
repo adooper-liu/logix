@@ -316,7 +316,11 @@ const loadContainersByFilter = async () => {
 
       if (allItems.length > displayLimit) {
         containers.value = allItems.slice(0, displayLimit)
-        ElMessage.warning(`结果包含 ${allItems.length} 条记录，仅显示前 ${displayLimit} 条。请缩小日期范围或添加更多筛选条件。`)
+        ElMessage.warning({
+          message: `结果包含 ${allItems.length} 条记录，仅显示前 ${displayLimit} 条。请缩小日期范围或添加更多筛选条件。`,
+          customClass: 'bottom-message',
+          appendTo: document.body
+        })
       } else {
         containers.value = allItems
       }
@@ -767,6 +771,16 @@ onUnmounted(() => {
   stopTimer()
 })
 </script>
+
+<style scoped>
+.bottom-message {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+}
+</style>
 
 <template>
   <div class="shipments-page">

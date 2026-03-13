@@ -58,7 +58,9 @@ const isToday = (date: Date): boolean => {
 }
 
 .port-group-header {
-  flex: 0 0 120px;
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
   height: 60px;
   display: flex;
   align-items: center;
@@ -67,6 +69,10 @@ const isToday = (date: Date): boolean => {
   color: #303133;
   border-right: 1px solid #e4e7ed;
   background: #f5f7fa;
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
   flex-shrink: 0;
 }
 

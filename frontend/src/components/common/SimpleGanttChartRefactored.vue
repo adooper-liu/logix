@@ -34,33 +34,76 @@
     <div class="gantt-body" v-loading="loading">
       <div class="gantt-body-scroll">
         <!-- 时间轴头部 -->
-        <GanttTimelineHeader :dates="dateRange" />
+        <div class="gantt-header-row">
+          <div class="port-column-header">目的港</div>
+          <div class="dates-header">
+            <div
+              v-for="date in dateRange"
+              :key="date.getTime()"
+              class="date-cell"
+              :class="{
+                'is-weekend': isWeekend(date),
+                'is-today': isToday(date),
+              }"
+            >
+              <div class="date-day">{{ formatDateShort(date) }}</div>
+              <div class="date-weekday">{{ getWeekday(date) }}</div>
+            </div>
+          </div>
+        </div>
 
         <!-- 按目的港分组的货柜分布 -->
-        <GanttPortGroup
+        <div
           v-for="(containersByPort, port) in finalGroupedByPort"
           :key="port"
-          :port-key="port"
-          :containers="containersByPort"
-          :dates="dateRange"
-          :is-collapsed="isGroupCollapsed(port)"
-          :drag-over-date="dragOverDate"
-          :is-drop-zone="!!dragOverDate"
-          :dragging-container="draggingContainer"
-          :status-colors="statusColors"
-          :get-container-alerts="getContainerAlerts"
-          :has-alert="hasAlert"
-          :get-container-border-style="getContainerBorderStyle"
-          @toggle-collapse="toggleGroupCollapse"
-          @show-tooltip="showTooltip"
-          @hide-tooltip="hideTooltip"
-          @click-dot="handleDotClick"
-          @open-context-menu="openContextMenu"
-          @drag-start="handleDragStart"
-          @drag-end="handleDragEnd"
-          @dragover="handleDragOver"
-          @drop="handleDrop"
-        />
+          class="gantt-data-row"
+        >
+          <div class="port-column" @click="toggleGroupCollapse(port)" style="cursor: pointer">
+            <el-icon class="collapse-icon" :class="{ collapsed: isGroupCollapsed(port) }">
+              <arrow-right />
+            </el-icon>
+            {{ getPortDisplayName(containersByPort) }}
+            <span class="group-count">({{ containersByPort.length }})</span>
+          </div>
+          <div v-if="!isGroupCollapsed(port)" class="dates-column">
+            <div
+              v-for="date in dateRange"
+              :key="date.getTime()"
+              class="date-cell"
+              :class="{
+                'is-weekend': isWeekend(date),
+                'is-today': isToday(date),
+                'is-drop-zone': isDropZone && dayjs(dragOverDate).isSame(date, 'day'),
+              }"
+              @dragover="handleDragOver($event, date)"
+              @drop="handleDrop(date)"
+            >
+              <div class="dots-container">
+                <div
+                  v-for="container in getContainersByDateAndPort(date, port)"
+                  :key="container.containerNumber"
+                  class="container-dot"
+                  :class="{
+                    clickable: true,
+                    'is-dragging': draggingContainer?.containerNumber === container.containerNumber,
+                    'has-warning': hasAlert(container),
+                  }"
+                  :style="{
+                    backgroundColor: getStatusColor(container.logisticsStatus),
+                    border: getContainerBorderStyle(container),
+                  }"
+                  @mouseenter="showTooltip(container, $event)"
+                  @mouseleave="hideTooltip"
+                  @click="handleDotClick(container)"
+                  @contextmenu.prevent="openContextMenu(container, $event)"
+                  draggable="true"
+                  @dragstart="handleDragStart(container, $event)"
+                  @dragend="handleDragEnd"
+                ></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -159,7 +202,9 @@
 </template>
 
 <script setup lang="ts">
-import { Warning } from '@element-plus/icons-vue'
+import { dictService } from '@/services/dict'
+import type { Container } from '@/types/container'
+import { ArrowRight, Warning } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
@@ -169,10 +214,8 @@ import ContainerDetailSidebar from './ContainerDetailSidebar.vue'
 import DateRangeSelector from './gantt/DateRangeSelector.vue'
 import GanttHeader from './gantt/GanttHeader.vue'
 import GanttLegend from './gantt/GanttLegend.vue'
-import GanttPortGroup from './gantt/GanttPortGroup.vue'
 import GanttSearchBar from './gantt/GanttSearchBar.vue'
 import GanttStatisticsPanel from './gantt/GanttStatisticsPanel.vue'
-import GanttTimelineHeader from './gantt/GanttTimelineHeader.vue'
 import { useGanttLogic } from './gantt/useGanttLogic'
 
 const route = useRoute()
@@ -183,6 +226,84 @@ const searchField = ref<'containerNumber' | 'billOfLading' | 'destinationPort' |
   'containerNumber'
 )
 const quickFilters = ref<string[]>([])
+
+// 港口字典数据
+const ports = ref<Map<string, string>>(new Map())
+
+// 加载港口字典
+const loadPorts = async () => {
+  try {
+    const response = await dictService.getPorts()
+    if (response.success && response.data) {
+      const portMap = new Map<string, string>()
+      response.data.forEach(port => {
+        portMap.set(port.code, port.name)
+      })
+      ports.value = portMap
+    }
+  } catch (error) {
+    console.error('加载港口字典失败:', error)
+  }
+}
+
+// 获取港口显示名称
+const getPortDisplayName = (containers: Container[]): string => {
+  if (!containers || containers.length === 0) return '未指定'
+  const firstContainer = containers[0]
+  if (!firstContainer) return '未指定'
+
+  // 优先使用 latestPortOperation 中的港口名称
+  if (firstContainer.latestPortOperation?.portName) {
+    return firstContainer.latestPortOperation.portName
+  }
+
+  // 其次从港口字典中根据港口代码获取名称
+  const portCode = firstContainer.destinationPort
+  if (portCode && ports.value.has(portCode)) {
+    return ports.value.get(portCode) || portCode
+  }
+
+  // 最后使用港口代码
+  return portCode || '未指定'
+}
+
+// 根据日期和港口获取货柜
+const getContainersByDateAndPort = (date: Date, port: string): Container[] => {
+  const dateStr = dayjs(date).format('YYYY-MM-DD')
+  const containersByPort = finalGroupedByPort.value[port]
+  if (!containersByPort) return []
+
+  return containersByPort.filter(container => {
+    const containerDate = getContainerDate(container)
+    if (!containerDate) return false
+    const containerDateStr = dayjs(containerDate).format('YYYY-MM-DD')
+    return containerDateStr === dateStr
+  })
+}
+
+// 辅助方法：获取星期
+const getWeekday = (date: Date): string => {
+  const weekdays = ['日', '一', '二', '三', '四', '五', '六']
+  return `周${weekdays[date.getDay()]}`
+}
+
+// 辅助方法：判断是否周末
+const isWeekend = (date: Date): boolean => {
+  const day = date.getDay()
+  return day === 0 || day === 6
+}
+
+// 辅助方法：判断是否今天
+const isToday = (date: Date): boolean => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const compareDate = new Date(date)
+  compareDate.setHours(0, 0, 0, 0)
+  return today.getTime() === compareDate.getTime()
+}
+
+// 计算属性：是否为拖放区域
+const isDropZone = computed(() => !!dragOverDate)
 
 // 使用甘特图逻辑 composable
 const {
@@ -240,6 +361,7 @@ const {
   exportData,
   handleDragOver,
   handleGlobalDrop,
+  getStatusColor,
 } = useGanttLogic()
 
 // 辅助方法：获取计划提柜日期
@@ -362,6 +484,7 @@ const finalGroupedByPort = computed(() => {
 // 生命周期
 onMounted(() => {
   loadData()
+  loadPorts()
   document.addEventListener('dragover', handleDragOver)
   document.addEventListener('drop', handleGlobalDrop)
 })
@@ -399,6 +522,8 @@ onUnmounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
+  position: relative;
+  min-width: 0;
 }
 
 /* Tooltip */
@@ -497,5 +622,212 @@ onUnmounted(() => {
   z-index: 9999;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   pointer-events: none;
+}
+
+/* 甘特图表头行 */
+.gantt-header-row {
+  display: flex;
+  min-width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* 表头目的港列 */
+.port-column-header {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #303133;
+  border-right: 1px solid #e4e7ed;
+  background: #f5f7fa;
+  position: sticky;
+  left: 0;
+  z-index: 20;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+}
+
+/* 表头日期列容器 */
+.dates-header {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+/* 甘特图数据行 */
+.gantt-data-row {
+  display: flex;
+  min-width: 100%;
+  border-bottom: 2px solid #e4e7ed;
+  position: relative;
+}
+
+/* 数据行目的港列 */
+.port-column {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  min-height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  font-weight: bold;
+  color: #303133;
+  border-right: 1px solid #e4e7ed;
+  background: #fafafa;
+  padding: 10px;
+  font-size: 13px;
+  text-align: left;
+  word-break: break-word;
+  gap: 8px;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+}
+
+/* 数据行日期列容器 */
+.dates-column {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+/* 日期单元格 */
+.date-cell {
+  width: 150px;
+  min-width: 150px;
+  border-right: 1px solid #e4e7ed;
+  border-bottom: 1px solid #e4e7ed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  position: relative;
+  min-height: 150px;
+  flex-shrink: 0;
+}
+
+/* 表头中的日期单元格 */
+.gantt-header-row .date-cell {
+  height: 60px;
+  min-height: 60px;
+}
+
+/* 周末日期单元格 */
+.date-cell.is-weekend {
+  background-color: #fef0f0;
+}
+
+/* 今天日期单元格 */
+.date-cell.is-today {
+  background-color: #ecf5ff;
+}
+
+/* 拖放区域日期单元格 */
+.date-cell.is-drop-zone {
+  background-color: #e1f3d8;
+  border: 2px dashed #67c23a;
+}
+
+/* 日期单元格内容 */
+.date-day {
+  font-weight: bold;
+  color: #303133;
+  margin-bottom: 4px;
+}
+
+.date-weekday {
+  color: #909399;
+}
+
+/* 货柜点容器 */
+.dots-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-content: flex-start;
+  padding-top: 5px;
+  gap: 8px;
+}
+
+/* 货柜点 */
+.container-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+/* 货柜点悬停效果 */
+.container-dot:hover {
+  transform: scale(1.8);
+  box-shadow: 0 0 6px rgba(0, 0, 0, 0.4);
+}
+
+/* 可点击货柜点 */
+.container-dot.clickable {
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.container-dot.clickable:hover {
+  transform: scale(1.3);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* 拖拽中的货柜点 */
+.container-dot.is-dragging {
+  opacity: 0.5;
+  transform: scale(1.2);
+}
+
+/* 预警货柜点 */
+.container-dot.has-warning {
+  box-shadow: 0 0 8px rgba(245, 108, 108, 0.6);
+  animation: pulse-warning 2s ease-in-out infinite;
+}
+
+/* 预警动画 */
+@keyframes pulse-warning {
+  0%,
+  100% {
+    box-shadow: 0 0 8px rgba(245, 108, 108, 0.6);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(245, 108, 108, 0.9);
+  }
+}
+
+/* 折叠图标 */
+.collapse-icon {
+  transition: transform 0.3s ease;
+  flex-shrink: 0;
+}
+
+.collapse-icon.collapsed {
+  transform: rotate(90deg);
+}
+
+/* 分组计数 */
+.group-count {
+  font-size: 12px;
+  color: #909399;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 </style>
