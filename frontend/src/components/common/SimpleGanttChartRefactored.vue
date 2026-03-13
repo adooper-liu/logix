@@ -10,17 +10,11 @@
       @refresh="loadData"
     >
       <!-- 搜索栏 -->
-      <GanttSearchBar
-        @search="handleSearch"
-        @update:searchField="handleSearchFieldChange"
-      />
+      <GanttSearchBar @search="handleSearch" @update:searchField="handleSearchFieldChange" />
     </GanttHeader>
 
     <!-- 统计面板 -->
-    <GanttStatisticsPanel 
-      :containers="finalFilteredContainers" 
-      @filter="handleStatFilter"
-    />
+    <GanttStatisticsPanel :containers="finalFilteredContainers" @filter="handleStatFilter" />
 
     <!-- 日期范围切换 -->
     <DateRangeSelector
@@ -36,7 +30,7 @@
         <!-- 时间轴头部 -->
         <div class="gantt-header-row">
           <div class="port-column-header">目的港</div>
-          <div class="dates-header">
+          <div class="dates-header" :style="{ width: getTotalDatesWidth() }">
             <div
               v-for="date in dateRange"
               :key="date.getTime()"
@@ -45,6 +39,7 @@
                 'is-weekend': isWeekend(date),
                 'is-today': isToday(date),
               }"
+              :style="{ width: getHeaderDateCellWidth(date) }"
             >
               <div class="date-day">{{ formatDateShort(date) }}</div>
               <div class="date-weekday">{{ getWeekday(date) }}</div>
@@ -59,14 +54,14 @@
           class="gantt-data-row"
           :class="{ collapsed: isGroupCollapsed(port) }"
         >
-          <div class="port-column" @click="toggleGroupCollapse(port)" style="cursor: pointer">
+          <div class="port-column" :style="{ height: getPortRowHeight(containersByPort.length) }" @click="toggleGroupCollapse(port)" style="cursor: pointer">
             <el-icon class="collapse-icon" :class="{ collapsed: isGroupCollapsed(port) }">
               <arrow-right />
             </el-icon>
             {{ getPortDisplayName(containersByPort) }}
             <span class="group-count">({{ containersByPort.length }})</span>
           </div>
-          <div v-if="!isGroupCollapsed(port)" class="dates-column">
+          <div v-if="!isGroupCollapsed(port)" class="dates-column" :style="{ height: getPortRowHeight(containersByPort.length) }">
             <div
               v-for="date in dateRange"
               :key="date.getTime()"
@@ -74,8 +69,10 @@
               :class="{
                 'is-weekend': isWeekend(date),
                 'is-today': isToday(date),
-                'is-drop-zone': isDropZone && dragOverDate && dayjs(dragOverDate).isSame(date, 'day'),
+                'is-drop-zone':
+                  isDropZone && dragOverDate && dayjs(dragOverDate).isSame(date, 'day'),
               }"
+              :style="{ width: getDateCellWidth(date) }"
               @dragover="handleDragOver($event, date)"
               @drop="handleDrop(date)"
             >
@@ -105,167 +102,175 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
 
-        <!-- 五节点泳道 -->
-        <div class="five-node-lanes" v-if="finalFilteredContainers.length > 0">
-          <div class="lane-header">
-            <div class="lane-title">五节点状态</div>
-            <div class="lane-dates">
-              <div
-                v-for="date in dateRange"
-                :key="date.getTime()"
-                class="lane-date-cell"
-                :class="{
-                  'is-weekend': isWeekend(date),
-                  'is-today': isToday(date),
-                }"
-              >
-                {{ formatDateShort(date) }}
-              </div>
-            </div>
+    <!-- 五节点泳道 - 独立区块 -->
+    <div class="five-node-section" v-if="finalFilteredContainers.length > 0">
+      <!-- 五节点日期表头 -->
+      <div class="five-node-header-row">
+        <div class="five-node-header-title">五节点</div>
+        <div class="five-node-header-dates" :style="{ width: getTotalDatesWidth() }">
+          <div
+            v-for="date in dateRange"
+            :key="date.getTime()"
+            class="five-node-header-date"
+            :class="{
+              'is-weekend': isWeekend(date),
+              'is-today': isToday(date),
+            }"
+            :style="{ width: getHeaderDateCellWidth(date) }"
+          >
+            {{ formatDateShort(date) }}
           </div>
-          
-          <!-- 清关泳道 -->
-          <div class="node-lane">
+        </div>
+      </div>
+      <div class="five-node-lanes">
+        <!-- 清关泳道 -->
+        <div class="node-lane" :class="{ collapsed: nodeCollapsed.customs }">
+          <div class="node-header" @click="nodeCollapsed.customs = !nodeCollapsed.customs" style="cursor: pointer">
+            <el-icon class="collapse-icon" :class="{ collapsed: nodeCollapsed.customs }">
+              <arrow-right />
+            </el-icon>
             <div class="node-title">清关</div>
-            <div class="node-dates">
-              <div
-                v-for="date in dateRange"
-                :key="date.getTime()"
-                class="node-date-cell"
-              >
-                <div class="node-events">
-                  <div
-                    v-for="container in getContainersByNodeDate(date, 'customs')"
-                    :key="container.containerNumber"
-                    class="node-event"
-                    :class="{
-                      'event-customs': true,
-                      'event-planned': isPlannedDate(container, 'customs', date),
-                      'event-actual': isActualDate(container, 'customs', date),
-                      'has-warning': hasAlert(container),
-                    }"
-                    @mouseenter="showTooltip(container, $event)"
-                    @mouseleave="hideTooltip"
-                    @click="handleDotClick(container)"
-                  ></div>
-                </div>
+          </div>
+          <div class="node-dates" v-show="!nodeCollapsed.customs">
+            <div v-for="date in dateRange" :key="date.getTime()" class="node-date-cell" :style="{ width: getHeaderDateCellWidth(date) }">
+              <div class="node-events">
+                <div
+                  v-for="container in getContainersByNodeDate(date, 'customs')"
+                  :key="container.containerNumber"
+                  class="node-event"
+                  :class="{
+                    'event-customs': true,
+                    'event-planned': isPlannedDate(container, 'customs', date),
+                    'event-actual': isActualDate(container, 'customs', date),
+                    'has-warning': hasAlert(container),
+                  }"
+                  @mouseenter="showTooltip(container, $event)"
+                  @mouseleave="hideTooltip"
+                  @click="handleDotClick(container)"
+                ></div>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- 拖卡泳道 -->
-          <div class="node-lane">
+        <!-- 拖卡泳道 -->
+        <div class="node-lane" :class="{ collapsed: nodeCollapsed.trucking }">
+          <div class="node-header" @click="nodeCollapsed.trucking = !nodeCollapsed.trucking" style="cursor: pointer">
+            <el-icon class="collapse-icon" :class="{ collapsed: nodeCollapsed.trucking }">
+              <arrow-right />
+            </el-icon>
             <div class="node-title">拖卡</div>
-            <div class="node-dates">
-              <div
-                v-for="date in dateRange"
-                :key="date.getTime()"
-                class="node-date-cell"
-              >
-                <div class="node-events">
-                  <div
-                    v-for="container in getContainersByNodeDate(date, 'trucking')"
-                    :key="container.containerNumber"
-                    class="node-event"
-                    :class="{
-                      'event-trucking': true,
-                      'event-planned': isPlannedDate(container, 'trucking', date),
-                      'event-actual': isActualDate(container, 'trucking', date),
-                      'has-warning': hasAlert(container),
-                    }"
-                    @mouseenter="showTooltip(container, $event)"
-                    @mouseleave="hideTooltip"
-                    @click="handleDotClick(container)"
-                  ></div>
-                </div>
+          </div>
+          <div class="node-dates" v-show="!nodeCollapsed.trucking">
+            <div v-for="date in dateRange" :key="date.getTime()" class="node-date-cell" :style="{ width: getHeaderDateCellWidth(date) }">
+              <div class="node-events">
+                <div
+                  v-for="container in getContainersByNodeDate(date, 'trucking')"
+                  :key="container.containerNumber"
+                  class="node-event"
+                  :class="{
+                    'event-trucking': true,
+                    'event-planned': isPlannedDate(container, 'trucking', date),
+                    'event-actual': isActualDate(container, 'trucking', date),
+                    'has-warning': hasAlert(container),
+                  }"
+                  @mouseenter="showTooltip(container, $event)"
+                  @mouseleave="hideTooltip"
+                  @click="handleDotClick(container)"
+                ></div>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- 卸柜泳道 -->
-          <div class="node-lane">
+        <!-- 卸柜泳道 -->
+        <div class="node-lane" :class="{ collapsed: nodeCollapsed.unloading }">
+          <div class="node-header" @click="nodeCollapsed.unloading = !nodeCollapsed.unloading" style="cursor: pointer">
+            <el-icon class="collapse-icon" :class="{ collapsed: nodeCollapsed.unloading }">
+              <arrow-right />
+            </el-icon>
             <div class="node-title">卸柜</div>
-            <div class="node-dates">
-              <div
-                v-for="date in dateRange"
-                :key="date.getTime()"
-                class="node-date-cell"
-              >
-                <div class="node-events">
-                  <div
-                    v-for="container in getContainersByNodeDate(date, 'unloading')"
-                    :key="container.containerNumber"
-                    class="node-event"
-                    :class="{
-                      'event-unloading': true,
-                      'event-planned': isPlannedDate(container, 'unloading', date),
-                      'event-actual': isActualDate(container, 'unloading', date),
-                      'has-warning': hasAlert(container),
-                    }"
-                    @mouseenter="showTooltip(container, $event)"
-                    @mouseleave="hideTooltip"
-                    @click="handleDotClick(container)"
-                  ></div>
-                </div>
+          </div>
+          <div class="node-dates" v-show="!nodeCollapsed.unloading">
+            <div v-for="date in dateRange" :key="date.getTime()" class="node-date-cell" :style="{ width: getHeaderDateCellWidth(date) }">
+              <div class="node-events">
+                <div
+                  v-for="container in getContainersByNodeDate(date, 'unloading')"
+                  :key="container.containerNumber"
+                  class="node-event"
+                  :class="{
+                    'event-unloading': true,
+                    'event-planned': isPlannedDate(container, 'unloading', date),
+                    'event-actual': isActualDate(container, 'unloading', date),
+                    'has-warning': hasAlert(container),
+                  }"
+                  @mouseenter="showTooltip(container, $event)"
+                  @mouseleave="hideTooltip"
+                  @click="handleDotClick(container)"
+                ></div>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- 还箱泳道 -->
-          <div class="node-lane">
+        <!-- 还箱泳道 -->
+        <div class="node-lane" :class="{ collapsed: nodeCollapsed.return }">
+          <div class="node-header" @click="nodeCollapsed.return = !nodeCollapsed.return" style="cursor: pointer">
+            <el-icon class="collapse-icon" :class="{ collapsed: nodeCollapsed.return }">
+              <arrow-right />
+            </el-icon>
             <div class="node-title">还箱</div>
-            <div class="node-dates">
-              <div
-                v-for="date in dateRange"
-                :key="date.getTime()"
-                class="node-date-cell"
-              >
-                <div class="node-events">
-                  <div
-                    v-for="container in getContainersByNodeDate(date, 'return')"
-                    :key="container.containerNumber"
-                    class="node-event"
-                    :class="{
-                      'event-return': true,
-                      'event-planned': isPlannedDate(container, 'return', date),
-                      'event-actual': isActualDate(container, 'return', date),
-                      'has-warning': hasAlert(container),
-                    }"
-                    @mouseenter="showTooltip(container, $event)"
-                    @mouseleave="hideTooltip"
-                    @click="handleDotClick(container)"
-                  ></div>
-                </div>
+          </div>
+          <div class="node-dates" v-show="!nodeCollapsed.return">
+            <div v-for="date in dateRange" :key="date.getTime()" class="node-date-cell" :style="{ width: getHeaderDateCellWidth(date) }">
+              <div class="node-events">
+                <div
+                  v-for="container in getContainersByNodeDate(date, 'return')"
+                  :key="container.containerNumber"
+                  class="node-event"
+                  :class="{
+                    'event-return': true,
+                    'event-planned': isPlannedDate(container, 'return', date),
+                    'event-actual': isActualDate(container, 'return', date),
+                    'has-warning': hasAlert(container),
+                  }"
+                  @mouseenter="showTooltip(container, $event)"
+                  @mouseleave="hideTooltip"
+                  @click="handleDotClick(container)"
+                ></div>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- 查验泳道 -->
-          <div class="node-lane">
+        <!-- 查验泳道 -->
+        <div class="node-lane" :class="{ collapsed: nodeCollapsed.inspection }">
+          <div class="node-header" @click="nodeCollapsed.inspection = !nodeCollapsed.inspection" style="cursor: pointer">
+            <el-icon class="collapse-icon" :class="{ collapsed: nodeCollapsed.inspection }">
+              <arrow-right />
+            </el-icon>
             <div class="node-title">查验</div>
-            <div class="node-dates">
-              <div
-                v-for="date in dateRange"
-                :key="date.getTime()"
-                class="node-date-cell"
-              >
-                <div class="node-events">
-                  <div
-                    v-for="container in getContainersByNodeDate(date, 'inspection')"
-                    :key="container.containerNumber"
-                    class="node-event"
-                    :class="{
-                      'event-inspection': true,
-                      'event-planned': isPlannedDate(container, 'inspection', date),
-                      'event-actual': isActualDate(container, 'inspection', date),
-                      'has-warning': hasAlert(container),
-                    }"
-                    @mouseenter="showTooltip(container, $event)"
-                    @mouseleave="hideTooltip"
-                    @click="handleDotClick(container)"
-                  ></div>
-                </div>
+          </div>
+          <div class="node-dates" v-show="!nodeCollapsed.inspection">
+            <div v-for="date in dateRange" :key="date.getTime()" class="node-date-cell" :style="{ width: getHeaderDateCellWidth(date) }">
+              <div class="node-events">
+                <div
+                  v-for="container in getContainersByNodeDate(date, 'inspection')"
+                  :key="container.containerNumber"
+                  class="node-event"
+                  :class="{
+                    'event-inspection': true,
+                    'event-planned': isPlannedDate(container, 'inspection', date),
+                    'event-actual': isActualDate(container, 'inspection', date),
+                    'has-warning': hasAlert(container),
+                  }"
+                  @mouseenter="showTooltip(container, $event)"
+                  @mouseleave="hideTooltip"
+                  @click="handleDotClick(container)"
+                ></div>
               </div>
             </div>
           </div>
@@ -372,7 +377,7 @@ import { dictService } from '@/services/dict'
 import type { Container } from '@/types/container'
 import { ArrowRight, Warning } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ContainerContextMenu from './ContainerContextMenu.vue'
 import ContainerDateEditDialog from './ContainerDateEditDialog.vue'
@@ -392,6 +397,43 @@ const searchKeyword = ref('')
 const searchField = ref<'containerNumber' | 'billOfLading' | 'destinationPort' | 'shipVoyage'>(
   'containerNumber'
 )
+
+// 每行显示的货柜数量
+const CONTAINERS_PER_ROW = 10
+
+// 每行高度
+const ROW_HEIGHT = 10
+
+// 默认行数（固定）
+const DEFAULT_ROWS = 10
+
+// 默认列数（固定）
+const DEFAULT_COLS = 10
+
+// 每列宽度
+const COL_WIDTH = 10
+
+// 最小行高 = 10行 * 10px = 100px
+const MIN_ROW_HEIGHT = DEFAULT_ROWS * ROW_HEIGHT
+
+// 最小列宽 = 10列 * 10px = 100px
+const MIN_COL_WIDTH = DEFAULT_COLS * COL_WIDTH
+
+// 计算每个港口行的固定高度（最多10行）
+const getPortRowHeight = (containerCount: number): string => {
+  // 始终使用10行高度，超出内容通过增加日期列宽度来适应
+  return `${MIN_ROW_HEIGHT}px`
+}
+
+// 五节点泳道折叠状态
+// 五节点各节点折叠状态
+const nodeCollapsed = reactive({
+  customs: false,
+  trucking: false,
+  unloading: false,
+  return: false,
+  inspection: false,
+})
 
 // 用于区分单击和双击事件的定时器
 const clickTimer = ref<number | null>(null)
@@ -473,6 +515,71 @@ const isToday = (date: Date): boolean => {
 
 // 计算属性：是否为拖放区域
 const isDropZone = computed(() => !!dragOverDate)
+
+// 缓存每个日期的货柜数量（避免重复计算）
+const dateContainerCounts = computed(() => {
+  const counts: Map<string, number> = new Map()
+  for (const date of dateRange.value) {
+    const dateStr = dayjs(date).format('YYYY-MM-DD')
+    let maxCount = 0
+    for (const port of Object.keys(finalGroupedByPort.value)) {
+      const containers = getContainersByDateAndPort(date, port)
+      maxCount = Math.max(maxCount, containers.length)
+    }
+    counts.set(dateStr, maxCount)
+  }
+  return counts
+})
+
+// 缓存每个日期格子的宽度
+const dateCellWidths = computed(() => {
+  const widths: Map<string, string> = new Map()
+  for (const date of dateRange.value) {
+    const dateStr = dayjs(date).format('YYYY-MM-DD')
+    const maxCount = dateContainerCounts.value.get(dateStr) || 0
+    
+    if (maxCount === 0) {
+      widths.set(dateStr, `${MIN_COL_WIDTH}px`)
+    } else {
+      const columnsNeeded = Math.ceil(maxCount / CONTAINERS_PER_ROW)
+      const columnWidth = 13
+      const width = Math.max(columnsNeeded * columnWidth, MIN_COL_WIDTH)
+      widths.set(dateStr, `${width}px`)
+    }
+  }
+  return widths
+})
+
+// 缓存表头日期格子宽度
+const headerDateCellWidths = computed(() => dateCellWidths.value)
+
+// 缓存表头日期列总宽度
+const totalDatesWidth = computed(() => {
+  let totalWidth = 0
+  for (const date of dateRange.value) {
+    const dateStr = dayjs(date).format('YYYY-MM-DD')
+    const width = parseInt(dateCellWidths.value.get(dateStr)?.replace('px', '') || '0')
+    totalWidth += width
+  }
+  return `${Math.max(totalWidth, MIN_COL_WIDTH)}px`
+})
+
+// 优化后的日期格子宽度获取方法（使用缓存）
+const getDateCellWidth = (date: Date): string => {
+  const dateStr = dayjs(date).format('YYYY-MM-DD')
+  return dateCellWidths.value.get(dateStr) || `${MIN_COL_WIDTH}px`
+}
+
+// 优化后的表头日期格子宽度获取方法
+const getHeaderDateCellWidth = (date: Date): string => {
+  const dateStr = dayjs(date).format('YYYY-MM-DD')
+  return headerDateCellWidths.value.get(dateStr) || `${MIN_COL_WIDTH}px`
+}
+
+// 优化后的表头日期列总宽度获取方法
+const getTotalDatesWidth = (): string => {
+  return totalDatesWidth.value
+}
 
 // 使用甘特图逻辑 composable
 const {
@@ -560,13 +667,20 @@ const getContainersByNodeDate = (date: Date, node: string): any[] => {
       case 'customs':
         return isPlannedDate(container, 'customs', date) || isActualDate(container, 'customs', date)
       case 'trucking':
-        return isPlannedDate(container, 'trucking', date) || isActualDate(container, 'trucking', date)
+        return (
+          isPlannedDate(container, 'trucking', date) || isActualDate(container, 'trucking', date)
+        )
       case 'unloading':
-        return isPlannedDate(container, 'unloading', date) || isActualDate(container, 'unloading', date)
+        return (
+          isPlannedDate(container, 'unloading', date) || isActualDate(container, 'unloading', date)
+        )
       case 'return':
         return isPlannedDate(container, 'return', date) || isActualDate(container, 'return', date)
       case 'inspection':
-        return isPlannedDate(container, 'inspection', date) || isActualDate(container, 'inspection', date)
+        return (
+          isPlannedDate(container, 'inspection', date) ||
+          isActualDate(container, 'inspection', date)
+        )
       default:
         return false
     }
@@ -578,19 +692,34 @@ const isPlannedDate = (container: any, node: string, date: Date): boolean => {
   switch (node) {
     case 'customs':
       // 清关计划日期
-      return container.customsPlannedDate && dayjs(container.customsPlannedDate).format('YYYY-MM-DD') === dateStr
+      return (
+        container.customsPlannedDate &&
+        dayjs(container.customsPlannedDate).format('YYYY-MM-DD') === dateStr
+      )
     case 'trucking':
       // 拖卡计划日期
-      return container.truckingTransports?.[0]?.plannedPickupDate && dayjs(container.truckingTransports[0].plannedPickupDate).format('YYYY-MM-DD') === dateStr
+      return (
+        container.truckingTransports?.[0]?.plannedPickupDate &&
+        dayjs(container.truckingTransports[0].plannedPickupDate).format('YYYY-MM-DD') === dateStr
+      )
     case 'unloading':
       // 卸柜计划日期
-      return container.unloadingPlannedDate && dayjs(container.unloadingPlannedDate).format('YYYY-MM-DD') === dateStr
+      return (
+        container.unloadingPlannedDate &&
+        dayjs(container.unloadingPlannedDate).format('YYYY-MM-DD') === dateStr
+      )
     case 'return':
       // 还箱计划日期
-      return container.returnPlannedDate && dayjs(container.returnPlannedDate).format('YYYY-MM-DD') === dateStr
+      return (
+        container.returnPlannedDate &&
+        dayjs(container.returnPlannedDate).format('YYYY-MM-DD') === dateStr
+      )
     case 'inspection':
       // 查验计划日期
-      return container.inspectionPlannedDate && dayjs(container.inspectionPlannedDate).format('YYYY-MM-DD') === dateStr
+      return (
+        container.inspectionPlannedDate &&
+        dayjs(container.inspectionPlannedDate).format('YYYY-MM-DD') === dateStr
+      )
     default:
       return false
   }
@@ -601,19 +730,34 @@ const isActualDate = (container: any, node: string, date: Date): boolean => {
   switch (node) {
     case 'customs':
       // 清关实际日期
-      return container.customsActualDate && dayjs(container.customsActualDate).format('YYYY-MM-DD') === dateStr
+      return (
+        container.customsActualDate &&
+        dayjs(container.customsActualDate).format('YYYY-MM-DD') === dateStr
+      )
     case 'trucking':
       // 拖卡实际日期
-      return container.truckingTransports?.[0]?.actualPickupDate && dayjs(container.truckingTransports[0].actualPickupDate).format('YYYY-MM-DD') === dateStr
+      return (
+        container.truckingTransports?.[0]?.actualPickupDate &&
+        dayjs(container.truckingTransports[0].actualPickupDate).format('YYYY-MM-DD') === dateStr
+      )
     case 'unloading':
       // 卸柜实际日期
-      return container.unloadingActualDate && dayjs(container.unloadingActualDate).format('YYYY-MM-DD') === dateStr
+      return (
+        container.unloadingActualDate &&
+        dayjs(container.unloadingActualDate).format('YYYY-MM-DD') === dateStr
+      )
     case 'return':
       // 还箱实际日期
-      return container.returnActualDate && dayjs(container.returnActualDate).format('YYYY-MM-DD') === dateStr
+      return (
+        container.returnActualDate &&
+        dayjs(container.returnActualDate).format('YYYY-MM-DD') === dateStr
+      )
     case 'inspection':
       // 查验实际日期
-      return container.inspectionActualDate && dayjs(container.inspectionActualDate).format('YYYY-MM-DD') === dateStr
+      return (
+        container.inspectionActualDate &&
+        dayjs(container.inspectionActualDate).format('YYYY-MM-DD') === dateStr
+      )
     default:
       return false
   }
@@ -670,7 +814,7 @@ const handleDotClick = (container: any) => {
     router.push(`/shipments/${container.containerNumber}`)
     return
   }
-  
+
   // 设置新的定时器，延迟 300ms 执行单击逻辑
   clickTimer.value = window.setTimeout(() => {
     selectedContainer.value = container
@@ -742,8 +886,6 @@ const finalFilteredContainers = computed(() => {
     })
   }
 
-
-
   return result
 })
 
@@ -776,7 +918,7 @@ onUnmounted(() => {
 
 <script lang="ts">
 export default {
-  name: 'SimpleGanttChart'
+  name: 'SimpleGanttChart',
 }
 </script>
 
@@ -784,31 +926,31 @@ export default {
 .simple-gantt-chart {
   padding: 20px;
   background: #fff;
-  height: 100vh;
+  /* height: 100vh; */  /* 移除固定高度，允许根据内容自动增高 */
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  /* overflow: hidden; */  /* 移除溢出隐藏，允许内容自然流出 */
 }
 
 .gantt-body {
   border: 1px solid #e4e7ed;
   border-radius: 4px;
-  overflow: hidden;
-  flex: 1;
+  /* overflow: hidden; */  /* 移除溢出隐藏 */
+  /* flex: 1; */  /* 移除flex:1，不强制占满剩余空间 */
   display: flex;
   flex-direction: column;
-  min-height: 0;
+  /* min-height: 0; */  /* 移除最小高度限制 */
   position: relative;
 }
 
 .gantt-body-scroll {
   overflow-x: auto;
-  overflow-y: auto;
-  flex: 1;
+  /* overflow-y: auto; */  /* 移除垂直滚动条 */
+  /* flex: 1; */  /* 移除flex:1 */
   display: flex;
   flex-direction: column;
   position: relative;
-  min-width: 0;
+  /* min-width: 0; */  /* 移除最小宽度限制 */
 }
 
 /* Tooltip */
@@ -943,27 +1085,22 @@ export default {
 /* 表头日期列容器 */
 .dates-header {
   display: flex;
-  flex: 1;
-  min-width: 0;
+  /* 宽度由内联样式决定 */
 }
 
-/* 甘特图数据行 */
+/* 甘特图数据行 - 动态高度 */
 .gantt-data-row {
   display: flex;
   min-width: 100%;
   border-bottom: 2px solid #e4e7ed;
   position: relative;
-  transition: min-height 0.3s ease;
+  /* 高度由动态计算决定 */
+  min-height: 30px;
 }
 
 /* 折叠状态的数据行 */
 .gantt-data-row.collapsed {
-  min-height: 60px;
-}
-
-/* 非折叠状态的数据行 */
-.gantt-data-row:not(.collapsed) {
-  min-height: 150px;
+  min-height: 30px;
 }
 
 /* 数据行目的港列 */
@@ -996,19 +1133,18 @@ export default {
   display: flex;
   flex: 1;
   min-width: 0;
-  height: 100%;
+  /* 高度由动态样式决定 */
 }
 
-/* 日期单元格 */
+/* 日期单元格 - 宽度由内联样式决定 */
 .date-cell {
-  width: 150px;
-  min-width: 150px;
+  min-width: 10px;
   border-right: 1px solid #e4e7ed;
   border-bottom: 1px solid #e4e7ed;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   font-size: 12px;
   position: relative;
   flex-shrink: 0;
@@ -1048,23 +1184,24 @@ export default {
   color: #909399;
 }
 
-/* 货柜点容器 */
+/* 货柜点容器 - 垂直排列，每10个一列 */
 .dots-container {
   position: relative;
   width: 100%;
   height: 100%;
   display: flex;
+  flex-direction: column;
   flex-wrap: wrap;
-  justify-content: center;
   align-content: flex-start;
-  padding-top: 5px;
-  gap: 8px;
+  padding: 2px;
+  gap: 3px;
+  max-height: 100px; /* 固定高度限制，10个圆点 * 10px + 9个gap */
 }
 
 /* 货柜点 */
 .container-dot {
-  width: 12px;
-  height: 12px;
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
   cursor: pointer;
   transition: transform 0.2s;
@@ -1128,12 +1265,64 @@ export default {
   flex-shrink: 0;
 }
 
-/* 五节点泳道样式 */
-.five-node-lanes {
-  margin-top: 30px;
+/* 五节点泳道独立区块样式 */
+.five-node-section {
+  margin-top: 20px;
   border: 1px solid #e4e7ed;
   border-radius: 4px;
   overflow: hidden;
+}
+
+/* 五节点泳道样式 */
+.five-node-lanes {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 五节点日期表头 */
+.five-node-header-row {
+  display: flex;
+  background: #f5f7fa;
+  border-bottom: 2px solid #e4e7ed;
+  min-height: 40px;
+}
+
+.five-node-header-title {
+  width: 120px;
+  min-width: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: #303133;
+  border-right: 1px solid #e4e7ed;
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background: #f5f7fa;
+}
+
+.five-node-header-dates {
+  display: flex;
+  /* 宽度由内联样式 getTotalDatesWidth() 设置 */
+}
+
+.five-node-header-date {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  border-right: 1px solid #e4e7ed;
+  flex-shrink: 0;
+}
+
+.five-node-header-date.is-weekend {
+  background-color: #f5f7fa;
+}
+
+.five-node-header-date.is-today {
+  background-color: #ecf5ff;
 }
 
 .lane-header {
@@ -1194,44 +1383,61 @@ export default {
 
 .node-lane {
   display: flex;
+  flex-direction: row;
   min-width: 100%;
   border-bottom: 1px solid #e4e7ed;
+  height: 100px;
 }
 
 .node-lane:last-child {
   border-bottom: none;
 }
 
-.node-title {
+.node-lane.collapsed {
+  min-height: auto;
+  height: auto;
+}
+
+/* 节点折叠后的头部样式 */
+.node-header {
+  display: flex;
+  align-items: center;
   width: 120px;
   min-width: 120px;
-  max-width: 120px;
-  height: 50px;
+  min-height: 40px;
+  height: 100px;
+  background: #fafafa;
+  border-right: 1px solid #e4e7ed;
+  border-bottom: 1px solid #e4e7ed;
+  flex-shrink: 0;
+}
+
+.node-header .collapse-icon {
+  margin: 0 4px;
+}
+
+.node-title {
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
   color: #303133;
-  border-right: 1px solid #e4e7ed;
-  background: #fafafa;
-  position: sticky;
-  left: 0;
-  z-index: 5;
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
-  flex-shrink: 0;
+  font-size: 14px;
 }
 
 .node-dates {
   display: flex;
   flex: 1;
   min-width: 0;
+  margin-left: 120px; /* 与表头标题宽度对齐 */
+  height: 100px;
+  /* 宽度由flex: 1自动计算 */
 }
 
 .node-date-cell {
-  width: 150px;
-  min-width: 150px;
   border-right: 1px solid #e4e7ed;
-  height: 50px;
+  height: 100px;
   display: flex;
   align-items: center;
   justify-content: center;
