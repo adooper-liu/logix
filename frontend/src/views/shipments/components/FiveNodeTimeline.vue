@@ -1,190 +1,107 @@
 <template>
-  <div class="five-node-timeline">
-    <h3 class="timeline-title">五节点时间线</h3>
+  <el-card class="five-node-card" shadow="hover">
+    <template #header>
+      <div class="card-header">
+        <span class="card-icon">📋</span>
+        <span class="card-title">五节点时间线</span>
+      </div>
+    </template>
     
     <div class="timeline-container">
-      <!-- 清关节点 -->
-      <div class="node-item" :class="{ 'has-warning': hasNodeWarning('customs') }">
+      <div
+        v-for="node in nodes"
+        :key="node.key"
+        class="node-item"
+        :class="{ 'has-warning': hasNodeWarning(node.key) }"
+      >
         <div class="node-header">
-          <div class="node-icon customs-icon">
-            <el-icon><document /></el-icon>
+          <div class="node-icon" :class="`${node.key}-icon`">
+            <el-icon>
+              <component :is="node.icon" />
+            </el-icon>
           </div>
-          <div class="node-title">清关</div>
-          <div class="node-status" :class="getNodeStatusClass('customs')">
-            {{ getNodeStatusText('customs') }}
-          </div>
+          <div class="node-title">{{ node.title }}</div>
         </div>
         
         <div class="node-dates">
           <div class="date-item planned">
-            <span class="date-label">计划日期：</span>
-            <span class="date-value">{{ formatDate(containerData?.customsPlannedDate) }}</span>
+            <span class="date-value">{{ formatDate(getNodePlannedDate(node.key)) }}</span>
+            <span class="date-label">计划</span>
           </div>
           <div class="date-item actual">
-            <span class="date-label">实际日期：</span>
-            <span class="date-value">{{ formatDate(containerData?.customsActualDate) }}</span>
+            <span class="date-value">{{ formatDate(getNodeActualDate(node.key)) }}</span>
+            <span class="date-label">实际</span>
           </div>
         </div>
         
-        <div v-if="hasNodeWarning('customs')" class="node-warning">
+        <div class="node-status" :class="getNodeStatusClass(node.key)">
+          {{ getNodeStatusText(node.key) }}
+        </div>
+        
+        <div v-if="hasNodeWarning(node.key)" class="node-warning">
           <el-icon class="warning-icon"><warning /></el-icon>
-          <span class="warning-text">{{ getNodeWarningText('customs') }}</span>
-        </div>
-      </div>
-
-      <!-- 拖卡节点 -->
-      <div class="node-item" :class="{ 'has-warning': hasNodeWarning('trucking') }">
-        <div class="node-header">
-          <div class="node-icon trucking-icon">
-            <el-icon><truck /></el-icon>
-          </div>
-          <div class="node-title">拖卡</div>
-          <div class="node-status" :class="getNodeStatusClass('trucking')">
-            {{ getNodeStatusText('trucking') }}
-          </div>
-        </div>
-        
-        <div class="node-dates">
-          <div class="date-item planned">
-            <span class="date-label">计划日期：</span>
-            <span class="date-value">{{ formatDate(containerData?.truckingTransports?.[0]?.plannedPickupDate) }}</span>
-          </div>
-          <div class="date-item actual">
-            <span class="date-label">实际日期：</span>
-            <span class="date-value">{{ formatDate(containerData?.truckingTransports?.[0]?.actualPickupDate) }}</span>
-          </div>
-        </div>
-        
-        <div v-if="hasNodeWarning('trucking')" class="node-warning">
-          <el-icon class="warning-icon"><warning /></el-icon>
-          <span class="warning-text">{{ getNodeWarningText('trucking') }}</span>
-        </div>
-      </div>
-
-      <!-- 卸柜节点 -->
-      <div class="node-item" :class="{ 'has-warning': hasNodeWarning('unloading') }">
-        <div class="node-header">
-          <div class="node-icon unloading-icon">
-            <el-icon><box /></el-icon>
-          </div>
-          <div class="node-title">卸柜</div>
-          <div class="node-status" :class="getNodeStatusClass('unloading')">
-            {{ getNodeStatusText('unloading') }}
-          </div>
-        </div>
-        
-        <div class="node-dates">
-          <div class="date-item planned">
-            <span class="date-label">计划日期：</span>
-            <span class="date-value">{{ formatDate(containerData?.unloadingPlannedDate) }}</span>
-          </div>
-          <div class="date-item actual">
-            <span class="date-label">实际日期：</span>
-            <span class="date-value">{{ formatDate(containerData?.unloadingActualDate) }}</span>
-          </div>
-        </div>
-        
-        <div v-if="hasNodeWarning('unloading')" class="node-warning">
-          <el-icon class="warning-icon"><warning /></el-icon>
-          <span class="warning-text">{{ getNodeWarningText('unloading') }}</span>
-        </div>
-      </div>
-
-      <!-- 还箱节点 -->
-      <div class="node-item" :class="{ 'has-warning': hasNodeWarning('return') }">
-        <div class="node-header">
-          <div class="node-icon return-icon">
-            <el-icon><refresh /></el-icon>
-          </div>
-          <div class="node-title">还箱</div>
-          <div class="node-status" :class="getNodeStatusClass('return')">
-            {{ getNodeStatusText('return') }}
-          </div>
-        </div>
-        
-        <div class="node-dates">
-          <div class="date-item planned">
-            <span class="date-label">计划日期：</span>
-            <span class="date-value">{{ formatDate(containerData?.returnPlannedDate) }}</span>
-          </div>
-          <div class="date-item actual">
-            <span class="date-label">实际日期：</span>
-            <span class="date-value">{{ formatDate(containerData?.returnActualDate) }}</span>
-          </div>
-        </div>
-        
-        <div v-if="hasNodeWarning('return')" class="node-warning">
-          <el-icon class="warning-icon"><warning /></el-icon>
-          <span class="warning-text">{{ getNodeWarningText('return') }}</span>
-        </div>
-      </div>
-
-      <!-- 查验节点 -->
-      <div class="node-item" :class="{ 'has-warning': hasNodeWarning('inspection') }">
-        <div class="node-header">
-          <div class="node-icon inspection-icon">
-            <el-icon><search /></el-icon>
-          </div>
-          <div class="node-title">查验</div>
-          <div class="node-status" :class="getNodeStatusClass('inspection')">
-            {{ getNodeStatusText('inspection') }}
-          </div>
-        </div>
-        
-        <div class="node-dates">
-          <div class="date-item planned">
-            <span class="date-label">计划日期：</span>
-            <span class="date-value">{{ formatDate(containerData?.inspectionPlannedDate) }}</span>
-          </div>
-          <div class="date-item actual">
-            <span class="date-label">实际日期：</span>
-            <span class="date-value">{{ formatDate(containerData?.inspectionActualDate) }}</span>
-          </div>
-        </div>
-        
-        <div v-if="hasNodeWarning('inspection')" class="node-warning">
-          <el-icon class="warning-icon"><warning /></el-icon>
-          <span class="warning-text">{{ getNodeWarningText('inspection') }}</span>
+          <span class="warning-text">{{ getNodeWarningText(node.key) }}</span>
         </div>
       </div>
     </div>
-
-    <!-- 费用汇总 -->
-    <div class="cost-summary" v-if="demurrageCalculation">
-      <h4 class="summary-title">费用汇总</h4>
-      <div class="cost-items">
-        <div class="cost-item">
-          <span class="cost-label">滞港费：</span>
-          <span class="cost-value">{{ demurrageCalculation?.totalAmount || 0 }} {{ demurrageCalculation?.currency || 'USD' }}</span>
-        </div>
-        <div class="cost-item">
-          <span class="cost-label">其他费用：</span>
-          <span class="cost-value">{{ containerData?.otherCosts || 0 }} {{ demurrageCalculation?.currency || 'USD' }}</span>
-        </div>
-        <div class="cost-item total">
-          <span class="cost-label">总费用：</span>
-          <span class="cost-value">{{ (parseFloat(demurrageCalculation?.totalAmount || '0') + parseFloat(containerData?.otherCosts || '0')).toFixed(2) }} {{ demurrageCalculation?.currency || 'USD' }}</span>
-        </div>
-      </div>
-    </div>
-  </div>
+  </el-card>
 </template>
 
 <script setup lang="ts">
 import { computed } from 'vue'
 import dayjs from 'dayjs'
-import { Document, Truck, Box, Refresh, Search, Warning } from '@element-plus/icons-vue'
+import { Document, Van, Box, Refresh, Search, Warning } from '@element-plus/icons-vue'
 
 const props = defineProps({
   containerData: {
     type: Object,
     required: true
-  },
-  demurrageCalculation: {
-    type: Object,
-    default: null
   }
 })
+
+const nodes = computed(() => [
+  { key: 'customs', title: '清关', icon: Document },
+  { key: 'trucking', title: '拖卡', icon: Van },
+  { key: 'unloading', title: '卸柜', icon: Box },
+  { key: 'return', title: '还箱', icon: Refresh },
+  { key: 'inspection', title: '查验', icon: Search }
+])
+
+const getNodePlannedDate = (node: string): string | Date | undefined => {
+  const container = props.containerData
+  switch (node) {
+    case 'customs':
+      return container?.customsPlannedDate
+    case 'trucking':
+      return container?.truckingTransports?.[0]?.plannedPickupDate
+    case 'unloading':
+      return container?.unloadingPlannedDate
+    case 'return':
+      return container?.returnPlannedDate
+    case 'inspection':
+      return container?.inspectionPlannedDate
+    default:
+      return undefined
+  }
+}
+
+const getNodeActualDate = (node: string): string | Date | undefined => {
+  const container = props.containerData
+  switch (node) {
+    case 'customs':
+      return container?.customsActualDate
+    case 'trucking':
+      return container?.truckingTransports?.[0]?.actualPickupDate
+    case 'unloading':
+      return container?.unloadingActualDate
+    case 'return':
+      return container?.returnActualDate
+    case 'inspection':
+      return container?.inspectionActualDate
+    default:
+      return undefined
+  }
+}
 
 const formatDate = (date?: string | Date): string => {
   if (!date) return '-'
@@ -277,240 +194,232 @@ const getNodeWarningText = (node: string): string => {
 <style scoped lang="scss">
 @use '@/assets/styles/variables' as *;
 
-.five-node-timeline {
-  margin-bottom: $spacing-lg;
-}
-
-.timeline-title {
-  font-size: $font-size-lg;
-  font-weight: 600;
-  color: $text-primary;
-  margin-bottom: $spacing-md;
-  padding-bottom: $spacing-sm;
-  border-bottom: 1px solid $border-lighter;
-}
-
-.timeline-container {
-  display: flex;
-  flex-direction: column;
-  gap: $spacing-md;
-  position: relative;
-  
-  /* 连接线 */
-  &::before {
-    content: '';
-    position: absolute;
-    left: 20px;
-    top: 0;
-    bottom: 0;
-    width: 2px;
-    background-color: $border-lighter;
-  }
-}
-
-.node-item {
-  display: flex;
-  flex-direction: column;
-  gap: $spacing-sm;
-  padding: $spacing-md;
-  background: #fff;
+.five-node-card {
+  border-radius: $radius-large;
   border: 1px solid $border-lighter;
-  border-radius: $radius-base;
   box-shadow: $shadow-light;
-  position: relative;
-  transition: $transition-base;
-  margin-left: 50px;
-  
-  &::before {
-    content: '';
-    position: absolute;
-    left: -40px;
-    top: 20px;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background-color: #fff;
-    border: 2px solid $primary-color;
-    z-index: 1;
+  margin-bottom: 0;
+
+  :deep(.el-card__header) {
+    padding: $spacing-sm $spacing-md;
+    border-bottom: 1px solid $border-lighter;
+    background: $bg-page;
   }
-  
-  &:hover {
-    box-shadow: $shadow-base;
+
+  :deep(.el-card__body) {
+    padding: $spacing-md;
   }
-  
-  &.has-warning {
-    border-color: $warning-color;
-    
-    &::before {
-      border-color: $warning-color;
-      background-color: $warning-color;
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    gap: $spacing-xs;
+
+    .card-icon {
+      font-size: $font-size-base;
+      line-height: 1;
+    }
+
+    .card-title {
+      font-size: $font-size-sm;
+      font-weight: 600;
+      color: $text-primary;
     }
   }
-}
 
-.node-header {
-  display: flex;
-  align-items: center;
-  gap: $spacing-sm;
-  margin-bottom: $spacing-sm;
-}
-
-.node-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  color: #fff;
-  flex-shrink: 0;
-  
-  &.customs-icon {
-    background-color: #409eff;
+  .timeline-container {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: $spacing-sm;
+    width: 100%;
   }
-  
-  &.trucking-icon {
-    background-color: #e6a23c;
+
+  .node-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: $spacing-sm;
+    background: #fff;
+    border: 1px solid $border-lighter;
+    border-radius: $radius-base;
+    box-shadow: $shadow-light;
+    transition: $transition-base;
+    position: relative;
+    min-height: 140px;
+    
+    &:hover {
+      box-shadow: $shadow-base;
+      transform: translateY(-1px);
+    }
+    
+    &.has-warning {
+      border-color: $warning-color;
+    }
   }
-  
-  &.unloading-icon {
-    background-color: #67c23a;
+
+  .node-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 8px;
+    width: 100%;
   }
-  
-  &.return-icon {
-    background-color: #909399;
+
+  .node-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    color: #fff;
+    flex-shrink: 0;
+    margin-bottom: 4px;
+    
+    &.customs-icon {
+      background-color: #409eff;
+    }
+    
+    &.trucking-icon {
+      background-color: #e6a23c;
+    }
+    
+    &.unloading-icon {
+      background-color: #67c23a;
+    }
+    
+    &.return-icon {
+      background-color: #909399;
+    }
+    
+    &.inspection-icon {
+      background-color: #f56c6c;
+    }
   }
-  
-  &.inspection-icon {
-    background-color: #f56c6c;
-  }
-}
 
-.node-title {
-  font-size: $font-size-base;
-  font-weight: 600;
-  color: $text-primary;
-  flex: 1;
-}
-
-.node-status {
-  padding: 4px 12px;
-  border-radius: 999px;
-  font-size: $font-size-xs;
-  font-weight: 500;
-  
-  &.status-completed {
-    background-color: rgba($success-color, 0.1);
-    color: $success-color;
-  }
-  
-  &.status-in-progress {
-    background-color: rgba($warning-color, 0.1);
-    color: $warning-color;
-  }
-  
-  &.status-pending {
-    background-color: rgba($info-color, 0.1);
-    color: $info-color;
-  }
-  
-  &.status-warning {
-    background-color: rgba($warning-color, 0.1);
-    color: $warning-color;
-  }
-}
-
-.node-dates {
-  display: flex;
-  flex-direction: column;
-  gap: $spacing-xs;
-  padding-left: 44px;
-}
-
-.date-item {
-  display: flex;
-  align-items: center;
-  gap: $spacing-sm;
-  font-size: $font-size-sm;
-  
-  &.planned {
-    color: $text-secondary;
-  }
-  
-  &.actual {
-    color: $text-primary;
-  }
-}
-
-.date-label {
-  min-width: 80px;
-  color: $text-tertiary;
-}
-
-.date-value {
-  font-weight: 500;
-}
-
-.node-warning {
-  display: flex;
-  align-items: center;
-  gap: $spacing-xs;
-  padding: $spacing-xs $spacing-sm;
-  background-color: rgba($warning-color, 0.1);
-  border-radius: $radius-small;
-  font-size: $font-size-xs;
-  color: $warning-color;
-  margin-top: $spacing-xs;
-  padding-left: 44px;
-}
-
-.warning-icon {
-  font-size: 14px;
-}
-
-/* 费用汇总 */
-.cost-summary {
-  margin-top: $spacing-lg;
-  padding: $spacing-md;
-  background: #f5f7fa;
-  border-radius: $radius-base;
-  border: 1px solid $border-lighter;
-}
-
-.summary-title {
-  font-size: $font-size-base;
-  font-weight: 600;
-  color: $text-primary;
-  margin-bottom: $spacing-sm;
-}
-
-.cost-items {
-  display: flex;
-  flex-direction: column;
-  gap: $spacing-xs;
-}
-
-.cost-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: $font-size-sm;
-  
-  &.total {
+  .node-title {
+    font-size: 11px;
     font-weight: 600;
-    margin-top: $spacing-xs;
-    padding-top: $spacing-xs;
-    border-top: 1px solid $border-lighter;
+    color: $text-primary;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+
+  .node-dates {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    gap: $spacing-xs;
+    width: 100%;
+    margin-bottom: 8px;
+  }
+
+  .date-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-size: 10px;
+    flex: 1;
+    
+    &.planned {
+      color: $text-secondary;
+    }
+    
+    &.actual {
+      color: $text-primary;
+    }
+  }
+
+  .date-label {
+    font-size: 9px;
+    color: $text-secondary;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .date-value {
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .node-status {
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    
+    &.status-completed {
+      background-color: rgba($success-color, 0.1);
+      color: $success-color;
+    }
+    
+    &.status-in-progress {
+      background-color: rgba($warning-color, 0.1);
+      color: $warning-color;
+    }
+    
+    &.status-pending {
+      background-color: rgba($info-color, 0.1);
+      color: $info-color;
+    }
+    
+    &.status-warning {
+      background-color: rgba($warning-color, 0.1);
+      color: $warning-color;
+    }
+  }
+
+  .node-warning {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 6px;
+    background-color: rgba($warning-color, 0.1);
+    border-radius: $radius-small;
+    font-size: 9px;
+    color: $warning-color;
+    margin-top: 4px;
+    width: 100%;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .warning-icon {
+    font-size: 10px;
   }
 }
 
-.cost-label {
-  color: $text-secondary;
-}
-
-.cost-value {
-  color: $text-primary;
-  font-weight: 500;
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .five-node-card {
+    .timeline-container {
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+    
+    .node-item {
+      min-height: 120px;
+      padding: $spacing-sm;
+    }
+    
+    .node-icon {
+      width: 24px;
+      height: 24px;
+      font-size: 12px;
+    }
+    
+    .node-title {
+      font-size: $font-size-xs;
+    }
+    
+    .date-value {
+      font-size: $font-size-xs;
+    }
+  }
 }
 </style>

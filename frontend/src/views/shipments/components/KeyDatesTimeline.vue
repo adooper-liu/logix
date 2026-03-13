@@ -467,15 +467,16 @@ const getNextBusinessNodeDate = (
   border-radius: $radius-large;
   border: 1px solid $border-lighter;
   box-shadow: $shadow-light;
+  margin-bottom: 0;
 
   :deep(.el-card__header) {
-    padding: $spacing-md $spacing-lg;
+    padding: $spacing-sm $spacing-md;
     border-bottom: 1px solid $border-lighter;
     background: $bg-page;
   }
 
   :deep(.el-card__body) {
-    padding: $spacing-lg;
+    padding: $spacing-md;
   }
 
   .card-header {
@@ -484,12 +485,12 @@ const getNextBusinessNodeDate = (
     align-items: center;
 
     .title {
-      font-size: $font-size-base;
+      font-size: $font-size-sm;
       font-weight: 700;
       color: $text-primary;
       letter-spacing: 0.02em;
       position: relative;
-      padding-left: 12px;
+      padding-left: 10px;
 
       &::before {
         content: '';
@@ -497,8 +498,8 @@ const getNextBusinessNodeDate = (
         left: 0;
         top: 50%;
         transform: translateY(-50%);
-        width: 4px;
-        height: 16px;
+        width: 3px;
+        height: 14px;
         background: linear-gradient(180deg, $primary-color, darken($primary-color, 10%));
         border-radius: 2px;
       }
@@ -508,11 +509,11 @@ const getNextBusinessNodeDate = (
   .help-link {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     color: $primary-color;
     text-decoration: none;
-    font-size: $font-size-sm;
-    padding: 6px 12px;
+    font-size: 11px;
+    padding: 4px 8px;
     border-radius: $radius-base;
     background: rgba($primary-color, 0.08);
     transition: all $transition-base;
@@ -525,7 +526,7 @@ const getNextBusinessNodeDate = (
     }
 
     .help-text {
-      font-size: 12px;
+      font-size: 10px;
     }
   }
 
@@ -533,9 +534,9 @@ const getNextBusinessNodeDate = (
     display: flex;
     flex-direction: row;
     align-items: flex-start;
-    gap: 12px;
+    gap: 8px;
     overflow-x: auto;
-    padding: $spacing-sm 0;
+    padding: 8px 0;
   }
 
   .timeline-item {
@@ -543,8 +544,8 @@ const getNextBusinessNodeDate = (
     flex-direction: column;
     align-items: center;
     flex: 0 0 auto;
-    min-width: 100px;
-    max-width: 140px;
+    min-width: 90px;
+    max-width: 120px;
 
     &.is-expired .item-date,
     &.is-expired .item-status {
@@ -561,13 +562,13 @@ const getNextBusinessNodeDate = (
     display: flex;
     align-items: center;
     width: 100%;
-    margin-bottom: $spacing-sm;
+    margin-bottom: 8px;
     position: relative;
   }
 
   .timeline-dot {
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     border-radius: 50%;
     flex-shrink: 0;
     z-index: 1;
@@ -575,42 +576,42 @@ const getNextBusinessNodeDate = (
 
     &.red {
       background: $danger-color;
-      box-shadow: 0 0 0 4px rgba($danger-color, 0.25);
+      box-shadow: 0 0 0 3px rgba($danger-color, 0.25);
       animation: pulse-dot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
 
     &.orange {
       background: $warning-color;
-      box-shadow: 0 0 0 4px rgba($warning-color, 0.25);
+      box-shadow: 0 0 0 3px rgba($warning-color, 0.25);
     }
 
     &.green {
       background: $success-color;
-      box-shadow: 0 0 0 4px rgba($success-color, 0.25);
+      box-shadow: 0 0 0 3px rgba($success-color, 0.25);
     }
 
     &.blue {
       background: $info-color;
-      box-shadow: 0 0 0 4px rgba($info-color, 0.25);
+      box-shadow: 0 0 0 3px rgba($info-color, 0.25);
     }
   }
 
   .timeline-item.is-today .timeline-dot {
     background: $primary-color;
-    box-shadow: 0 0 0 4px rgba($primary-color, 0.3);
-    width: 14px;
-    height: 14px;
+    box-shadow: 0 0 0 3px rgba($primary-color, 0.3);
+    width: 12px;
+    height: 12px;
   }
 
   @keyframes pulse-dot {
     0%,
     100% {
       transform: scale(1);
-      box-shadow: 0 0 0 4px rgba($danger-color, 0.25);
+      box-shadow: 0 0 0 3px rgba($danger-color, 0.25);
     }
     50% {
       transform: scale(1.1);
-      box-shadow: 0 0 0 6px rgba($danger-color, 0.15);
+      box-shadow: 0 0 0 5px rgba($danger-color, 0.15);
     }
   }
 
@@ -618,7 +619,7 @@ const getNextBusinessNodeDate = (
     flex: 1;
     height: 2px;
     background: linear-gradient(90deg, $border-light, $border-lighter);
-    min-width: 8px;
+    min-width: 6px;
     position: relative;
 
     &::after {
@@ -644,25 +645,25 @@ const getNextBusinessNodeDate = (
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    gap: $spacing-xs;
-    margin-bottom: 8px;
+    gap: 4px;
+    margin-bottom: 6px;
   }
 
   .item-label-row {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 3px;
   }
 
   .item-icon {
-    font-size: 14px;
+    font-size: 12px;
     line-height: 1;
     filter: grayscale(0.3);
   }
 
   .item-label {
-    font-size: $font-size-sm;
+    font-size: 11px;
     font-weight: 600;
     color: $text-primary;
     letter-spacing: 0.02em;
@@ -672,14 +673,14 @@ const getNextBusinessNodeDate = (
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
+    gap: 3px;
     flex-wrap: wrap;
   }
 
   .item-tag {
-    font-size: 10px;
-    padding: 2px 8px;
-    border-radius: 10px;
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 8px;
     font-weight: 500;
     white-space: nowrap;
     display: inline-flex;
@@ -693,7 +694,7 @@ const getNextBusinessNodeDate = (
 
       &::before {
         content: '📊';
-        font-size: 9px;
+        font-size: 8px;
       }
     }
 
@@ -704,14 +705,14 @@ const getNextBusinessNodeDate = (
 
       &::before {
         content: '📝';
-        font-size: 9px;
+        font-size: 8px;
       }
     }
   }
 
   .item-date-wrapper {
-    padding: 6px 10px;
-    margin-bottom: 6px;
+    padding: 4px 8px;
+    margin-bottom: 4px;
     transition: all $transition-base;
 
     &:hover {
@@ -721,7 +722,7 @@ const getNextBusinessNodeDate = (
   }
 
   .item-date {
-    font-size: $font-size-base;
+    font-size: $font-size-sm;
     font-weight: 700;
     color: $text-primary;
     font-variant-numeric: tabular-nums;
@@ -733,15 +734,15 @@ const getNextBusinessNodeDate = (
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 4px;
-    font-size: $font-size-xs;
-    padding: 4px 10px;
-    border-radius: 12px;
+    gap: 3px;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 10px;
     font-weight: 500;
     transition: all $transition-base;
 
     .status-icon {
-      font-size: 11px;
+      font-size: 9px;
       line-height: 1;
     }
 
@@ -783,17 +784,7 @@ const getNextBusinessNodeDate = (
     }
     50% {
       opacity: 0.85;
-      box-shadow: 0 0 0 4px rgba($danger-color, 0);
-    }
-  }
-
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.7;
+      box-shadow: 0 0 0 3px rgba($danger-color, 0);
     }
   }
 
@@ -807,4 +798,5 @@ const getNextBusinessNodeDate = (
     }
   }
 }
+
 </style>

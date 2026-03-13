@@ -1,5 +1,5 @@
 import type { AxiosRequestConfig } from 'axios'
-import { request } from './request'
+import { api } from './api'
 
 export interface InspectionRecord {
   id?: number
@@ -35,21 +35,12 @@ export interface InspectionEvent {
 class InspectionService {
   // 获取货柜的查验记录
   async getInspectionRecord(containerNumber: string) {
-    const config: AxiosRequestConfig = {
-      url: `/api/v1/inspection/container/${containerNumber}`,
-      method: 'GET',
-    }
-    return request<InspectionRecord>(config)
+    return api.get<InspectionRecord>(`/v1/inspection/container/${containerNumber}`)
   }
 
   // 创建或更新查验记录
   async createOrUpdateInspectionRecord(record: InspectionRecord) {
-    const config: AxiosRequestConfig = {
-      url: '/api/v1/inspection/record',
-      method: 'POST',
-      data: record,
-    }
-    return request<InspectionRecord>(config)
+    return api.post<InspectionRecord>('/v1/inspection/record', record)
   }
 
   // 添加查验事件
@@ -57,25 +48,16 @@ class InspectionService {
     eventDate: string
     eventStatus: string
   }) {
-    const config: AxiosRequestConfig = {
-      url: '/api/v1/inspection/event',
-      method: 'POST',
-      data: {
-        inspectionRecordId,
-        eventDate: event.eventDate,
-        eventStatus: event.eventStatus,
-      },
-    }
-    return request<InspectionEvent>(config)
+    return api.post<InspectionEvent>('/v1/inspection/event', {
+      inspectionRecordId,
+      eventDate: event.eventDate,
+      eventStatus: event.eventStatus,
+    })
   }
 
   // 删除查验事件
   async deleteInspectionEvent(eventId: number) {
-    const config: AxiosRequestConfig = {
-      url: `/api/v1/inspection/event/${eventId}`,
-      method: 'DELETE',
-    }
-    return request(config)
+    return api.delete(`/v1/inspection/event/${eventId}`)
   }
 
   // 获取查验记录列表（用于报表）
@@ -84,12 +66,7 @@ class InspectionService {
     endDate?: string
     customsClearanceStatus?: string
   }) {
-    const config: AxiosRequestConfig = {
-      url: '/api/v1/inspection/records',
-      method: 'GET',
-      params: filters,
-    }
-    return request<InspectionRecord[]>(config)
+    return api.get<InspectionRecord[]>('/v1/inspection/records', { params: filters })
   }
 }
 

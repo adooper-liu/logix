@@ -1,23 +1,23 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import DemurrageDetailSection from '@/components/demurrage/DemurrageDetailSection.vue'
 import { containerService } from '@/services/container'
 import { demurrageService, type CalculationDates } from '@/services/demurrage'
 import { ElMessage } from 'element-plus'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import ChangeLogTab from './components/ChangeLogTab.vue'
 import ContainerHeader from './components/ContainerHeader.vue'
-import ContainerSummary from './components/ContainerSummary.vue'
-import KeyDatesTimeline from './components/KeyDatesTimeline.vue'
-import FiveNodeTimeline from './components/FiveNodeTimeline.vue'
-import SeaFreightInfo from './components/SeaFreightInfo.vue'
 import ContainerInfo from './components/ContainerInfo.vue'
+import ContainerSummary from './components/ContainerSummary.vue'
+import EmptyReturn from './components/EmptyReturn.vue'
+import FiveNodeTimeline from './components/FiveNodeTimeline.vue'
+import InspectionRecord from './components/InspectionRecord.vue'
+import KeyDatesTimeline from './components/KeyDatesTimeline.vue'
+import LogisticsPathTab from './components/LogisticsPathTab.vue'
 import PortOperations from './components/PortOperations.vue'
+import SeaFreightInfo from './components/SeaFreightInfo.vue'
 import TruckingTransport from './components/TruckingTransport.vue'
 import WarehouseOperations from './components/WarehouseOperations.vue'
-import EmptyReturn from './components/EmptyReturn.vue'
-import DemurrageDetailSection from '@/components/demurrage/DemurrageDetailSection.vue'
-import LogisticsPathTab from './components/LogisticsPathTab.vue'
-import ChangeLogTab from './components/ChangeLogTab.vue'
-import InspectionRecord from './components/InspectionRecord.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -143,14 +143,18 @@ watch(
   }
 )
 
-watch(containerData, (data) => {
-  if (data) loadDemurrageDates()
-}, { immediate: true })
+watch(
+  containerData,
+  data => {
+    if (data) loadDemurrageDates()
+  },
+  { immediate: true }
+)
 
 // 根据路由 query.tab 打开对应页签（如从高费用货柜卡片跳转时打开滞港费页签）
 watch(
   () => route.query.tab,
-  (tab) => {
+  tab => {
     if (tab === 'demurrage') activeTab.value = 'demurrage'
     else if (tab === 'logistics-path') activeTab.value = 'logistics-path'
     else if (tab === 'change-log') activeTab.value = 'change-log'
@@ -162,13 +166,14 @@ watch(
 // 计算属性：目的港操作信息
 const destinationPortOperation = computed(() => {
   if (!containerData.value?.portOperations) return null
-  return containerData.value.portOperations.find(
-    (po: any) => po.portType === 'destination'
-  )
+  return containerData.value.portOperations.find((po: any) => po.portType === 'destination')
 })
 
 // 物流状态标签：中文文案 + 类型
-const LOGISTICS_STATUS_MAP: Record<string, { text: string; type: 'success' | 'warning' | 'danger' | 'info' }> = {
+const LOGISTICS_STATUS_MAP: Record<
+  string,
+  { text: string; type: 'success' | 'warning' | 'danger' | 'info' }
+> = {
   not_shipped: { text: '未出运', type: 'info' },
   shipped: { text: '已装船', type: 'success' },
   in_transit: { text: '在途', type: 'success' },
@@ -206,8 +211,6 @@ const logisticsStatusDisplay = computed(() => {
       @navigate-to-next="navigateToNext"
     />
 
-
-
     <!-- 内容区域 -->
     <div v-if="containerData" class="detail-content">
       <!-- 概览区：基本信息 + 关键日期 + 五节点时间线 -->
@@ -217,10 +220,7 @@ const logisticsStatusDisplay = computed(() => {
           :demurrage-calculation="demurrageCalculation"
           @open-demurrage-tab="activeTab = 'demurrage'"
         />
-        <KeyDatesTimeline
-          :container-data="containerData"
-          :calculation-dates="calculationDates"
-        />
+        <KeyDatesTimeline :container-data="containerData" :calculation-dates="calculationDates" />
         <FiveNodeTimeline
           :container-data="containerData"
           :demurrage-calculation="demurrageCalculation"
@@ -235,10 +235,14 @@ const logisticsStatusDisplay = computed(() => {
               <div class="tab-content">
                 <LogisticsPathTab
                   :container-number="containerNumber"
-                  :bill-of-lading-number="(() => {
-                    const sf = Array.isArray(containerData?.seaFreight) ? containerData?.seaFreight?.[0] : containerData?.seaFreight
-                    return sf?.mblNumber || sf?.billOfLadingNumber || ''
-                  })()"
+                  :bill-of-lading-number="
+                    (() => {
+                      const sf = Array.isArray(containerData?.seaFreight)
+                        ? containerData?.seaFreight?.[0]
+                        : containerData?.seaFreight
+                      return sf?.mblNumber || sf?.billOfLadingNumber || ''
+                    })()
+                  "
                 />
               </div>
             </el-tab-pane>
@@ -306,22 +310,22 @@ const logisticsStatusDisplay = computed(() => {
 @use '@/assets/styles/variables' as *;
 
 .container-detail-page {
-  padding: $spacing-lg;
+  padding: $spacing-md;
   position: relative;
   max-width: 1400px;
   margin: 0 auto;
   min-height: 100vh;
 
   @media (max-width: 768px) {
-    padding: $spacing-md;
+    padding: $spacing-sm;
   }
 }
 
 .navigation-buttons {
   display: flex;
-  gap: 16px;
-  margin-bottom: 24px;
-  padding: 16px;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 12px;
   background: #f5f7fa;
   border-radius: 8px;
   border: 1px solid #e4e7ed;
@@ -330,13 +334,13 @@ const logisticsStatusDisplay = computed(() => {
 .detail-content {
   display: flex;
   flex-direction: column;
-  gap: $spacing-lg;
+  gap: $spacing-md;
 }
 
 .overview-section {
   display: flex;
   flex-direction: column;
-  gap: $spacing-md;
+  gap: $spacing-sm;
 }
 
 .tabs-section {
@@ -376,31 +380,44 @@ const logisticsStatusDisplay = computed(() => {
   &.success {
     background: linear-gradient(135deg, rgba($success-color, 0.95) 0%, $success-color 100%);
     color: #fff;
-    .badge-dot { background: #fff; }
+    .badge-dot {
+      background: #fff;
+    }
   }
 
   &.warning {
     background: linear-gradient(135deg, rgba($warning-color, 0.95) 0%, $warning-color 100%);
     color: #fff;
-    .badge-dot { background: #fff; }
+    .badge-dot {
+      background: #fff;
+    }
   }
 
   &.danger {
     background: linear-gradient(135deg, rgba($danger-color, 0.95) 0%, $danger-color 100%);
     color: #fff;
-    .badge-dot { background: #fff; }
+    .badge-dot {
+      background: #fff;
+    }
   }
 
   &.info {
     background: linear-gradient(135deg, rgba($info-color, 0.95) 0%, $info-color 100%);
     color: #fff;
-    .badge-dot { background: #fff; }
+    .badge-dot {
+      background: #fff;
+    }
   }
 }
 
 @keyframes badge-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .detail-card {
@@ -444,7 +461,6 @@ const logisticsStatusDisplay = computed(() => {
     :deep(.el-tabs__content) {
       overflow: visible;
     }
-
   }
 
   .tab-content {
@@ -464,6 +480,5 @@ const logisticsStatusDisplay = computed(() => {
       border-bottom: 1px solid $border-lighter;
     }
   }
-
 }
 </style>

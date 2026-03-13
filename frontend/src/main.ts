@@ -75,7 +75,9 @@ const iconWhitelist = [
   'Unlock',
   'Warning',
   'InfoFilled',
-  'QuestionFilled'
+  'QuestionFilled',
+  // 物流相关
+  'Truck'
 ]
 
 iconWhitelist.forEach((key) => {

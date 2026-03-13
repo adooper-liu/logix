@@ -408,7 +408,7 @@ const doExcelImport = async () => {
               class="excel-upload"
               drag
               :auto-upload="false"
-              :on-change="(f: { raw?: File }) => handleExcelFile(f?.raw)"
+              :on-change="(f) => handleExcelFile(f?.raw)"
               :on-remove="handleExcelRemove"
               accept=".xlsx,.xls"
               :limit="1"

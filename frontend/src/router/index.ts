@@ -64,21 +64,21 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
+        path: 'shipments/:containerNumber',
+        name: 'ContainerDetail',
+        component: ContainerDetail,
+        meta: {
+          title: '货柜详情',
+          requiresAuth: true,
+        },
+      },
+      {
         path: 'gantt-chart',
         name: 'GanttChart',
         component: () => import('@/components/common/SimpleGanttChartRefactored.vue'),
         meta: {
           title: '货柜甘特图',
           icon: 'Calendar',
-          requiresAuth: true,
-        },
-      },
-      {
-        path: 'shipments/:containerNumber',
-        name: 'ContainerDetail',
-        component: ContainerDetail,
-        meta: {
-          title: '货柜详情',
           requiresAuth: true,
         },
       },

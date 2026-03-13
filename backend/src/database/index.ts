@@ -35,6 +35,8 @@ import { FreightForwarder } from '../entities/FreightForwarder';
 import { CustomsBroker } from '../entities/CustomsBroker';
 import { TruckingCompany } from '../entities/TruckingCompany';
 import { OverseasCompany } from '../entities/OverseasCompany';
+import { InspectionRecord } from '../entities/InspectionRecord';
+import { InspectionEvent } from '../entities/InspectionEvent';
 import { logger } from '../utils/logger';
 
 export const dataSourceOptions: DataSourceOptions = {
@@ -87,7 +89,11 @@ export const dataSourceOptions: DataSourceOptions = {
     ExtFeituoImportTable2,
 
     // 系统审计表 (System Audit Tables)
-    SysDataChangeLog
+    SysDataChangeLog,
+    
+    // 查验相关表 (Inspection Tables)
+    InspectionRecord,
+    InspectionEvent
   ],
   synchronize: databaseConfig.synchronize,
   logging: databaseConfig.logging,
