@@ -773,15 +773,17 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.bottom-message {
+/* 确保弹窗显示在正确位置 */
+:global(.el-message.bottom-message) {
   position: fixed !important;
-  bottom: 20px !important;
+  bottom: 320px !important;
   left: 50% !important;
   transform: translateX(-50%) !important;
   z-index: 9999 !important;
   margin: 0 !important;
   width: auto !important;
   max-width: 90% !important;
+  top: auto !important;
 }
 </style>
 

@@ -10,16 +10,18 @@
       @export="exportData"
       @back="goBack"
       @refresh="loadData"
-    />
+    >
+      <!-- 搜索栏 -->
+      <GanttSearchBar
+        @search="handleSearch"
+        @update:searchField="handleSearchFieldChange"
+      />
+    </GanttHeader>
 
     <!-- 统计面板 -->
-    <GanttStatisticsPanel :containers="finalFilteredContainers" />
-
-    <!-- 搜索栏 -->
-    <GanttSearchBar
-      @search="handleSearch"
-      @filterChange="handleQuickFilterChange"
-      @update:searchField="handleSearchFieldChange"
+    <GanttStatisticsPanel 
+      :containers="finalFilteredContainers" 
+      @filter="handleStatFilter"
     />
 
     <!-- 日期范围切换 -->
@@ -57,6 +59,7 @@
           v-for="(containersByPort, port) in finalGroupedByPort"
           :key="port"
           class="gantt-data-row"
+          :class="{ collapsed: isGroupCollapsed(port) }"
         >
           <div class="port-column" @click="toggleGroupCollapse(port)" style="cursor: pointer">
             <el-icon class="collapse-icon" :class="{ collapsed: isGroupCollapsed(port) }">
@@ -225,7 +228,6 @@ const searchKeyword = ref('')
 const searchField = ref<'containerNumber' | 'billOfLading' | 'destinationPort' | 'shipVoyage'>(
   'containerNumber'
 )
-const quickFilters = ref<string[]>([])
 
 // 港口字典数据
 const ports = ref<Map<string, string>>(new Map())
@@ -397,9 +399,35 @@ const handleSearchFieldChange = (field: string) => {
   searchField.value = field as 'containerNumber' | 'billOfLading' | 'destinationPort' | 'shipVoyage'
 }
 
-// 快速筛选变化
-const handleQuickFilterChange = (filters: string[]) => {
-  quickFilters.value = filters
+// 处理统计卡片点击过滤
+const handleStatFilter = (filterType: string) => {
+  // 根据过滤类型设置搜索关键词和搜索字段
+  switch (filterType) {
+    case 'all':
+      // 清除所有过滤
+      searchKeyword.value = ''
+      break
+    case 'atPort':
+      // 过滤已到港的货柜
+      searchKeyword.value = 'at_port'
+      searchField.value = 'destinationPort'
+      break
+    case 'critical':
+      // 过滤即将超期的货柜
+      searchKeyword.value = 'critical'
+      searchField.value = 'destinationPort'
+      break
+    case 'overdue':
+      // 过滤已超期的货柜
+      searchKeyword.value = 'overdue'
+      searchField.value = 'destinationPort'
+      break
+    case 'returned':
+      // 过滤已还箱的货柜
+      searchKeyword.value = 'returned_empty'
+      searchField.value = 'destinationPort'
+      break
+  }
 }
 
 // 最终的过滤容器（结合 URL 筛选和搜索）
@@ -419,10 +447,34 @@ const finalFilteredContainers = computed(() => {
             container.seaFreight?.billOfLadingNumber?.toLowerCase().includes(keyword)
           )
         case 'destinationPort':
-          return (
-            container.destinationPort?.toLowerCase().includes(keyword) ||
-            container.seaFreight?.portOfDischarge?.toLowerCase().includes(keyword)
-          )
+          // 特殊处理过滤类型
+          if (keyword === 'at_port') {
+            // 过滤已到港的货柜
+            return container.logisticsStatus === 'at_port'
+          } else if (keyword === 'critical') {
+            // 过滤即将超期的货柜
+            const lastFreeDate = container.portOperations?.find(op => op.lastFreeDate)?.lastFreeDate
+            if (!lastFreeDate) return false
+            const daysUntilDeadline = dayjs(lastFreeDate).diff(dayjs(), 'day')
+            return daysUntilDeadline >= 0 && daysUntilDeadline <= 3
+          } else if (keyword === 'overdue') {
+            // 过滤已超期的货柜
+            const lastFreeDate = container.portOperations?.find(op => op.lastFreeDate)?.lastFreeDate
+            if (!lastFreeDate) return false
+            const status = container.logisticsStatus?.toLowerCase()
+            const isPickedUp =
+              status === 'picked_up' || status === 'unloaded' || status === 'returned_empty'
+            return dayjs().isAfter(dayjs(lastFreeDate)) && !isPickedUp
+          } else if (keyword === 'returned_empty') {
+            // 过滤已还箱的货柜
+            return container.logisticsStatus === 'returned_empty'
+          } else {
+            // 普通港口名称搜索
+            return (
+              container.destinationPort?.toLowerCase().includes(keyword) ||
+              container.seaFreight?.portOfDischarge?.toLowerCase().includes(keyword)
+            )
+          }
         case 'shipVoyage':
           return (
             container.seaFreight?.vesselName?.toLowerCase().includes(keyword) ||
@@ -434,37 +486,7 @@ const finalFilteredContainers = computed(() => {
     })
   }
 
-  // 应用快速筛选
-  if (quickFilters.value.length > 0) {
-    result = result.filter(container => {
-      const lastFreeDate = container.portOperations?.find(op => op.lastFreeDate)?.lastFreeDate
-      const status = container.logisticsStatus?.toLowerCase()
 
-      if (quickFilters.value.includes('critical')) {
-        // 即将超期（3 天内）
-        if (lastFreeDate) {
-          const daysUntilDeadline = dayjs(lastFreeDate).diff(dayjs(), 'day')
-          if (daysUntilDeadline >= 0 && daysUntilDeadline <= 3) return true
-        }
-      }
-
-      if (quickFilters.value.includes('overdue')) {
-        // 已超期
-        if (lastFreeDate && dayjs().isAfter(dayjs(lastFreeDate))) {
-          const isPickedUp =
-            status === 'picked_up' || status === 'unloaded' || status === 'returned_empty'
-          if (!isPickedUp) return true
-        }
-      }
-
-      if (quickFilters.value.includes('atPort')) {
-        // 已到港
-        if (status === 'at_port') return true
-      }
-
-      return false
-    })
-  }
 
   return result
 })
@@ -669,6 +691,17 @@ onUnmounted(() => {
   min-width: 100%;
   border-bottom: 2px solid #e4e7ed;
   position: relative;
+  transition: min-height 0.3s ease;
+}
+
+/* 折叠状态的数据行 */
+.gantt-data-row.collapsed {
+  min-height: 60px;
+}
+
+/* 非折叠状态的数据行 */
+.gantt-data-row:not(.collapsed) {
+  min-height: 150px;
 }
 
 /* 数据行目的港列 */
@@ -676,7 +709,6 @@ onUnmounted(() => {
   width: 120px;
   min-width: 120px;
   max-width: 120px;
-  min-height: 150px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -694,6 +726,7 @@ onUnmounted(() => {
   z-index: 5;
   box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
   flex-shrink: 0;
+  height: 100%;
 }
 
 /* 数据行日期列容器 */
@@ -701,6 +734,7 @@ onUnmounted(() => {
   display: flex;
   flex: 1;
   min-width: 0;
+  height: 100%;
 }
 
 /* 日期单元格 */
@@ -715,8 +749,8 @@ onUnmounted(() => {
   justify-content: center;
   font-size: 12px;
   position: relative;
-  min-height: 150px;
   flex-shrink: 0;
+  height: 100%;
 }
 
 /* 表头中的日期单元格 */

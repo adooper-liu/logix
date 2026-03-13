@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Timer, Warning, CircleCheck, InfoFilled } from '@element-plus/icons-vue'
 import { useColors } from '@/composables/useColors'
+import { CircleCheck, InfoFilled, Timer, Warning } from '@element-plus/icons-vue'
+import { computed } from 'vue'
 
 // 使用颜色系统
 const colors = useColors()
@@ -27,7 +27,7 @@ interface Props {
   data: CountdownData
   label?: string
   subtitle?: string
-  description?: string  // 统计口径说明
+  description?: string // 统计口径说明
   /** 树形展示：true = 三分组并列一行（按到港），'column' = 单列树形（按状态） */
   treeLayout?: boolean | 'column'
 }
@@ -36,11 +36,11 @@ const props = withDefaults(defineProps<Props>(), {
   label: '待处理货柜',
   subtitle: '',
   description: '',
-  treeLayout: false
+  treeLayout: false,
 })
 
 const emit = defineEmits<{
-  'filter': [filterType: string, days: string]
+  filter: [filterType: string, days: string]
 }>()
 
 // 获取倒计时卡片样式 - 使用统一的颜色变量
@@ -75,7 +75,7 @@ const hasFilterItems = computed(() => {
 const totalCount = computed(() => {
   if (!props.data.filterItems) return 0
   return props.data.filterItems
-    .filter(item => item.level === 0)  // 只计算顶级项目
+    .filter(item => item.level === 0) // 只计算顶级项目
     .reduce((sum, item) => sum + item.count, 0)
 })
 
@@ -96,9 +96,9 @@ const hasDescription = computed(() => {
           <div class="title-row">
             <span class="card-title">{{ title }}</span>
             <!-- 统计口径说明 tooltip -->
-            <el-tooltip 
-              v-if="hasDescription" 
-              class="description-tooltip" 
+            <el-tooltip
+              v-if="hasDescription"
+              class="description-tooltip"
               placement="top-start"
               :popper-style="{ maxWidth: '400px', padding: '12px' }"
             >
@@ -124,117 +124,151 @@ const hasDescription = computed(() => {
     </div>
 
     <!-- 如果有过滤项：treeLayout 为 column=按状态多组，true=按到港三分组，否则平铺标签；全部按分组展示，无树线 -->
-    <div v-if="hasFilterItems" class="filter-items" :class="{ 'tree-layout': treeLayout === true, 'tree-layout-column': treeLayout === 'column' }">
+    <div
+      v-if="hasFilterItems"
+      class="filter-items"
+      :class="{ 'tree-layout': treeLayout === true, 'tree-layout-column': treeLayout === 'column' }"
+    >
       <template v-for="(item, index) in data.filterItems" :key="index">
         <!-- 按状态：多组并列，每组父级+子项，均用 Badge 展示 -->
         <div v-if="treeLayout === 'column'" class="tree-block">
-          <el-badge :value="item.count" :hidden="item.count === 0" :color="item.count > 0 ? item.color : '#909399'" :offset="[6, 10]" class="countdown-badge">
+          <el-badge
+            :value="item.count"
+            :max="99999"
+            :hidden="item.count === 0"
+            :color="item.count > 0 ? item.color : '#909399'"
+            :offset="[10, -6]"
+            class="countdown-badge"
+          >
             <span
               class="filter-tag parent-tag badge-trigger"
-              :class="{ 'clickable': item.count > 0 }"
+              :class="{ clickable: item.count > 0 }"
               :style="{
                 backgroundColor: item.count > 0 ? item.color + '15' : '#f5f7fa',
                 borderColor: item.count > 0 ? item.color : '#dcdfe6',
-                color: item.count > 0 ? item.color : '#909399'
+                color: item.count > 0 ? item.color : '#909399',
               }"
               @click="item.count > 0 && handleFilterClick(item.days)"
-            >{{ item.label }}</span>
+              >{{ item.label }}</span
+            >
           </el-badge>
           <div v-if="item.children?.length" class="children-container">
             <el-badge
               v-for="(child, childIndex) in item.children"
               :key="`${index}-${childIndex}`"
               :value="child.count"
+              :max="99999"
               :hidden="child.count === 0"
               :color="child.count > 0 ? child.color : '#b0b0b0'"
-              :offset="[6, 10]"
+              :offset="[10, -6]"
               class="countdown-badge"
             >
               <span
                 class="filter-tag child-tag badge-trigger"
-                :class="{ 'clickable': child.count > 0 }"
+                :class="{ clickable: child.count > 0 }"
                 :style="{
                   backgroundColor: child.count > 0 ? child.color + '10' : '#fafafa',
                   borderColor: child.count > 0 ? child.color : '#e0e0e0',
-                  color: child.count > 0 ? child.color : '#b0b0b0'
+                  color: child.count > 0 ? child.color : '#b0b0b0',
                 }"
                 @click="child.count > 0 && handleFilterClick(child.days)"
-              >{{ child.label }}</span>
+                >{{ child.label }}</span
+              >
             </el-badge>
           </div>
         </div>
         <!-- 按到港：三分组并列，每组父级+子项，均用 Badge 展示 -->
         <div v-else-if="treeLayout === true" class="tree-col">
-          <el-badge :value="item.count" :hidden="item.count === 0" :color="item.count > 0 ? item.color : '#909399'" :offset="[6, 10]" class="countdown-badge">
+          <el-badge
+            :value="item.count"
+            :max="99999"
+            :hidden="item.count === 0"
+            :color="item.count > 0 ? item.color : '#909399'"
+            :offset="[10, -6]"
+            class="countdown-badge"
+          >
             <span
               class="filter-tag parent-tag badge-trigger"
-              :class="{ 'clickable': item.count > 0 }"
+              :class="{ clickable: item.count > 0 }"
               :style="{
                 backgroundColor: item.count > 0 ? item.color + '15' : '#f5f7fa',
                 borderColor: item.count > 0 ? item.color : '#dcdfe6',
-                color: item.count > 0 ? item.color : '#909399'
+                color: item.count > 0 ? item.color : '#909399',
               }"
               @click="item.count > 0 && handleFilterClick(item.days)"
-            >{{ item.label }}</span>
+              >{{ item.label }}</span
+            >
           </el-badge>
           <div v-if="item.children?.length" class="children-container">
             <el-badge
               v-for="(child, childIndex) in item.children"
               :key="`${index}-${childIndex}`"
               :value="child.count"
+              :max="99999"
               :hidden="child.count === 0"
               :color="child.count > 0 ? child.color : '#b0b0b0'"
-              :offset="[6, 10]"
+              :offset="[10, -6]"
               class="countdown-badge"
             >
               <span
                 class="filter-tag child-tag badge-trigger"
-                :class="{ 'clickable': child.count > 0 }"
+                :class="{ clickable: child.count > 0 }"
                 :style="{
                   backgroundColor: child.count > 0 ? child.color + '10' : '#fafafa',
                   borderColor: child.count > 0 ? child.color : '#e0e0e0',
-                  color: child.count > 0 ? child.color : '#b0b0b0'
+                  color: child.count > 0 ? child.color : '#b0b0b0',
                 }"
                 @click="child.count > 0 && handleFilterClick(child.days)"
-              >{{ child.label }}</span>
+                >{{ child.label }}</span
+              >
             </el-badge>
           </div>
         </div>
         <!-- 平铺：均用 Badge 展示 -->
         <template v-else>
-          <el-badge :value="item.count" :hidden="item.count === 0" :color="item.count > 0 ? item.color : '#909399'" :offset="[6, 10]" class="countdown-badge">
+          <el-badge
+            :value="item.count"
+            :max="99999"
+            :hidden="item.count === 0"
+            :color="item.count > 0 ? item.color : '#909399'"
+            :offset="[10, -6]"
+            class="countdown-badge"
+          >
             <span
               class="filter-tag parent-tag badge-trigger"
-              :class="{ 'clickable': item.count > 0 }"
+              :class="{ clickable: item.count > 0 }"
               :style="{
                 backgroundColor: item.count > 0 ? item.color + '15' : '#f5f7fa',
                 borderColor: item.count > 0 ? item.color : '#dcdfe6',
-                color: item.count > 0 ? item.color : '#909399'
+                color: item.count > 0 ? item.color : '#909399',
               }"
               @click="item.count > 0 && handleFilterClick(item.days)"
-            >{{ item.label }}</span>
+              >{{ item.label }}</span
+            >
           </el-badge>
           <div v-if="item.children && item.children.length > 0" class="children-container">
             <el-badge
               v-for="(child, childIndex) in item.children"
               :key="`${index}-${childIndex}`"
               :value="child.count"
+              :max="99999"
               :hidden="child.count === 0"
               :color="child.count > 0 ? child.color : '#b0b0b0'"
-              :offset="[6, 10]"
+              :offset="[10, -6]"
               class="countdown-badge"
             >
               <span
                 class="filter-tag child-tag badge-trigger"
-                :class="{ 'clickable': child.count > 0 }"
+                :class="{ clickable: child.count > 0 }"
                 :style="{
                   backgroundColor: child.count > 0 ? child.color + '10' : '#fafafa',
                   borderColor: child.count > 0 ? child.color : '#e0e0e0',
                   color: child.count > 0 ? child.color : '#b0b0b0',
-                  marginLeft: '12px'
+                  marginLeft: '12px',
                 }"
                 @click="child.count > 0 && handleFilterClick(child.days)"
-              >{{ child.label }}</span>
+                >{{ child.label }}</span
+              >
             </el-badge>
           </div>
         </template>
@@ -248,10 +282,7 @@ const hasDescription = computed(() => {
     </div>
 
     <div v-if="!hasFilterItems" class="card-footer">
-      <el-tag
-        :type="cardStyle.type"
-        size="small"
-      >
+      <el-tag :type="cardStyle.type" size="small">
         {{ statusText }}
       </el-tag>
     </div>
@@ -458,9 +489,11 @@ const hasDescription = computed(() => {
       .el-badge__content {
         font-size: 10px;
         line-height: 1.2;
-        height: 14px;
+        height: auto;
+        min-height: 14px;
         min-width: 14px;
         padding: 0 4px;
+        white-space: nowrap;
       }
     }
 
@@ -556,10 +589,10 @@ const hasDescription = computed(() => {
 
 .tooltip-content {
   max-width: 380px;
-  background: #303133;  // 深色背景
+  background: #303133; // 深色背景
   padding: 12px;
   border-radius: 6px;
-  
+
   .tooltip-title {
     display: flex;
     align-items: center;
@@ -567,38 +600,38 @@ const hasDescription = computed(() => {
     margin-bottom: 8px;
     padding-bottom: 8px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-    
+
     .el-icon {
       color: #409eff;
       font-size: 16px;
     }
-    
+
     span {
       font-weight: 600;
-      color: #fff;  // 白色字体
+      color: #fff; // 白色字体
       font-size: 14px;
     }
   }
-  
+
   .tooltip-text {
     font-size: 13px;
     line-height: 1.6;
-    color: #e0e0e0;  // 浅灰色字体，提升可读性
-    
+    color: #e0e0e0; // 浅灰色字体，提升可读性
+
     :deep(strong) {
-      color: #fff;  // 白色加粗
+      color: #fff; // 白色加粗
       font-weight: 600;
     }
-    
+
     :deep(.highlight) {
-      color: #e6a23c;  // 保持橙色高亮
+      color: #e6a23c; // 保持橙色高亮
       font-weight: 600;
     }
-    
+
     :deep(ul) {
       margin: 6px 0 0 16px;
       padding: 0;
-      
+
       li {
         margin: 4px 0;
       }

@@ -1,27 +1,27 @@
 <template>
   <div class="gantt-statistics-panel">
     <div class="stats-container">
-      <div class="stat-item">
+      <div class="stat-item" @click="$emit('filter', 'all')">
         <el-icon :size="18" color="#909399"><DataLine /></el-icon>
         <span class="stat-value">{{ totalContainers }}</span>
         <span class="stat-label">总货柜</span>
       </div>
-      <div class="stat-item">
+      <div class="stat-item" @click="$emit('filter', 'atPort')">
         <el-icon :size="18" color="#e6a23c"><Position /></el-icon>
         <span class="stat-value warning-text">{{ atPortCount }}</span>
         <span class="stat-label">已到港</span>
       </div>
-      <div class="stat-item">
+      <div class="stat-item" @click="$emit('filter', 'critical')">
         <el-icon :size="18" color="#f56c6c"><Warning /></el-icon>
         <span class="stat-value danger-text">{{ criticalCount }}</span>
         <span class="stat-label">即将超期</span>
       </div>
-      <div class="stat-item">
+      <div class="stat-item" @click="$emit('filter', 'overdue')">
         <el-icon :size="18" color="#ff0000"><CircleClose /></el-icon>
         <span class="stat-value danger-high-text">{{ overdueCount }}</span>
         <span class="stat-label">逾期未提</span>
       </div>
-      <div class="stat-item">
+      <div class="stat-item" @click="$emit('filter', 'returned')">
         <el-icon :size="18" color="#67c23a"><CircleCheck /></el-icon>
         <span class="stat-value success-text">{{ returnedCount }}</span>
         <span class="stat-label">已还箱</span>
@@ -38,6 +38,10 @@ import { computed } from 'vue'
 
 const props = defineProps<{
   containers: Container[]
+}>()
+
+defineEmits<{
+  filter: [filterType: string]
 }>()
 
 // ========== 调试代码 ==========
@@ -127,6 +131,7 @@ const returnedCount = computed(() => {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   transition: all 0.2s ease;
   min-width: fit-content;
+  cursor: pointer;
 }
 
 .stat-item:hover {

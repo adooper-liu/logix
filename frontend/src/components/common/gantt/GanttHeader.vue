@@ -2,10 +2,13 @@
   <div class="gantt-header">
     <div class="header-left">
       <h2>货柜时间分布甘特图</h2>
-      <div class="filter-info">
-        <strong>当前维度：</strong>{{ filterLabel || '全部货柜' }}（
-        <span class="container-count">{{ containerCount }}</span>
-        个货柜）
+      <div class="filter-info-row">
+        <div class="filter-info">
+          <strong>当前维度：</strong>{{ filterLabel || '全部货柜' }}（
+          <span class="container-count">{{ containerCount }}</span>
+          个货柜）
+        </div>
+        <slot></slot>
       </div>
     </div>
     <div class="header-right">
@@ -44,17 +47,27 @@ defineEmits<{
 .gantt-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 20px;
   padding-bottom: 20px;
   border-bottom: 1px solid #e4e7ed;
   flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .header-left h2 {
   margin: 0 0 10px 0;
   font-size: 20px;
   color: #303133;
+}
+
+.filter-info-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 8px;
+  flex-wrap: wrap;
 }
 
 .filter-info {
@@ -64,8 +77,8 @@ defineEmits<{
   padding: 8px 12px;
   border-radius: 4px;
   border-left: 4px solid #409eff;
-  margin-top: 8px;
   display: inline-block;
+  flex-shrink: 0;
 }
 
 .filter-info strong {
