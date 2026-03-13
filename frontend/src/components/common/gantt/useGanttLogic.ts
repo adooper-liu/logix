@@ -238,6 +238,112 @@ export function useGanttLogic() {
     return groups
   })
 
+  // 三级分组：目的港 -> 五节点 -> 供应商
+  const groupedByPortNodeSupplier = computed(() => {
+    const result: Record<string, Record<string, Record<string, Container[]>>> = {}
+
+    filteredContainers.value.forEach(container => {
+      const portCode = container.destinationPort || '未指定'
+
+      // 初始化目的港层级
+      if (!result[portCode]) {
+        result[portCode] = {
+          '清关': {},
+          '提柜': {},
+          '卸柜': {},
+          '还箱': {},
+          '查验': {}
+        }
+      }
+
+      // 确定五节点和对应的供应商
+      const nodeSupplierMap = getNodeAndSupplier(container)
+
+      nodeSupplierMap.forEach(({ node, supplier }) => {
+        if (!result[portCode][node][supplier]) {
+          result[portCode][node][supplier] = []
+        }
+        result[portCode][node][supplier].push(container)
+      })
+    })
+
+    return result
+  })
+
+  // 获取货柜对应的节点和供应商
+  const getNodeAndSupplier = (container: Container): Array<{ node: string, supplier: string }> => {
+    const result: Array<{ node: string, supplier: string }> = []
+
+    // 清关节点 - 清关行
+    if (container.portOperations && container.portOperations.length > 0) {
+      const destPortOp = container.portOperations.find(op => op.portType === 'destination')
+      if (destPortOp?.customsBroker) {
+        result.push({
+          node: '清关',
+          supplier: destPortOp.customsBroker
+        })
+      }
+    }
+
+    // 提柜节点 - 拖卡车队
+    if (container.truckingTransports && container.truckingTransports.length > 0) {
+      container.truckingTransports.forEach(transport => {
+        if (transport.carrierCompany && transport.truckingType === 'pickup') {
+          result.push({
+            node: '提柜',
+            supplier: transport.carrierCompany
+          })
+        }
+      })
+    }
+
+    // 卸柜节点 - 仓库
+    if (container.warehouseOperations && container.warehouseOperations.length > 0) {
+      container.warehouseOperations.forEach(operation => {
+        if (operation.actualWarehouse || operation.plannedWarehouse) {
+          const warehouse = operation.actualWarehouse || operation.plannedWarehouse || '未指定仓库'
+          result.push({
+            node: '卸柜',
+            supplier: warehouse
+          })
+        }
+      })
+    }
+
+    // 还箱节点 - 车队/终端
+    if (container.emptyReturns && container.emptyReturns.length > 0) {
+      container.emptyReturns.forEach(emptyReturn => {
+        if (emptyReturn.returnTerminalName) {
+          result.push({
+            node: '还箱',
+            supplier: emptyReturn.returnTerminalName
+          })
+        }
+      })
+    }
+
+    // 查验节点 - 清关行（与清关使用相同供应商）
+    if (container.inspectionRequired && container.portOperations && container.portOperations.length > 0) {
+      const destPortOp = container.portOperations.find(op => op.portType === 'destination')
+      if (destPortOp?.customsBroker) {
+        result.push({
+          node: '查验',
+          supplier: destPortOp.customsBroker
+        })
+      }
+    }
+
+    // 如果没有找到任何节点供应商映射，至少放在一个默认分组
+    if (result.length === 0) {
+      result.push({
+        node: '未分类',
+        supplier: '未指定供应商'
+      })
+    }
+
+    return result
+  }
+
   // 计算日期范围
   const calculateDateRange = (days: number): [Date, Date] => {
     const today = new Date()
@@ -329,7 +435,7 @@ export function useGanttLogic() {
       let startDate: string
       let endDate: string
       let label: string
-      
+
       if (ganttFilterStore.filterCondition) {
         condition = ganttFilterStore.filterCondition
         startDate = ganttFilterStore.startDate
@@ -538,15 +644,15 @@ export function useGanttLogic() {
   const handleDateSave = async (data: any) => {
     try {
       console.log('Save date:', data)
-      
+
       // 准备更新数据
       const updateData: any = {
         [data.field]: data.value
       }
-      
+
       // 调用API更新货柜日期
       await containerService.updateContainer(data.containerNumber, updateData)
-      
+
       ElMessage.success('日期保存成功')
       showDateEditDialog.value = false
       loadData()
@@ -690,7 +796,7 @@ export function useGanttLogic() {
     if (route.query.startDate || route.query.endDate || route.query.filterCondition) {
       ganttFilterStore.initFromQuery(route.query)
     }
-    
+
     loadData()
     document.addEventListener('dragover', handleDragOver)
     document.addEventListener('drop', handleGlobalDrop)

@@ -30,6 +30,8 @@
         <!-- 时间轴头部 -->
         <div class="gantt-header-row">
           <div class="port-column-header">目的港</div>
+          <!-- 节点和供应商占位列（与三级结构对齐） -->
+          <div class="header-columns-spacer"></div>
           <div class="dates-header" :style="{ width: getTotalDatesWidth() }">
             <div
               v-for="date in dateRange"
@@ -47,61 +49,123 @@
           </div>
         </div>
 
-        <!-- 按目的港分组的货柜分布 -->
+        <!-- 三级分组：目的港 -> 五节点 -> 供应商 -->
+        <!-- 目的港汇总行 -->
         <div
-          v-for="(containersByPort, port) in finalGroupedByPort"
+          v-for="(nodesByPort, port) in finalGroupedByPort"
           :key="port"
-          class="gantt-data-row"
-          :class="{ collapsed: isGroupCollapsed(port) }"
+          class="gantt-data-row port-summary-row"
         >
-          <div class="port-column" :style="{ height: getPortRowHeight(containersByPort.length) }" @click="toggleGroupCollapse(port)" style="cursor: pointer">
-            <el-icon class="collapse-icon" :class="{ collapsed: isGroupCollapsed(port) }">
+          <!-- 一级：目的港汇总行 -->
+          <div class="port-column level-1" :style="{ height: getPortRowHeight(getTotalContainersInPort(nodesByPort)) }" @click="toggleGroupCollapse(port + '-port')" style="cursor: pointer">
+            <el-icon class="collapse-icon" :class="{ collapsed: isGroupCollapsed(port + '-port') }">
               <arrow-right />
             </el-icon>
-            {{ getPortDisplayName(containersByPort) }}
-            <span class="group-count">({{ containersByPort.length }})</span>
+            <strong>{{ getPortDisplayName(port) }}</strong>
+            <span class="group-count">({{ getTotalContainersInPort(nodesByPort) }})</span>
           </div>
-          <div v-if="!isGroupCollapsed(port)" class="dates-column" :style="{ height: getPortRowHeight(containersByPort.length) }">
-            <div
-              v-for="date in dateRange"
-              :key="date.getTime()"
-              class="date-cell"
-              :class="{
-                'is-weekend': isWeekend(date),
-                'is-today': isToday(date),
-                'is-drop-zone':
-                  isDropZone && dragOverDate && dayjs(dragOverDate).isSame(date, 'day'),
-              }"
-              :style="{ width: getDateCellWidth(date) }"
-              @dragover="handleDragOver($event, date)"
-              @drop="handleDrop(date)"
-            >
-              <div class="dots-container">
+
+          <!-- 目的港汇总行的日期列 -->
+          <div class="dates-column port-summary-dates">
+            <!-- 这里可以显示目的港级别的汇总信息 -->
+            <div class="summary-placeholder">汇总信息</div>
+          </div>
+        </div>
+
+        <!-- 如果港口展开，显示二级：五节点行 -->
+        <template v-for="(nodesByPort, port) in finalGroupedByPort" :key="port + '-expanded'">
+          <div
+            v-if="!isGroupCollapsed(port + '-port')"
+            class="gantt-data-row node-group-row"
+          >
+          <!-- 空的目的港列，用于对齐 -->
+          <div class="port-column level-1 empty"></div>
+
+          <!-- 五节点内容 -->
+          <div class="dates-column">
+            <div class="nodes-container">
+              <div
+                v-for="(suppliersByNode, node) in nodesByPort"
+                :key="port + '-' + node"
+                class="node-group"
+                :class="{ collapsed: isGroupCollapsed(port + '-' + node) }"
+              >
+              <div class="node-column level-2" :style="{ height: getNodeRowHeight(suppliersByNode) }" @click="toggleGroupCollapse(port + '-' + node)" style="cursor: pointer">
+                <el-icon class="collapse-icon" :class="{ collapsed: isGroupCollapsed(port + '-' + node) }">
+                  <arrow-right />
+                </el-icon>
+                {{ node }}
+                <span class="group-count">({{ getTotalContainersInNode(suppliersByNode) }})</span>
+              </div>
+
+              <!-- 如果节点未折叠，显示三级：供应商 -->
+              <div v-if="!isGroupCollapsed(port + '-' + node)" class="supplier-groups">
                 <div
-                  v-for="container in getContainersByDateAndPort(date, port)"
-                  :key="container.containerNumber"
-                  class="container-dot"
-                  :class="{
-                    clickable: true,
-                    'is-dragging': draggingContainer?.containerNumber === container.containerNumber,
-                    'has-warning': hasAlert(container),
-                  }"
-                  :style="{
-                    backgroundColor: getStatusColor(container.logisticsStatus),
-                    border: getContainerBorderStyle(container),
-                  }"
-                  @mouseenter="showTooltip(container, $event)"
-                  @mouseleave="hideTooltip"
-                  @click="handleDotClick(container)"
-                  @contextmenu.prevent="openContextMenu(container, $event)"
-                  draggable="true"
-                  @dragstart="handleDragStart(container, $event)"
-                  @dragend="handleDragEnd"
-                ></div>
+                  v-for="(containersBySupplier, supplier) in suppliersByNode"
+                  :key="port + '-' + node + '-' + supplier"
+                  class="supplier-group"
+                  :class="{ collapsed: isGroupCollapsed(port + '-' + node + '-' + supplier) }"
+                >
+                  <!-- 三级：供应商 -->
+                  <div class="supplier-column level-3" :style="{ height: getSupplierRowHeight(containersBySupplier.length) }" @click="toggleGroupCollapse(port + '-' + node + '-' + supplier)" style="cursor: pointer">
+                    <el-icon class="collapse-icon" :class="{ collapsed: isGroupCollapsed(port + '-' + node + '-' + supplier) }">
+                      <arrow-right />
+                    </el-icon>
+                    {{ supplier }}
+                    <span class="group-count">({{ containersBySupplier.length }})</span>
+                  </div>
+
+                  <!-- 如果供应商未折叠，显示日期列和圆点 -->
+                  <div v-if="!isGroupCollapsed(port + '-' + node + '-' + supplier)" class="dates-column level-3-dates" :style="{ height: getSupplierRowHeight(containersBySupplier.length) }">
+                    <div
+                      v-for="date in dateRange"
+                      :key="date.getTime()"
+                      class="date-cell"
+                      :class="{
+                        'is-weekend': isWeekend(date),
+                        'is-today': isToday(date),
+                        'is-drop-zone':
+                          isDropZone && dragOverDate && dayjs(dragOverDate).isSame(date, 'day'),
+                      }"
+                      :style="{ width: getDateCellWidth(date) }"
+                      @dragover="handleDragOver($event)"
+                      @drop="handleDrop(date)"
+                    >
+                      <div class="dots-container">
+                        <div
+                          v-for="container in getContainersByDateAndSupplier(date, containersBySupplier)"
+                          :key="container.containerNumber"
+                          class="container-dot"
+                          :class="{
+                            clickable: true,
+                            'is-dragging': draggingContainer?.containerNumber === container.containerNumber,
+                            'has-warning': hasAlert(container),
+                            'main-task': isMainTask(container),
+                            'dashed-task': isDashedTask(container),
+                          }"
+                          :style="{
+                            backgroundColor: isMainTask(container) ? getStatusColor(container.logisticsStatus) : 'transparent',
+                            border: getContainerBorderStyle(container),
+                          }"
+                          @mouseenter="showTooltip(container, $event)"
+                          @mouseleave="hideTooltip"
+                          @click="handleDotClick(container)"
+                          @contextmenu.prevent="openContextMenu(container, $event)"
+                          draggable="true"
+                          @dragstart="handleDragStart(container, $event)"
+                          @dragend="handleDragEnd"
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+          </div>
+          </div>
+
+        </template>
       </div>
     </div>
 
@@ -377,7 +441,7 @@ import { dictService } from '@/services/dict'
 import type { Container } from '@/types/container'
 import { ArrowRight, Warning } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
-import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ContainerContextMenu from './ContainerContextMenu.vue'
 import ContainerDateEditDialog from './ContainerDateEditDialog.vue'
@@ -404,6 +468,9 @@ const CONTAINERS_PER_ROW = 10
 // 每行高度
 const ROW_HEIGHT = 10
 
+// 每个容器的行高
+const ROW_HEIGHT_PER_CONTAINER = ROW_HEIGHT
+
 // 默认行数（固定）
 const DEFAULT_ROWS = 10
 
@@ -422,7 +489,51 @@ const MIN_COL_WIDTH = DEFAULT_COLS * COL_WIDTH
 // 计算每个港口行的固定高度（最多10行）
 const getPortRowHeight = (containerCount: number): string => {
   // 始终使用10行高度，超出内容通过增加日期列宽度来适应
-  return `${MIN_ROW_HEIGHT}px`
+  return MIN_ROW_HEIGHT + 'px'
+}
+
+// 计算港口总容器数
+const getTotalContainersInPort = (nodesByPort: Record<string, Record<string, any[]>>): number => {
+  let total = 0
+  Object.values(nodesByPort).forEach(suppliersByNode => {
+    Object.values(suppliersByNode).forEach(containers => {
+      total += containers.length
+    })
+  })
+  return total
+}
+
+// 计算节点总容器数
+const getTotalContainersInNode = (suppliersByNode: Record<string, any[]>): number => {
+  let total = 0
+  Object.values(suppliersByNode).forEach(containers => {
+    total += containers.length
+  })
+  return total
+}
+
+// 计算节点行高度
+const getNodeRowHeight = (suppliersByNode: Record<string, any[]>): string => {
+  const containerCount = getTotalContainersInNode(suppliersByNode)
+  return Math.max(MIN_ROW_HEIGHT, containerCount * ROW_HEIGHT_PER_CONTAINER) + 'px'
+}
+
+// 计算供应商行高度
+const getSupplierRowHeight = (containerCount: number): string => {
+  return `${Math.max(MIN_ROW_HEIGHT, containerCount * ROW_HEIGHT_PER_CONTAINER)}px`
+}
+
+// 根据日期和供应商获取容器（基于货柜显示项）
+const getContainersByDateAndSupplier = (date: Date, containers: any[]): any[] => {
+  return containers.filter(container => {
+    const displayItems = getDisplayItems(container)
+    return displayItems.some(item => {
+      if (item.plannedDate) {
+        return dayjs(new Date(item.plannedDate)).isSame(date, 'day')
+      }
+      return false
+    })
+  })
 }
 
 // 五节点泳道折叠状态
@@ -458,7 +569,24 @@ const loadPorts = async () => {
 }
 
 // 获取港口显示名称
-const getPortDisplayName = (containers: Container[]): string => {
+const getPortDisplayName = (input: Container[] | Record<string, any> | string): string => {
+  // 如果是字符串，直接作为港口代码处理
+  if (typeof input === 'string') {
+    const portCode = input
+    if (portCode && ports.value.has(portCode)) {
+      return ports.value.get(portCode) || portCode
+    }
+    return portCode || '未指定'
+  }
+
+  // 如果是对象（nodesByPort），尝试从中提取港口信息
+  if (typeof input === 'object' && input !== null && !Array.isArray(input)) {
+    // 对于空结构，返回港口代码本身
+    return '未指定'
+  }
+
+  // 如果是容器数组，使用原有逻辑
+  const containers = input as Container[]
   if (!containers || containers.length === 0) return '未指定'
   const firstContainer = containers[0]
   if (!firstContainer) return '未指定'
@@ -481,10 +609,20 @@ const getPortDisplayName = (containers: Container[]): string => {
 // 根据日期和港口获取货柜
 const getContainersByDateAndPort = (date: Date, port: string): Container[] => {
   const dateStr = dayjs(date).format('YYYY-MM-DD')
-  const containersByPort = finalGroupedByPort.value[port]
-  if (!containersByPort) return []
+  const nodesByPort = finalGroupedByPort.value[port]
+  if (!nodesByPort) return []
 
-  return containersByPort.filter(container => {
+  const allContainers: Container[] = []
+
+  // 遍历所有节点和供应商，收集所有容器
+  Object.values(nodesByPort).forEach(suppliersByNode => {
+    Object.values(suppliersByNode).forEach(containers => {
+      allContainers.push(...containers)
+    })
+  })
+
+  // 过滤指定日期的容器
+  return allContainers.filter(container => {
     const containerDate = getContainerDate(container)
     if (!containerDate) return false
     const containerDateStr = dayjs(containerDate).format('YYYY-MM-DD')
@@ -537,7 +675,7 @@ const dateCellWidths = computed(() => {
   for (const date of dateRange.value) {
     const dateStr = dayjs(date).format('YYYY-MM-DD')
     const maxCount = dateContainerCounts.value.get(dateStr) || 0
-    
+
     if (maxCount === 0) {
       widths.set(dateStr, `${MIN_COL_WIDTH}px`)
     } else {
@@ -889,23 +1027,328 @@ const finalFilteredContainers = computed(() => {
   return result
 })
 
-// 最终的分组（基于搜索后的结果）
+// 最终的分组（基于搜索后的结果）- 三级分组
 const finalGroupedByPort = computed(() => {
-  const groups: Record<string, any[]> = {}
+  // 使用 useGanttLogic 的三级分组逻辑
+  const groups: Record<string, Record<string, Record<string, any[]>>> = {}
+
   finalFilteredContainers.value.forEach(container => {
     const portCode = container.destinationPort || '未指定'
+
+    // 初始化目的港层级
     if (!groups[portCode]) {
-      groups[portCode] = []
+      groups[portCode] = {
+        '清关': {},
+        '提柜': {},
+        '卸柜': {},
+        '还箱': {},
+        '查验': {}
+      }
     }
-    groups[portCode].push(container)
+
+    // 确定五节点和对应的供应商
+    const nodeSupplierMap = getNodeAndSupplierForContainer(container)
+
+    nodeSupplierMap.forEach(({ node, supplier }) => {
+      if (!groups[portCode][node][supplier]) {
+        groups[portCode][node][supplier] = []
+      }
+      groups[portCode][node][supplier].push(container)
+    })
   })
+
+  // 如果没有数据，创建一个空的默认结构用于显示框架
+  if (finalFilteredContainers.value.length === 0) {
+    groups['未指定'] = {
+      '清关': {},
+      '提柜': {},
+      '卸柜': {},
+      '还箱': {},
+      '查验': {}
+    }
+  }
+
   return groups
 })
+
+// ========== 货柜节点状态计算 ==========
+
+/**
+ * 货柜节点状态接口
+ */
+interface NodeStatus {
+  status: 'pending' | 'active' | 'completed' | 'skipped'
+  plannedDate?: Date
+  actualDate?: Date
+  supplier: string
+}
+
+/**
+ * 货柜节点状态
+ */
+interface ContainerNodeStatus {
+  containerNumber: string
+  portCode: string
+  nodes: {
+    清关: NodeStatus
+    查验: NodeStatus
+    提柜: NodeStatus
+    卸柜: NodeStatus
+    还箱: NodeStatus
+  }
+}
+
+/**
+ * 计算货柜各节点状态
+ */
+const calculateNodeStatus = (container: any): ContainerNodeStatus => {
+  const nodes: any = {
+    清关: { status: 'pending', supplier: '未指定', plannedDate: undefined, actualDate: undefined },
+    查验: { status: 'pending', supplier: '未指定', plannedDate: undefined, actualDate: undefined },
+    提柜: { status: 'pending', supplier: '未指定', plannedDate: undefined, actualDate: undefined },
+    卸柜: { status: 'pending', supplier: '未指定', plannedDate: undefined, actualDate: undefined },
+    还箱: { status: 'pending', supplier: '未指定', plannedDate: undefined, actualDate: undefined }
+  }
+
+  const destPortOp = container.portOperations?.find((op: any) => op.portType === 'destination')
+  const portCode = destPortOp?.portCode || '未知目的港'
+  const needsInspection = container.inspectionRequired || false
+
+  // 1. 判断清关状态
+  if (destPortOp?.customsBroker) {
+    nodes.清关.supplier = destPortOp.customsBroker
+    nodes.清关.plannedDate = destPortOp.plannedCustomsDate ? new Date(destPortOp.plannedCustomsDate) : undefined
+    nodes.清关.actualDate = destPortOp.actualCustomsDate ? new Date(destPortOp.actualCustomsDate) : undefined
+
+    if (destPortOp.actualCustomsDate) {
+      nodes.清关.status = 'completed'
+    } else if (destPortOp.plannedCustomsDate) {
+      nodes.清关.status = 'active'
+    }
+  }
+
+  // 2. 判断查验状态（如果有查验需求）
+  if (needsInspection && destPortOp?.customsBroker) {
+    nodes.查验.supplier = destPortOp.customsBroker
+    nodes.查验.plannedDate = destPortOp.plannedCustomsDate ? new Date(destPortOp.plannedCustomsDate) : undefined
+    nodes.查验.actualDate = destPortOp.actualCustomsDate ? new Date(destPortOp.actualCustomsDate) : undefined
+
+    if (nodes.清关.status === 'completed' && nodes.查验.status === 'pending') {
+      nodes.查验.status = 'active'
+    } else if (destPortOp.actualCustomsDate && needsInspection) {
+      nodes.查验.status = 'completed'
+    }
+  }
+
+  // 3. 判断提柜状态（只有在不需要查验或查验完成后才能提柜）
+  const pickupTransport = container.truckingTransports?.find((t: any) => t.truckingType === 'pickup')
+  if (pickupTransport?.carrierCompany) {
+    nodes.提柜.supplier = pickupTransport.carrierCompany
+    nodes.提柜.plannedDate = pickupTransport.plannedPickupDate ? new Date(pickupTransport.plannedPickupDate) : undefined
+    nodes.提柜.actualDate = pickupTransport.pickupDate ? new Date(pickupTransport.pickupDate) : undefined
+
+    // 检查是否可以进入提柜节点
+    let canEnterPickup = nodes.清关.status === 'completed'
+    if (needsInspection) {
+      canEnterPickup = canEnterPickup && nodes.查验.status === 'completed'
+    }
+
+    if (canEnterPickup && !pickupTransport.pickupDate) {
+      nodes.提柜.status = 'active'
+    } else if (pickupTransport.pickupDate) {
+      nodes.提柜.status = 'completed'
+    }
+  }
+
+  // 4. 判断卸柜状态
+  const unloadOp = container.warehouseOperations?.find((op: any) => op.operationType === 'INBOUND')
+  if (unloadOp?.actualWarehouse || unloadOp?.plannedWarehouse) {
+    nodes.卸柜.supplier = unloadOp.actualWarehouse || unloadOp.plannedWarehouse!
+    nodes.卸柜.plannedDate = unloadOp.plannedUnloadDate ? new Date(unloadOp.plannedUnloadDate) : undefined
+    nodes.卸柜.actualDate = unloadOp.unloadDate ? new Date(unloadOp.unloadDate) : undefined
+
+    if (nodes.提柜.status === 'completed' && !unloadOp.unloadDate) {
+      nodes.卸柜.status = 'active'
+    } else if (unloadOp.unloadDate) {
+      nodes.卸柜.status = 'completed'
+    }
+  }
+
+  // 5. 判断还箱状态
+  const emptyReturn = container.emptyReturns?.[0]
+  if (emptyReturn?.returnTerminalName) {
+    nodes.还箱.supplier = emptyReturn.returnTerminalName
+    nodes.还箱.plannedDate = emptyReturn.plannedReturnDate ? new Date(emptyReturn.plannedReturnDate) : undefined
+    nodes.还箱.actualDate = emptyReturn.returnTime ? new Date(emptyReturn.returnTime) : undefined
+
+    if (nodes.卸柜.status === 'completed' && !emptyReturn.returnTime) {
+      nodes.还箱.status = 'active'
+    } else if (emptyReturn.returnTime) {
+      nodes.还箱.status = 'completed'
+    }
+  }
+
+  // 6. 如果没有找到任何活动节点，但清关有计划日期，则清关为活跃节点
+  if (nodes.清关.status === 'pending' && nodes.清关.plannedDate) {
+    nodes.清关.status = 'active'
+  }
+
+  return {
+    containerNumber: container.containerNumber,
+    portCode,
+    nodes
+  }
+}
+
+/**
+ * 甘特图显示项接口
+ */
+interface GanttDisplayItem {
+  type: 'main' | 'dashed'  // 主任务 / 虚线任务
+  port: string
+  node: string
+  supplier: string
+  containerNumber: string
+  container: any
+  plannedDate?: Date
+  actualDate?: Date
+  isCurrent: boolean
+}
+
+/**
+ * 获取货柜的显示项（根据节点状态）
+ */
+const getDisplayItems = (container: any): GanttDisplayItem[] => {
+  const displayItems: GanttDisplayItem[] = []
+  const nodeStatus = calculateNodeStatus(container)
+
+  const needsInspection = container.inspectionRequired || false
+
+  // 根据是否需要查验，使用不同的节点顺序
+  const nodeOrder: Array<'清关' | '查验' | '提柜' | '卸柜' | '还箱'> = needsInspection
+    ? ['清关', '查验', '提柜', '卸柜', '还箱']
+    : ['清关', '提柜', '卸柜', '还箱']
+
+  let foundActive = false
+
+  nodeOrder.forEach((nodeName) => {
+    const node = nodeStatus.nodes[nodeName as keyof typeof nodeStatus.nodes]
+
+    // 只有当有计划日期或实际日期时才显示
+    if (node.plannedDate || node.actualDate) {
+      if (node.status === 'active') {
+        // 当前节点 - 主任务（实线圆点）
+        displayItems.push({
+          type: 'main',
+          port: nodeStatus.portCode,
+          node: nodeName,
+          supplier: node.supplier,
+          containerNumber: nodeStatus.containerNumber,
+          container,
+          plannedDate: node.plannedDate,
+          actualDate: node.actualDate,
+          isCurrent: true
+        })
+        foundActive = true
+      } else if (!foundActive && node.status === 'pending') {
+        // 未来节点 - 虚线任务（计划中）
+        displayItems.push({
+          type: 'dashed',
+          port: nodeStatus.portCode,
+          node: nodeName,
+          supplier: node.supplier,
+          containerNumber: nodeStatus.containerNumber,
+          container,
+          plannedDate: node.plannedDate,
+          actualDate: node.actualDate,
+          isCurrent: false
+        })
+      }
+      // 已完成的节点不显示（销毁）
+    }
+  })
+
+  return displayItems
+}
+
+// 获取货柜对应的节点和供应商（保留原有逻辑以兼容）
+const getNodeAndSupplierForContainer = (container: any): Array<{ node: string, supplier: string }> => {
+  const result: Array<{ node: string, supplier: string }> = []
+
+  const displayItems = getDisplayItems(container)
+  displayItems.forEach(item => {
+    result.push({
+      node: item.node,
+      supplier: item.supplier
+    })
+  })
+
+  // 如果没有找到任何节点供应商映射，至少放在一个默认分组
+  if (result.length === 0) {
+    result.push({
+      node: '未分类',
+      supplier: '未指定供应商'
+    })
+  }
+
+  return result
+}
+
+/**
+ * 判断货柜在当前节点是否为主任务（实线圆点）
+ */
+const isMainTask = (container: any): boolean => {
+  const displayItems = getDisplayItems(container)
+  // 查找当前日期对应的显示项
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  for (const item of displayItems) {
+    if (item.type === 'main' && item.plannedDate) {
+      const itemDate = new Date(item.plannedDate)
+      itemDate.setHours(0, 0, 0, 0)
+      if (dayjs(itemDate).isSame(today, 'day')) {
+        return true
+      }
+    }
+  }
+  return false
+}
+
+/**
+ * 判断货柜在当前节点是否为虚线任务（计划中）
+ */
+const isDashedTask = (container: any): boolean => {
+  const displayItems = getDisplayItems(container)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  for (const item of displayItems) {
+    if (item.type === 'dashed' && item.plannedDate) {
+      const itemDate = new Date(item.plannedDate)
+      itemDate.setHours(0, 0, 0, 0)
+      if (dayjs(itemDate).isSame(today, 'day')) {
+        return true
+      }
+    }
+  }
+  return false
+}
 
 // 生命周期
 onMounted(() => {
   loadData()
   loadPorts()
+
+  // 设置目的港默认折叠
+  nextTick(() => {
+    Object.keys(finalGroupedByPort.value).forEach((port: string) => {
+      if (!collapsedGroups.value.has(`${port}-port`)) {
+        collapsedGroups.value.add(`${port}-port`)
+      }
+    })
+  })
+
   document.addEventListener('dragover', handleDragOver)
   document.addEventListener('drop', handleGlobalDrop)
 })
@@ -1082,6 +1525,20 @@ export default {
   flex-shrink: 0;
 }
 
+/* 表头节点和供应商占位列（与三级结构对齐） */
+.header-columns-spacer {
+  width: 240px; /* 120px (节点) + 120px (供应商) */
+  min-width: 240px;
+  max-width: 240px;
+  height: 60px;
+  border-right: 1px solid #e4e7ed;
+  background: #fafafa;
+  position: sticky;
+  left: 120px; /* 紧跟在目的港列后面 */
+  z-index: 19;
+  flex-shrink: 0;
+}
+
 /* 表头日期列容器 */
 .dates-header {
   display: flex;
@@ -1134,6 +1591,40 @@ export default {
   flex: 1;
   min-width: 0;
   /* 高度由动态样式决定 */
+}
+
+/* 节点容器 - 垂直排列 */
+.nodes-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+/* 目的港汇总行样式 */
+.port-summary-row {
+  border-bottom: 2px solid #409eff;
+}
+
+.port-summary-dates {
+  background: #f0f9ff;
+  border-left: 3px solid #409eff;
+}
+
+.summary-placeholder {
+  padding: 8px 10px;
+  color: #666;
+  font-style: italic;
+}
+
+/* 5节点行样式 */
+.node-group-row {
+  border-bottom: 1px solid #e4e7ed;
+}
+
+/* 空的目的港列 */
+.port-column.empty {
+  background: #fafafa;
+  border-left: none;
 }
 
 /* 日期单元格 - 宽度由内联样式决定 */
@@ -1205,6 +1696,23 @@ export default {
   border-radius: 50%;
   cursor: pointer;
   transition: transform 0.2s;
+  border: 2px solid transparent;
+}
+
+/* 主任务 - 实线圆点 */
+.container-dot.main-task {
+  border: 2px solid;
+}
+
+/* 虚线任务 - 虚线圆点（计划中） */
+.container-dot.dashed-task {
+  background: transparent !important;
+  border: 2px dashed #c0c4cc;
+}
+
+.container-dot.dashed-task:hover {
+  border-color: #909399;
+  transform: scale(1.5);
 }
 
 /* 货柜点悬停效果 */
@@ -1219,9 +1727,87 @@ export default {
   transition: transform 0.2s;
 }
 
-.container-dot.clickable:hover {
-  transform: scale(1.3);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+/* 三级分组样式 */
+
+/* 港口组 */
+.port-group {
+  border-bottom: 3px solid #409eff;
+}
+
+/* 一级：目的港 */
+.port-column.level-1 {
+  background: #e8f4fd;
+  border-left: 4px solid #409eff;
+  font-weight: bold;
+}
+
+/* 二级：五节点 */
+.node-group {
+  border-bottom: 2px solid #67c23a;
+}
+
+.node-column.level-2 {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  font-weight: bold;
+  color: #303133;
+  border-right: 1px solid #e4e7ed;
+  background: #f0f9ff;
+  padding: 8px 10px;
+  font-size: 12px;
+  text-align: left;
+  word-break: break-word;
+  gap: 6px;
+  position: sticky;
+  left: 120px;
+  z-index: 4;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+  border-left: 3px solid #67c23a;
+}
+
+/* 三级：供应商 */
+.supplier-group {
+  border-bottom: 1px solid #e6a23c;
+}
+
+.supplier-column.level-3 {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  font-weight: normal;
+  color: #606266;
+  border-right: 1px solid #e4e7ed;
+  background: #fdf6ec;
+  padding: 6px 10px;
+  font-size: 11px;
+  text-align: left;
+  word-break: break-word;
+  gap: 4px;
+  position: sticky;
+  left: 240px;
+  z-index: 3;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+  border-left: 2px solid #e6a23c;
+}
+
+.dates-column.level-3-dates {
+  margin-left: 360px; /* 120px * 3 */
+}
+
+/* 供应商组容器 */
+.supplier-groups {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
 /* 拖拽中的货柜点 */
