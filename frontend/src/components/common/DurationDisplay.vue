@@ -114,13 +114,8 @@ const displayText = computed(() => {
   const time = overdueTime.value
   if (!time) return ''
   if (time < 0) return getCountdownText() // 未来：倒计时
-  // 过去：关键节点判断是否超期
-  if (isKeyNode.value && props.standardHours && props.standardHours > 0) {
-    const standardDays = props.standardHours / 24
-    const days = Math.floor(time / (1000 * 60 * 60 * 24))
-    if (days > standardDays) return getOverdueText() // 已超标准：超期
-  }
-  return getElapsedTextFromToday(time) // 未超标准：历时（今天-当前节点）
+  // 过去：显示超期
+  return getOverdueText() // 已超期：超期
 })
 
 // 从超期时间计算倒计时文本

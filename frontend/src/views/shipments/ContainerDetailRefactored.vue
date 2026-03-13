@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { containerService } from '@/services/container'
 import { demurrageService, type CalculationDates } from '@/services/demurrage'
 import { ElMessage } from 'element-plus'
@@ -18,9 +18,14 @@ import LogisticsPathTab from './components/LogisticsPathTab.vue'
 import ChangeLogTab from './components/ChangeLogTab.vue'
 
 const route = useRoute()
+const router = useRouter()
 const demurrageRef = ref<{ load: () => Promise<void> } | null>(null)
 const calculationDates = ref<CalculationDates | null>(null)
 const demurrageCalculation = ref<any>(null) // 滞港费计算结果
+
+// 货柜列表相关
+const containerList = ref<any[]>([])
+const loadingContainerList = ref(false)
 // 路由 param 已解码；若需兼容编码柜号则 decodeURIComponent
 const containerNumber = computed(() => {
   const p = route.params.containerNumber as string
@@ -31,6 +36,24 @@ const containerNumber = computed(() => {
 const loading = ref(false)
 const containerData = ref<any>(null)
 const activeTab = ref('logistics-path')
+
+// 加载货柜列表
+const loadContainerList = async () => {
+  loadingContainerList.value = true
+  try {
+    // 获取所有货柜列表，按柜号排序
+    const response = await containerService.getContainers({ page: 1, pageSize: 1000 })
+    if (response.success && response.items) {
+      containerList.value = response.items.sort((a: any, b: any) => {
+        return a.containerNumber.localeCompare(b.containerNumber)
+      })
+    }
+  } catch (error) {
+    console.error('Failed to load container list:', error)
+  } finally {
+    loadingContainerList.value = false
+  }
+}
 
 // 加载货柜详情
 const loadContainerDetail = async () => {
@@ -43,6 +66,8 @@ const loadContainerDetail = async () => {
     const response = await containerService.getContainerById(containerNumber.value)
     if (response.success) {
       containerData.value = response.data
+      // 加载货柜列表用于导航
+      await loadContainerList()
     } else {
       ElMessage.error((response as any).message || '获取货柜详情失败')
     }
@@ -55,6 +80,31 @@ const loadContainerDetail = async () => {
     ElMessage.error(msg)
   } finally {
     loading.value = false
+  }
+}
+
+// 计算当前货柜在列表中的索引
+const currentContainerIndex = computed(() => {
+  return containerList.value.findIndex(item => item.containerNumber === containerNumber.value)
+})
+
+// 导航到上一个货柜
+const navigateToPrevious = () => {
+  if (currentContainerIndex.value > 0) {
+    const previousContainer = containerList.value[currentContainerIndex.value - 1]
+    router.push(`/shipments/${previousContainer.containerNumber}`)
+  } else {
+    ElMessage.info('已经是第一个货柜')
+  }
+}
+
+// 导航到下一个货柜
+const navigateToNext = () => {
+  if (currentContainerIndex.value < containerList.value.length - 1) {
+    const nextContainer = containerList.value[currentContainerIndex.value + 1]
+    router.push(`/shipments/${nextContainer.containerNumber}`)
+  } else {
+    ElMessage.info('已经是最后一个货柜')
   }
 }
 
@@ -82,6 +132,14 @@ const loadDemurrageDates = async () => {
 onMounted(() => {
   loadContainerDetail()
 })
+
+// 监听路由参数变化，当货柜号变化时重新加载数据
+watch(
+  () => containerNumber.value,
+  () => {
+    loadContainerDetail()
+  }
+)
 
 watch(containerData, (data) => {
   if (data) loadDemurrageDates()
@@ -138,8 +196,14 @@ const logisticsStatusDisplay = computed(() => {
     <ContainerHeader
       :container-number="containerNumber"
       :loading="loading"
+      :current-container-index="currentContainerIndex"
+      :container-list-length="containerList.length"
       @refresh="loadContainerDetail"
+      @navigate-to-previous="navigateToPrevious"
+      @navigate-to-next="navigateToNext"
     />
+
+
 
     <!-- 内容区域 -->
     <div v-if="containerData" class="detail-content">
@@ -239,6 +303,16 @@ const logisticsStatusDisplay = computed(() => {
   @media (max-width: 768px) {
     padding: $spacing-md;
   }
+}
+
+.navigation-buttons {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  border: 1px solid #e4e7ed;
 }
 
 .detail-content {

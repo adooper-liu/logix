@@ -178,7 +178,20 @@ const timelineEvents = computed((): TimelineEvent[] => {
     type: 'info',
   })
 
-  return events.sort((a, b) => a.date.getTime() - b.date.getTime())
+  // 先按日期排序所有事件
+  const sortedEvents = events.sort((a, b) => a.date.getTime() - b.date.getTime())
+  
+  // 确保"当前"节点在最后
+  const currentEvent = sortedEvents.find(event => event.label === '当前')
+  if (currentEvent) {
+    // 移除"当前"节点
+    const eventsWithoutCurrent = sortedEvents.filter(event => event.label !== '当前')
+    // 将"当前"节点添加到最后
+    eventsWithoutCurrent.push(currentEvent)
+    return eventsWithoutCurrent
+  }
+  
+  return sortedEvents
 })
 
 const formatDate = (d: string | Date | null | undefined): string => {
@@ -255,7 +268,7 @@ const getDateAlertColor = (
  * 判断是否有「有效」后一节点（用于历时/倒计时/超期显示）
  * - 最晚提柜：后一节点为实际提柜，只有实际提柜已发生（有日期）才算有后一节点
  * - 最晚还箱：后一节点为实际还箱，只有实际还箱已发生（有日期）才算有后一节点
- * - 其他节点：按时间线数组中是否存在下一项判断
+ * - 其他节点：检查所有后续业务节点是否有实际日期（排除当前日期节点）
  */
 const getEffectiveHasNextNode = (
   event: TimelineEvent,
@@ -268,7 +281,20 @@ const getEffectiveHasNextNode = (
   if (event.label === '最晚还箱') {
     return !!dates.value?.returnTime
   }
-  return index < allEvents.length - 1
+  
+  // 检查所有后续业务节点是否有实际日期（排除当前日期节点）
+  for (let i = index + 1; i < allEvents.length; i++) {
+    const nextEvent = allEvents[i]
+    // 排除当前日期节点，只考虑实际的业务节点
+    if (nextEvent.label !== '当前') {
+      // 检查该节点是否有实际日期（即日期早于当前日期）
+      if (nextEvent.date < new Date()) {
+        return true
+      }
+    }
+  }
+  
+  return false
 }
 
 const getDotColor = (
@@ -338,6 +364,28 @@ const getCalculationSourceTextForReturn = (pickupDateActual?: string | null): st
   if (!pickupDateActual) return null
   return '按实际提柜日计算'
 }
+
+/**
+ * 获取第一个非当前节点的后续业务节点日期
+ * @param event 当前事件
+ * @param index 当前事件索引
+ * @param allEvents 所有事件
+ */
+const getNextBusinessNodeDate = (
+  event: TimelineEvent,
+  index: number,
+  allEvents: TimelineEvent[]
+): Date | null => {
+  // 检查所有后续节点
+  for (let i = index + 1; i < allEvents.length; i++) {
+    const nextEvent = allEvents[i]
+    // 排除当前日期节点，只考虑实际的业务节点
+    if (nextEvent.label !== '当前') {
+      return nextEvent.date
+    }
+  }
+  return null
+}
 </script>
 
 <template>
@@ -401,7 +449,7 @@ const getCalculationSourceTextForReturn = (pickupDateActual?: string | null): st
               :standard-hours="STANDARD_DURATIONS[event.label] ?? 0"
               :is-current-node="index === timelineEvents.length - 1"
               :prev-date="index > 0 ? timelineEvents[index - 1].date : null"
-              :next-date="index < timelineEvents.length - 1 ? timelineEvents[index + 1].date : null"
+              :next-date="getNextBusinessNodeDate(event, index, timelineEvents)"
               :has-next-node="getEffectiveHasNextNode(event, index, timelineEvents)"
               mode="auto"
             />

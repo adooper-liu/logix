@@ -7,6 +7,14 @@
     :before-close="handleClose"
   >
     <div v-if="container" class="detail-content">
+      <!-- 操作按钮 -->
+      <div class="detail-actions">
+        <el-button type="primary" @click="handleViewDetail">
+          查看完整详情
+        </el-button>
+        <el-button @click="handleClose">关闭</el-button>
+      </div>
+
       <!-- 基本信息 -->
       <div class="detail-section">
         <h3 class="section-title">基本信息</h3>
@@ -109,14 +117,6 @@
       <div class="detail-section" v-if="container.remarks">
         <h3 class="section-title">备注</h3>
         <div class="info-text">{{ container.remarks }}</div>
-      </div>
-
-      <!-- 操作按钮 -->
-      <div class="detail-actions">
-        <el-button type="primary" @click="handleViewDetail">
-          查看完整详情
-        </el-button>
-        <el-button @click="handleClose">关闭</el-button>
       </div>
     </div>
   </el-drawer>
@@ -260,9 +260,9 @@ const handleClose = () => {
 }
 
 .detail-actions {
-  margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid #e4e7ed;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #e4e7ed;
   display: flex;
   gap: 10px;
   justify-content: flex-end;

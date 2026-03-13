@@ -5,10 +5,14 @@ import { ArrowLeft, Refresh } from '@element-plus/icons-vue'
 defineProps<{
   containerNumber: string
   loading: boolean
+  currentContainerIndex?: number
+  containerListLength?: number
 }>()
 
 const emit = defineEmits<{
   refresh: []
+  navigateToPrevious: []
+  navigateToNext: []
 }>()
 
 const router = useRouter()
@@ -19,6 +23,14 @@ const goBack = () => {
 
 const handleRefresh = () => {
   emit('refresh')
+}
+
+const handleNavigateToPrevious = () => {
+  emit('navigateToPrevious')
+}
+
+const handleNavigateToNext = () => {
+  emit('navigateToNext')
 }
 </script>
 
@@ -46,6 +58,18 @@ const handleRefresh = () => {
       </div>
     </div>
     <div class="header-right">
+      <el-button 
+        @click="handleNavigateToPrevious" 
+        :disabled="currentContainerIndex === 0"
+      >
+        上一个货柜
+      </el-button>
+      <el-button 
+        @click="handleNavigateToNext" 
+        :disabled="currentContainerIndex === containerListLength - 1"
+      >
+        下一个货柜
+      </el-button>
       <el-button :icon="Refresh" @click="handleRefresh" type="primary" plain>
         刷新
       </el-button>

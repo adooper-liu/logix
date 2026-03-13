@@ -210,7 +210,7 @@ import type { Container } from '@/types/container'
 import { ArrowRight, Warning } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import ContainerContextMenu from './ContainerContextMenu.vue'
 import ContainerDateEditDialog from './ContainerDateEditDialog.vue'
 import ContainerDetailSidebar from './ContainerDetailSidebar.vue'
@@ -222,12 +222,16 @@ import GanttStatisticsPanel from './gantt/GanttStatisticsPanel.vue'
 import { useGanttLogic } from './gantt/useGanttLogic'
 
 const route = useRoute()
+const router = useRouter()
 
 // 搜索相关状态
 const searchKeyword = ref('')
 const searchField = ref<'containerNumber' | 'billOfLading' | 'destinationPort' | 'shipVoyage'>(
   'containerNumber'
 )
+
+// 用于区分单击和双击事件的定时器
+const clickTimer = ref<number | null>(null)
 
 // 港口字典数据
 const ports = ref<Map<string, string>>(new Map())
@@ -349,7 +353,6 @@ const {
   getContainerDate,
   getStatusColor,
   calculateDynamicDateRange,
-  handleDotClick,
   handleViewDetail,
   handleEditDate,
   handleCopyContainerNumber,
@@ -428,6 +431,31 @@ const handleStatFilter = (filterType: string) => {
       searchField.value = 'destinationPort'
       break
   }
+}
+
+// 处理货柜圆点单击事件
+const handleDotClick = (container: any) => {
+  // 清除之前的定时器
+  if (clickTimer.value) {
+    clearTimeout(clickTimer.value)
+    clickTimer.value = null
+    // 执行双击逻辑
+    router.push(`/shipments/${container.containerNumber}`)
+    return
+  }
+  
+  // 设置新的定时器，延迟 300ms 执行单击逻辑
+  clickTimer.value = window.setTimeout(() => {
+    selectedContainer.value = container
+    showDetailSidebar.value = true
+    hideTooltip()
+    clickTimer.value = null
+  }, 300)
+}
+
+// 处理货柜圆点双击事件
+const handleDotDblClick = (container: any) => {
+  // 双击事件已经在 handleDotClick 中处理
 }
 
 // 最终的过滤容器（结合 URL 筛选和搜索）
