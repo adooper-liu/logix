@@ -276,10 +276,18 @@ const getEffectiveHasNextNode = (
   allEvents: TimelineEvent[]
 ): boolean => {
   if (event.label === '最晚提柜') {
-    return !!dates.value?.pickupDateActual
+    const pickupDate = dates.value?.pickupDateActual
+    if (!pickupDate) return false
+    // 检查实际提柜日期是否已发生（早于当前时间）
+    const pickupDateObj = typeof pickupDate === 'string' ? new Date(pickupDate) : pickupDate
+    return pickupDateObj < new Date()
   }
   if (event.label === '最晚还箱') {
-    return !!dates.value?.returnTime
+    const returnTime = dates.value?.returnTime
+    if (!returnTime) return false
+    // 检查实际还箱日期是否已发生（早于当前时间）
+    const returnTimeObj = typeof returnTime === 'string' ? new Date(returnTime) : returnTime
+    return returnTimeObj < new Date()
   }
   
   // 检查所有后续业务节点是否有实际日期（排除当前日期节点）

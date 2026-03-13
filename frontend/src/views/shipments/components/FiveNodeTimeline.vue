@@ -53,10 +53,46 @@ import dayjs from 'dayjs'
 import { Document, Van, Box, Refresh, Search, Warning } from '@element-plus/icons-vue'
 
 const props = defineProps({
+  // 支持两种数据格式：
+  // 1. containerData: 来自货柜详情 API 的数据
+  // 2. fiveNodeData: 来自五节点 API 的数据
   containerData: {
     type: Object,
-    required: true
+    default: null
+  },
+  fiveNodeData: {
+    type: Object,
+    default: null
   }
+})
+
+// 合并数据源，优先使用 fiveNodeData
+const mergedData = computed(() => {
+  if (props.fiveNodeData) {
+    return {
+      ...props.fiveNodeData,
+      // 保留原始字段以便向后兼容
+      truckingTransports: props.fiveNodeData.fiveNodes?.trucking ? [{
+        plannedPickupDate: props.fiveNodeData.fiveNodes.trucking.plannedDate,
+        actualPickupDate: props.fiveNodeData.fiveNodes.trucking.actualDate,
+        pickupTime: props.fiveNodeData.fiveNodes.trucking.pickupTime,
+        deliveryTime: props.fiveNodeData.fiveNodes.trucking.deliveryTime,
+      }] : undefined,
+      warehouseOperations: props.fiveNodeData.fiveNodes?.unloading ? [{
+        unloadingTime: props.fiveNodeData.fiveNodes.unloading.actualDate,
+      }] : undefined,
+      emptyReturns: props.fiveNodeData.fiveNodes?.emptyReturn ? [{
+        returnTime: props.fiveNodeData.fiveNodes.emptyReturn.returnTime,
+      }] : undefined,
+      inspectionRecord: props.fiveNodeData.fiveNodes?.inspection ? {
+        inspectionPlannedDate: props.fiveNodeData.fiveNodes.inspection.plannedDate,
+        inspectionDate: props.fiveNodeData.fiveNodes.inspection.actualDate,
+        latestStatus: props.fiveNodeData.fiveNodes.inspection.latestStatus,
+        customsClearanceStatus: props.fiveNodeData.fiveNodes.inspection.customsClearanceStatus,
+      } : undefined,
+    }
+  }
+  return props.containerData || {}
 })
 
 const nodes = computed(() => [
@@ -68,36 +104,36 @@ const nodes = computed(() => [
 ])
 
 const getNodePlannedDate = (node: string): string | Date | undefined => {
-  const container = props.containerData
+  const data = mergedData.value
   switch (node) {
     case 'customs':
-      return container?.customsPlannedDate
+      return data?.fiveNodes?.customs?.plannedDate || data?.customsPlannedDate
     case 'trucking':
-      return container?.truckingTransports?.[0]?.plannedPickupDate
+      return data?.fiveNodes?.trucking?.plannedDate || data?.truckingTransports?.[0]?.plannedPickupDate
     case 'unloading':
-      return container?.unloadingPlannedDate
+      return data?.fiveNodes?.unloading?.plannedDate || data?.unloadingPlannedDate
     case 'return':
-      return container?.returnPlannedDate
+      return data?.fiveNodes?.emptyReturn?.plannedDate || data?.returnPlannedDate
     case 'inspection':
-      return container?.inspectionPlannedDate
+      return data?.fiveNodes?.inspection?.plannedDate || data?.inspectionPlannedDate
     default:
       return undefined
   }
 }
 
 const getNodeActualDate = (node: string): string | Date | undefined => {
-  const container = props.containerData
+  const data = mergedData.value
   switch (node) {
     case 'customs':
-      return container?.customsActualDate
+      return data?.fiveNodes?.customs?.actualDate || data?.customsActualDate
     case 'trucking':
-      return container?.truckingTransports?.[0]?.actualPickupDate
+      return data?.fiveNodes?.trucking?.actualDate || data?.truckingTransports?.[0]?.actualPickupDate
     case 'unloading':
-      return container?.unloadingActualDate
+      return data?.fiveNodes?.unloading?.actualDate || data?.unloadingActualDate
     case 'return':
-      return container?.returnActualDate
+      return data?.fiveNodes?.emptyReturn?.actualDate || data?.returnActualDate
     case 'inspection':
-      return container?.inspectionActualDate
+      return data?.fiveNodes?.inspection?.actualDate || data?.inspectionActualDate
     default:
       return undefined
   }
@@ -106,6 +142,51 @@ const getNodeActualDate = (node: string): string | Date | undefined => {
 const formatDate = (date?: string | Date): string => {
   if (!date) return '-'
   return dayjs(date).format('YYYY-MM-DD')
+}
+
+const getNodeStatus = (node: string): string => {
+  const data = mergedData.value
+  
+  // 优先使用 fiveNodes 数据
+  if (data?.fiveNodes) {
+    const nodeData = data.fiveNodes[node as keyof typeof data.fiveNodes]
+    if (nodeData) {
+      const status = nodeData.status as string
+      const actualDate = nodeData.actualDate
+      const plannedDate = nodeData.plannedDate
+      
+      if (actualDate) return 'completed'
+      if (status && ['cleared', 'pickedUp', 'unloaded', 'returned', 'inspected'].includes(status)) return 'completed'
+      if (plannedDate && dayjs(plannedDate).isBefore(dayjs())) return 'warning'
+      if (status && ['pending', 'notPickedUp', 'notUnloaded', 'notReturned', 'notInspected'].includes(status)) return 'pending'
+    }
+  }
+  
+  // 回退到原有逻辑
+  switch (node) {
+    case 'customs':
+      if (data?.customsActualDate) return 'completed'
+      if (data?.customsPlannedDate && dayjs(data.customsPlannedDate).isBefore(dayjs())) return 'warning'
+      return 'pending'
+    case 'trucking':
+      if (data?.truckingTransports?.[0]?.actualPickupDate) return 'completed'
+      if (data?.truckingTransports?.[0]?.plannedPickupDate && dayjs(data.truckingTransports[0].plannedPickupDate).isBefore(dayjs())) return 'warning'
+      return 'pending'
+    case 'unloading':
+      if (data?.unloadingActualDate) return 'completed'
+      if (data?.unloadingPlannedDate && dayjs(data.unloadingPlannedDate).isBefore(dayjs())) return 'warning'
+      return 'pending'
+    case 'return':
+      if (data?.returnActualDate) return 'completed'
+      if (data?.returnPlannedDate && dayjs(data.returnPlannedDate).isBefore(dayjs())) return 'warning'
+      return 'pending'
+    case 'inspection':
+      if (data?.inspectionActualDate) return 'completed'
+      if (data?.inspectionPlannedDate && dayjs(data.inspectionPlannedDate).isBefore(dayjs())) return 'warning'
+      return 'pending'
+    default:
+      return 'pending'
+  }
 }
 
 const getNodeStatusClass = (node: string): string => {
@@ -140,40 +221,11 @@ const getNodeStatusText = (node: string): string => {
   }
 }
 
-const getNodeStatus = (node: string): string => {
-  const container = props.containerData
-  switch (node) {
-    case 'customs':
-      if (container?.customsActualDate) return 'completed'
-      if (container?.customsPlannedDate && dayjs(container.customsPlannedDate).isBefore(dayjs())) return 'warning'
-      return 'pending'
-    case 'trucking':
-      if (container?.truckingTransports?.[0]?.actualPickupDate) return 'completed'
-      if (container?.truckingTransports?.[0]?.plannedPickupDate && dayjs(container.truckingTransports[0].plannedPickupDate).isBefore(dayjs())) return 'warning'
-      return 'pending'
-    case 'unloading':
-      if (container?.unloadingActualDate) return 'completed'
-      if (container?.unloadingPlannedDate && dayjs(container.unloadingPlannedDate).isBefore(dayjs())) return 'warning'
-      return 'pending'
-    case 'return':
-      if (container?.returnActualDate) return 'completed'
-      if (container?.returnPlannedDate && dayjs(container.returnPlannedDate).isBefore(dayjs())) return 'warning'
-      return 'pending'
-    case 'inspection':
-      if (container?.inspectionActualDate) return 'completed'
-      if (container?.inspectionPlannedDate && dayjs(container.inspectionPlannedDate).isBefore(dayjs())) return 'warning'
-      return 'pending'
-    default:
-      return 'pending'
-  }
-}
-
 const hasNodeWarning = (node: string): boolean => {
   return getNodeStatus(node) === 'warning'
 }
 
 const getNodeWarningText = (node: string): string => {
-  const container = props.containerData
   switch (node) {
     case 'customs':
       return '清关计划日期已过，尚未完成'

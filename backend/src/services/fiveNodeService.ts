@@ -1,23 +1,28 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { BizContainer } from '../entities/BizContainer';
+import { AppDataSource } from '../database';
+import { Container } from '../entities/Container';
 import { InspectionRecord } from '../entities/InspectionRecord';
 import { PortOperation } from '../entities/PortOperation';
 import { TruckingTransport } from '../entities/TruckingTransport';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { EmptyReturn } from '../entities/EmptyReturn';
 
-@Injectable()
 export class FiveNodeService {
-  constructor(
-    @InjectRepository(BizContainer) private containerRepository: Repository<BizContainer>,
-    @InjectRepository(InspectionRecord) private inspectionRepository: Repository<InspectionRecord>,
-    @InjectRepository(PortOperation) private portOperationRepository: Repository<PortOperation>,
-    @InjectRepository(TruckingTransport) private truckingRepository: Repository<TruckingTransport>,
-    @InjectRepository(WarehouseOperation) private warehouseRepository: Repository<WarehouseOperation>,
-    @InjectRepository(EmptyReturn) private emptyReturnRepository: Repository<EmptyReturn>,
-  ) {}
+  private containerRepository: Repository<Container>;
+  private inspectionRepository: Repository<InspectionRecord>;
+  private portOperationRepository: Repository<PortOperation>;
+  private truckingRepository: Repository<TruckingTransport>;
+  private warehouseRepository: Repository<WarehouseOperation>;
+  private emptyReturnRepository: Repository<EmptyReturn>;
+
+  constructor() {
+    this.containerRepository = AppDataSource.getRepository(Container);
+    this.inspectionRepository = AppDataSource.getRepository(InspectionRecord);
+    this.portOperationRepository = AppDataSource.getRepository(PortOperation);
+    this.truckingRepository = AppDataSource.getRepository(TruckingTransport);
+    this.warehouseRepository = AppDataSource.getRepository(WarehouseOperation);
+    this.emptyReturnRepository = AppDataSource.getRepository(EmptyReturn);
+  }
 
   // 获取货柜的五节点聚合信息
   async getFiveNodeInfo(containerNumber: string) {
@@ -165,7 +170,7 @@ export class FiveNodeService {
   }
 
   // 计算预警信息
-  private async calculateWarnings(container: BizContainer, nodeInfo: any) {
+  private async calculateWarnings(container: Container, nodeInfo: any) {
     const warnings = [];
 
     // 清关预警
@@ -267,7 +272,7 @@ export class FiveNodeService {
   }
 
   // 计算最晚提柜日
-  private calculateLatestPickupDate(container: BizContainer): Date | null {
+  private calculateLatestPickupDate(container: Container): Date | null {
     if (!container.ata && !container.eta) {
       return null;
     }
@@ -280,7 +285,7 @@ export class FiveNodeService {
   }
 
   // 计算最晚还箱日
-  private calculateLatestReturnDate(container: BizContainer, pickupTime: Date | null): Date | null {
+  private calculateLatestReturnDate(container: Container, pickupTime: Date | null): Date | null {
     if (!pickupTime) {
       return null;
     }

@@ -2,6 +2,7 @@
 import DemurrageDetailSection from '@/components/demurrage/DemurrageDetailSection.vue'
 import { containerService } from '@/services/container'
 import { demurrageService, type CalculationDates } from '@/services/demurrage'
+import { fiveNodeService } from '@/services/fiveNode'
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -24,6 +25,7 @@ const router = useRouter()
 const demurrageRef = ref<{ load: () => Promise<void> } | null>(null)
 const calculationDates = ref<CalculationDates | null>(null)
 const demurrageCalculation = ref<any>(null) // 滞港费计算结果
+const fiveNodeData = ref<any>(null) // 五节点数据
 
 // 货柜列表相关
 const containerList = ref<any[]>([])
@@ -131,6 +133,22 @@ const loadDemurrageDates = async () => {
   }
 }
 
+// 加载五节点数据
+const loadFiveNodeData = async () => {
+  if (!containerNumber.value?.trim()) return
+  try {
+    const response = await fiveNodeService.getFiveNodeInfo(containerNumber.value)
+    if (response.success) {
+      fiveNodeData.value = response.data
+    } else {
+      fiveNodeData.value = null
+    }
+  } catch (error) {
+    console.error('[ContainerDetail] Failed to load five node data:', error)
+    fiveNodeData.value = null
+  }
+}
+
 onMounted(() => {
   loadContainerDetail()
 })
@@ -146,7 +164,10 @@ watch(
 watch(
   containerData,
   data => {
-    if (data) loadDemurrageDates()
+    if (data) {
+      loadDemurrageDates()
+      loadFiveNodeData()
+    }
   },
   { immediate: true }
 )
@@ -224,6 +245,7 @@ const logisticsStatusDisplay = computed(() => {
         <FiveNodeTimeline
           :container-data="containerData"
           :demurrage-calculation="demurrageCalculation"
+          :five-node-data="fiveNodeData"
         />
       </section>
 

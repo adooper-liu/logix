@@ -19,7 +19,7 @@ import demurrageRoutes from './demurrage.routes.js';
 import dictRoutes from './dict.routes.js';
 import auditRoutes from './audit.routes.js';
 import inspectionRoutes from './inspection.routes.js';
-// import fiveNodeRoutes from './fiveNode.routes.js';  // 暂时注释，缺少 BizContainer 实体
+import fiveNodeRoutes from './fiveNode.routes.js';
 import alertRoutes from './alert.routes.js';
 import costRoutes from './cost.routes.js';
 import dataSourceRoutes from './dataSource.routes.js';
@@ -67,7 +67,7 @@ router.use('/demurrage', demurrageRoutes);
 router.use('/dict', dictRoutes);
 router.use('/audit', auditRoutes);
 router.use('/inspection', inspectionRoutes);
-// router.use('/five-node', fiveNodeRoutes); // 暂时注释，缺少 BizContainer 实体
+router.use('/five-node', fiveNodeRoutes);
 router.use('/alerts', alertRoutes);
 router.use('/costs', costRoutes);
 router.use('/data-source', dataSourceRoutes);

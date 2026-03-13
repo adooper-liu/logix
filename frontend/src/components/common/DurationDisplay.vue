@@ -211,11 +211,11 @@ const displayType = computed((): 'countdown' | 'elapsed' | 'overdue' => {
   const time = overdueTime.value
   if (!time) return 'elapsed'
   if (time < 0) return 'countdown'
-  if (isKeyNode.value && props.standardHours && props.standardHours > 0) {
-    const standardDays = props.standardHours / 24
-    const days = Math.floor(time / (1000 * 60 * 60 * 24))
-    if (days > standardDays) return 'overdue'
+  // 关键节点在过去：总是显示超期（文本为"超期X天"），颜色根据是否超过标准决定
+  if (isKeyNode.value) {
+    return 'overdue'
   }
+  // 非关键节点在过去：显示历时
   return 'elapsed'
 })
 
@@ -223,7 +223,19 @@ const displayType = computed((): 'countdown' | 'elapsed' | 'overdue' => {
 const colorType = computed((): 'danger' | 'warning' | 'success' | 'info' | '' => {
   const type = displayType.value
 
-  if (type === 'overdue') return 'danger'
+  if (type === 'overdue') {
+    // 关键节点超期：检查是否超过标准，超过则红色，否则蓝色
+    if (isKeyNode.value && props.standardHours && props.standardHours > 0) {
+      const time = overdueTime.value
+      if (time) {
+        const standardDays = props.standardHours / 24
+        const days = Math.floor(time / (1000 * 60 * 60 * 24))
+        if (days > standardDays) return 'danger'
+      }
+    }
+    // 未超过标准或非关键节点超期：蓝色
+    return 'info'
+  }
   if (type === 'countdown') {
     const date = dateObj.value
     if (!date) return ''
