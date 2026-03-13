@@ -23,7 +23,7 @@ export function useGanttLogic() {
   const filterLabel = ref('')
 
   // 日期范围
-  const rangeType = ref(7)
+  const rangeType = ref(0) // 默认使用动态范围
   const displayRange = ref<[Date, Date]>([new Date(), new Date()])
   const dateRange = ref<Date[]>([])
   const customDateRange = ref<[Date, Date] | null>(null)
@@ -382,27 +382,15 @@ export function useGanttLogic() {
 
       // 计算显示范围
       if (startDate && endDate) {
-        displayRange.value = [new Date(startDate), new Date(endDate)]
-        const daysDiff = dayjs(endDate).diff(dayjs(startDate), 'day') + 1
-        if (daysDiff > 30) {
-          rangeType.value = 30
-        } else if (daysDiff > 15) {
-          rangeType.value = 15
-        } else {
-          rangeType.value = 7
-        }
+        // 从Shipments跳转过来时，使用动态日期范围
+        displayRange.value = calculateDynamicDateRange(containers.value)
+        // 默认选择动态日期标签
+        rangeType.value = 0
       } else {
         // 使用动态日期范围
         displayRange.value = calculateDynamicDateRange(containers.value)
-        // 根据动态范围计算合适的 rangeType
-        const daysDiff = dayjs(displayRange.value[1]).diff(dayjs(displayRange.value[0]), 'day') + 1
-        if (daysDiff > 30) {
-          rangeType.value = 30
-        } else if (daysDiff > 15) {
-          rangeType.value = 15
-        } else {
-          rangeType.value = 7
-        }
+        // 默认选择动态日期标签
+        rangeType.value = 0
       }
 
       dateRange.value = generateDateRange(displayRange.value[0], displayRange.value[1])
@@ -565,6 +553,10 @@ export function useGanttLogic() {
         weekAgo.setDate(today.getDate() - 7)
         customDateRange.value = [weekAgo, today]
       }
+    } else if (rangeType.value === 0) {
+      // 动态范围模式
+      displayRange.value = calculateDynamicDateRange(containers.value)
+      dateRange.value = generateDateRange(displayRange.value[0], displayRange.value[1])
     } else {
       displayRange.value = calculateDateRange(rangeType.value)
       dateRange.value = generateDateRange(displayRange.value[0], displayRange.value[1])
@@ -746,6 +738,7 @@ export function useGanttLogic() {
     isToday,
     getContainerDate,
     getStatusColor,
+    calculateDynamicDateRange,
     handleDotClick,
     handleViewDetail,
     handleEditDate,

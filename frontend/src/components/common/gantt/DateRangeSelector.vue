@@ -7,6 +7,7 @@
       @change="$emit('change')"
       size="small"
     >
+      <el-radio-button :value="0">动态</el-radio-button>
       <el-radio-button :value="7">7 天</el-radio-button>
       <el-radio-button :value="15">15 天</el-radio-button>
       <el-radio-button :value="30">30 天</el-radio-button>

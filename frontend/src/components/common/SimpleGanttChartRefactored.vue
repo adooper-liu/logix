@@ -345,6 +345,8 @@ const {
   formatDate,
   formatDateShort,
   getContainerDate,
+  getStatusColor,
+  calculateDynamicDateRange,
   handleDotClick,
   handleViewDetail,
   handleEditDate,
@@ -361,7 +363,6 @@ const {
   exportData,
   handleDragOver,
   handleGlobalDrop,
-  getStatusColor,
 } = useGanttLogic()
 
 // 辅助方法：获取计划提柜日期

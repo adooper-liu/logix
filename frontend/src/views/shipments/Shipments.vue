@@ -774,11 +774,14 @@ onUnmounted(() => {
 
 <style scoped>
 .bottom-message {
-  position: fixed;
-  bottom: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 9999;
+  position: fixed !important;
+  bottom: 20px !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+  z-index: 9999 !important;
+  margin: 0 !important;
+  width: auto !important;
+  max-width: 90% !important;
 }
 </style>
 
