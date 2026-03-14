@@ -16,25 +16,26 @@
     <!-- 统计面板 -->
     <GanttStatisticsPanel :containers="finalFilteredContainers" @filter="handleStatFilter" />
 
-    <!-- 日期范围切换 -->
-    <DateRangeSelector
-      v-model="rangeType"
-      :display-range="displayRange"
-      @change="onRangeChange"
-      @custom-change="onCustomDateChange"
-    />
-    <!-- 图例放在日期头部右侧 -->
-    <div class="header-legend">
+    <!-- 工具栏：视图模式 + 日期范围 + 图例 -->
+    <div class="toolbar">
+      <div class="toolbar-left">
+        <span class="toolbar-label">视图：</span>
+        <el-radio-group v-model="viewMode" size="small">
+          <el-radio-button value="independent">独立表格</el-radio-button>
+          <el-radio-button value="modal">弹窗详情</el-radio-button>
+        </el-radio-group>
+      </div>
+      <div class="toolbar-center">
+        <span class="toolbar-label">日期：</span>
+        <el-radio-group v-model="rangeType" size="small" @change="onRangeChange">
+          <el-radio-button :value="0">动态</el-radio-button>
+          <el-radio-button :value="7">7天</el-radio-button>
+          <el-radio-button :value="15">15天</el-radio-button>
+          <el-radio-button :value="30">30天</el-radio-button>
+        </el-radio-group>
+        <span class="date-range">{{ formatDateRange(displayRange) }}</span>
+      </div>
       <GanttLegend :status-colors="statusColors" />
-    </div>
-
-    <!-- 视图模式选择器 -->
-    <div class="view-mode-selector">
-      <span class="mode-label">视图模式：</span>
-      <el-radio-group v-model="viewMode" size="small">
-        <el-radio-button value="independent">独立表格</el-radio-button>
-        <el-radio-button value="modal">弹窗详情</el-radio-button>
-      </el-radio-group>
     </div>
 
     <!-- 独立表格主体 -->
@@ -182,8 +183,8 @@
                 <span class="group-count">({{ getTotalContainersInNode(suppliersByNode) }})</span>
               </div>
 
-            <!-- 节点日期列 -->
-            <div class="dates-column node-dates">
+              <!-- 节点日期列 -->
+              <div class="dates-column node-dates">
                 <template v-if="!isGroupCollapsed(port + '-' + node)">
                   <div
                     v-for="(containersBySupplier, supplier) in suppliersByNode"
@@ -523,11 +524,10 @@ import { useRoute, useRouter } from 'vue-router'
 import ContainerContextMenu from './ContainerContextMenu.vue'
 import ContainerDateEditDialog from './ContainerDateEditDialog.vue'
 import ContainerDetailSidebar from './ContainerDetailSidebar.vue'
-import DateRangeSelector from './gantt/DateRangeSelector.vue'
 import GanttHeader from './gantt/GanttHeader.vue'
+import GanttLegend from './gantt/GanttLegend.vue'
 import GanttSearchBar from './gantt/GanttSearchBar.vue'
 import GanttStatisticsPanel from './gantt/GanttStatisticsPanel.vue'
-import GanttLegend from './gantt/GanttLegend.vue'
 import { useGanttLogic } from './gantt/useGanttLogic'
 
 const route = useRoute()
@@ -898,6 +898,12 @@ const {
 
 // 视图模式：independent-独立表格, modal-弹窗详情
 const viewMode = ref<'independent' | 'modal'>('independent')
+
+// 格式化日期范围显示
+const formatDateRange = (range: [Date, Date]): string => {
+  const format = (d: Date) => dayjs(d).format('MM-DD')
+  return `${format(range[0])} ~ ${format(range[1])}`
+}
 
 // 弹窗模式 - 当前选中的港口
 const selectedPortForModal = ref<string | null>(null)
@@ -1527,21 +1533,37 @@ export default {
 </script>
 
 <style scoped>
-/* 视图模式选择器 */
-.view-mode-selector {
+/* 工具栏：视图模式 + 日期范围 + 图例 */
+.toolbar {
   display: flex;
   align-items: center;
-  padding: 12px 16px;
+  justify-content: space-between;
+  padding: 8px 12px;
   background: #f5f7fa;
   border-radius: 4px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
+  gap: 16px;
+  flex-wrap: wrap;
 }
 
-.view-mode-selector .mode-label {
-  font-size: 14px;
+.toolbar-left,
+.toolbar-center {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbar-label {
+  font-size: 13px;
   color: #606266;
-  margin-right: 12px;
   font-weight: 500;
+  white-space: nowrap;
+}
+
+.date-range {
+  font-size: 12px;
+  color: #909399;
+  white-space: nowrap;
 }
 
 /* 方案三：弹窗详情模式 */
@@ -1933,17 +1955,11 @@ export default {
   box-sizing: border-box;
 }
 
-/* 表头图例 */
+/* 工具栏图例 */
 .header-legend {
-  position: sticky;
-  right: 10px;
-  z-index: 5;
-  background: #fff;
-  padding: 4px 8px;
-  border-radius: 4px;
   display: flex;
   align-items: center;
-  min-width: 300px;
+  gap: 8px;
 }
 
 /* 甘特图数据行 - 动态高度 */

@@ -1,6 +1,5 @@
 <template>
   <div class="gantt-legend">
-    <div class="legend-title">图例：</div>
     <div class="legend-items">
       <div v-for="(color, status) in statusColors" :key="status" class="legend-item">
         <div class="legend-dot" :style="{ backgroundColor: color }"></div>
@@ -33,36 +32,28 @@ const getStatusLabel = (status: string): string => {
 .gantt-legend {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px;
-  background: #f5f7fa;
-  border-radius: 4px;
+  gap: 12px;
   flex-shrink: 0;
-  margin-top: 20px;
-}
-
-.legend-title {
-  font-size: 14px;
-  color: #606266;
-  font-weight: bold;
 }
 
 .legend-items {
   display: flex;
-  gap: 15px;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   font-size: 12px;
   color: #606266;
 }
 
 .legend-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
+  flex-shrink: 0;
 }
 </style>
