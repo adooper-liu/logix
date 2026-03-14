@@ -513,15 +513,45 @@ export function useGanttLogic() {
 
   // 切换分组折叠
   const toggleGroupCollapse = (groupKey: string) => {
-    if (collapsedGroups.value.has(groupKey)) {
-      collapsedGroups.value.delete(groupKey)
+    // 互斥逻辑：港口级别每次只允许一个展开
+    if (groupKey.endsWith('-port')) {
+      if (collapsedGroups.value.has(groupKey)) {
+        // 折叠状态 → 展开：先折叠所有其他港口
+        collapsedGroups.value.forEach((_, key) => {
+          if (key.endsWith('-port')) {
+            collapsedGroups.value.add(key)
+          }
+        })
+        collapsedGroups.value.delete(groupKey)
+      } else {
+        // 展开状态 → 折叠
+        collapsedGroups.value.add(groupKey)
+      }
     } else {
-      collapsedGroups.value.add(groupKey)
+      // 非港口级别（节点、供应商）正常切换
+      if (collapsedGroups.value.has(groupKey)) {
+        collapsedGroups.value.delete(groupKey)
+      } else {
+        collapsedGroups.value.add(groupKey)
+      }
     }
   }
 
   const isGroupCollapsed = (groupKey: string): boolean => {
     return collapsedGroups.value.has(groupKey)
+  }
+
+  // 全部展开
+  const expandAllGroups = () => {
+    collapsedGroups.value.clear()
+  }
+
+  // 全部折叠
+  const collapseAllGroups = (groupedData: Record<string, any>) => {
+    // 折叠所有一级港口
+    Object.keys(groupedData).forEach(port => {
+      collapsedGroups.value.add(`${port}-port`)
+    })
   }
 
   // Tooltip
@@ -851,6 +881,8 @@ export function useGanttLogic() {
     loadData,
     toggleGroupCollapse,
     isGroupCollapsed,
+    expandAllGroups,
+    collapseAllGroups,
     showTooltip,
     hideTooltip,
     formatDate,

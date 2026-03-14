@@ -23,15 +23,36 @@
       @change="onRangeChange"
       @custom-change="onCustomDateChange"
     />
+    <!-- 图例放在日期头部右侧 -->
+    <div class="header-legend">
+      <GanttLegend :status-colors="statusColors" />
+    </div>
 
-    <!-- 甘特图主体 -->
-    <div class="gantt-body" v-loading="loading">
+    <!-- 视图模式选择器 -->
+    <div class="view-mode-selector">
+      <span class="mode-label">视图模式：</span>
+      <el-radio-group v-model="viewMode" size="small">
+        <el-radio-button value="independent">独立表格</el-radio-button>
+        <el-radio-button value="modal">弹窗详情</el-radio-button>
+      </el-radio-group>
+    </div>
+
+    <!-- 独立表格主体 -->
+    <div v-if="viewMode === 'independent'" class="gantt-body" v-loading="loading">
       <div class="gantt-body-scroll">
         <!-- 时间轴头部 -->
         <div class="gantt-header-row">
-          <div class="port-column-header">目的港</div>
-          <!-- 节点和供应商占位列（与三级结构对齐） -->
-          <div class="header-columns-spacer"></div>
+          <div class="tree-column-header">
+            <span>分类</span>
+            <div class="collapse-all-buttons">
+              <el-button size="small" text @click="expandAllGroups">
+                <el-icon><arrow-down /></el-icon> 展开
+              </el-button>
+              <el-button size="small" text @click="collapseAllGroups(finalGroupedByPort)">
+                <el-icon><arrow-up /></el-icon> 折叠
+              </el-button>
+            </div>
+          </div>
           <div class="dates-header" :style="{ width: getTotalDatesWidth() }">
             <div
               v-for="date in dateRange"
@@ -51,299 +72,207 @@
 
         <!-- 三级分组：目的港 -> 五节点 -> 供应商 -->
         <!-- 目的港汇总行 -->
-        <div
-          v-for="(nodesByPort, port) in finalGroupedByPort"
-          :key="port"
-          class="gantt-data-row port-summary-row"
-        >
+        <!-- 三级分组：目的港 -> 节点 -> 供应商（嵌套结构） -->
+        <template v-for="(nodesByPort, port) in finalGroupedByPort" :key="port">
           <!-- 一级：目的港汇总行 -->
-          <div class="port-column level-1" :style="{ height: getPortRowHeight(getTotalContainersInPort(nodesByPort)) }" @click="toggleGroupCollapse(port + '-port')" style="cursor: pointer">
-            <el-icon class="collapse-icon" :class="{ collapsed: isGroupCollapsed(port + '-port') }">
-              <arrow-right />
-            </el-icon>
-            <strong>{{ getPortDisplayName(port) }}</strong>
-            <span class="group-count">({{ getTotalContainersInPort(nodesByPort) }})</span>
-          </div>
-
-          <!-- 目的港汇总行的日期列 -->
-          <div class="dates-column port-summary-dates">
-            <!-- 这里可以显示目的港级别的汇总信息 -->
-            <div class="summary-placeholder">汇总信息</div>
-          </div>
-        </div>
-
-        <!-- 如果港口展开，显示二级：五节点行 -->
-        <template v-for="(nodesByPort, port) in finalGroupedByPort" :key="port + '-expanded'">
-          <div
-            v-if="!isGroupCollapsed(port + '-port')"
-            class="gantt-data-row node-group-row"
-          >
-          <!-- 空的目的港列，用于对齐 -->
-          <div class="port-column level-1 empty"></div>
-
-          <!-- 五节点内容 -->
-          <div class="dates-column">
-            <div class="nodes-container">
-              <div
-                v-for="(suppliersByNode, node) in nodesByPort"
-                :key="port + '-' + node"
-                class="node-group"
-                :class="{ collapsed: isGroupCollapsed(port + '-' + node) }"
+          <div class="gantt-data-row port-summary-row">
+            <!-- 目的港行 - 支持折叠展开，采用树形缩进 -->
+            <div
+              class="tree-column level-1"
+              :style="{ height: getPortRowHeight(getTotalContainersInPort(nodesByPort)) }"
+              @click="toggleGroupCollapse(port + '-port')"
+              style="cursor: pointer"
+            >
+              <el-icon
+                class="collapse-icon"
+                :class="{ expanded: !isGroupCollapsed(port + '-port') }"
               >
-              <div class="node-column level-2" :style="{ height: getNodeRowHeight(suppliersByNode) }" @click="toggleGroupCollapse(port + '-' + node)" style="cursor: pointer">
-                <el-icon class="collapse-icon" :class="{ collapsed: isGroupCollapsed(port + '-' + node) }">
+                <arrow-right />
+              </el-icon>
+              <strong>{{ getPortDisplayName(port) }}</strong>
+              <span class="group-count">({{ getTotalContainersInPort(nodesByPort) }})</span>
+            </div>
+
+            <!-- 目的港日期列 -->
+            <div
+              class="dates-column port-summary-dates"
+              :style="{
+                height: getPortRowHeight(getTotalContainersInPort(nodesByPort)),
+              }"
+            >
+              <!-- 折叠：显示所有圆点；展开：显示未分类圆点 -->
+              <template v-if="isGroupCollapsed(port + '-port')">
+                <div
+                  v-for="date in dateRange"
+                  :key="date.getTime()"
+                  class="date-cell"
+                  :class="{ 'is-weekend': isWeekend(date), 'is-today': isToday(date) }"
+                  :style="{ width: getDateCellWidth(date) }"
+                >
+                  <div class="dots-container">
+                    <div
+                      v-for="container in getContainersByDateAndPort(date, port)"
+                      :key="container.containerNumber"
+                      class="container-dot"
+                      :class="{
+                        clickable: true,
+                        'is-dragging':
+                          draggingContainer?.containerNumber === container.containerNumber,
+                        'has-warning': hasAlert(container),
+                      }"
+                      :style="{ backgroundColor: getStatusColor(container.logisticsStatus) }"
+                      @mouseenter="showTooltip(container, $event)"
+                      @mouseleave="hideTooltip"
+                      @click="handleDotClick(container)"
+                    ></div>
+                  </div>
+                </div>
+              </template>
+              <template v-else>
+                <div
+                  v-for="date in dateRange"
+                  :key="date.getTime()"
+                  class="date-cell"
+                  :class="{ 'is-weekend': isWeekend(date), 'is-today': isToday(date) }"
+                  :style="{ width: getDateCellWidth(date) }"
+                >
+                  <div class="dots-container">
+                    <div
+                      v-for="container in getUnclassifiedContainersByDateAndPort(date, port)"
+                      :key="container.containerNumber"
+                      class="container-dot"
+                      :class="{
+                        clickable: true,
+                        'is-dragging':
+                          draggingContainer?.containerNumber === container.containerNumber,
+                        'has-warning': hasAlert(container),
+                      }"
+                      :style="{ backgroundColor: getStatusColor(container.logisticsStatus) }"
+                      @mouseenter="showTooltip(container, $event)"
+                      @mouseleave="hideTooltip"
+                      @click="handleDotClick(container)"
+                    ></div>
+                  </div>
+                </div>
+              </template>
+            </div>
+          </div>
+
+          <!-- 二级：五节点行（仅当港口展开时，嵌套在港口内部） -->
+          <template v-if="!isGroupCollapsed(port + '-port')">
+            <div
+              v-for="(suppliersByNode, node) in filterNormalNodes(nodesByPort)"
+              :key="port + '-' + node"
+              class="gantt-data-row node-group-row"
+            >
+              <!-- 节点行：缩进 -->
+              <div
+                class="tree-column level-2"
+                :style="{ height: getNodeRowHeight(suppliersByNode), paddingLeft: '20px' }"
+                @click="toggleGroupCollapse(port + '-' + node)"
+                style="cursor: pointer"
+              >
+                <el-icon
+                  class="collapse-icon"
+                  :class="{ expanded: !isGroupCollapsed(port + '-' + node) }"
+                >
                   <arrow-right />
                 </el-icon>
                 {{ node }}
                 <span class="group-count">({{ getTotalContainersInNode(suppliersByNode) }})</span>
               </div>
 
-              <!-- 如果节点未折叠，显示三级：供应商 -->
-              <div v-if="!isGroupCollapsed(port + '-' + node)" class="supplier-groups">
-                <div
-                  v-for="(containersBySupplier, supplier) in suppliersByNode"
-                  :key="port + '-' + node + '-' + supplier"
-                  class="supplier-group"
-                  :class="{ collapsed: isGroupCollapsed(port + '-' + node + '-' + supplier) }"
-                >
-                  <!-- 三级：供应商 -->
-                  <div class="supplier-column level-3" :style="{ height: getSupplierRowHeight(containersBySupplier.length) }" @click="toggleGroupCollapse(port + '-' + node + '-' + supplier)" style="cursor: pointer">
-                    <el-icon class="collapse-icon" :class="{ collapsed: isGroupCollapsed(port + '-' + node + '-' + supplier) }">
-                      <arrow-right />
-                    </el-icon>
-                    {{ supplier }}
-                    <span class="group-count">({{ containersBySupplier.length }})</span>
-                  </div>
-
-                  <!-- 如果供应商未折叠，显示日期列和圆点 -->
-                  <div v-if="!isGroupCollapsed(port + '-' + node + '-' + supplier)" class="dates-column level-3-dates" :style="{ height: getSupplierRowHeight(containersBySupplier.length) }">
+            <!-- 节点日期列 -->
+            <div class="dates-column node-dates">
+                <template v-if="!isGroupCollapsed(port + '-' + node)">
+                  <div
+                    v-for="(containersBySupplier, supplier) in suppliersByNode"
+                    :key="port + '-' + node + '-' + supplier"
+                    class="supplier-row"
+                  >
+                    <!-- 供应商行：二级缩进 -->
                     <div
-                      v-for="date in dateRange"
-                      :key="date.getTime()"
-                      class="date-cell"
-                      :class="{
-                        'is-weekend': isWeekend(date),
-                        'is-today': isToday(date),
-                        'is-drop-zone':
-                          isDropZone && dragOverDate && dayjs(dragOverDate).isSame(date, 'day'),
+                      class="tree-column level-3"
+                      :style="{
+                        height: getSupplierRowHeight(containersBySupplier.length),
+                        paddingLeft: '40px',
                       }"
-                      :style="{ width: getDateCellWidth(date) }"
-                      @dragover="handleDragOver($event)"
-                      @drop="handleDrop(date)"
+                      @click="toggleGroupCollapse(port + '-' + node + '-' + supplier)"
+                      style="cursor: pointer"
                     >
-                      <div class="dots-container">
-                        <div
-                          v-for="container in getContainersByDateAndSupplier(date, containersBySupplier)"
-                          :key="container.containerNumber"
-                          class="container-dot"
-                          :class="{
-                            clickable: true,
-                            'is-dragging': draggingContainer?.containerNumber === container.containerNumber,
-                            'has-warning': hasAlert(container),
-                            'main-task': isMainTask(container),
-                            'dashed-task': isDashedTask(container),
-                          }"
-                          :style="{
-                            backgroundColor: isMainTask(container) ? getStatusColor(container.logisticsStatus) : 'transparent',
-                            border: getContainerBorderStyle(container),
-                          }"
-                          @mouseenter="showTooltip(container, $event)"
-                          @mouseleave="hideTooltip"
-                          @click="handleDotClick(container)"
-                          @contextmenu.prevent="openContextMenu(container, $event)"
-                          draggable="true"
-                          @dragstart="handleDragStart(container, $event)"
-                          @dragend="handleDragEnd"
-                        ></div>
+                      <el-icon
+                        class="collapse-icon"
+                        :class="{ expanded: !isGroupCollapsed(port + '-' + node + '-' + supplier) }"
+                      >
+                        <arrow-right />
+                      </el-icon>
+                      {{ supplier }}
+                      <span class="group-count">({{ containersBySupplier.length }})</span>
+                    </div>
+
+                    <!-- 供应商日期列 -->
+                    <div
+                      v-if="!isGroupCollapsed(port + '-' + node + '-' + supplier)"
+                      class="dates-column level-3-dates"
+                      :style="{
+                        height: getSupplierRowHeight(containersBySupplier.length),
+                      }"
+                    >
+                      <div
+                        v-for="date in dateRange"
+                        :key="date.getTime()"
+                        class="date-cell"
+                        :class="{
+                          'is-weekend': isWeekend(date),
+                          'is-today': isToday(date),
+                          'is-drop-zone':
+                            isDropZone && dragOverDate && dayjs(dragOverDate).isSame(date, 'day'),
+                        }"
+                        :style="{ width: getDateCellWidth(date) }"
+                        @dragover="handleDragOver($event)"
+                        @drop="handleDrop(date)"
+                      >
+                        <div class="dots-container">
+                          <div
+                            v-for="container in getContainersByDateAndSupplier(
+                              date,
+                              containersBySupplier
+                            )"
+                            :key="container.containerNumber"
+                            class="container-dot"
+                            :class="{
+                              clickable: true,
+                              'is-dragging':
+                                draggingContainer?.containerNumber === container.containerNumber,
+                              'has-warning': hasAlert(container),
+                              'main-task': isMainTask(container),
+                              'dashed-task': isDashedTask(container),
+                            }"
+                            :style="{
+                              backgroundColor: isMainTask(container)
+                                ? getStatusColor(container.logisticsStatus)
+                                : 'transparent',
+                              border: getContainerBorderStyle(container),
+                            }"
+                            @mouseenter="showTooltip(container, $event)"
+                            @mouseleave="hideTooltip"
+                            @click="handleDotClick(container)"
+                            @contextmenu.prevent="openContextMenu(container, $event)"
+                            draggable="true"
+                            @dragstart="handleDragStart(container, $event)"
+                            @dragend="handleDragEnd"
+                          ></div>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
+                </template>
               </div>
             </div>
-          </div>
-          </div>
-          </div>
-
+          </template>
         </template>
       </div>
     </div>
-
-    <!-- 五节点泳道 - 独立区块 -->
-    <div class="five-node-section" v-if="finalFilteredContainers.length > 0">
-      <!-- 五节点日期表头 -->
-      <div class="five-node-header-row">
-        <div class="five-node-header-title">五节点</div>
-        <div class="five-node-header-dates" :style="{ width: getTotalDatesWidth() }">
-          <div
-            v-for="date in dateRange"
-            :key="date.getTime()"
-            class="five-node-header-date"
-            :class="{
-              'is-weekend': isWeekend(date),
-              'is-today': isToday(date),
-            }"
-            :style="{ width: getHeaderDateCellWidth(date) }"
-          >
-            {{ formatDateShort(date) }}
-          </div>
-        </div>
-      </div>
-      <div class="five-node-lanes">
-        <!-- 清关泳道 -->
-        <div class="node-lane" :class="{ collapsed: nodeCollapsed.customs }">
-          <div class="node-header" @click="nodeCollapsed.customs = !nodeCollapsed.customs" style="cursor: pointer">
-            <el-icon class="collapse-icon" :class="{ collapsed: nodeCollapsed.customs }">
-              <arrow-right />
-            </el-icon>
-            <div class="node-title">清关</div>
-          </div>
-          <div class="node-dates" v-show="!nodeCollapsed.customs">
-            <div v-for="date in dateRange" :key="date.getTime()" class="node-date-cell" :style="{ width: getHeaderDateCellWidth(date) }">
-              <div class="node-events">
-                <div
-                  v-for="container in getContainersByNodeDate(date, 'customs')"
-                  :key="container.containerNumber"
-                  class="node-event"
-                  :class="{
-                    'event-customs': true,
-                    'event-planned': isPlannedDate(container, 'customs', date),
-                    'event-actual': isActualDate(container, 'customs', date),
-                    'has-warning': hasAlert(container),
-                  }"
-                  @mouseenter="showTooltip(container, $event)"
-                  @mouseleave="hideTooltip"
-                  @click="handleDotClick(container)"
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 拖卡泳道 -->
-        <div class="node-lane" :class="{ collapsed: nodeCollapsed.trucking }">
-          <div class="node-header" @click="nodeCollapsed.trucking = !nodeCollapsed.trucking" style="cursor: pointer">
-            <el-icon class="collapse-icon" :class="{ collapsed: nodeCollapsed.trucking }">
-              <arrow-right />
-            </el-icon>
-            <div class="node-title">拖卡</div>
-          </div>
-          <div class="node-dates" v-show="!nodeCollapsed.trucking">
-            <div v-for="date in dateRange" :key="date.getTime()" class="node-date-cell" :style="{ width: getHeaderDateCellWidth(date) }">
-              <div class="node-events">
-                <div
-                  v-for="container in getContainersByNodeDate(date, 'trucking')"
-                  :key="container.containerNumber"
-                  class="node-event"
-                  :class="{
-                    'event-trucking': true,
-                    'event-planned': isPlannedDate(container, 'trucking', date),
-                    'event-actual': isActualDate(container, 'trucking', date),
-                    'has-warning': hasAlert(container),
-                  }"
-                  @mouseenter="showTooltip(container, $event)"
-                  @mouseleave="hideTooltip"
-                  @click="handleDotClick(container)"
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 卸柜泳道 -->
-        <div class="node-lane" :class="{ collapsed: nodeCollapsed.unloading }">
-          <div class="node-header" @click="nodeCollapsed.unloading = !nodeCollapsed.unloading" style="cursor: pointer">
-            <el-icon class="collapse-icon" :class="{ collapsed: nodeCollapsed.unloading }">
-              <arrow-right />
-            </el-icon>
-            <div class="node-title">卸柜</div>
-          </div>
-          <div class="node-dates" v-show="!nodeCollapsed.unloading">
-            <div v-for="date in dateRange" :key="date.getTime()" class="node-date-cell" :style="{ width: getHeaderDateCellWidth(date) }">
-              <div class="node-events">
-                <div
-                  v-for="container in getContainersByNodeDate(date, 'unloading')"
-                  :key="container.containerNumber"
-                  class="node-event"
-                  :class="{
-                    'event-unloading': true,
-                    'event-planned': isPlannedDate(container, 'unloading', date),
-                    'event-actual': isActualDate(container, 'unloading', date),
-                    'has-warning': hasAlert(container),
-                  }"
-                  @mouseenter="showTooltip(container, $event)"
-                  @mouseleave="hideTooltip"
-                  @click="handleDotClick(container)"
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 还箱泳道 -->
-        <div class="node-lane" :class="{ collapsed: nodeCollapsed.return }">
-          <div class="node-header" @click="nodeCollapsed.return = !nodeCollapsed.return" style="cursor: pointer">
-            <el-icon class="collapse-icon" :class="{ collapsed: nodeCollapsed.return }">
-              <arrow-right />
-            </el-icon>
-            <div class="node-title">还箱</div>
-          </div>
-          <div class="node-dates" v-show="!nodeCollapsed.return">
-            <div v-for="date in dateRange" :key="date.getTime()" class="node-date-cell" :style="{ width: getHeaderDateCellWidth(date) }">
-              <div class="node-events">
-                <div
-                  v-for="container in getContainersByNodeDate(date, 'return')"
-                  :key="container.containerNumber"
-                  class="node-event"
-                  :class="{
-                    'event-return': true,
-                    'event-planned': isPlannedDate(container, 'return', date),
-                    'event-actual': isActualDate(container, 'return', date),
-                    'has-warning': hasAlert(container),
-                  }"
-                  @mouseenter="showTooltip(container, $event)"
-                  @mouseleave="hideTooltip"
-                  @click="handleDotClick(container)"
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 查验泳道 -->
-        <div class="node-lane" :class="{ collapsed: nodeCollapsed.inspection }">
-          <div class="node-header" @click="nodeCollapsed.inspection = !nodeCollapsed.inspection" style="cursor: pointer">
-            <el-icon class="collapse-icon" :class="{ collapsed: nodeCollapsed.inspection }">
-              <arrow-right />
-            </el-icon>
-            <div class="node-title">查验</div>
-          </div>
-          <div class="node-dates" v-show="!nodeCollapsed.inspection">
-            <div v-for="date in dateRange" :key="date.getTime()" class="node-date-cell" :style="{ width: getHeaderDateCellWidth(date) }">
-              <div class="node-events">
-                <div
-                  v-for="container in getContainersByNodeDate(date, 'inspection')"
-                  :key="container.containerNumber"
-                  class="node-event"
-                  :class="{
-                    'event-inspection': true,
-                    'event-planned': isPlannedDate(container, 'inspection', date),
-                    'event-actual': isActualDate(container, 'inspection', date),
-                    'has-warning': hasAlert(container),
-                  }"
-                  @mouseenter="showTooltip(container, $event)"
-                  @mouseleave="hideTooltip"
-                  @click="handleDotClick(container)"
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 图例 -->
-    <GanttLegend :status-colors="statusColors" />
 
     <!-- Tooltip -->
     <div
@@ -401,6 +330,154 @@
       </div>
     </div>
 
+    <!-- 方案三：弹窗详情模式 -->
+    <div v-if="viewMode === 'modal'" class="modal-view">
+      <!-- 港口选择列表 -->
+      <div class="port-select-list">
+        <div class="port-select-header">
+          <span>选择目的港</span>
+          <span class="port-count">共 {{ portList.length }} 个港口</span>
+        </div>
+        <div class="port-items">
+          <div
+            v-for="port in portList"
+            :key="port"
+            class="port-item"
+            :class="{ active: selectedPortForModal === port }"
+            @click="selectedPortForModal = port"
+          >
+            <span class="port-name">{{ getPortDisplayName(port) }}</span>
+            <span class="port-count"
+              >({{ getTotalContainersInPort(finalGroupedByPort[port]) }})</span
+            >
+            <el-icon v-if="selectedPortForModal === port" class="check-icon"><check /></el-icon>
+          </div>
+        </div>
+      </div>
+
+      <!-- 弹窗详情甘特图 -->
+      <div v-if="selectedPortForModal" class="modal-gantt">
+        <div class="modal-gantt-header">
+          <strong>{{ getPortDisplayName(selectedPortForModal) }}</strong>
+          <el-button size="small" @click="selectedPortForModal = null">关闭</el-button>
+        </div>
+        <div class="modal-gantt-body">
+          <!-- 复用统一视图的结构，但只渲染选中的港口 -->
+          <div class="gantt-header-row">
+            <div class="tree-column-header">
+              <span>分类</span>
+            </div>
+            <div class="dates-header" :style="{ width: getTotalDatesWidth() }">
+              <div
+                v-for="date in dateRange"
+                :key="date.getTime()"
+                class="date-cell"
+                :class="{ 'is-weekend': isWeekend(date), 'is-today': isToday(date) }"
+                :style="{ width: getHeaderDateCellWidth(date) }"
+              >
+                <div class="date-day">{{ formatDateShort(date) }}</div>
+                <div class="date-weekday">{{ getWeekday(date) }}</div>
+              </div>
+            </div>
+          </div>
+          <!-- 汇总行 -->
+          <div class="gantt-data-row port-summary-row">
+            <div class="tree-column level-1">
+              <strong>汇总</strong>
+              <span class="group-count"
+                >({{ getTotalContainersInPort(finalGroupedByPort[selectedPortForModal]) }})</span
+              >
+            </div>
+            <div
+              class="dates-column port-summary-dates"
+              :style="{
+                height: getPortRowHeight(
+                  getTotalContainersInPort(finalGroupedByPort[selectedPortForModal])
+                ),
+              }"
+            >
+              <div
+                v-for="date in dateRange"
+                :key="date.getTime()"
+                class="date-cell"
+                :class="{ 'is-weekend': isWeekend(date), 'is-today': isToday(date) }"
+                :style="{ width: getDateCellWidth(date) }"
+              >
+                <div class="dots-container">
+                  <div
+                    v-for="container in getContainersByDateAndPort(date, selectedPortForModal)"
+                    :key="container.containerNumber"
+                    class="container-dot"
+                    :class="{ clickable: true, 'has-warning': hasAlert(container) }"
+                    :style="{ backgroundColor: getStatusColor(container.logisticsStatus) }"
+                    @mouseenter="showTooltip(container, $event)"
+                    @mouseleave="hideTooltip"
+                    @click="handleDotClick(container)"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- 节点行 -->
+          <div
+            v-for="(suppliersByNode, node) in filterNormalNodes(
+              finalGroupedByPort[selectedPortForModal]
+            )"
+            :key="selectedPortForModal + '-' + node"
+            class="gantt-data-row node-group-row"
+          >
+            <div class="tree-column level-2" style="padding-left: 20px">
+              {{ node }}
+              <span class="group-count">({{ getTotalContainersInNode(suppliersByNode) }})</span>
+            </div>
+            <div class="dates-column node-dates" style="margin-left: 200px">
+              <div
+                v-for="(containersBySupplier, supplier) in suppliersByNode"
+                :key="selectedPortForModal + '-' + node + '-' + supplier"
+                class="supplier-row"
+              >
+                <div class="tree-column level-3" style="padding-left: 40px">
+                  {{ supplier }}
+                  <span class="group-count">({{ containersBySupplier.length }})</span>
+                </div>
+                <div
+                  class="dates-column level-3-dates"
+                  :style="{ height: getSupplierRowHeight(containersBySupplier.length) }"
+                >
+                  <div
+                    v-for="date in dateRange"
+                    :key="date.getTime()"
+                    class="date-cell"
+                    :class="{ 'is-weekend': isWeekend(date), 'is-today': isToday(date) }"
+                    :style="{ width: getDateCellWidth(date) }"
+                  >
+                    <div class="dots-container">
+                      <div
+                        v-for="container in getContainersByDateAndSupplier(
+                          date,
+                          containersBySupplier
+                        )"
+                        :key="container.containerNumber"
+                        class="container-dot"
+                        :class="{ clickable: true, 'has-warning': hasAlert(container) }"
+                        :style="{ backgroundColor: getStatusColor(container.logisticsStatus) }"
+                        @mouseenter="showTooltip(container, $event)"
+                        @mouseleave="hideTooltip"
+                        @click="handleDotClick(container)"
+                      ></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div v-else class="modal-empty">
+        <span>请选择左侧目的港查看详情</span>
+      </div>
+    </div>
+
     <!-- 详情侧边栏 -->
     <ContainerDetailSidebar v-model:visible="showDetailSidebar" :container="selectedContainer" />
 
@@ -439,7 +516,7 @@
 <script setup lang="ts">
 import { dictService } from '@/services/dict'
 import type { Container } from '@/types/container'
-import { ArrowRight, Warning } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowRight, ArrowUp, Check, Warning } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -448,9 +525,9 @@ import ContainerDateEditDialog from './ContainerDateEditDialog.vue'
 import ContainerDetailSidebar from './ContainerDetailSidebar.vue'
 import DateRangeSelector from './gantt/DateRangeSelector.vue'
 import GanttHeader from './gantt/GanttHeader.vue'
-import GanttLegend from './gantt/GanttLegend.vue'
 import GanttSearchBar from './gantt/GanttSearchBar.vue'
 import GanttStatisticsPanel from './gantt/GanttStatisticsPanel.vue'
+import GanttLegend from './gantt/GanttLegend.vue'
 import { useGanttLogic } from './gantt/useGanttLogic'
 
 const route = useRoute()
@@ -503,6 +580,20 @@ const getTotalContainersInPort = (nodesByPort: Record<string, Record<string, any
   return total
 }
 
+// 过滤正常节点（排除未分类）
+const filterNormalNodes = (
+  nodesByPort: Record<string, Record<string, any[]>>
+): Record<string, Record<string, any[]>> => {
+  const normalNodes: Record<string, Record<string, any[]>> = {}
+  const normalNodeNames = ['清关', '提柜', '卸柜', '还箱', '查验']
+  Object.keys(nodesByPort).forEach(nodeName => {
+    if (normalNodeNames.includes(nodeName)) {
+      normalNodes[nodeName] = nodesByPort[nodeName]
+    }
+  })
+  return normalNodes
+}
+
 // 计算节点总容器数
 const getTotalContainersInNode = (suppliersByNode: Record<string, any[]>): number => {
   let total = 0
@@ -521,6 +612,11 @@ const getNodeRowHeight = (suppliersByNode: Record<string, any[]>): string => {
 // 计算供应商行高度
 const getSupplierRowHeight = (containerCount: number): string => {
   return `${Math.max(MIN_ROW_HEIGHT, containerCount * ROW_HEIGHT_PER_CONTAINER)}px`
+}
+
+// 获取港口下的所有货柜（用于汇总行显示）
+const getContainersByPort = (portCode: string): any[] => {
+  return finalFilteredContainers.value.filter(c => (c.destinationPort || '未指定') === portCode)
 }
 
 // 根据日期和供应商获取容器（基于货柜显示项）
@@ -622,6 +718,29 @@ const getContainersByDateAndPort = (date: Date, port: string): Container[] => {
   })
 
   // 过滤指定日期的容器
+  return allContainers.filter(container => {
+    const containerDate = getContainerDate(container)
+    if (!containerDate) return false
+    const containerDateStr = dayjs(containerDate).format('YYYY-MM-DD')
+    return containerDateStr === dateStr
+  })
+}
+
+// 根据日期和港口获取未分类节点的货柜
+const getUnclassifiedContainersByDateAndPort = (date: Date, port: string): Container[] => {
+  const dateStr = dayjs(date).format('YYYY-MM-DD')
+  const nodesByPort = finalGroupedByPort.value[port]
+  if (!nodesByPort || !nodesByPort['未分类']) return []
+
+  const unclassifiedSuppliers = nodesByPort['未分类']
+  const allContainers: Container[] = []
+
+  // 遍历未分类节点的所有供应商，收集所有货柜
+  Object.values(unclassifiedSuppliers).forEach(containers => {
+    allContainers.push(...containers)
+  })
+
+  // 过滤指定日期的货柜
   return allContainers.filter(container => {
     const containerDate = getContainerDate(container)
     if (!containerDate) return false
@@ -751,6 +870,8 @@ const {
   loadData,
   toggleGroupCollapse,
   isGroupCollapsed,
+  expandAllGroups,
+  collapseAllGroups,
   showTooltip,
   hideTooltip,
   formatDate,
@@ -774,6 +895,17 @@ const {
   handleDragOver,
   handleGlobalDrop,
 } = useGanttLogic()
+
+// 视图模式：independent-独立表格, modal-弹窗详情
+const viewMode = ref<'independent' | 'modal'>('independent')
+
+// 弹窗模式 - 当前选中的港口
+const selectedPortForModal = ref<string | null>(null)
+
+// 港口列表（用于弹窗详情模式）
+const portList = computed(() => {
+  return Object.keys(finalGroupedByPort.value).filter(port => port !== '未指定')
+})
 
 // 辅助方法：获取计划提柜日期
 const getPlannedPickupDate = (container: any) => {
@@ -1035,16 +1167,25 @@ const finalGroupedByPort = computed(() => {
   finalFilteredContainers.value.forEach(container => {
     const portCode = container.destinationPort || '未指定'
 
-    // 初始化目的港层级
+    // 初始化目的港层级（包括"未分类"节点）
     if (!groups[portCode]) {
       groups[portCode] = {
-        '清关': {},
-        '提柜': {},
-        '卸柜': {},
-        '还箱': {},
-        '查验': {}
+        清关: {},
+        提柜: {},
+        卸柜: {},
+        还箱: {},
+        查验: {},
+        未分类: {},
       }
     }
+
+    // 确保所有预定义节点都存在
+    const allNodes = ['清关', '提柜', '卸柜', '还箱', '查验', '未分类']
+    allNodes.forEach(node => {
+      if (!groups[portCode][node]) {
+        groups[portCode][node] = {}
+      }
+    })
 
     // 确定五节点和对应的供应商
     const nodeSupplierMap = getNodeAndSupplierForContainer(container)
@@ -1060,11 +1201,11 @@ const finalGroupedByPort = computed(() => {
   // 如果没有数据，创建一个空的默认结构用于显示框架
   if (finalFilteredContainers.value.length === 0) {
     groups['未指定'] = {
-      '清关': {},
-      '提柜': {},
-      '卸柜': {},
-      '还箱': {},
-      '查验': {}
+      清关: {},
+      提柜: {},
+      卸柜: {},
+      还箱: {},
+      查验: {},
     }
   }
 
@@ -1107,7 +1248,7 @@ const calculateNodeStatus = (container: any): ContainerNodeStatus => {
     查验: { status: 'pending', supplier: '未指定', plannedDate: undefined, actualDate: undefined },
     提柜: { status: 'pending', supplier: '未指定', plannedDate: undefined, actualDate: undefined },
     卸柜: { status: 'pending', supplier: '未指定', plannedDate: undefined, actualDate: undefined },
-    还箱: { status: 'pending', supplier: '未指定', plannedDate: undefined, actualDate: undefined }
+    还箱: { status: 'pending', supplier: '未指定', plannedDate: undefined, actualDate: undefined },
   }
 
   const destPortOp = container.portOperations?.find((op: any) => op.portType === 'destination')
@@ -1117,8 +1258,12 @@ const calculateNodeStatus = (container: any): ContainerNodeStatus => {
   // 1. 判断清关状态
   if (destPortOp?.customsBroker) {
     nodes.清关.supplier = destPortOp.customsBroker
-    nodes.清关.plannedDate = destPortOp.plannedCustomsDate ? new Date(destPortOp.plannedCustomsDate) : undefined
-    nodes.清关.actualDate = destPortOp.actualCustomsDate ? new Date(destPortOp.actualCustomsDate) : undefined
+    nodes.清关.plannedDate = destPortOp.plannedCustomsDate
+      ? new Date(destPortOp.plannedCustomsDate)
+      : undefined
+    nodes.清关.actualDate = destPortOp.actualCustomsDate
+      ? new Date(destPortOp.actualCustomsDate)
+      : undefined
 
     if (destPortOp.actualCustomsDate) {
       nodes.清关.status = 'completed'
@@ -1130,8 +1275,12 @@ const calculateNodeStatus = (container: any): ContainerNodeStatus => {
   // 2. 判断查验状态（如果有查验需求）
   if (needsInspection && destPortOp?.customsBroker) {
     nodes.查验.supplier = destPortOp.customsBroker
-    nodes.查验.plannedDate = destPortOp.plannedCustomsDate ? new Date(destPortOp.plannedCustomsDate) : undefined
-    nodes.查验.actualDate = destPortOp.actualCustomsDate ? new Date(destPortOp.actualCustomsDate) : undefined
+    nodes.查验.plannedDate = destPortOp.plannedCustomsDate
+      ? new Date(destPortOp.plannedCustomsDate)
+      : undefined
+    nodes.查验.actualDate = destPortOp.actualCustomsDate
+      ? new Date(destPortOp.actualCustomsDate)
+      : undefined
 
     if (nodes.清关.status === 'completed' && nodes.查验.status === 'pending') {
       nodes.查验.status = 'active'
@@ -1141,11 +1290,17 @@ const calculateNodeStatus = (container: any): ContainerNodeStatus => {
   }
 
   // 3. 判断提柜状态（只有在不需要查验或查验完成后才能提柜）
-  const pickupTransport = container.truckingTransports?.find((t: any) => t.truckingType === 'pickup')
+  const pickupTransport = container.truckingTransports?.find(
+    (t: any) => t.truckingType === 'pickup'
+  )
   if (pickupTransport?.carrierCompany) {
     nodes.提柜.supplier = pickupTransport.carrierCompany
-    nodes.提柜.plannedDate = pickupTransport.plannedPickupDate ? new Date(pickupTransport.plannedPickupDate) : undefined
-    nodes.提柜.actualDate = pickupTransport.pickupDate ? new Date(pickupTransport.pickupDate) : undefined
+    nodes.提柜.plannedDate = pickupTransport.plannedPickupDate
+      ? new Date(pickupTransport.plannedPickupDate)
+      : undefined
+    nodes.提柜.actualDate = pickupTransport.pickupDate
+      ? new Date(pickupTransport.pickupDate)
+      : undefined
 
     // 检查是否可以进入提柜节点
     let canEnterPickup = nodes.清关.status === 'completed'
@@ -1164,7 +1319,9 @@ const calculateNodeStatus = (container: any): ContainerNodeStatus => {
   const unloadOp = container.warehouseOperations?.find((op: any) => op.operationType === 'INBOUND')
   if (unloadOp?.actualWarehouse || unloadOp?.plannedWarehouse) {
     nodes.卸柜.supplier = unloadOp.actualWarehouse || unloadOp.plannedWarehouse!
-    nodes.卸柜.plannedDate = unloadOp.plannedUnloadDate ? new Date(unloadOp.plannedUnloadDate) : undefined
+    nodes.卸柜.plannedDate = unloadOp.plannedUnloadDate
+      ? new Date(unloadOp.plannedUnloadDate)
+      : undefined
     nodes.卸柜.actualDate = unloadOp.unloadDate ? new Date(unloadOp.unloadDate) : undefined
 
     if (nodes.提柜.status === 'completed' && !unloadOp.unloadDate) {
@@ -1178,7 +1335,9 @@ const calculateNodeStatus = (container: any): ContainerNodeStatus => {
   const emptyReturn = container.emptyReturns?.[0]
   if (emptyReturn?.returnTerminalName) {
     nodes.还箱.supplier = emptyReturn.returnTerminalName
-    nodes.还箱.plannedDate = emptyReturn.plannedReturnDate ? new Date(emptyReturn.plannedReturnDate) : undefined
+    nodes.还箱.plannedDate = emptyReturn.plannedReturnDate
+      ? new Date(emptyReturn.plannedReturnDate)
+      : undefined
     nodes.还箱.actualDate = emptyReturn.returnTime ? new Date(emptyReturn.returnTime) : undefined
 
     if (nodes.卸柜.status === 'completed' && !emptyReturn.returnTime) {
@@ -1196,7 +1355,7 @@ const calculateNodeStatus = (container: any): ContainerNodeStatus => {
   return {
     containerNumber: container.containerNumber,
     portCode,
-    nodes
+    nodes,
   }
 }
 
@@ -1204,7 +1363,7 @@ const calculateNodeStatus = (container: any): ContainerNodeStatus => {
  * 甘特图显示项接口
  */
 interface GanttDisplayItem {
-  type: 'main' | 'dashed'  // 主任务 / 虚线任务
+  type: 'main' | 'dashed' // 主任务 / 虚线任务
   port: string
   node: string
   supplier: string
@@ -1231,11 +1390,11 @@ const getDisplayItems = (container: any): GanttDisplayItem[] => {
 
   let foundActive = false
 
-  nodeOrder.forEach((nodeName) => {
+  nodeOrder.forEach(nodeName => {
     const node = nodeStatus.nodes[nodeName as keyof typeof nodeStatus.nodes]
 
-    // 只有当有计划日期或实际日期时才显示
-    if (node.plannedDate || node.actualDate) {
+    // 有供应商信息就显示节点（不依赖日期）
+    if (node.supplier && node.supplier !== '未指定') {
       if (node.status === 'active') {
         // 当前节点 - 主任务（实线圆点）
         displayItems.push({
@@ -1247,7 +1406,7 @@ const getDisplayItems = (container: any): GanttDisplayItem[] => {
           container,
           plannedDate: node.plannedDate,
           actualDate: node.actualDate,
-          isCurrent: true
+          isCurrent: true,
         })
         foundActive = true
       } else if (!foundActive && node.status === 'pending') {
@@ -1261,7 +1420,7 @@ const getDisplayItems = (container: any): GanttDisplayItem[] => {
           container,
           plannedDate: node.plannedDate,
           actualDate: node.actualDate,
-          isCurrent: false
+          isCurrent: false,
         })
       }
       // 已完成的节点不显示（销毁）
@@ -1272,14 +1431,16 @@ const getDisplayItems = (container: any): GanttDisplayItem[] => {
 }
 
 // 获取货柜对应的节点和供应商（保留原有逻辑以兼容）
-const getNodeAndSupplierForContainer = (container: any): Array<{ node: string, supplier: string }> => {
-  const result: Array<{ node: string, supplier: string }> = []
+const getNodeAndSupplierForContainer = (
+  container: any
+): Array<{ node: string; supplier: string }> => {
+  const result: Array<{ node: string; supplier: string }> = []
 
   const displayItems = getDisplayItems(container)
   displayItems.forEach(item => {
     result.push({
       node: item.node,
-      supplier: item.supplier
+      supplier: item.supplier,
     })
   })
 
@@ -1287,7 +1448,7 @@ const getNodeAndSupplierForContainer = (container: any): Array<{ node: string, s
   if (result.length === 0) {
     result.push({
       node: '未分类',
-      supplier: '未指定供应商'
+      supplier: '未指定供应商',
     })
   }
 
@@ -1366,34 +1527,242 @@ export default {
 </script>
 
 <style scoped>
+/* 视图模式选择器 */
+.view-mode-selector {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+
+.view-mode-selector .mode-label {
+  font-size: 14px;
+  color: #606266;
+  margin-right: 12px;
+  font-weight: 500;
+}
+
+/* 方案三：弹窗详情模式 */
+.modal-view {
+  display: flex;
+  height: 600px;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.modal-view .port-select-list {
+  width: 240px;
+  background: #f5f7fa;
+  border-right: 1px solid #e4e7ed;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-view .port-select-header {
+  padding: 16px;
+  border-bottom: 1px solid #e4e7ed;
+  font-weight: bold;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-view .port-count {
+  font-size: 12px;
+  color: #909399;
+  font-weight: normal;
+}
+
+.modal-view .port-items {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.modal-view .port-item {
+  padding: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  transition: all 0.2s;
+}
+
+.modal-view .port-item:hover {
+  background: #e4e7ed;
+}
+
+.modal-view .port-item.active {
+  background: #409eff;
+  color: #fff;
+}
+
+.modal-view .port-item .check-icon {
+  margin-left: 8px;
+}
+
+.modal-view .modal-gantt {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-view .modal-gantt-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e4e7ed;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-view .modal-gantt-body {
+  flex: 1;
+  overflow: auto;
+}
+
+.modal-view .modal-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #909399;
+}
+
+/* 方案四：左右分屏模式 */
+.split-view {
+  display: flex;
+  height: 600px;
+  border: 1px solid #e4e7ed;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.split-view .split-sidebar {
+  width: 280px;
+  background: #f5f7fa;
+  border-right: 1px solid #e4e7ed;
+  display: flex;
+  flex-direction: column;
+}
+
+.split-view .split-sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid #e4e7ed;
+  font-weight: bold;
+}
+
+.split-view .split-port-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.split-view .split-port-item {
+  padding: 14px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.split-view .split-port-item:hover {
+  background: #e4e7ed;
+}
+
+.split-view .split-port-item.active {
+  background: #ecf5ff;
+  border-color: #409eff;
+}
+
+.split-view .split-port-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.split-view .arrow-icon {
+  color: #c0c4cc;
+}
+
+.split-view .split-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.split-view .split-gantt-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e4e7ed;
+  font-weight: bold;
+}
+
+.split-view .split-gantt-body {
+  flex: 1;
+  overflow: auto;
+}
+
+.split-view .split-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #909399;
+}
+
 .simple-gantt-chart {
   padding: 20px;
   background: #fff;
-  /* height: 100vh; */  /* 移除固定高度，允许根据内容自动增高 */
+  /* height: 100vh; */ /* 移除固定高度，允许根据内容自动增高 */
   display: flex;
   flex-direction: column;
-  /* overflow: hidden; */  /* 移除溢出隐藏，允许内容自然流出 */
+  /* overflow: hidden; */ /* 移除溢出隐藏，允许内容自然流出 */
 }
 
 .gantt-body {
   border: 1px solid #e4e7ed;
   border-radius: 4px;
-  /* overflow: hidden; */  /* 移除溢出隐藏 */
-  /* flex: 1; */  /* 移除flex:1，不强制占满剩余空间 */
   display: flex;
   flex-direction: column;
-  /* min-height: 0; */  /* 移除最小高度限制 */
   position: relative;
 }
 
 .gantt-body-scroll {
   overflow-x: auto;
-  /* overflow-y: auto; */  /* 移除垂直滚动条 */
-  /* flex: 1; */  /* 移除flex:1 */
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   position: relative;
-  /* min-width: 0; */  /* 移除最小宽度限制 */
+  flex: 1;
+}
+
+/* 表头固定 */
+.gantt-header-row {
+  display: flex;
+  min-width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 15;
+  background: #fff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+}
+
+/* 表体滚动区域 */
+.gantt-body-scroll {
+  display: flex;
+  flex-direction: column;
+  position: relative;
 }
 
 /* Tooltip */
@@ -1494,24 +1863,14 @@ export default {
   pointer-events: none;
 }
 
-/* 甘特图表头行 */
-.gantt-header-row {
-  display: flex;
-  min-width: 100%;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: #fff;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-}
-
-/* 表头目的港列 */
-.port-column-header {
-  width: 120px;
-  min-width: 120px;
-  max-width: 120px;
+/* 表头分类列（树形结构） */
+.tree-column-header {
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
   height: 60px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   font-weight: bold;
@@ -1521,38 +1880,80 @@ export default {
   position: sticky;
   left: 0;
   z-index: 20;
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
-  flex-shrink: 0;
+  gap: 4px;
 }
 
-/* 表头节点和供应商占位列（与三级结构对齐） */
-.header-columns-spacer {
-  width: 240px; /* 120px (节点) + 120px (供应商) */
-  min-width: 240px;
-  max-width: 240px;
-  height: 60px;
+/* 全部折叠/展开按钮 */
+.collapse-all-buttons {
+  display: flex;
+  gap: 4px;
+  font-size: 11px;
+}
+
+/* 树形结构列 */
+.tree-column {
+  width: 180px;
+  min-width: 180px;
+  max-width: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
   border-right: 1px solid #e4e7ed;
-  background: #fafafa;
+  border-bottom: 1px solid #ebeef5;
+  padding: 0 10px;
+  font-size: 13px;
   position: sticky;
-  left: 120px; /* 紧跟在目的港列后面 */
-  z-index: 19;
-  flex-shrink: 0;
+  left: 0;
+  z-index: 10;
+  background: #f5f7fa;
+  box-sizing: border-box;
+}
+
+/* 目的港层级 */
+.tree-column.level-1 {
+  background: #f5f7fa;
+  font-weight: bold;
+}
+
+/* 节点层级 */
+.tree-column.level-2 {
+  background: #fafafa;
+}
+
+/* 供应商层级 */
+.tree-column.level-3 {
+  background: #fff;
+  font-weight: normal;
+  color: #606266;
 }
 
 /* 表头日期列容器 */
 .dates-header {
   display: flex;
-  /* 宽度由内联样式决定 */
+  box-sizing: border-box;
+}
+
+/* 表头图例 */
+.header-legend {
+  position: sticky;
+  right: 10px;
+  z-index: 5;
+  background: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  min-width: 300px;
 }
 
 /* 甘特图数据行 - 动态高度 */
 .gantt-data-row {
   display: flex;
   min-width: 100%;
-  border-bottom: 2px solid #e4e7ed;
   position: relative;
   /* 高度由动态计算决定 */
   min-height: 30px;
+  box-sizing: border-box;
 }
 
 /* 折叠状态的数据行 */
@@ -1562,9 +1963,9 @@ export default {
 
 /* 数据行目的港列 */
 .port-column {
-  width: 120px;
-  min-width: 120px;
-  max-width: 120px;
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -1590,7 +1991,7 @@ export default {
   display: flex;
   flex: 1;
   min-width: 0;
-  /* 高度由动态样式决定 */
+  box-sizing: border-box;
 }
 
 /* 节点容器 - 垂直排列 */
@@ -1602,12 +2003,11 @@ export default {
 
 /* 目的港汇总行样式 */
 .port-summary-row {
-  border-bottom: 2px solid #409eff;
+  border-bottom: 1px solid #ebeef5;
 }
 
 .port-summary-dates {
-  background: #f0f9ff;
-  border-left: 3px solid #409eff;
+  background: #f5f7fa;
 }
 
 .summary-placeholder {
@@ -1630,8 +2030,8 @@ export default {
 /* 日期单元格 - 宽度由内联样式决定 */
 .date-cell {
   min-width: 10px;
-  border-right: 1px solid #e4e7ed;
-  border-bottom: 1px solid #e4e7ed;
+  border-right: 1px solid #ebeef5;
+  border-bottom: 1px solid #ebeef5;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1640,12 +2040,16 @@ export default {
   position: relative;
   flex-shrink: 0;
   height: 100%;
+  box-sizing: border-box;
 }
 
 /* 表头中的日期单元格 */
 .gantt-header-row .date-cell {
   height: 60px;
   min-height: 60px;
+  box-sizing: border-box;
+  border-right: 1px solid #e4e7ed;
+  border-bottom: 1px solid #e4e7ed;
 }
 
 /* 周末日期单元格 */
@@ -1731,76 +2135,28 @@ export default {
 
 /* 港口组 */
 .port-group {
-  border-bottom: 3px solid #409eff;
+  border-bottom: 3px solid #e4e7ed;
 }
 
 /* 一级：目的港 */
 .port-column.level-1 {
-  background: #e8f4fd;
-  border-left: 4px solid #409eff;
+  background: #f5f7fa;
+  border-left: 4px solid #e4e7ed;
   font-weight: bold;
 }
 
 /* 二级：五节点 */
 .node-group {
-  border-bottom: 2px solid #67c23a;
-}
-
-.node-column.level-2 {
-  width: 120px;
-  min-width: 120px;
-  max-width: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  font-weight: bold;
-  color: #303133;
-  border-right: 1px solid #e4e7ed;
-  background: #f0f9ff;
-  padding: 8px 10px;
-  font-size: 12px;
-  text-align: left;
-  word-break: break-word;
-  gap: 6px;
-  position: sticky;
-  left: 120px;
-  z-index: 4;
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
-  flex-shrink: 0;
-  border-left: 3px solid #67c23a;
+  border-bottom: 1px solid #ebeef5;
 }
 
 /* 三级：供应商 */
 .supplier-group {
-  border-bottom: 1px solid #e6a23c;
-}
-
-.supplier-column.level-3 {
-  width: 120px;
-  min-width: 120px;
-  max-width: 120px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  font-weight: normal;
-  color: #606266;
-  border-right: 1px solid #e4e7ed;
-  background: #fdf6ec;
-  padding: 6px 10px;
-  font-size: 11px;
-  text-align: left;
-  word-break: break-word;
-  gap: 4px;
-  position: sticky;
-  left: 240px;
-  z-index: 3;
-  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
-  flex-shrink: 0;
-  border-left: 2px solid #e6a23c;
+  border-bottom: 1px solid #e4e7ed;
 }
 
 .dates-column.level-3-dates {
-  margin-left: 360px; /* 120px * 3 */
+  margin-left: 240px; /* 80px * 3 */
 }
 
 /* 供应商组容器 */
@@ -1839,7 +2195,8 @@ export default {
   flex-shrink: 0;
 }
 
-.collapse-icon.collapsed {
+/* 展开状态：箭头向下 */
+.collapse-icon.expanded {
   transform: rotate(90deg);
 }
 
@@ -1869,13 +2226,13 @@ export default {
 .five-node-header-row {
   display: flex;
   background: #f5f7fa;
-  border-bottom: 2px solid #e4e7ed;
+  border-bottom: 1px solid #ebeef5;
   min-height: 40px;
 }
 
 .five-node-header-title {
-  width: 120px;
-  min-width: 120px;
+  width: 80px;
+  min-width: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1922,9 +2279,9 @@ export default {
 }
 
 .lane-title {
-  width: 120px;
-  min-width: 120px;
-  max-width: 120px;
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
   height: 40px;
   display: flex;
   align-items: center;
@@ -1988,8 +2345,8 @@ export default {
 .node-header {
   display: flex;
   align-items: center;
-  width: 120px;
-  min-width: 120px;
+  width: 80px;
+  min-width: 80px;
   min-height: 40px;
   height: 100px;
   background: #fafafa;
@@ -2016,7 +2373,7 @@ export default {
   display: flex;
   flex: 1;
   min-width: 0;
-  margin-left: 120px; /* 与表头标题宽度对齐 */
+  margin-left: 80px; /* 与表头标题宽度对齐 */
   height: 100px;
   /* 宽度由flex: 1自动计算 */
 }
