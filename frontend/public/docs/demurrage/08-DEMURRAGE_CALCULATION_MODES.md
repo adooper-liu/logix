@@ -100,14 +100,10 @@ const eta = revisedEta ?? etaFromPort ?? etaFromSeaFreight;
 ```
 
 ### 写回规则
-- ❌ **不写入** `process_port_operations.last_free_date`
+- ✅ **写入** `process_port_operations.last_free_date`（仅当 DB 为空时，支持智能排柜/预警）
 - ❌ **不写入** `ext_demurrage_records` 表
-- ℹ️ 仅用于前端展示、预警、计划调度
-
-**日志提示**：
-```
-[Demurrage] Forecast calculation for XXXXX - skipping database write-back
-```
+- ❌ **不写入** `last_return_date`（滞箱费需实际提柜日，forecast 不写回）
+- ℹ️ ATA 到港后 actual 模式会覆盖 forecast 写入的 last_free_date
 
 ### 应用场景
 - 提前预警（货柜即将超时）

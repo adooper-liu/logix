@@ -18,6 +18,7 @@ import { FreightForwarder } from '../entities/FreightForwarder';
 import { Port } from '../entities/Port';
 import { TruckingCompany } from '../entities/TruckingCompany';
 import { CustomsBroker } from '../entities/CustomsBroker';
+import { Customer } from '../entities/Customer';
 import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
 import { feituoImportService } from '../services/feituoImport.service';
 import { OverseasCompany } from '../entities/OverseasCompany';
@@ -35,6 +36,7 @@ export class ImportController {
   private emptyReturnRepository: Repository<EmptyReturn>;
   private containerTypeRepository: Repository<ContainerType>;
   private demurrageStandardRepository: Repository<ExtDemurrageStandard>;
+  private customerRepository: Repository<Customer>;
 
   constructor() {
     this.containerRepository = AppDataSource.getRepository(Container);
@@ -46,6 +48,26 @@ export class ImportController {
     this.emptyReturnRepository = AppDataSource.getRepository(EmptyReturn);
     this.containerTypeRepository = AppDataSource.getRepository(ContainerType);
     this.demurrageStandardRepository = AppDataSource.getRepository(ExtDemurrageStandard);
+    this.customerRepository = AppDataSource.getRepository(Customer);
+  }
+
+  /**
+   * 当 customer_code 为空且 sell_to_country 有值时，从 biz_customers 补全 customer_code
+   * 见 15-排柜数据补全与缺省方案.md
+   */
+  private async fillCustomerCodeFromSellToCountry(orderData: {
+    customerCode?: string;
+    sellToCountry?: string;
+  }): Promise<void> {
+    if (orderData.customerCode || !orderData.sellToCountry?.trim()) return;
+    const cust = await this.customerRepository.findOne({
+      where: { customerName: orderData.sellToCountry!.trim() },
+      select: ['customerCode']
+    });
+    if (cust) {
+      orderData.customerCode = cust.customerCode;
+      logger.info(`[Import] 从 sell_to_country 补全 customer_code: ${cust.customerCode}`);
+    }
   }
 
   /**
@@ -525,6 +547,7 @@ export class ImportController {
           if (containerData?.containerNumber) {
             orderData.containerNumber = containerData.containerNumber;
           }
+          await this.fillCustomerCodeFromSellToCountry(orderData);
           logger.info('[Import] 处理备货单:', orderData.orderNumber);
 
           const existingOrder = await queryRunner.manager.findOne(ReplenishmentOrder, {
@@ -937,6 +960,7 @@ export class ImportController {
             if (containerData?.containerNumber) {
               orderData.containerNumber = containerData.containerNumber;
             }
+            await this.fillCustomerCodeFromSellToCountry(orderData);
             logger.info(`[Import] 第${i + 1}行: 创建备货单 - ${orderData.orderNumber}`);
             const existingOrder = await queryRunner.manager.findOne(ReplenishmentOrder, {
               where: { orderNumber: orderData.orderNumber }
@@ -1112,6 +1136,28 @@ export class ImportController {
       } catch (statusError) {
         logger.warn(`[Import] 批量自动更新货柜状态失败:`, statusError);
         // 不影响导入结果，只记录警告
+      }
+
+      // 导入更新 ATA 后触发滞港费批量写回（补齐 last_free_date）
+      try {
+        const { DemurrageService } = await import('../services/demurrage.service');
+        const { ExtDemurrageRecord } = await import('../entities/ExtDemurrageRecord');
+        const demurrageService = new DemurrageService(
+          this.demurrageStandardRepository,
+          this.containerRepository,
+          this.portOperationRepository,
+          this.seaFreightRepository,
+          this.truckingRepository,
+          this.emptyReturnRepository,
+          this.orderRepository,
+          AppDataSource.getRepository(ExtDemurrageRecord)
+        );
+        const wb = await demurrageService.batchWriteBackComputedDates({ limitLastFree: 30, limitLastReturn: 20 });
+        if (wb.lastFreeWritten > 0 || wb.lastReturnWritten > 0) {
+          logger.info(`[Import] 滞港费日期写回: last_free ${wb.lastFreeWritten}, last_return ${wb.lastReturnWritten}`);
+        }
+      } catch (wbError) {
+        logger.warn(`[Import] 滞港费日期写回失败:`, wbError);
       }
     }
 

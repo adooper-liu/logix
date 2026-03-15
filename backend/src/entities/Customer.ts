@@ -28,8 +28,9 @@ export class Customer {
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'customer_type_code' })
   customerTypeCode!: string; // 客户类型编码
 
+  /** 该国分公司，存 dict_countries.code；子公司类型时表示该国唯一子公司 @see 12-国家概念统一约定.md */
   @Column({ type: 'varchar', length: 10, nullable: true, name: 'country' })
-  country!: string; // 所属国家代码
+  country!: string;
 
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'overseas_company_code' })
   overseasCompanyCode!: string; // 海外公司编码（如果客户是子公司）

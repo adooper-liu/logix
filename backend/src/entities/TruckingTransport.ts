@@ -79,6 +79,10 @@ export class TruckingTransport {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, name: 'cost' })
   cost?: number;
 
+  // 计划状态
+  @Column({ type: 'varchar', length: 20, default: 'initial', name: 'schedule_status' })
+  scheduleStatus?: 'initial' | 'issued' | 'adjusted';
+
   @Column({ type: 'text', nullable: true, name: 'remarks' })
   remarks?: string;
 

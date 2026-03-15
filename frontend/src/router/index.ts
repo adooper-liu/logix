@@ -14,10 +14,13 @@ const DemurrageStandardEntry = () => import('@/views/import/DemurrageStandardEnt
 const FeituoDataImport = () => import('@/views/import/FeituoDataImport.vue')
 const Monitoring = () => import('@/views/monitoring/Monitoring.vue')
 const DictMapping = () => import('@/views/system/DictMapping.vue')
+const DictManage = () => import('@/views/system/DictManage.vue')
 const Settings = () => import('@/views/settings/Settings.vue')
 const HelpDocumentation = () => import('@/views/help/HelpDocumentation.vue')
 const About = () => import('@/views/About.vue')
 const Login = () => import('@/views/Login.vue')
+const AIChat = () => import('@/views/ai/Chat.vue')
+const KnowledgeBase = () => import('@/views/ai/KnowledgeBase.vue')
 
 const routes: RouteRecordRaw[] = [
   {
@@ -79,6 +82,16 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '货柜甘特图',
           icon: 'Calendar',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'scheduling',
+        name: 'SchedulingVisual',
+        component: () => import('@/views/scheduling/SchedulingVisual.vue'),
+        meta: {
+          title: '智能排产',
+          icon: 'Cpu',
           requiresAuth: true,
         },
       },
@@ -152,6 +165,36 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
+        path: 'dict-manage',
+        name: 'DictManage',
+        component: DictManage,
+        meta: {
+          title: '字典表管理',
+          icon: 'Collection',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'warehouse-trucking-mapping',
+        name: 'WarehouseTruckingMapping',
+        component: () => import('@/views/system/WarehouseTruckingMapping.vue'),
+        meta: {
+          title: '仓库-车队映射',
+          icon: 'OfficeBuilding',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'trucking-port-mapping',
+        name: 'TruckingPortMapping',
+        component: () => import('@/views/system/TruckingPortMapping.vue'),
+        meta: {
+          title: '车队-港口映射',
+          icon: 'Location',
+          requiresAuth: true,
+        },
+      },
+      {
         path: 'settings',
         name: 'Settings',
         component: Settings,
@@ -196,6 +239,26 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '智慧物流愿景',
           requiresAuth: false,
+        },
+      },
+      {
+        path: 'ai-chat',
+        name: 'AIChat',
+        component: AIChat,
+        meta: {
+          title: 'AI 助手',
+          icon: 'MagicStick',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'knowledge-base',
+        name: 'KnowledgeBase',
+        component: KnowledgeBase,
+        meta: {
+          title: '知识库管理',
+          icon: 'FolderOpened',
+          requiresAuth: true,
         },
       },
     ],

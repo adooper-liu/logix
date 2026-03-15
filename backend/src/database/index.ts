@@ -35,6 +35,13 @@ import { FreightForwarder } from '../entities/FreightForwarder';
 import { CustomsBroker } from '../entities/CustomsBroker';
 import { TruckingCompany } from '../entities/TruckingCompany';
 import { OverseasCompany } from '../entities/OverseasCompany';
+import { TruckingPortMapping } from '../entities/TruckingPortMapping';
+import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
+import { PortWarehouseMapping } from '../entities/PortWarehouseMapping';
+import { ExtWarehouseDailyOccupancy } from '../entities/ExtWarehouseDailyOccupancy';
+import { ExtTruckingSlotOccupancy } from '../entities/ExtTruckingSlotOccupancy';
+import { ExtYardDailyOccupancy } from '../entities/ExtYardDailyOccupancy';
+import { Yard } from '../entities/Yard';
 import { InspectionRecord } from '../entities/InspectionRecord';
 import { InspectionEvent } from '../entities/InspectionEvent';
 import { logger } from '../utils/logger';
@@ -59,6 +66,9 @@ export const dataSourceOptions: DataSourceOptions = {
     ContainerType,
     Warehouse,
     OverseasCompany,
+    TruckingPortMapping,
+    WarehouseTruckingMapping,
+    PortWarehouseMapping,
 
     // 业务表 (Business Tables)
     Customer,
@@ -93,7 +103,13 @@ export const dataSourceOptions: DataSourceOptions = {
     
     // 查验相关表 (Inspection Tables)
     InspectionRecord,
-    InspectionEvent
+    InspectionEvent,
+
+    // 智能排柜资源占用表 (Intelligent Scheduling Resource Tables)
+    ExtWarehouseDailyOccupancy,
+    ExtTruckingSlotOccupancy,
+    ExtYardDailyOccupancy,
+    Yard
   ],
   synchronize: databaseConfig.synchronize,
   logging: databaseConfig.logging,
@@ -106,7 +122,7 @@ export const dataSourceOptions: DataSourceOptions = {
 };
 
 export const AppDataSource = new DataSource(dataSourceOptions);
-export { ContainerStatusEvent };
+export { ContainerStatusEvent, Container };
 
 /**
  * 初始化数据库连接

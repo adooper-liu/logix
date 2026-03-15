@@ -84,6 +84,8 @@
 
 | 表 / 步骤 | 字段 | 说明 |
 |-----------|------|------|
-| biz_replenishment_orders | sell_to_country | 与客户名称关联的键，用于查客户 |
+| biz_replenishment_orders | sell_to_country | 销往该国分公司：存子公司名称，与 customer_name 关联 |
 | biz_customers | customer_name | 与 order.sell_to_country 关联 |
-| biz_customers | country | 国家过滤值来源，与 dict_countries.code 对应 |
+| biz_customers | country | 国家过滤值来源，与 dict_countries.code 对应（该国分公司） |
+
+**国家概念统一约定**：详见 `11-project/12-国家概念统一约定.md`。country 字段实质指该国分公司，对应子公司类型客户。

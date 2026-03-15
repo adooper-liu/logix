@@ -56,6 +56,27 @@ class DictService {
     return data
   }
 
+  // 带国家过滤的仓库列表
+  async getWarehouses(country?: string): Promise<DictListResponse> {
+    const params = country ? { country } : {}
+    const { data } = await this.api.get('/dict/warehouses', { params })
+    return data
+  }
+
+  // 带国家过滤的车队列表
+  async getTruckingCompanies(country?: string): Promise<DictListResponse> {
+    const params = country ? { country } : {}
+    const { data } = await this.api.get('/dict/trucking-companies', { params })
+    return data
+  }
+
+  // 带国家过滤的清关公司列表
+  async getCustomsBrokers(country?: string): Promise<DictListResponse> {
+    const params = country ? { country } : {}
+    const { data } = await this.api.get('/dict/customs-brokers', { params })
+    return data
+  }
+
   async resolveDemurrageCodes(params: {
     destination_port_code?: string
     destination_port_name?: string

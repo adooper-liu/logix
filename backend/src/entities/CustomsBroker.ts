@@ -31,6 +31,9 @@ export class CustomsBroker {
   @Column({ type: 'varchar', length: 10, default: 'ACTIVE', name: 'status' })
   status: string;
 
+  @Column({ type: 'varchar', length: 50, nullable: true, name: 'country' })
+  country?: string;
+
   @Column({ type: 'text', nullable: true, name: 'remarks' })
   remarks?: string;
 

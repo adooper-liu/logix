@@ -102,7 +102,107 @@ class ContainerService {
     return response.data;
   }
 
+  /**
+   * 更新货柜计划（手工排柜）
+   * PATCH /api/containers/:id/schedule
+   */
+  async updateSchedule(
+    id: string,
+    schedule: {
+      plannedCustomsDate?: string;
+      plannedPickupDate?: string;
+      plannedDeliveryDate?: string;
+      plannedUnloadDate?: string;
+      plannedReturnDate?: string;
+      truckingCompanyId?: string;
+      customsBrokerCode?: string;
+      warehouseId?: string;
+      unloadModePlan?: string;
+    }
+  ): Promise<{ success: boolean; message?: string }> {
+    const response = await this.api.patch(`/containers/${id}/schedule`, schedule);
+    return response.data;
+  }
 
+  /**
+   * 批量排产（智能排柜）
+   * POST /api/scheduling/batch-schedule
+   */
+  async batchSchedule(params: {
+    country?: string
+    startDate?: string
+    endDate?: string
+    forceSchedule?: boolean
+    limit?: number
+    skip?: number
+  }): Promise<{
+    success: boolean
+    total: number
+    successCount: number
+    failedCount: number
+    results: Array<{
+      containerNumber: string
+      success: boolean
+      message?: string
+      plannedData?: Record<string, string>
+    }>
+    hasMore?: boolean
+  }> {
+    const response = await this.api.post('/scheduling/batch-schedule', params, {
+      timeout: 180000 // 3 分钟，排产可能较耗时
+    })
+    return response.data
+  }
+
+  /**
+   * 获取排产概览信息
+   * GET /api/scheduling/overview
+   */
+  async getSchedulingOverview(params?: {
+    startDate?: string
+    endDate?: string
+  }): Promise<{
+    success: boolean
+    data: {
+      pendingCount: number
+      initialCount: number
+      issuedCount: number
+      warehouses: Array<{
+        code: string
+        name: string
+        country: string
+        dailyCapacity: number
+      }>
+      truckings: Array<{
+        code: string
+        name: string
+        country: string
+        dailyCapacity: number
+      }>
+    }
+  }> {
+    const response = await this.api.get('/scheduling/overview', { params })
+    return response.data
+  }
+
+  /**
+   * 批量计算并写回滞港费日期（最晚提柜日/最晚还箱日）
+   * POST /api/v1/demurrage/batch-write-back
+   */
+  async batchWriteBackDemurrageDates(params?: {
+    limitLastFree?: number
+    limitLastReturn?: number
+  }): Promise<{
+    success: boolean
+    lastFreeWritten: number
+    lastFreeProcessed: number
+    lastReturnWritten: number
+    lastReturnProcessed: number
+    message?: string
+  }> {
+    const response = await this.api.post('/demurrage/batch-write-back', params || {})
+    return response.data
+  }
 
   /**
    * 获取货柜统计数据

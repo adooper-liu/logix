@@ -9,8 +9,10 @@ description: Develop features for LogiX logistics management system following pr
 >
 > - 🔗 **database-query** - 数据库查询专用技能
 > - 🔗 **document-processing** - Excel/PDF 文档处理技能
+> - 🔗 **excel-import-requirements** - Excel 导入规范（映射、类型转换、主键、模板）
 > - 🔗 **code-review** - 代码质量审查技能
 > - 🔗 **commit-message** - Git 提交信息生成技能
+> - 🔗 **ai-collaboration-methodology** - 需求理解、错误排查、SOP 流程
 
 ## 🎯 核心原则（必须遵守）
 
@@ -243,6 +245,8 @@ inspectionRequired: boolean;
 <!-- ❌ 错误做法：使用 camelCase 或不一致的表名 -->
 ```
 
+> 📖 完整 Excel 导入要求见 **excel-import-requirements** 技能
+
 ### 场景 3：日期筛选
 
 ```typescript
@@ -307,7 +311,8 @@ await ContainerStatusService.batchUpdateContainerStatuses(containerNumbers);
 ### Skills（本系列）
 
 - **database-query** - 数据库查询规范
-- **document-processing** - Excel 导入约定
+- **document-processing** - Excel/PDF 文档处理
+- **excel-import-requirements** - Excel 导入完整规范
 - **code-review** - 代码审查清单
 - **commit-message** - Git 提交规范
 

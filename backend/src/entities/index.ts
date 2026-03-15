@@ -41,3 +41,14 @@ export { ExtDemurrageRecord } from './ExtDemurrageRecord';
 // 查验扩展表 (Inspection Extension Tables)
 export { InspectionRecord } from './InspectionRecord';
 export { InspectionEvent } from './InspectionEvent';
+
+// 物流节点映射表 (Mapping Tables)
+export { PortWarehouseMapping } from './PortWarehouseMapping';
+export { WarehouseTruckingMapping } from './WarehouseTruckingMapping';
+export { TruckingPortMapping } from './TruckingPortMapping';
+
+// 智能排柜资源占用表 (Intelligent Scheduling Resource Tables)
+export { ExtWarehouseDailyOccupancy } from './ExtWarehouseDailyOccupancy';
+export { ExtTruckingSlotOccupancy } from './ExtTruckingSlotOccupancy';
+export { ExtYardDailyOccupancy } from './ExtYardDailyOccupancy';
+export { Yard } from './Yard';

@@ -116,4 +116,12 @@ router.post('/:containerNumber/update-status', containerController.updateContain
  */
 router.post('/update-statuses/batch', containerController.batchUpdateContainerStatuses);
 
+/**
+ * @route   PATCH /:id/schedule
+ * @desc    更新货柜计划（手工排柜）
+ * @access  Public
+ * @body    plannedCustomsDate, plannedPickupDate, plannedDeliveryDate, plannedUnloadDate, plannedReturnDate, truckingCompanyId, customsBrokerCode, warehouseId, unloadModePlan
+ */
+router.patch('/:id/schedule', containerController.updateSchedule);
+
 export default router;

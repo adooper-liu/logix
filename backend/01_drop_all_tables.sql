@@ -23,6 +23,11 @@ DROP TABLE IF EXISTS process_warehouse_operations CASCADE;
 DROP TABLE IF EXISTS process_empty_return CASCADE;
 
 -- 删除扩展表 (Extension Tables)
+DROP TABLE IF EXISTS ext_inspection_events CASCADE;
+DROP TABLE IF EXISTS ext_inspection_records CASCADE;
+DROP TABLE IF EXISTS ext_warehouse_daily_occupancy CASCADE;
+DROP TABLE IF EXISTS ext_trucking_slot_occupancy CASCADE;
+DROP TABLE IF EXISTS ext_yard_daily_occupancy CASCADE;
 DROP TABLE IF EXISTS ext_container_status_events CASCADE;
 DROP TABLE IF EXISTS ext_container_loading_records CASCADE;
 DROP TABLE IF EXISTS ext_container_hold_records CASCADE;
@@ -32,6 +37,12 @@ DROP TABLE IF EXISTS ext_demurrage_standards CASCADE;
 DROP TABLE IF EXISTS ext_feituo_import_table1 CASCADE;
 DROP TABLE IF EXISTS ext_feituo_import_table2 CASCADE;
 DROP TABLE IF EXISTS ext_feituo_import_batch CASCADE;
+
+-- 删除映射表与资源表 (Mapping & Resource Tables)
+DROP TABLE IF EXISTS dict_port_warehouse_mapping CASCADE;
+DROP TABLE IF EXISTS dict_warehouse_trucking_mapping CASCADE;
+DROP TABLE IF EXISTS dict_trucking_port_mapping CASCADE;
+DROP TABLE IF EXISTS dict_yards CASCADE;
 
 -- 删除系统表 (System Tables)
 DROP TABLE IF EXISTS sys_data_change_log CASCADE;

@@ -61,7 +61,23 @@
   - PDF 提取技巧
   - 字段映射校验
 
-#### 4. **code-review** - 代码质量审查
+#### 4. **excel-import-requirements** - Excel 导入规范
+
+- **文件**: `excel-import-requirements/SKILL.md`
+- **用途**: LogiX Excel 导入的完整要求与实现规范
+- **使用场景**:
+  - ✅ 实现或扩展 Excel 导入功能
+  - ✅ 调试导入错误
+  - ✅ 新增字典/业务导入
+  - ✅ 编写导入模板
+- **核心内容**:
+  - 映射与命名规则
+  - 类型转换（布尔、日期、数字）
+  - 主键处理（业务主键 vs 自增 id）
+  - 模板导出规范
+  - 后端要求与检查清单
+
+#### 5. **code-review** - 代码质量审查
 
 - **文件**: `code-review/SKILL.md`
 - **用途**: 代码质量、安全性和可维护性审查
@@ -80,7 +96,7 @@
 
 ### ⭐ 辅助技能
 
-#### 5. **commit-message** - Git 提交信息生成
+#### 6. **commit-message** - Git 提交信息生成
 
 - **文件**: `commit-message/SKILL.md`
 - **用途**: 生成规范的 Conventional Commits 提交信息
@@ -93,6 +109,23 @@
   - Type 分类说明
   - Scope 命名建议
   - 示例模板
+
+#### 7. **ai-collaboration-methodology** - AI 协作开发方法论
+
+- **文件**: `ai-collaboration-methodology/SKILL.md`
+- **用途**: 需求理解、技能调用、错误排查、SOP 流程
+- **使用场景**:
+  - ✅ 开发/排查时按流程执行
+  - ✅ 需求澄清（避免过度编辑）
+  - ✅ 错误分类与定位
+  - ✅ 避免重复问题
+- **核心内容**:
+  - 技能调用流程
+  - 需求理解四步法
+  - 错误排查速查表
+  - 智能排产 message→动作
+  - 避免重复问题清单
+  - SOP 速查
 
 ---
 
@@ -137,6 +170,11 @@
 3. document-processing ⭐⭐ (如需导入数据)
    └─ Excel 映射配置
    └─ 字段校验
+
+4. excel-import-requirements ⭐⭐ (实现/扩展 Excel 导入)
+   └─ 映射与命名规则
+   └─ 类型转换、主键处理
+   └─ 模板导出、后端要求
 ```
 
 ### 代码审查时
@@ -157,13 +195,15 @@
 
 ## 📊 Skills 功能对比
 
-| Skill                   | 开发规范 | 数据库   | 代码审查 | 文档处理 | Git 提交 | 专属程度   |
-| ----------------------- | -------- | -------- | -------- | -------- | -------- | ---------- |
-| **logix-development**   | ✅⭐⭐⭐ | ✅⭐⭐   | ✅⭐⭐   | ❌       | ❌       | LogiX 专属 |
-| **database-query**      | ✅       | ✅⭐⭐⭐ | ❌       | ❌       | ❌       | 通用       |
-| **document-processing** | ✅       | ✅       | ❌       | ✅⭐⭐⭐ | ❌       | 通用       |
-| **code-review**         | ✅⭐⭐   | ✅       | ✅⭐⭐⭐ | ❌       | ❌       | 通用       |
-| **commit-message**      | ❌       | ❌       | ❌       | ❌       | ✅⭐⭐⭐ | 通用       |
+| Skill                      | 开发规范 | 数据库   | 代码审查 | 文档处理 | Excel 导入 | Git 提交 | 专属程度   |
+| -------------------------- | -------- | -------- | -------- | -------- | ---------- | -------- | ---------- |
+| **logix-development**      | ✅⭐⭐⭐ | ✅⭐⭐   | ✅⭐⭐   | ❌       | ❌         | ❌       | LogiX 专属 |
+| **database-query**         | ✅       | ✅⭐⭐⭐ | ❌       | ❌       | ❌         | ❌       | 通用       |
+| **document-processing**    | ✅       | ✅       | ❌       | ✅⭐⭐⭐ | ✅         | ❌       | 通用       |
+| **excel-import-requirements** | ✅     | ✅       | ❌       | ✅       | ✅⭐⭐⭐ | ❌       | LogiX 专属 |
+| **code-review**            | ✅⭐⭐   | ✅       | ✅⭐⭐⭐ | ❌       | ❌         | ❌       | 通用       |
+| **commit-message**         | ❌       | ❌       | ❌       | ❌       | ❌         | ✅⭐⭐⭐ | 通用       |
+| **ai-collaboration-methodology** | ✅       | ✅       | ✅       | ❌       | ❌         | ❌       | 通用       |
 
 ---
 

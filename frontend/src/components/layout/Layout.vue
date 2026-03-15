@@ -6,17 +6,22 @@ import {
   ArrowDown,
   Box,
   Calendar,
+  Collection,
   Connection,
+  Cpu,
   DataBoard,
   DataLine,
   Document,
   DocumentCopy,
+  FolderOpened,
   Grid,
   House,
   InfoFilled,
+  MagicStick,
   Money,
   Monitor,
   Notebook,
+  QuestionFilled,
   Reading,
   Setting,
   Share,
@@ -47,13 +52,18 @@ onMounted(async () => {
     
     if (res?.success && Array.isArray(res.data)) {
       console.log('[国家筛选] 成功获取国家数据，数量:', res.data.length)
+      const fromApi = res.data.map((c: { code: string; nameCn: string; nameEn: string }) => ({
+        value: c.code,
+        label: c.nameCn || c.nameEn || c.code
+      }))
       countryOptions.value = [
         { value: '', label: t('common.allCountries') || '全部国家' },
-        ...res.data.map((c: { code: string; nameCn: string; nameEn: string }) => ({
-          value: c.code,
-          label: c.nameCn || c.nameEn || c.code
-        }))
+        ...fromApi
       ]
+      // GB 别名 UK，后端会规范化 UK->GB
+      if (fromApi.some((o: { value: string }) => o.value === 'GB')) {
+        countryOptions.value.push({ value: 'UK', label: '英国 (UK)' })
+      }
       console.log('[国家筛选] 国家选项设置完成，总数:', countryOptions.value.length)
     } else {
       console.error('[国家筛选] API返回数据格式不正确:', res)
@@ -80,6 +90,11 @@ const menuGroups = computed(() => [
         path: '/shipments',
         name: 'Shipments',
         meta: { title: t('nav.containerManagement'), icon: 'Box' },
+      },
+      {
+        path: '/scheduling',
+        name: 'SchedulingVisual',
+        meta: { title: '智能排产', icon: 'Cpu' },
       },
     ],
   },
@@ -118,10 +133,47 @@ const menuGroups = computed(() => [
         meta: { title: t('nav.dictMapping'), icon: 'DocumentCopy' },
       },
       {
+        path: '/dict-manage',
+        name: 'DictManage',
+        meta: { title: t('nav.dictManage'), icon: 'Collection' },
+      },
+      {
+        path: '/warehouse-trucking-mapping',
+        name: 'WarehouseTruckingMapping',
+        meta: { title: t('nav.warehouseTruckingMapping'), icon: 'OfficeBuilding' },
+      },
+      {
+        path: '/trucking-port-mapping',
+        name: 'TruckingPortMapping',
+        meta: { title: t('nav.truckingPortMapping'), icon: 'Location' },
+      },
+      {
         path: '/settings',
         name: 'Settings',
         meta: { title: t('nav.settings'), icon: 'Setting' },
       },
+    ],
+  },
+  {
+    title: 'AI',
+    icon: 'MagicStick',
+    items: [
+      {
+        path: '/ai-chat',
+        name: 'AIChat',
+        meta: { title: '小乐', icon: 'MagicStick' },
+      },
+      {
+        path: '/knowledge-base',
+        name: 'KnowledgeBase',
+        meta: { title: '知识库管理', icon: 'FolderOpened' },
+      },
+    ],
+  },
+  {
+    title: t('nav.help') + ' & ' + t('nav.about'),
+    icon: 'QuestionFilled',
+    items: [
       {
         path: '/help',
         name: 'HelpDocumentation',
@@ -141,6 +193,7 @@ const iconMap: Record<string, unknown> = {
   DataBoard,
   DataLine,
   Connection,
+  Cpu,
   Grid,
   Calendar,
   Warning,
@@ -157,6 +210,10 @@ const iconMap: Record<string, unknown> = {
   InfoFilled,
   DocumentCopy,
   Notebook,
+  Collection,
+  MagicStick,
+  FolderOpened,
+  QuestionFilled,
 }
 
 // 当前激活的路由

@@ -8,6 +8,12 @@ import { AppDataSource } from '../database';
 import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
 import { PortOperation } from '../entities/PortOperation';
 import { Container } from '../entities/Container';
+import { SeaFreight } from '../entities/SeaFreight';
+import { TruckingTransport } from '../entities/TruckingTransport';
+import { EmptyReturn } from '../entities/EmptyReturn';
+import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
+import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
+import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { logger } from '../utils/logger';
 import {
   shouldUpdateCoreField,
@@ -15,6 +21,7 @@ import {
   getPortTypeForStatusCode,
 } from '../constants/FeiTuoStatusMapping';
 import { auditLogService } from './auditLog.service';
+import { DemurrageService } from './demurrage.service';
 
 /**
  * 飞驼API响应数据结构
@@ -92,6 +99,16 @@ export class ExternalDataService {
   // 数据仓库
   private portOperationRepository = AppDataSource.getRepository(PortOperation);
   private containerRepository = AppDataSource.getRepository(Container);
+  private demurrageService = new DemurrageService(
+    AppDataSource.getRepository(ExtDemurrageStandard),
+    AppDataSource.getRepository(Container),
+    AppDataSource.getRepository(PortOperation),
+    AppDataSource.getRepository(SeaFreight),
+    AppDataSource.getRepository(TruckingTransport),
+    AppDataSource.getRepository(EmptyReturn),
+    AppDataSource.getRepository(ReplenishmentOrder),
+    AppDataSource.getRepository(ExtDemurrageRecord)
+  );
 
   constructor(config?: { apiKey?: string; apiUrl?: string }) {
     this.apiConfig = config || {
@@ -347,10 +364,20 @@ export class ExternalDataService {
       const savedEvents = await this.saveStatusEvents(events);
 
       // 关键: 更新PortOperation表的核心时间字段
-      await this.updatePortOperationCoreFields(containerNumber, externalData[0].trackingEvents);
+      const updatedAtaFields = await this.updatePortOperationCoreFields(
+        containerNumber,
+        externalData[0].trackingEvents
+      );
 
       // 关键: 重新计算货柜的物流状态
       await this.recalculateLogisticsStatus(containerNumber);
+
+      // ATA 到港后触发滞港费重算，actual 模式覆盖 forecast 写入的 last_free_date
+      if (updatedAtaFields.length > 0) {
+        this.demurrageService.calculateForContainer(containerNumber).catch((e) =>
+          logger.warn('[ExternalDataService] demurrage recalc on ATA update failed:', e)
+        );
+      }
 
       logger.info(`[ExternalDataService] 成功同步货柜 ${containerNumber} 的 ${savedEvents.length} 个状态事件`);
       return savedEvents;
@@ -361,17 +388,23 @@ export class ExternalDataService {
     }
   }
 
+  private static readonly ATA_RELATED_FIELDS = ['ata_dest_port', 'dest_port_unload_date', 'discharged_time'];
+
   /**
    * 更新PortOperation表的核心时间字段
    * 根据飞驼状态代码更新对应的字段
    *
    * @param containerNumber 集装箱号
    * @param feituoEvents 飞驼事件数组
+   * @returns 更新的目的港 ATA 相关字段（用于触发滞港费重算）
    */
-  private async updatePortOperationCoreFields(containerNumber: string, feituoEvents: FeituoEvent[]): Promise<void> {
+  private async updatePortOperationCoreFields(
+    containerNumber: string,
+    feituoEvents: FeituoEvent[]
+  ): Promise<string[]> {
     try {
       if (!feituoEvents || feituoEvents.length === 0) {
-        return;
+        return [];
       }
 
       // 查找所有港口操作记录
@@ -382,11 +415,12 @@ export class ExternalDataService {
 
       if (portOperations.length === 0) {
         logger.warn(`[ExternalDataService] 货柜 ${containerNumber} 没有港口操作记录`);
-        return;
+        return [];
       }
 
       let updatedCount = 0;
       const changedFields: Record<string, { old?: unknown; new?: unknown }> = {};
+      const updatedAtaFields: string[] = [];
 
       // 遍历飞驼事件,更新对应的核心时间字段
       for (const event of feituoEvents) {
@@ -436,6 +470,12 @@ export class ExternalDataService {
             new: eventTime.toISOString()
           };
           (targetPortOperation as any)[coreFieldName] = eventTime;
+          if (
+            targetPortOperation.portType === 'destination' &&
+            ExternalDataService.ATA_RELATED_FIELDS.includes(coreFieldName)
+          ) {
+            updatedAtaFields.push(coreFieldName);
+          }
 
           // 标记数据源
           if (!targetPortOperation.dataSource) {
@@ -463,6 +503,7 @@ export class ExternalDataService {
         });
       }
 
+      return updatedAtaFields;
     } catch (error) {
       logger.error(`[ExternalDataService] 更新核心字段失败:`, error);
       throw error;
@@ -559,8 +600,16 @@ export class ExternalDataService {
               try {
                 const events = this.convertFeituoToStatusEvents(data, dataSource);
                 await this.saveStatusEvents(events);
-                await this.updatePortOperationCoreFields(data.containerNumber, data.trackingEvents);
+                const updatedAtaFields = await this.updatePortOperationCoreFields(
+                  data.containerNumber,
+                  data.trackingEvents
+                );
                 await this.recalculateLogisticsStatus(data.containerNumber);
+                if (updatedAtaFields.length > 0) {
+                  this.demurrageService.calculateForContainer(data.containerNumber).catch((e) =>
+                    logger.warn('[ExternalDataService] demurrage recalc on ATA update failed:', e)
+                  );
+                }
                 return data.containerNumber;
               } catch (error: any) {
                 logger.error(`[ExternalDataService] 处理货柜 ${data.containerNumber} 失败:`, error);

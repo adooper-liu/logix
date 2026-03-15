@@ -9,6 +9,9 @@ import { Port } from '../entities/Port';
 import { ShippingCompany } from '../entities/ShippingCompany';
 import { FreightForwarder } from '../entities/FreightForwarder';
 import { OverseasCompany } from '../entities/OverseasCompany';
+import { Warehouse } from '../entities/Warehouse';
+import { TruckingCompany } from '../entities/TruckingCompany';
+import { CustomsBroker } from '../entities/CustomsBroker';
 import { logger } from '../utils/logger';
 
 export class DictController {
@@ -111,6 +114,111 @@ export class DictController {
       });
     } catch (error: any) {
       logger.error('[Dict] getOverseasCompanies error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  /**
+   * GET /api/v1/dict/warehouses
+   * 仓库列表（用于下拉选择）
+   * Query: country - 可选，按国家过滤
+   */
+  getWarehouses = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { country } = req.query;
+      const repo = AppDataSource.getRepository(Warehouse);
+      const where: any = { status: 'ACTIVE' };
+      if (country) {
+        where.country = String(country);
+      }
+      const list = await repo.find({
+        select: ['warehouseCode', 'warehouseName', 'warehouseNameEn', 'country', 'city', 'address'],
+        where,
+        order: { warehouseName: 'ASC' }
+      });
+      res.json({
+        success: true,
+        data: list.map((w) => ({
+          code: w.warehouseCode,
+          name: w.warehouseName,
+          nameEn: w.warehouseNameEn,
+          country: w.country,
+          city: w.city,
+          address: w.address
+        }))
+      });
+    } catch (error: any) {
+      logger.error('[Dict] getWarehouses error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  /**
+   * GET /api/v1/dict/trucking-companies
+   * 拖车公司列表（用于下拉选择）
+   * Query: country - 可选，按国家过滤
+   */
+  getTruckingCompanies = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { country } = req.query;
+      const repo = AppDataSource.getRepository(TruckingCompany);
+      const where: any = { status: 'ACTIVE' };
+      if (country) {
+        where.country = String(country);
+      }
+      const list = await repo.find({
+        select: ['companyCode', 'companyName', 'companyNameEn', 'contactPhone', 'contactEmail', 'country'],
+        where,
+        order: { companyName: 'ASC' }
+      });
+      res.json({
+        success: true,
+        data: list.map((t) => ({
+          code: t.companyCode,
+          name: t.companyName,
+          nameEn: t.companyNameEn,
+          contactPhone: t.contactPhone,
+          contactEmail: t.contactEmail,
+          country: t.country
+        }))
+      });
+    } catch (error: any) {
+      logger.error('[Dict] getTruckingCompanies error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  /**
+   * GET /api/v1/dict/customs-brokers
+   * 清关公司列表（用于下拉选择）
+   * Query: country - 可选，按国家过滤
+   */
+  getCustomsBrokers = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { country } = req.query;
+      const repo = AppDataSource.getRepository(CustomsBroker);
+      const where: any = { status: 'ACTIVE' };
+      if (country) {
+        where.country = String(country);
+      }
+      const list = await repo.find({
+        select: ['brokerCode', 'brokerName', 'brokerNameEn', 'contactPhone', 'contactEmail', 'country'],
+        where,
+        order: { brokerName: 'ASC' }
+      });
+      res.json({
+        success: true,
+        data: list.map((c) => ({
+          code: c.brokerCode,
+          name: c.brokerName,
+          nameEn: c.brokerNameEn,
+          contactPhone: c.contactPhone,
+          contactEmail: c.contactEmail,
+          country: c.country
+        }))
+      });
+    } catch (error: any) {
+      logger.error('[Dict] getCustomsBrokers error:', error);
       res.status(500).json({ success: false, message: error.message });
     }
   };

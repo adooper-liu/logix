@@ -14,16 +14,13 @@ import {
 @Entity('dict_customer_types')
 export class CustomerType {
   @PrimaryColumn({ type: 'varchar', length: 20, name: 'type_code' })
-  typeCode!: string; // 类型代码 (WAYFAIR, AMAZON, PRIVATE, RESELLER等)
+  typeCode!: string; // 类型代码
 
-  @Column({ type: 'varchar', length: 50, name: 'type_name' })
-  typeName!: string; // 类型名称 (Wayfair, Amazon, 私有客户, 零售商等)
+  @Column({ type: 'varchar', length: 50, name: 'type_name_cn' })
+  typeNameCn!: string; // 中文名称
 
-  @Column({ type: 'varchar', length: 10, nullable: true, name: 'category' })
-  category!: string; // 类别 (PLATFORM-平台, PRIVATE-私有, RESELLER-经销商等)
-
-  @Column({ type: 'text', nullable: true, name: 'description' })
-  description!: string; // 描述
+  @Column({ type: 'varchar', length: 50, name: 'type_name_en' })
+  typeNameEn!: string; // 英文名称
 
   @Column({ type: 'int', default: 0, name: 'sort_order' })
   sortOrder!: number; // 排序

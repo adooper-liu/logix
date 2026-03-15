@@ -430,7 +430,9 @@ export class DemurrageService {
     }
 
     const ata = destPort?.ataDestPort ? toDateOnly(destPort.ataDestPort) : null;
-    const revisedEta = destPort?.revisedEtaDestPort ? toDateOnly(destPort.revisedEtaDestPort) : null;
+    // 修正ETA：revised_eta_dest_port 为空时回退使用 eta_correction（Excel 导入的「ETA修正」）
+    const revisedEtaRaw = destPort?.revisedEtaDestPort ?? destPort?.etaCorrection;
+    const revisedEta = revisedEtaRaw ? toDateOnly(revisedEtaRaw) : null;
     const etaFromPort = destPort?.etaDestPort ? toDateOnly(destPort.etaDestPort) : null;
     const etaFromSeaFreight = (sf as any)?.eta ? toDateOnly((sf as any).eta) : null;
     const eta = revisedEta ?? etaFromPort ?? etaFromSeaFreight;
@@ -1143,18 +1145,15 @@ export class DemurrageService {
       };
     }
 
-    // 4. 异步写回：仅在 actual 模式下写回，forecast 模式不写回数据库（仅用于预测/预警）
-    if (calculationMode === 'actual') {
-      this.writeBackComputedDatesIfNeeded(
-        containerNumber,
-        params.calculationDates.pickupDateActual,
-        params.calculationDates.returnTime,
-        computedLastFreeDate,
-        computedLastReturnDate
-      ).catch((err) => logger.warn('[Demurrage] writeBackComputedDates failed:', err));
-    } else {
-      logger.info(`[Demurrage] Forecast calculation for ${containerNumber} - skipping database write-back`);
-    }
+    // 4. 异步写回：last_free_date 支持 forecast 写回（智能排柜/预警）；last_return_date 仅 actual 写回
+    this.writeBackComputedDatesIfNeeded(
+      containerNumber,
+      params.calculationDates.pickupDateActual,
+      params.calculationDates.returnTime,
+      computedLastFreeDate,
+      computedLastReturnDate,
+      calculationMode
+    ).catch((err) => logger.warn('[Demurrage] writeBackComputedDates failed:', err));
 
     const primaryStart = enhancedParams.startDate ?? enhancedParams.detentionStartDate;
     const primaryEnd = enhancedParams.endDate ?? enhancedParams.detentionEndDate;
@@ -1750,10 +1749,20 @@ export class DemurrageService {
     let lastFreeWritten = 0;
     let lastReturnWritten = 0;
 
-    // 1. last_free_date 为空且已到目的港
-    const noLastFreeSql = LastPickupSubqueryTemplates.NO_LAST_FREE_DATE_SUBQUERY;
+    // 1. last_free_date 写回目标集：
+    //    - 已到目的港 last_free_date 为空
+    //    - 未到目的港但有 ETA last_free_date 为空（forecast 写回）
+    //    - 目的港有 ATA 且 last_free_date_mode='forecast'（ATA 到港后 actual 覆盖）
+    const noLastFreeAtaSql = LastPickupSubqueryTemplates.NO_LAST_FREE_DATE_SUBQUERY;
+    const noLastFreeEtaSql = LastPickupSubqueryTemplates.NO_LAST_FREE_DATE_WITH_ETA_SUBQUERY;
+    const ataForecastSql = LastPickupSubqueryTemplates.ATA_WITH_FORECAST_LAST_FREE_SUBQUERY;
     const lastFreeRows = await this.containerRepo.query(
-      `SELECT container_number FROM (${noLastFreeSql}) t LIMIT ${Math.max(1, limitLastFree)}`
+      `(SELECT container_number FROM (${noLastFreeAtaSql}) t)
+       UNION
+       (${noLastFreeEtaSql})
+       UNION
+       (${ataForecastSql})
+       LIMIT ${Math.max(1, limitLastFree)}`
     );
     const lastFreeNumbers = (lastFreeRows || []).map((r: { container_number: string }) => r.container_number).filter(Boolean);
 
@@ -1796,16 +1805,18 @@ export class DemurrageService {
   }
 
   /**
-   * 写回计算的最晚提柜日/最晚还箱日到 DB（当 DB 为空时）
-   * 最晚提柜日：仅当无实际提柜日时写回（滞港费用）
-   * 最晚还箱日：仅当有实际提柜日且无实际还箱日时写回（滞箱费用，必须以实际提柜日为起算，预测模式不写回）
+   * 写回计算的最晚提柜日/最晚还箱日到 DB
+   * 最晚提柜日：无实际提柜日时写回；actual/forecast 均允许覆盖，并写入 last_free_date_mode 区分来源
+   * forecast 每次都重新计算（ETA 变化时更新）；actual 覆盖 forecast（ATA 到港后重算）
+   * 最晚还箱日：仅 actual 模式、有实际提柜日且无实际还箱日时写回
    */
   private async writeBackComputedDatesIfNeeded(
     containerNumber: string,
     pickupDateActual: Date | null,
     returnTime: Date | null,
     computedLastFreeDate: Date | null,
-    computedLastReturnDate: Date | null
+    computedLastReturnDate: Date | null,
+    calculationMode: 'actual' | 'forecast'
   ): Promise<void> {
     // 最晚提柜日：无实际提柜日时才写回（滞港费免费期截止）
     if (!pickupDateActual && computedLastFreeDate) {
@@ -1813,15 +1824,19 @@ export class DemurrageService {
         where: { containerNumber, portType: 'destination' },
         order: { portSequence: 'DESC' }
       });
-      if (destPort && !destPort.lastFreeDate) {
-        await this.portOpRepo.update({ id: destPort.id }, { lastFreeDate: computedLastFreeDate });
-        logger.info(`[Demurrage] Wrote back last_free_date for ${containerNumber}`);
+      if (destPort) {
+        // actual/forecast 均允许覆盖：forecast 每次都重新计算，actual 覆盖 forecast
+        await this.portOpRepo.update(
+          { id: destPort.id },
+          { lastFreeDate: computedLastFreeDate, lastFreeDateMode: calculationMode }
+        );
+        logger.info(`[Demurrage] Wrote back last_free_date for ${containerNumber} (${calculationMode})`);
       }
     }
 
-    // 最晚还箱日：必须有实际提柜日且无实际还箱日时写回（滞箱费最晚还箱日，预测模式使用计划提柜日不写回）
+    // 最晚还箱日：仅 actual 模式、必须有实际提柜日且无实际还箱日时写回（滞箱费最晚还箱日）
     if (returnTime) return; // 已还箱，不再写回最晚还箱日
-    if (computedLastReturnDate && pickupDateActual) {
+    if (calculationMode === 'actual' && computedLastReturnDate && pickupDateActual) {
       let emptyReturn = await this.emptyReturnRepo.findOne({
         where: { containerNumber }
       });

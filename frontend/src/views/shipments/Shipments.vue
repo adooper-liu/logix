@@ -3,6 +3,7 @@ import CountdownCard from '@/components/CountdownCard.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import { useContainerCountdown } from '@/composables/useContainerCountdown'
 import { containerService } from '@/services/container'
+import { useAppStore } from '@/store/app'
 import { useGanttFilterStore } from '@/store/ganttFilters'
 import type { PaginationParams } from '@/types'
 import type { PortOperation } from '@/types/container'
@@ -23,8 +24,8 @@ import {
     Warning,
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
-import { ElMessage } from 'element-plus'
-import { computed, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { computed, h, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -754,6 +755,114 @@ const handleBatchExport = () => {
   ElMessage.success(`已导出 ${selectedRows.value.length} 条`)
 }
 
+// 一键排产（智能排柜）
+const batchScheduleLoading = ref(false)
+const handleBatchSchedule = async () => {
+  // 操作指引对话框
+  const confirmed = await ElMessageBox.confirm(
+    h('div', { style: 'text-align: left; line-height: 1.8;' }, [
+      h('p', { style: 'margin-bottom: 12px; font-weight: bold;' }, '智能排产流程：'),
+      h('ol', { style: 'padding-left: 20px; margin: 0;' }, [
+        h('li', '查询所有"待排产"状态的货柜（schedule_status = initial）'),
+        h('li', '按清关可放行日排序（先到先得）'),
+        h('li', '为每个货柜匹配滞港费标准，计算最晚提柜日'),
+        h('li', '根据目的港选择候选仓库和车队'),
+        h('li', '计算计划提柜日、计划卸柜日、最晚还箱日'),
+        h('li', '更新货柜的排产状态和计划日期')
+      ]),
+      h('p', { style: 'margin-top: 12px; color: #909399; font-size: 13px;' },
+        '提示：处理"待排产"(initial)和"已排产"(issued)状态，"已派工"(dispatched)的货柜不可重复处理'
+      )
+    ]),
+    '一键排产',
+    {
+      confirmButtonText: '开始排产',
+      cancelButtonText: '取消',
+      type: 'warning',
+      dangerouslyUseHTMLString: true
+    }
+  ).catch(() => false)
+
+  if (!confirmed) return
+
+  batchScheduleLoading.value = true
+  try {
+    const result = await containerService.batchSchedule({
+      country: useAppStore().scopedCountryCode?.trim() || undefined,
+      startDate: shipmentDateRange.value?.[0] ? dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD') : undefined,
+      endDate: shipmentDateRange.value?.[1] ? dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD') : undefined
+    })
+
+    if (result.success) {
+      ElMessage.success(`排产完成：成功 ${result.successCount}/${result.total} 个`)
+      // 刷新列表
+      await loadContainers()
+    } else {
+      ElMessage.error(result.results?.[0]?.message || '排产失败')
+    }
+  } catch (error: any) {
+    ElMessage.error(error.message || '排产失败')
+  } finally {
+    batchScheduleLoading.value = false
+  }
+}
+
+// 免费日更新
+const demurrageWriteBackLoading = ref(false)
+const handleDemurrageWriteBack = async () => {
+  const confirmed = await ElMessageBox.confirm(
+    h('div', { style: 'text-align: left; line-height: 2;' }, [
+      h('p', { style: 'margin-bottom: 16px; font-weight: bold; font-size: 15px;' }, '免费日计算逻辑'),
+      h('div', { style: 'background: #f5f7fa; padding: 12px; border-radius: 4px; margin-bottom: 16px;' }, [
+        h('p', { style: 'font-weight: bold; margin-bottom: 8px;' }, '① 最晚提柜日 (last_free_date)'),
+        h('p', { style: 'margin: 0; color: #606266;' }, '计算公式：基准日 + (免费天数 - 1)天'),
+        h('p', { style: 'margin: 8px 0 0 0; color: #909399; font-size: 13px;' }, '基准日优先级：修正ETA → ETA → ATA → 实际卸船日'),
+        h('p', { style: 'margin: 8px 0 0 0; color: #409eff; font-size: 13px;' }, '举例：ETA=2026-02-16，免费天数=7天（来自滞港费标准表）→ last_free_date=2026-02-22')
+      ]),
+      h('div', { style: 'background: #f5f7fa; padding: 12px; border-radius: 4px;' }, [
+        h('p', { style: 'font-weight: bold; margin-bottom: 8px;' }, '② 最晚还箱日 (last_return_date)'),
+        h('p', { style: 'margin: 0; color: #606266;' }, '计算公式：(实际提柜日 或 last_free_date) + 免费用箱天数'),
+        h('p', { style: 'margin: 8px 0 0 0; color: #909399; font-size: 13px;' }, '免费天数来自滞箱费标准表'),
+        h('p', { style: 'margin: 8px 0 0 0; color: #409eff; font-size: 13px;' }, '举例：last_free_date=2026-02-22，免费用箱天数=7天 → last_return_date=2026-03-01')
+      ]),
+      h('p', { style: 'margin-top: 16px; color: #909399; font-size: 13px;' },
+        '注：定时任务每24小时自动执行一次'
+      )
+    ]),
+    '免费日更新',
+    {
+      confirmButtonText: '开始更新',
+      cancelButtonText: '取消',
+      type: 'info',
+      dangerouslyUseHTMLString: true
+    }
+  ).catch(() => false)
+
+  if (!confirmed) return
+
+  demurrageWriteBackLoading.value = true
+  try {
+    const result = await containerService.batchWriteBackDemurrageDates({
+      limitLastFree: 500,
+      limitLastReturn: 500
+    })
+
+    if (result.success) {
+      ElMessage.success(
+        `计算完成：最晚提柜日 ${result.lastFreeWritten}/${result.lastFreeProcessed}，最晚还箱日 ${result.lastReturnWritten}/${result.lastReturnProcessed}`
+      )
+      // 刷新列表
+      await loadContainers()
+    } else {
+      ElMessage.error('计算失败')
+    }
+  } catch (error: any) {
+    ElMessage.error(error.message || '计算失败')
+  } finally {
+    demurrageWriteBackLoading.value = false
+  }
+}
+
 // 辅助函数：根据筛选条件确定时间维度
 const getTimeDimensionFromFilter = (filterCondition: string): 'arrival' | 'pickup' | 'lastPickup' | 'return' => {
   if (!filterCondition) return 'arrival'
@@ -1018,6 +1127,24 @@ export default {
         >
           <el-icon><Download /></el-icon>
           批量导出
+        </el-button>
+        <el-button
+          type="primary"
+          plain
+          :loading="batchScheduleLoading"
+          @click="handleBatchSchedule"
+        >
+          <el-icon><Edit /></el-icon>
+          一键排产
+        </el-button>
+        <el-button
+          type="info"
+          plain
+          :loading="demurrageWriteBackLoading"
+          @click="handleDemurrageWriteBack"
+        >
+          <el-icon><Calendar /></el-icon>
+          免费日更新
         </el-button>
       </div>
       <el-table

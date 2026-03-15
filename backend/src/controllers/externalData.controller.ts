@@ -13,10 +13,16 @@ import { SeaFreight } from '../entities/SeaFreight';
 import { TruckingTransport } from '../entities/TruckingTransport';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { EmptyReturn } from '../entities/EmptyReturn';
+import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
+import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
+import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { AppDataSource } from '../database';
 import { logger } from '../utils/logger';
 import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
 import { getCoreFieldName } from '../constants/FeiTuoStatusMapping';
+import { DemurrageService } from '../services/demurrage.service';
+
+const ATA_RELATED_FIELDS = ['ata_dest_port', 'dest_port_unload_date', 'discharged_time'];
 
 export class ExternalDataController {
   private eventRepository = AppDataSource.getRepository(ContainerStatusEvent);
@@ -26,6 +32,16 @@ export class ExternalDataController {
   private truckingTransportRepository = AppDataSource.getRepository(TruckingTransport);
   private warehouseOperationRepository = AppDataSource.getRepository(WarehouseOperation);
   private emptyReturnRepository = AppDataSource.getRepository(EmptyReturn);
+  private demurrageService = new DemurrageService(
+    AppDataSource.getRepository(ExtDemurrageStandard),
+    AppDataSource.getRepository(Container),
+    AppDataSource.getRepository(PortOperation),
+    AppDataSource.getRepository(SeaFreight),
+    AppDataSource.getRepository(TruckingTransport),
+    AppDataSource.getRepository(EmptyReturn),
+    AppDataSource.getRepository(ReplenishmentOrder),
+    AppDataSource.getRepository(ExtDemurrageRecord)
+  );
   /**
    * 同步单个货柜的状态事件
    * POST /api/external/sync/:containerNumber
@@ -96,8 +112,15 @@ export class ExternalDataController {
     }
 
     const savedEvents = await this.saveStatusEvents(events);
-    await this.applyFeiTuoToCoreFields(containerNumber, events);
+    const updatedAtaFields = await this.applyFeiTuoToCoreFields(containerNumber, events);
     await this.recalculateLogisticsStatus(containerNumber);
+
+    // ATA 到港后触发滞港费重算，actual 模式覆盖 forecast 写入的 last_free_date
+    if (updatedAtaFields.some((f) => ATA_RELATED_FIELDS.includes(f))) {
+      this.demurrageService.calculateForContainer(containerNumber).catch((e) =>
+        logger.warn('[ExternalDataController] demurrage recalc on ATA update failed:', e)
+      );
+    }
 
     return { success: true, savedEvents };
   }
@@ -160,11 +183,13 @@ export class ExternalDataController {
 
   /**
    * 根据飞驼状态事件更新核心字段（process_port_operations、process_sea_freight、process_empty_return）
+   * @returns 更新的目的港相关字段名（用于触发滞港费重算）
    */
   private async applyFeiTuoToCoreFields(
     containerNumber: string,
     events: ContainerStatusEvent[]
-  ): Promise<void> {
+  ): Promise<string[]> {
+    const updatedFields: string[] = [];
     for (const event of events) {
       const isEstimated = (event.rawData as { isEstimated?: boolean })?.isEstimated;
       if (isEstimated) continue;
@@ -223,6 +248,7 @@ export class ExternalDataController {
           if (Object.keys(updates).length > 0) {
             Object.assign(po, updates);
             await this.portOperationRepository.save(po);
+            if (ATA_RELATED_FIELDS.includes(fieldName)) updatedFields.push(fieldName);
             logger.info(`[ExternalDataController] 写回 ${fieldName}: ${containerNumber}`);
           }
         }
@@ -230,6 +256,7 @@ export class ExternalDataController {
         logger.warn(`[ExternalDataController] 写回核心字段失败: ${fieldName}`, err);
       }
     }
+    return updatedFields;
   }
 
   /**

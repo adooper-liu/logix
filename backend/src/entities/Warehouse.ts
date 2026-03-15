@@ -43,6 +43,7 @@ export class Warehouse {
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'state' })
   state?: string;
 
+  /** 该国分公司，存 dict_countries.code @see 12-国家概念统一约定.md */
   @Column({ type: 'varchar', length: 10, name: 'country' })
   country: string;
 
@@ -54,6 +55,10 @@ export class Warehouse {
 
   @Column({ type: 'varchar', length: 10, default: 'ACTIVE', name: 'status' })
   status: string;
+
+  // 日卸柜产能（智能排柜用）
+  @Column({ type: 'int', default: 10, name: 'daily_unload_capacity' })
+  dailyUnloadCapacity: number;
 
   @Column({ type: 'text', nullable: true, name: 'remarks' })
   remarks?: string;

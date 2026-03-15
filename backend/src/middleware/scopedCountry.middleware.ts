@@ -6,6 +6,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 import { runWithScope } from '../utils/requestContext.js';
+import { normalizeCountryCode } from '../utils/countryCode.js';
 
 const HEADER_COUNTRY = 'x-country-code';
 
@@ -13,7 +14,7 @@ export function scopedCountryMiddleware(req: Request, res: Response, next: NextF
   const raw = req.get(HEADER_COUNTRY);
   const countryCode =
     typeof raw === 'string' && raw.trim() !== ''
-      ? raw.trim()
+      ? normalizeCountryCode(raw.trim())
       : undefined;
 
   runWithScope({ countryCode }, () => next());

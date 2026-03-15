@@ -5,7 +5,7 @@ description: Process Excel and PDF files for import, export, and analysis. Use w
 
 # Document Processing Skill
 
-> 💡 **提示**: 本技能专注于文档处理。Excel 导入映射规范请参考 `logix-development` 主技能文档。
+> 💡 **提示**: 本技能专注于文档处理。LogiX Excel 导入完整规范（映射、类型转换、主键、模板）请参考 **excel-import-requirements** 技能。
 
 ## Excel
 

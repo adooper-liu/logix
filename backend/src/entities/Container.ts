@@ -59,6 +59,15 @@ export class Container {
   })
   logisticsStatus!: string;
 
+  // 排产状态：initial(待排产) / issued(已排产) / dispatched(已派工) / adjusted(手工调整)
+  @Column({
+    type: 'varchar',
+    length: 20,
+    default: 'initial',
+    name: 'schedule_status'
+  })
+  scheduleStatus?: 'initial' | 'issued' | 'dispatched' | 'adjusted';
+
   @Column({ type: 'text', nullable: true, name: 'remarks' })
   remarks!: string;
 

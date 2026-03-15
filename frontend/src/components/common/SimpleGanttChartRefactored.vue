@@ -117,9 +117,11 @@
                       class="container-dot"
                       :class="{
                         clickable: true,
-                        'is-dragging':
-                          draggingContainer?.containerNumber === container.containerNumber,
+                        'is-dragging': draggingContainer?.containerNumber === container.containerNumber,
                         'has-warning': hasAlert(container),
+                        'main-task': getNodeDisplayType(container, '清关') === 'main',
+                        'dashed-task': getNodeDisplayType(container, '清关') === 'dashed',
+                        'completed-task': isNodeFinished(container, '清关'),
                       }"
                       :style="{ backgroundColor: getStatusColor(container.logisticsStatus) }"
                       @mouseenter="showTooltip(container, $event)"
@@ -144,9 +146,11 @@
                       class="container-dot"
                       :class="{
                         clickable: true,
-                        'is-dragging':
-                          draggingContainer?.containerNumber === container.containerNumber,
+                        'is-dragging': draggingContainer?.containerNumber === container.containerNumber,
                         'has-warning': hasAlert(container),
+                        'main-task': getNodeDisplayType(container, '清关') === 'main',
+                        'dashed-task': getNodeDisplayType(container, '清关') === 'dashed',
+                        'completed-task': isNodeFinished(container, '清关'),
                       }"
                       :style="{ backgroundColor: getStatusColor(container.logisticsStatus) }"
                       @mouseenter="showTooltip(container, $event)"
@@ -409,7 +413,13 @@
                     v-for="container in getContainersByDateAndPort(date, selectedPortForModal)"
                     :key="container.containerNumber"
                     class="container-dot"
-                    :class="{ clickable: true, 'has-warning': hasAlert(container) }"
+                    :class="{
+                      clickable: true,
+                      'has-warning': hasAlert(container),
+                      'main-task': getNodeDisplayType(container, '清关') === 'main',
+                      'dashed-task': getNodeDisplayType(container, '清关') === 'dashed',
+                      'completed-task': isNodeFinished(container, '清关'),
+                    }"
                     :style="{ backgroundColor: getStatusColor(container.logisticsStatus) }"
                     @mouseenter="showTooltip(container, $event)"
                     @mouseleave="hideTooltip"
@@ -454,13 +464,16 @@
                   >
                     <div class="dots-container">
                       <div
-                        v-for="container in getContainersByDateAndSupplier(
-                          date,
-                          containersBySupplier
-                        )"
+                        v-for="container in getContainersByDateAndSupplier(date, containersBySupplier)"
                         :key="container.containerNumber"
                         class="container-dot"
-                        :class="{ clickable: true, 'has-warning': hasAlert(container) }"
+                        :class="{
+                          clickable: true,
+                          'has-warning': hasAlert(container),
+                          'main-task': getNodeDisplayType(container, node as string) === 'main',
+                          'dashed-task': getNodeDisplayType(container, node as string) === 'dashed',
+                          'completed-task': isNodeFinished(container, node as string),
+                        }"
                         :style="{ backgroundColor: getStatusColor(container.logisticsStatus) }"
                         @mouseenter="showTooltip(container, $event)"
                         @mouseleave="hideTooltip"
@@ -878,6 +891,11 @@ const {
   formatDateShort,
   getContainerDate,
   getStatusColor,
+  getContainerStage,
+  getNodeTaskType,
+  getNodeDate,
+  getNodeGroupKey,
+  isNodeCompleted,
   calculateDynamicDateRange,
   handleViewDetail,
   handleEditDate,
@@ -933,6 +951,39 @@ const getTooltipDateClass = (container: any) => {
   if (daysUntilDeadline < 0) return 'is-danger'
   if (daysUntilDeadline <= 3) return 'is-warning'
   return ''
+}
+
+/**
+ * 获取货柜在指定节点的显示类型
+ * @param container 货柜
+ * @param nodeName 节点名称
+ * @returns 'main' | 'dashed' | null（null表示已完成或不存在）
+ */
+const getNodeDisplayType = (container: any, nodeName: string): 'main' | 'dashed' | null => {
+  const nodeStatus = calculateNodeStatus(container)
+  const node = nodeStatus.nodes[nodeName as keyof typeof nodeStatus.nodes]
+
+  if (!node?.supplier || node.supplier === '未指定') return null
+
+  // 已完成的节点不显示
+  if (node.status === 'completed') return null
+
+  // 活跃节点显示为主任务
+  if (node.status === 'active') return 'main'
+
+  // 待处理节点显示为虚线任务
+  if (node.status === 'pending') return 'dashed'
+
+  return null
+}
+
+/**
+ * 判断节点是否已完成（显示✓标记）
+ */
+const isNodeFinished = (container: any, nodeName: string): boolean => {
+  const nodeStatus = calculateNodeStatus(container)
+  const node = nodeStatus.nodes[nodeName as keyof typeof nodeStatus.nodes]
+  return node?.status === 'completed'
 }
 
 // 五节点相关方法
@@ -1261,94 +1312,125 @@ const calculateNodeStatus = (container: any): ContainerNodeStatus => {
   const portCode = destPortOp?.portCode || '未知目的港'
   const needsInspection = container.inspectionRequired || false
 
-  // 1. 判断清关状态
-  if (destPortOp?.customsBroker) {
-    nodes.清关.supplier = destPortOp.customsBroker
-    nodes.清关.plannedDate = destPortOp.plannedCustomsDate
-      ? new Date(destPortOp.plannedCustomsDate)
-      : undefined
-    nodes.清关.actualDate = destPortOp.actualCustomsDate
-      ? new Date(destPortOp.actualCustomsDate)
-      : undefined
+  // 1. 判断清关状态（使用 customsBrokerCode 优先，其次 customsBroker）
+  const customsSupplier = destPortOp?.customsBrokerCode || destPortOp?.customsBroker
+  if (customsSupplier) {
+    nodes.清关.supplier = customsSupplier
+    // 优先级：actualCustomsDate > plannedCustomsDate > ataDestPort > etaDestPort
+    if (destPortOp.actualCustomsDate) {
+      nodes.清关.actualDate = new Date(destPortOp.actualCustomsDate)
+      nodes.清关.plannedDate = destPortOp.plannedCustomsDate
+        ? new Date(destPortOp.plannedCustomsDate)
+        : undefined
+    } else if (destPortOp.plannedCustomsDate) {
+      nodes.清关.plannedDate = new Date(destPortOp.plannedCustomsDate)
+    } else if (destPortOp.ataDestPort) {
+      nodes.清关.plannedDate = new Date(destPortOp.ataDestPort)
+    } else if (destPortOp.etaDestPort) {
+      nodes.清关.plannedDate = new Date(destPortOp.etaDestPort)
+    }
 
     if (destPortOp.actualCustomsDate) {
       nodes.清关.status = 'completed'
-    } else if (destPortOp.plannedCustomsDate) {
+    } else if (nodes.清关.plannedDate) {
       nodes.清关.status = 'active'
     }
   }
 
   // 2. 判断查验状态（如果有查验需求）
-  if (needsInspection && destPortOp?.customsBroker) {
-    nodes.查验.supplier = destPortOp.customsBroker
-    nodes.查验.plannedDate = destPortOp.plannedCustomsDate
+  if (needsInspection && customsSupplier) {
+    nodes.查验.supplier = customsSupplier
+    nodes.查验.plannedDate = destPortOp?.plannedCustomsDate
       ? new Date(destPortOp.plannedCustomsDate)
       : undefined
-    nodes.查验.actualDate = destPortOp.actualCustomsDate
+    nodes.查验.actualDate = destPortOp?.actualCustomsDate
       ? new Date(destPortOp.actualCustomsDate)
       : undefined
 
     if (nodes.清关.status === 'completed' && nodes.查验.status === 'pending') {
       nodes.查验.status = 'active'
-    } else if (destPortOp.actualCustomsDate && needsInspection) {
+    } else if (destPortOp?.actualCustomsDate && needsInspection) {
       nodes.查验.status = 'completed'
     }
   }
 
   // 3. 判断提柜状态（只有在不需要查验或查验完成后才能提柜）
-  const pickupTransport = container.truckingTransports?.find(
-    (t: any) => t.truckingType === 'pickup'
-  )
-  if (pickupTransport?.carrierCompany) {
-    nodes.提柜.supplier = pickupTransport.carrierCompany
-    nodes.提柜.plannedDate = pickupTransport.plannedPickupDate
-      ? new Date(pickupTransport.plannedPickupDate)
-      : undefined
-    nodes.提柜.actualDate = pickupTransport.pickupDate
-      ? new Date(pickupTransport.pickupDate)
-      : undefined
+  const pickupTransport = container.truckingTransports?.[0]
+  // 使用 truckingCompanyId 优先，其次 carrierCompany
+  const pickupSupplier = pickupTransport?.truckingCompanyId || pickupTransport?.carrierCompany
+  if (pickupSupplier) {
+    nodes.提柜.supplier = pickupSupplier
+    // 优先级：deliveryDate > plannedDeliveryDate > pickupDate > plannedPickupDate
+    if (pickupTransport.deliveryDate) {
+      nodes.提柜.actualDate = new Date(pickupTransport.deliveryDate)
+      nodes.提柜.plannedDate = pickupTransport.plannedDeliveryDate
+        ? new Date(pickupTransport.plannedDeliveryDate)
+        : undefined
+    } else if (pickupTransport.plannedDeliveryDate) {
+      nodes.提柜.plannedDate = new Date(pickupTransport.plannedDeliveryDate)
+    } else if (pickupTransport.pickupDate) {
+      nodes.提柜.actualDate = new Date(pickupTransport.pickupDate)
+      nodes.提柜.plannedDate = pickupTransport.plannedPickupDate
+        ? new Date(pickupTransport.plannedPickupDate)
+        : undefined
+    } else if (pickupTransport.plannedPickupDate) {
+      nodes.提柜.plannedDate = new Date(pickupTransport.plannedPickupDate)
+    }
 
-    // 检查是否可以进入提柜节点
+    // 检查是否可以进入提柜节点（清关完成后才能提柜）
     let canEnterPickup = nodes.清关.status === 'completed'
     if (needsInspection) {
       canEnterPickup = canEnterPickup && nodes.查验.status === 'completed'
     }
 
-    if (canEnterPickup && !pickupTransport.pickupDate) {
+    // 提柜完成判断：使用 deliveryDate（送仓日）
+    if (canEnterPickup && !pickupTransport.deliveryDate) {
       nodes.提柜.status = 'active'
-    } else if (pickupTransport.pickupDate) {
+    } else if (pickupTransport.deliveryDate) {
       nodes.提柜.status = 'completed'
     }
   }
 
-  // 4. 判断卸柜状态
-  const unloadOp = container.warehouseOperations?.find((op: any) => op.operationType === 'INBOUND')
-  if (unloadOp?.actualWarehouse || unloadOp?.plannedWarehouse) {
-    nodes.卸柜.supplier = unloadOp.actualWarehouse || unloadOp.plannedWarehouse!
-    nodes.卸柜.plannedDate = unloadOp.plannedUnloadDate
-      ? new Date(unloadOp.plannedUnloadDate)
-      : undefined
-    nodes.卸柜.actualDate = unloadOp.unloadDate ? new Date(unloadOp.unloadDate) : undefined
+  // 4. 判断卸柜状态（使用 warehouseId 优先，其次 actualWarehouse/plannedWarehouse）
+  const unloadOp = container.warehouseOperations?.[0]
+  const unloadSupplier = unloadOp?.warehouseId || unloadOp?.actualWarehouse || unloadOp?.plannedWarehouse
+  if (unloadSupplier) {
+    nodes.卸柜.supplier = unloadSupplier
+    // 优先级：unloadDate > plannedUnloadDate
+    if (unloadOp.unloadDate) {
+      nodes.卸柜.actualDate = new Date(unloadOp.unloadDate)
+      nodes.卸柜.plannedDate = unloadOp.plannedUnloadDate
+        ? new Date(unloadOp.plannedUnloadDate)
+        : undefined
+    } else if (unloadOp.plannedUnloadDate) {
+      nodes.卸柜.plannedDate = new Date(unloadOp.plannedUnloadDate)
+    }
 
-    if (nodes.提柜.status === 'completed' && !unloadOp.unloadDate) {
+    if (nodes.提柜.status === 'completed' && !unloadOp?.unloadDate) {
       nodes.卸柜.status = 'active'
-    } else if (unloadOp.unloadDate) {
+    } else if (unloadOp?.unloadDate) {
       nodes.卸柜.status = 'completed'
     }
   }
 
-  // 5. 判断还箱状态
+  // 5. 判断还箱状态（使用 warehouseId 分组，与卸柜相同）
   const emptyReturn = container.emptyReturns?.[0]
-  if (emptyReturn?.returnTerminalName) {
-    nodes.还箱.supplier = emptyReturn.returnTerminalName
-    nodes.还箱.plannedDate = emptyReturn.plannedReturnDate
-      ? new Date(emptyReturn.plannedReturnDate)
-      : undefined
-    nodes.还箱.actualDate = emptyReturn.returnTime ? new Date(emptyReturn.returnTime) : undefined
+  // 还箱与卸柜使用相同的分组（warehouseId）
+  if (unloadSupplier) {
+    nodes.还箱.supplier = unloadSupplier
+    // 优先级：returnTime > lastReturnDate
+    if (emptyReturn?.returnTime) {
+      nodes.还箱.actualDate = new Date(emptyReturn.returnTime)
+      nodes.还箱.plannedDate = emptyReturn.lastReturnDate
+        ? new Date(emptyReturn.lastReturnDate)
+        : undefined
+    } else if (emptyReturn?.lastReturnDate) {
+      nodes.还箱.plannedDate = new Date(emptyReturn.lastReturnDate)
+    }
 
-    if (nodes.卸柜.status === 'completed' && !emptyReturn.returnTime) {
+    if (nodes.卸柜.status === 'completed' && !emptyReturn?.returnTime) {
       nodes.还箱.status = 'active'
-    } else if (emptyReturn.returnTime) {
+    } else if (emptyReturn?.returnTime) {
       nodes.还箱.status = 'completed'
     }
   }
@@ -2133,6 +2215,22 @@ export default {
 .container-dot.dashed-task:hover {
   border-color: #909399;
   transform: scale(1.5);
+}
+
+/* 已完成任务 - 带✓标记 */
+.container-dot.completed-task {
+  position: relative;
+}
+
+.container-dot.completed-task::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 8px;
+  color: white;
+  font-weight: bold;
 }
 
 /* 货柜点悬停效果 */

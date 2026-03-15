@@ -77,12 +77,57 @@ export class LastPickupSubqueryTemplates {
   `;
 
   /**
-   * 最晚提柜日为空（last_free_date IS NULL）
+   * 最晚提柜日为空（last_free_date IS NULL）- 已到目的港（有 ATA）
    */
   static readonly NO_LAST_FREE_DATE_SUBQUERY = `
     SELECT container_number
     FROM (${LastPickupSubqueryTemplates.TARGET_SET_SUBQUERY}) t
     WHERE last_free_date IS NULL
+  `;
+
+  /**
+   * 最晚提柜日为空 - 未到目的港但有 ETA（用于 forecast 模式写回，支持智能排柜）
+   * 条件：NOT 还箱、NOT WMS、NOT 提柜 + 目的港有 ETA、无 ATA、last_free_date 为空
+   */
+  static readonly NO_LAST_FREE_DATE_WITH_ETA_SUBQUERY = `
+    SELECT c.container_number
+    FROM biz_containers c
+    INNER JOIN process_port_operations po ON c.container_number = po.container_number
+    WHERE po.port_type = 'destination'
+    AND po.ata_dest_port IS NULL
+    AND (po.eta_dest_port IS NOT NULL OR po.revised_eta_dest_port IS NOT NULL)
+    AND po.last_free_date IS NULL
+    AND po.port_sequence = (
+      SELECT MAX(po2.port_sequence)
+      FROM process_port_operations po2
+      WHERE po2.container_number = po.container_number
+      AND po2.port_type = 'destination'
+    )
+    AND NOT EXISTS (SELECT 1 FROM process_empty_return er WHERE er.container_number = c.container_number AND er.return_time IS NOT NULL)
+    AND NOT EXISTS (SELECT 1 FROM process_warehouse_operations wo WHERE wo.container_number = c.container_number AND (wo.wms_status = 'WMS已完成' OR wo.ebs_status = '已入库' OR wo.wms_confirm_date IS NOT NULL))
+    AND NOT EXISTS (SELECT 1 FROM process_trucking_transport tt WHERE tt.container_number = c.container_number AND tt.pickup_date IS NOT NULL)
+  `;
+
+  /**
+   * 目的港有 ATA 或有修正ETA 且 last_free_date 为 forecast 写入（需重算覆盖）
+   * 条件：last_free_date_mode = 'forecast' 且 (目的港有 ATA OR 有修正ETA)、NOT 还箱/WMS/提柜
+   */
+  static readonly ATA_WITH_FORECAST_LAST_FREE_SUBQUERY = `
+    SELECT c.container_number
+    FROM biz_containers c
+    INNER JOIN process_port_operations po ON c.container_number = po.container_number
+    WHERE po.port_type = 'destination'
+    AND po.last_free_date_mode = 'forecast'
+    AND (po.ata_dest_port IS NOT NULL OR po.revised_eta_dest_port IS NOT NULL)
+    AND po.port_sequence = (
+      SELECT MAX(po2.port_sequence)
+      FROM process_port_operations po2
+      WHERE po2.container_number = po.container_number
+      AND po2.port_type = 'destination'
+    )
+    AND NOT EXISTS (SELECT 1 FROM process_empty_return er WHERE er.container_number = c.container_number AND er.return_time IS NOT NULL)
+    AND NOT EXISTS (SELECT 1 FROM process_warehouse_operations wo WHERE wo.container_number = c.container_number AND (wo.wms_status = 'WMS已完成' OR wo.ebs_status = '已入库' OR wo.wms_confirm_date IS NOT NULL))
+    AND NOT EXISTS (SELECT 1 FROM process_trucking_transport tt WHERE tt.container_number = c.container_number AND tt.pickup_date IS NOT NULL)
   `;
 
   /**

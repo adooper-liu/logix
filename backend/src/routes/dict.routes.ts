@@ -13,6 +13,9 @@ router.get('/ports', controller.getPorts);
 router.get('/shipping-companies', controller.getShippingCompanies);
 router.get('/freight-forwarders', controller.getFreightForwarders);
 router.get('/overseas-companies', controller.getOverseasCompanies);
+router.get('/warehouses', controller.getWarehouses);
+router.get('/trucking-companies', controller.getTruckingCompanies);
+router.get('/customs-brokers', controller.getCustomsBrokers);
 router.post('/resolve-demurrage-codes', controller.resolveDemurrageCodes);
 
 export default router;

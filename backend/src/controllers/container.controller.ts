@@ -7,10 +7,16 @@ import { Request, Response } from 'express';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
 import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
+import { Country } from '../entities/Country';
+import { CustomsBroker } from '../entities/CustomsBroker';
 import { PortOperation } from '../entities/PortOperation';
 import { SeaFreight } from '../entities/SeaFreight';
+import { TruckingCompany } from '../entities/TruckingCompany';
 import { TruckingTransport } from '../entities/TruckingTransport';
+import { TruckingPortMapping } from '../entities/TruckingPortMapping';
+import { Warehouse } from '../entities/Warehouse';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
+import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { In, Repository, MoreThanOrEqual } from 'typeorm';
@@ -28,6 +34,8 @@ export class ContainerController {
   private truckingTransportRepository: Repository<TruckingTransport>;
   private warehouseOperationRepository: Repository<WarehouseOperation>;
   private emptyReturnRepository: Repository<EmptyReturn>;
+  private truckingPortMappingRepository: Repository<TruckingPortMapping>;
+  private warehouseTruckingMappingRepository: Repository<WarehouseTruckingMapping>;
   private containerService: ContainerService;
   private statisticsService: ContainerStatisticsService;
   private containerStatusService: ContainerStatusService;
@@ -41,6 +49,16 @@ export class ContainerController {
     const warehouseOperationRepository = AppDataSource.getRepository(WarehouseOperation);
     const emptyReturnRepository = AppDataSource.getRepository(EmptyReturn);
     const orderRepository = AppDataSource.getRepository(ReplenishmentOrder);
+    // 字典表
+    const customsBrokerRepository = AppDataSource.getRepository(CustomsBroker);
+    const truckingCompanyRepository = AppDataSource.getRepository(TruckingCompany);
+    const warehouseRepository = AppDataSource.getRepository(Warehouse);
+    const countryRepository = AppDataSource.getRepository(Country);
+    // 映射表
+    const truckingPortMappingRepository = AppDataSource.getRepository(TruckingPortMapping);
+    const warehouseTruckingMappingRepository = AppDataSource.getRepository(WarehouseTruckingMapping);
+    this.truckingPortMappingRepository = truckingPortMappingRepository;
+    this.warehouseTruckingMappingRepository = warehouseTruckingMappingRepository;
 
     this.containerRepository = containerRepository;
     this.seaFreightRepository = seaFreightRepository;
@@ -55,7 +73,11 @@ export class ContainerController {
       truckingTransportRepository,
       warehouseOperationRepository,
       emptyReturnRepository,
-      orderRepository
+      orderRepository,
+      customsBrokerRepository,
+      truckingCompanyRepository,
+      warehouseRepository,
+      countryRepository
     );
 
     this.statisticsService = new ContainerStatisticsService(
@@ -945,6 +967,215 @@ export class ContainerController {
         success: false,
         message: '批量更新货柜状态失败'
       });
+    }
+  };
+
+  /**
+   * 更新货柜计划（手工排柜）
+   * PATCH /api/containers/:id/schedule
+   * @body {
+   *   plannedCustomsDate?: Date,      // 计划清关日
+   *   plannedPickupDate?: Date,      // 计划提柜日
+   *   plannedDeliveryDate?: Date,    // 计划送仓日
+   *   plannedUnloadDate?: Date,      // 计划卸柜日
+   *   plannedReturnDate?: Date,      // 计划还箱日
+   *   truckingCompanyId?: string,    // 车队ID
+   *   customsBrokerCode?: string,    // 清关公司代码
+   *   warehouseId?: string,          // 仓库ID
+   *   unloadModePlan?: string,      // 卸柜方式
+   * }
+   */
+  updateSchedule = async (req: Request, res: Response): Promise<void> => {
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const { id } = req.params;
+      const {
+        plannedCustomsDate,
+        plannedPickupDate,
+        plannedDeliveryDate,
+        plannedUnloadDate,
+        plannedReturnDate,
+        truckingCompanyId,
+        customsBrokerCode,
+        warehouseId,
+        unloadModePlan
+      } = req.body;
+
+      // 1. 校验货柜是否存在
+      const container = await queryRunner.manager.findOne(Container, {
+        where: { containerNumber: id }
+      });
+
+      if (!container) {
+        await queryRunner.rollbackTransaction();
+        res.status(404).json({ success: false, message: '货柜不存在' });
+        return;
+      }
+
+      // 2. 获取货柜现有数据用于校验
+      const [portOp, trucking, warehouseOp, seaFreight] = await Promise.all([
+        queryRunner.manager.findOne(PortOperation, { where: { containerNumber: id, portType: 'destination' } }),
+        queryRunner.manager.findOne(TruckingTransport, { where: { containerNumber: id } }),
+        queryRunner.manager.findOne(WarehouseOperation, { where: { containerNumber: id } }),
+        queryRunner.manager.findOne(SeaFreight, { where: { containerNumber: id } })
+      ]);
+
+      // 3. 约束校验
+      const validationErrors: string[] = [];
+
+      // 3.1 映射关系校验：港口→车队
+      if (truckingCompanyId && seaFreight?.destinationPort) {
+        const portMapping = await this.truckingPortMappingRepository.findOne({
+          where: {
+            truckingCompanyId,
+            portCode: seaFreight.destinationPort,
+            isActive: true
+          }
+        });
+        if (!portMapping) {
+          validationErrors.push(`车队 ${truckingCompanyId} 不支持港口 ${seaFreight.destinationPort}`);
+        }
+      }
+
+      // 3.2 映射关系校验：仓库→车队
+      if (warehouseId && truckingCompanyId) {
+        const warehouseMapping = await this.warehouseTruckingMappingRepository.findOne({
+          where: {
+            warehouseCode: warehouseId,
+            truckingCompanyId,
+            isActive: true
+          }
+        });
+        if (!warehouseMapping) {
+          validationErrors.push(`仓库 ${warehouseId} 不支持车队 ${truckingCompanyId}`);
+        }
+      }
+
+      // 3.3 顺序约束校验：计划时间必须按顺序
+      const plannedCustoms = plannedCustomsDate ? new Date(plannedCustomsDate) : (portOp?.plannedCustomsDate ? new Date(portOp.plannedCustomsDate) : null);
+      const plannedPickup = plannedPickupDate ? new Date(plannedPickupDate) : (trucking?.plannedPickupDate ? new Date(trucking.plannedPickupDate) : null);
+      const plannedDelivery = plannedDeliveryDate ? new Date(plannedDeliveryDate) : (trucking?.plannedDeliveryDate ? new Date(trucking.plannedDeliveryDate) : null);
+      const plannedUnload = plannedUnloadDate ? new Date(plannedUnloadDate) : (warehouseOp?.plannedUnloadDate ? new Date(warehouseOp.plannedUnloadDate) : null);
+      const plannedReturn = plannedReturnDate ? new Date(plannedReturnDate) : null;
+
+      if (plannedCustoms && plannedPickup && plannedCustoms > plannedPickup) {
+        validationErrors.push('计划清关日不能晚于计划提柜日');
+      }
+      if (plannedPickup && plannedDelivery && plannedPickup > plannedDelivery) {
+        validationErrors.push('计划提柜日不能晚于计划送仓日');
+      }
+      if (plannedDelivery && plannedUnload && plannedDelivery > plannedUnload) {
+        validationErrors.push('计划送仓日不能晚于计划卸柜日');
+      }
+      if (plannedUnload && plannedReturn && plannedUnload > plannedReturn) {
+        validationErrors.push('计划卸柜日不能晚于计划还箱日');
+      }
+
+      // 如果有校验错误，返回
+      if (validationErrors.length > 0) {
+        await queryRunner.rollbackTransaction();
+        res.status(400).json({ success: false, message: '校验失败', errors: validationErrors });
+        return;
+      }
+
+      // 4. 更新清关计划（process_port_operations - destination）
+      if (plannedCustomsDate !== undefined || customsBrokerCode !== undefined) {
+        const portOp = await queryRunner.manager.findOne(PortOperation, {
+          where: { containerNumber: id, portType: 'destination' }
+        });
+
+        if (portOp) {
+          if (plannedCustomsDate !== undefined) {
+            portOp.plannedCustomsDate = new Date(plannedCustomsDate);
+          }
+          if (customsBrokerCode !== undefined) {
+            portOp.customsBrokerCode = customsBrokerCode;
+          }
+          await queryRunner.manager.save(portOp);
+        }
+      }
+
+      // 3. 更新拖卡计划（process_trucking_transport）
+      if (plannedPickupDate !== undefined || plannedDeliveryDate !== undefined || 
+          truckingCompanyId !== undefined || unloadModePlan !== undefined) {
+        let trucking = await queryRunner.manager.findOne(TruckingTransport, {
+          where: { containerNumber: id }
+        });
+
+        if (!trucking) {
+          // 如果不存在，创建新记录
+          trucking = new TruckingTransport();
+          trucking.containerNumber = id;
+        }
+
+        if (plannedPickupDate !== undefined) {
+          trucking.plannedPickupDate = new Date(plannedPickupDate);
+        }
+        if (plannedDeliveryDate !== undefined) {
+          trucking.plannedDeliveryDate = new Date(plannedDeliveryDate);
+        }
+        if (truckingCompanyId !== undefined) {
+          trucking.truckingCompanyId = truckingCompanyId;
+        }
+        if (unloadModePlan !== undefined) {
+          trucking.unloadModePlan = unloadModePlan;
+        }
+        // 手工调整后标记状态
+        trucking.scheduleStatus = 'adjusted';
+        await queryRunner.manager.save(trucking);
+      }
+
+      // 4. 更新卸柜计划（process_warehouse_operations）
+      if (plannedUnloadDate !== undefined || warehouseId !== undefined) {
+        let warehouseOp = await queryRunner.manager.findOne(WarehouseOperation, {
+          where: { containerNumber: id }
+        });
+
+        if (!warehouseOp) {
+          warehouseOp = new WarehouseOperation();
+          warehouseOp.containerNumber = id;
+        }
+
+        if (plannedUnloadDate !== undefined) {
+          warehouseOp.plannedUnloadDate = new Date(plannedUnloadDate);
+        }
+        if (warehouseId !== undefined) {
+          warehouseOp.warehouseId = warehouseId;
+        }
+        await queryRunner.manager.save(warehouseOp);
+      }
+
+      // 5. 更新还箱计划（process_empty_return）
+      if (plannedReturnDate !== undefined) {
+        let emptyReturn = await queryRunner.manager.findOne(EmptyReturn, {
+          where: { containerNumber: id }
+        });
+
+        if (!emptyReturn) {
+          emptyReturn = new EmptyReturn();
+          emptyReturn.containerNumber = id;
+        }
+
+        emptyReturn.plannedReturnDate = new Date(plannedReturnDate);
+        await queryRunner.manager.save(emptyReturn);
+      }
+
+      await queryRunner.commitTransaction();
+
+      res.json({
+        success: true,
+        message: '计划更新成功',
+        containerNumber: id
+      });
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      logger.error('[updateSchedule] Error:', error);
+      res.status(500).json({ success: false, message: '更新计划失败', error: String(error) });
+    } finally {
+      await queryRunner.release();
     }
   };
 }

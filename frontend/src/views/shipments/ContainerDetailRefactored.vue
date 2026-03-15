@@ -16,6 +16,7 @@ import InspectionRecord from './components/InspectionRecord.vue'
 import KeyDatesTimeline from './components/KeyDatesTimeline.vue'
 import LogisticsPathTab from './components/LogisticsPathTab.vue'
 import PortOperations from './components/PortOperations.vue'
+import ScheduleEditDialog from './components/ScheduleEditDialog.vue'
 import SeaFreightInfo from './components/SeaFreightInfo.vue'
 import TruckingTransport from './components/TruckingTransport.vue'
 import WarehouseOperations from './components/WarehouseOperations.vue'
@@ -40,6 +41,9 @@ const containerNumber = computed(() => {
 const loading = ref(false)
 const containerData = ref<any>(null)
 const activeTab = ref('logistics-path')
+
+// 计划编辑对话框
+const scheduleEditVisible = ref(false)
 
 // 加载货柜列表
 const loadContainerList = async () => {
@@ -232,6 +236,32 @@ const logisticsStatusDisplay = computed(() => {
       @navigate-to-next="navigateToNext"
     />
 
+    <!-- 计划编辑按钮 -->
+    <div class="action-bar">
+      <el-button type="primary" @click="scheduleEditVisible = true">
+        编辑计划
+      </el-button>
+    </div>
+
+    <!-- 计划编辑对话框 -->
+    <ScheduleEditDialog
+      v-model:visible="scheduleEditVisible"
+      :container-number="containerNumber"
+      :country="containerData?.order?.sellToCountry"
+      :initial-data="{
+        plannedCustomsDate: containerData?.portOperations?.find((p: any) => p.portType === 'destination')?.plannedCustomsDate,
+        plannedPickupDate: containerData?.truckingTransports?.[0]?.plannedPickupDate,
+        plannedDeliveryDate: containerData?.truckingTransports?.[0]?.plannedDeliveryDate,
+        plannedUnloadDate: containerData?.warehouseOperations?.[0]?.plannedUnloadDate,
+        plannedReturnDate: containerData?.emptyReturns?.[0]?.plannedReturnDate,
+        truckingCompanyId: containerData?.truckingTransports?.[0]?.truckingCompanyId,
+        customsBrokerCode: containerData?.portOperations?.find((p: any) => p.portType === 'destination')?.customsBrokerCode,
+        warehouseId: containerData?.warehouseOperations?.[0]?.warehouseId,
+        unloadModePlan: containerData?.truckingTransports?.[0]?.unloadModePlan
+      }"
+      @success="loadContainerDetail"
+    />
+
     <!-- 内容区域 -->
     <div v-if="containerData" class="detail-content">
       <!-- 概览区：基本信息 + 关键日期 + 五节点时间线 -->
@@ -341,6 +371,12 @@ const logisticsStatusDisplay = computed(() => {
   @media (max-width: 768px) {
     padding: $spacing-sm;
   }
+}
+
+.action-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: $spacing-md;
 }
 
 .navigation-buttons {

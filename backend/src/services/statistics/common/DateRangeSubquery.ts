@@ -7,6 +7,7 @@ import { SelectQueryBuilder } from 'typeorm';
 import { Repository } from 'typeorm';
 import { Container } from '../../../entities/Container';
 import { getScopedCountryCode } from '../../../utils/requestContext.js';
+import { normalizeCountryCode } from '../../../utils/countryCode.js';
 import { DateFilterBuilder } from './DateFilterBuilder';
 import { ContainerQueryBuilder } from './ContainerQueryBuilder';
 
@@ -42,7 +43,8 @@ export function createDateRangeSubQuery(
       { endDate: toEndDateEnd(endDate) }
     );
 
-  const code = (countryCode !== undefined && countryCode !== null ? String(countryCode).trim() : getScopedCountryCode()) || '';
+  const raw = (countryCode !== undefined && countryCode !== null ? String(countryCode).trim() : getScopedCountryCode()) || '';
+  const code = normalizeCountryCode(raw);
   if (code) {
     qb.leftJoin('biz_customers', 'cust', 'cust.customer_name = o.sell_to_country').andWhere('cust.country = :countryCode', {
       countryCode: code
@@ -62,7 +64,8 @@ export function getDateRangeSubqueryRaw(
   countryCode?: string
 ): { sql: string; params: any[] } {
   const params: any[] = [new Date(startDate), toEndDateEnd(endDate)];
-  const code = (countryCode !== undefined && countryCode !== null ? String(countryCode).trim() : getScopedCountryCode()) || '';
+  const raw = (countryCode !== undefined && countryCode !== null ? String(countryCode).trim() : getScopedCountryCode()) || '';
+  const code = normalizeCountryCode(raw);
   let sql = `SELECT DISTINCT c.container_number FROM biz_containers c
 LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
 LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_number

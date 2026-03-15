@@ -70,6 +70,163 @@ export function useGanttLogic() {
     returned_empty: '#67c23a',
   }
 
+  // ========== 甘特图节点类型 ==========
+  /**
+   * 甘特图节点类型
+   */
+  type GanttNodeType = 'customs' | 'pickup' | 'unload' | 'return'
+
+  /**
+   * 节点任务类型：主任务/虚线任务
+   */
+  type TaskType = 'main' | 'dashed'
+
+  /**
+   * 获取货柜当前处于哪个阶段
+   * 阶段1: 清关阶段（主任务：清关）
+   * 阶段2: 提柜阶段（主任务：提柜）
+   * 阶段3: 卸柜阶段（主任务：卸柜）
+   * 阶段4: 还箱阶段（主任务：还箱）
+   * 阶段5: 流程结束（无主任务）
+   */
+  const getContainerStage = (container: Container): number => {
+    // 还箱完成（流程结束）
+    const emptyReturn = container.emptyReturns?.[0]
+    if (emptyReturn?.returnTime) return 5
+
+    // 卸柜完成（还箱为主任务）
+    const warehouseOp = container.warehouseOperations?.[0]
+    if (warehouseOp?.unloadDate) return 4
+
+    // 提柜完成（卸柜为主任务）
+    const trucking = container.truckingTransports?.[0]
+    if (trucking?.deliveryDate) return 3
+
+    // 清关完成（提柜为主任务）
+    const portOp = container.portOperations?.find(op => op.portType === 'destination')
+    if (portOp?.actualCustomsDate) return 2
+
+    // 默认：清关为主任务
+    return 1
+  }
+
+  /**
+   * 获取货柜在指定节点的任务类型
+   * @param container 货柜
+   * @param nodeType 节点类型
+   */
+  const getNodeTaskType = (container: Container, nodeType: GanttNodeType): TaskType | null => {
+    const stage = getContainerStage(container)
+
+    // 阶段5：流程结束，无任务
+    if (stage === 5) return null
+
+    // 节点顺序：清关 → 提柜 → 卸柜 → 还箱
+    const nodeOrder: GanttNodeType[] = ['customs', 'pickup', 'unload', 'return']
+    const nodeIndex = nodeOrder.indexOf(nodeType)
+
+    // 节点序号大于等于阶段序号，表示已完成，任务销毁
+    if (nodeIndex >= stage) return null
+
+    // 节点序号等于阶段序号-1，表示当前主任务
+    if (nodeIndex === stage - 1) return 'main'
+
+    // 节点序号小于阶段序号-1，表示虚线任务
+    return 'dashed'
+  }
+
+  /**
+   * 获取指定节点的日期
+   * 优先级：实际日期 > 计划日期
+   */
+  const getNodeDate = (container: Container, nodeType: GanttNodeType): Date | null => {
+    const portOp = container.portOperations?.find(op => op.portType === 'destination')
+    const trucking = container.truckingTransports?.[0]
+    const warehouseOp = container.warehouseOperations?.[0]
+    const emptyReturn = container.emptyReturns?.[0]
+
+    switch (nodeType) {
+      case 'customs':
+        // 清关：actualCustomsDate > plannedCustomsDate > etaDestPort
+        if (portOp?.actualCustomsDate) return new Date(portOp.actualCustomsDate)
+        if (portOp?.plannedCustomsDate) return new Date(portOp.plannedCustomsDate)
+        if (portOp?.ataDestPort) return new Date(portOp.ataDestPort)
+        if (portOp?.etaDestPort) return new Date(portOp.etaDestPort)
+        return container.ataDestPort ? new Date(container.ataDestPort) : (container.etaDestPort ? new Date(container.etaDestPort) : null)
+
+      case 'pickup':
+        // 提柜：deliveryDate > plannedDeliveryDate > pickupDate > plannedPickupDate
+        if (trucking?.deliveryDate) return new Date(trucking.deliveryDate)
+        if (trucking?.plannedDeliveryDate) return new Date(trucking.plannedDeliveryDate)
+        if (trucking?.pickupDate) return new Date(trucking.pickupDate)
+        if (trucking?.plannedPickupDate) return new Date(trucking.plannedPickupDate)
+        return null
+
+      case 'unload':
+        // 卸柜：unloadDate > plannedUnloadDate
+        if (warehouseOp?.unloadDate) return new Date(warehouseOp.unloadDate)
+        if (warehouseOp?.plannedUnloadDate) return new Date(warehouseOp.plannedUnloadDate)
+        return null
+
+      case 'return':
+        // 还箱：returnTime > plannedReturnDate
+        if (emptyReturn?.returnTime) return new Date(emptyReturn.returnTime)
+        if (emptyReturn?.lastReturnDate) return new Date(emptyReturn.lastReturnDate)
+        return null
+    }
+  }
+
+  /**
+   * 获取指定节点的分组键（用于甘特图分组显示）
+   */
+  const getNodeGroupKey = (container: Container, nodeType: GanttNodeType): string => {
+    const portOp = container.portOperations?.find(op => op.portType === 'destination')
+    const trucking = container.truckingTransports?.[0]
+    const warehouseOp = container.warehouseOperations?.[0]
+    const supplierNames = container.supplierNames
+
+    switch (nodeType) {
+      case 'customs':
+        // 优先使用字典表解析的名称，其次使用代码
+        return supplierNames?.customsBrokerName 
+          || portOp?.customsBrokerCode 
+          || portOp?.customsBroker 
+          || '未指定清关'
+      case 'pickup':
+        return supplierNames?.truckingCompanyName
+          || trucking?.truckingCompanyId 
+          || trucking?.carrierCompany 
+          || '未指定车队'
+      case 'unload':
+      case 'return':
+        return supplierNames?.warehouseName
+          || warehouseOp?.warehouseId 
+          || warehouseOp?.actualWarehouse 
+          || '未指定仓库'
+    }
+  }
+
+  /**
+   * 判断节点是否已完成（用于显示✓标记）
+   */
+  const isNodeCompleted = (container: Container, nodeType: GanttNodeType): boolean => {
+    const portOp = container.portOperations?.find(op => op.portType === 'destination')
+    const trucking = container.truckingTransports?.[0]
+    const warehouseOp = container.warehouseOperations?.[0]
+    const emptyReturn = container.emptyReturns?.[0]
+
+    switch (nodeType) {
+      case 'customs':
+        return !!portOp?.actualCustomsDate
+      case 'pickup':
+        return !!trucking?.deliveryDate
+      case 'unload':
+        return !!warehouseOp?.unloadDate
+      case 'return':
+        return !!emptyReturn?.returnTime
+    }
+  }
+
   // ========== 智能预警系统 ==========
 
   /**
@@ -648,27 +805,82 @@ export function useGanttLogic() {
     dragOverDate.value = null
   }
 
-  const handleDrop = (date: Date) => {
+  const handleDrop = async (date: Date) => {
     if (!draggingContainer.value || !dragOverDate.value) return
 
-    const newDate = dayjs(dragOverDate.value).format('YYYY-MM-DD HH:mm:ss')
-    ElMessageBox.confirm(
-      `确定要将货柜 ${draggingContainer.value.containerNumber} 移动到 ${formatDateShort(dragOverDate.value)} 吗？`,
-      '确认调整日期',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning',
-      }
-    )
-      .then(() => {
-        console.log('Move container to date:', newDate)
+    const container = draggingContainer.value
+    const newDate = dayjs(dragOverDate.value).format('YYYY-MM-DD')
+
+    // 根据当前维度确定更新哪个日期字段
+    const condition = filterCondition.value
+    let updateField = ''
+    let fieldLabel = ''
+
+    // 维度映射到日期字段
+    if (condition.startsWith('arrived') || condition === 'arrivalToday' || condition === 'expectedArrival') {
+      // 按到港维度 -> 更新计划提柜日
+      updateField = 'plannedPickupDate'
+      fieldLabel = '计划提柜日'
+    } else if (condition === 'overduePlanned' || condition === 'todayPlanned' || 
+               condition === 'plannedWithin3Days' || condition === 'plannedWithin7Days' || condition === 'pendingArrangement') {
+      // 按计划提柜维度 -> 更新计划提柜日
+      updateField = 'plannedPickupDate'
+      fieldLabel = '计划提柜日'
+    } else if (condition === 'overdue' || condition.includes('Within')) {
+      // 按ETA维度 -> 更新ETA（暂不支持，跳转到详情页）
+      ElMessage.warning('ETA维度暂不支持拖拽调整，请使用详情页编辑')
+      draggingContainer.value = null
+      dragOverDate.value = null
+      return
+    } else if (condition.startsWith('expired') || condition === 'urgent' || 
+               condition === 'warning' || condition === 'normal' || condition === 'noLastFreeDate') {
+      // 按最晚提柜维度 -> 更新计划提柜日
+      updateField = 'plannedPickupDate'
+      fieldLabel = '计划提柜日'
+    } else if (condition.startsWith('return')) {
+      // 按最晚还箱维度 -> 更新计划还箱日
+      updateField = 'plannedReturnDate'
+      fieldLabel = '计划还箱日'
+    } else {
+      // 默认 -> 更新计划提柜日
+      updateField = 'plannedPickupDate'
+      fieldLabel = '计划提柜日'
+    }
+
+    try {
+      await ElMessageBox.confirm(
+        `确定要将货柜 ${container.containerNumber} 的${fieldLabel}调整为 ${formatDateShort(dragOverDate.value)} 吗？`,
+        '确认调整日期',
+        {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning',
+        }
+      )
+
+      // 调用API更新计划日期
+      const updateData: any = { [updateField]: newDate }
+      const result = await containerService.updateSchedule(container.containerNumber, updateData)
+
+      if (result.success) {
         ElMessage.success('日期调整成功')
-        loadData()
-      })
-      .catch(() => {
-        ElMessage.info('已取消操作')
-      })
+        await loadData()
+      } else {
+        // 后端返回校验错误
+        if (result.errors && result.errors.length > 0) {
+          ElMessage.error(`校验失败: ${result.errors.join(', ')}`)
+        } else {
+          ElMessage.error(result.message || '更新失败')
+        }
+      }
+    } catch (error: any) {
+      if (error !== 'cancel') {
+        ElMessage.error(error.message || '操作失败')
+      }
+    } finally {
+      draggingContainer.value = null
+      dragOverDate.value = null
+    }
   }
 
   const handleDateSave = async (data: any) => {
@@ -892,6 +1104,11 @@ export function useGanttLogic() {
     isToday,
     getContainerDate,
     getStatusColor,
+    getContainerStage,
+    getNodeTaskType,
+    getNodeDate,
+    getNodeGroupKey,
+    isNodeCompleted,
     calculateDynamicDateRange,
     handleDotClick,
     handleViewDetail,

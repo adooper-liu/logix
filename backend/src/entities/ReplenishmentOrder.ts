@@ -28,7 +28,7 @@ export class ReplenishmentOrder {
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'container_number' })
   containerNumber!: string; // 关联的集装箱号（一个货柜可以有多个备货单）
 
-  /** 销往国家，与 biz_customers.country 同源（通过 customer_code 关联客户），为冗余/快照字段 */
+  /** 销往该国分公司：存子公司名称(customer_name)，与 biz_customers 关联取 country。特例，非国家代码 @see 12-国家概念统一约定.md */
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'sell_to_country' })
   sellToCountry!: string;
 

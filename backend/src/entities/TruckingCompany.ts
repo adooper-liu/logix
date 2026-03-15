@@ -31,6 +31,13 @@ export class TruckingCompany {
   @Column({ type: 'varchar', length: 10, default: 'ACTIVE', name: 'status' })
   status: string;
 
+  @Column({ type: 'varchar', length: 50, nullable: true, name: 'country' })
+  country?: string;
+
+  /** 日容量（趟/天），用于智能排产占用校验，无则默认 10 */
+  @Column({ type: 'int', default: 10, nullable: true, name: 'daily_capacity' })
+  dailyCapacity?: number;
+
   @Column({ type: 'text', nullable: true, name: 'remarks' })
   remarks?: string;
 

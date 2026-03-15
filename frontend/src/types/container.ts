@@ -100,6 +100,12 @@ export interface Container {
   actualShipDate?: Date;
   sellToCountry?: string;
   customerName?: string;
+  // 供应商名称（用于甘特图三级展示）
+  supplierNames?: {
+    customsBrokerName: string | null;
+    truckingCompanyName: string | null;
+    warehouseName: string | null;
+  };
 }
 
 export interface ContainerFilters {
@@ -289,6 +295,7 @@ export interface TruckingTransport {
   id?: string;
   containerNumber: string;
   truckingType?: string;
+  truckingCompanyId?: string;
   carrierCompany?: string;
   driverName?: string;
   driverPhone?: string;

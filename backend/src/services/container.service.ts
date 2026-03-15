@@ -7,11 +7,15 @@
 import { Repository } from 'typeorm';
 import { Container } from '../entities/Container';
 import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
+import { Country } from '../entities/Country';
+import { CustomsBroker } from '../entities/CustomsBroker';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { PortOperation } from '../entities/PortOperation';
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { SeaFreight } from '../entities/SeaFreight';
+import { TruckingCompany } from '../entities/TruckingCompany';
 import { TruckingTransport } from '../entities/TruckingTransport';
+import { Warehouse } from '../entities/Warehouse';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { logger } from '../utils/logger';
 import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
@@ -38,7 +42,12 @@ export class ContainerService {
     private truckingTransportRepository: Repository<TruckingTransport>,
     private warehouseOperationRepository: Repository<WarehouseOperation>,
     private emptyReturnRepository: Repository<EmptyReturn>,
-    private orderRepository: Repository<ReplenishmentOrder>
+    private orderRepository: Repository<ReplenishmentOrder>,
+    // 字典表
+    private customsBrokerRepository: Repository<CustomsBroker>,
+    private truckingCompanyRepository: Repository<TruckingCompany>,
+    private warehouseRepository: Repository<Warehouse>,
+    private countryRepository: Repository<Country>
   ) {}
 
   /**
@@ -52,14 +61,18 @@ export class ContainerService {
     const containerNumbers = containers.map((c) => c.containerNumber);
 
     // 批量查询所有相关数据
-    const [ordersMap, eventsMap, portOperationsMap, truckingMap, warehouseMap, emptyReturnsMap] =
+    const [ordersMap, eventsMap, portOperationsMap, truckingMap, warehouseMap, emptyReturnsMap, customsBrokersMap, truckingCompaniesMap, warehousesMap, countriesMap] =
       await Promise.all([
         this.batchFetchOrders(containerNumbers),
         this.batchFetchStatusEvents(containerNumbers),
         this.batchFetchPortOperations(containerNumbers),
         this.batchFetchTruckingTransports(containerNumbers),
         this.batchFetchWarehouseOperations(containerNumbers),
-        this.batchFetchEmptyReturns(containerNumbers)
+        this.batchFetchEmptyReturns(containerNumbers),
+        this.batchFetchCustomsBrokers(),
+        this.batchFetchTruckingCompanies(),
+        this.batchFetchWarehouses(),
+        this.batchFetchCountries()
       ]);
 
     const enrichedContainers = containers.map((container) => {
@@ -74,14 +87,14 @@ export class ContainerService {
         const warehouseOperation = warehouseMap.get(containerNumber);
         const emptyReturn = emptyReturnsMap.get(containerNumber);
 
-        // 计算物流状态
+        // 计算物流状态（参数顺序：container, portOperations, seaFreight, truckingTransport, warehouseOperation, emptyReturn）
         const logisticsResult = calculateLogisticsStatus(
           container,
           portOperations,
-          truckingTransport,
-          warehouseOperation,
-          emptyReturn,
-          latestEvent
+          container.seaFreight ?? undefined,
+          truckingTransport ?? undefined,
+          warehouseOperation ?? undefined,
+          emptyReturn ?? undefined
         );
 
         const currentPortType = logisticsResult.currentPortType;
@@ -94,6 +107,57 @@ export class ContainerService {
           latestPortOperation,
           currentPortType
         );
+
+        // 获取供应商名称（从字典表）
+        const destPortOp = portOperations.find(op => op.portType === 'destination');
+        const customsBrokerCode = destPortOp?.customsBrokerCode || latestPortOperation?.customsBrokerCode;
+        const truckingCompanyId = truckingTransport?.truckingCompanyId;
+        const warehouseId = warehouseOperation?.warehouseId;
+        // 获取销往国家代码，用于资源缺省约定
+        const sellToCountry = orderInfo?.sellToCountry;
+
+        // 资源缺省约定：无记录时使用 "{国家中文名}资源类型" 格式
+        const getCountryName = (): string | null => {
+          if (!sellToCountry) return null;
+          const country = countriesMap.get(sellToCountry);
+          return country?.nameCn || null;
+        };
+
+        // 清关行缺省约定
+        const getCustomsBrokerName = (): string | null => {
+          if (!customsBrokerCode) return null;
+          const broker = customsBrokersMap.get(customsBrokerCode);
+          if (broker?.brokerName) return broker.brokerName;
+          const countryName = getCountryName();
+          if (countryName) return `${countryName}清关行`;
+          return customsBrokerCode;
+        };
+
+        // 车队缺省约定
+        const getTruckingCompanyName = (): string | null => {
+          if (!truckingCompanyId) return null;
+          const company = truckingCompaniesMap.get(truckingCompanyId);
+          if (company?.companyName) return company.companyName;
+          const countryName = getCountryName();
+          if (countryName) return `${countryName}车队`;
+          return truckingCompanyId;
+        };
+
+        // 仓库缺省约定
+        const getWarehouseName = (): string | null => {
+          if (!warehouseId) return null;
+          const warehouse = warehousesMap.get(warehouseId);
+          if (warehouse?.warehouseName) return warehouse.warehouseName;
+          const countryName = getCountryName();
+          if (countryName) return `${countryName}仓库`;
+          return warehouseId;
+        };
+
+        const supplierNames = {
+          customsBrokerName: getCustomsBrokerName(),
+          truckingCompanyName: getTruckingCompanyName(),
+          warehouseName: getWarehouseName()
+        };
 
         return {
           ...container,
@@ -119,10 +183,13 @@ export class ContainerService {
           sellToCountry: orderInfo?.sellToCountry || null,
           customerName: orderInfo?.customerName || null,
           // 计划提柜日 / 最晚提柜日 / 最晚还箱日 / 实际还箱日（列表表头用）
+          // lastFreeDate 来自目的港港口操作，与 currentPortType 无关
           plannedPickupDate: truckingTransport?.plannedPickupDate || null,
-          lastFreeDate: latestPortOperation?.lastFreeDate || null,
+          lastFreeDate: destPortOp?.lastFreeDate ?? latestPortOperation?.lastFreeDate ?? null,
           lastReturnDate: emptyReturn?.lastReturnDate || null,
           returnTime: emptyReturn?.returnTime || null,
+          // 供应商名称（用于甘特图三级展示）
+          supplierNames,
           // 关联数据（用于前端过滤）
           portOperations, // ← 新增：完整的港口操作数组
           truckingTransports: truckingTransport ? [truckingTransport] : [],
@@ -716,7 +783,7 @@ export class ContainerService {
         .where(
           `(event.container_number, event.occurred_at) IN (
           SELECT container_number, MAX(occurred_at)
-          FROM biz_container_status_events
+          FROM ext_container_status_events
           WHERE container_number IN (:...containerNumbers)
           GROUP BY container_number
         )`,
@@ -857,6 +924,70 @@ export class ContainerService {
     }
 
     return result;
+  }
+
+  /**
+   * 批量查询清关公司字典
+   */
+  private async batchFetchCustomsBrokers(): Promise<Map<string, CustomsBroker>> {
+    try {
+      const brokers = await this.customsBrokerRepository
+        .createQueryBuilder('cb')
+        .where('cb.status = :status', { status: 'ACTIVE' })
+        .getMany();
+      return new Map(brokers.map((b) => [b.brokerCode, b]));
+    } catch (error) {
+      logger.warn('[batchFetchCustomsBrokers] Failed:', error);
+      return new Map();
+    }
+  }
+
+  /**
+   * 批量查询车队公司字典
+   */
+  private async batchFetchTruckingCompanies(): Promise<Map<string, TruckingCompany>> {
+    try {
+      const companies = await this.truckingCompanyRepository
+        .createQueryBuilder('tc')
+        .where('tc.status = :status', { status: 'ACTIVE' })
+        .getMany();
+      return new Map(companies.map((tc) => [tc.companyCode, tc]));
+    } catch (error) {
+      logger.warn('[batchFetchTruckingCompanies] Failed:', error);
+      return new Map();
+    }
+  }
+
+  /**
+   * 批量查询仓库字典
+   */
+  private async batchFetchWarehouses(): Promise<Map<string, Warehouse>> {
+    try {
+      const warehouses = await this.warehouseRepository
+        .createQueryBuilder('w')
+        .where('w.status = :status', { status: 'ACTIVE' })
+        .getMany();
+      return new Map(warehouses.map((w) => [w.warehouseCode, w]));
+    } catch (error) {
+      logger.warn('[batchFetchWarehouses] Failed:', error);
+      return new Map();
+    }
+  }
+
+  /**
+   * 批量查询国家字典
+   */
+  private async batchFetchCountries(): Promise<Map<string, Country>> {
+    try {
+      const countries = await this.countryRepository
+        .createQueryBuilder('c')
+        .where('c.is_active = :isActive', { isActive: true })
+        .getMany();
+      return new Map(countries.map((c) => [c.code, c]));
+    } catch (error) {
+      logger.warn('[batchFetchCountries] Failed:', error);
+      return new Map();
+    }
   }
 
   // ==================== 格式化辅助方法 ====================

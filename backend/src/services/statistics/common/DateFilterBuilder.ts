@@ -5,6 +5,7 @@
 
 import { SelectQueryBuilder } from 'typeorm';
 import { getScopedCountryCode } from '../../../utils/requestContext.js';
+import { normalizeCountryCode } from '../../../utils/countryCode.js';
 import { getDateRangeSubqueryRaw as getDateRangeSubqueryRawImpl } from './DateRangeSubquery';
 
 /**
@@ -48,7 +49,8 @@ export class DateFilterBuilder {
     query: SelectQueryBuilder<any>,
     countryCode?: string
   ): SelectQueryBuilder<any> {
-    const code = (countryCode !== undefined && countryCode !== null ? String(countryCode).trim() : getScopedCountryCode()) || '';
+    const raw = (countryCode !== undefined && countryCode !== null ? String(countryCode).trim() : getScopedCountryCode()) || '';
+    const code = normalizeCountryCode(raw);
     if (!code) return query;
     query.leftJoin('biz_customers', 'cust', 'cust.customer_name = order.sell_to_country');
     query.andWhere('cust.country = :countryCode', { countryCode: code });

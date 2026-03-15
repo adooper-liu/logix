@@ -1,0 +1,205 @@
+/**
+ * 车队-港口映射控制器
+ * Trucking-Port Mapping Controller
+ */
+
+import { Request, Response } from 'express';
+import { AppDataSource } from '../database';
+import { logger } from '../utils/logger';
+
+export class TruckingPortMappingController {
+  /**
+   * 获取所有映射记录
+   */
+  getAll = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { page = 1, pageSize = 20, country, truckingCompanyName, portName } = req.query;
+      const offset = (Number(page) - 1) * Number(pageSize);
+
+      let whereClause = '1=1';
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      if (country) {
+        whereClause += ` AND country = $${paramIndex}`;
+        params.push(country);
+        paramIndex++;
+      }
+      if (truckingCompanyName) {
+        whereClause += ` AND trucking_company_name ILIKE $${paramIndex}`;
+        params.push(`%${truckingCompanyName}%`);
+        paramIndex++;
+      }
+      if (portName) {
+        whereClause += ` AND port_name ILIKE $${paramIndex}`;
+        params.push(`%${portName}%`);
+        paramIndex++;
+      }
+
+      const [data, total] = await Promise.all([
+        AppDataSource.query(
+          `SELECT * FROM dict_trucking_port_mapping WHERE ${whereClause} ORDER BY id DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`,
+          [...params, Number(pageSize), offset]
+        ),
+        AppDataSource.query(
+          `SELECT COUNT(*) as count FROM dict_trucking_port_mapping WHERE ${whereClause}`,
+          params
+        )
+      ]);
+
+      res.json({
+        success: true,
+        data,
+        total: Number(total[0]?.count || 0)
+      });
+    } catch (error: any) {
+      logger.error('[TruckingPortMapping getAll] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  };
+
+  /**
+   * 根据ID获取单条记录
+   */
+  getById = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const result = await AppDataSource.query(
+        'SELECT * FROM dict_trucking_port_mapping WHERE id = $1',
+        [id]
+      );
+
+      if (result.length === 0) {
+        res.status(404).json({ error: '记录不存在' });
+        return;
+      }
+
+      res.json({ success: true, data: result[0] });
+    } catch (error: any) {
+      logger.error('[TruckingPortMapping getById] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  };
+
+  /**
+   * 创建映射记录
+   */
+  create = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { 
+        country, truckingCompanyId, truckingCompanyName, portCode, portName,
+        yardCapacity, standardRate, unit, yardOperationFee,
+        mappingType, isDefault, isActive, remarks 
+      } = req.body;
+
+      const result = await AppDataSource.query(
+        `INSERT INTO dict_trucking_port_mapping 
+         (country, trucking_company_id, trucking_company_name, port_code, port_name,
+          yard_capacity, standard_rate, unit, yard_operation_fee,
+          mapping_type, is_default, is_active, remarks, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
+         RETURNING *`,
+        [
+          country, truckingCompanyId, truckingCompanyName, portCode, portName,
+          yardCapacity || 0, standardRate || 0, unit || '', yardOperationFee || 0,
+          mappingType || 'DEFAULT', isDefault || false, isActive !== false, remarks || ''
+        ]
+      );
+
+      res.json({ success: true, data: result[0] });
+    } catch (error: any) {
+      logger.error('[TruckingPortMapping create] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  };
+
+  /**
+   * 更新映射记录
+   */
+  update = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const { 
+        country, truckingCompanyId, truckingCompanyName, portCode, portName,
+        yardCapacity, standardRate, unit, yardOperationFee,
+        mappingType, isDefault, isActive, remarks 
+      } = req.body;
+
+      const result = await AppDataSource.query(
+        `UPDATE dict_trucking_port_mapping 
+         SET country = $1, trucking_company_id = $2, trucking_company_name = $3, 
+             port_code = $4, port_name = $5, yard_capacity = $6, standard_rate = $7, 
+             unit = $8, yard_operation_fee = $9, mapping_type = $10, 
+             is_default = $11, is_active = $12, remarks = $13, updated_at = NOW()
+         WHERE id = $14
+         RETURNING *`,
+        [
+          country, truckingCompanyId, truckingCompanyName, portCode, portName,
+          yardCapacity, standardRate, unit, yardOperationFee,
+          mappingType, isDefault, isActive, remarks, id
+        ]
+      );
+
+      if (result.length === 0) {
+        res.status(404).json({ error: '记录不存在' });
+        return;
+      }
+
+      res.json({ success: true, data: result[0] });
+    } catch (error: any) {
+      logger.error('[TruckingPortMapping update] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  };
+
+  /**
+   * 删除映射记录
+   */
+  delete = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      await AppDataSource.query('DELETE FROM dict_trucking_port_mapping WHERE id = $1', [id]);
+      res.json({ success: true, message: '删除成功' });
+    } catch (error: any) {
+      logger.error('[TruckingPortMapping delete] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  };
+
+  /**
+   * 批量创建映射记录
+   */
+  batchCreate = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const records = req.body;
+      if (!Array.isArray(records) || records.length === 0) {
+        res.status(400).json({ error: '请提供有效的记录数组' });
+        return;
+      }
+
+      for (const record of records) {
+        await AppDataSource.query(
+          `INSERT INTO dict_trucking_port_mapping 
+           (country, trucking_company_id, trucking_company_name, port_code, port_name,
+            yard_capacity, standard_rate, unit, yard_operation_fee,
+            mapping_type, is_default, is_active, remarks, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
+           ON CONFLICT DO NOTHING`,
+          [
+            record.country, record.truckingCompanyId, record.truckingCompanyName,
+            record.portCode, record.portName,
+            record.yardCapacity || 0, record.standardRate || 0, record.unit || '', record.yardOperationFee || 0,
+            record.mappingType || 'DEFAULT', record.isDefault || false, record.isActive !== false, record.remarks || ''
+          ]
+        );
+      }
+
+      res.json({ success: true, message: `批量导入成功，共${records.length}条` });
+    } catch (error: any) {
+      logger.error('[TruckingPortMapping batchCreate] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  };
+}
+
+export default new TruckingPortMappingController();

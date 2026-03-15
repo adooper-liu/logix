@@ -70,6 +70,9 @@ export class PortOperation {
   @Column({ type: 'date', nullable: true, name: 'last_free_date' })
   lastFreeDate: Date;
 
+  @Column({ type: 'varchar', length: 20, nullable: true, name: 'last_free_date_mode' })
+  lastFreeDateMode?: 'actual' | 'forecast';
+
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'gate_in_terminal' })
   gateInTerminal: string;
 

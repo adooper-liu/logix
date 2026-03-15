@@ -1,17 +1,17 @@
 -- ============================================================
--- LogiX 数据库表结构创建脚本
+-- LogiX 鏁版嵁搴撹〃缁撴瀯鍒涘缓鑴氭湰
 -- LogiX Database Schema Creation Script
 -- ============================================================
--- 说明: 此脚本根据TypeORM实体定义创建数据库表
+-- 璇存槑: 姝よ剼鏈牴鎹甌ypeORM瀹炰綋瀹氫箟鍒涘缓鏁版嵁搴撹〃
 -- Usage: Create all tables based on TypeORM entities
 -- ============================================================
 
 
 -- ============================================================
--- 字典�?(Dictionary Tables)
+-- 瀛楀吀琛?(Dictionary Tables)
 -- ============================================================
 
--- 1. 国别字典 (dict_countries)
+-- 1. 鍥藉埆瀛楀吀 (dict_countries)
 CREATE TABLE IF NOT EXISTS dict_countries (
     code VARCHAR(50) PRIMARY KEY,
     name_cn VARCHAR(50) NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS dict_countries (
 CREATE INDEX idx_countries_continent ON dict_countries(continent);
 CREATE INDEX idx_countries_region ON dict_countries(region);
 
--- 2. 客户类型字典 (dict_customer_types)
+-- 2. 瀹㈡埛绫诲瀷瀛楀吀 (dict_customer_types)
 CREATE TABLE IF NOT EXISTS dict_customer_types (
     type_code VARCHAR(20) PRIMARY KEY,
     type_name_cn VARCHAR(50) NOT NULL,
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS dict_customer_types (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 3. 港口字典 (dict_ports)
+-- 3. 娓彛瀛楀吀 (dict_ports)
 CREATE TABLE IF NOT EXISTS dict_ports (
     port_code VARCHAR(50) PRIMARY KEY,
     port_name VARCHAR(50) NOT NULL,
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS dict_ports (
 CREATE INDEX idx_ports_country ON dict_ports(country);
 CREATE INDEX idx_ports_city ON dict_ports(city);
 
--- 4. 船公司字�?(dict_shipping_companies)
+-- 4. 鑸瑰叕鍙稿瓧鍏?(dict_shipping_companies)
 CREATE TABLE IF NOT EXISTS dict_shipping_companies (
     company_code VARCHAR(50) PRIMARY KEY,
     company_name VARCHAR(100) NOT NULL,
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS dict_shipping_companies (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 5. 货代公司字典 (dict_freight_forwarders)
+-- 5. 璐т唬鍏徃瀛楀吀 (dict_freight_forwarders)
 CREATE TABLE IF NOT EXISTS dict_freight_forwarders (
     forwarder_code VARCHAR(50) PRIMARY KEY,
     forwarder_name VARCHAR(100) NOT NULL,
@@ -98,7 +98,7 @@ CREATE TABLE IF NOT EXISTS dict_freight_forwarders (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 6. 清关公司字典 (dict_customs_brokers)
+-- 6. 娓呭叧鍏徃瀛楀吀 (dict_customs_brokers)
 CREATE TABLE IF NOT EXISTS dict_customs_brokers (
     broker_code VARCHAR(50) PRIMARY KEY,
     broker_name VARCHAR(100) NOT NULL,
@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS dict_customs_brokers (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 7. 拖车公司字典 (dict_trucking_companies)
+-- 7. 鎷栬溅鍏徃瀛楀吀 (dict_trucking_companies)
 CREATE TABLE IF NOT EXISTS dict_trucking_companies (
     company_code VARCHAR(50) PRIMARY KEY,
     company_name VARCHAR(100) NOT NULL,
@@ -119,12 +119,13 @@ CREATE TABLE IF NOT EXISTS dict_trucking_companies (
     contact_phone VARCHAR(50),
     contact_email VARCHAR(100),
     status VARCHAR(20),
+    daily_capacity INT DEFAULT 10,
     remarks TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 8. 柜型字典 (dict_container_types)
+-- 8. 鏌滃瀷瀛楀吀 (dict_container_types)
 CREATE TABLE IF NOT EXISTS dict_container_types (
     type_code VARCHAR(20) PRIMARY KEY,
     type_name_cn VARCHAR(50) NOT NULL,
@@ -143,7 +144,7 @@ CREATE TABLE IF NOT EXISTS dict_container_types (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 9. 海外公司字典 (dict_overseas_companies)
+-- 9. 娴峰鍏徃瀛楀吀 (dict_overseas_companies)
 CREATE TABLE IF NOT EXISTS dict_overseas_companies (
     company_code VARCHAR(50) PRIMARY KEY,
     company_name VARCHAR(100) NOT NULL,
@@ -164,13 +165,13 @@ CREATE TABLE IF NOT EXISTS dict_overseas_companies (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 10. 仓库字典 (dict_warehouses)
+-- 10. 浠撳簱瀛楀吀 (dict_warehouses)
 CREATE TABLE IF NOT EXISTS dict_warehouses (
     warehouse_code VARCHAR(50) PRIMARY KEY,
     warehouse_name VARCHAR(100) NOT NULL,
     warehouse_name_en VARCHAR(200),
     short_name VARCHAR(100),
-    property_type VARCHAR(20) NOT NULL CHECK (property_type IN ('自营�?, '平台�?, '第三方仓')),
+    property_type VARCHAR(20) NOT NULL CHECK (property_type IN ('鑷惀浠?, '骞冲彴浠?, '绗笁鏂逛粨')),
     warehouse_type VARCHAR(20),
     company_code VARCHAR(50),
     address VARCHAR(300),
@@ -192,10 +193,10 @@ CREATE INDEX idx_warehouses_property_type ON dict_warehouses(property_type);
 CREATE INDEX idx_warehouses_company ON dict_warehouses(company_code);
 
 -- ============================================================
--- 流程�?(Process Tables)
+-- 娴佺▼琛?(Process Tables)
 -- ============================================================
 
--- 14. 海运信息�?(process_sea_freight) - 提前创建，因为biz_containers需要引用它
+-- 14. 娴疯繍淇℃伅琛?(process_sea_freight) - 鎻愬墠鍒涘缓锛屽洜涓篵iz_containers闇€瑕佸紩鐢ㄥ畠
 CREATE TABLE IF NOT EXISTS process_sea_freight (
     bill_of_lading_number VARCHAR(50) PRIMARY KEY,
     booking_number VARCHAR(50),
@@ -244,10 +245,10 @@ CREATE INDEX idx_sea_freight_bol ON process_sea_freight(bill_of_lading_number);
 CREATE INDEX idx_sea_freight_vessel ON process_sea_freight(vessel_name, voyage_number);
 
 -- ============================================================
--- 业务�?(Business Tables)
+-- 涓氬姟琛?(Business Tables)
 -- ============================================================
 
--- 11. 客户�?(biz_customers)
+-- 11. 瀹㈡埛琛?(biz_customers)
 CREATE TABLE IF NOT EXISTS biz_customers (
     customer_code VARCHAR(50) PRIMARY KEY,
     customer_name VARCHAR(100) NOT NULL,
@@ -276,7 +277,7 @@ CREATE TABLE IF NOT EXISTS biz_customers (
 CREATE INDEX idx_customers_country ON biz_customers(country);
 CREATE INDEX idx_customers_type ON biz_customers(customer_type_code);
 
--- 12. 货柜�?(biz_containers)
+-- 12. 璐ф煖琛?(biz_containers)
 CREATE TABLE IF NOT EXISTS biz_containers (
     container_number VARCHAR(50) PRIMARY KEY,
     bill_of_lading_number VARCHAR(50),
@@ -314,7 +315,7 @@ CREATE INDEX idx_containers_status ON biz_containers(logistics_status);
 CREATE INDEX idx_containers_type ON biz_containers(container_type_code);
 CREATE INDEX idx_containers_bol ON biz_containers(bill_of_lading_number);
 
--- 13. 备货单表 (biz_replenishment_orders)
+-- 13. 澶囪揣鍗曡〃 (biz_replenishment_orders)
 CREATE TABLE IF NOT EXISTS biz_replenishment_orders (
     order_number VARCHAR(50) PRIMARY KEY,
     main_order_number VARCHAR(50),
@@ -353,7 +354,7 @@ CREATE INDEX idx_replenishment_container ON biz_replenishment_orders(container_n
 CREATE INDEX idx_replenishment_status ON biz_replenishment_orders(order_status);
 CREATE INDEX idx_replenishment_date ON biz_replenishment_orders(actual_ship_date);
 
--- 13.5. 货柜SKU明细�?(biz_container_skus)
+-- 13.5. 璐ф煖SKU鏄庣粏琛?(biz_container_skus)
 CREATE TABLE IF NOT EXISTS biz_container_skus (
     id SERIAL PRIMARY KEY,
     container_number VARCHAR(50) NOT NULL,
@@ -384,10 +385,10 @@ CREATE INDEX idx_container_skus_order ON biz_container_skus(order_number);
 CREATE INDEX idx_container_skus_sku ON biz_container_skus(sku_code);
 
 -- ============================================================
--- 流程�?(Process Tables)
+-- 娴佺▼琛?(Process Tables)
 -- ============================================================
 
--- 15. 港口操作�?(process_port_operations)
+-- 15. 娓彛鎿嶄綔琛?(process_port_operations)
 CREATE TABLE IF NOT EXISTS process_port_operations (
     id VARCHAR(50) PRIMARY KEY,
     container_number VARCHAR(50),
@@ -406,6 +407,7 @@ CREATE TABLE IF NOT EXISTS process_port_operations (
     customs_status VARCHAR(20),
     isf_status VARCHAR(20),
     last_free_date DATE,
+    last_free_date_mode VARCHAR(20),
     gate_in_terminal VARCHAR(50),
     gate_out_terminal VARCHAR(50),
     berth_position VARCHAR(50),
@@ -444,7 +446,7 @@ CREATE INDEX idx_port_operations_container ON process_port_operations(container_
 CREATE INDEX idx_port_operations_port ON process_port_operations(port_code);
 CREATE INDEX idx_port_operations_type ON process_port_operations(port_type);
 
--- 16. 拖卡运输�?(process_trucking_transport)
+-- 16. 鎷栧崱杩愯緭琛?(process_trucking_transport)
 CREATE TABLE IF NOT EXISTS process_trucking_transport (
     container_number VARCHAR(50) PRIMARY KEY,
     trucking_type VARCHAR(20),
@@ -466,13 +468,14 @@ CREATE TABLE IF NOT EXISTS process_trucking_transport (
     delivery_location VARCHAR(200),
     distance_km DECIMAL(8,2),
     cost DECIMAL(10,2),
+    schedule_status VARCHAR(20) DEFAULT 'initial',
     remarks TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (container_number) REFERENCES biz_containers(container_number) ON DELETE CASCADE
 );
 
--- 17. 仓库操作�?(process_warehouse_operations)
+-- 17. 浠撳簱鎿嶄綔琛?(process_warehouse_operations)
 CREATE TABLE IF NOT EXISTS process_warehouse_operations (
     container_number VARCHAR(50) PRIMARY KEY,
     operation_type VARCHAR(20),
@@ -511,7 +514,7 @@ CREATE TABLE IF NOT EXISTS process_warehouse_operations (
 CREATE INDEX idx_warehouse_operations_container ON process_warehouse_operations(container_number);
 CREATE INDEX idx_warehouse_operations_warehouse ON process_warehouse_operations(warehouse_id);
 
--- 18. 还空箱表 (process_empty_return)
+-- 18. 杩樼┖绠辫〃 (process_empty_return)
 CREATE TABLE IF NOT EXISTS process_empty_return (
     container_number VARCHAR(50) PRIMARY KEY,
     last_return_date TIMESTAMP,
@@ -529,10 +532,10 @@ CREATE TABLE IF NOT EXISTS process_empty_return (
 );
 
 -- ============================================================
--- 扩展�?(Extension Tables)
+-- 鎵╁睍琛?(Extension Tables)
 -- ============================================================
 
--- 19. 集装箱状态事件表 (ext_container_status_events)
+-- 19. 闆嗚绠辩姸鎬佷簨浠惰〃 (ext_container_status_events)
 CREATE TABLE IF NOT EXISTS ext_container_status_events (
     id SERIAL PRIMARY KEY,
     container_number VARCHAR(50) NOT NULL,
@@ -550,7 +553,7 @@ CREATE TABLE IF NOT EXISTS ext_container_status_events (
 CREATE INDEX idx_status_events_container ON ext_container_status_events(container_number);
 CREATE INDEX idx_status_events_time ON ext_container_status_events(occurred_at DESC);
 
--- 20. 集装箱装载记录表 (ext_container_loading_records)
+-- 20. 闆嗚绠辫杞借褰曡〃 (ext_container_loading_records)
 CREATE TABLE IF NOT EXISTS ext_container_loading_records (
     id SERIAL PRIMARY KEY,
     container_number VARCHAR(50) NOT NULL,
@@ -564,7 +567,7 @@ CREATE TABLE IF NOT EXISTS ext_container_loading_records (
     FOREIGN KEY (container_number) REFERENCES biz_containers(container_number) ON DELETE CASCADE
 );
 
--- 21. 集装箱HOLD记录�?(ext_container_hold_records)
+-- 21. 闆嗚绠盚OLD璁板綍琛?(ext_container_hold_records)
 CREATE TABLE IF NOT EXISTS ext_container_hold_records (
     id SERIAL PRIMARY KEY,
     container_number VARCHAR(50) NOT NULL,
@@ -578,7 +581,7 @@ CREATE TABLE IF NOT EXISTS ext_container_hold_records (
     FOREIGN KEY (container_number) REFERENCES biz_containers(container_number) ON DELETE CASCADE
 );
 
--- 22. 集装箱费用记录表 (ext_container_charges)
+-- 22. 闆嗚绠辫垂鐢ㄨ褰曡〃 (ext_container_charges)
 CREATE TABLE IF NOT EXISTS ext_container_charges (
     id SERIAL PRIMARY KEY,
     container_number VARCHAR(50) NOT NULL,
@@ -595,4 +598,84 @@ CREATE TABLE IF NOT EXISTS ext_container_charges (
 
 CREATE INDEX idx_charges_container ON ext_container_charges(container_number);
 CREATE INDEX idx_charges_type ON ext_container_charges(charge_type);
+
+-- ============================================================
+-- 物流节点映射表 (Mapping Tables)
+-- ============================================================
+
+-- 23. 港口-仓库映射表
+CREATE TABLE IF NOT EXISTS dict_port_warehouse_mapping (
+    id SERIAL PRIMARY KEY,
+    port_code VARCHAR(50) NOT NULL,
+    port_name VARCHAR(100),
+    warehouse_code VARCHAR(50) NOT NULL,
+    warehouse_name VARCHAR(100),
+    mapping_type VARCHAR(20) DEFAULT 'DEFAULT',
+    is_default BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
+    remarks TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_port_warehouse_port ON dict_port_warehouse_mapping(port_code);
+CREATE INDEX idx_port_warehouse_warehouse ON dict_port_warehouse_mapping(warehouse_code);
+CREATE INDEX idx_port_warehouse_active ON dict_port_warehouse_mapping(is_active);
+
+COMMENT ON TABLE dict_port_warehouse_mapping IS '港口-仓库映射表，用于甘特图分组显示';
+
+-- 24. 仓库-车队映射表
+CREATE TABLE IF NOT EXISTS dict_warehouse_trucking_mapping (
+    id SERIAL PRIMARY KEY,
+    country VARCHAR(50) NOT NULL,
+    warehouse_code VARCHAR(50) NOT NULL,
+    warehouse_name VARCHAR(100),
+    trucking_company_id VARCHAR(50) NOT NULL,
+    trucking_company_name VARCHAR(100),
+    mapping_type VARCHAR(20) DEFAULT 'DEFAULT',
+    is_default BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
+    remarks TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_warehouse_trucking_country ON dict_warehouse_trucking_mapping(country);
+CREATE INDEX idx_warehouse_trucking_warehouse ON dict_warehouse_trucking_mapping(warehouse_code);
+CREATE INDEX idx_warehouse_trucking_company ON dict_warehouse_trucking_mapping(trucking_company_id);
+CREATE INDEX idx_warehouse_trucking_active ON dict_warehouse_trucking_mapping(is_active);
+
+COMMENT ON TABLE dict_warehouse_trucking_mapping IS '仓库-车队映射表，用于甘特图分组显示';
+
+-- 25. 车队-港口映射表
+CREATE TABLE IF NOT EXISTS dict_trucking_port_mapping (
+    id SERIAL PRIMARY KEY,
+    country VARCHAR(50) NOT NULL,
+    trucking_company_id VARCHAR(50) NOT NULL,
+    trucking_company_name VARCHAR(200),
+    port_code VARCHAR(50) NOT NULL,
+    port_name VARCHAR(100),
+    yard_capacity DECIMAL(10,2) DEFAULT 0,
+    standard_rate DECIMAL(10,2) DEFAULT 0,
+    unit VARCHAR(20),
+    yard_operation_fee DECIMAL(10,2) DEFAULT 0,
+    mapping_type VARCHAR(20) DEFAULT 'DEFAULT',
+    is_default BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
+    remarks TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_trucking_port_country ON dict_trucking_port_mapping(country);
+CREATE INDEX idx_trucking_port_company ON dict_trucking_port_mapping(trucking_company_id);
+CREATE INDEX idx_trucking_port_port ON dict_trucking_port_mapping(port_code);
+CREATE INDEX idx_trucking_port_active ON dict_trucking_port_mapping(is_active);
+
+COMMENT ON TABLE dict_trucking_port_mapping IS '车队-港口映射表，包含费用信息，用于甘特图分组显示';
+
+
+
+
+
 
