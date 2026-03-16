@@ -82,15 +82,24 @@ const handleDocNavigation = (url: string) => {
   // 从 URL 中提取文件名
   const fileName = url.split('/').pop() || 'UNKNOWN'
 
+  // 获取当前文档的目录路径（用于相对路径解析）
+  const currentPath = route.fullPath.replace('/#', '').replace('#', '')
+  const currentDir = currentPath.substring(0, currentPath.lastIndexOf('/'))
+
   // 转换相对路径为绝对路径
   let fullPath = url
   if (url.startsWith('./')) {
-    fullPath = `/docs/${url.substring(2)}`
+    // 相对路径：从当前目录开始
+    fullPath = `${currentDir}/${url.substring(2)}`
   } else if (!url.startsWith('/')) {
+    // 无前缀路径：从 /docs 开始
     fullPath = `/docs/${url}`
   } else if (!url.startsWith('/docs/')) {
+    // 绝对路径但不是 /docs/ 开头
     fullPath = `/docs${url}`
   }
+
+  console.log('[DocViewer] Resolved fullPath:', fullPath, 'from currentDir:', currentDir)
 
   // 滚动到顶部
   window.scrollTo({ top: 0, behavior: 'smooth' })

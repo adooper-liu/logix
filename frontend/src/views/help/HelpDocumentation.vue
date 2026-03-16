@@ -30,9 +30,9 @@
       </div>
 
       <div class="nav-section">
-        <div class="nav-section-title">📦 物流全流程 ⭐</div>
+        <div class="nav-section-title">💡 智慧物流愿景 ⭐</div>
         <div
-          v-for="doc in logisticsFlowDocs"
+          v-for="doc in visionDocs"
           :key="doc.key"
           class="nav-item"
           :class="{ active: activeDoc === doc.key }"
@@ -45,9 +45,9 @@
       </div>
 
       <div class="nav-section">
-        <div class="nav-section-title">📊 项目状态 ⭐</div>
+        <div class="nav-section-title">📦 业务理解 ⭐</div>
         <div
-          v-for="doc in projectDocs"
+          v-for="doc in businessDocs"
           :key="doc.key"
           class="nav-item"
           :class="{ active: activeDoc === doc.key }"
@@ -60,9 +60,9 @@
       </div>
 
       <div class="nav-section">
-        <div class="nav-section-title">🏗️ 系统架构 ⭐</div>
+        <div class="nav-section-title">💻 开发指南</div>
         <div
-          v-for="doc in architectureDocs"
+          v-for="doc in devGuideDocs"
           :key="doc.key"
           class="nav-item"
           :class="{ active: activeDoc === doc.key }"
@@ -75,23 +75,9 @@
       </div>
 
       <div class="nav-section">
-        <div class="nav-section-title">📦 前后端开发</div>
+        <div class="nav-section-title">🗄️ 数据管理</div>
         <div
-          v-for="doc in devDocs"
-          :key="doc.key"
-          class="nav-item"
-          :class="{ active: activeDoc === doc.key }"
-          @click="loadDoc(doc.key, doc.path)"
-        >
-          <span class="nav-item-icon">{{ doc.icon }}</span>
-          <span class="nav-item-text">{{ doc.title }}</span>
-        </div>
-      </div>
-
-      <div class="nav-section">
-        <div class="nav-section-title">🔧 核心文档 ⭐</div>
-        <div
-          v-for="doc in coreDocs"
+          v-for="doc in dataDocs"
           :key="doc.key"
           class="nav-item"
           :class="{ active: activeDoc === doc.key }"
@@ -104,54 +90,9 @@
       </div>
 
       <div class="nav-section">
-        <div class="nav-section-title">🗄️ 数据库管理</div>
+        <div class="nav-section-title">🔧 运维工具</div>
         <div
-          v-for="doc in dbDocs"
-          :key="doc.key"
-          class="nav-item"
-          :class="{ active: activeDoc === doc.key }"
-          @click="loadDoc(doc.key, doc.path)"
-        >
-          <span class="nav-item-icon">{{ doc.icon }}</span>
-          <span class="nav-item-text">{{ doc.title }}</span>
-          <span v-if="doc.badge" class="nav-item-badge">{{ doc.badge }}</span>
-        </div>
-      </div>
-
-      <div class="nav-section">
-        <div class="nav-section-title">📚 架构与参考</div>
-        <div
-          v-for="doc in docsArchitectureDocs"
-          :key="doc.key"
-          class="nav-item"
-          :class="{ active: activeDoc === doc.key }"
-          @click="loadDoc(doc.key, doc.path)"
-        >
-          <span class="nav-item-icon">{{ doc.icon }}</span>
-          <span class="nav-item-text">{{ doc.title }}</span>
-          <span v-if="doc.badge" class="nav-item-badge">{{ doc.badge }}</span>
-        </div>
-      </div>
-
-      <div class="nav-section">
-        <div class="nav-section-title">🚀 功能实现</div>
-        <div
-          v-for="doc in docsFeatureDocs"
-          :key="doc.key"
-          class="nav-item"
-          :class="{ active: activeDoc === doc.key }"
-          @click="loadDoc(doc.key, doc.path)"
-        >
-          <span class="nav-item-icon">{{ doc.icon }}</span>
-          <span class="nav-item-text">{{ doc.title }}</span>
-          <span v-if="doc.badge" class="nav-item-badge">{{ doc.badge }}</span>
-        </div>
-      </div>
-
-      <div class="nav-section">
-        <div class="nav-section-title">📈 功能模块详解</div>
-        <div
-          v-for="doc in featureDocs"
+          v-for="doc in opsDocs"
           :key="doc.key"
           class="nav-item"
           :class="{ active: activeDoc === doc.key }"
@@ -163,53 +104,9 @@
       </div>
 
       <div class="nav-section">
-        <div class="nav-section-title">🐛 问题分析</div>
+        <div class="nav-section-title">❓ 常见问题</div>
         <div
-          v-for="doc in docsProblemDocs"
-          :key="doc.key"
-          class="nav-item"
-          :class="{ active: activeDoc === doc.key }"
-          @click="loadDoc(doc.key, doc.path)"
-        >
-          <span class="nav-item-icon">{{ doc.icon }}</span>
-          <span class="nav-item-text">{{ doc.title }}</span>
-        </div>
-      </div>
-
-      <div class="nav-section">
-        <div class="nav-section-title">📝 开发维护</div>
-        <div
-          v-for="doc in docsDevDocs"
-          :key="doc.key"
-          class="nav-item"
-          :class="{ active: activeDoc === doc.key }"
-          @click="loadDoc(doc.key, doc.path)"
-        >
-          <span class="nav-item-icon">{{ doc.icon }}</span>
-          <span class="nav-item-text">{{ doc.title }}</span>
-          <span v-if="doc.badge" class="nav-item-badge">{{ doc.badge }}</span>
-        </div>
-      </div>
-
-      <div class="nav-section">
-        <div class="nav-section-title">✨ 代码规范</div>
-        <div
-          v-for="doc in codeStandardDocs"
-          :key="doc.key"
-          class="nav-item"
-          :class="{ active: activeDoc === doc.key }"
-          @click="loadDoc(doc.key, doc.path)"
-        >
-          <span class="nav-item-icon">{{ doc.icon }}</span>
-          <span class="nav-item-text">{{ doc.title }}</span>
-          <span v-if="doc.badge" class="nav-item-badge">{{ doc.badge }}</span>
-        </div>
-      </div>
-
-      <div class="nav-section">
-        <div class="nav-section-title">🛠️ 管理工具</div>
-        <div
-          v-for="doc in toolDocs"
+          v-for="doc in faqDocs"
           :key="doc.key"
           class="nav-item"
           :class="{ active: activeDoc === doc.key }"
@@ -272,229 +169,111 @@
         <div v-else-if="activeSection === 'home'" class="welcome-section">
           <div class="welcome-header">
             <h1>🚢 欢迎使用 LogiX 帮助文档</h1>
-            <p>一站式物流系统开发学习平台 - 从入门到精通</p>
+            <p>一站式物流管理系统 - 从入门到精通</p>
           </div>
 
           <div class="quick-actions">
-            <div class="quick-action-card" @click="navigateTo('home')">
-              <div class="quick-action-icon">🚀</div>
-              <div class="quick-action-title">系统概览</div>
-            </div>
             <div
               class="quick-action-card"
-              @click="loadDoc('TIMESCALEDB', '/docs/08-deployment/01-TimescaleDB指南.md')"
+              @click="loadDoc('LOGIX_OVERVIEW', '/docs/11-project/LogiX项目全面解读.md')"
             >
-              <div class="quick-action-icon">📊</div>
-              <div class="quick-action-title">数据库指南</div>
-            </div>
-            <div
-              class="quick-action-card"
-              @click="loadDoc('DEV_ENV', '/docs/10-guides/03-开发环境指南.md')"
-            >
-              <div class="quick-action-icon">🔧</div>
-              <div class="quick-action-title">环境配置</div>
+              <div class="quick-action-icon">📖</div>
+              <div class="quick-action-title">项目全面解读</div>
             </div>
             <div
               class="quick-action-card"
               @click="loadDoc('QUICK_START', '/docs/10-guides/05-快速开始.md')"
             >
-              <div class="quick-action-icon">⚡</div>
+              <div class="quick-action-icon">🚀</div>
               <div class="quick-action-title">快速开始</div>
             </div>
-          </div>
-
-          <div class="feature-section">
-            <h2>📦 服务访问地址</h2>
-            <div class="service-grid">
-              <div class="service-item">
-                <div class="service-name">🎨 前端应用</div>
-                <div class="service-url">http://localhost:5173</div>
-              </div>
-              <div class="service-item">
-                <div class="service-name">⚙️ 后端 API</div>
-                <div class="service-url">http://localhost:3001</div>
-              </div>
-              <div class="service-item">
-                <div class="service-name">🗄️ TimescaleDB</div>
-                <div class="service-url">localhost:5432</div>
-              </div>
-              <div class="service-item">
-                <div class="service-name">📦 Redis</div>
-                <div class="service-url">localhost:6379</div>
-              </div>
-              <div class="service-item">
-                <div class="service-name">🔧 Adminer</div>
-                <div class="service-url">http://localhost:8080</div>
-              </div>
-              <div class="service-item">
-                <div class="service-name">📊 pgAdmin</div>
-                <div class="service-url">http://localhost:5050</div>
-              </div>
-              <div class="service-item">
-                <div class="service-name">📈 Grafana</div>
-                <div class="service-url">http://localhost:3000</div>
-              </div>
-              <div class="service-item">
-                <div class="service-name">🎯 Prometheus</div>
-                <div class="service-url">http://localhost:9090</div>
-              </div>
+            <div
+              class="quick-action-card"
+              @click="loadDoc('VISION_OVERVIEW', '/docs/vision/README.md')"
+            >
+              <div class="quick-action-icon">💡</div>
+              <div class="quick-action-title">智慧物流愿景</div>
             </div>
-          </div>
-
-          <div class="feature-section">
-            <h2>💻 技术栈</h2>
-            <h3>前端</h3>
-            <div class="tech-stack">
-              <span class="tech-badge">Vue 3.4.0</span>
-              <span class="tech-badge">TypeScript 5.3.0</span>
-              <span class="tech-badge">Vite 5.0.10</span>
-              <span class="tech-badge">Element Plus 2.4.4</span>
-              <span class="tech-badge">Pinia 2.1.7</span>
-              <span class="tech-badge">Vue Router 4.2.5</span>
-              <span class="tech-badge">ECharts 5.4.3</span>
+            <div
+              class="quick-action-card"
+              @click="loadDoc('LOGISTICS_FLOW', '/docs/02-architecture/02-物流流程完整说明.md')"
+            >
+              <div class="quick-action-icon">📦</div>
+              <div class="quick-action-title">物流流程</div>
             </div>
-
-            <h3>后端</h3>
-            <div class="tech-stack">
-              <span class="tech-badge">Node.js 18+</span>
-              <span class="tech-badge">Express</span>
-              <span class="tech-badge">TypeScript</span>
-            </div>
-
-            <h3>数据库</h3>
-            <div class="tech-stack">
-              <span class="tech-badge">PostgreSQL 15</span>
-              <span class="tech-badge">TimescaleDB 2.15.1</span>
-              <span class="tech-badge">Redis 7</span>
+            <div
+              class="quick-action-card"
+              @click="loadDoc('DEV_STANDARDS', '/docs/01-standards/02-开发标准.md')"
+            >
+              <div class="quick-action-icon">📝</div>
+              <div class="quick-action-title">开发规范</div>
             </div>
           </div>
 
           <div class="feature-section">
             <h2>⚡ 快速启动</h2>
-            <p><strong>启动开发环境:</strong> 运行 <code>.\start-logix-dev.ps1</code>（Windows）</p>
-            <p><strong>停止开发环境:</strong> 运行 <code>.\stop-logix-dev.ps1</code></p>
-            <p>一键启动：TimescaleDB、Redis、Prometheus、Grafana、Adminer、pgAdmin、后端、前端</p>
+            <p><strong>启动:</strong> <code>.\start-logix-dev.ps1</code> (Windows)</p>
+            <p><strong>停止:</strong> <code>.\stop-logix-dev.ps1</code></p>
+            <p>一键启动所有服务：数据库、Redis、监控工具、后端、前端</p>
           </div>
 
           <div class="feature-section">
-            <h2>🔑 默认账号</h2>
-            <p><strong>pgAdmin:</strong> admin@logix.com / LogiX@2024</p>
-            <p><strong>Adminer:</strong> 无需登录，直接连接数据库</p>
-            <p><strong>数据库账号:</strong> 查看 <code>.env</code> 文件中的配置</p>
-          </div>
-
-          <div class="feature-section">
-            <h2>📚 核心文档必读</h2>
-            <p><strong>开发规范</strong> - 数据库表结构是唯一不变基准</p>
-            <p><strong>核心映射参考</strong> - 完整表名映射和字段映射</p>
-            <p><strong>倒计时卡片逻辑</strong> - 前端倒计时功能实现说明</p>
+            <h2>📦 核心文档（必读）</h2>
+            <div class="core-docs-grid">
+              <div class="core-doc-item" @click="loadDoc('LOGISTICS_FLOW', '/docs/02-architecture/02-物流流程完整说明.md')">
+                <span class="core-doc-icon">📦</span>
+                <span>物流流程完整说明</span>
+              </div>
+              <div class="core-doc-item" @click="loadDoc('LOGISTICS_STATUS_MACHINE', '/docs/05-state-machine/02-物流状态机.md')">
+                <span class="core-doc-icon">🔁</span>
+                <span>物流状态机</span>
+              </div>
+              <div class="core-doc-item" @click="loadDoc('DEV_STANDARDS', '/docs/01-standards/02-开发标准.md')">
+                <span class="core-doc-icon">📝</span>
+                <span>开发规范</span>
+              </div>
+              <div class="core-doc-item" @click="loadDoc('CORE_MAPPINGS', '/docs/09-misc/02-核心映射参考.md')">
+                <span class="core-doc-icon">🔗</span>
+                <span>核心映射参考</span>
+              </div>
+              <div class="core-doc-item" @click="loadDoc('DB_RELATIONS', '/docs/03-database/01-数据库主表关系.md')">
+                <span class="core-doc-icon">🗄️</span>
+                <span>数据库主表关系</span>
+              </div>
+              <div class="core-doc-item" @click="loadDoc('TIME_CONCEPTS', '/docs/help/时间概念说明-历时倒计时超期.md')">
+                <span class="core-doc-icon">⏱️</span>
+                <span>时间概念说明</span>
+              </div>
+            </div>
             <div class="dev-order-tip">
-              <p>💡 <strong>开发必读顺序</strong>: 开发规范 → 核心映射参考 → 开始编码</p>
+              <p>💡 <strong>开发必读顺序</strong>: 物流流程 → 开发规范 → 核心映射 → 开始编码</p>
             </div>
           </div>
 
           <div class="feature-section">
-            <h2>🤖 AI 开发助手技能体系 ⭐ NEW</h2>
-            <p>
-              LogiX项目已建立完整的 AI助手技能体系，使用 Cursor、CodeBuddy
-              等工具时会自动应用这些规范！
-            </p>
-
-            <div class="skills-grid">
-              <div class="skill-card" @click="loadDoc('SKILLS_INDEX', '/.cursor/skills/README.md')">
-                <div class="skill-icon">📚</div>
-                <div class="skill-title">Skills 总索引</div>
-                <div class="skill-desc">完整的技能列表和使用指南</div>
-                <div class="skill-badge">⭐⭐⭐</div>
+            <h2>🔧 服务地址</h2>
+            <div class="service-grid">
+              <div class="service-item">
+                <div class="service-name">🎨 前端</div>
+                <div class="service-url">http://localhost:5173</div>
               </div>
-
-              <div
-                class="skill-card"
-                @click="loadDoc('QUICK_REF', '/.cursor/skills/QUICK_REFERENCE.md')"
-              >
-                <div class="skill-icon">⚡</div>
-                <div class="skill-title">快速参考</div>
-                <div class="skill-desc">按任务类型查找合适的技能</div>
-                <div class="skill-badge">⭐⭐</div>
+              <div class="service-item">
+                <div class="service-name">⚙️ 后端</div>
+                <div class="service-url">http://localhost:3001</div>
               </div>
-
-              <div
-                class="skill-card"
-                @click="loadDoc('DEV_SKILL', '/.cursor/skills/logix-development/SKILL.md')"
-              >
-                <div class="skill-icon">🎯</div>
-                <div class="skill-title">核心开发技能</div>
-                <div class="skill-desc">完整开发流程和规范</div>
-                <div class="skill-badge">⭐⭐⭐</div>
+              <div class="service-item">
+                <div class="service-name">🗄️ 数据库</div>
+                <div class="service-url">localhost:5432</div>
               </div>
-
-              <div
-                class="skill-card"
-                @click="loadDoc('DB_QUERY', '/.cursor/skills/database-query/SKILL.md')"
-              >
-                <div class="skill-icon">🗄️</div>
-                <div class="skill-title">数据库查询</div>
-                <div class="skill-desc">SQL 编写和数据分析</div>
-                <div class="skill-badge">⭐⭐⭐</div>
+              <div class="service-item">
+                <div class="service-name">📊 Grafana</div>
+                <div class="service-url">http://localhost:3000</div>
               </div>
-
-              <div
-                class="skill-card"
-                @click="loadDoc('DOC_PROC', '/.cursor/skills/document-processing/SKILL.md')"
-              >
-                <div class="skill-icon">📄</div>
-                <div class="skill-title">文档处理</div>
-                <div class="skill-desc">Excel/PDF导入导出</div>
-                <div class="skill-badge">⭐⭐</div>
-              </div>
-
-              <div
-                class="skill-card"
-                @click="loadDoc('CODE_REV', '/.cursor/skills/code-review/SKILL.md')"
-              >
-                <div class="skill-icon">🔍</div>
-                <div class="skill-title">代码审查</div>
-                <div class="skill-desc">代码质量检查清单</div>
-                <div class="skill-badge">⭐⭐</div>
-              </div>
-
-              <div
-                class="skill-card"
-                @click="loadDoc('BUSINESS_KNOWLEDGE', '/.cursor/skills/logix-business-knowledge/SKILL.md')"
-              >
-                <div class="skill-icon">💡</div>
-                <div class="skill-title">业务知识技能</div>
-                <div class="skill-desc">管理和查询业务知识</div>
-                <div class="skill-badge">⭐⭐⭐</div>
-              </div>
-            </div>
-
-            <div class="skills-tip">
-              <p>
-                💡 <strong>使用方式</strong>:
-                在使用AI助手（Cursor、CodeBuddy）时，这些技能会自动应用，提供符合项目规范的建议！
-              </p>
-              <p>
-                <strong>手动调用技能</strong>:
-                你可以在指令中明确提及技能名称，例如："请使用业务知识技能查询物流状态流转"，以确保AI助手使用正确的技能。
-              </p>
-              <p>
-                <strong>文档路径</strong>:
-                所有技能文档都位于 <code>.cursor/skills/</code> 目录下，你可以直接查看这些文件获取详细信息。
-              </p>
-              <p>
-                <strong>整合详情</strong>: 查看
-                <a
-                  href="#"
-                  @click.prevent="loadDoc('INTEGRATION', '/.cursor/skills/INTEGRATION_SUMMARY.md')"
-                  >Skills 整合总结</a
-                >
-              </p>
             </div>
           </div>
 
           <div class="feature-section">
-            <h2>🆘 常见问题快速解决</h2>
+            <h2>🆘 常见问题</h2>
             <div class="faq-grid">
               <div class="faq-item">
                 <div class="faq-title">Docker 未启动</div>
@@ -502,15 +281,11 @@
               </div>
               <div class="faq-item">
                 <div class="faq-title">端口被占用</div>
-                <div class="faq-solution">修改 .env 中的端口配置</div>
-              </div>
-              <div class="faq-item">
-                <div class="faq-title">前端显示 404</div>
-                <div class="faq-solution">检查 npm run dev 是否运行</div>
+                <div class="faq-solution">修改 .env 端口配置</div>
               </div>
               <div class="faq-item">
                 <div class="faq-title">数据库连接失败</div>
-                <div class="faq-solution">检查 TimescaleDB 容器状态</div>
+                <div class="faq-solution">检查容器状态</div>
               </div>
             </div>
           </div>
@@ -585,142 +360,43 @@ const quickStartDocs = [
   },
 ]
 
-const devDocs = [
+// 智慧物流愿景文档
+const visionDocs = [
   {
-    key: 'FRONTEND',
-    title: '前端文档',
-    icon: '🎨',
-    path: '/docs/10-guides/04-前端文档.md',
-  },
-  {
-    key: 'BACKEND',
-    title: '后端文档',
-    icon: '⚙️',
-    path: '/docs/10-guides/02-后端文档.md',
-  },
-]
-
-// ⭐ NEW - 系统架构文档
-const architectureDocs = [
-  {
-    key: 'ARCHITECTURE',
-    title: '系统架构说明',
-    icon: '🏗️',
-    path: '/docs/02-architecture/01-架构说明.md',
+    key: 'VISION_OVERVIEW',
+    title: '愿景总览',
+    icon: '🌟',
+    path: '/docs/vision/README.md',
     badge: '⭐⭐⭐',
   },
   {
-    key: 'TECH_STACK', // ⭐ NEW
-    title: '技术栈详解',
-    icon: '💻',
-    path: '/docs/11-project/LogiX项目全面解读.md#技术栈详解',
+    key: 'VISION_FOUNDATION',
+    title: '基石理念',
+    icon: '🏛️',
+    path: '/docs/vision/01-基石理念.md',
   },
   {
-    key: 'MICROSERVICES', // ⭐ NEW
-    title: '微服务架构',
-    icon: '🔧',
-    path: '/docs/11-project/LogiX项目全面解读.md#系统组成',
+    key: 'VISION_PRACTICE',
+    title: '智慧物流全景',
+    icon: '🔭',
+    path: '/docs/vision/02-智慧物流全景.md',
   },
   {
-    key: 'EXTERNAL_ADAPTER', // ⭐ NEW
-    title: '外部数据适配器',
-    icon: '🔌',
-    path: '/docs/11-project/LogiX项目全面解读.md#外部数据适配器',
-    badge: '⭐⭐',
+    key: 'VISION_ROADMAP',
+    title: '演进蓝图',
+    icon: '🗺️',
+    path: '/docs/vision/03-演进蓝图.md',
+  },
+  {
+    key: 'VISION_FUTURE',
+    title: '未来可能',
+    icon: '🚀',
+    path: '/docs/vision/04-未来可能.md',
   },
 ]
 
-// ⭐ NEW - 功能模块文档
-const featureDocs = [
-  {
-    key: 'GANTT_VISUALIZATION', // ⭐ NEW
-    title: '甘特图可视化',
-    icon: '📊',
-    path: '/docs/11-project/LogiX项目全面解读.md#甘特图可视化',
-  },
-  {
-    key: 'STATISTICS_MONITORING', // ⭐ NEW
-    title: '统计与监控',
-    icon: '📈',
-    path: '/docs/11-project/LogiX项目全面解读.md#统计与监控',
-  },
-  {
-    key: 'SMART_SCHEDULING', // ⭐ NEW
-    title: '智能排柜与计划调度',
-    icon: '🤖',
-    path: '/docs/11-project/05-智能排柜与计划调度实现方案.md',
-  },
-  {
-    key: 'MULTIPLE_ORDERS',
-    title: '多订单货柜',
-    icon: '📦',
-    path: '/docs/02-architecture/03-多订单货柜设计.md',
-  },
-]
-
-const docsFeatureDocs = [
-  {
-    key: 'EXTERNAL_DATA',
-    title: '外部数据集成',
-    icon: '🔌',
-    path: '/docs/04-api/01-外部数据集成指南.md',
-    badge: '⭐',
-  },
-  {
-    key: 'EXTERNAL_DATA_QUICK',
-    title: '外部数据快速开始',
-    icon: '⚡',
-    path: '/docs/04-api/02-外部数据快速开始.md',
-  },
-  {
-    key: 'MULTIPLE_ORDERS_FEATURE',
-    title: '多订单货柜',
-    icon: '📦',
-    path: '/docs/02-architecture/03-多订单货柜设计.md',
-  },
-]
-
-const projectDocs = [
-  {
-    key: 'PROJECT_ACTION',
-    title: '项目行动指南',
-    icon: '📋',
-    path: '/docs/11-project/00-项目行动指南.md',
-    badge: '⭐⭐⭐',
-  },
-  {
-    key: 'PROJECT_STATUS',
-    title: '项目状态与计划',
-    icon: '📊',
-    path: '/docs/11-project/01-项目状态与计划.md',
-  },
-  {
-    key: 'DOCS_INDEX',
-    title: '文档索引',
-    icon: '📚',
-    path: '/docs/11-project/02-文档索引.md',
-  },
-  {
-    key: 'FIVE_NODES',
-    title: '五节点调度方案',
-    icon: '📅',
-    path: '/docs/11-project/04-五节点调度与可视化方案.md',
-  },
-  {
-    key: 'GANTT_MECHANISM',
-    title: '甘特图调度机制',
-    icon: '📈',
-    path: '/docs/11-project/07-甘特图调度与货柜资源关联机制.md',
-  },
-  {
-    key: 'FEITUO_INTEGRATION',
-    title: '飞驼接入整合',
-    icon: '🔌',
-    path: '/docs/11-project/09-飞驼节点状态码解读与接入整合方案.md',
-  },
-]
-
-const logisticsFlowDocs = [
+// 业务理解文档（理解业务核心）
+const businessDocs = [
   {
     key: 'LOGISTICS_FLOW',
     title: '物流流程完整说明',
@@ -729,39 +405,27 @@ const logisticsFlowDocs = [
     badge: '⭐⭐⭐',
   },
   {
-    key: 'CONTAINER_LIFECYCLE', // ⭐ NEW
-    title: '集装箱全生命周期管理',
-    icon: '🔄',
-    path: '/docs/11-project/LogiX项目全面解读.md#集装箱全生命周期管理',
-  },
-  {
-    key: 'STATUS_VISUALIZATION', // ⭐ NEW
-    title: '物流状态可视化',
-    icon: '📊',
-    path: '/docs/11-project/LogiX项目全面解读.md#物流状态可视化',
-  },
-  {
     key: 'LOGISTICS_STATUS_MACHINE',
     title: '物流状态机',
     icon: '🔁',
     path: '/docs/05-state-machine/02-物流状态机.md',
-    badge: '⭐',
   },
   {
-    key: 'UNIFIED_STATUS',
-    title: '统一状态机实现',
-    icon: '🔀',
-    path: '/docs/02-architecture/05-统一状态机实现.md',
+    key: 'TIME_CONCEPTS',
+    title: '时间概念说明',
+    icon: '⏱️',
+    path: '/docs/help/时间概念说明-历时倒计时超期.md',
   },
   {
-    key: 'STATE_MACHINE_FEITUO',
-    title: '业务状态机与飞驼',
-    icon: '🔌',
-    path: '/docs/05-state-machine/03-业务状态机与飞驼.md',
+    key: 'DEMURRAGE',
+    title: '滞港费计算',
+    icon: '💰',
+    path: '/docs/demurrage/09-FRONTEND_MODE_ADAPTATION.md',
   },
 ]
 
-const coreDocs = [
+// 开发指南文档（开发人员必备）
+const devGuideDocs = [
   {
     key: 'DEV_STANDARDS',
     title: '开发规范',
@@ -777,14 +441,7 @@ const coreDocs = [
     badge: '⭐⭐⭐',
   },
   {
-    key: 'CODE_STANDARDS',
-    title: '代码规范',
-    icon: '📋',
-    path: '/docs/01-standards/01-代码规范.md',
-    badge: '⭐',
-  },
-  {
-    key: 'NAMING_CONVENTIONS', // ⭐ NEW
+    key: 'NAMING_CONVENTIONS',
     title: '命名规范',
     icon: '🏷️',
     path: '/docs/01-standards/03-命名规范.md',
@@ -793,61 +450,63 @@ const coreDocs = [
   {
     key: 'BACKEND_QUICK_REF',
     title: '后端快速参考',
-    icon: '⚡',
+    icon: '⚙️',
     path: '/docs/10-guides/01-后端快速参考.md',
   },
-]
-
-const docsArchitectureDocs = [
   {
-    key: 'ARCHITECTURE',
-    title: '系统架构说明',
-    icon: '🏗️',
-    path: '/docs/02-architecture/01-架构说明.md',
-    badge: '⭐',
-  },
-  {
-    key: 'UNIVERSAL_DICT',
-    title: '通用字典映射',
-    icon: '📚',
-    path: '/docs/09-misc/05-通用字典映射指南.md',
+    key: 'FRONTEND',
+    title: '前端文档',
+    icon: '🎨',
+    path: '/docs/10-guides/04-前端文档.md',
   },
 ]
 
-const docsProblemDocs = [
+// 数据管理文档（数据库相关）
+const dataDocs = [
+  {
+    key: 'DB_RELATIONS',
+    title: '数据库主表关系',
+    icon: '🔗',
+    path: '/docs/03-database/01-数据库主表关系.md',
+    badge: '⭐⭐⭐',
+  },
+  {
+    key: 'TIMESCALEDB',
+    title: 'TimescaleDB 指南',
+    icon: '📊',
+    path: '/docs/08-deployment/01-TimescaleDB指南.md',
+  },
   {
     key: 'EXCEL_IMPORT',
-    title: 'Excel导入',
-    icon: '📊',
+    title: 'Excel 导入指南',
+    icon: '📥',
     path: '/docs/09-misc/01-Excel导入指南.md',
-  },
-  {
-    key: 'EXCEL_STATUS',
-    title: 'Excel状态映射',
-    icon: '📈',
-    path: '/docs/03-database/02-Excel状态映射.md',
-  },
-  {
-    key: 'IMPORT_MAPPING_FIX',
-    title: '导入映射修复',
-    icon: '🛠️',
-    path: '/docs/09-misc/10-导入映射修复总结.md',
   },
 ]
 
-const docsDevDocs = [
+// 运维工具文档
+const opsDocs = [
   {
-    key: 'COUNTDOWN_LOGIC',
-    title: '倒计时卡片逻辑',
-    icon: '⏱️',
-    path: '/docs/06-statistics/02-倒计时卡片逻辑.md',
-    badge: '⭐',
+    key: 'MONITORING',
+    title: '监控用户指南',
+    icon: '📈',
+    path: '/docs/08-deployment/03-监控用户指南.md',
   },
   {
-    key: 'STATISTICS_DESC',
-    title: '统计说明',
-    icon: '📊',
-    path: '/docs/06-statistics/01-统计说明.md',
+    key: 'PROJECT_DASHBOARD',
+    title: '项目导航面板',
+    icon: '🔧',
+    path: 'project-dashboard.html',
+  },
+]
+
+// 常见问题文档
+const faqDocs = [
+  {
+    key: 'EXTERNAL_DATA',
+    title: '外部数据集成',
+    icon: '🔌',
+    path: '/docs/04-api/01-外部数据集成指南.md',
   },
   {
     key: 'GANTT_LOGIC',
@@ -855,67 +514,11 @@ const docsDevDocs = [
     icon: '📈',
     path: '/docs/06-statistics/03-甘特图显示逻辑.md',
   },
-]
-
-const dbDocs = [
   {
-    key: 'TIMESCALEDB',
-    title: 'TimescaleDB 完整指南',
-    icon: '📊',
-    path: '/docs/08-deployment/01-TimescaleDB指南.md',
-    badge: '⭐',
-  },
-  {
-    key: 'TIMESCALEDB_QUICK',
-    title: 'TimescaleDB 快速参考',
-    icon: '⚡',
-    path: '/docs/08-deployment/02-TimescaleDB快速参考.md',
-    badge: '⭐',
-  },
-  {
-    key: 'DB_RELATIONS',
-    title: '数据库主表关系',
-    icon: '🔗',
-    path: '/docs/03-database/01-数据库主表关系.md',
-  },
-]
-
-const codeStandardDocs = [
-  {
-    key: 'NAMING_CONVENTIONS',
-    title: '命名规范',
-    icon: '🏷️',
-    path: '/docs/01-standards/03-命名规范.md',
-    badge: '⭐⭐⭐',
-  },
-  {
-    key: 'NAMING_QUICK_REF',
-    title: '命名快速参考',
-    icon: '⚡',
-    path: '/docs/01-standards/04-命名快速参考.md',
-    badge: '⭐',
-  },
-  {
-    key: 'COLOR_GUIDE',
-    title: '颜色系统指南',
-    icon: '🎨',
-    path: '/docs/01-standards/06-颜色系统指南.md',
-  },
-  {
-    key: 'LINT_GUIDE',
-    title: 'Lint 使用指南',
-    icon: '🔧',
-    path: '/docs/01-standards/05-Lint使用指南.md',
-    badge: '⭐',
-  },
-]
-
-const toolDocs = [
-  {
-    key: 'MONITORING',
-    title: '监控用户指南',
-    icon: '📈',
-    path: '/docs/08-deployment/03-监控用户指南.md',
+    key: 'COUNTDOWN_LOGIC',
+    title: '倒计时卡片逻辑',
+    icon: '⏱️',
+    path: '/docs/06-statistics/02-倒计时卡片逻辑.md',
   },
 ]
 
@@ -984,17 +587,12 @@ const goBack = () => {
 // 所有文档列表（用于返回按钮标题）
 const allDocLists = [
   quickStartDocs,
-  devDocs,
-  projectDocs,
-  logisticsFlowDocs,
-  coreDocs,
-  docsArchitectureDocs,
-  docsFeatureDocs,
-  docsProblemDocs,
-  docsDevDocs,
-  dbDocs,
-  codeStandardDocs,
-  toolDocs,
+  visionDocs,
+  businessDocs,
+  devGuideDocs,
+  dataDocs,
+  opsDocs,
+  faqDocs,
 ]
 
 // 获取返回按钮文本
@@ -1545,6 +1143,35 @@ onMounted(() => {
             border-radius: 16px;
             font-size: 0.8rem;
             font-weight: 500;
+          }
+        }
+
+        .core-docs-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: 12px;
+          margin-bottom: 15px;
+
+          .core-doc-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            padding: 12px 15px;
+            border-radius: 8px;
+            border: 2px solid $border-light;
+            cursor: pointer;
+            transition: all 0.3s ease;
+
+            &:hover {
+              border-color: $primary-color;
+              box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
+              transform: translateX(3px);
+            }
+
+            .core-doc-icon {
+              font-size: 1.3rem;
+            }
           }
         }
 

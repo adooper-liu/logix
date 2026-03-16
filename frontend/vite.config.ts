@@ -8,6 +8,25 @@ import { defineConfig } from 'vite'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// 辅助函数：在子目录中递归查找文件
+function findFileInSubdirs(dir: string, fileName: string): string | null {
+  const fs = require('fs')
+
+  if (!fs.existsSync(dir)) return null
+
+  const items = fs.readdirSync(dir, { withFileTypes: true })
+  for (const item of items) {
+    const fullPath = path.join(dir, item.name)
+    if (item.isDirectory()) {
+      const found = findFileInSubdirs(fullPath, fileName)
+      if (found) return found
+    } else if (item.isFile() && item.name === fileName) {
+      return fullPath
+    }
+  }
+  return null
+}
+
 // 自定义插件：确保 Markdown 文件以 UTF-8 编码返回
 function markdownUtf8Plugin(): Plugin {
   return {
@@ -47,10 +66,18 @@ function markdownUtf8Plugin(): Plugin {
             } else if (fs.existsSync(publicPath)) {
               filePath = publicPath
             } else {
-              console.log('[Markdown Plugin] File not found:', req.url)
-              res.statusCode = 404
-              res.end('File not found')
-              return
+              // 文件未找到，尝试在 docs 子目录中搜索（后备方案）
+              const docsDir = path.resolve(__dirname, 'public', 'docs')
+              const foundPath = findFileInSubdirs(docsDir, path.basename(relativePath))
+              if (foundPath) {
+                console.log('[Markdown Plugin] Found file in subdirectory:', foundPath)
+                filePath = foundPath
+              } else {
+                console.log('[Markdown Plugin] File not found:', req.url)
+                res.statusCode = 404
+                res.end('File not found')
+                return
+              }
             }
           } else if (req.url.startsWith('/.cursor/skills/')) {
             // 处理 /.cursor/skills/ 路径

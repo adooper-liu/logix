@@ -649,6 +649,52 @@ LogiX 数据库中客户分为三类：
 - 使用 Docker Compose 启动完整环境：docker-compose -f docker-compose.timescaledb.yml up -d
 - 查看日志：docker-compose logs -f backend
 - 停止服务：docker-compose -f docker-compose.timescaledb.yml down`
+  },
+
+  // ==================== 数据服务 ====================
+  {
+    id: 'data-service',
+    category: '数据服务',
+    title: '数据服务重构方案',
+    keywords: ['数据服务', 'ContainerQueryBuilder', 'ContainerDataService', '重构', '查询优化'],
+    content: `## 数据服务重构方案
+
+### 背景
+为了统一货柜数据查询逻辑，减少代码重复，进行了数据服务重构。
+
+### 核心组件
+
+#### 1. ContainerQueryBuilder
+- 位置：backend/src/services/statistics/common/ContainerQueryBuilder.ts
+- 功能：构建统一的货柜查询
+- 方法：
+  - createListQuery：创建列表查询（含分页）
+  - createBaseQuery：创建基础查询
+
+#### 2. ContainerDataService
+- 位置：backend/src/services/ContainerDataService.ts
+- 功能：分层数据服务
+- 方法：
+  - getContainersForList：列表页面数据
+  - getContainersForStats：统计页面数据
+  - getContainerDetail：详情页面数据
+
+### 查询流程
+1. Controller 调用 ContainerDataService
+2. ContainerDataService 使用 ContainerQueryBuilder 构建查询
+3. 查询结果通过 enrichContainersList 进行数据丰富
+4. 返回给前端
+
+### 字段验证
+- containerNumber：货柜号
+- order.actualShipDate：出运日期
+- sf.shipmentDate：海运日期（备选）
+- seaFreight：海运信息
+
+### 关联关系
+- biz_containers → process_sea_freight (bill_of_lading_number)
+- biz_containers → biz_replenishment_orders (container_number)
+- biz_containers → process_port_operations (container_number)`
   }
 ];
 

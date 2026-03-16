@@ -19,9 +19,50 @@ export class ContainerQueryBuilder {
   };
 
   /**
-   * 创建基础查询（带 order �?sf 连接�?   */
+   * 创建基础查询（带 order 和 sf 连接）
+   */
   static createBaseQuery(containerRepository: any): SelectQueryBuilder<any> {
     return DateFilterBuilder.createBaseQuery(containerRepository);
+  }
+
+  /**
+   * 创建货柜列表查询（用于 getContainers、getContainersByFilterCondition）
+   * 使用 leftJoinAndSelect 加载 seaFreight，供 enrich 使用
+   */
+  static createListQuery(
+    containerRepository: any,
+    params: { search?: string; startDate?: string; endDate?: string }
+  ): SelectQueryBuilder<any> {
+    const qb = containerRepository
+      .createQueryBuilder('container')
+      .leftJoin('container.replenishmentOrders', 'order')
+      .leftJoinAndSelect('container.seaFreight', 'sf');
+
+    DateFilterBuilder.addCountryFilters(qb);
+
+    if (params.search) {
+      qb.andWhere(
+        'container.containerNumber ILIKE :search OR order.orderNumber ILIKE :search',
+        { search: `%${params.search}%` }
+      );
+    }
+
+    if (params.startDate) {
+      qb.andWhere(
+        '(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))',
+        { startDate: new Date(params.startDate) }
+      );
+    }
+    if (params.endDate) {
+      const end = new Date(params.endDate);
+      end.setHours(23, 59, 59, 999);
+      qb.andWhere(
+        '(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))',
+        { endDate: end }
+      );
+    }
+
+    return qb.orderBy('container.updatedAt', 'DESC');
   }
 
   /**

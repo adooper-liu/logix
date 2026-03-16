@@ -23,6 +23,7 @@ import { In, Repository, MoreThanOrEqual } from 'typeorm';
 import { logger } from '../utils/logger';
 import { snakeToCamel } from '../utils/snakeToCamel';
 import { ContainerService } from '../services/container.service';
+import { ContainerDataService } from '../services/ContainerDataService';
 import { ContainerStatisticsService } from '../services/containerStatistics.service';
 import { ContainerStatusService } from '../services/containerStatus.service';
 import { DateFilterBuilder } from '../services/statistics/common/DateFilterBuilder';
@@ -37,6 +38,7 @@ export class ContainerController {
   private truckingPortMappingRepository: Repository<TruckingPortMapping>;
   private warehouseTruckingMappingRepository: Repository<WarehouseTruckingMapping>;
   private containerService: ContainerService;
+  private containerDataService: ContainerDataService;
   private statisticsService: ContainerStatisticsService;
   private containerStatusService: ContainerStatusService;
 
@@ -80,10 +82,20 @@ export class ContainerController {
       countryRepository
     );
 
+    this.containerDataService = new ContainerDataService(
+      containerRepository,
+      this.containerService
+    );
+
     this.statisticsService = new ContainerStatisticsService(
       containerRepository,
       truckingTransportRepository,
       emptyReturnRepository
+    );
+
+    this.containerDataService = new ContainerDataService(
+      containerRepository,
+      this.containerService
     );
 
     this.containerStatusService = new ContainerStatusService();
@@ -163,94 +175,47 @@ export class ContainerController {
 
       logger.info('[getContainers] Query params:', { page, pageSize, search, startDate, endDate });
 
-      const queryBuilder = this.containerRepository
-        .createQueryBuilder('container')
-        .leftJoin('container.replenishmentOrders', 'order')
-        .leftJoinAndSelect('container.seaFreight', 'sf');
-
-      DateFilterBuilder.addCountryFilters(queryBuilder);
-
-      if (search) {
-        queryBuilder.andWhere(
-          'container.containerNumber ILIKE :search OR order.orderNumber ILIKE :search',
-          { search: `%${search}%` }
-        );
-      }
+      // 使用新的数据服务
+      const result = await this.containerDataService.getContainersForList({
+        page: Number(page),
+        pageSize: Number(pageSize),
+        search: String(search),
+        startDate: startDate as string,
+        endDate: endDate as string
+      });
 
       let dateFilterFallback = false;
 
-      // 按出运时间（actualShipDate 或 shipmentDate）筛选，与 DateFilterBuilder 一致：startDate 当天 0 点，endDate 当天 23:59:59
-      if (startDate && endDate) {
-        const startDateObj = new Date(startDate as string);
-        const endDateObj = new Date(endDate as string);
-        endDateObj.setHours(23, 59, 59, 999);
-        queryBuilder.andWhere(
-          '(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))',
-          { startDate: startDateObj }
-        );
-        queryBuilder.andWhere(
-          '(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))',
-          { endDate: endDateObj }
-        );
-      } else if (startDate) {
-        queryBuilder.andWhere(
-          '(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))',
-          { startDate: new Date(startDate as string) }
-        );
-      } else if (endDate) {
-        const endDateObj = new Date(endDate as string);
-        endDateObj.setHours(23, 59, 59, 999);
-        queryBuilder.andWhere(
-          '(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))',
-          { endDate: endDateObj }
-        );
-      }
-
-      let [items, total] = await queryBuilder
-        .orderBy('container.updatedAt', 'DESC')
-        .skip((Number(page) - 1) * Number(pageSize))
-        .take(Number(pageSize))
-        .getManyAndCount();
-
-      // 当传了日期且按日期筛选结果为 0 时，回退为「全部货柜」并打标，避免页面空白
-      if (startDate && endDate && total === 0) {
+      // 当传了日期且按日期筛选结果为 0 时，回退为「全部货柜」并打标
+      if (startDate && endDate && result.total === 0) {
         dateFilterFallback = true;
-        const fallbackQb = this.containerRepository
-          .createQueryBuilder('container')
-          .leftJoin('container.replenishmentOrders', 'order')
-          .leftJoinAndSelect('container.seaFreight', 'sf');
-        DateFilterBuilder.addCountryFilters(fallbackQb);
-        if (search) {
-          fallbackQb.andWhere(
-            'container.containerNumber ILIKE :search OR order.orderNumber ILIKE :search',
-            { search: `%${search}%` }
-          );
-        }
-        [items, total] = await fallbackQb
-          .orderBy('container.updatedAt', 'DESC')
-          .skip((Number(page) - 1) * Number(pageSize))
-          .take(Number(pageSize))
-          .getManyAndCount();
-        logger.info(`[getContainers] Date range had no matches, fallback to all: ${total} containers`);
+        const fallbackResult = await this.containerDataService.getContainersForList({
+          page: Number(page),
+          pageSize: Number(pageSize),
+          search: String(search)
+          // 不传入日期参数，获取全部货柜
+        });
+        
+        result.items = fallbackResult.items;
+        result.total = fallbackResult.total;
+        logger.info(`[getContainers] Date range had no matches, fallback to all: ${result.total} containers`);
       }
 
-      logger.info(`[getContainers] Found ${items.length} containers, total: ${total}`);
-
-      const containersWithStatus = await this.containerService.enrichContainersList(items);
+      logger.info(`[getContainers] Found ${result.items.length} containers, total: ${result.total}`);
 
       res.json({
         success: true,
         dateFilterFallback: dateFilterFallback || undefined,
-        items: containersWithStatus,
+        items: result.items,
         pagination: {
           page: Number(page),
           pageSize: Number(pageSize),
-          total,
-          totalPages: Math.ceil(total / Number(pageSize))
+          total: result.total,
+          totalPages: Math.ceil(result.total / Number(pageSize))
         }
       });
 
-      logger.info(`Retrieved ${items.length} containers`);
+      logger.info(`Retrieved ${result.items.length} containers`);
     } catch (error) {
       logger.error('Failed to get containers', error);
       res.status(500).json({
