@@ -7,14 +7,14 @@
  */
 
 import { AppDataSource } from '../database';
-import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
-import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
 import { Container } from '../entities/Container';
+import { EmptyReturn } from '../entities/EmptyReturn';
+import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
+import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
 import { PortOperation } from '../entities/PortOperation';
+import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { SeaFreight } from '../entities/SeaFreight';
 import { TruckingTransport } from '../entities/TruckingTransport';
-import { EmptyReturn } from '../entities/EmptyReturn';
-import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { DemurrageService } from '../services/demurrage.service';
 import { logger } from '../utils/logger';
 
@@ -47,7 +47,9 @@ export class DemurrageWriteBackScheduler {
       return;
     }
 
-    logger.info(`[DemurrageWriteBackScheduler] Starting scheduler with ${intervalMinutes} minute interval, first execution delayed ${delaySeconds}s`);
+    logger.info(
+      `[DemurrageWriteBackScheduler] Starting scheduler with ${intervalMinutes} minute interval, first execution delayed ${delaySeconds}s`
+    );
 
     const intervalMs = intervalMinutes * 60 * 1000;
     this.intervalId = setInterval(() => {
@@ -101,6 +103,8 @@ export class DemurrageWriteBackScheduler {
       logger.info('[DemurrageWriteBackScheduler] Starting batch tasks');
 
       try {
+        const batchSize = parseInt(process.env.DEMURRAGE_BATCH_SIZE || '200', 10);
+
         const sixMonthsAgo = new Date();
         sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
         const today = new Date();
@@ -110,13 +114,13 @@ export class DemurrageWriteBackScheduler {
         const computeResult = await this.demurrageService.batchComputeAndSaveRecords({
           shipmentStartDate: shipmentStart,
           shipmentEndDate: shipmentEnd,
-          limit: 1000
+          limit: batchSize
         });
         logger.info('[DemurrageWriteBackScheduler] Batch compute records completed', computeResult);
 
         const writeBackResult = await this.demurrageService.batchWriteBackComputedDates({
-          limitLastFree: 100,
-          limitLastReturn: 100
+          limitLastFree: Math.floor(batchSize / 2),
+          limitLastReturn: Math.floor(batchSize / 2)
         });
         const duration = Date.now() - startTime;
 
@@ -138,7 +142,12 @@ export class DemurrageWriteBackScheduler {
   /**
    * 手动触发（用于测试或立即执行）
    */
-  async triggerManualUpdate(): Promise<{ lastFreeWritten: number; lastReturnWritten: number; lastFreeProcessed: number; lastReturnProcessed: number }> {
+  async triggerManualUpdate(): Promise<{
+    lastFreeWritten: number;
+    lastReturnWritten: number;
+    lastFreeProcessed: number;
+    lastReturnProcessed: number;
+  }> {
     logger.info('[DemurrageWriteBackScheduler] Manual write-back triggered');
     return this.demurrageService.batchWriteBackComputedDates({
       limitLastFree: 100,

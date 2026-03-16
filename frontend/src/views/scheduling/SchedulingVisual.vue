@@ -1,150 +1,157 @@
 <template>
   <div class="scheduling-page">
-    <!-- 日期范围（与 Shipments 一致，出运日期口径） -->
-    <el-row class="mb-4" align="middle">
-      <el-col :span="24">
-        <span class="filter-label">日期范围：</span>
-        <DateRangePicker v-model="dateRange" />
-        <el-button type="primary" link @click="loadOverview">刷新概览</el-button>
-      </el-col>
-    </el-row>
+    <!-- 紧凑顶部栏 -->
+    <div class="top-bar">
+      <span class="filter-label">日期：</span>
+      <DateRangePicker v-model="dateRange" />
+      <el-button type="primary" link @click="loadOverview">刷新</el-button>
+      <el-button type="info" size="small" @click="showLogicDialog = true">
+        <el-icon><InfoFilled /></el-icon>
+        逻辑
+      </el-button>
+      <el-button type="primary" :loading="scheduling" @click="handleSchedule">
+        <el-icon><Cpu /></el-icon>
+        开始排产
+      </el-button>
+      <el-button type="default" @click="goBackToShipments">
+        <el-icon><ArrowLeft /></el-icon>
+        返回货柜管理
+      </el-button>
+    </div>
 
-    <!-- 顶部统计卡片 -->
-    <el-row :gutter="20" class="mb-4">
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-icon pending">
-            <el-icon :size="32"><Clock /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ overview.pendingCount }}</div>
-            <div class="stat-label">待排产</div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-icon initial">
-            <el-icon :size="32"><DocumentAdd /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ overview.initialCount }}</div>
-            <div class="stat-label">待排产(initial)</div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-icon issued">
-            <el-icon :size="32"><Edit /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ overview.issuedCount }}</div>
-            <div class="stat-label">待排产(issued)</div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-icon warehouse">
-            <el-icon :size="32"><House /></el-icon>
-          </div>
-          <div class="stat-content">
-            <div class="stat-value">{{ overview.warehouses?.length || 0 }}</div>
-            <div class="stat-label">可用仓库</div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
-
-    <!-- 流程图 -->
-    <el-card class="mb-4">
-      <template #header>
-        <div class="card-header">
-          <span>智能排产流程</span>
-          <el-button type="primary" :loading="scheduling" @click="handleSchedule">
-            <el-icon><Cpu /></el-icon>
-            开始排产
-          </el-button>
-        </div>
-      </template>
-      
-      <div class="flow-chart">
-        <div class="flow-step" :class="{ active: currentStep >= 1 }">
-          <div class="step-circle">1</div>
-          <div class="step-content">
-            <div class="step-title">查询待排产</div>
-            <div class="step-desc">筛选 initial/issued 状态货柜</div>
-          </div>
-        </div>
-        <div class="flow-arrow">
-          <el-icon><ArrowRight /></el-icon>
-        </div>
-        <div class="flow-step" :class="{ active: currentStep >= 2 }">
-          <div class="step-circle">2</div>
-          <div class="step-content">
-            <div class="step-title">排序</div>
-            <div class="step-desc">按 ATA/ETA 先到先得</div>
-          </div>
-        </div>
-        <div class="flow-arrow">
-          <el-icon><ArrowRight /></el-icon>
-        </div>
-        <div class="flow-step" :class="{ active: currentStep >= 3 }">
-          <div class="step-circle">3</div>
-          <div class="step-content">
-            <div class="step-title">计算计划日</div>
-            <div class="step-desc">清关日→提柜日→送仓日</div>
-          </div>
-        </div>
-        <div class="flow-arrow">
-          <el-icon><ArrowRight /></el-icon>
-        </div>
-        <div class="flow-step" :class="{ active: currentStep >= 4 }">
-          <div class="step-circle">4</div>
-          <div class="step-content">
-            <div class="step-title">选择资源</div>
-            <div class="step-desc">仓库产能/车队档期</div>
-          </div>
-        </div>
-        <div class="flow-arrow">
-          <el-icon><ArrowRight /></el-icon>
-        </div>
-        <div class="flow-step" :class="{ active: currentStep >= 5 }">
-          <div class="step-circle">5</div>
-          <div class="step-content">
-            <div class="step-title">写回数据</div>
-            <div class="step-desc">更新排产日期到数据库</div>
-          </div>
-        </div>
+    <!-- 紧凑统计栏 -->
+    <div class="stat-bar">
+      <div class="stat-item">
+        <el-icon class="stat-icon pending"><Clock /></el-icon>
+        <span class="stat-value">{{ overview.pendingCount }}</span>
+        <span class="stat-label">待排产</span>
       </div>
-    </el-card>
+      <div class="stat-item">
+        <el-icon class="stat-icon initial"><DocumentAdd /></el-icon>
+        <span class="stat-value">{{ overview.initialCount }}</span>
+        <span class="stat-label">initial</span>
+      </div>
+      <div class="stat-item">
+        <el-icon class="stat-icon issued"><Edit /></el-icon>
+        <span class="stat-value">{{ overview.issuedCount }}</span>
+        <span class="stat-label">issued</span>
+      </div>
+      <div class="stat-item">
+        <el-icon class="stat-icon warehouse"><House /></el-icon>
+        <span class="stat-value">{{ overview.warehouses?.length || 0 }}</span>
+        <span class="stat-label">仓库</span>
+      </div>
+    </div>
+
+    <!-- 紧凑流程图 -->
+    <div class="flow-bar">
+      <div class="flow-step" :class="{ active: currentStep >= 1 }">
+        <span class="step-num">1</span>
+        <span class="step-text">查询</span>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step" :class="{ active: currentStep >= 2 }">
+        <span class="step-num">2</span>
+        <span class="step-text">排序</span>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step" :class="{ active: currentStep >= 3 }">
+        <span class="step-num">3</span>
+        <span class="step-text">计划日</span>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step" :class="{ active: currentStep >= 4 }">
+        <span class="step-num">4</span>
+        <span class="step-text">资源</span>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step" :class="{ active: currentStep >= 5 }">
+        <span class="step-num">5</span>
+        <span class="step-text">写回</span>
+      </div>
+    </div>
 
     <!-- 资源配置和执行日志 -->
-    <el-row :gutter="20">
+    <el-row :gutter="12">
       <!-- 资源配置 -->
       <el-col :span="12">
-        <el-card>
+        <el-card class="compact-card">
           <template #header>
             <span>可用资源配置</span>
           </template>
           
           <el-tabs v-model="activeTab">
             <el-tab-pane label="仓库" name="warehouse">
-              <el-table :data="overview.warehouses" max-height="300" size="small">
-                <el-table-column prop="code" label="编码" width="100" />
+              <el-table :data="overview.warehouses" max-height="200" size="small">
+                <el-table-column prop="code" label="编码" width="80" />
                 <el-table-column prop="name" label="名称" />
-                <el-table-column prop="country" label="国家" width="80" />
-                <el-table-column prop="dailyCapacity" label="日产能" width="80" />
+                <el-table-column prop="country" label="国家" width="60" />
+                <el-table-column prop="dailyCapacity" label="产能" width="60" />
               </el-table>
             </el-tab-pane>
             <el-tab-pane label="车队" name="trucking">
-              <el-table :data="overview.truckings" max-height="300" size="small">
-                <el-table-column prop="code" label="编码" width="100" />
+              <el-table :data="overview.truckings" max-height="200" size="small">
+                <el-table-column prop="code" label="编码" width="80" />
                 <el-table-column prop="name" label="名称" />
-                <el-table-column prop="country" label="国家" width="80" />
-                <el-table-column prop="dailyCapacity" label="日产能" width="80" />
+                <el-table-column prop="country" label="国家" width="60" />
+                <el-table-column prop="dailyCapacity" label="产能" width="60" />
               </el-table>
+            </el-tab-pane>
+            <el-tab-pane label="堆场" name="yard">
+              <div class="tab-header">
+                <el-button type="primary" size="small" @click="showYardDialog()">
+                  <el-icon><Plus /></el-icon>
+                </el-button>
+              </div>
+              <el-table :data="yards" max-height="200" size="small">
+                <el-table-column prop="yardCode" label="编码" width="80" />
+                <el-table-column prop="yardName" label="名称" />
+                <el-table-column prop="portCode" label="港口" width="60" />
+              </el-table>
+            </el-tab-pane>
+            <el-tab-pane label="资源占用" name="occupancy">
+              <div class="tab-header">
+                <span>资源占用情况</span>
+                <div class="date-range-picker">
+                  <span>日期范围：</span>
+                  <DateRangePicker v-model="occupancyDateRange" />
+                  <el-button type="primary" size="small" @click="loadOccupancyData">
+                    刷新数据
+                  </el-button>
+                </div>
+              </div>
+              <el-tabs v-model="occupancyTab" @tab-change="handleOccupancyTabChange">
+                <el-tab-pane label="仓库占用" name="warehouse">
+                  <div class="chart-container">
+                    <div ref="warehouseChart" class="chart"></div>
+                  </div>
+                </el-tab-pane>
+                <el-tab-pane label="车队占用" name="trucking">
+                  <div class="chart-container">
+                    <div ref="truckingChart" class="chart"></div>
+                  </div>
+                </el-tab-pane>
+              </el-tabs>
+            </el-tab-pane>
+            <el-tab-pane label="资源分析" name="analysis">
+              <div class="tab-header">
+                <span>资源分析</span>
+                <el-button type="primary" size="small" @click="loadAnalysisData">
+                  分析数据
+                </el-button>
+              </div>
+              <el-tabs v-model="analysisTab">
+                <el-tab-pane label="容量利用率" name="utilization">
+                  <div class="chart-container">
+                    <div ref="utilizationChart" class="chart"></div>
+                  </div>
+                </el-tab-pane>
+                <el-tab-pane label="瓶颈分析" name="bottleneck">
+                  <div class="chart-container">
+                    <div ref="bottleneckChart" class="chart"></div>
+                  </div>
+                </el-tab-pane>
+              </el-tabs>
             </el-tab-pane>
           </el-tabs>
         </el-card>
@@ -177,68 +184,45 @@
     </el-row>
 
     <!-- 排产结果 -->
-    <el-card v-if="scheduleResult" class="mt-4">
+    <el-card v-if="scheduleResult" class="mt-4 compact-card">
       <template #header>
         <div class="card-header">
           <span>排产结果</span>
           <div class="result-actions">
             <el-button type="primary" link @click="exportScheduleResult">
               <el-icon><Download /></el-icon>
-              导出CSV
             </el-button>
             <el-button type="primary" link @click="router.push('/gantt-chart')">
               <el-icon><View /></el-icon>
-              查看甘特图
             </el-button>
           </div>
         </div>
       </template>
       
-      <!-- 优化统计卡片 -->
-      <div class="schedule-stats">
-        <div class="stat-box total">
-          <div class="stat-icon-bg"><el-icon :size="28"><Box /></el-icon></div>
-          <div class="stat-info">
-            <div class="stat-num">{{ scheduleResult.total }}</div>
-            <div class="stat-text">总计</div>
-          </div>
-        </div>
-        <div class="stat-box success">
-          <div class="stat-icon-bg"><el-icon :size="28"><CircleCheck /></el-icon></div>
-          <div class="stat-info">
-            <div class="stat-num">{{ scheduleResult.successCount }}</div>
-            <div class="stat-text">成功</div>
-          </div>
-        </div>
-        <div class="stat-box failed">
-          <div class="stat-icon-bg"><el-icon :size="28"><CircleClose /></el-icon></div>
-          <div class="stat-info">
-            <div class="stat-num">{{ scheduleResult.failedCount }}</div>
-            <div class="stat-text">失败</div>
-          </div>
-        </div>
-        <div class="stat-box progress">
-          <div class="progress-wrapper">
-            <el-progress 
-              type="circle" 
-              :percentage="scheduleResult.total > 0 ? Math.round((scheduleResult.successCount / scheduleResult.total) * 100) : 0" 
-              :width="70"
-              :stroke-width="8"
-              :color="successRateColor"
-            />
-          </div>
-          <div class="stat-info">
-            <div class="stat-num">{{ scheduleResult.total > 0 ? ((scheduleResult.successCount / scheduleResult.total) * 100).toFixed(1) : 0 }}%</div>
-            <div class="stat-text">成功率</div>
-          </div>
-        </div>
+      <!-- 紧凑统计 -->
+      <div class="result-stats">
+        <span class="result-stat">
+          <el-icon><Box /></el-icon>
+          {{ scheduleResult.total }} 总计
+        </span>
+        <span class="result-stat success">
+          <el-icon><CircleCheck /></el-icon>
+          {{ scheduleResult.successCount }} 成功
+        </span>
+        <span class="result-stat failed">
+          <el-icon><CircleClose /></el-icon>
+          {{ scheduleResult.failedCount }} 失败
+        </span>
+        <span class="result-stat">
+          成功率: {{ scheduleResult.total > 0 ? ((scheduleResult.successCount / scheduleResult.total) * 100).toFixed(1) : 0 }}%
+        </span>
       </div>
 
-      <!-- 分组显示：成功/失败 -->
-      <el-tabs v-model="resultTab" class="result-tabs mt-4">
+      <!-- 分组显示 -->
+      <el-tabs v-model="resultTab" class="result-tabs">
         <el-tab-pane label="全部" name="all">
-          <el-table :data="scheduleResult.results" max-height="300" size="small" stripe>
-            <el-table-column label="柜号" width="150" fixed>
+          <el-table :data="scheduleResult.results" max-height="250" size="small" stripe>
+            <el-table-column label="柜号" width="130" fixed>
               <template #default="{ row }">
                 <el-link type="primary" @click="router.push(`/shipments/${row.containerNumber}`)">
                   {{ row.containerNumber }}
@@ -311,13 +295,155 @@
       </el-tabs>
     </el-card>
   </div>
+
+  <!-- 仓库编辑模态框 -->
+  <el-dialog v-model="warehouseDialogVisible" title="编辑仓库日产能" width="500px">
+    <el-form :model="warehouseForm" label-width="120px">
+      <el-form-item label="仓库编码">
+        <el-input v-model="warehouseForm.code" disabled />
+      </el-form-item>
+      <el-form-item label="仓库名称">
+        <el-input v-model="warehouseForm.name" disabled />
+      </el-form-item>
+      <el-form-item label="日卸柜能力" required>
+        <el-input-number v-model="warehouseForm.dailyCapacity" :min="1" :max="1000" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="warehouseDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveWarehouse">保存</el-button>
+      </span>
+    </template>
+  </el-dialog>
+
+  <!-- 车队编辑模态框 -->
+  <el-dialog v-model="truckingDialogVisible" title="编辑车队日容量" width="500px">
+    <el-form :model="truckingForm" label-width="120px">
+      <el-form-item label="车队编码">
+        <el-input v-model="truckingForm.code" disabled />
+      </el-form-item>
+      <el-form-item label="车队名称">
+        <el-input v-model="truckingForm.name" disabled />
+      </el-form-item>
+      <el-form-item label="日容量" required>
+        <el-input-number v-model="truckingForm.dailyCapacity" :min="1" :max="1000" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="truckingDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveTrucking">保存</el-button>
+      </span>
+    </template>
+  </el-dialog>
+
+  <!-- 堆场编辑模态框 -->
+  <el-dialog v-model="yardDialogVisible" :title="isEditYard ? '编辑堆场' : '新增堆场'" width="600px">
+    <el-form :model="yardForm" label-width="120px">
+      <el-form-item label="堆场编码" required>
+        <el-input v-model="yardForm.yardCode" :disabled="isEditYard" />
+      </el-form-item>
+      <el-form-item label="堆场名称" required>
+        <el-input v-model="yardForm.yardName" />
+      </el-form-item>
+      <el-form-item label="港口编码">
+        <el-input v-model="yardForm.portCode" />
+      </el-form-item>
+      <el-form-item label="日容量" required>
+        <el-input-number v-model="yardForm.dailyCapacity" :min="1" :max="1000" />
+      </el-form-item>
+      <el-form-item label="日费用" required>
+        <el-input-number v-model="yardForm.feePerDay" :min="0" :step="0.01" />
+      </el-form-item>
+      <el-form-item label="地址">
+        <el-input v-model="yardForm.address" type="textarea" :rows="2" />
+      </el-form-item>
+      <el-form-item label="联系电话">
+        <el-input v-model="yardForm.contactPhone" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="yardDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveYard">保存</el-button>
+      </span>
+    </template>
+  </el-dialog>
+
+  <!-- 智能排柜逻辑说明对话框 -->
+  <el-dialog
+    v-model="showLogicDialog"
+    title="智能排柜逻辑说明"
+    width="700px"
+    :close-on-click-modal="true"
+  >
+    <div class="logic-dialog-content">
+      <el-descriptions :column="1" border>
+        <el-descriptions-item label="待排产条件">
+          scheduleStatus = 'initial' | 'issued'，且有 ATA 或 ETA（目的港）
+        </el-descriptions-item>
+        <el-descriptions-item label="排产排序">
+          按 ATA/ETA 升序，同日内按 lastFreeDate 升序（先到先得）
+        </el-descriptions-item>
+        <el-descriptions-item label="计划清关日">
+          = ETA（无则用 ATA）
+        </el-descriptions-item>
+        <el-descriptions-item label="计划提柜日">
+          = 清关日 + 1天，且 ≤ lastFreeDate
+        </el-descriptions-item>
+        <el-descriptions-item label="候选仓库">
+          港口→车队→仓库 映射链，无则返回 []
+        </el-descriptions-item>
+        <el-descriptions-item label="选择仓库">
+          从候选仓库中找最早有产能的仓库和卸柜日
+        </el-descriptions-item>
+        <el-descriptions-item label="卸柜方式">
+          提柜日=卸柜日 ? "Live load" : "Drop off"
+        </el-descriptions-item>
+        <el-descriptions-item label="计划还箱日">
+          从 EmptyReturn 取 lastReturnDate，或 fallback lastFreeDate+7
+        </el-descriptions-item>
+        <el-descriptions-item label="选择车队">
+          仓库→车队映射 + 港口→车队映射，取有剩余档期的
+        </el-descriptions-item>
+        <el-descriptions-item label="选择清关公司">
+          根据国家匹配，无则用 "UNSPECIFIED"
+        </el-descriptions-item>
+        <el-descriptions-item label="数据写入">
+          拖卡运输、仓库操作、港口操作、还箱记录
+        </el-descriptions-item>
+      </el-descriptions>
+
+      <el-divider>数据写入详情</el-divider>
+
+      <el-table :data="writeDataInfo" size="small" border>
+        <el-table-column prop="table" label="表" width="220" />
+        <el-table-column prop="fields" label="写入字段" />
+      </el-table>
+
+      <el-divider>关键约束</el-divider>
+
+      <ul class="constraint-list">
+        <li><strong>仓库选择</strong>：严格按映射链（港口→车队→仓库），无回退</li>
+        <li><strong>车队选择</strong>：必须在 warehouse_trucking_mapping + trucking_port_mapping 中同时存在</li>
+        <li><strong>产能扣减</strong>：排产后立即扣减仓库日产能和车队档期</li>
+        <li><strong>还箱码头</strong>：使用仓库信息（warehouseCode/warehouseName）</li>
+        <li><strong>提柜日回退</strong>：如果计划提柜日 &lt; 今天，则提柜日=今天，清关日=昨天</li>
+        <li><strong>还箱日约束</strong>：还箱日 ≥ 卸柜日（Live load: 还=卸；Drop off: 还=卸+1）</li>
+      </ul>
+    </div>
+    <template #footer>
+      <el-button type="primary" @click="showLogicDialog = false">关闭</el-button>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Clock, DocumentAdd, Edit, House, Cpu, ArrowRight, CircleCheck, CircleClose, InfoFilled, View, Download, Box } from '@element-plus/icons-vue'
+import { Clock, DocumentAdd, Edit, House, Cpu, ArrowRight, ArrowDown, ArrowUp, CircleCheck, CircleClose, InfoFilled, View, Download, Box, Plus, ArrowLeft } from '@element-plus/icons-vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import { containerService } from '@/services/container'
 import { useAppStore } from '@/store/app'
@@ -325,12 +451,37 @@ import dayjs from 'dayjs'
 
 const appStore = useAppStore()
 const router = useRouter()
+const route = useRoute()
 
 // 日期范围（出运日期口径，与 Shipments 一致）
 const dateRange = ref<[Date, Date]>([
   dayjs().startOf('year').toDate(),
   dayjs().endOf('day').toDate()
 ])
+
+// 从路由参数初始化日期范围
+const initDateRangeFromRoute = () => {
+  const startDate = route.query.startDate as string
+  const endDate = route.query.endDate as string
+  
+  if (startDate && endDate) {
+    dateRange.value = [
+      dayjs(startDate).toDate(),
+      dayjs(endDate).toDate()
+    ]
+  }
+}
+
+
+// 操作说明相关
+const showLogicDetail = ref(false)
+const showLogicDialog = ref(false)
+const writeDataInfo = [
+  { table: 'process_trucking_transport', fields: 'plannedPickupDate, plannedDeliveryDate, truckingCompanyId, unloadModePlan, scheduleStatus' },
+  { table: 'process_warehouse_operations', fields: 'plannedUnloadDate, warehouseId' },
+  { table: 'process_port_operations', fields: 'plannedCustomsDate, customsBrokerCode' },
+  { table: 'process_empty_returns', fields: 'plannedReturnDate, returnTerminalCode, returnTerminalName' }
+]
 
 // 数据
 const overview = ref<any>({
@@ -340,6 +491,7 @@ const overview = ref<any>({
   warehouses: [],
   truckings: []
 })
+const yards = ref<any[]>([])
 const scheduling = ref(false)
 const currentStep = ref(0)
 const activeTab = ref('warehouse')
@@ -347,6 +499,53 @@ const logs = ref<Array<{ time: string; message: string; type: string }>>([])
 const logContainer = ref<HTMLElement>()
 const scheduleResult = ref<any>(null)
 const resultTab = ref('all')
+
+// 对话框状态
+const warehouseDialogVisible = ref(false)
+const truckingDialogVisible = ref(false)
+const yardDialogVisible = ref(false)
+const isEditYard = ref(false)
+
+// 表单数据
+const warehouseForm = ref({
+  code: '',
+  name: '',
+  dailyCapacity: 10
+})
+
+const truckingForm = ref({
+  code: '',
+  name: '',
+  dailyCapacity: 10
+})
+
+const yardForm = ref({
+  yardCode: '',
+  yardName: '',
+  portCode: '',
+  dailyCapacity: 100,
+  feePerDay: 0,
+  address: '',
+  contactPhone: ''
+})
+
+// 资源占用相关
+const occupancyDateRange = ref<[Date, Date]>([
+  dayjs().subtract(30, 'day').toDate(),
+  dayjs().toDate()
+])
+const occupancyTab = ref('warehouse')
+const warehouseChart = ref<HTMLElement>()
+const truckingChart = ref<HTMLElement>()
+let warehouseChartInstance: any = null
+let truckingChartInstance: any = null
+
+// 资源分析相关
+const analysisTab = ref('utilization')
+const utilizationChart = ref<HTMLElement>()
+const bottleneckChart = ref<HTMLElement>()
+let utilizationChartInstance: any = null
+let bottleneckChartInstance: any = null
 
 // 计算属性
 const successRateColor = computed(() => {
@@ -407,6 +606,7 @@ const exportScheduleResult = () => {
 const loadOverview = async () => {
   try {
     const result = await containerService.getSchedulingOverview({
+      country: appStore.scopedCountryCode,
       startDate: dateRange.value?.[0] ? dayjs(dateRange.value[0]).format('YYYY-MM-DD') : undefined,
       endDate: dateRange.value?.[1] ? dayjs(dateRange.value[1]).format('YYYY-MM-DD') : undefined
     })
@@ -534,80 +734,964 @@ const handleSchedule = async () => {
   }
 }
 
-onMounted(() => {
+// 加载堆场列表
+const loadYards = async () => {
+  try {
+    const response = await fetch(`/api/v1/scheduling/resources/yards?country=${appStore.scopedCountryCode}`)
+    const data = await response.json()
+    if (data.success) {
+      yards.value = data.data
+    }
+  } catch (error: any) {
+    ElMessage.error('加载堆场列表失败: ' + error.message)
+  }
+}
+
+// 编辑仓库
+const editWarehouse = (row: any) => {
+  warehouseForm.value = {
+    code: row.code,
+    name: row.name,
+    dailyCapacity: row.dailyCapacity
+  }
+  warehouseDialogVisible.value = true
+}
+
+// 保存仓库
+const saveWarehouse = async () => {
+  try {
+    const response = await fetch(`/api/v1/scheduling/resources/warehouse/${warehouseForm.value.code}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        dailyUnloadCapacity: warehouseForm.value.dailyCapacity
+      })
+    })
+    const data = await response.json()
+    if (data.success) {
+      ElMessage.success('仓库日卸柜能力更新成功')
+      warehouseDialogVisible.value = false
+      loadOverview()
+    } else {
+      ElMessage.error(data.message)
+    }
+  } catch (error: any) {
+    ElMessage.error('更新失败: ' + error.message)
+  }
+}
+
+// 编辑车队
+const editTrucking = (row: any) => {
+  truckingForm.value = {
+    code: row.code,
+    name: row.name,
+    dailyCapacity: row.dailyCapacity
+  }
+  truckingDialogVisible.value = true
+}
+
+// 保存车队
+const saveTrucking = async () => {
+  try {
+    const response = await fetch(`/api/v1/scheduling/resources/trucking/${truckingForm.value.code}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        dailyCapacity: truckingForm.value.dailyCapacity
+      })
+    })
+    const data = await response.json()
+    if (data.success) {
+      ElMessage.success('车队日容量更新成功')
+      truckingDialogVisible.value = false
+      loadOverview()
+    } else {
+      ElMessage.error(data.message)
+    }
+  } catch (error: any) {
+    ElMessage.error('更新失败: ' + error.message)
+  }
+}
+
+// 显示堆场对话框
+const showYardDialog = (row?: any) => {
+  if (row) {
+    // 编辑模式
+    isEditYard.value = true
+    yardForm.value = {
+      yardCode: row.yardCode,
+      yardName: row.yardName,
+      portCode: row.portCode || '',
+      dailyCapacity: row.dailyCapacity,
+      feePerDay: row.feePerDay,
+      address: row.address || '',
+      contactPhone: row.contactPhone || ''
+    }
+  } else {
+    // 新增模式
+    isEditYard.value = false
+    yardForm.value = {
+      yardCode: '',
+      yardName: '',
+      portCode: '',
+      dailyCapacity: 100,
+      feePerDay: 0,
+      address: '',
+      contactPhone: ''
+    }
+  }
+  yardDialogVisible.value = true
+}
+
+// 编辑堆场
+const editYard = (row: any) => {
+  showYardDialog(row)
+}
+
+// 保存堆场
+const saveYard = async () => {
+  try {
+    const url = isEditYard.value 
+      ? `/api/v1/scheduling/resources/yards/${yardForm.value.yardCode}`
+      : '/api/v1/scheduling/resources/yards'
+    
+    const method = isEditYard.value ? 'PUT' : 'POST'
+    
+    const response = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(yardForm.value)
+    })
+    
+    const data = await response.json()
+    if (data.success) {
+      ElMessage.success(isEditYard.value ? '堆场信息更新成功' : '堆场创建成功')
+      yardDialogVisible.value = false
+      loadYards()
+    } else {
+      ElMessage.error(data.message)
+    }
+  } catch (error: any) {
+    ElMessage.error('操作失败: ' + error.message)
+  }
+}
+
+// 删除堆场
+const deleteYard = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除堆场 ${row.yardName} 吗？`,
+      '删除确认',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    
+    const response = await fetch(`/api/v1/scheduling/resources/yards/${row.yardCode}`, {
+      method: 'DELETE'
+    })
+    
+    const data = await response.json()
+    if (data.success) {
+      ElMessage.success('堆场删除成功')
+      loadYards()
+    } else {
+      ElMessage.error(data.message)
+    }
+  } catch (error: any) {
+    if (error.message !== 'cancel') {
+      ElMessage.error('删除失败: ' + error.message)
+    }
+  }
+}
+
+// 加载仓库占用数据
+const loadWarehouseOccupancy = async () => {
+  try {
+    const startDate = dayjs(occupancyDateRange.value[0]).format('YYYY-MM-DD')
+    const endDate = dayjs(occupancyDateRange.value[1]).format('YYYY-MM-DD')
+    
+    const response = await fetch(`/api/v1/scheduling/resources/occupancy/warehouse?startDate=${startDate}&endDate=${endDate}&country=${appStore.scopedCountryCode}`)
+    const data = await response.json()
+    
+    if (data.success) {
+      renderWarehouseChart(data.data)
+    }
+  } catch (error: any) {
+    ElMessage.error('加载仓库占用数据失败: ' + error.message)
+  }
+}
+
+// 加载车队占用数据
+const loadTruckingOccupancy = async () => {
+  try {
+    const startDate = dayjs(occupancyDateRange.value[0]).format('YYYY-MM-DD')
+    const endDate = dayjs(occupancyDateRange.value[1]).format('YYYY-MM-DD')
+    
+    const response = await fetch(`/api/v1/scheduling/resources/occupancy/trucking?startDate=${startDate}&endDate=${endDate}&country=${appStore.scopedCountryCode}`)
+    const data = await response.json()
+    
+    if (data.success) {
+      renderTruckingChart(data.data)
+    }
+  } catch (error: any) {
+    ElMessage.error('加载车队占用数据失败: ' + error.message)
+  }
+}
+
+// 渲染仓库占用热力图
+const renderWarehouseChart = (data: any[]) => {
+  if (!warehouseChart.value) return
+  
+  // 检查容器尺寸并初始化
+  const checkSizeAndInit = () => {
+    if (!warehouseChart.value) return
+    
+    const width = warehouseChart.value.clientWidth
+    const height = warehouseChart.value.clientHeight
+    
+    if (width > 0 && height > 0) {
+      // 动态导入 ECharts
+      import('echarts').then(echarts => {
+        if (!warehouseChartInstance) {
+          warehouseChartInstance = echarts.init(warehouseChart.value)
+        }
+        
+        // 处理数据
+        const warehouses = [...new Set(data.map(item => item.warehouse_code))]
+        const dates = [...new Set(data.map(item => item.date))].sort()
+        
+        const seriesData = data.map(item => {
+          const warehouseIndex = warehouses.indexOf(item.warehouse_code)
+          const dateIndex = dates.indexOf(item.date)
+          const utilization = item.capacity > 0 ? (item.planned_count / item.capacity) * 100 : 0
+          return [dateIndex, warehouseIndex, utilization]
+        })
+        
+        const option = {
+          tooltip: {
+            position: 'top',
+            formatter: function(params: any) {
+              const data = params.data
+              const date = dates[data[0]]
+              const warehouse = warehouses[data[1]]
+              const utilization = data[2].toFixed(2)
+              return `日期: ${date}<br/>仓库: ${warehouse}<br/>利用率: ${utilization}%`
+            }
+          },
+          grid: {
+            height: '60%',
+            top: '10%'
+          },
+          xAxis: {
+            type: 'category',
+            data: dates,
+            splitArea: {
+              show: true
+            }
+          },
+          yAxis: {
+            type: 'category',
+            data: warehouses,
+            splitArea: {
+              show: true
+            }
+          },
+          visualMap: {
+            min: 0,
+            max: 100,
+            calculable: true,
+            orient: 'horizontal',
+            left: 'center',
+            bottom: '5%',
+            inRange: {
+              color: ['#e0f2ff', '#66b1ff', '#2979ff', '#0052d9', '#003192']
+            }
+          },
+          series: [{
+            name: '利用率',
+            type: 'heatmap',
+            data: seriesData,
+            label: {
+              show: true,
+              formatter: function(params: any) {
+                return params.data[2].toFixed(0) + '%'
+              }
+            },
+            emphasis: {
+              itemStyle: {
+                shadowBlur: 10,
+                shadowColor: 'rgba(0, 0, 0, 0.5)'
+              }
+            }
+          }]
+        }
+        
+        warehouseChartInstance.setOption(option)
+      })
+    } else {
+      // 尺寸为 0，等待一段时间后重试
+      setTimeout(checkSizeAndInit, 100)
+    }
+  }
+  
+  // 开始检查并初始化
+  checkSizeAndInit()
+}
+
+// 渲染车队占用热力图
+const renderTruckingChart = (data: any[]) => {
+  if (!truckingChart.value) return
+  
+  // 检查容器尺寸并初始化
+  const checkSizeAndInit = () => {
+    if (!truckingChart.value) return
+    
+    const width = truckingChart.value.clientWidth
+    const height = truckingChart.value.clientHeight
+    
+    if (width > 0 && height > 0) {
+      // 动态导入 ECharts
+      import('echarts').then(echarts => {
+        if (!truckingChartInstance) {
+          truckingChartInstance = echarts.init(truckingChart.value)
+        }
+        
+        // 处理数据
+        const truckingCompanies = [...new Set(data.map(item => item.trucking_company_id))]
+        const dates = [...new Set(data.map(item => item.date))].sort()
+        
+        const seriesData = data.map(item => {
+          const truckingIndex = truckingCompanies.indexOf(item.trucking_company_id)
+          const dateIndex = dates.indexOf(item.date)
+          const utilization = item.capacity > 0 ? (item.planned_trips / item.capacity) * 100 : 0
+          return [dateIndex, truckingIndex, utilization]
+        })
+        
+        const option = {
+          tooltip: {
+            position: 'top',
+            formatter: function(params: any) {
+              const data = params.data
+              const date = dates[data[0]]
+              const trucking = truckingCompanies[data[1]]
+              const utilization = data[2].toFixed(2)
+              return `日期: ${date}<br/>车队: ${trucking}<br/>利用率: ${utilization}%`
+            }
+          },
+          grid: {
+            height: '60%',
+            top: '10%'
+          },
+          xAxis: {
+            type: 'category',
+            data: dates,
+            splitArea: {
+              show: true
+            }
+          },
+          yAxis: {
+            type: 'category',
+            data: truckingCompanies,
+            splitArea: {
+              show: true
+            }
+          },
+          visualMap: {
+            min: 0,
+            max: 100,
+            calculable: true,
+            orient: 'horizontal',
+            left: 'center',
+            bottom: '5%',
+            inRange: {
+              color: ['#e0f2ff', '#66b1ff', '#2979ff', '#0052d9', '#003192']
+            }
+          },
+          series: [{
+            name: '利用率',
+            type: 'heatmap',
+            data: seriesData,
+            label: {
+              show: true,
+              formatter: function(params: any) {
+                return params.data[2].toFixed(0) + '%'
+              }
+            },
+            emphasis: {
+              itemStyle: {
+                shadowBlur: 10,
+                shadowColor: 'rgba(0, 0, 0, 0.5)'
+              }
+            }
+          }]
+        }
+        
+        truckingChartInstance.setOption(option)
+      })
+    } else {
+      // 尺寸为 0，等待一段时间后重试
+      setTimeout(checkSizeAndInit, 100)
+    }
+  }
+  
+  // 开始检查并初始化
+  checkSizeAndInit()
+}
+
+// 加载资源占用数据
+const loadOccupancyData = () => {
+  if (occupancyTab.value === 'warehouse') {
+    loadWarehouseOccupancy()
+  } else {
+    loadTruckingOccupancy()
+  }
+}
+
+// 监听占用标签页变化
+const handleOccupancyTabChange = (tab: string) => {
+  occupancyTab.value = tab
+  loadOccupancyData()
+}
+
+// 加载资源分析数据
+const loadAnalysisData = async () => {
+  try {
+    const startDate = dayjs(occupancyDateRange.value[0]).format('YYYY-MM-DD')
+    const endDate = dayjs(occupancyDateRange.value[1]).format('YYYY-MM-DD')
+    
+    // 并行加载仓库和车队占用数据
+    const [warehouseResponse, truckingResponse] = await Promise.all([
+      fetch(`/api/v1/scheduling/resources/occupancy/warehouse?startDate=${startDate}&endDate=${endDate}&country=${appStore.scopedCountryCode}`),
+      fetch(`/api/v1/scheduling/resources/occupancy/trucking?startDate=${startDate}&endDate=${endDate}&country=${appStore.scopedCountryCode}`)
+    ])
+    
+    const warehouseData = await warehouseResponse.json()
+    const truckingData = await truckingResponse.json()
+    
+    if (warehouseData.success && truckingData.success) {
+      if (analysisTab.value === 'utilization') {
+        renderUtilizationChart(warehouseData.data, truckingData.data)
+      } else {
+        renderBottleneckChart(warehouseData.data, truckingData.data)
+      }
+    }
+  } catch (error: any) {
+    ElMessage.error('加载分析数据失败: ' + error.message)
+  }
+}
+
+// 渲染容量利用率图表
+const renderUtilizationChart = (warehouseData: any[], truckingData: any[]) => {
+  if (!utilizationChart.value) return
+  
+  // 检查容器尺寸并初始化
+  const checkSizeAndInit = () => {
+    if (!utilizationChart.value) return
+    
+    const width = utilizationChart.value.clientWidth
+    const height = utilizationChart.value.clientHeight
+    
+    if (width > 0 && height > 0) {
+      // 动态导入 ECharts
+      import('echarts').then(echarts => {
+        if (!utilizationChartInstance) {
+          utilizationChartInstance = echarts.init(utilizationChart.value)
+        }
+        
+        // 计算仓库平均利用率
+        const warehouseUtilization = warehouseData.reduce((sum, item) => {
+          if (item.capacity > 0) {
+            return sum + (item.planned_count / item.capacity)
+          }
+          return sum
+        }, 0) / (warehouseData.length || 1)
+        
+        // 计算车队平均利用率
+        const truckingUtilization = truckingData.reduce((sum, item) => {
+          if (item.capacity > 0) {
+            return sum + (item.planned_trips / item.capacity)
+          }
+          return sum
+        }, 0) / (truckingData.length || 1)
+        
+        const option = {
+          tooltip: {
+            trigger: 'item',
+            formatter: '{a} <br/>{b}: {c}%'
+          },
+          legend: {
+            orient: 'vertical',
+            left: 'left',
+            data: ['仓库利用率', '车队利用率']
+          },
+          series: [
+            {
+              name: '资源利用率',
+              type: 'gauge',
+              startAngle: 180,
+              endAngle: 0,
+              min: 0,
+              max: 100,
+              splitNumber: 10,
+              axisLine: {
+                lineStyle: {
+                  width: 30,
+                  color: [
+                    [0.3, '#67c23a'],
+                    [0.7, '#e6a23c'],
+                    [1, '#f56c6c']
+                  ]
+                }
+              },
+              pointer: {
+                icon: 'path://M12.8,0.7l12,40.1H0.7L12.8,0.7z',
+                length: '12%',
+                width: 20,
+                offsetCenter: [0, '-60%'],
+                itemStyle: {
+                  color: 'auto'
+                }
+              },
+              axisTick: {
+                length: 12,
+                lineStyle: {
+                  color: 'auto',
+                  width: 2
+                }
+              },
+              splitLine: {
+                length: 20,
+                lineStyle: {
+                  color: 'auto',
+                  width: 5
+                }
+              },
+              axisLabel: {
+                color: '#464646',
+                fontSize: 12,
+                distance: -60,
+                formatter: function (value: any) {
+                  if (value === 0 || value === 100) {
+                    return value + '%';
+                  } else {
+                    return '';
+                  }
+                }
+              },
+              title: {
+                offsetCenter: [0, '-10%'],
+                fontSize: 20
+              },
+              detail: {
+                fontSize: 30,
+                offsetCenter: [0, '-35%'],
+                valueAnimation: true,
+                formatter: function (value: any) {
+                  return Math.round(value) + '%';
+                },
+                color: 'auto'
+              },
+              data: [
+                {
+                  value: warehouseUtilization * 100,
+                  name: '仓库利用率'
+                }
+              ]
+            },
+            {
+              name: '资源利用率',
+              type: 'gauge',
+              startAngle: 180,
+              endAngle: 0,
+              min: 0,
+              max: 100,
+              splitNumber: 10,
+              axisLine: {
+                lineStyle: {
+                  width: 30,
+                  color: [
+                    [0.3, '#67c23a'],
+                    [0.7, '#e6a23c'],
+                    [1, '#f56c6c']
+                  ]
+                }
+              },
+              pointer: {
+                icon: 'path://M12.8,0.7l12,40.1H0.7L12.8,0.7z',
+                length: '12%',
+                width: 20,
+                offsetCenter: [0, '60%'],
+                itemStyle: {
+                  color: 'auto'
+                }
+              },
+              axisTick: {
+                length: 12,
+                lineStyle: {
+                  color: 'auto',
+                  width: 2
+                }
+              },
+              splitLine: {
+                length: 20,
+                lineStyle: {
+                  color: 'auto',
+                  width: 5
+                }
+              },
+              axisLabel: {
+                color: '#464646',
+                fontSize: 12,
+                distance: -60,
+                formatter: function (value: any) {
+                  if (value === 0 || value === 100) {
+                    return value + '%';
+                  } else {
+                    return '';
+                  }
+                }
+              },
+              title: {
+                offsetCenter: [0, '90%'],
+                fontSize: 20
+              },
+              detail: {
+                fontSize: 30,
+                offsetCenter: [0, '65%'],
+                valueAnimation: true,
+                formatter: function (value: any) {
+                  return Math.round(value) + '%';
+                },
+                color: 'auto'
+              },
+              data: [
+                {
+                  value: truckingUtilization * 100,
+                  name: '车队利用率'
+                }
+              ]
+            }
+          ]
+        }
+        
+        utilizationChartInstance.setOption(option)
+      })
+    } else {
+      // 尺寸为 0，等待一段时间后重试
+      setTimeout(checkSizeAndInit, 100)
+    }
+  }
+  
+  // 开始检查并初始化
+  checkSizeAndInit()
+}
+
+// 渲染瓶颈分析图表
+const renderBottleneckChart = (warehouseData: any[], truckingData: any[]) => {
+  if (!bottleneckChart.value) return
+  
+  // 动态导入 ECharts
+  import('echarts').then(echarts => {
+    if (!bottleneckChartInstance) {
+      bottleneckChartInstance = echarts.init(bottleneckChart.value)
+    }
+    
+    // 分析仓库瓶颈
+    const warehouseBottlenecks = warehouseData
+      .filter(item => item.capacity > 0)
+      .map(item => ({
+        name: item.warehouse_code,
+        utilization: (item.planned_count / item.capacity) * 100,
+        date: item.date
+      }))
+      .sort((a, b) => b.utilization - a.utilization)
+      .slice(0, 5)
+    
+    // 分析车队瓶颈
+    const truckingBottlenecks = truckingData
+      .filter(item => item.capacity > 0)
+      .map(item => ({
+        name: item.trucking_company_id,
+        utilization: (item.planned_trips / item.capacity) * 100,
+        date: item.date
+      }))
+      .sort((a, b) => b.utilization - a.utilization)
+      .slice(0, 5)
+    
+    const option = {
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+          type: 'shadow'
+        }
+      },
+      legend: {
+        data: ['仓库瓶颈', '车队瓶颈']
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '3%',
+        containLabel: true
+      },
+      xAxis: {
+        type: 'value',
+        boundaryGap: [0, 0.01],
+        max: 100
+      },
+      yAxis: {
+        type: 'category',
+        data: [...warehouseBottlenecks.map(item => `仓库: ${item.name}`), ...truckingBottlenecks.map(item => `车队: ${item.name}`)]
+      },
+      series: [
+        {
+          name: '利用率',
+          type: 'bar',
+          data: [...warehouseBottlenecks.map(item => item.utilization), ...truckingBottlenecks.map(item => item.utilization)],
+          itemStyle: {
+            color: function(params: any) {
+              const utilization = params.value
+              if (utilization >= 80) return '#f56c6c'
+              if (utilization >= 50) return '#e6a23c'
+              return '#67c23a'
+            }
+          },
+          label: {
+            show: true,
+            position: 'right',
+            formatter: '{c}%'
+          }
+        }
+      ]
+    }
+    
+    bottleneckChartInstance.setOption(option)
+  })
+}
+
+// 监听国家变化
+const watchCountryChange = () => {
   loadOverview()
+  loadYards()
+  // 重新加载占用数据
+  loadOccupancyData()
+}
+
+// 返回货柜管理页面
+const goBackToShipments = () => {
+  const startDate = dayjs(dateRange.value[0]).format('YYYY-MM-DD')
+  const endDate = dayjs(dateRange.value[1]).format('YYYY-MM-DD')
+  const filterCondition = route.query.filterCondition as string
+  
+  router.push({
+    path: '/shipments',
+    query: {
+      startDate,
+      endDate,
+      filterCondition
+    }
+  })
+}
+
+onMounted(() => {
+  // 从路由参数初始化日期范围
+  initDateRangeFromRoute()
+  loadOverview()
+  loadYards()
+  // 延迟加载图表，确保 DOM 已渲染
+  setTimeout(() => {
+    loadOccupancyData()
+  }, 500)
+  
+  // 监听国家变化
+  appStore.$subscribe((mutation, state) => {
+    if (mutation.type === 'setScopedCountryCode') {
+      watchCountryChange()
+    }
+  })
 })
 </script>
 
 <style scoped>
 .scheduling-page {
-  padding: 20px;
+  padding: 12px;
+}
+
+/* 紧凑顶部栏 */
+.top-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #fff;
+  border-radius: 4px;
 }
 
 .filter-label {
-  margin-right: 8px;
+  margin-right: 4px;
   color: #606266;
-  font-size: 14px;
+  font-size: 13px;
 }
 
-.mb-4 {
-  margin-bottom: 20px;
+/* 紧凑统计栏 */
+.stat-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
 }
 
-.mt-4 {
-  margin-top: 20px;
-}
-
-.stat-card {
+.stat-item {
+  flex: 1;
   display: flex;
   align-items: center;
-  padding: 20px;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fff;
+  border-radius: 4px;
+  border: 1px solid #ebeef5;
 }
 
-.stat-icon {
-  width: 60px;
-  height: 60px;
-  border-radius: 12px;
+.stat-item .stat-icon {
+  font-size: 18px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 16px;
+  color: #fff;
 }
 
-.stat-icon.pending {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-}
+.stat-item .stat-icon.pending { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.stat-item .stat-icon.initial { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.stat-item .stat-icon.issued { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+.stat-item .stat-icon.warehouse { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
 
-.stat-icon.initial {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: white;
-}
-
-.stat-icon.issued {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  color: white;
-}
-
-.stat-icon.warehouse {
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-  color: white;
-}
-
-.stat-content {
-  flex: 1;
-}
-
-.stat-value {
-  font-size: 28px;
-  font-weight: bold;
+.stat-item .stat-value {
+  font-size: 18px;
+  font-weight: 600;
   color: #303133;
 }
 
-.stat-label {
-  font-size: 14px;
+.stat-item .stat-label {
+  font-size: 12px;
   color: #909399;
-  margin-top: 4px;
+}
+
+/* 紧凑流程条 */
+.flow-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 10px;
+  background: #fff;
+  border-radius: 4px;
+}
+
+.flow-step {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: #f5f7fa;
+  color: #909399;
+}
+
+.flow-step.active {
+  background: #409eff;
+  color: #fff;
+}
+
+.flow-step .step-num {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.flow-step .step-text {
+  font-size: 12px;
+}
+
+.flow-bar .flow-arrow {
+  color: #c0c4cc;
+  font-size: 12px;
+}
+
+/* 紧凑卡片 */
+.compact-card {
+  margin-bottom: 12px;
+}
+
+.compact-card :deep(.el-card__header) {
+  padding: 10px 14px;
+  font-size: 13px;
+}
+
+.compact-card :deep(.el-card__body) {
+  padding: 10px;
+}
+
+/* 结果统计 */
+.result-stats {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.result-stat {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #606266;
+}
+
+.result-stat.success {
+  color: #67c23a;
+}
+
+.result-stat.failed {
+  color: #f56c6c;
+}
+
+.result-tabs :deep(.el-tabs__content) {
+  padding: 0;
+}
+
+.mb-4 {
+  margin-bottom: 12px;
+}
+
+.mt-2 {
+  margin-top: 8px;
+}
+
+.mt-4 {
+  margin-top: 12px;
+}
+
+.tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.tab-header span {
+  font-size: 13px;
+  color: #303133;
 }
 
 .card-header {
@@ -616,72 +1700,19 @@ onMounted(() => {
   align-items: center;
 }
 
-.flow-chart {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 0;
-}
-
-.flow-step {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 120px;
-  opacity: 0.4;
-  transition: all 0.3s;
-}
-
-.flow-step.active {
-  opacity: 1;
-}
-
-.step-circle {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: #dcdfe6;
-  color: #909399;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  font-weight: bold;
-  margin-bottom: 8px;
-  transition: all 0.3s;
-}
-
-.flow-step.active .step-circle {
-  background: linear-gradient(135deg, #409eff 0%, #67c23a 100%);
-  color: white;
-}
-
-.step-title {
-  font-weight: bold;
-  font-size: 14px;
-  color: #303133;
-}
-
-.step-desc {
-  font-size: 12px;
-  color: #909399;
-  text-align: center;
-  margin-top: 4px;
-}
-
 .flow-arrow {
   color: #c0c4cc;
   font-size: 24px;
 }
 
 .log-container {
-  height: 300px;
+  height: 200px;
   overflow-y: auto;
   background: #1e1e1e;
   border-radius: 4px;
-  padding: 12px;
+  padding: 8px;
   font-family: monospace;
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .log-item {
@@ -832,5 +1863,47 @@ onMounted(() => {
   border-radius: 50%;
   margin-right: 4px;
   background: #409eff;
+}
+
+.tab-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.tab-header span {
+  font-weight: bold;
+  font-size: 14px;
+  color: #303133;
+}
+
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.chart-container {
+  height: 400px;
+  margin-top: 16px;
+}
+
+.chart {
+  width: 100%;
+  height: 100%;
+}
+
+.date-range-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.date-range-picker span {
+  color: #606266;
+  font-size: 14px;
 }
 </style>

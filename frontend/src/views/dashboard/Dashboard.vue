@@ -71,20 +71,62 @@ const MAIN_STATUS_KEYS = [
   'returned_empty',
 ] as const
 
+// 数据缓存
+const dataCache = ref({
+  lastLoaded: 0,
+  cacheDuration: 60000, // 缓存1分钟
+  statusData: null,
+  yearlyData: null,
+  demurrageSummary: null,
+  stats: null,
+  alertDetails: null,
+  statusDistribution: null
+})
+
 const loadData = async () => {
+  // 检查缓存是否有效
+  const now = Date.now()
+  if (now - dataCache.value.lastLoaded < dataCache.value.cacheDuration && dataCache.value.stats) {
+    // 使用缓存数据
+    stats.value = dataCache.value.stats
+    statusData.value = dataCache.value.statusData
+    yearlyData.value = dataCache.value.yearlyData
+    demurrageSummary.value = dataCache.value.demurrageSummary
+    alertDetails.value = dataCache.value.alertDetails
+    statusDistribution.value = dataCache.value.statusDistribution
+    return
+  }
+
   loading.value = true
   try {
     const startDate = dayjs(dateRange.value[0]).format('YYYY-MM-DD')
     const endDate = dayjs(dateRange.value[1]).format('YYYY-MM-DD')
 
-    const [statusResult, yearlyResult, summaryResult] = await Promise.allSettled([
+    // 优先加载核心数据，滞港费数据后台加载
+    const [statusResult, yearlyResult] = await Promise.allSettled([
       containerService.getStatisticsDetailed(startDate, endDate),
       containerService.getYearlyShipmentVolume(), // 年度出运量不受时间范围影响
-      demurrageService.getSummary({ startDate, endDate, limit: 500 }),
     ])
+    
+    // 后台加载滞港费数据
+    demurrageService.getSummary({ startDate, endDate, limit: 500 })
+      .then(summaryRes => {
+        if (summaryRes?.success && summaryRes?.data) {
+          demurrageSummary.value = {
+            totalAmount: summaryRes.data.totalAmount ?? 0,
+            currency: summaryRes.data.currency ?? 'USD',
+            containerCountWithCharge: summaryRes.data.containerCountWithCharge ?? 0,
+            avgPerContainer: summaryRes.data.avgPerContainer ?? 0,
+          }
+          dataCache.value.demurrageSummary = demurrageSummary.value
+        }
+      })
+      .catch(error => {
+        console.error('Failed to load demurrage summary:', error)
+      })
+
     const statusResponse = statusResult.status === 'fulfilled' ? statusResult.value : null
     const yearlyResponse = yearlyResult.status === 'fulfilled' ? yearlyResult.value : null
-    const summaryRes = summaryResult.status === 'fulfilled' ? summaryResult.value : null
 
     if (statusResponse?.success && statusResponse?.data) {
       const res = statusResponse
@@ -150,7 +192,6 @@ const loadData = async () => {
         completedContainers: 0,
         alertContainers: 0,
       }
-      demurrageSummary.value = null
     }
 
     const yearlyRes = yearlyResponse?.success && yearlyResponse?.data ? yearlyResponse : null
@@ -158,15 +199,16 @@ const loadData = async () => {
       yearlyData.value = yearlyRes.data
     }
 
-    if (summaryRes?.success && summaryRes?.data) {
-      demurrageSummary.value = {
-        totalAmount: summaryRes.data.totalAmount ?? 0,
-        currency: summaryRes.data.currency ?? 'USD',
-        containerCountWithCharge: summaryRes.data.containerCountWithCharge ?? 0,
-        avgPerContainer: summaryRes.data.avgPerContainer ?? 0,
-      }
-    } else {
-      demurrageSummary.value = null
+    // 更新缓存
+    dataCache.value = {
+      lastLoaded: now,
+      cacheDuration: 60000,
+      statusData: statusData.value,
+      yearlyData: yearlyData.value,
+      demurrageSummary: demurrageSummary.value,
+      stats: stats.value,
+      alertDetails: alertDetails.value,
+      statusDistribution: statusDistribution.value
     }
   } catch (error) {
     console.error('Failed to load dashboard data:', error)
@@ -219,7 +261,7 @@ const handleDateChange = (value: [Date, Date] | null) => {
 
 onMounted(() => {
   loadData()
-  const interval = setInterval(loadData, 30000)
+  const interval = setInterval(loadData, 300000) // 5分钟刷新一次
   onUnmounted(() => clearInterval(interval))
 })
 </script>

@@ -12,6 +12,9 @@ description: Develop features for LogiX logistics management system following pr
 > - 🔗 **excel-import-requirements** - Excel 导入规范（映射、类型转换、主键、模板）
 > - 🔗 **code-review** - 代码质量审查技能
 > - 🔗 **commit-message** - Git 提交信息生成技能
+> - 🔗 **gantt-drag-drop** - 甘特图拖拽实现要点（落点识别、确认弹窗）
+> - 🔗 **gantt-hierarchy** - 甘特图一、二、三级层级（目的港→节点→供应商）
+> - 🔗 **intelligent-scheduling-mapping** - 智能排柜仓库/车队映射与选择逻辑
 > - 🔗 **ai-collaboration-methodology** - 需求理解、错误排查、SOP 流程
 
 ## 🎯 核心原则（必须遵守）

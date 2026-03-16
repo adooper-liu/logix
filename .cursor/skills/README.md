@@ -110,7 +110,48 @@
   - Scope 命名建议
   - 示例模板
 
-#### 7. **ai-collaboration-methodology** - AI 协作开发方法论
+#### 7. **gantt-drag-drop** - 甘特图拖拽实现
+
+- **文件**: `gantt-drag-drop/SKILL.md`
+- **用途**: 甘特图拖拽落点识别、高亮、确认弹窗的实现要点
+- **使用场景**:
+  - ✅ 实现或修改甘特图拖拽
+  - ✅ 调试落点识别、高亮异常
+  - ✅ 确认弹窗需点二次等问题
+- **核心内容**:
+  - elementFromPoint 精确定位
+  - RAF 节流防卡顿
+  - 确认弹窗在 dragend 后、双重 rAF 避免首次点击被消费
+
+#### 8. **gantt-hierarchy** - 甘特图一、二、三级层级
+
+- **文件**: `gantt-hierarchy/SKILL.md`
+- **用途**: 甘特图目的港→节点→供应商三级分组与折叠实现
+- **使用场景**:
+  - ✅ 修改甘特图分组结构
+  - ✅ 调整折叠/展开逻辑
+  - ✅ 新增节点或供应商维度
+- **核心内容**:
+  - finalGroupedByPort 数据结构
+  - 折叠 key 约定与一级互斥
+  - 模板嵌套与辅助函数
+
+#### 9. **intelligent-scheduling-mapping** - 智能排柜映射与仓库/车队选择
+
+- **文件**: `intelligent-scheduling-mapping/SKILL.md`
+- **用途**: 智能排柜引擎的仓库、车队选择逻辑，严格匹配映射关系
+- **使用场景**:
+  - ✅ 修改智能排柜逻辑
+  - ✅ 配置或调试 dict_warehouse_trucking_mapping、dict_trucking_port_mapping
+  - ✅ 排查 CA-S003/FBW_CA 等仓库显示问题
+  - ✅ 新增映射或调整仓库优先级
+- **核心内容**:
+  - 严格匹配映射（无回退到全部仓库/仅港口车队）
+  - 映射链：港口→车队→仓库
+  - 仓库优先级：is_default > 自营仓 > 平台仓 > 第三方仓
+  - 仓库名称从 dict_warehouses 查 warehouse_name
+
+#### 10. **ai-collaboration-methodology** - AI 协作开发方法论
 
 - **文件**: `ai-collaboration-methodology/SKILL.md`
 - **用途**: 需求理解、技能调用、错误排查、SOP 流程
@@ -126,6 +167,27 @@
   - 智能排产 message→动作
   - 避免重复问题清单
   - SOP 速查
+
+#### 11. **logix-business-knowledge** - LogiX 业务知识
+
+- **文件**: `logix-business-knowledge/SKILL.md`
+- **用途**: 管理和查询 LogiX 项目业务知识
+- **使用场景**:
+  - ✅ 查找业务规则和流程
+  - ✅ 理解领域知识
+  - ✅ 开发业务相关功能
+  - ✅ 排查业务逻辑问题
+- **核心内容**:
+  - 物流状态流转
+  - 筛选条件
+  - 滞港费计算
+  - 时间概念
+  - 甘特图功能
+  - 全局国家筛选
+  - 物流路径
+  - 飞驼API集成
+  - 智能排产
+  - 客户类型
 
 ---
 
@@ -204,6 +266,7 @@
 | **code-review**            | ✅⭐⭐   | ✅       | ✅⭐⭐⭐ | ❌       | ❌         | ❌       | 通用       |
 | **commit-message**         | ❌       | ❌       | ❌       | ❌       | ❌         | ✅⭐⭐⭐ | 通用       |
 | **ai-collaboration-methodology** | ✅       | ✅       | ✅       | ❌       | ❌         | ❌       | 通用       |
+| **logix-business-knowledge** | ✅⭐⭐ | ✅⭐⭐ | ✅       | ❌       | ❌         | ❌       | LogiX 专属 |
 
 ---
 
@@ -270,10 +333,11 @@
 
 | 版本 | 日期       | 更新内容                          |
 | ---- | ---------- | --------------------------------- |
+| 2.1  | 2026-03-16 | 添加 logix-business-knowledge 技能 |
 | 2.0  | 2026-03-12 | 整合统一所有 skills，形成完整体系 |
 | 1.0  | 2026-03-10 | 初始版本，分散的 skills           |
 
 ---
 
-**最后更新**: 2026-03-12  
+**最后更新**: 2026-03-16  
 **维护者**: LogiX Team

@@ -143,20 +143,33 @@ export class ContainerService {
           return truckingCompanyId;
         };
 
-        // 仓库缺省约定
+        // 仓库缺省约定（warehouseId 优先，其次 actualWarehouse/plannedWarehouse）
         const getWarehouseName = (): string | null => {
-          if (!warehouseId) return null;
-          const warehouse = warehousesMap.get(warehouseId);
+          const codeOrName =
+            warehouseId ||
+            warehouseOperation?.actualWarehouse ||
+            warehouseOperation?.plannedWarehouse;
+          if (!codeOrName) return null;
+          const warehouse = warehousesMap.get(codeOrName);
           if (warehouse?.warehouseName) return warehouse.warehouseName;
           const countryName = getCountryName();
           if (countryName) return `${countryName}仓库`;
-          return warehouseId;
+          return codeOrName;
+        };
+
+        const getReturnTerminalName = (): string | null => {
+          const name = emptyReturn?.returnTerminalName;
+          const code = emptyReturn?.returnTerminalCode;
+          if (name) return name;
+          if (code) return code;
+          return null;
         };
 
         const supplierNames = {
           customsBrokerName: getCustomsBrokerName(),
           truckingCompanyName: getTruckingCompanyName(),
-          warehouseName: getWarehouseName()
+          warehouseName: getWarehouseName(),
+          returnTerminalName: getReturnTerminalName()
         };
 
         return {
@@ -190,9 +203,10 @@ export class ContainerService {
           returnTime: emptyReturn?.returnTime || null,
           // 供应商名称（用于甘特图三级展示）
           supplierNames,
-          // 关联数据（用于前端过滤）
-          portOperations, // ← 新增：完整的港口操作数组
+          // 关联数据（用于前端过滤与甘特图三级分组）
+          portOperations,
           truckingTransports: truckingTransport ? [truckingTransport] : [],
+          warehouseOperations: warehouseOperation ? [warehouseOperation] : [],
           emptyReturns: emptyReturn ? [emptyReturn] : [],
           // SeaFreight 用于详情
           seaFreight: container.seaFreight || null

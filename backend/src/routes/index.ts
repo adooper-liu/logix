@@ -28,6 +28,7 @@ import costRoutes from './cost.routes.js';
 import dataSourceRoutes from './dataSource.routes.js';
 import schedulingRoutes from './scheduling.routes.js';
 import aiRoutes from './ai.routes.js';
+import migrationRoutes from './migration.routes.js';
 
 const router = Router();
 
@@ -81,5 +82,6 @@ router.use('/alerts', alertRoutes);
 router.use('/costs', costRoutes);
 router.use('/data-source', dataSourceRoutes);
 router.use('/scheduling', schedulingRoutes);
+router.use('/migrations', migrationRoutes);
 
 export default router;

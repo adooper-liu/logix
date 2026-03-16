@@ -89,13 +89,16 @@ const welcomeMessage: ChatMessage = {
 - 查询备货单、拖卡运输、还空箱、仓库等数据
 
 请直接用自然语言描述您的需求，例如：
-- "显示今天到港的货柜数量"
-- "查询美国方向的滞港费情况"
-- "按柜型统计货柜数量"
-- "列出待清关的货柜"
-- "显示滞港费预警列表"
-- "帮我排产美国方向的货柜"
-- "对美国方向本月的货柜执行排产"`,
+   - "显示今天到港的货柜数量"
+   - "查询美国方向的滞港费情况"
+   - "按柜型统计货柜数量"
+   - "列出待清关的货柜"
+   - "显示滞港费预警列表"
+   - "帮我排产美国方向的货柜"
+   - "对美国方向本月的货柜执行排产"
+
+   **手动调用技能**：
+   您可以在指令中明确提及技能名称，例如："请使用业务知识技能查询物流状态流转"，以确保我使用正确的技能来回答您的问题。`,
   timestamp: new Date().toISOString()
 }
 
@@ -270,7 +273,7 @@ onMounted(() => {
     <div class="chat-header">
       <div class="header-title">
         <el-icon class="title-icon"><MagicStick /></el-icon>
-        <span>AI 智能助手</span>
+        <span>小乐</span>
       </div>
       <div class="header-status">
         <el-tag v-if="healthStatus?.status === 'ready'" type="success" size="small">
@@ -301,7 +304,7 @@ onMounted(() => {
         </div>
         <div class="message-content">
           <div class="message-header">
-            <span class="message-sender">{{ msg.role === 'user' ? '您' : 'LogiX AI' }}</span>
+            <span class="message-sender">{{ msg.role === 'user' ? '您' : '小乐' }}</span>
             <span class="message-time">{{ formatTime(msg.timestamp) }}</span>
           </div>
           <div class="message-body" v-html="msg.content.replace(/\n/g, '<br>')"></div>
@@ -315,7 +318,7 @@ onMounted(() => {
         </div>
         <div class="message-content">
           <div class="message-header">
-            <span class="message-sender">LogiX AI</span>
+            <span class="message-sender">小乐</span>
             <span class="message-time">思考中...</span>
           </div>
           <div class="message-body">

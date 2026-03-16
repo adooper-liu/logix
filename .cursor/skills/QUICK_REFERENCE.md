@@ -66,6 +66,28 @@
 ✅ 示例模板
 ```
 
+### 我要改甘特图拖拽 → **gantt-drag-drop** ⭐⭐
+
+```
+路径：.cursor/skills/gantt-drag-drop/SKILL.md
+
+包含:
+✅ elementFromPoint 落点识别
+✅ RAF 节流防卡顿
+✅ 确认弹窗在 dragend 后、双重 rAF 避免取消需点二次
+```
+
+### 我要改甘特图分组/折叠 → **gantt-hierarchy** ⭐⭐
+
+```
+路径：.cursor/skills/gantt-hierarchy/SKILL.md
+
+包含:
+✅ 目的港→节点→供应商三级结构
+✅ finalGroupedByPort 数据结构
+✅ 折叠 key 约定与一级互斥
+```
+
 ---
 
 ## 🔍 按关键词查找
@@ -77,6 +99,8 @@
 | 表前缀 dict*/biz*/process\_、SQL 查询      | **database-query**      |
 | Excel 导入、table/field 映射、PDF 解析     | **document-processing** |
 | 代码审查、PR、质量检查                     | **code-review**         |
+| 甘特图拖拽、落点识别、确认弹窗需点二次     | **gantt-drag-drop**     |
+| 甘特图分组、目的港、节点、供应商、折叠     | **gantt-hierarchy**    |
 | Git 提交、commit message、changelog        | **commit-message**      |
 
 ---

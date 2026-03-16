@@ -14,6 +14,7 @@ import {
 } from '@/utils/logisticsStatusMachine'
 import {
     ArrowDown,
+    ArrowRight,
     Calendar,
     Download,
     Edit,
@@ -406,6 +407,11 @@ const reloadStatistics = async () => {
   await loadStatistics()
 }
 
+// 同时刷新列表和统计数据
+const reloadAllData = async () => {
+  await Promise.all([loadContainers(), loadStatistics()])
+}
+
 // 处理倒计时卡片点击过滤（days 即后端 filterCondition，透传）
 const handleCountdownFilter = (type: string, days: string) => {
   activeFilter.value = { type: type as any, days }
@@ -757,7 +763,16 @@ const handleBatchExport = () => {
 
 // 一键排产（智能排柜）
 const batchScheduleLoading = ref(false)
-const handleBatchSchedule = async () => {
+const scheduleDialogVisible = ref(false)
+
+const handleBatchSchedule = () => {
+  scheduleDialogVisible.value = true
+}
+
+// 执行直接排产
+const executeDirectSchedule = async () => {
+  scheduleDialogVisible.value = false
+  
   // 操作指引对话框
   const confirmed = await ElMessageBox.confirm(
     h('div', { style: 'text-align: left; line-height: 1.8;' }, [
@@ -805,6 +820,25 @@ const handleBatchSchedule = async () => {
   } finally {
     batchScheduleLoading.value = false
   }
+}
+
+// 跳转到排产页面
+const goToSchedulingPage = () => {
+  scheduleDialogVisible.value = false
+  const startDate = dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD')
+  const endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
+  const filterCondition = activeFilter.value.days
+  const filterLabel = getFilterLabel(filterCondition)
+  
+  router.push({
+    path: '/scheduling',
+    query: {
+      startDate,
+      endDate,
+      filterCondition,
+      filterLabel
+    }
+  })
 }
 
 // 免费日更新
@@ -879,27 +913,29 @@ const goGanttChart = () => {
     ? selectedRows.value.map((r: any) => r.containerNumber).filter(Boolean)
     : []
   
+  const startDate = dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD')
+  const endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
+  const filterCondition = activeFilter.value.days
+  const filterLabel = getFilterLabel(filterCondition)
+  
   // 1. 保存到全局 Store（自动持久化到 localStorage）
   ganttFilterStore.setFilters({
-    startDate: shipmentDateRange.value?.[0] 
-      ? dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD') 
-      : '',
-    endDate: shipmentDateRange.value?.[1] 
-      ? dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD') 
-      : '',
-    filterCondition: activeFilter.value.days || '',
-    filterLabel: activeFilter.value.days ? getFilterLabel(activeFilter.value.days) : '',
+    startDate: startDate,
+    endDate: endDate,
+    filterCondition: filterCondition || '',
+    filterLabel: filterLabel || '',
     selectedContainers: ids,
-    timeDimension: getTimeDimensionFromFilter(activeFilter.value.days)
+    timeDimension: getTimeDimensionFromFilter(filterCondition)
   })
   
   // 2. 构建 query 参数（用于 URL 显示和分享）
-  const query: Record<string, string> = {}
-  if (ganttFilterStore.startDate) query.startDate = ganttFilterStore.startDate
-  if (ganttFilterStore.endDate) query.endDate = ganttFilterStore.endDate
-  if (ganttFilterStore.filterCondition) {
-    query.filterCondition = ganttFilterStore.filterCondition
-    query.filterLabel = ganttFilterStore.filterLabel
+  const query: Record<string, string> = {
+    startDate,
+    endDate
+  }
+  if (filterCondition) {
+    query.filterCondition = filterCondition
+    query.filterLabel = filterLabel
   }
   if (ids.length) query.containers = ids.join(',')
   
@@ -1002,12 +1038,6 @@ export default {
           @update:modelValue="handleShipmentDateChange"
         />
 
-        <!-- 甘特图按钮 -->
-        <el-button type="success" @click="goGanttChart()">
-          <el-icon><Calendar /></el-icon>
-          甘特图
-        </el-button>
-
         <!-- 显示当前过滤器 -->
         <el-tag v-if="activeFilter.type" type="warning" closable @close="resetFilter">
           {{ activeFilter.type }}: {{ getFilterLabel(activeFilter.days) }}
@@ -1032,13 +1062,9 @@ export default {
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-        <el-button @click="loadContainers">
+        <el-button type="success" @click="reloadAllData">
           <el-icon><Refresh /></el-icon>
-          刷新列表
-        </el-button>
-        <el-button type="success" @click="reloadStatistics">
-          <el-icon><Refresh /></el-icon>
-          刷新统计
+          刷新数据
         </el-button>
       </div>
     </el-card>
@@ -1127,6 +1153,11 @@ export default {
         >
           <el-icon><Download /></el-icon>
           批量导出
+        </el-button>
+        <!-- 甘特图按钮 -->
+        <el-button type="success" @click="goGanttChart()">
+          <el-icon><Calendar /></el-icon>
+          甘特图
         </el-button>
         <el-button
           type="primary"
@@ -1429,6 +1460,44 @@ export default {
       </div>
     </el-card>
   </div>
+
+  <!-- 一键排产选择对话框 -->
+  <el-dialog
+    v-model="scheduleDialogVisible"
+    title="一键排产"
+    width="500px"
+    :close-on-click-modal="false"
+  >
+    <div class="schedule-dialog-content">
+      <div class="schedule-desc">
+        <p style="font-weight: bold; margin-bottom: 12px;">智能排产流程：</p>
+        <ol style="padding-left: 20px; line-height: 1.8;">
+          <li>查询所有"待排产"状态的货柜（schedule_status = initial）</li>
+          <li>按清关可放行日排序（先到先得）</li>
+          <li>为每个货柜匹配滞港费标准，计算最晚提柜日</li>
+          <li>根据目的港选择候选仓库和车队</li>
+          <li>计算计划提柜日、计划卸柜日、最晚还箱日</li>
+          <li>更新货柜的排产状态和计划日期</li>
+        </ol>
+        <p style="color: #909399; font-size: 13px; margin-top: 12px;">
+          提示：处理"待排产"(initial)和"已排产"(issued)状态，"已派工"(dispatched)的货柜不可重复处理
+        </p>
+      </div>
+    </div>
+    <template #footer>
+      <div class="dialog-footer">
+        <el-button @click="scheduleDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="executeDirectSchedule">
+          <el-icon><Edit /></el-icon>
+          直接开始排产
+        </el-button>
+        <el-button type="success" @click="goToSchedulingPage">
+          <el-icon><ArrowRight /></el-icon>
+          跳转到排产页面
+        </el-button>
+      </div>
+    </template>
+  </el-dialog>
 </template>
 
 <style scoped lang="scss">

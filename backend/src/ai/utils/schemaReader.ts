@@ -1,13 +1,14 @@
 /**
  * 数据库结构读取器
  * Database Schema Reader
- * 
+ *
  * 读取数据库表结构，为 Text-to-SQL 提供上下文
  */
 
 import { AppDataSource } from '../../database';
-import { TableInfo, ColumnInfo } from '../types';
 import { logger } from '../../utils/logger';
+import { ColumnInfo, TableInfo } from '../types';
+import { cacheManager } from './cacheManager';
 
 /**
  * 表前缀分类
@@ -48,7 +49,7 @@ export class SchemaReader {
       `);
 
       const tableInfos: TableInfo[] = [];
-      
+
       for (const table of tables) {
         const columns = await this.getTableColumns(table.table_name);
         tableInfos.push({
@@ -60,7 +61,7 @@ export class SchemaReader {
 
       this.cache.set('all', tableInfos);
       this.cacheTime = Date.now();
-      
+
       return tableInfos;
     } catch (error) {
       logger.error('[SchemaReader] Error fetching tables:', error);
@@ -73,7 +74,8 @@ export class SchemaReader {
    */
   async getTableColumns(tableName: string): Promise<ColumnInfo[]> {
     try {
-      const columns = await AppDataSource.query(`
+      const columns = await AppDataSource.query(
+        `
         SELECT 
           c.column_name,
           c.data_type,
@@ -92,10 +94,13 @@ export class SchemaReader {
         WHERE c.table_name = $1
         AND c.table_schema = 'public'
         ORDER BY c.ordinal_position
-      `, [tableName]);
+      `,
+        [tableName]
+      );
 
       // 获取外键信息
-      const foreignKeys = await AppDataSource.query(`
+      const foreignKeys = await AppDataSource.query(
+        `
         SELECT
           kcu.column_name,
           ccu.table_name as foreign_table,
@@ -108,7 +113,9 @@ export class SchemaReader {
         WHERE tc.constraint_type = 'FOREIGN KEY'
           AND tc.table_name = $1
           AND tc.table_schema = 'public'
-      `, [tableName]);
+      `,
+        [tableName]
+      );
 
       const fkMap = new Map<string, { table: string; column: string }>();
       for (const fk of foreignKeys) {
@@ -147,26 +154,41 @@ export class SchemaReader {
    * 生成表结构的文本描述（用于 Prompt）
    */
   async generateSchemaDescription(tables?: string[]): Promise<string> {
+    // 生成缓存键
+    const cacheKey = tables ? `schema:${tables.sort().join(',')}` : 'schema:all';
+
+    // 尝试从缓存获取
+    const cachedDescription = cacheManager.get(cacheKey);
+    if (cachedDescription) {
+      logger.debug('[SchemaReader] Cache hit for schema description');
+      return cachedDescription;
+    }
+
     const allTables = await this.getAllTables();
-    const targetTables = tables 
-      ? allTables.filter(t => tables.includes(t.tableName))
-      : allTables;
+    const targetTables = tables ? allTables.filter((t) => tables.includes(t.tableName)) : allTables;
 
     const descriptions: string[] = [];
 
     for (const table of targetTables) {
-      const columnDescs = table.columns.map(col => {
-        let desc = `  - ${col.columnName} (${col.dataType})`;
-        if (col.isPrimaryKey) desc += ' PK';
-        if (!col.isNullable) desc += ' NOT NULL';
-        if (col.foreignKey) desc += ` FK→${col.foreignKey.table}.${col.foreignKey.column}`;
-        return desc;
-      }).join('\n');
+      const columnDescs = table.columns
+        .map((col) => {
+          let desc = `  - ${col.columnName} (${col.dataType})`;
+          if (col.isPrimaryKey) desc += ' PK';
+          if (!col.isNullable) desc += ' NOT NULL';
+          if (col.foreignKey) desc += ` FK→${col.foreignKey.table}.${col.foreignKey.column}`;
+          return desc;
+        })
+        .join('\n');
 
       descriptions.push(`## ${table.tableName} [${table.tableType}]\n${columnDescs}`);
     }
 
-    return descriptions.join('\n\n');
+    const description = descriptions.join('\n\n');
+
+    // 缓存结果
+    cacheManager.set(cacheKey, description, 10 * 60 * 1000); // 10分钟缓存
+
+    return description;
   }
 
   /**
@@ -174,7 +196,7 @@ export class SchemaReader {
    */
   async getTableInfo(tableName: string): Promise<TableInfo | null> {
     const allTables = await this.getAllTables();
-    return allTables.find(t => t.tableName === tableName) || null;
+    return allTables.find((t) => t.tableName === tableName) || null;
   }
 
   /**
@@ -183,22 +205,25 @@ export class SchemaReader {
   async searchTables(keyword: string): Promise<TableInfo[]> {
     const allTables = await this.getAllTables();
     const lowerKeyword = keyword.toLowerCase();
-    
-    return allTables.filter(t => 
-      t.tableName.toLowerCase().includes(lowerKeyword) ||
-      t.columns.some(c => c.columnName.toLowerCase().includes(lowerKeyword))
+
+    return allTables.filter(
+      (t) =>
+        t.tableName.toLowerCase().includes(lowerKeyword) ||
+        t.columns.some((c) => c.columnName.toLowerCase().includes(lowerKeyword))
     );
   }
 
   /**
    * 获取表之间的关系
    */
-  async getTableRelationships(): Promise<{
-    fromTable: string;
-    fromColumn: string;
-    toTable: string;
-    toColumn: string;
-  }[]> {
+  async getTableRelationships(): Promise<
+    {
+      fromTable: string;
+      fromColumn: string;
+      toTable: string;
+      toColumn: string;
+    }[]
+  > {
     try {
       const relationships = await AppDataSource.query(`
         SELECT

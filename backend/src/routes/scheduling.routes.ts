@@ -18,4 +18,18 @@ router.post('/:id/schedule-preview', controller.schedulePreview);
 // 排产概览
 router.get('/overview', controller.getSchedulingOverview);
 
+// 资源管理
+router.put('/resources/warehouse/:code', controller.updateWarehouseCapacity);
+router.put('/resources/trucking/:code', controller.updateTruckingCapacity);
+
+// 堆场管理
+router.get('/resources/yards', controller.getYards);
+router.post('/resources/yards', controller.createYard);
+router.put('/resources/yards/:code', controller.updateYard);
+router.delete('/resources/yards/:code', controller.deleteYard);
+
+// 占用情况
+router.get('/resources/occupancy/warehouse', controller.getWarehouseOccupancy);
+router.get('/resources/occupancy/trucking', controller.getTruckingOccupancy);
+
 export default router;

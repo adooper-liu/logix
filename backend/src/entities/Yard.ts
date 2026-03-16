@@ -1,6 +1,6 @@
 /**
- * 第三堆场字典实体
- * Yard Entity
+ * 堆场字典实体
+ * Yard Dictionary Entity
  */
 
 import {
@@ -31,13 +31,13 @@ export class Yard {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, name: 'fee_per_day' })
   feePerDay: number;
 
-  @Column({ type: 'varchar', length: 300, nullable: true })
+  @Column({ type: 'varchar', length: 300, nullable: true, name: 'address' })
   address?: string;
 
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'contact_phone' })
   contactPhone?: string;
 
-  @Column({ type: 'varchar', length: 20, default: 'ACTIVE' })
+  @Column({ type: 'varchar', length: 20, default: 'ACTIVE', name: 'status' })
   status: string;
 
   @CreateDateColumn({ name: 'created_at' })

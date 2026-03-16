@@ -168,6 +168,11 @@ const menuGroups = computed(() => [
         name: 'KnowledgeBase',
         meta: { title: '知识库管理', icon: 'FolderOpened' },
       },
+      {
+        path: '/flow-management',
+        name: 'FlowManagement',
+        meta: { title: '流程管理', icon: 'Play' },
+      },
     ],
   },
   {

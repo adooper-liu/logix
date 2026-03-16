@@ -457,12 +457,30 @@
                 <div class="skill-desc">代码质量检查清单</div>
                 <div class="skill-badge">⭐⭐</div>
               </div>
+
+              <div
+                class="skill-card"
+                @click="loadDoc('BUSINESS_KNOWLEDGE', '/.cursor/skills/logix-business-knowledge/SKILL.md')"
+              >
+                <div class="skill-icon">💡</div>
+                <div class="skill-title">业务知识技能</div>
+                <div class="skill-desc">管理和查询业务知识</div>
+                <div class="skill-badge">⭐⭐⭐</div>
+              </div>
             </div>
 
             <div class="skills-tip">
               <p>
                 💡 <strong>使用方式</strong>:
                 在使用AI助手（Cursor、CodeBuddy）时，这些技能会自动应用，提供符合项目规范的建议！
+              </p>
+              <p>
+                <strong>手动调用技能</strong>:
+                你可以在指令中明确提及技能名称，例如："请使用业务知识技能查询物流状态流转"，以确保AI助手使用正确的技能。
+              </p>
+              <p>
+                <strong>文档路径</strong>:
+                所有技能文档都位于 <code>.cursor/skills/</code> 目录下，你可以直接查看这些文件获取详细信息。
               </p>
               <p>
                 <strong>整合详情</strong>: 查看

@@ -1,16 +1,16 @@
 /**
  * Text-to-SQL 服务
  * Text-to-SQL Service
- * 
+ *
  * 将自然语言转换为 SQL 查询
  */
 
 import { AppDataSource } from '../../database';
-import { SiliconFlowAdapter } from '../adapters/SiliconFlowAdapter';
-import { SqlValidator } from '../utils/sqlValidator';
-import { SchemaReader } from '../utils/schemaReader';
-import { TextToSqlRequest, TextToSqlResponse, ChatMessage } from '../types';
 import { logger } from '../../utils/logger';
+import { SiliconFlowAdapter } from '../adapters/SiliconFlowAdapter';
+import { TextToSqlRequest, TextToSqlResponse } from '../types';
+import { SchemaReader } from '../utils/schemaReader';
+import { SqlValidator } from '../utils/sqlValidator';
 
 /**
  * Text-to-SQL 服务类
@@ -35,9 +35,7 @@ export class TextToSqlService {
   async generateSql(request: TextToSqlRequest): Promise<TextToSqlResponse> {
     try {
       // 1. 获取数据库结构
-      const schemaDescription = await this.schemaReader.generateSchemaDescription(
-        request.tables
-      );
+      const schemaDescription = await this.schemaReader.generateSchemaDescription(request.tables);
 
       // 2. 构建 Prompt
       const systemPrompt = `你是一个 SQL 专家，专门为 PostgreSQL 数据库生成查询语句。
@@ -79,7 +77,7 @@ ${schemaDescription}
 
       // 4. 提取 SQL
       let generatedSql = result.result.toString().trim();
-      
+
       // 清理 Markdown 格式
       generatedSql = generatedSql
         .replace(/^```sql\s*/i, '')
@@ -120,7 +118,10 @@ ${schemaDescription}
   async executeSql(sql: string, limit?: number): Promise<TextToSqlResponse> {
     try {
       // 规范化 SQL：移除末尾分号、修正 "; LIMIT" 为 " LIMIT"（AI 可能生成错误格式）
-      let normalizedSql = sql.trim().replace(/;\s*(?=LIMIT\s+\d+)/i, ' ').replace(/;\s*$/, '');
+      let normalizedSql = sql
+        .trim()
+        .replace(/;\s*(?=LIMIT\s+\d+)/i, ' ')
+        .replace(/;\s*$/, '');
       if (normalizedSql !== sql) sql = normalizedSql;
 
       // 验证 SQL
@@ -140,19 +141,33 @@ ${schemaDescription}
         querySql = `${sql} LIMIT ${maxLimit}`;
       }
 
+      // 尝试从缓存获取
+      const cachedResult = cacheManager.getCachedSqlQuery(querySql);
+      if (cachedResult) {
+        logger.info('[TextToSqlService] Cache hit for SQL query');
+        return cachedResult;
+      }
+
       // 执行查询
       const startTime = Date.now();
       const data = await AppDataSource.query(querySql);
       const executionTime = Date.now() - startTime;
 
-      logger.info(`[TextToSqlService] Query executed in ${executionTime}ms, returned ${Array.isArray(data) ? data.length : 0} rows`);
+      logger.info(
+        `[TextToSqlService] Query executed in ${executionTime}ms, returned ${Array.isArray(data) ? data.length : 0} rows`
+      );
 
-      return {
+      const result: TextToSqlResponse = {
         success: true,
         sql,
         data: Array.isArray(data) ? data : [],
         rowCount: Array.isArray(data) ? data.length : 0
       };
+
+      // 缓存结果
+      cacheManager.cacheSqlQuery(querySql, result);
+
+      return result;
     } catch (error: any) {
       logger.error('[TextToSqlService] Error executing SQL:', error);
       return {
@@ -190,7 +205,7 @@ ${schemaDescription}
    */
   async getTables(): Promise<{ tableName: string; tableType: string }[]> {
     const tables = await this.schemaReader.getAllTables();
-    return tables.map(t => ({
+    return tables.map((t) => ({
       tableName: t.tableName,
       tableType: t.tableType
     }));

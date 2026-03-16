@@ -21,6 +21,7 @@ const About = () => import('@/views/About.vue')
 const Login = () => import('@/views/Login.vue')
 const AIChat = () => import('@/views/ai/Chat.vue')
 const KnowledgeBase = () => import('@/views/ai/KnowledgeBase.vue')
+const FlowManagement = () => import('@/views/ai/FlowManagement.vue')
 
 const routes: RouteRecordRaw[] = [
   {
@@ -258,6 +259,16 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '知识库管理',
           icon: 'FolderOpened',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'flow-management',
+        name: 'FlowManagement',
+        component: FlowManagement,
+        meta: {
+          title: '流程管理',
+          icon: 'Play',
           requiresAuth: true,
         },
       },

@@ -49,6 +49,15 @@ export function useGanttLogic() {
   const draggingContainer = ref<Container | null>(null)
   const dragOverDate = ref<Date | null>(null)
   const dropIndicatorPosition = ref({ x: 0, y: 0 })
+  const dropIndicatorCellRect = ref<{ left: number; top: number; width: number; height: number } | null>(null)
+  /** 待确认的拖拽落点数据，在 dragend 后再弹窗，避免首次点击被消费 */
+  const pendingDropConfirm = ref<{
+    container: Container
+    newDate: string
+    updateField: string
+    fieldLabel: string
+    confirmMsg: string
+  } | null>(null)
 
 
 
@@ -431,62 +440,60 @@ export function useGanttLogic() {
   const getNodeAndSupplier = (container: Container): Array<{ node: string, supplier: string }> => {
     const result: Array<{ node: string, supplier: string }> = []
 
-    // 清关节点 - 清关行
+    // 清关节点 - 仅当有清关行或计划提柜日时才显示
     if (container.portOperations && container.portOperations.length > 0) {
       const destPortOp = container.portOperations.find(op => op.portType === 'destination')
-      if (destPortOp?.customsBroker) {
-        result.push({
-          node: '清关',
-          supplier: destPortOp.customsBroker
-        })
+      const customsSupplier = destPortOp?.customsBrokerCode || destPortOp?.customsBroker
+      // 有清关行或有计划提柜日时才显示清关节点
+      const hasPlannedPickup = container.truckingTransports?.[0]?.plannedPickupDate
+      if (customsSupplier || hasPlannedPickup) {
+        const supplier = customsSupplier || '未指定清关公司'
+        result.push({ node: '清关', supplier })
       }
     }
 
-    // 提柜节点 - 拖卡车队
-    if (container.truckingTransports && container.truckingTransports.length > 0) {
-      container.truckingTransports.forEach(transport => {
-        if (transport.carrierCompany && transport.truckingType === 'pickup') {
-          result.push({
-            node: '提柜',
-            supplier: transport.carrierCompany
-          })
-        }
-      })
+    // 提柜节点 - 拖卡车队（truckingCompanyId 优先，兼容 carrierCompany）
+    // 注：truckingType 为 PRE_SHIPMENT/POST_SHIPMENT 非 'pickup'，取第一条拖卡记录
+    const firstTrucking = container.truckingTransports?.[0]
+    if (firstTrucking) {
+      const pickupSupplier = firstTrucking.truckingCompanyId || firstTrucking.carrierCompany
+      if (pickupSupplier) {
+        result.push({ node: '提柜', supplier: pickupSupplier })
+      }
     }
 
-    // 卸柜节点 - 仓库
+    // 卸柜节点 - 仓库（warehouseId 优先，兼容 actualWarehouse/plannedWarehouse）
     if (container.warehouseOperations && container.warehouseOperations.length > 0) {
       container.warehouseOperations.forEach(operation => {
-        if (operation.actualWarehouse || operation.plannedWarehouse) {
-          const warehouse = operation.actualWarehouse || operation.plannedWarehouse || '未指定仓库'
-          result.push({
-            node: '卸柜',
-            supplier: warehouse
-          })
+        const warehouse =
+          operation.warehouseId || operation.actualWarehouse || operation.plannedWarehouse
+        if (warehouse) {
+          result.push({ node: '卸柜', supplier: warehouse })
         }
       })
     }
 
-    // 还箱节点 - 车队/终端
+    // 还箱节点 - 还箱码头（returnTerminalName 优先 → returnTerminalCode → 回退到仓库名称）
     if (container.emptyReturns && container.emptyReturns.length > 0) {
       container.emptyReturns.forEach(emptyReturn => {
-        if (emptyReturn.returnTerminalName) {
-          result.push({
-            node: '还箱',
-            supplier: emptyReturn.returnTerminalName
-          })
+        let supplier = emptyReturn.returnTerminalName || emptyReturn.returnTerminalCode
+        // 回退到使用仓库名称
+        if (!supplier && container.warehouseOperations?.[0]) {
+          const warehouseOp = container.warehouseOperations[0]
+          supplier = warehouseOp.warehouseId || warehouseOp.actualWarehouse || warehouseOp.plannedWarehouse
+        }
+        if (supplier) {
+          result.push({ node: '还箱', supplier })
         }
       })
     }
 
     // 查验节点 - 清关行（与清关使用相同供应商）
-    if (container.inspectionRequired && container.portOperations && container.portOperations.length > 0) {
+    if (container.inspectionRequired && container.portOperations?.length > 0) {
       const destPortOp = container.portOperations.find(op => op.portType === 'destination')
-      if (destPortOp?.customsBroker) {
-        result.push({
-          node: '查验',
-          supplier: destPortOp.customsBroker
-        })
+      const customsSupplier = destPortOp?.customsBrokerCode || destPortOp?.customsBroker
+      if (customsSupplier) {
+        result.push({ node: '查验', supplier: customsSupplier })
       }
     }
 
@@ -801,86 +808,70 @@ export function useGanttLogic() {
   }
 
   const handleDragEnd = () => {
+    if (rafId) {
+      cancelAnimationFrame(rafId)
+      rafId = 0
+    }
+    const pending = pendingDropConfirm.value
+    pendingDropConfirm.value = null
     draggingContainer.value = null
     dragOverDate.value = null
+    dropIndicatorCellRect.value = null
+
+    if (!pending) return
+
+    const { container, newDate, updateField, fieldLabel, confirmMsg } = pending
+    // 在 dragend 之后、下一帧再弹窗，确保浏览器已释放指针，避免取消需点二次
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        ElMessageBox.confirm(confirmMsg, '确认调整日期', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning',
+        })
+          .then(async () => {
+            const updateData: Record<string, string> = { [updateField]: newDate }
+            const result = await containerService.updateSchedule(container.containerNumber, updateData)
+            if (result.success) {
+              ElMessage.success('日期调整成功')
+              await loadData()
+            } else {
+              if (result.errors && result.errors.length > 0) {
+                ElMessage.error(`校验失败: ${result.errors.join(', ')}`)
+              } else {
+                ElMessage.error(result.message || '更新失败')
+              }
+            }
+          })
+          .catch((err: unknown) => {
+            if (err !== 'cancel') {
+              ElMessage.error((err as Error)?.message || '操作失败')
+            }
+          })
+      })
+    })
   }
 
-  const handleDrop = async (date: Date) => {
+  const handleDrop = (date: Date) => {
     if (!draggingContainer.value || !dragOverDate.value) return
 
     const container = draggingContainer.value
     const newDate = dayjs(dragOverDate.value).format('YYYY-MM-DD')
 
-    // 根据当前维度确定更新哪个日期字段
     const condition = filterCondition.value
-    let updateField = ''
-    let fieldLabel = ''
+    let updateField = 'plannedPickupDate'
+    let fieldLabel = '计划提柜日'
 
-    // 维度映射到日期字段
-    if (condition.startsWith('arrived') || condition === 'arrivalToday' || condition === 'expectedArrival') {
-      // 按到港维度 -> 更新计划提柜日
-      updateField = 'plannedPickupDate'
-      fieldLabel = '计划提柜日'
-    } else if (condition === 'overduePlanned' || condition === 'todayPlanned' || 
-               condition === 'plannedWithin3Days' || condition === 'plannedWithin7Days' || condition === 'pendingArrangement') {
-      // 按计划提柜维度 -> 更新计划提柜日
-      updateField = 'plannedPickupDate'
-      fieldLabel = '计划提柜日'
-    } else if (condition === 'overdue' || condition.includes('Within')) {
-      // 按ETA维度 -> 更新ETA（暂不支持，跳转到详情页）
-      ElMessage.warning('ETA维度暂不支持拖拽调整，请使用详情页编辑')
-      draggingContainer.value = null
-      dragOverDate.value = null
-      return
-    } else if (condition.startsWith('expired') || condition === 'urgent' || 
-               condition === 'warning' || condition === 'normal' || condition === 'noLastFreeDate') {
-      // 按最晚提柜维度 -> 更新计划提柜日
-      updateField = 'plannedPickupDate'
-      fieldLabel = '计划提柜日'
-    } else if (condition.startsWith('return')) {
-      // 按最晚还箱维度 -> 更新计划还箱日
+    if (condition.startsWith('return')) {
       updateField = 'plannedReturnDate'
       fieldLabel = '计划还箱日'
     } else {
-      // 默认 -> 更新计划提柜日
       updateField = 'plannedPickupDate'
       fieldLabel = '计划提柜日'
     }
 
-    try {
-      await ElMessageBox.confirm(
-        `确定要将货柜 ${container.containerNumber} 的${fieldLabel}调整为 ${formatDateShort(dragOverDate.value)} 吗？`,
-        '确认调整日期',
-        {
-          confirmButtonText: '确定',
-          cancelButtonText: '取消',
-          type: 'warning',
-        }
-      )
-
-      // 调用API更新计划日期
-      const updateData: any = { [updateField]: newDate }
-      const result = await containerService.updateSchedule(container.containerNumber, updateData)
-
-      if (result.success) {
-        ElMessage.success('日期调整成功')
-        await loadData()
-      } else {
-        // 后端返回校验错误
-        if (result.errors && result.errors.length > 0) {
-          ElMessage.error(`校验失败: ${result.errors.join(', ')}`)
-        } else {
-          ElMessage.error(result.message || '更新失败')
-        }
-      }
-    } catch (error: any) {
-      if (error !== 'cancel') {
-        ElMessage.error(error.message || '操作失败')
-      }
-    } finally {
-      draggingContainer.value = null
-      dragOverDate.value = null
-    }
+    const confirmMsg = `确定要将货柜 ${container.containerNumber} 的${fieldLabel}调整为 ${formatDateShort(dragOverDate.value)} 吗？`
+    pendingDropConfirm.value = { container, newDate, updateField, fieldLabel, confirmMsg }
   }
 
   const handleDateSave = async (data: any) => {
@@ -995,41 +986,66 @@ export function useGanttLogic() {
     ElMessage.success('数据导出成功')
   }
 
-  // 拖拽处理
-  const handleDragOver = (event: DragEvent) => {
-    event.preventDefault()
-    const target = event.target as HTMLElement
-    const dateCell = target.closest('.date-cell')
+  // 拖拽处理：requestAnimationFrame 节流，每帧最多更新一次，兼顾流畅与性能
+  let rafId = 0
+  let lastEvent: DragEvent | null = null
+  const updateDragOverState = (event: DragEvent) => {
+    const elementUnderCursor = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement
+    const dateCell = elementUnderCursor?.closest('.date-cell') ?? (event.target as HTMLElement)?.closest('.date-cell')
     if (dateCell) {
-      const cellIndex = Array.from(dateCell.parentElement?.children || []).indexOf(dateCell)
-      const containerGroups = document.querySelectorAll('.port-group')
-      let dateIndex = 0
-      containerGroups.forEach(group => {
-        const cells = group.querySelectorAll('.date-cell')
-        cells.forEach((cell, idx) => {
-          if (cell === dateCell) {
-            dateIndex = idx
-          }
-        })
-      })
-
+      const dateIndexAttr = dateCell.getAttribute('data-date-index')
+      let dateIndex = -1
+      if (dateIndexAttr !== null) {
+        dateIndex = parseInt(dateIndexAttr, 10)
+        if (isNaN(dateIndex)) dateIndex = -1
+      } else {
+        const parent = dateCell.parentElement
+        const siblings = parent ? Array.from(parent.children) : []
+        dateIndex = siblings.indexOf(dateCell)
+      }
       if (dateIndex >= 0 && dateIndex < dateRange.value.length) {
-        dragOverDate.value = dateRange.value[dateIndex]
+        const newDate = dateRange.value[dateIndex]
         const rect = dateCell.getBoundingClientRect()
+        dragOverDate.value = newDate
+        dropIndicatorCellRect.value = { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
         dropIndicatorPosition.value = {
           x: rect.left + rect.width / 2 - 80,
           y: rect.top,
         }
+      } else {
+        dragOverDate.value = null
+        dropIndicatorCellRect.value = null
       }
+    } else {
+      dragOverDate.value = null
+      dropIndicatorCellRect.value = null
+    }
+  }
+  const handleDragOver = (event: DragEvent) => {
+    event.preventDefault()
+    lastEvent = event
+    if (rafId === 0) {
+      rafId = requestAnimationFrame(() => {
+        if (lastEvent) {
+          updateDragOverState(lastEvent)
+        }
+        rafId = 0
+      })
     }
   }
 
   const handleGlobalDrop = (event: DragEvent) => {
     event.preventDefault()
+    if (rafId) {
+      cancelAnimationFrame(rafId)
+      rafId = 0
+    }
+    updateDragOverState(event)
     if (dragOverDate.value) {
       handleDrop(dragOverDate.value)
     }
     dragOverDate.value = null
+    dropIndicatorCellRect.value = null
   }
 
   // 生命周期
@@ -1080,6 +1096,7 @@ export function useGanttLogic() {
     draggingContainer,
     dragOverDate,
     dropIndicatorPosition,
+    dropIndicatorCellRect,
     // 状态
     statusColors,
     // 预警系统
@@ -1108,6 +1125,7 @@ export function useGanttLogic() {
     getNodeTaskType,
     getNodeDate,
     getNodeGroupKey,
+    getNodeAndSupplier,
     isNodeCompleted,
     calculateDynamicDateRange,
     handleDotClick,

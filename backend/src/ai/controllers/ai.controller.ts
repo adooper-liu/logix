@@ -1,35 +1,47 @@
 /**
  * AI 控制器
  * AI Controller
- * 
+ *
  * 处理 AI 相关的 API 请求
  */
 
 import { Request, Response } from 'express';
-import { textToSqlService } from '../services/textToSql.service';
-import { aiBusinessService } from '../services/aiBusiness.service';
 import { intelligentSchedulingService } from '../../services/intelligentScheduling.service';
-import { siliconFlowAdapter } from '../adapters/SiliconFlowAdapter';
-import { schemaReader } from '../utils/schemaReader';
-import { searchKnowledge, getAllCategories, knowledgeBase } from '../data/knowledgeBase';
-import { ChatMessage, TextToSqlRequest } from '../types';
 import { logger } from '../../utils/logger';
+import { siliconFlowAdapter } from '../adapters/SiliconFlowAdapter';
+import { getAllCategories, knowledgeBase, searchKnowledge } from '../data/knowledgeBase';
+import { aiBusinessService } from '../services/aiBusiness.service';
+import { textToSqlService } from '../services/textToSql.service';
+import { ChatMessage } from '../types';
+import { cacheManager } from '../utils/cacheManager';
+import { inputValidator } from '../utils/inputValidator';
+import { schemaReader } from '../utils/schemaReader';
 
 /**
  * 排产意图检测
  */
 const SCHEDULE_INTENT_PATTERNS = [
-  '排产', '智能排柜', '一键排产', '开始排产', '执行排产', 
-  '帮我排柜', '排柜', '自动排产', '排程'
+  '排产',
+  '智能排柜',
+  '一键排产',
+  '开始排产',
+  '执行排产',
+  '帮我排柜',
+  '排柜',
+  '自动排产',
+  '排程'
 ];
 
 /**
  * 日期范围解析
  */
-function parseDateRange(message: string, context: Record<string, any> | undefined): { startDate: string; endDate: string } {
+function parseDateRange(
+  message: string,
+  context: Record<string, any> | undefined
+): { startDate: string; endDate: string } {
   const today = new Date();
   const yearStart = new Date(today.getFullYear(), 0, 1);
-  
+
   // 优先使用 context 中的日期
   if (context?.startDate && context?.endDate) {
     return { startDate: context.startDate, endDate: context.endDate };
@@ -41,7 +53,10 @@ function parseDateRange(message: string, context: Record<string, any> | undefine
   if (msg.includes('本周')) {
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - today.getDay());
-    return { startDate: weekStart.toISOString().split('T')[0], endDate: today.toISOString().split('T')[0] };
+    return {
+      startDate: weekStart.toISOString().split('T')[0],
+      endDate: today.toISOString().split('T')[0]
+    };
   }
 
   // 上周
@@ -50,7 +65,10 @@ function parseDateRange(message: string, context: Record<string, any> | undefine
     weekStart.setDate(today.getDate() - today.getDay() - 7);
     const weekEnd = new Date(today);
     weekEnd.setDate(today.getDate() - today.getDay() - 1);
-    return { startDate: weekStart.toISOString().split('T')[0], endDate: weekEnd.toISOString().split('T')[0] };
+    return {
+      startDate: weekStart.toISOString().split('T')[0],
+      endDate: weekEnd.toISOString().split('T')[0]
+    };
   }
 
   // 下周
@@ -59,39 +77,57 @@ function parseDateRange(message: string, context: Record<string, any> | undefine
     weekStart.setDate(today.getDate() - today.getDay() + 7);
     const weekEnd = new Date(today);
     weekEnd.setDate(today.getDate() - today.getDay() + 13);
-    return { startDate: weekStart.toISOString().split('T')[0], endDate: weekEnd.toISOString().split('T')[0] };
+    return {
+      startDate: weekStart.toISOString().split('T')[0],
+      endDate: weekEnd.toISOString().split('T')[0]
+    };
   }
 
   // 本月
   if (msg.includes('本月') || msg.includes('这个月')) {
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-    return { startDate: monthStart.toISOString().split('T')[0], endDate: today.toISOString().split('T')[0] };
+    return {
+      startDate: monthStart.toISOString().split('T')[0],
+      endDate: today.toISOString().split('T')[0]
+    };
   }
 
   // 上月
   if (msg.includes('上月') || msg.includes('上个月')) {
     const monthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     const monthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
-    return { startDate: monthStart.toISOString().split('T')[0], endDate: monthEnd.toISOString().split('T')[0] };
+    return {
+      startDate: monthStart.toISOString().split('T')[0],
+      endDate: monthEnd.toISOString().split('T')[0]
+    };
   }
 
   // 今天
   if (msg.includes('今天') || msg.includes('今日')) {
-    return { startDate: today.toISOString().split('T')[0], endDate: today.toISOString().split('T')[0] };
+    return {
+      startDate: today.toISOString().split('T')[0],
+      endDate: today.toISOString().split('T')[0]
+    };
   }
 
   // 昨天
   if (msg.includes('昨天') || msg.includes('昨日')) {
     const yesterday = new Date(today);
     yesterday.setDate(today.getDate() - 1);
-    return { startDate: yesterday.toISOString().split('T')[0], endDate: yesterday.toISOString().split('T')[0] };
+    return {
+      startDate: yesterday.toISOString().split('T')[0],
+      endDate: yesterday.toISOString().split('T')[0]
+    };
   }
 
   // 明天
   if (msg.includes('明天') || msg.includes('明日')) {
     const tomorrow = new Date(today);
     tomorrow.setDate(today.getDate() + 1);
-    return { startDate: tomorrow.toISOString().split('T')[0], endDate: tomorrow.toISOString().split('T')[0] };
+    return {
+      startDate: tomorrow.toISOString().split('T')[0],
+      endDate: tomorrow.toISOString().split('T')[0]
+    };
   }
 
   // 3月、4月 等月份
@@ -101,18 +137,27 @@ function parseDateRange(message: string, context: Record<string, any> | undefine
     if (month >= 1 && month <= 12) {
       const monthStart = new Date(today.getFullYear(), month - 1, 1);
       const monthEnd = new Date(today.getFullYear(), month, 0);
-      return { startDate: monthStart.toISOString().split('T')[0], endDate: monthEnd.toISOString().split('T')[0] };
+      return {
+        startDate: monthStart.toISOString().split('T')[0],
+        endDate: monthEnd.toISOString().split('T')[0]
+      };
     }
   }
 
   // 默认使用本年
-  return { startDate: yearStart.toISOString().split('T')[0], endDate: today.toISOString().split('T')[0] };
+  return {
+    startDate: yearStart.toISOString().split('T')[0],
+    endDate: today.toISOString().split('T')[0]
+  };
 }
 
 /**
  * 国家解析
  */
-function parseCountry(message: string, context: Record<string, any> | undefined): string | undefined {
+function parseCountry(
+  message: string,
+  context: Record<string, any> | undefined
+): string | undefined {
   // 优先使用 context 中的国家
   if (context?.country || context?.scopedCountryCode) {
     return context.country || context.scopedCountryCode;
@@ -122,13 +167,21 @@ function parseCountry(message: string, context: Record<string, any> | undefined)
 
   // 国家关键词映射
   const countryMap: Record<string, string> = {
-    '美国': 'US', '美': 'US', '美区': 'US',
-    '英国': 'UK', '英': 'UK',
-    '德国': 'DE', '德': 'DE',
-    '法国': 'FR', '法': 'FR',
-    '日本': 'JP', '日': 'JP',
-    '加拿大': 'CA', '加': 'CA',
-    '澳大利亚': 'AU', '澳': 'AU',
+    美国: 'US',
+    美: 'US',
+    美区: 'US',
+    英国: 'UK',
+    英: 'UK',
+    德国: 'DE',
+    德: 'DE',
+    法国: 'FR',
+    法: 'FR',
+    日本: 'JP',
+    日: 'JP',
+    加拿大: 'CA',
+    加: 'CA',
+    澳大利亚: 'AU',
+    澳: 'AU'
   };
 
   for (const [key, code] of Object.entries(countryMap)) {
@@ -154,23 +207,66 @@ export class AIController {
         execute?: boolean;
       };
 
-      if (!query) {
+      // 验证查询参数
+      const queryValidation = inputValidator.validateUserMessage(query);
+      if (!queryValidation.isValid) {
         res.status(400).json({
           success: false,
-          error: 'Query is required'
+          error: queryValidation.error
         });
         return;
       }
 
-      logger.info(`[AI] Text-to-SQL request: ${query}`);
+      // 验证表格参数
+      if (tables) {
+        const tablesValidation = inputValidator.validateArray(tables, {
+          maxLength: 10,
+          elementValidator: (table) =>
+            inputValidator.validateString(table, {
+              minLength: 1,
+              maxLength: 50
+            })
+        });
+        if (!tablesValidation.isValid) {
+          res.status(400).json({
+            success: false,
+            error: tablesValidation.error
+          });
+          return;
+        }
+      }
+
+      // 验证限制参数
+      if (limit) {
+        const limitValidation = inputValidator.validateNumber(limit, {
+          min: 1,
+          max: 1000
+        });
+        if (!limitValidation.isValid) {
+          res.status(400).json({
+            success: false,
+            error: limitValidation.error
+          });
+          return;
+        }
+      }
+
+      logger.info(`[AI] Text-to-SQL request: ${queryValidation.sanitized}`);
 
       if (execute) {
         // 生成并执行
-        const result = await textToSqlService.generateAndExecute({ query, tables, limit });
+        const result = await textToSqlService.generateAndExecute({
+          query: queryValidation.sanitized!,
+          tables: tables,
+          limit: limit
+        });
         res.json(result);
       } else {
         // 仅预览 SQL
-        const result = await textToSqlService.preview({ query, tables });
+        const result = await textToSqlService.preview({
+          query: queryValidation.sanitized!,
+          tables: tables
+        });
         res.json(result);
       }
     } catch (error: any) {
@@ -190,15 +286,32 @@ export class AIController {
     try {
       const { sql, limit } = req.body as { sql: string; limit?: number };
 
-      if (!sql || typeof sql !== 'string') {
+      // 验证 SQL 参数
+      const sqlValidation = inputValidator.validateSqlQuery(sql);
+      if (!sqlValidation.isValid) {
         res.status(400).json({
           success: false,
-          error: 'SQL is required'
+          error: sqlValidation.error
         });
         return;
       }
 
-      const result = await textToSqlService.executeSql(sql.trim(), limit);
+      // 验证限制参数
+      if (limit) {
+        const limitValidation = inputValidator.validateNumber(limit, {
+          min: 1,
+          max: 1000
+        });
+        if (!limitValidation.isValid) {
+          res.status(400).json({
+            success: false,
+            error: limitValidation.error
+          });
+          return;
+        }
+      }
+
+      const result = await textToSqlService.executeSql(sqlValidation.sanitized!, limit);
       if (result.success) {
         res.json({
           success: true,
@@ -274,12 +387,26 @@ export class AIController {
         options?: { execute?: boolean; preview?: boolean; autoQuery?: boolean };
       };
 
-      if (!message) {
+      // 验证消息参数
+      const messageValidation = inputValidator.validateUserMessage(message);
+      if (!messageValidation.isValid) {
         res.status(400).json({
           success: false,
-          error: 'Message is required'
+          error: messageValidation.error
         });
         return;
+      }
+
+      // 验证上下文参数
+      if (context) {
+        const contextValidation = inputValidator.validateObject(context);
+        if (!contextValidation.isValid) {
+          res.status(400).json({
+            success: false,
+            error: contextValidation.error
+          });
+          return;
+        }
       }
 
       // 判断是否需要自动查询数据库
@@ -288,15 +415,19 @@ export class AIController {
       // 获取数据库结构作为上下文
       const schemaDescription = await schemaReader.generateSchemaDescription();
 
-      // 检索知识库
-      const relevantKnowledge = searchKnowledge(message);
-      const knowledgeContext = relevantKnowledge.length > 0 
-        ? `## 相关知识库信息\n${relevantKnowledge.join('\n\n')}`
-        : '';
+      // 尝试从缓存获取知识库搜索结果
+      let relevantKnowledge = cacheManager.getCachedKnowledgeSearch(messageValidation.sanitized!);
+      if (!relevantKnowledge) {
+        relevantKnowledge = searchKnowledge(messageValidation.sanitized!);
+        // 缓存知识库搜索结果
+        cacheManager.cacheKnowledgeSearch(messageValidation.sanitized!, relevantKnowledge);
+      }
+      const knowledgeContext =
+        relevantKnowledge.length > 0 ? `## 相关知识库信息\n${relevantKnowledge.join('\n\n')}` : '';
 
       // ==================== 排产意图检测 ====================
-      const isScheduleIntent = SCHEDULE_INTENT_PATTERNS.some(pattern => 
-        message.toLowerCase().includes(pattern.toLowerCase())
+      const isScheduleIntent = SCHEDULE_INTENT_PATTERNS.some((pattern) =>
+        messageValidation.sanitized!.toLowerCase().includes(pattern.toLowerCase())
       );
 
       let scheduleResult = null;
@@ -304,10 +435,12 @@ export class AIController {
       if (isScheduleIntent) {
         try {
           // 解析参数
-          const { startDate, endDate } = parseDateRange(message, context);
-          const country = parseCountry(message, context);
+          const { startDate, endDate } = parseDateRange(messageValidation.sanitized!, context);
+          const country = parseCountry(messageValidation.sanitized!, context);
 
-          logger.info(`[AI] Schedule intent detected: country=${country}, startDate=${startDate}, endDate=${endDate}`);
+          logger.info(
+            `[AI] Schedule intent detected: country=${country}, startDate=${startDate}, endDate=${endDate}`
+          );
 
           // 调用排产服务
           const scheduleResponse = await intelligentSchedulingService.batchSchedule({
@@ -326,7 +459,9 @@ export class AIController {
             hasMore: scheduleResponse.results.length > 5
           };
 
-          logger.info(`[AI] Schedule completed: success=${scheduleResponse.successCount}, failed=${scheduleResponse.failedCount}`);
+          logger.info(
+            `[AI] Schedule completed: success=${scheduleResponse.successCount}, failed=${scheduleResponse.failedCount}`
+          );
         } catch (scheduleError: any) {
           logger.error('[AI] Schedule error:', scheduleError);
         }
@@ -336,13 +471,33 @@ export class AIController {
 
       // 判断是否需要查询数据库
       const dataQueryPatterns = [
-        '查询', '多少', '数量', '统计', '列表', '显示', '找出', '获取',
-        '今天', '昨天', '本周', '本月', '在途', '到港', '已出运', '未出运',
-        '滞港费', '货柜', '备货单', '船运', '港口'
+        '查询',
+        '多少',
+        '数量',
+        '统计',
+        '列表',
+        '显示',
+        '找出',
+        '获取',
+        '今天',
+        '昨天',
+        '本周',
+        '本月',
+        '在途',
+        '到港',
+        '已出运',
+        '未出运',
+        '滞港费',
+        '货柜',
+        '备货单',
+        '船运',
+        '港口'
       ];
-      const needsDataQuery = autoQuery && dataQueryPatterns.some(pattern => 
-        message.toLowerCase().includes(pattern.toLowerCase())
-      );
+      const needsDataQuery =
+        autoQuery &&
+        dataQueryPatterns.some((pattern) =>
+          messageValidation.sanitized!.toLowerCase().includes(pattern.toLowerCase())
+        );
 
       let sqlResult = null;
       let generatedSql = '';
@@ -352,14 +507,14 @@ export class AIController {
         try {
           // 生成SQL
           const sqlGenResult = await textToSqlService.generateSql({
-            query: message,
+            query: messageValidation.sanitized!,
             tables: undefined,
             limit: 10
           });
 
           if (sqlGenResult.success && sqlGenResult.sql && sqlGenResult.sql !== 'INVALID_QUERY') {
             generatedSql = sqlGenResult.sql;
-            
+
             // 执行SQL
             const execResult = await textToSqlService.executeSql(generatedSql, 10);
             if (execResult.success) {
@@ -401,15 +556,21 @@ ${knowledgeContext}
 ## 物流状态流转
 not_shipped → shipped → in_transit → at_port → picked_up → unloaded → returned_empty
 
-${sqlResult ? `
+${
+  sqlResult
+    ? `
 ## 查询结果
 SQL: ${sqlResult.sql}
 结果数量: ${sqlResult.rowCount} 条
 ${sqlResult.truncated ? '(仅显示前5条)' : ''}
 数据: ${JSON.stringify(sqlResult.data, null, 2)}
-` : ''}
+`
+    : ''
+}
 
-${scheduleResult ? `
+${
+  scheduleResult
+    ? `
 ## 排产结果
 排产状态: ${scheduleResult.success ? '成功' : '失败'}
 总计: ${scheduleResult.total} 个货柜
@@ -417,13 +578,13 @@ ${scheduleResult ? `
 失败: ${scheduleResult.failedCount} 个
 ${scheduleResult.hasMore ? '(仅显示前5条)' : ''}
 排产详情: ${JSON.stringify(scheduleResult.results, null, 2)}
-` : ''}
+`
+    : ''
+}
 
 请用中文回答问题。如果查询到数据，请用表格或列表形式展示结果。当用户询问关于筛选条件、时间概念、滞港费计算等业务问题时，优先使用知识库中的信息回答。当用户触发排产时，请明确告知排产结果（成功/失败数量）。`;
 
-      const messages: ChatMessage[] = [
-        { role: 'system', content: systemPrompt }
-      ];
+      const messages: ChatMessage[] = [{ role: 'system', content: systemPrompt }];
 
       // 如果有上下文，添加为用户消息
       if (context) {
@@ -433,30 +594,43 @@ ${scheduleResult.hasMore ? '(仅显示前5条)' : ''}
         });
       }
 
-      messages.push({ role: 'user', content: message });
+      messages.push({ role: 'user', content: messageValidation.sanitized! });
 
-      // 调用 AI
-      const result = await siliconFlowAdapter.chat(messages);
+      // 尝试从缓存获取AI响应
+      let result = cacheManager.getCachedChatResponse(messageValidation.sanitized!, context);
+      if (!result) {
+        // 调用 AI
+        result = await siliconFlowAdapter.chat(messages);
+
+        // 缓存AI响应
+        if (result.success) {
+          cacheManager.cacheChatResponse(messageValidation.sanitized!, context, result);
+        }
+      }
 
       if (result.success) {
         res.json({
           success: true,
           message: result.result,
           executionTime: result.executionTime,
-          sqlResult: sqlResult ? {
-            sql: sqlResult.sql,
-            rowCount: sqlResult.rowCount,
-            truncated: sqlResult.truncated,
-            data: sqlResult.data
-          } : undefined,
-          scheduleResult: scheduleResult ? {
-            success: scheduleResult.success,
-            total: scheduleResult.total,
-            successCount: scheduleResult.successCount,
-            failedCount: scheduleResult.failedCount,
-            results: scheduleResult.results,
-            hasMore: scheduleResult.hasMore
-          } : undefined
+          sqlResult: sqlResult
+            ? {
+                sql: sqlResult.sql,
+                rowCount: sqlResult.rowCount,
+                truncated: sqlResult.truncated,
+                data: sqlResult.data
+              }
+            : undefined,
+          scheduleResult: scheduleResult
+            ? {
+                success: scheduleResult.success,
+                total: scheduleResult.total,
+                successCount: scheduleResult.successCount,
+                failedCount: scheduleResult.failedCount,
+                results: scheduleResult.results,
+                hasMore: scheduleResult.hasMore
+              }
+            : undefined
         });
       } else {
         res.status(500).json({
@@ -480,7 +654,7 @@ ${scheduleResult.hasMore ? '(仅显示前5条)' : ''}
   getSchema = async (req: Request, res: Response): Promise<void> => {
     try {
       const { keyword } = req.query;
-      
+
       let tables;
       if (keyword) {
         tables = await schemaReader.searchTables(keyword as string);
@@ -553,16 +727,16 @@ ${scheduleResult.hasMore ? '(仅显示前5条)' : ''}
       let data;
       if (category) {
         // 按类别获取
-        const items = knowledgeBase.filter(item => item.category === category);
+        const items = knowledgeBase.filter((item) => item.category === category);
         data = { category, items };
       } else if (keyword) {
         // 搜索知识库
         const results = searchKnowledge(keyword as string);
         data = { keyword, results };
       } else {
-        // 获取所有类别
+        // 获取所有类别和所有知识条目
         const categories = getAllCategories();
-        data = { categories, totalItems: knowledgeBase.length };
+        data = { categories, totalItems: knowledgeBase.length, items: knowledgeBase };
       }
 
       res.json({
@@ -585,7 +759,7 @@ ${scheduleResult.hasMore ? '(仅显示前5条)' : ''}
   health = async (req: Request, res: Response): Promise<void> => {
     try {
       const hasApiKey = !!process.env.SILICON_FLOW_API_KEY;
-      
+
       res.json({
         success: true,
         data: {
@@ -757,7 +931,7 @@ ${scheduleResult.hasMore ? '(仅显示前5条)' : ''}
         return;
       }
       const result = await aiBusinessService.searchContainers(
-        keyword as string, 
+        keyword as string,
         limit ? parseInt(limit as string) : 10
       );
       res.json(result);
@@ -978,6 +1152,123 @@ ${scheduleResult.hasMore ? '(仅显示前5条)' : ''}
       res.json(result);
     } catch (error: any) {
       logger.error('[AI] getDemurrageAlerts error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  };
+
+  /**
+   * POST /api/v1/ai/flow
+   * 创建流程定义
+   */
+  createFlow = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const flowData = req.body as Omit<FlowDefinition, 'id' | 'createdAt' | 'updatedAt'>;
+      const flow = flowService.createFlowDefinition(flowData);
+      res.json({ success: true, data: flow });
+    } catch (error: any) {
+      logger.error('[AI] createFlow error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  };
+
+  /**
+   * GET /api/v1/ai/flow
+   * 获取所有流程定义
+   */
+  getFlows = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const flows = flowService.getFlowDefinitions();
+      res.json({ success: true, data: flows });
+    } catch (error: any) {
+      logger.error('[AI] getFlows error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  };
+
+  /**
+   * GET /api/v1/ai/flow/:id
+   * 获取流程定义详情
+   */
+  getFlow = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const flow = flowService.getFlowDefinition(id);
+      if (flow) {
+        res.json({ success: true, data: flow });
+      } else {
+        res.status(404).json({ success: false, error: 'Flow not found' });
+      }
+    } catch (error: any) {
+      logger.error('[AI] getFlow error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  };
+
+  /**
+   * PUT /api/v1/ai/flow/:id
+   * 更新流程定义
+   */
+  updateFlow = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const updates = req.body as Partial<FlowDefinition>;
+      const flow = flowService.updateFlowDefinition(id, updates);
+      if (flow) {
+        res.json({ success: true, data: flow });
+      } else {
+        res.status(404).json({ success: false, error: 'Flow not found' });
+      }
+    } catch (error: any) {
+      logger.error('[AI] updateFlow error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  };
+
+  /**
+   * DELETE /api/v1/ai/flow/:id
+   * 删除流程定义
+   */
+  deleteFlow = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const success = flowService.deleteFlowDefinition(id);
+      if (success) {
+        res.json({ success: true, message: 'Flow deleted successfully' });
+      } else {
+        res.status(404).json({ success: false, error: 'Flow not found' });
+      }
+    } catch (error: any) {
+      logger.error('[AI] deleteFlow error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  };
+
+  /**
+   * POST /api/v1/ai/flow/execute
+   * 执行流程
+   */
+  executeFlow = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { flowId, variables = {} } = req.body;
+      const result = await flowService.executeFlow(flowId, variables);
+      res.json({ success: result.success, data: result });
+    } catch (error: any) {
+      logger.error('[AI] executeFlow error:', error);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  };
+
+  /**
+   * POST /api/v1/ai/flow/execute-definition
+   * 执行流程定义（直接执行，不保存）
+   */
+  executeFlowDefinition = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { flow, variables = {} } = req.body;
+      const result = await flowService.executeFlowDefinition(flow, variables);
+      res.json({ success: result.success, data: result });
+    } catch (error: any) {
+      logger.error('[AI] executeFlowDefinition error:', error);
       res.status(500).json({ success: false, error: error.message });
     }
   };

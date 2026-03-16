@@ -1,12 +1,13 @@
 /**
  * AI 路由配置
  * AI Routes
- * 
+ *
  * AI 相关的 API 路由
  */
 
 import { Router } from 'express';
 import { aiController } from '../ai/controllers/ai.controller';
+import { OperationType, permissionManager } from '../ai/utils/permissionManager';
 
 const router = Router();
 
@@ -33,7 +34,7 @@ const router = Router();
  *       200:
  *         description: AI 响应
  */
-router.post('/chat', aiController.chat);
+router.post('/chat', permissionManager.checkPermission(OperationType.AI_CHAT), aiController.chat);
 
 /**
  * @swagger
@@ -66,8 +67,16 @@ router.post('/chat', aiController.chat);
  *       200:
  *         description: SQL 查询结果
  */
-router.post('/text-to-sql', aiController.textToSql);
-router.post('/execute-sql', aiController.executeSql);
+router.post(
+  '/text-to-sql',
+  permissionManager.checkPermission(OperationType.SQL_EXECUTION),
+  aiController.textToSql
+);
+router.post(
+  '/execute-sql',
+  permissionManager.checkPermission(OperationType.SQL_EXECUTION),
+  aiController.executeSql
+);
 
 /**
  * @swagger
@@ -313,5 +322,149 @@ router.get('/stats/trucking', aiController.getStatsTrucking);
 router.get('/containers/search', aiController.searchContainers);
 router.get('/containers/pending-customs', aiController.getPendingCustomsContainers);
 router.get('/alerts/demurrage', aiController.getDemurrageAlerts);
+
+/**
+ * @swagger
+ * /api/v1/ai/flow:
+ *   post:
+ *     summary: 创建流程定义
+ *     tags: [AI Flow]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: string
+ *               description: string
+ *               version: string
+ *               createdBy: string
+ *               nodes: array
+ *               startNodeId: string
+ *               variables: array
+ *     responses:
+ *       200:
+ *         description: 流程定义创建成功
+ */
+router.post('/flow', aiController.createFlow);
+
+/**
+ * @swagger
+ * /api/v1/ai/flow:
+ *   get:
+ *     summary: 获取所有流程定义
+ *     tags: [AI Flow]
+ *     responses:
+ *       200:
+ *         description: 流程定义列表
+ */
+router.get('/flow', aiController.getFlows);
+
+/**
+ * @swagger
+ * /api/v1/ai/flow/{id}:
+ *   get:
+ *     summary: 获取流程定义详情
+ *     tags: [AI Flow]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 流程定义详情
+ */
+router.get('/flow/:id', aiController.getFlow);
+
+/**
+ * @swagger
+ * /api/v1/ai/flow/{id}:
+ *   put:
+ *     summary: 更新流程定义
+ *     tags: [AI Flow]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name: string
+ *               description: string
+ *               nodes: array
+ *     responses:
+ *       200:
+ *         description: 流程定义更新成功
+ */
+router.put('/flow/:id', aiController.updateFlow);
+
+/**
+ * @swagger
+ * /api/v1/ai/flow/{id}:
+ *   delete:
+ *     summary: 删除流程定义
+ *     tags: [AI Flow]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 流程定义删除成功
+ */
+router.delete('/flow/:id', aiController.deleteFlow);
+
+/**
+ * @swagger
+ * /api/v1/ai/flow/execute:
+ *   post:
+ *     summary: 执行流程
+ *     tags: [AI Flow]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               flowId: string
+ *               variables: object
+ *     responses:
+ *       200:
+ *         description: 流程执行结果
+ */
+router.post('/flow/execute', aiController.executeFlow);
+
+/**
+ * @swagger
+ * /api/v1/ai/flow/execute-definition:
+ *   post:
+ *     summary: 执行流程定义（直接执行，不保存）
+ *     tags: [AI Flow]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               flow: object
+ *               variables: object
+ *     responses:
+ *       200:
+ *         description: 流程执行结果
+ */
+router.post('/flow/execute-definition', aiController.executeFlowDefinition);
 
 export default router;

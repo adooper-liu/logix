@@ -27,7 +27,9 @@ export class ContainerStatusScheduler {
       return;
     }
 
-    logger.info(`[ContainerStatusScheduler] Starting scheduler with ${intervalMinutes} minute interval, first execution delayed ${delaySeconds}s`);
+    logger.info(
+      `[ContainerStatusScheduler] Starting scheduler with ${intervalMinutes} minute interval, first execution delayed ${delaySeconds}s`
+    );
 
     // 设置定时任务
     const intervalMs = intervalMinutes * 60 * 1000;
@@ -89,7 +91,8 @@ export class ContainerStatusScheduler {
       logger.info('[ContainerStatusScheduler] Starting batch status update');
 
       try {
-        const updatedCount = await this.statusService.batchUpdateStatuses(1000);
+        const batchSize = parseInt(process.env.STATUS_BATCH_SIZE || '200', 10);
+        const updatedCount = await this.statusService.batchUpdateStatuses(batchSize);
         const duration = Date.now() - startTime;
 
         logger.info('[ContainerStatusScheduler] Batch status update completed', {

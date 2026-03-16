@@ -50,7 +50,7 @@ export default {
 
   // ========== 导航菜单 ==========
   nav: {
-    shipments: '头程',
+    shipments: '货柜',
     system: '系统',
     containerManagement: '货柜管理',
     ganttChart: '货柜甘特图',
