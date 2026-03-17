@@ -142,6 +142,7 @@ const columnLabels: Record<string, string> = {
   ataDestPort: '实际到港',
   customsStatus: '清关状态',
   plannedPickupDate: '计划提柜日',
+  pickupDate: '实际提柜日',
   lastFreeDate: '最晚提柜日',
   lastReturnDate: '最晚还箱日',
   returnTime: '实际还箱日',
@@ -480,16 +481,15 @@ const handlePageSizeChange = (pageSize: number) => {
   }
 }
 
-// 格式化日期
+// 格式化日期（统一使用 toLocaleDateString，只显示日期部分）
 const formatDate = (date: string | Date): string => {
   if (!date) return '-'
   const d = new Date(date)
-  return d.toLocaleString('zh-CN', {
+  if (isNaN(d.getTime())) return '-'
+  return d.toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
   })
 }
 
@@ -1369,6 +1369,13 @@ export default {
           <el-table-column v-else-if="key === 'plannedPickupDate'" prop="plannedPickupDate" label="计划提柜日" width="110" sortable="custom">
             <template #default="{ row }">
               {{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }}
+            </template>
+          </el-table-column>
+
+          <!-- 实际提柜日 -->
+          <el-table-column v-else-if="key === 'pickupDate'" prop="pickupDate" label="实际提柜日" width="110" sortable="custom">
+            <template #default="{ row }">
+              {{ row.pickupDate ? formatDate(row.pickupDate) : '-' }}
             </template>
           </el-table-column>
 
