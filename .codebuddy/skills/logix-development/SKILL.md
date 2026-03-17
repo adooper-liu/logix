@@ -38,6 +38,50 @@ description: Develop features for LogiX logistics management system following pr
 ✅ 页面规范：必须有日期选择器，卡片/表格/图表共用同一套日期
 ```
 
+### 4. 颜色变量使用规范
+
+```
+✅ 必须使用：frontend/src/assets/styles/variables.scss 中定义的 SCSS 变量
+✅ 优先使用：$primary-color、$success-color、$warning-color、$danger-color
+✅ 业务色：$status-shipped、$status-at-port、$status-picked-up
+✅ 优先级色：$priority-critical、$priority-high、$priority-medium、$priority-low
+
+❌ 禁止：直接使用 #409EFF、#67C23A 等十六进制色值
+❌ 禁止：在 Vue 文件的 style 标签中使用硬编码颜色
+```
+
+**颜色迁移策略**（大规模改动，分批进行）：
+
+```bash
+# 1. 分析当前硬编码颜色
+node scripts/analyze-colors.cjs
+
+# 2. 迁移优先级
+# - P0: 高频组件（Shipments、Dashboard、ContainerDetail）
+# - P1: 中频组件（甘特图、统计面板）
+# - P2: 低频组件（系统设置、帮助文档）
+
+# 3. 顺带迁移原则
+# 每次功能开发时，顺带迁移相关文件的硬编码颜色
+# 不需要专门安排时间大规模迁移
+
+# 4. 检测工具
+npm run lint  # 可配合 ESLint 规则检测未使用 SCSS 变量的代码
+```
+
+**常用 SCSS 变量速查**：
+
+| 变量 | 用途 |
+|------|------|
+| `$primary-color` | 主色调（蓝色） |
+| `$success-color` | 成功色（绿色） |
+| `$warning-color` | 警告色（橙色） |
+| `$danger-color` | 危险色（红色） |
+| `$text-primary` | 主要文字 |
+| `$text-regular` | 常规文字 |
+| `$bg-page` | 页面背景 |
+| `$border-base` | 边框色 |
+
 ---
 
 ## 📐 命名与映射规则

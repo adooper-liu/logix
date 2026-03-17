@@ -3,6 +3,7 @@
  * Main Service Entry Point
  */
 
+import 'reflect-metadata';
 import { httpServer, io } from './app.js';
 import { config } from './config/index.js';
 import { closeDatabase, initDatabase } from './database/index.js';
@@ -10,6 +11,7 @@ import { containerStatusScheduler } from './schedulers/containerStatus.scheduler
 import { demurrageWriteBackScheduler } from './schedulers/demurrageWriteBack.scheduler.js';
 import { logisticsPathService } from './services/logisticsPath.service.js';
 import { log } from './utils/logger.js';
+import { flowEngine } from './ai/utils/flowEngine.js';
 
 /**
  * 启动服务器（带性能监控）
@@ -23,6 +25,12 @@ async function startServer() {
     log.info('Initializing database connection...');
     await initDatabase();
     log.info(`✅ Database initialized in ${Date.now() - dbStartTime}ms`);
+
+    // 初始化 FlowEngine：从数据库加载流程定义
+    const flowEngineStartTime = Date.now();
+    log.info('Initializing FlowEngine...');
+    await flowEngine.initialize();
+    log.info(`✅ FlowEngine initialized in ${Date.now() - flowEngineStartTime}ms`);
 
     // 启动货柜状态调度器（优化：延迟 5 秒首次执行）
     const statusSchedulerStartTime = Date.now();

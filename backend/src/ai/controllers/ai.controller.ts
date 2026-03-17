@@ -12,25 +12,15 @@ import { siliconFlowAdapter } from '../adapters/SiliconFlowAdapter';
 import { getAllCategories, knowledgeBase, searchKnowledge } from '../data/knowledgeBase';
 import { aiBusinessService } from '../services/aiBusiness.service';
 import { textToSqlService } from '../services/textToSql.service';
+import { flowService } from '../services/flowService';
 import { ChatMessage } from '../types';
+import { FlowDefinition } from '../types/flow';
 import { cacheManager } from '../utils/cacheManager';
 import { inputValidator } from '../utils/inputValidator';
 import { schemaReader } from '../utils/schemaReader';
-
-/**
- * 排产意图检测
- */
-const SCHEDULE_INTENT_PATTERNS = [
-  '排产',
-  '智能排柜',
-  '一键排产',
-  '开始排产',
-  '执行排产',
-  '帮我排柜',
-  '排柜',
-  '自动排产',
-  '排程'
-];
+import { mcpAgent } from '../../mcp/agent.js';
+import { SCHEDULE_INTENT_PATTERNS, DATA_QUERY_PATTERNS } from '../constants/intentPatterns';
+import { buildSystemPrompt } from '../constants/systemPrompts';
 
 /**
  * 日期范围解析
@@ -384,7 +374,7 @@ export class AIController {
       const { message, context, options } = req.body as {
         message: string;
         context?: Record<string, any>;
-        options?: { execute?: boolean; preview?: boolean; autoQuery?: boolean };
+        options?: { execute?: boolean; preview?: boolean; autoQuery?: boolean; mcpEnabled?: boolean };
       };
 
       // 验证消息参数
@@ -470,32 +460,9 @@ export class AIController {
       // ==================== 数据查询意图检测 ====================
 
       // 判断是否需要查询数据库
-      const dataQueryPatterns = [
-        '查询',
-        '多少',
-        '数量',
-        '统计',
-        '列表',
-        '显示',
-        '找出',
-        '获取',
-        '今天',
-        '昨天',
-        '本周',
-        '本月',
-        '在途',
-        '到港',
-        '已出运',
-        '未出运',
-        '滞港费',
-        '货柜',
-        '备货单',
-        '船运',
-        '港口'
-      ];
       const needsDataQuery =
         autoQuery &&
-        dataQueryPatterns.some((pattern) =>
+        DATA_QUERY_PATTERNS.some((pattern) =>
           messageValidation.sanitized!.toLowerCase().includes(pattern.toLowerCase())
         );
 
@@ -531,58 +498,38 @@ export class AIController {
         }
       }
 
+      // ==================== MCP 工具调用（文件/代码查询）====================
+      // MCP优先级高于Text-to-SQL：如果MCP执行成功，就不使用Text-to-SQL的结果
+      const mcpEnabled = options?.mcpEnabled ?? true; // 默认开启MCP
+      let mcpToolResult = null;
+      if (mcpEnabled) {
+        try {
+          const mcpResult = await mcpAgent.processMessage(messageValidation.sanitized!);
+          if (mcpResult && mcpResult.success) {
+            mcpToolResult = mcpResult;
+            logger.info('[AI] MCP tool executed', { 
+              tool: mcpResult.toolName, 
+              success: mcpResult.success 
+            });
+            // 如果MCP成功执行了数据库查询，清除Text-to-SQL的结果，避免AI使用两个数据源
+            if (mcpResult.toolName === 'query_database') {
+              sqlResult = null;
+              logger.info('[AI] MCP took over database query, clearing Text-to-SQL result');
+            }
+          }
+        } catch (mcpError: any) {
+          logger.warn('[AI] MCP tool execution failed:', mcpError.message);
+        }
+      }
+
       // 构建系统 Prompt
-      const systemPrompt = `你是 LogiX 物流系统的智能助手。你可以帮助用户：
-1. 查询物流数据（货柜、备货单、船运等）
-2. 生成 SQL 查询
-3. 分析业务数据
-4. 回答关于物流流程的问题
-5. 解释系统筛选条件和业务规则
-
-## 数据库结构
-${schemaDescription}
-
-${knowledgeContext}
-
-## 物流系统核心概念
-- 货柜 (containers)：集装箱信息，主键 container_number
-- 备货单 (replenishment_orders)：出货计划，主键 order_number
-- 海运 (sea_freight)：船运信息
-- 港口操作 (port_operations)：港口装卸记录，含 port_type(起运港/中转港/目的港)
-- 拖卡运输 (trucking_transport)：陆运记录
-- 仓库操作 (warehouse_operations)：仓库装卸记录
-- 滞港费 (container_charges)：码头堆存费用
-
-## 物流状态流转
-not_shipped → shipped → in_transit → at_port → picked_up → unloaded → returned_empty
-
-${
-  sqlResult
-    ? `
-## 查询结果
-SQL: ${sqlResult.sql}
-结果数量: ${sqlResult.rowCount} 条
-${sqlResult.truncated ? '(仅显示前5条)' : ''}
-数据: ${JSON.stringify(sqlResult.data, null, 2)}
-`
-    : ''
-}
-
-${
-  scheduleResult
-    ? `
-## 排产结果
-排产状态: ${scheduleResult.success ? '成功' : '失败'}
-总计: ${scheduleResult.total} 个货柜
-成功: ${scheduleResult.successCount} 个
-失败: ${scheduleResult.failedCount} 个
-${scheduleResult.hasMore ? '(仅显示前5条)' : ''}
-排产详情: ${JSON.stringify(scheduleResult.results, null, 2)}
-`
-    : ''
-}
-
-请用中文回答问题。如果查询到数据，请用表格或列表形式展示结果。当用户询问关于筛选条件、时间概念、滞港费计算等业务问题时，优先使用知识库中的信息回答。当用户触发排产时，请明确告知排产结果（成功/失败数量）。`;
+      const systemPrompt = buildSystemPrompt({
+        schemaDescription,
+        knowledgeContext,
+        sqlResult,
+        mcpToolResult,
+        scheduleResult
+      });
 
       const messages: ChatMessage[] = [{ role: 'system', content: systemPrompt }];
 
@@ -1163,7 +1110,7 @@ ${scheduleResult.hasMore ? '(仅显示前5条)' : ''}
   createFlow = async (req: Request, res: Response): Promise<void> => {
     try {
       const flowData = req.body as Omit<FlowDefinition, 'id' | 'createdAt' | 'updatedAt'>;
-      const flow = flowService.createFlowDefinition(flowData);
+      const flow = await flowService.createFlowDefinition(flowData);
       res.json({ success: true, data: flow });
     } catch (error: any) {
       logger.error('[AI] createFlow error:', error);
@@ -1231,7 +1178,7 @@ ${scheduleResult.hasMore ? '(仅显示前5条)' : ''}
   deleteFlow = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const success = flowService.deleteFlowDefinition(id);
+      const success = await flowService.deleteFlowDefinition(id);
       if (success) {
         res.json({ success: true, message: 'Flow deleted successfully' });
       } else {

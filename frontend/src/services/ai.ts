@@ -79,7 +79,7 @@ export interface ScheduleResult {
 // AI服务
 export const aiService = {
   // AI对话（支持自动SQL执行和智能排产）
-  async chat(message: string, context?: Record<string, any>, options?: { execute?: boolean; preview?: boolean; autoQuery?: boolean }) {
+  async chat(message: string, context?: Record<string, any>, options?: { execute?: boolean; preview?: boolean; autoQuery?: boolean; mcpEnabled?: boolean }) {
     return api.post<{
       success: boolean
       message?: string

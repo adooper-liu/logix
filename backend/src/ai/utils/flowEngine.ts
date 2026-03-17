@@ -10,9 +10,10 @@ import { siliconFlowAdapter } from '../adapters/SiliconFlowAdapter';
 import { textToSqlService } from '../services/textToSql.service';
 import { intelligentSchedulingService } from '../../services/intelligentScheduling.service';
 import { searchKnowledge } from '../data/knowledgeBase';
+import { AppDataSource } from '../../database';
 import {
-  FlowDefinition,
-  FlowInstance,
+  FlowDefinition as FlowDefinitionType,
+  FlowInstance as FlowInstanceType,
   FlowNode,
   FlowNodeType,
   FlowExecutionResult,
@@ -29,26 +30,53 @@ import {
   SchedulingTaskNode,
   ContainerOperationNode
 } from '../types/flow';
+import { FlowDefinition } from '../../entities/FlowDefinition';
+import { FlowInstance } from '../../entities/FlowInstance';
 
 /**
  * 流程引擎类
  */
 export class FlowEngine {
-  private flowDefinitions: Map<string, FlowDefinition> = new Map();
-  private flowInstances: Map<string, FlowInstance> = new Map();
+  private flowDefinitions: Map<string, FlowDefinitionType> = new Map();
+  private flowInstances: Map<string, FlowInstanceType> = new Map();
+  private flowDefinitionRepository = AppDataSource.getRepository(FlowDefinition);
+  private flowInstanceRepository = AppDataSource.getRepository(FlowInstance);
+
+  /**
+   * 初始化：从数据库加载流程定义
+   */
+  async initialize(): Promise<void> {
+    try {
+      const flows = await this.flowDefinitionRepository.find();
+      flows.forEach(flow => {
+        this.flowDefinitions.set(flow.id, flow as unknown as FlowDefinitionType);
+      });
+      logger.info(`[FlowEngine] Loaded ${flows.length} flow definitions from database`);
+    } catch (error) {
+      logger.error(`[FlowEngine] Failed to load flow definitions: ${error}`);
+    }
+  }
 
   /**
    * 注册流程定义
    */
-  registerFlow(flow: FlowDefinition): void {
+  async registerFlow(flow: FlowDefinitionType): Promise<void> {
     this.flowDefinitions.set(flow.id, flow);
-    logger.info(`[FlowEngine] Flow registered: ${flow.name} (${flow.id})`);
+    
+    // 持久化到数据库
+    try {
+      const flowEntity = this.flowDefinitionRepository.create(flow);
+      await this.flowDefinitionRepository.save(flowEntity);
+      logger.info(`[FlowEngine] Flow registered and persisted: ${flow.name} (${flow.id})`);
+    } catch (error) {
+      logger.error(`[FlowEngine] Failed to persist flow definition: ${error}`);
+    }
   }
 
   /**
    * 创建流程实例
    */
-  createFlowInstance(flowId: string, variables: Record<string, any> = {}): FlowInstance {
+  async createFlowInstance(flowId: string, variables: Record<string, any> = {}): Promise<FlowInstanceType> {
     const flow = this.flowDefinitions.get(flowId);
     if (!flow) {
       throw new Error(`Flow definition not found: ${flowId}`);
@@ -62,7 +90,7 @@ export class FlowEngine {
       }
     });
 
-    const instance: FlowInstance = {
+    const instance: FlowInstanceType = {
       id: `flow-instance-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       flowId,
       status: 'running',
@@ -74,7 +102,16 @@ export class FlowEngine {
     };
 
     this.flowInstances.set(instance.id, instance);
-    logger.info(`[FlowEngine] Flow instance created: ${instance.id} for flow ${flow.name}`);
+    
+    // 持久化到数据库
+    try {
+      const instanceEntity = this.flowInstanceRepository.create(instance);
+      await this.flowInstanceRepository.save(instanceEntity);
+      logger.info(`[FlowEngine] Flow instance created and persisted: ${instance.id} for flow ${flow.name}`);
+    } catch (error) {
+      logger.error(`[FlowEngine] Failed to persist flow instance: ${error}`);
+    }
+
     return instance;
   }
 
@@ -106,11 +143,17 @@ export class FlowEngine {
 
         const step = await this.executeNode(node, instance);
         steps.push(step);
+        
+        // 记录执行历史
+        instance.executionHistory.push(step);
 
         if (step.status === 'failed') {
           instance.status = 'failed';
           instance.updatedAt = new Date().toISOString();
           this.flowInstances.set(instanceId, instance);
+          
+          // 更新数据库
+          await this.updateFlowInstanceInDatabase(instance);
 
           return {
             success: false,
@@ -130,12 +173,18 @@ export class FlowEngine {
         instance.currentNodeId = currentNodeId || '';
         instance.updatedAt = new Date().toISOString();
         this.flowInstances.set(instanceId, instance);
+        
+        // 更新数据库
+        await this.updateFlowInstanceInDatabase(instance);
 
         // 如果是结束节点，退出循环
         if (node.type === FlowNodeType.END) {
           instance.status = 'completed';
           instance.completedAt = new Date().toISOString();
           this.flowInstances.set(instanceId, instance);
+          
+          // 更新数据库
+          await this.updateFlowInstanceInDatabase(instance);
           break;
         }
       }
@@ -150,6 +199,9 @@ export class FlowEngine {
       instance.status = 'failed';
       instance.updatedAt = new Date().toISOString();
       this.flowInstances.set(instanceId, instance);
+      
+      // 更新数据库
+      await this.updateFlowInstanceInDatabase(instance);
 
       return {
         success: false,
@@ -157,6 +209,17 @@ export class FlowEngine {
         executionTime: Date.now() - startTime,
         steps
       };
+    }
+  }
+
+  /**
+   * 更新数据库中的流程实例
+   */
+  private async updateFlowInstanceInDatabase(instance: FlowInstanceType): Promise<void> {
+    try {
+      await this.flowInstanceRepository.save(instance);
+    } catch (error) {
+      logger.error(`[FlowEngine] Failed to update flow instance in database: ${error}`);
     }
   }
 
@@ -317,7 +380,7 @@ export class FlowEngine {
   /**
    * 执行决策节点
    */
-  private executeDecisionNode(node: DecisionNode, instance: FlowInstance): any {
+  private executeDecisionNode(node: DecisionNode, instance: FlowInstanceType): any {
     logger.info(`[FlowEngine] Executing decision node: ${node.name}`);
 
     const condition = this.replaceVariables(node.properties.condition, instance.variables);
@@ -335,7 +398,7 @@ export class FlowEngine {
   /**
    * 执行并行节点
    */
-  private async executeParallelNode(node: ParallelNode, instance: FlowInstance): Promise<any> {
+  private async executeParallelNode(node: ParallelNode, instance: FlowInstanceType): Promise<any> {
     logger.info(`[FlowEngine] Executing parallel node: ${node.name}`);
 
     const flow = this.flowDefinitions.get(instance.flowId);
@@ -349,6 +412,8 @@ export class FlowEngine {
       const branchNode = flow.nodes.find(n => n.id === branchNodeId);
       if (branchNode) {
         const branchStep = await this.executeNode(branchNode, instance);
+        // 记录执行历史
+        instance.executionHistory.push(branchStep);
         branchResults.push({ nodeId: branchNodeId, result: branchStep.output });
       }
     }
@@ -359,7 +424,7 @@ export class FlowEngine {
   /**
    * 执行循环节点
    */
-  private async executeLoopNode(node: LoopNode, instance: FlowInstance): Promise<any> {
+  private async executeLoopNode(node: LoopNode, instance: FlowInstanceType): Promise<any> {
     logger.info(`[FlowEngine] Executing loop node: ${node.name}`);
 
     const flow = this.flowDefinitions.get(instance.flowId);
@@ -387,6 +452,8 @@ export class FlowEngine {
         throw new Error(`Loop body execution failed: ${step.error}`);
       }
 
+      // 记录执行历史
+      instance.executionHistory.push(step);
       loopResults.push(step.output);
     }
 
@@ -396,7 +463,7 @@ export class FlowEngine {
   /**
    * 执行知识库查询节点
    */
-  private async executeKnowledgeQueryNode(node: KnowledgeQueryNode, instance: FlowInstance): Promise<any> {
+  private async executeKnowledgeQueryNode(node: KnowledgeQueryNode, instance: FlowInstanceType): Promise<any> {
     logger.info(`[FlowEngine] Executing knowledge query node: ${node.name}`);
 
     const query = this.replaceVariables(node.properties.query, instance.variables);
@@ -408,7 +475,7 @@ export class FlowEngine {
   /**
    * 执行排产任务节点
    */
-  private async executeSchedulingTaskNode(node: SchedulingTaskNode, instance: FlowInstance): Promise<any> {
+  private async executeSchedulingTaskNode(node: SchedulingTaskNode, instance: FlowInstanceType): Promise<any> {
     logger.info(`[FlowEngine] Executing scheduling task node: ${node.name}`);
 
     const country = this.replaceVariables(node.properties.country || '', instance.variables) || undefined;
@@ -428,7 +495,7 @@ export class FlowEngine {
   /**
    * 执行货柜操作节点
    */
-  private async executeContainerOperationNode(node: ContainerOperationNode, instance: FlowInstance): Promise<any> {
+  private async executeContainerOperationNode(node: ContainerOperationNode, instance: FlowInstanceType): Promise<any> {
     logger.info(`[FlowEngine] Executing container operation node: ${node.name}`);
 
     const operation = this.replaceVariables(node.properties.operation, instance.variables);
@@ -443,7 +510,7 @@ export class FlowEngine {
   /**
    * 获取下一个节点ID
    */
-  private getNextNodeId(node: FlowNode, instance: FlowInstance): string | null {
+  private getNextNodeId(node: FlowNode, instance: FlowInstanceType): string | null {
     // 对于决策节点，下一个节点由决策结果决定
     if (node.type === FlowNodeType.DECISION) {
       const decisionNode = node as DecisionNode;
@@ -464,9 +531,16 @@ export class FlowEngine {
   /**
    * 更新实例变量
    */
-  private updateVariables(instance: FlowInstance, output: any): void {
+  private updateVariables(instance: FlowInstanceType, output: any): void {
     if (output) {
-      Object.assign(instance.variables, output);
+      // 只更新非系统保留变量
+      const safeOutput = { ...output };
+      // 移除可能的系统保留变量
+      delete safeOutput.__proto__;
+      delete safeOutput.constructor;
+      delete safeOutput.prototype;
+      
+      Object.assign(instance.variables, safeOutput);
     }
   }
 
@@ -509,8 +583,14 @@ export class FlowEngine {
       // 替换变量
       const evaluatedCondition = this.replaceVariables(condition, variables);
       
+      // 使用更安全的方式评估表达式
+      // 只允许基本的比较操作和逻辑操作
+      const safeCondition = evaluatedCondition
+        .replace(/[^a-zA-Z0-9\s\+\-\*\/\%\=\!\<\>\&\|\(\)]/g, '')
+        .replace(/eval|Function|Object|Array|String|Number|Boolean|Date|Math|RegExp/g, '');
+      
       // 使用Function构造函数安全地评估表达式
-      const evalFn = new Function('return ' + evaluatedCondition);
+      const evalFn = new Function('return ' + safeCondition);
       return Boolean(evalFn());
     } catch (error) {
       throw new Error(`Invalid condition: ${condition}`);
@@ -527,8 +607,65 @@ export class FlowEngine {
   /**
    * 获取所有流程定义
    */
-  getFlowDefinitions(): FlowDefinition[] {
+  getFlowDefinitions(): FlowDefinitionType[] {
     return Array.from(this.flowDefinitions.values());
+  }
+
+  /**
+   * 删除流程定义
+   */
+  async deleteFlowDefinition(flowId: string): Promise<boolean> {
+    const flow = this.flowDefinitions.get(flowId);
+    if (flow) {
+      this.flowDefinitions.delete(flowId);
+      
+      // 从数据库中删除
+      try {
+        await this.flowDefinitionRepository.delete(flowId);
+        logger.info(`[FlowEngine] Flow definition deleted: ${flow.name} (${flow.id})`);
+        return true;
+      } catch (error) {
+        logger.error(`[FlowEngine] Failed to delete flow definition from database: ${error}`);
+        return false;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * 暂停流程实例
+   */
+  async pauseFlowInstance(instanceId: string): Promise<boolean> {
+    const instance = this.flowInstances.get(instanceId);
+    if (instance && instance.status === 'running') {
+      instance.status = 'paused';
+      instance.updatedAt = new Date().toISOString();
+      this.flowInstances.set(instanceId, instance);
+      
+      // 更新数据库
+      await this.updateFlowInstanceInDatabase(instance);
+      logger.info(`[FlowEngine] Flow instance paused: ${instanceId}`);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * 恢复流程实例
+   */
+  async resumeFlowInstance(instanceId: string): Promise<boolean> {
+    const instance = this.flowInstances.get(instanceId);
+    if (instance && instance.status === 'paused') {
+      instance.status = 'running';
+      instance.updatedAt = new Date().toISOString();
+      this.flowInstances.set(instanceId, instance);
+      
+      // 更新数据库
+      await this.updateFlowInstanceInDatabase(instance);
+      logger.info(`[FlowEngine] Flow instance resumed: ${instanceId}`);
+      return true;
+    }
+    return false;
   }
 }
 

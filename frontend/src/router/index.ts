@@ -275,6 +275,16 @@ const routes: RouteRecordRaw[] = [
     ],
   },
   {
+    // 独立窗口的流程编辑器
+    path: '/ai/flow-editor',
+    name: 'FlowEditor',
+    component: () => import('@/views/ai/FlowEditor.vue'),
+    meta: {
+      title: '流程编辑器',
+      hideInMenu: true,
+    },
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/login',
   },

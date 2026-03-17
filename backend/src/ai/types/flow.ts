@@ -3,6 +3,15 @@
  * Flow Definition Types
  */
 
+// 流程变量类型
+export enum FlowVariableType {
+  STRING = 'string',
+  NUMBER = 'number',
+  BOOLEAN = 'boolean',
+  OBJECT = 'object',
+  ARRAY = 'array'
+}
+
 // 流程节点类型
 export enum FlowNodeType {
   // 基础节点
@@ -150,7 +159,7 @@ export interface FlowDefinition {
   startNodeId: string;     // 开始节点ID
   variables?: {
     name: string;
-    type: string;
+    type: FlowVariableType;
     defaultValue?: any;
   }[];                     // 流程变量
 }

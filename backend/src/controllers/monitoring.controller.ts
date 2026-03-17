@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express'
 import { AppDataSource } from '../database'
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder'
 import { Container } from '../entities/Container'
+import { logger } from '../utils/logger'
 
 const router = Router()
 
@@ -14,18 +15,14 @@ const MAX_HISTORY_LENGTH = 24 // 保留最近24个数据点
  */
 router.get('/monitoring', async (_req: Request, res: Response) => {
   try {
-    console.log('[监控] 开始获取监控数据...')
+    logger.info('[监控] 开始获取监控数据...')
     const performanceMetrics = await getPerformanceMetrics()
     const optimizationData = await getOptimizationMetrics()
     const serviceHealth = await getServiceHealth()
     const performanceTrend = await getPerformanceTrend()
     const alerts = generateAlerts(performanceMetrics, serviceHealth)
 
-    console.log('[监控] 监控数据获取成功:', {
-      serviceHealth,
-      performanceTrend,
-      optimizationData
-    })
+    logger.info('[监控] 监控数据获取成功', { serviceHealth, performanceTrend, optimizationData })
 
     res.json({
       code: 200,
@@ -39,7 +36,7 @@ router.get('/monitoring', async (_req: Request, res: Response) => {
       }
     })
   } catch (error: any) {
-    console.error('[监控] 获取监控数据失败:', error)
+    logger.error('[监控] 获取监控数据失败', error)
     res.status(500).json({
       code: 500,
       message: error.message || '获取监控数据失败',
@@ -72,7 +69,7 @@ router.get('/monitoring/refresh', async (_req: Request, res: Response) => {
       }
     })
   } catch (error: any) {
-    console.error('[监控] 刷新监控数据失败:', error)
+    logger.error('[监控] 刷新监控数据失败', error)
     res.status(500).json({
       code: 500,
       message: error.message || '刷新监控数据失败',
@@ -93,7 +90,7 @@ router.get('/monitoring/performance', async (_req: Request, res: Response) => {
       data: metrics
     })
   } catch (error: any) {
-    console.error('[监控] 获取性能指标失败:', error)
+    logger.error('[监控] 获取性能指标失败', error)
     res.status(500).json({
       code: 500,
       message: error.message || '获取性能指标失败',
@@ -114,7 +111,7 @@ router.get('/monitoring/optimization', async (_req: Request, res: Response) => {
       data
     })
   } catch (error: any) {
-    console.error('[监控] 获取优化数据失败:', error)
+    logger.error('[监控] 获取优化数据失败', error)
     res.status(500).json({
       code: 500,
       message: error.message || '获取优化数据失败',
@@ -137,7 +134,7 @@ router.get('/monitoring/alerts', async (_req: Request, res: Response) => {
       data: alerts
     })
   } catch (error: any) {
-    console.error('[监控] 获取告警信息失败:', error)
+    logger.error('[监控] 获取告警信息失败', error)
     res.status(500).json({
       code: 500,
       message: error.message || '获取告警信息失败',

@@ -28,6 +28,9 @@ const inputMessage = ref('')
 const messages = ref<ChatMessage[]>([])
 const healthStatus = ref<AIHealthStatus | null>(null)
 
+// MCP能力开关
+const mcpEnabled = ref(true)
+
 // SQL预览相关
 const showSqlPreview = ref(false)
 const previewSql = ref('')
@@ -146,7 +149,7 @@ const sendMessage = async () => {
     const context = getDateContext()
     
     // 调用AI对话接口（后端会自动判断是否需要查询数据库或执行排产）
-    const chatRes = await aiService.chat(msg, context)
+    const chatRes = await aiService.chat(msg, context, { mcpEnabled: mcpEnabled.value })
 
     if (chatRes.success && chatRes.message) {
       // 添加AI回复
@@ -424,6 +427,17 @@ onMounted(() => {
 
     <!-- 输入区域 -->
     <div class="input-area">
+      <!-- MCP能力开关 -->
+      <div class="mcp-toggle">
+        <el-switch v-model="mcpEnabled" />
+        <span class="mcp-label">
+          <el-icon><DocumentChecked /></el-icon>
+          MCP能力
+        </span>
+        <el-tooltip content="开启后可读取代码文件、搜索代码、查询数据库" placement="top">
+          <el-icon class="mcp-tooltip"><WarningFilled /></el-icon>
+        </el-tooltip>
+      </div>
       <div class="input-wrapper">
         <el-input
           v-model="inputMessage"
@@ -637,6 +651,29 @@ onMounted(() => {
   padding: 16px 20px;
   background: white;
   border-top: 1px solid #ebeef5;
+}
+
+.mcp-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: #f5f7fa;
+  border-radius: 6px;
+}
+
+.mcp-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #606266;
+}
+
+.mcp-tooltip {
+  color: #909399;
+  cursor: help;
 }
 
 .input-wrapper {

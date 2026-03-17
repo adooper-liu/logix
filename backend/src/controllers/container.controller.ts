@@ -106,9 +106,8 @@ export class ContainerController {
    */
   testStatisticsService = async (req: Request, res: Response): Promise<void> => {
     try {
-      console.log('[Test] StatisticsService initialized:', !!this.statisticsService);
-      console.log('[Test] StatusDistributionService initialized:', !!(this.statisticsService as any).statusDistribution);
-      console.log('[Test] containerRepository initialized:', !!this.containerRepository);
+      logger.info('[Test] StatisticsService initialized', { hasStatsService: !!this.statisticsService });
+      logger.info('[Test] containerRepository initialized', { hasRepo: !!this.containerRepository });
 
       const testQuery = this.containerRepository
         .createQueryBuilder('container')
@@ -116,32 +115,27 @@ export class ContainerController {
         .getRawOne();
 
       const count = await testQuery;
-      console.log('[Test] Container count:', count);
+      logger.info('[Test] Container count', { count: count?.count });
 
       // 测试 getStatusDistribution
-      console.log('[Test] Testing getStatusDistribution...');
       const statusDist = await this.statisticsService.getStatusDistribution();
-      console.log('[Test] Status distribution result:', statusDist);
+      logger.info('[Test] Status distribution result', { statusDist });
 
       // 测试 getArrivalDistribution
-      console.log('[Test] Testing getArrivalDistribution...');
       const arrivalDist = await this.statisticsService.getArrivalDistribution();
-      console.log('[Test] Arrival distribution result:', arrivalDist);
+      logger.info('[Test] Arrival distribution result', { arrivalDist });
 
       // 测试 getPickupDistribution
-      console.log('[Test] Testing getPickupDistribution...');
       const pickupDist = await this.statisticsService.getPickupDistribution();
-      console.log('[Test] Pickup distribution result:', pickupDist);
+      logger.info('[Test] Pickup distribution result', { pickupDist });
 
       // 测试 getLastPickupDistribution
-      console.log('[Test] Testing getLastPickupDistribution...');
       const lastPickupDist = await this.statisticsService.getLastPickupDistribution();
-      console.log('[Test] Last pickup distribution result:', lastPickupDist);
+      logger.info('[Test] Last pickup distribution result', { lastPickupDist });
 
       // 测试 getReturnDistribution
-      console.log('[Test] Testing getReturnDistribution...');
       const returnDist = await this.statisticsService.getReturnDistribution();
-      console.log('[Test] Return distribution result:', returnDist);
+      logger.info('[Test] Return distribution result', { returnDist });
 
       res.json({
         success: true,
@@ -156,7 +150,7 @@ export class ContainerController {
         }
       });
     } catch (error: any) {
-      console.error('[Test] Error:', error);
+      logger.error('[Test] Error', error);
       res.status(500).json({
         success: false,
         error: error?.message,

@@ -3,13 +3,7 @@
  * Trucking Company Entity
  */
 
-import {
-  Entity,
-  PrimaryColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn
-} from 'typeorm';
+import { Column, CreateDateColumn, Entity, PrimaryColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity('dict_trucking_companies')
 export class TruckingCompany {
@@ -37,6 +31,18 @@ export class TruckingCompany {
   /** 日容量（趟/天），用于智能排产占用校验，无则默认 10 */
   @Column({ type: 'int', default: 10, nullable: true, name: 'daily_capacity' })
   dailyCapacity?: number;
+
+  /** 每日还箱能力（柜数），用于 Drop 模式还箱日约束；NULL 表示与 daily_capacity 共用 */
+  @Column({ type: 'int', nullable: true, name: 'daily_return_capacity' })
+  dailyReturnCapacity?: number;
+
+  /** 是否有堆场：true=支持 Drop 模式（提<送）；false=必须 Live 模式（提=送=卸） */
+  @Column({ type: 'boolean', default: false, name: 'has_yard' })
+  hasYard: boolean;
+
+  /** 堆场每日可容纳柜数（有堆场时有效） */
+  @Column({ type: 'int', nullable: true, name: 'yard_daily_capacity' })
+  yardDailyCapacity?: number;
 
   @Column({ type: 'text', nullable: true, name: 'remarks' })
   remarks?: string;

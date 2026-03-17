@@ -136,7 +136,21 @@
   - 折叠 key 约定与一级互斥
   - 模板嵌套与辅助函数
 
-#### 9. **intelligent-scheduling-mapping** - 智能排柜映射与仓库/车队选择
+#### 9. **vue-flow-troubleshooting** - Vue Flow 问题排查
+
+- **文件**: `vue-flow-troubleshooting/SKILL.md`
+- **用途**: FlowEditor 中 Vue Flow 报错排查与修复
+- **使用场景**:
+  - ✅ `Cannot read properties of undefined (reading 'height')`
+  - ✅ `Cannot read properties of undefined (reading 'target')`
+  - ✅ Handle/Node 挂载或渲染异常
+  - ✅ MISSING_VIEWPORT_DIMENSIONS 等
+- **核心内容**:
+  - 节点必须包含 dimensions、handleBounds
+  - 常见错误与对应修复
+  - 排查步骤与检查清单
+
+#### 10. **intelligent-scheduling-mapping** - 智能排柜映射与仓库/车队选择
 
 - **文件**: `intelligent-scheduling-mapping/SKILL.md`
 - **用途**: 智能排柜引擎的仓库、车队选择逻辑，严格匹配映射关系
@@ -151,7 +165,23 @@
   - 仓库优先级：is_default > 自营仓 > 平台仓 > 第三方仓
   - 仓库名称从 dict_warehouses 查 warehouse_name
 
-#### 10. **ai-collaboration-methodology** - AI 协作开发方法论
+#### 11. **fix-verification** - 问题修复验证（防幻觉）
+
+- **文件**: `fix-verification/SKILL.md`
+- **用途**: 确保修改的有效性与准确性，消除 AI 幻觉，尤其保证数据库字段准确性
+- **使用场景**:
+  - ✅ 修复 Bug（尤其涉及表名、字段名）
+  - ✅ 修改数据库相关代码
+  - ✅ 修改 Excel 导入映射
+  - ✅ 修改 API 路由或导入路径
+- **核心内容**:
+  - 先验证后修改原则
+  - 权威源定义（03_create_tables.sql、实体、Excel 映射）
+  - 修复前验证流程与强制清单
+  - 常见幻觉与纠正
+  - 验证命令速查
+
+#### 12. **ai-collaboration-methodology** - AI 协作开发方法论
 
 - **文件**: `ai-collaboration-methodology/SKILL.md`
 - **用途**: 需求理解、技能调用、错误排查、SOP 流程
@@ -168,7 +198,7 @@
   - 避免重复问题清单
   - SOP 速查
 
-#### 11. **logix-business-knowledge** - LogiX 业务知识
+#### 13. **logix-business-knowledge** - LogiX 业务知识
 
 - **文件**: `logix-business-knowledge/SKILL.md`
 - **用途**: 管理和查询 LogiX 项目业务知识
@@ -253,6 +283,19 @@
    └─ 最佳实践
 ```
 
+### 修复 Bug 时（尤其涉及表/字段/API）
+
+```
+1. fix-verification ⭐⭐⭐ (必用，防幻觉)
+   └─ 读取权威源（03_create_tables.sql、实体、Excel 映射）
+   └─ 核对表名、字段名、导出名
+   └─ 执行验证清单后再修改
+
+2. ai-collaboration-methodology ⭐⭐
+   └─ 错误分类与定位
+   └─ 需求澄清
+```
+
 ---
 
 ## 📊 Skills 功能对比
@@ -265,6 +308,7 @@
 | **excel-import-requirements** | ✅     | ✅       | ❌       | ✅       | ✅⭐⭐⭐ | ❌       | LogiX 专属 |
 | **code-review**            | ✅⭐⭐   | ✅       | ✅⭐⭐⭐ | ❌       | ❌         | ❌       | 通用       |
 | **commit-message**         | ❌       | ❌       | ❌       | ❌       | ❌         | ✅⭐⭐⭐ | 通用       |
+| **fix-verification**           | ✅⭐⭐   | ✅⭐⭐⭐ | ✅       | ❌       | ✅         | ❌       | LogiX 专属 |
 | **ai-collaboration-methodology** | ✅       | ✅       | ✅       | ❌       | ❌         | ❌       | 通用       |
 | **logix-business-knowledge** | ✅⭐⭐ | ✅⭐⭐ | ✅       | ❌       | ❌         | ❌       | LogiX 专属 |
 
@@ -333,11 +377,12 @@
 
 | 版本 | 日期       | 更新内容                          |
 | ---- | ---------- | --------------------------------- |
+| 2.2  | 2026-03-17 | 添加 fix-verification 技能（修复验证、防幻觉） |
 | 2.1  | 2026-03-16 | 添加 logix-business-knowledge 技能 |
 | 2.0  | 2026-03-12 | 整合统一所有 skills，形成完整体系 |
 | 1.0  | 2026-03-10 | 初始版本，分散的 skills           |
 
 ---
 
-**最后更新**: 2026-03-16  
+**最后更新**: 2026-03-17  
 **维护者**: LogiX Team

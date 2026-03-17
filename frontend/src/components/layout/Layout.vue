@@ -17,6 +17,7 @@ import {
   Grid,
   House,
   InfoFilled,
+  LocationInformation,
   MagicStick,
   Money,
   Monitor,
@@ -140,12 +141,12 @@ const menuGroups = computed(() => [
       {
         path: '/warehouse-trucking-mapping',
         name: 'WarehouseTruckingMapping',
-        meta: { title: t('nav.warehouseTruckingMapping'), icon: 'OfficeBuilding' },
+        meta: { title: t('nav.warehouseTruckingMapping'), icon: 'House' },
       },
       {
         path: '/trucking-port-mapping',
         name: 'TruckingPortMapping',
-        meta: { title: t('nav.truckingPortMapping'), icon: 'Location' },
+        meta: { title: t('nav.truckingPortMapping'), icon: 'LocationInformation' },
       },
       {
         path: '/settings',
@@ -176,7 +177,7 @@ const menuGroups = computed(() => [
     ],
   },
   {
-    title: t('nav.help') + ' & ' + t('nav.about'),
+    title: t('nav.about'),
     icon: 'QuestionFilled',
     items: [
       {
@@ -219,6 +220,7 @@ const iconMap: Record<string, unknown> = {
   MagicStick,
   FolderOpened,
   QuestionFilled,
+  LocationInformation,
 }
 
 // 当前激活的路由

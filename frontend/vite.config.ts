@@ -1,5 +1,6 @@
 import vue from '@vitejs/plugin-vue'
 import path from 'path'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 import type { Plugin } from 'vite'
 import { defineConfig } from 'vite'
@@ -10,8 +11,6 @@ const __dirname = path.dirname(__filename)
 
 // 辅助函数：在子目录中递归查找文件
 function findFileInSubdirs(dir: string, fileName: string): string | null {
-  const fs = require('fs')
-
   if (!fs.existsSync(dir)) return null
 
   const items = fs.readdirSync(dir, { withFileTypes: true })

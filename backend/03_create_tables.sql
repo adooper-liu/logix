@@ -98,11 +98,12 @@ CREATE TABLE IF NOT EXISTS dict_freight_forwarders (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 6. 娓呭叧鍏徃瀛楀吀 (dict_customs_brokers)
+-- 6. 清关公司字典 (dict_customs_brokers)
 CREATE TABLE IF NOT EXISTS dict_customs_brokers (
     broker_code VARCHAR(50) PRIMARY KEY,
     broker_name VARCHAR(100) NOT NULL,
     broker_name_en VARCHAR(200),
+    country VARCHAR(50),
     contact_phone VARCHAR(50),
     contact_email VARCHAR(100),
     status VARCHAR(20),
@@ -110,6 +111,9 @@ CREATE TABLE IF NOT EXISTS dict_customs_brokers (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE INDEX idx_customs_brokers_country ON dict_customs_brokers(country);
+CREATE INDEX idx_customs_brokers_status ON dict_customs_brokers(status);
 
 -- 7. 鎷栬溅鍏徃瀛楀吀 (dict_trucking_companies)
 CREATE TABLE IF NOT EXISTS dict_trucking_companies (
@@ -120,10 +124,17 @@ CREATE TABLE IF NOT EXISTS dict_trucking_companies (
     contact_email VARCHAR(100),
     status VARCHAR(20),
     daily_capacity INT DEFAULT 10,
+    daily_return_capacity INT DEFAULT NULL,
+    has_yard BOOLEAN DEFAULT FALSE,
+    yard_daily_capacity INT DEFAULT NULL,
     remarks TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+COMMENT ON COLUMN dict_trucking_companies.daily_return_capacity IS '每日可还箱数量（柜数），用于 Drop 模式还箱日约束；NULL 表示与 daily_capacity 共用';
+COMMENT ON COLUMN dict_trucking_companies.has_yard IS '是否有堆场：true=支持 Drop 模式（提<送）；false=必须 Live 模式（提=送=卸）';
+COMMENT ON COLUMN dict_trucking_companies.yard_daily_capacity IS '堆场每日可容纳柜数（有堆场时有效）';
 
 -- 8. 鏌滃瀷瀛楀吀 (dict_container_types)
 CREATE TABLE IF NOT EXISTS dict_container_types (
@@ -181,12 +192,15 @@ CREATE TABLE IF NOT EXISTS dict_warehouses (
     contact_phone VARCHAR(50),
     contact_email VARCHAR(100),
     status VARCHAR(20) DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'INACTIVE')),
+    daily_unload_capacity INTEGER DEFAULT 10,
     remarks TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_warehouse_company FOREIGN KEY (company_code)
         REFERENCES dict_overseas_companies(company_code) ON DELETE SET NULL
 );
+
+COMMENT ON COLUMN dict_warehouses.daily_unload_capacity IS '仓库每日卸柜容量（柜数），默认 10';
 
 CREATE INDEX idx_warehouses_country ON dict_warehouses(country);
 CREATE INDEX idx_warehouses_property_type ON dict_warehouses(property_type);
@@ -673,6 +687,47 @@ CREATE INDEX idx_trucking_port_port ON dict_trucking_port_mapping(port_code);
 CREATE INDEX idx_trucking_port_active ON dict_trucking_port_mapping(is_active);
 
 COMMENT ON TABLE dict_trucking_port_mapping IS '车队-港口映射表，包含费用信息，用于甘特图分组显示';
+
+-- ============================================================
+-- AI 流程相关表 (AI Flow Tables)
+-- ============================================================
+
+-- 26. 流程定义表 (flow_definitions)
+CREATE TABLE IF NOT EXISTS flow_definitions (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    version VARCHAR(20) DEFAULT '1.0.0',
+    created_by VARCHAR(50),
+    nodes JSONB NOT NULL DEFAULT '[]',
+    start_node_id VARCHAR(50),
+    variables JSONB,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_flow_definitions_name ON flow_definitions(name);
+CREATE INDEX idx_flow_definitions_created_at ON flow_definitions(created_at DESC);
+
+-- 27. 流程实例表 (flow_instances)
+CREATE TABLE IF NOT EXISTS flow_instances (
+    id VARCHAR(50) PRIMARY KEY,
+    flow_id VARCHAR(50) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+    variables JSONB,
+    current_node_id VARCHAR(50),
+    execution_history JSONB DEFAULT '[]',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP,
+    FOREIGN KEY (flow_id) REFERENCES flow_definitions(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_flow_instances_flow_id ON flow_instances(flow_id);
+CREATE INDEX idx_flow_instances_status ON flow_instances(status);
+CREATE INDEX idx_flow_instances_created_at ON flow_instances(created_at DESC);
+
+
 
 
 

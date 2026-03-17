@@ -1,29 +1,31 @@
 /**
  * 智能排柜服务
  * Intelligent Scheduling Service
- * 
+ *
  * 实现规则引擎（阶段一）：先到先得 + 约束校验
  */
 
 import { In } from 'typeorm';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
-import { PortOperation } from '../entities/PortOperation';
-import { TruckingTransport } from '../entities/TruckingTransport';
-import { WarehouseOperation } from '../entities/WarehouseOperation';
-import { EmptyReturn } from '../entities/EmptyReturn';
-import { ExtWarehouseDailyOccupancy } from '../entities/ExtWarehouseDailyOccupancy';
-import { ExtTruckingSlotOccupancy } from '../entities/ExtTruckingSlotOccupancy';
-import { Warehouse } from '../entities/Warehouse';
-import { TruckingCompany } from '../entities/TruckingCompany';
-import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
-import { TruckingPortMapping } from '../entities/TruckingPortMapping';
 import { Customer } from '../entities/Customer';
-import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
-import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
-import { SeaFreight } from '../entities/SeaFreight';
-import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { CustomsBroker } from '../entities/CustomsBroker';
+import { DictSchedulingConfig } from '../entities/DictSchedulingConfig';
+import { EmptyReturn } from '../entities/EmptyReturn';
+import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
+import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
+import { ExtTruckingReturnSlotOccupancy } from '../entities/ExtTruckingReturnSlotOccupancy';
+import { ExtTruckingSlotOccupancy } from '../entities/ExtTruckingSlotOccupancy';
+import { ExtWarehouseDailyOccupancy } from '../entities/ExtWarehouseDailyOccupancy';
+import { PortOperation } from '../entities/PortOperation';
+import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
+import { SeaFreight } from '../entities/SeaFreight';
+import { TruckingCompany } from '../entities/TruckingCompany';
+import { TruckingPortMapping } from '../entities/TruckingPortMapping';
+import { TruckingTransport } from '../entities/TruckingTransport';
+import { Warehouse } from '../entities/Warehouse';
+import { WarehouseOperation } from '../entities/WarehouseOperation';
+import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { normalizeCountryCode } from '../utils/countryCode.js';
 import { logger } from '../utils/logger';
 import { DemurrageService } from './demurrage.service';
@@ -34,13 +36,13 @@ import { DemurrageService } from './demurrage.service';
 const UNSPECIFIED_CUSTOMS_BROKER = 'UNSPECIFIED';
 
 export interface ScheduleRequest {
-  country?: string;           // 国家过滤
-  startDate?: string;         // 开始日期
-  endDate?: string;          // 结束日期
-  forceSchedule?: boolean;   // 是否强制重排（忽略schedule_status）
+  country?: string; // 国家过滤
+  startDate?: string; // 开始日期
+  endDate?: string; // 结束日期
+  forceSchedule?: boolean; // 是否强制重排（忽略schedule_status）
   containerNumbers?: string[]; // 指定柜号列表，仅排这些柜（用于单柜模拟）
-  limit?: number;            // 每批处理数量，用于分步排产
-  skip?: number;             // 跳过数量，用于分步排产
+  limit?: number; // 每批处理数量，用于分步排产
+  skip?: number; // 跳过数量，用于分步排产
 }
 
 export interface ScheduleResult {
@@ -71,7 +73,7 @@ export interface BatchScheduleResponse {
   successCount: number;
   failedCount: number;
   results: ScheduleResult[];
-  hasMore?: boolean;         // 是否还有待排产货柜（分步排产时使用）
+  hasMore?: boolean; // 是否还有待排产货柜（分步排产时使用）
 }
 
 /**
@@ -89,6 +91,7 @@ export class IntelligentSchedulingService {
   private warehouseTruckingMappingRepo = AppDataSource.getRepository(WarehouseTruckingMapping);
   private customerRepo = AppDataSource.getRepository(Customer);
   private customsBrokerRepo = AppDataSource.getRepository(CustomsBroker);
+  private schedulingConfigRepo = AppDataSource.getRepository(DictSchedulingConfig);
   private demurrageService = new DemurrageService(
     AppDataSource.getRepository(ExtDemurrageStandard),
     AppDataSource.getRepository(Container),
@@ -117,7 +120,8 @@ export class IntelligentSchedulingService {
 
       // 分步排产：limit/skip
       const skip = Math.max(0, request.skip ?? 0);
-      const limit = request.limit != null && request.limit > 0 ? request.limit : sortedContainers.length;
+      const limit =
+        request.limit != null && request.limit > 0 ? request.limit : sortedContainers.length;
       const toProcess = sortedContainers.slice(skip, skip + limit);
       const hasMore = skip + limit < sortedContainers.length;
 
@@ -125,15 +129,18 @@ export class IntelligentSchedulingService {
       const CONCURRENCY = 5;
       const lastFreeByCn: Record<string, Date> = {};
       try {
-        const numbers = toProcess.map(c => c.containerNumber);
+        const numbers = toProcess.map((c) => c.containerNumber);
         for (let i = 0; i < numbers.length; i += CONCURRENCY) {
           const batch = numbers.slice(i, i + CONCURRENCY);
           const settled = await Promise.allSettled(
-            batch.map(cn => this.demurrageService.calculateForContainer(cn))
+            batch.map((cn) => this.demurrageService.calculateForContainer(cn))
           );
           for (let j = 0; j < batch.length; j++) {
             const s = settled[j];
-            const computed = s.status === 'fulfilled' ? s.value?.result?.calculationDates?.lastPickupDateComputed : null;
+            const computed =
+              s.status === 'fulfilled'
+                ? s.value?.result?.calculationDates?.lastPickupDateComputed
+                : null;
             if (computed) lastFreeByCn[batch[j]] = new Date(computed);
           }
         }
@@ -153,7 +160,7 @@ export class IntelligentSchedulingService {
         results.push(result);
       }
 
-      const successCount = results.filter(r => r.success).length;
+      const successCount = results.filter((r) => r.success).length;
       return {
         success: true,
         total: containers.length,
@@ -167,8 +174,8 @@ export class IntelligentSchedulingService {
       return {
         success: false,
         total: results.length,
-        successCount: results.filter(r => r.success).length,
-        failedCount: results.length - results.filter(r => r.success).length,
+        successCount: results.filter((r) => r.success).length,
+        failedCount: results.length - results.filter((r) => r.success).length,
         results
       };
     }
@@ -180,7 +187,8 @@ export class IntelligentSchedulingService {
    * 加载 customer 以便取 country（国家代码），见 12-国家概念统一约定.md
    */
   private async getContainersToSchedule(request: ScheduleRequest): Promise<Container[]> {
-    const query = this.containerRepo.createQueryBuilder('c')
+    const query = this.containerRepo
+      .createQueryBuilder('c')
       .leftJoinAndSelect('c.portOperations', 'po')
       .leftJoinAndSelect('c.seaFreight', 'sf')
       .leftJoinAndSelect('c.replenishmentOrders', 'o')
@@ -188,16 +196,19 @@ export class IntelligentSchedulingService {
       .where('c.scheduleStatus IN (:...statuses)', { statuses: ['initial', 'issued'] });
 
     if (request.startDate) {
-      query.andWhere('(po.ataDestPort >= :startDate OR po.etaDestPort >= :startDate)', 
-        { startDate: request.startDate });
+      query.andWhere('(po.ataDestPort >= :startDate OR po.etaDestPort >= :startDate)', {
+        startDate: request.startDate
+      });
     }
     if (request.endDate) {
-      query.andWhere('(po.ataDestPort <= :endDate OR po.etaDestPort <= :endDate)', 
-        { endDate: request.endDate });
+      query.andWhere('(po.ataDestPort <= :endDate OR po.etaDestPort <= :endDate)', {
+        endDate: request.endDate
+      });
     }
     if (request.containerNumbers && request.containerNumbers.length > 0) {
-      query.andWhere('c.containerNumber IN (:...containerNumbers)', 
-        { containerNumbers: request.containerNumbers });
+      query.andWhere('c.containerNumber IN (:...containerNumbers)', {
+        containerNumbers: request.containerNumbers
+      });
     }
     if (request.country?.trim()) {
       query.andWhere('cust.country = :country', { country: request.country.trim() });
@@ -239,21 +250,25 @@ export class IntelligentSchedulingService {
    * 规则引擎（阶段一）：先到先得 + 约束校验
    */
   private async scheduleSingleContainer(
-    container: Container, 
+    container: Container,
     request: ScheduleRequest
   ): Promise<ScheduleResult> {
     try {
       // 获取目的港操作记录
       const destPo = container.portOperations?.find((po: any) => po.portType === 'destination');
-      
+
       // 提取货柜基本信息用于前端展示
       const containerInfo = {
         destinationPort: destPo?.portCode || '',
         destinationPortName: destPo?.portName || '',
-        etaDestPort: destPo?.etaDestPort ? new Date(destPo.etaDestPort).toISOString().split('T')[0] : '',
-        ataDestPort: destPo?.ataDestPort ? new Date(destPo.ataDestPort).toISOString().split('T')[0] : ''
+        etaDestPort: destPo?.etaDestPort
+          ? new Date(destPo.etaDestPort).toISOString().split('T')[0]
+          : '',
+        ataDestPort: destPo?.ataDestPort
+          ? new Date(destPo.ataDestPort).toISOString().split('T')[0]
+          : ''
       };
-      
+
       if (!destPo) {
         return {
           containerNumber: container.containerNumber,
@@ -295,7 +310,8 @@ export class IntelligentSchedulingService {
         return {
           containerNumber: container.containerNumber,
           success: false,
-          message: '无映射关系中的仓库（请配置 dict_trucking_port_mapping、dict_warehouse_trucking_mapping）',
+          message:
+            '无映射关系中的仓库（请配置 dict_trucking_port_mapping、dict_warehouse_trucking_mapping）',
           ...containerInfo
         };
       }
@@ -315,18 +331,62 @@ export class IntelligentSchedulingService {
         };
       }
 
-      // 6. 根据仓库卸柜能力确定卸柜方式（见 04-五节点调度 2.3.1）
-      // 提柜日当天有产能 → Live load（直接送，提=送=卸）；否则 → Drop off（先放车队堆场，提<送=卸）
-      const pickupDay = plannedPickupDate.toISOString().split('T')[0];
-      const unloadDay = plannedUnloadDate.toISOString().split('T')[0];
-      const unloadMode = pickupDay === unloadDay ? 'Live load' : 'Drop off';
+      // 6. 先选择车队（以便根据 has_yard 决定卸柜方式）
+      const truckingCompany = await this.selectTruckingCompany(
+        warehouse.warehouseCode,
+        destPo.portCode,
+        plannedPickupDate,
+        warehouse.country
+      );
+
+      if (!truckingCompany) {
+        return {
+          containerNumber: container.containerNumber,
+          success: false,
+          message:
+            '无映射关系中的车队（请配置 dict_warehouse_trucking_mapping 中该仓库对应的车队）',
+          ...containerInfo
+        };
+      }
+
+      // 7. 根据车队是否有堆场决定卸柜方式（见 04-五节点调度 2.3.1）
+      // has_yard = true → 支持 Drop off（提<送=卸）
+      // has_yard = false → 必须 Live load（提=送=卸）
+      let unloadMode = truckingCompany.hasYard ? 'Drop off' : 'Live load';
+
+      // 验证并调整：如果无堆场但提≠卸，需要调整为 Live load
+      const pickupDayStr = plannedPickupDate.toISOString().split('T')[0];
+      const unloadDayStr = plannedUnloadDate.toISOString().split('T')[0];
+
+      if (!truckingCompany.hasYard && pickupDayStr !== unloadDayStr) {
+        // 无堆场只能 Live load，需要找卸柜日 = 提柜日
+        const availableDate = await this.findEarliestAvailableDay(
+          warehouse.warehouseCode,
+          plannedPickupDate
+        );
+        if (availableDate) {
+          plannedUnloadDate = availableDate;
+        } else {
+          // 如果提柜日当天仓库已满，尝试往后找最近可用日
+          const futureDate = await this.findEarliestAvailableDay(
+            warehouse.warehouseCode,
+            new Date(plannedPickupDate)
+          );
+          if (futureDate) {
+            plannedUnloadDate = futureDate;
+            // 同时调整提柜日以匹配卸柜日（保持 Live load）
+            plannedPickupDate = new Date(futureDate);
+          }
+        }
+      }
+
       const plannedDeliveryDate = this.calculatePlannedDeliveryDate(
         plannedPickupDate,
         unloadMode,
         plannedUnloadDate
       );
 
-      // 7. 计算计划还箱日（从 EmptyReturn 表获取最晚还箱日）
+      // 8. 计算计划还箱日（从 EmptyReturn 表获取最晚还箱日）
       let lastReturnDate: Date | undefined;
       const emptyReturn = await this.emptyReturnRepo.findOne({
         where: { containerNumber: container.containerNumber }
@@ -344,28 +404,8 @@ export class IntelligentSchedulingService {
         lastReturnDate
       );
 
-      // 8. 选择车队（按仓库×港口定价表，选最低价且有剩余能力的车队）
-      const truckingCompany = await this.selectTruckingCompany(
-        warehouse.warehouseCode,
-        destPo.portCode,
-        plannedPickupDate,
-        warehouse.country
-      );
-
-      if (!truckingCompany) {
-        return {
-          containerNumber: container.containerNumber,
-          success: false,
-          message: '无映射关系中的车队（请配置 dict_warehouse_trucking_mapping 中该仓库对应的车队）',
-          ...containerInfo
-        };
-      }
-
       // 9. 选择清关公司（根据国家匹配，无匹配时使用"未指定"）
-      const customsBrokerCode = await this.selectCustomsBroker(
-        countryCode,
-        destPo.portCode
-      );
+      const customsBrokerCode = await this.selectCustomsBroker(countryCode, destPo.portCode);
 
       // 10. 更新数据库
       const plannedData = {
@@ -388,13 +428,23 @@ export class IntelligentSchedulingService {
       // 10. 扣减仓库日产能
       await this.decrementWarehouseOccupancy(warehouse.warehouseCode, plannedUnloadDate);
 
-      // 11. 扣减拖车档期
+      // 11. 扣减拖车档期（送柜）
       await this.decrementTruckingOccupancy(
         truckingCompany.companyCode,
         plannedPickupDate,
         destPo.portCode,
         warehouse.warehouseCode
       );
+
+      // 12. 扣减还箱档期（Drop off 模式需要）
+      if (unloadMode === 'Drop off') {
+        await this.decrementFleetReturnOccupancy(
+          truckingCompany.companyCode,
+          plannedReturnDate,
+          warehouse.warehouseCode,
+          destPo.portCode
+        );
+      }
 
       return {
         containerNumber: container.containerNumber,
@@ -405,14 +455,21 @@ export class IntelligentSchedulingService {
         warehouseName: warehouse.warehouseName || warehouse.warehouseCode
       };
     } catch (error: any) {
-      logger.error(`[IntelligentScheduling] Error scheduling container ${container.containerNumber}:`, error);
+      logger.error(
+        `[IntelligentScheduling] Error scheduling container ${container.containerNumber}:`,
+        error
+      );
       // 获取目的港操作记录用于错误返回
       const destPo = container.portOperations?.find((po: any) => po.portType === 'destination');
       const errorContainerInfo = {
         destinationPort: destPo?.portCode || '',
         destinationPortName: destPo?.portName || '',
-        etaDestPort: destPo?.etaDestPort ? new Date(destPo.etaDestPort).toISOString().split('T')[0] : '',
-        ataDestPort: destPo?.ataDestPort ? new Date(destPo.ataDestPort).toISOString().split('T')[0] : ''
+        etaDestPort: destPo?.etaDestPort
+          ? new Date(destPo.etaDestPort).toISOString().split('T')[0]
+          : '',
+        ataDestPort: destPo?.ataDestPort
+          ? new Date(destPo.ataDestPort).toISOString().split('T')[0]
+          : ''
       };
       return {
         containerNumber: container.containerNumber,
@@ -428,10 +485,7 @@ export class IntelligentSchedulingService {
    * = 计划清关日 + 1天，且 ≤ last_free_date
    * （下限「至少今天」在 scheduleSingleContainer 中统一处理）
    */
-  private async calculatePlannedPickupDate(
-    customsDate: Date,
-    lastFreeDate?: Date
-  ): Promise<Date> {
+  private async calculatePlannedPickupDate(customsDate: Date, lastFreeDate?: Date): Promise<Date> {
     const pickupDate = new Date(customsDate);
     pickupDate.setDate(pickupDate.getDate() + 1); // 清关后次日提柜
 
@@ -443,7 +497,43 @@ export class IntelligentSchedulingService {
       }
     }
 
+    // 跳过周末（如果配置了 skip_weekends = true）
+    await this.skipWeekendsIfNeeded(pickupDate);
+
     return pickupDate;
+  }
+
+  /**
+   * 检查配置并跳过周末（如果 skip_weekends = true）
+   * @param date 要检查的日期（会被直接修改）
+   */
+  private async skipWeekendsIfNeeded(date: Date): Promise<void> {
+    try {
+      const config = await this.schedulingConfigRepo.findOne({
+        where: { config_key: 'skip_weekends' }
+      });
+
+      const shouldSkipWeekends = config?.config_value === 'true';
+      if (!shouldSkipWeekends) {
+        return;
+      }
+
+      // 跳过周六（6）和周日（0）
+      while (date.getDay() === 0 || date.getDay() === 6) {
+        date.setDate(date.getDate() + 1);
+      }
+    } catch (error) {
+      logger.warn('[IntelligentScheduling] Error checking weekend config:', error);
+      // 配置读取失败时不跳过，避免阻塞排产
+    }
+  }
+
+  /**
+   * 检查日期是否为周末（周六或周日）
+   */
+  private isWeekend(date: Date): boolean {
+    const day = date.getDay();
+    return day === 0 || day === 6;
   }
 
   /**
@@ -451,7 +541,11 @@ export class IntelligentSchedulingService {
    * 约定：country 字段存国家代码；sell_to_country 存子公司名称，需通过 customer 取 country
    * @see frontend/public/docs/11-project/12-国家概念统一约定.md
    */
-  private async resolveCountryCode(order: { customer?: { country?: string }; customerCode?: string; sellToCountry?: string } | undefined): Promise<string | undefined> {
+  private async resolveCountryCode(
+    order:
+      | { customer?: { country?: string }; customerCode?: string; sellToCountry?: string }
+      | undefined
+  ): Promise<string | undefined> {
     if (!order) return undefined;
     // 优先：通过 customer 关联取 country（国家代码）
     if (order.customer?.country) return order.customer.country;
@@ -472,9 +566,9 @@ export class IntelligentSchedulingService {
    * 自营仓(CA-S003/Oshawa) > 平台仓(CA-P003/FBW_CA) > 第三方仓
    */
   private static readonly PROPERTY_TYPE_PRIORITY: Record<string, number> = {
-    '自营仓': 1,
-    '平台仓': 2,
-    '第三方仓': 3
+    自营仓: 1,
+    平台仓: 2,
+    第三方仓: 3
   };
 
   /**
@@ -483,7 +577,10 @@ export class IntelligentSchedulingService {
    * 无 portCode 或映射链无结果时返回 []，不再回退到该国全部仓库
    * 排序：is_default 优先 > 自营仓 > 平台仓 > 第三方仓 > warehouse_code 字典序
    */
-  private async getCandidateWarehouses(countryCode?: string, portCode?: string): Promise<Warehouse[]> {
+  private async getCandidateWarehouses(
+    countryCode?: string,
+    portCode?: string
+  ): Promise<Warehouse[]> {
     if (!portCode || !countryCode) {
       return [];
     }
@@ -494,7 +591,7 @@ export class IntelligentSchedulingService {
     });
     if (portMappings.length === 0) return [];
 
-    const truckingCompanyIds = portMappings.map(m => m.truckingCompanyId);
+    const truckingCompanyIds = portMappings.map((m) => m.truckingCompanyId);
 
     // 2. 车队→仓库（dict_warehouse_trucking_mapping），仅映射中有的仓库
     const warehouseMappings = await this.warehouseTruckingMappingRepo.find({
@@ -506,7 +603,7 @@ export class IntelligentSchedulingService {
     });
     if (warehouseMappings.length === 0) return [];
 
-    const warehouseCodes = [...new Set(warehouseMappings.map(m => m.warehouseCode))];
+    const warehouseCodes = [...new Set(warehouseMappings.map((m) => m.warehouseCode))];
     const repo = AppDataSource.getRepository(Warehouse);
     const warehouses = await repo.find({
       where: {
@@ -526,7 +623,7 @@ export class IntelligentSchedulingService {
     warehouseMappings: WarehouseTruckingMapping[]
   ): Warehouse[] {
     const defaultWarehouseCodes = new Set(
-      warehouseMappings.filter(m => m.isDefault).map(m => m.warehouseCode)
+      warehouseMappings.filter((m) => m.isDefault).map((m) => m.warehouseCode)
     );
     const getPriority = (p: string) =>
       IntelligentSchedulingService.PROPERTY_TYPE_PRIORITY[p] ?? 999;
@@ -687,13 +784,13 @@ export class IntelligentSchedulingService {
     });
 
     // 若指定港口，仅选同时服务该港口的车队（trucking_port_mapping）
-    let candidateIds = mappings.map(m => m.truckingCompanyId);
+    let candidateIds = mappings.map((m) => m.truckingCompanyId);
     if (portCode && countryCode) {
       const portMappings = await this.truckingPortMappingRepo.find({
         where: { portCode, country: countryCode, isActive: true }
       });
-      const portTruckingIds = new Set(portMappings.map(pm => pm.truckingCompanyId));
-      candidateIds = candidateIds.filter(id => portTruckingIds.has(id));
+      const portTruckingIds = new Set(portMappings.map((pm) => pm.truckingCompanyId));
+      candidateIds = candidateIds.filter((id) => portTruckingIds.has(id));
     }
 
     for (const truckingCompanyId of candidateIds) {
@@ -710,16 +807,13 @@ export class IntelligentSchedulingService {
    * 2. 如果没有精确匹配，只匹配国家
    * 3. 如果都没有匹配，返回 "UNSPECIFIED"（未指定）
    */
-  private async selectCustomsBroker(
-    countryCode?: string,
-    portCode?: string
-  ): Promise<string> {
+  private async selectCustomsBroker(countryCode?: string, portCode?: string): Promise<string> {
     try {
       // 优先尝试精确匹配（国家 + 港口）
       // 注意：目前 dict_customs_brokers 表没有 port_code 字段，
       // 后续可能需要创建 dict_customs_port_mapping 表来实现更精细的匹配
       // 暂时只基于国家匹配
-      
+
       if (!countryCode) {
         return UNSPECIFIED_CUSTOMS_BROKER;
       }
@@ -739,7 +833,9 @@ export class IntelligentSchedulingService {
       }
 
       // 如果没有匹配到，返回"未指定"
-      logger.info(`[IntelligentScheduling] No customs broker found for country: ${countryCode}, using UNSPECIFIED`);
+      logger.info(
+        `[IntelligentScheduling] No customs broker found for country: ${countryCode}, using UNSPECIFIED`
+      );
       return UNSPECIFIED_CUSTOMS_BROKER;
     } catch (error) {
       logger.warn('[IntelligentScheduling] Error selecting customs broker:', error);
@@ -750,10 +846,7 @@ export class IntelligentSchedulingService {
   /**
    * 更新货柜计划
    */
-  private async updateContainerSchedule(
-    containerNumber: string,
-    plannedData: any
-  ): Promise<void> {
+  private async updateContainerSchedule(containerNumber: string, plannedData: any): Promise<void> {
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect();
     try {
@@ -764,7 +857,8 @@ export class IntelligentSchedulingService {
         where: { containerNumber }
       });
       if (truckingTransport) {
-        await queryRunner.manager.update(TruckingTransport, 
+        await queryRunner.manager.update(
+          TruckingTransport,
           { containerNumber },
           {
             plannedPickupDate: plannedData.plannedPickupDate,
@@ -792,7 +886,8 @@ export class IntelligentSchedulingService {
         where: { containerNumber }
       });
       if (warehouseOperation) {
-        await queryRunner.manager.update(WarehouseOperation,
+        await queryRunner.manager.update(
+          WarehouseOperation,
           { containerNumber },
           {
             plannedUnloadDate: plannedData.plannedUnloadDate,
@@ -813,9 +908,10 @@ export class IntelligentSchedulingService {
         where: { containerNumber, portType: 'destination' }
       });
       if (portOperation) {
-        await queryRunner.manager.update(PortOperation,
+        await queryRunner.manager.update(
+          PortOperation,
           { id: portOperation.id },
-          { 
+          {
             plannedCustomsDate: plannedData.plannedCustomsDate,
             customsBrokerCode: plannedData.customsBrokerCode
           }
@@ -827,9 +923,10 @@ export class IntelligentSchedulingService {
         where: { containerNumber }
       });
       if (emptyReturn) {
-        await queryRunner.manager.update(EmptyReturn,
+        await queryRunner.manager.update(
+          EmptyReturn,
           { containerNumber },
-          { 
+          {
             plannedReturnDate: plannedData.plannedReturnDate,
             returnTerminalCode: plannedData.returnTerminalCode,
             returnTerminalName: plannedData.returnTerminalName
@@ -857,10 +954,7 @@ export class IntelligentSchedulingService {
   /**
    * 扣减仓库日产能
    */
-  private async decrementWarehouseOccupancy(
-    warehouseCode: string,
-    date: Date
-  ): Promise<void> {
+  private async decrementWarehouseOccupancy(warehouseCode: string, date: Date): Promise<void> {
     const occupancy = await this.warehouseOccupancyRepo.findOne({
       where: { warehouseCode, date }
     });
@@ -913,6 +1007,51 @@ export class IntelligentSchedulingService {
         capacity
       });
     }
+  }
+
+  /**
+   * 扣减车队还箱档期（Drop off 模式使用）
+   */
+  private async decrementFleetReturnOccupancy(
+    truckingCompanyId: string,
+    returnDate: Date,
+    warehouseCode?: string,
+    portCode?: string
+  ): Promise<void> {
+    const repo = AppDataSource.getRepository(ExtTruckingReturnSlotOccupancy);
+    const returnDateOnly = new Date(returnDate);
+    returnDateOnly.setHours(0, 0, 0, 0);
+
+    let occupancy = await repo.findOne({
+      where: { truckingCompanyId, slotDate: returnDateOnly }
+    });
+
+    if (occupancy) {
+      // 更新现有记录
+      occupancy.plannedCount += 1;
+      occupancy.remaining -= 1;
+      await repo.save(occupancy);
+    } else {
+      // 创建新记录，从车队配置读取容量
+      const trucking = await AppDataSource.getRepository(TruckingCompany).findOne({
+        where: { companyCode: truckingCompanyId },
+        select: ['dailyReturnCapacity', 'dailyCapacity']
+      });
+      // 优先使用 daily_return_capacity，若无则使用 daily_capacity
+      const capacity = trucking?.dailyReturnCapacity ?? trucking?.dailyCapacity ?? 20;
+
+      await repo.save({
+        truckingCompanyId,
+        slotDate: returnDateOnly,
+        plannedCount: 1,
+        capacity,
+        remaining: capacity - 1
+      });
+    }
+
+    logger.info(
+      `[IntelligentScheduling] Decremented fleet return occupancy: ${truckingCompanyId} on ${returnDateOnly.toISOString()}`
+    );
   }
 }
 

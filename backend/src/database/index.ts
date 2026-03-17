@@ -44,6 +44,8 @@ import { ExtYardDailyOccupancy } from '../entities/ExtYardDailyOccupancy';
 import { Yard } from '../entities/Yard';
 import { InspectionRecord } from '../entities/InspectionRecord';
 import { InspectionEvent } from '../entities/InspectionEvent';
+import { FlowDefinition } from '../entities/FlowDefinition';
+import { FlowInstance } from '../entities/FlowInstance';
 import { logger } from '../utils/logger';
 
 export const dataSourceOptions: DataSourceOptions = {
@@ -109,7 +111,11 @@ export const dataSourceOptions: DataSourceOptions = {
     ExtWarehouseDailyOccupancy,
     ExtTruckingSlotOccupancy,
     ExtYardDailyOccupancy,
-    Yard
+    Yard,
+
+    // 流程管理表 (Flow Management Tables)
+    FlowDefinition,
+    FlowInstance
   ],
   synchronize: databaseConfig.synchronize,
   logging: databaseConfig.logging,

@@ -88,6 +88,18 @@
 ✅ 折叠 key 约定与一级互斥
 ```
 
+### FlowEditor / Vue Flow 报错 → **vue-flow-troubleshooting** ⭐⭐
+
+```
+路径：.cursor/skills/vue-flow-troubleshooting/SKILL.md
+
+包含:
+✅ Cannot read properties of undefined (reading 'height')
+✅ Cannot read properties of undefined (reading 'target')
+✅ 节点必须包含 dimensions、handleBounds
+✅ 排查步骤与检查清单
+```
+
 ---
 
 ## 🔍 按关键词查找
@@ -101,6 +113,7 @@
 | 代码审查、PR、质量检查                     | **code-review**         |
 | 甘特图拖拽、落点识别、确认弹窗需点二次     | **gantt-drag-drop**     |
 | 甘特图分组、目的港、节点、供应商、折叠     | **gantt-hierarchy**    |
+| Vue Flow 报错、dimensions、handleBounds     | **vue-flow-troubleshooting** |
 | Git 提交、commit message、changelog        | **commit-message**      |
 
 ---
