@@ -15,6 +15,7 @@ description: Develop features for LogiX logistics management system following pr
 > - 🔗 **gantt-drag-drop** - 甘特图拖拽实现要点（落点识别、确认弹窗）
 > - 🔗 **gantt-hierarchy** - 甘特图一、二、三级层级（目的港→节点→供应商）
 > - 🔗 **intelligent-scheduling-mapping** - 智能排柜仓库/车队映射与选择逻辑
+> - 🔗 **container-intelligent-processing** - 货柜智能处理系统（预警、时间预测、风险评分）
 > - 🔗 **ai-collaboration-methodology** - 需求理解、错误排查、SOP 流程
 > - 🔗 **fix-verification** - 修复验证（防幻觉、数据库字段准确性）
 

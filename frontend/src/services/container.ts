@@ -13,6 +13,7 @@ import type {
 } from '@/types/container';
 import type { PaginationParams } from '@/types';
 import { camelToSnake } from '@/utils/camelToSnake';
+import { withCache } from '@/utils/cache';
 import { useAppStore } from '@/store/app';
 
 class ContainerService {
@@ -65,6 +66,16 @@ class ContainerService {
     });
     return response.data;
   }
+
+  /**
+   * 获取带缓存的货柜列表
+   * Get cached containers list
+   */
+  getContainersWithCache = withCache(
+    this.getContainers.bind(this),
+    (filters: ContainerFilters) => `containers:${JSON.stringify(filters)}`,
+    30000 // 30秒缓存
+  )
 
   /**
    * 获取货柜详情
@@ -239,6 +250,16 @@ class ContainerService {
   }
 
   /**
+   * 获取带缓存的货柜详细统计数据
+   * Get cached detailed container statistics for countdown cards
+   */
+  getStatisticsDetailedWithCache = withCache(
+    this.getStatisticsDetailed.bind(this),
+    (startDate?: string, endDate?: string) => `statistics-detailed:${startDate}:${endDate}`,
+    60000 // 60秒缓存
+  )
+
+  /**
    * 获取统计数据验证信息
    * Get statistics verification data
    */
@@ -318,15 +339,25 @@ class ContainerService {
   async getContainersByFilterCondition(
     filterCondition: string,
     startDate?: string,
-    endDate?: string
+    endDate?: string,
+    page?: number,
+    pageSize?: number
   ): Promise<{
     success: boolean;
     items: any[];
     count: number;
+    pagination?: {
+      page: number;
+      pageSize: number;
+      total: number;
+      totalPages?: number;
+    };
   }> {
     const params: any = { filterCondition };
     if (startDate) params.startDate = startDate;
     if (endDate) params.endDate = endDate;
+    if (page) params.page = page;
+    if (pageSize) params.pageSize = pageSize;
 
     const response = await this.api.get('/containers/by-filter', { params });
     return response.data;

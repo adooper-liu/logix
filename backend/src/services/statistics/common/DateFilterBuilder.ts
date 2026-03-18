@@ -4,8 +4,8 @@
  */
 
 import { SelectQueryBuilder } from 'typeorm';
-import { getScopedCountryCode } from '../../../utils/requestContext.js';
-import { normalizeCountryCode } from '../../../utils/countryCode.js';
+import { getScopedCountryCode } from '../../../utils/requestContext';
+import { normalizeCountryCode } from '../../../utils/countryCode';
 import { getDateRangeSubqueryRaw as getDateRangeSubqueryRawImpl } from './DateRangeSubquery';
 
 /**

@@ -35,6 +35,7 @@ export const FEITUO_STATUS_TO_CORE_FIELD_MAP: Record<string, string> = {
   'DISCHARGED': 'dest_port_unload_date',
   'DISC': 'dest_port_unload_date',
   'DSCH': 'dest_port_unload_date',     // 卸船 Vessel Discharged
+  'AVLE': 'available_time',             // 可提货 Available (equipmentEvents)
   'AVAIL': 'available_time',
   'PCAB': 'available_time',            // 可提货 Available
 
@@ -51,6 +52,12 @@ export const FEITUO_STATUS_TO_CORE_FIELD_MAP: Record<string, string> = {
   'LOAD': 'shipment_date',
   'LOBD': 'shipment_date',             // 装船 Loaded
   'DLPT': 'shipment_date',             // 离港 Vessel Departed
+  
+  // ===== 驳船相关（新增）=====
+  'FDDP': 'shipment_date',             // 驳船离港 Feeder Departed
+  'FDLB': 'shipment_date',             // 驳船装船 Feeder Loaded
+  'FDBA': 'transit_arrival_date',      // 驳船抵达 Feeder Arrived
+  'STSP': 'gate_out_time',             // 提空箱 Pick-up Empty
 
   // ===== 还箱 =====
   'RCVE': 'return_time',               // 还空箱 Empty Returned
@@ -70,6 +77,11 @@ export const FEITUO_STATUS_TO_PORT_TYPE_MAP: Record<string, 'origin' | 'transit'
   'LOBD': 'origin',
   'DLPT': 'origin',
   'GITM': 'origin',
+  
+  // 驳船相关（新增）
+  'FDDP': 'origin',        // 驳船离港 - 起始地操作
+  'FDLB': 'origin',        // 驳船装船 - 起始地操作
+  'STSP': 'origin',        // 提空箱 - 起始地操作
 
   // 中转港
   'TRANSIT_ARRIVE': 'transit',
@@ -93,6 +105,7 @@ export const FEITUO_STATUS_TO_PORT_TYPE_MAP: Record<string, 'origin' | 'transit'
   'DISCHARGED': 'destination',
   'DISC': 'destination',
   'DSCH': 'destination',
+  'AVLE': 'destination',
   'AVAIL': 'destination',
   'PCAB': 'destination',
 
@@ -122,6 +135,7 @@ export const FEITUO_STATUS_TYPE_MAP: Record<string, 'ETA' | 'ATA' | 'GATE_IN' | 
   'DISCHARGED': 'DISCHARGED',
   'DISC': 'DISCHARGED',
   'DSCH': 'DISCHARGED',
+  'AVLE': 'AVAILABLE',
   'AVAIL': 'AVAILABLE',
   'PCAB': 'AVAILABLE',
   'BO': 'STATUS',
@@ -134,6 +148,13 @@ export const FEITUO_STATUS_TYPE_MAP: Record<string, 'ETA' | 'ATA' | 'GATE_IN' | 
   'TRANSIT_DEPART': 'ATA',
   'TSBA': 'ATA',
   'TSDP': 'ATA',
+  
+  // 驳船相关（新增）
+  'FDDP': 'STATUS',        // 驳船离港
+  'FDLB': 'STATUS',        // 驳船装船
+  'FDBA': 'ATA',           // 驳船抵达
+  'STSP': 'GATE_OUT',      // 提空箱
+  
   'RCVE': 'STATUS',
 };
 

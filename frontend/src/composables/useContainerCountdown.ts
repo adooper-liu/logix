@@ -57,10 +57,11 @@ export function useContainerCountdown(statisticsData: Ref<{
     const within7Days = dist.within7Days || 0
     const over7Days = dist.over7Days || 0
     const other = dist.other || 0
+    const arrivedBeforeTodayNoATA = dist.arrivedBeforeTodayNoATA || 0
 
-    // 总数 = 三个主分组之和
+    // 总数 = 四个主分组之和（含到港数据缺失）
     const count = (today + arrivedBeforeTodayNotPickedUp + arrivedBeforeTodayPickedUp) + arrivedAtTransit +
-                 (overdue + within3Days + within7Days + over7Days + other)
+                 (overdue + within3Days + within7Days + over7Days + other) + arrivedBeforeTodayNoATA
     const urgent = overdue + within3Days + transitOverdue + transitWithin3Days
     const expired = overdue + transitOverdue
 
@@ -95,7 +96,7 @@ export function useContainerCountdown(statisticsData: Ref<{
           { label: '无ETA', count: transitNoETA, color: '#909399', days: 'transitNoETA', level: 1 }
         ]
       },
-      // 预计到港分组
+      // 预计到港分组（主数=子项之和，保证一致）
       {
         label: '预计到港',
         count: overdue + within3Days + within7Days + over7Days + other,
@@ -109,6 +110,14 @@ export function useContainerCountdown(statisticsData: Ref<{
           { label: '7天后', count: over7Days, color: '#67c23a', days: 'over7Days', level: 1 },
           { label: '其他', count: other, color: '#c0c4cc', days: 'otherRecords', level: 1 }
         ]
+      },
+      // 到港数据缺失（目的港无ATA无ETA但状态显示已到港，修复漏失）
+      {
+        label: '到港数据缺失',
+        count: arrivedBeforeTodayNoATA,
+        color: '#909399',
+        days: 'arrivedBeforeTodayNoATA',
+        level: 0
       }
     ]
 

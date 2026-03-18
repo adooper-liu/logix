@@ -6,8 +6,8 @@
 import { SelectQueryBuilder } from 'typeorm';
 import { Repository } from 'typeorm';
 import { Container } from '../../../entities/Container';
-import { getScopedCountryCode } from '../../../utils/requestContext.js';
-import { normalizeCountryCode } from '../../../utils/countryCode.js';
+import { getScopedCountryCode } from '../../../utils/requestContext';
+import { normalizeCountryCode } from '../../../utils/countryCode';
 import { DateFilterBuilder } from './DateFilterBuilder';
 import { ContainerQueryBuilder } from './ContainerQueryBuilder';
 

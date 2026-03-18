@@ -34,6 +34,15 @@ const routes: RouteRecordRaw[] = [
     },
   },
   {
+    path: '/dictionary-extractor',
+    name: 'DictionaryExtractor',
+    component: () => import('@/views/import/DictionaryExtractor.vue'),
+    meta: {
+      title: '字典数据提取',
+      requiresAuth: false,
+    },
+  },
+  {
     path: '/',
     component: Layout,
     redirect: '/dashboard',
@@ -123,6 +132,16 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '飞驼数据验证',
           icon: 'DataLine',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'import/dictionary-extractor',
+        name: 'DictionaryExtractor',
+        component: () => import('@/views/import/DictionaryExtractor.vue'),
+        meta: {
+          title: '字典数据提取',
+          icon: 'Collection',
           requiresAuth: true,
         },
       },

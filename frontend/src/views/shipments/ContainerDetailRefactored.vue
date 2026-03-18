@@ -20,6 +20,9 @@ import ScheduleEditDialog from './components/ScheduleEditDialog.vue'
 import SeaFreightInfo from './components/SeaFreightInfo.vue'
 import TruckingTransport from './components/TruckingTransport.vue'
 import WarehouseOperations from './components/WarehouseOperations.vue'
+import AlertTab from './components/AlertTab.vue'
+import TimePredictionTab from './components/TimePredictionTab.vue'
+import RiskCardTab from './components/RiskCardTab.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -184,6 +187,9 @@ watch(
     else if (tab === 'logistics-path') activeTab.value = 'logistics-path'
     else if (tab === 'change-log') activeTab.value = 'change-log'
     else if (tab === 'inspection') activeTab.value = 'inspection'
+    else if (tab === 'alert') activeTab.value = 'alert'
+    else if (tab === 'time-prediction') activeTab.value = 'time-prediction'
+    else if (tab === 'risk') activeTab.value = 'risk'
   },
   { immediate: true }
 )
@@ -349,6 +355,21 @@ const logisticsStatusDisplay = computed(() => {
             <el-tab-pane label="查验记录" name="inspection">
               <div class="tab-content">
                 <InspectionRecord :container-number="containerNumber" />
+              </div>
+            </el-tab-pane>
+            <el-tab-pane label="预警" name="alert">
+              <div class="tab-content">
+                <AlertTab :container-number="containerNumber" />
+              </div>
+            </el-tab-pane>
+            <el-tab-pane label="时间预测" name="time-prediction">
+              <div class="tab-content">
+                <TimePredictionTab :container-number="containerNumber" />
+              </div>
+            </el-tab-pane>
+            <el-tab-pane label="风险评估" name="risk">
+              <div class="tab-content">
+                <RiskCardTab :container-number="containerNumber" />
               </div>
             </el-tab-pane>
           </el-tabs>

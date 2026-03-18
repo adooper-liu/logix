@@ -202,6 +202,7 @@ export const ExternalApiToDetailedMap: Record<string, DetailedStatus> = {
   'DISC': DetailedStatus.DISCHARGED,      // 卸船 (equipmentEvents DISC+LADEN)
   'AVAIL': DetailedStatus.AVAILABLE,     // 可提货
   'EMPTY_RETURN': DetailedStatus.RETURNED_EMPTY, // 还空箱
+  'RCVE': DetailedStatus.RETURNED_EMPTY,  // 还空箱 (Freightower实际返回的状态码)
   'DUMP': DetailedStatus.DUMPED,          // 甩柜 (equipmentEvents DUMP+LADEN)
   'HOLD': DetailedStatus.HOLD,           // 扣货
   'CUSTOMS_HOLD': DetailedStatus.CUSTOMS_HOLD,  // 清关扣货

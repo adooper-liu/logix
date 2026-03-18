@@ -14,12 +14,39 @@ jest.mock('../database', () => ({
   AppDataSource: {
     initialize: jest.fn().mockResolvedValue(undefined),
     destroy: jest.fn().mockResolvedValue(undefined),
-    getRepository: jest.fn().mockReturnValue({
-      find: jest.fn().mockResolvedValue([]),
-      findOne: jest.fn().mockResolvedValue(null),
-      save: jest.fn().mockResolvedValue({}),
-      update: jest.fn().mockResolvedValue({}),
-      delete: jest.fn().mockResolvedValue({})
+    getRepository: jest.fn().mockImplementation((entity) => {
+      // 为不同的实体返回不同的 mock 对象
+      const baseRepo = {
+        find: jest.fn().mockResolvedValue([]),
+        findOne: jest.fn().mockResolvedValue(null),
+        save: jest.fn().mockResolvedValue({}),
+        update: jest.fn().mockResolvedValue({}),
+        delete: jest.fn().mockResolvedValue({}),
+        create: jest.fn().mockReturnValue({}),
+        createQueryBuilder: jest.fn().mockReturnValue({
+          leftJoinAndSelect: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          andWhere: jest.fn().mockReturnThis(),
+          getMany: jest.fn().mockResolvedValue([{
+            containerNumber: 'TEST_LIVE_001',
+            scheduleStatus: 'initial',
+            portOperations: [{
+              portType: 'destination',
+              portCode: 'CA_VAN',
+              portName: 'CA_VAN Port',
+              etaDestPort: '2026-03-20',
+              ataDestPort: '2026-03-20',
+              lastFreeDate: '2026-03-20'
+            }],
+            replenishmentOrders: [{
+              customer: {
+                country: 'CA'
+              }
+            }]
+          }])
+        })
+      };
+      return baseRepo;
     }),
     manager: {
       transaction: jest.fn().mockImplementation(async (callback) => {

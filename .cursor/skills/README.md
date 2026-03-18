@@ -198,7 +198,22 @@
   - 避免重复问题清单
   - SOP 速查
 
-#### 13. **logix-business-knowledge** - LogiX 业务知识
+#### 13. **container-intelligent-processing** - 货柜智能处理系统实施
+
+- **文件**: `container-intelligent-processing/SKILL.md`
+- **用途**: 货柜智能处理系统增强实施方案的实施与维护
+- **使用场景**:
+  - ✅ 实现或修改 ext_container_alerts、ext_container_risk_assessments
+  - ✅ 开发 AlertService、TimeService、RiskService
+  - ✅ 预警持久化、时间预测、风险评分功能
+  - ✅ 排查增强方案相关实现问题
+- **核心内容**:
+  - calculateLogisticsStatus 完整参数、实体关系、raw SQL
+  - 前端 API 路径 /v1 前缀、响应结构兼容
+  - 数据库与实体、集成步骤、检查清单
+  - 常见错误与正确做法对照
+
+#### 14. **logix-business-knowledge** - LogiX 业务知识
 
 - **文件**: `logix-business-knowledge/SKILL.md`
 - **用途**: 管理和查询 LogiX 项目业务知识
@@ -296,6 +311,20 @@
    └─ 需求澄清
 ```
 
+### 实施货柜智能处理系统（预警/时间预测/风险评分）时
+
+```
+1. container-intelligent-processing ⭐⭐⭐ (必用)
+   └─ calculateLogisticsStatus 完整参数
+   └─ 前端 API 路径含 /v1
+   └─ AppDataSource.query、实体注册
+   └─ 集成步骤与检查清单
+
+2. logix-development ⭐⭐⭐
+   └─ 数据库优先、命名规范
+   └─ 新增实体与路由注册
+```
+
 ---
 
 ## 📊 Skills 功能对比
@@ -311,6 +340,7 @@
 | **fix-verification**           | ✅⭐⭐   | ✅⭐⭐⭐ | ✅       | ❌       | ✅         | ❌       | LogiX 专属 |
 | **ai-collaboration-methodology** | ✅       | ✅       | ✅       | ❌       | ❌         | ❌       | 通用       |
 | **logix-business-knowledge** | ✅⭐⭐ | ✅⭐⭐ | ✅       | ❌       | ❌         | ❌       | LogiX 专属 |
+| **container-intelligent-processing** | ✅⭐⭐ | ✅       | ✅       | ❌       | ❌         | ❌       | LogiX 专属 |
 
 ---
 
@@ -378,11 +408,12 @@
 | 版本 | 日期       | 更新内容                          |
 | ---- | ---------- | --------------------------------- |
 | 2.2  | 2026-03-17 | 添加 fix-verification 技能（修复验证、防幻觉） |
+| 2.3  | 2026-03-18 | 添加 container-intelligent-processing 技能（货柜智能处理系统实施） |
 | 2.1  | 2026-03-16 | 添加 logix-business-knowledge 技能 |
 | 2.0  | 2026-03-12 | 整合统一所有 skills，形成完整体系 |
 | 1.0  | 2026-03-10 | 初始版本，分散的 skills           |
 
 ---
 
-**最后更新**: 2026-03-17  
+**最后更新**: 2026-03-18  
 **维护者**: LogiX Team

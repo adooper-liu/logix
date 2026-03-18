@@ -26,7 +26,7 @@ import { TruckingTransport } from '../entities/TruckingTransport';
 import { Warehouse } from '../entities/Warehouse';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
-import { normalizeCountryCode } from '../utils/countryCode.js';
+import { normalizeCountryCode } from '../utils/countryCode';
 import { logger } from '../utils/logger';
 import { DemurrageService } from './demurrage.service';
 
@@ -356,7 +356,8 @@ export class IntelligentSchedulingService {
 
       // 验证并调整：如果无堆场但提≠卸，需要调整为 Live load
       const pickupDayStr = plannedPickupDate.toISOString().split('T')[0];
-      const unloadDayStr = plannedUnloadDate.toISOString().split('T')[0];
+      let unloadDate = plannedUnloadDate;
+      const unloadDayStr = unloadDate.toISOString().split('T')[0];
 
       if (!truckingCompany.hasYard && pickupDayStr !== unloadDayStr) {
         // 无堆场只能 Live load，需要找卸柜日 = 提柜日
@@ -365,7 +366,7 @@ export class IntelligentSchedulingService {
           plannedPickupDate
         );
         if (availableDate) {
-          plannedUnloadDate = availableDate;
+          unloadDate = availableDate;
         } else {
           // 如果提柜日当天仓库已满，尝试往后找最近可用日
           const futureDate = await this.findEarliestAvailableDay(
@@ -373,7 +374,7 @@ export class IntelligentSchedulingService {
             new Date(plannedPickupDate)
           );
           if (futureDate) {
-            plannedUnloadDate = futureDate;
+            unloadDate = futureDate;
             // 同时调整提柜日以匹配卸柜日（保持 Live load）
             plannedPickupDate = new Date(futureDate);
           }
@@ -383,7 +384,7 @@ export class IntelligentSchedulingService {
       const plannedDeliveryDate = this.calculatePlannedDeliveryDate(
         plannedPickupDate,
         unloadMode,
-        plannedUnloadDate
+        unloadDate
       );
 
       // 8. 计算计划还箱日（从 EmptyReturn 表获取最晚还箱日）
@@ -399,7 +400,7 @@ export class IntelligentSchedulingService {
         lastReturnDate.setDate(lastReturnDate.getDate() + 7);
       }
       const plannedReturnDate = this.calculatePlannedReturnDate(
-        plannedUnloadDate,
+        unloadDate,
         unloadMode,
         lastReturnDate
       );
@@ -412,7 +413,7 @@ export class IntelligentSchedulingService {
         plannedCustomsDate: plannedCustomsDate.toISOString().split('T')[0],
         plannedPickupDate: plannedPickupDate.toISOString().split('T')[0],
         plannedDeliveryDate: plannedDeliveryDate.toISOString().split('T')[0],
-        plannedUnloadDate: plannedUnloadDate.toISOString().split('T')[0],
+        plannedUnloadDate: unloadDate.toISOString().split('T')[0],
         plannedReturnDate: plannedReturnDate.toISOString().split('T')[0],
         truckingCompanyId: truckingCompany.companyCode,
         warehouseId: warehouse.warehouseCode,
@@ -426,7 +427,7 @@ export class IntelligentSchedulingService {
       await this.updateContainerSchedule(container.containerNumber, plannedData);
 
       // 10. 扣减仓库日产能
-      await this.decrementWarehouseOccupancy(warehouse.warehouseCode, plannedUnloadDate);
+      await this.decrementWarehouseOccupancy(warehouse.warehouseCode, unloadDate);
 
       // 11. 扣减拖车档期（送柜）
       await this.decrementTruckingOccupancy(
@@ -510,10 +511,10 @@ export class IntelligentSchedulingService {
   private async skipWeekendsIfNeeded(date: Date): Promise<void> {
     try {
       const config = await this.schedulingConfigRepo.findOne({
-        where: { config_key: 'skip_weekends' }
+        where: { configKey: 'skip_weekends' }
       });
 
-      const shouldSkipWeekends = config?.config_value === 'true';
+      const shouldSkipWeekends = config?.configValue === 'true';
       if (!shouldSkipWeekends) {
         return;
       }

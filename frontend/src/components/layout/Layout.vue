@@ -119,6 +119,11 @@ const menuGroups = computed(() => [
         meta: { title: '飞驼数据验证', icon: 'DataLine' },
       },
       {
+        path: '/import/dictionary-extractor',
+        name: 'DictionaryExtractor',
+        meta: { title: '字典数据提取', icon: 'Collection' },
+      },
+      {
         path: '/import/demurrage-standards',
         name: 'DemurrageStandardsImport',
         meta: { title: t('nav.demurrageStandardsImport'), icon: 'Document' },

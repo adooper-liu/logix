@@ -609,15 +609,22 @@ export class ContainerController {
       logger.info('[getStatisticsDetailed] Return distribution completed');
 
       // 当传了日期且按状态/到港合计为 0 时，回退为「不按日期」的统计并打标，避免卡片全 0
+      // 修复：必须同时回退 status 与 arrival，否则两卡片使用不同日期范围导致总数不一致（按状态 6 vs 按到港 10）
       let dateFilterFallback = false;
       if (startDate && endDate) {
         const statusTotal = Object.entries(statusDistribution).reduce((s, [k, v]) => (k === 'arrived_at_transit' || k === 'arrived_at_destination' ? s : s + (v || 0)), 0);
-        const arrivalTotal = Object.values(arrivalDistribution).reduce((s, n) => s + (Number(n) || 0), 0);
+        const arrivalTotal =
+          (arrivalDistribution.arrivedAtDestination || 0) +
+          (arrivalDistribution.arrivedAtTransit || 0) +
+          (arrivalDistribution.expectedArrival || 0) +
+          (arrivalDistribution.arrivedBeforeTodayNoATA || 0);
         if (statusTotal === 0 || arrivalTotal === 0) {
           dateFilterFallback = true;
-          if (statusTotal === 0) statusDistribution = await this.statisticsService.getStatusDistribution(undefined, undefined);
-          if (arrivalTotal === 0) arrivalDistribution = await this.statisticsService.getArrivalDistribution(undefined, undefined);
-          logger.info('[getStatisticsDetailed] Date range had no status/arrival matches, fallback to unfiltered stats');
+          [statusDistribution, arrivalDistribution] = await Promise.all([
+            this.statisticsService.getStatusDistribution(undefined, undefined),
+            this.statisticsService.getArrivalDistribution(undefined, undefined)
+          ]);
+          logger.info('[getStatisticsDetailed] Date range had no status/arrival matches, fallback to unfiltered stats (both)');
         }
       }
 

@@ -80,7 +80,7 @@ export class ContainerStatisticsService {
     startDate?: string,
     endDate?: string
   ): Promise<Record<string, number>> {
-    const [arrivalDist, etaDist, statusDist] = await Promise.all([
+    const [arrivalDist, etaDist] = await Promise.all([
       this.arrivalStatistics.getDistribution(startDate, endDate).catch(err => {
         console.error('[ContainerStatistics] arrivalStatistics.getDistribution error:', err);
         return {
@@ -100,23 +100,26 @@ export class ContainerStatisticsService {
       this.etaStatistics.getDistribution(startDate, endDate).catch(err => {
         console.error('[ContainerStatistics] etaStatistics.getDistribution error:', err);
         return { overdue: 0, within3Days: 0, within7Days: 0, over7Days: 0, otherRecords: 0, total: 0 };
-      }),
-      this.statusDistribution.getDistribution(startDate, endDate).catch(err => {
-        console.error('[ContainerStatistics] statusDistribution.getDistribution error:', err);
-        return { in_transit: 0 } as Record<string, number>;
       })
     ]);
 
-    // 三个主分组总数；预计到港 = 按状态「在途中的未到港」in_transit，保证两处一致
+    // 四个主分组；预计到港 = 子项之和，保证主数与子项一致
     const arrivedAtDestination = (arrivalDist.today || 0) + (arrivalDist.beforeTodayNotPickedUp || 0) + (arrivalDist.beforeTodayPickedUp || 0);
     const arrivedAtTransit = arrivalDist.arrivedAtTransit || 0;
-    const expectedArrival = Number(statusDist.in_transit) || 0;
+    const overdue = etaDist.overdue || 0;
+    const within3Days = etaDist.within3Days || 0;
+    const within7Days = etaDist.within7Days || 0;
+    const over7Days = etaDist.over7Days || 0;
+    const other = etaDist.otherRecords || 0;
+    const expectedArrival = overdue + within3Days + within7Days + over7Days + other;
+    const arrivedBeforeTodayNoATA = arrivalDist.arrivedBeforeTodayNoATA || 0;
 
     return {
-      // 三个主分组
+      // 四个主分组（含漏失修复：到港数据缺失）
       arrivedAtDestination,
       arrivedAtTransit,
       expectedArrival,
+      arrivedBeforeTodayNoATA,
 
       // 已到目的港的子分类
       today: arrivalDist.today || 0,
@@ -131,11 +134,11 @@ export class ContainerStatisticsService {
       transitNoETA: arrivalDist.transitNoETA || 0,
 
       // 预计到港的子分类
-      overdue: etaDist.overdue || 0,
-      within3Days: etaDist.within3Days || 0,
-      within7Days: etaDist.within7Days || 0,
-      over7Days: etaDist.over7Days || 0,
-      other: etaDist.otherRecords || 0
+      overdue,
+      within3Days,
+      within7Days,
+      over7Days,
+      other
     };
   }
 

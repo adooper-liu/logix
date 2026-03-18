@@ -20,6 +20,47 @@ import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { Like } from 'typeorm';
 import { DictSchedulingConfig } from '../entities/DictSchedulingConfig';
 
+// Mock AppDataSource
+jest.mock('../database', () => ({
+  AppDataSource: {
+    initialize: jest.fn().mockResolvedValue(undefined),
+    destroy: jest.fn().mockResolvedValue(undefined),
+    getRepository: jest.fn().mockImplementation((entity) => ({
+      find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn().mockResolvedValue(null),
+      save: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
+      create: jest.fn().mockReturnValue({}),
+      createQueryBuilder: jest.fn().mockReturnValue({
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([{
+          containerNumber: 'TEST_LIVE_001',
+          scheduleStatus: 'initial',
+          portOperations: [{
+            portType: 'destination',
+            portCode: 'CA_VAN',
+            portName: 'CA_VAN Port',
+            etaDestPort: '2026-03-20',
+            ataDestPort: '2026-03-20',
+            lastFreeDate: '2026-03-20'
+          }],
+          replenishmentOrders: [{
+            customer: {
+              country: 'CA'
+            }
+          }]
+        }])
+      })
+    })),
+    manager: {
+      transaction: jest.fn().mockImplementation(async (callback) => callback({}))
+    }
+  }
+}));
+
 describe('IntelligentSchedulingService', () => {
   beforeAll(async () => {
     // 初始化数据库连接
@@ -180,32 +221,36 @@ describe('IntelligentSchedulingService', () => {
 
 // 辅助函数
 async function cleanupTestData() {
-  const containerRepo = AppDataSource.getRepository(Container);
-  const portOperationRepo = AppDataSource.getRepository(PortOperation);
-  const warehouseRepo = AppDataSource.getRepository(Warehouse);
-  const truckingCompanyRepo = AppDataSource.getRepository(TruckingCompany);
-  const emptyReturnRepo = AppDataSource.getRepository(EmptyReturn);
-  const warehouseOccupancyRepo = AppDataSource.getRepository(ExtWarehouseDailyOccupancy);
-  const truckingOccupancyRepo = AppDataSource.getRepository(ExtTruckingSlotOccupancy);
-  const truckingReturnOccupancyRepo = AppDataSource.getRepository(ExtTruckingReturnSlotOccupancy);
-  const truckingPortMappingRepo = AppDataSource.getRepository(TruckingPortMapping);
-  const warehouseTruckingMappingRepo = AppDataSource.getRepository(WarehouseTruckingMapping);
-  const customerRepo = AppDataSource.getRepository(Customer);
-  const replenishmentOrderRepo = AppDataSource.getRepository(ReplenishmentOrder);
+  try {
+    const containerRepo = AppDataSource.getRepository(Container);
+    const portOperationRepo = AppDataSource.getRepository(PortOperation);
+    const warehouseRepo = AppDataSource.getRepository(Warehouse);
+    const truckingCompanyRepo = AppDataSource.getRepository(TruckingCompany);
+    const emptyReturnRepo = AppDataSource.getRepository(EmptyReturn);
+    const warehouseOccupancyRepo = AppDataSource.getRepository(ExtWarehouseDailyOccupancy);
+    const truckingOccupancyRepo = AppDataSource.getRepository(ExtTruckingSlotOccupancy);
+    const truckingReturnOccupancyRepo = AppDataSource.getRepository(ExtTruckingReturnSlotOccupancy);
+    const truckingPortMappingRepo = AppDataSource.getRepository(TruckingPortMapping);
+    const warehouseTruckingMappingRepo = AppDataSource.getRepository(WarehouseTruckingMapping);
+    const customerRepo = AppDataSource.getRepository(Customer);
+    const replenishmentOrderRepo = AppDataSource.getRepository(ReplenishmentOrder);
 
-  // 按依赖顺序删除
-  await emptyReturnRepo.delete({ containerNumber: Like('%TEST_%') });
-  await warehouseOccupancyRepo.delete({ warehouseCode: Like('WH_TEST_%') });
-  await truckingOccupancyRepo.delete({ truckingCompanyId: Like('TRUCK_TEST_%') });
-  await truckingReturnOccupancyRepo.delete({ truckingCompanyId: Like('TRUCK_TEST_%') });
-  await warehouseTruckingMappingRepo.delete({ truckingCompanyId: Like('TRUCK_TEST_%') });
-  await truckingPortMappingRepo.delete({ truckingCompanyId: Like('TRUCK_TEST_%') });
-  await containerRepo.delete({ containerNumber: Like('%TEST_%') });
-  await portOperationRepo.delete({ containerNumber: Like('%TEST_%') });
-  await warehouseRepo.delete({ warehouseCode: Like('WH_TEST_%') });
-  await truckingCompanyRepo.delete({ companyCode: Like('TRUCK_TEST_%') });
-  await replenishmentOrderRepo.delete({ orderNumber: Like('TEST_ORDER_%') });
-  await customerRepo.delete({ customerCode: Like('TEST_CUSTOMER_%') });
+    // 按依赖顺序删除
+    await emptyReturnRepo.delete({ containerNumber: Like('%TEST_%') });
+    await warehouseOccupancyRepo.delete({ warehouseCode: Like('WH_TEST_%') });
+    await truckingOccupancyRepo.delete({ truckingCompanyId: Like('TRUCK_TEST_%') });
+    await truckingReturnOccupancyRepo.delete({ truckingCompanyId: Like('TRUCK_TEST_%') });
+    await warehouseTruckingMappingRepo.delete({ truckingCompanyId: Like('TRUCK_TEST_%') });
+    await truckingPortMappingRepo.delete({ truckingCompanyId: Like('TRUCK_TEST_%') });
+    await containerRepo.delete({ containerNumber: Like('%TEST_%') });
+    await portOperationRepo.delete({ containerNumber: Like('%TEST_%') });
+    await warehouseRepo.delete({ warehouseCode: Like('WH_TEST_%') });
+    await truckingCompanyRepo.delete({ companyCode: Like('TRUCK_TEST_%') });
+    await replenishmentOrderRepo.delete({ orderNumber: Like('TEST_ORDER_%') });
+    await customerRepo.delete({ customerCode: Like('TEST_CUSTOMER_%') });
+  } catch (error) {
+    console.log('Cleanup test data error:', error);
+  }
 }
 
 async function createTestContainer(params: {

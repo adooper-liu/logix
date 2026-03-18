@@ -375,6 +375,42 @@ export interface StatusEvent {
   description?: string;
 }
 
+// 货柜列表项类型，用于列表视图
+export interface ContainerListItem {
+  containerNumber: string;
+  orderNumber: string;
+  billOfLadingNumber?: string;
+  mblNumber?: string;
+  containerTypeCode: string;
+  logisticsStatus: string;
+  alerts?: number;
+  alertCount?: number;
+  totalCost?: number;
+  inspectionRequired: boolean;
+  isUnboxing: boolean;
+  destinationPort?: string;
+  location?: string;
+  actualShipDate?: Date;
+  createdAt?: Date;
+  etaDestPort?: Date;
+  etaCorrection?: Date;
+  ataDestPort?: Date;
+  customsStatus?: string;
+  plannedPickupDate?: Date;
+  pickupDate?: Date;
+  lastFreeDate?: Date;
+  lastReturnDate?: Date;
+  returnTime?: Date;
+  cargoDescription?: string;
+  lastUpdated?: Date;
+  currentPortType?: string;
+  latestPortOperation?: {
+    portType?: string;
+    portName?: string;
+  };
+  portOperations?: PortOperation[];
+}
+
 // 导出所有类型供外部使用
 export type {
   PortOperation,
@@ -382,5 +418,6 @@ export type {
   TruckingTransport,
   WarehouseOperation,
   EmptyReturn,
-  StatusEvent
+  StatusEvent,
+  ContainerListItem
 }

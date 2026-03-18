@@ -22,6 +22,7 @@ import {
 } from '../constants/FeiTuoStatusMapping';
 import { auditLogService } from './auditLog.service';
 import { DemurrageService } from './demurrage.service';
+import { feituoPlacesProcessor } from './feituoPlaces.processor';
 
 /**
  * 飞驼API响应数据结构
@@ -35,6 +36,8 @@ interface FeituoTrackingResponse {
 interface FeituoTrackingData {
   containerNumber: string;
   trackingEvents: FeituoEvent[];
+  places?: any[];  // 【增强】飞驼API返回的地点信息（优先于trackingEvents使用）
+  billNo?: string;  // 提单号
 }
 
 interface FeituoEvent {
@@ -357,17 +360,64 @@ export class ExternalDataService {
         return [];
       }
 
-      // 转换为状态事件
-      const events = this.convertFeituoToStatusEvents(externalData[0], dataSource);
+      const feituoData = externalData[0];
+      let savedEvents: ContainerStatusEvent[] = [];
+      let updatedAtaFields: string[] = [];
 
-      // 保存到数据库
-      const savedEvents = await this.saveStatusEvents(events);
+      // 【增强功能】优先处理 places 数据（如果存在）
+      // places 数据结构更完整，优先于 trackingEvents 使用
+      if (feituoData.places && feituoData.places.length > 0) {
+        logger.info(`[ExternalDataService] 检测到 places 数据，优先处理 ${feituoData.places.length} 个地点`);
+        
+        // 动态导入 places 处理器（避免循环依赖）
+        const { feituoPlacesProcessor } = await import('./feituoPlaces.processor');
+        
+        // 处理 places 数据
+        const placesResult = await feituoPlacesProcessor.processPlaces(
+          containerNumber,
+          feituoData.places,
+          feituoData.billNo
+        );
 
-      // 关键: 更新PortOperation表的核心时间字段
-      const updatedAtaFields = await this.updatePortOperationCoreFields(
-        containerNumber,
-        externalData[0].trackingEvents
-      );
+        // 从 places 生成状态事件
+        const placeEvents = await this.convertPlacesToStatusEvents(
+          containerNumber,
+          feituoData.places,
+          dataSource
+        );
+        
+        // 保存 places 生成的事件
+        if (placeEvents.length > 0) {
+          savedEvents = await this.saveStatusEvents(placeEvents);
+        }
+
+        // 更新ATA相关字段（用于触发滞港费重算）
+        updatedAtaFields = await this.updatePortOperationFromPlaces(
+          containerNumber,
+          feituoData.places
+        );
+
+        logger.info(`[ExternalDataService] places 数据处理完成`, {
+          containerNumber,
+          placesProcessed: placesResult.successCount,
+          eventsGenerated: placeEvents.length
+        });
+      } else {
+        // 回退到传统的 trackingEvents 处理
+        logger.info(`[ExternalDataService] 未检测到 places 数据，使用 trackingEvents`);
+        
+        // 转换为状态事件
+        const events = this.convertFeituoToStatusEvents(feituoData, dataSource);
+
+        // 保存到数据库
+        savedEvents = await this.saveStatusEvents(events);
+
+        // 更新PortOperation表的核心时间字段
+        updatedAtaFields = await this.updatePortOperationCoreFields(
+          containerNumber,
+          feituoData.trackingEvents
+        );
+      }
 
       // 关键: 重新计算货柜的物流状态
       await this.recalculateLogisticsStatus(containerNumber);
@@ -386,6 +436,138 @@ export class ExternalDataService {
       logger.error(`[ExternalDataService] 同步货柜 ${containerNumber} 失败:`, error);
       throw error;
     }
+  }
+
+  /**
+   * 从 places 生成状态事件
+   * @param containerNumber 集装箱号
+   * @param places places数组
+   * @param dataSource 数据源
+   */
+  private async convertPlacesToStatusEvents(
+    containerNumber: string,
+    places: any[],
+    dataSource: DataSource
+  ): Promise<ContainerStatusEvent[]> {
+    const events: ContainerStatusEvent[] = [];
+
+    places.forEach((place, index) => {
+      // 到达事件
+      if (place.ata && place.type !== 'PRE' && place.type !== 'PDE') {
+        const arrivalEvent = new ContainerStatusEvent();
+        arrivalEvent.id = `${containerNumber}-${dataSource}-place-arrival-${index}-${Date.now()}`;
+        arrivalEvent.containerNumber = containerNumber;
+        arrivalEvent.statusCode = 'ARRI';
+        arrivalEvent.eventCode = 'ARRI';
+        arrivalEvent.eventName = `到达 ${place.locationCode}`;
+        arrivalEvent.occurredAt = new Date(place.ata);
+        arrivalEvent.isEstimated = false;
+        arrivalEvent.locationCode = place.locationCode;
+        arrivalEvent.locationNameEn = place.locationNameEn;
+        arrivalEvent.locationNameCn = place.locationNameCn;
+        arrivalEvent.dataSource = dataSource;
+        arrivalEvent.rawData = place.rawData || place;
+        events.push(arrivalEvent);
+      }
+
+      // 离港事件
+      if (place.atd && place.type !== 'PRE' && place.type !== 'PDE') {
+        const departureEvent = new ContainerStatusEvent();
+        departureEvent.id = `${containerNumber}-${dataSource}-place-departure-${index}-${Date.now()}`;
+        departureEvent.containerNumber = containerNumber;
+        departureEvent.statusCode = 'DEPA';
+        departureEvent.eventCode = 'DEPA';
+        departureEvent.eventName = `离开 ${place.locationCode}`;
+        departureEvent.occurredAt = new Date(place.atd);
+        departureEvent.isEstimated = false;
+        departureEvent.locationCode = place.locationCode;
+        departureEvent.locationNameEn = place.locationNameEn;
+        departureEvent.locationNameCn = place.locationNameCn;
+        departureEvent.dataSource = dataSource;
+        departureEvent.rawData = place.rawData || place;
+        events.push(departureEvent);
+      }
+    });
+
+    return events;
+  }
+
+  /**
+   * 从 places 更新港口操作的核心字段
+   * @param containerNumber 集装箱号
+   * @param places places数组
+   * @returns 更新的ATA相关字段列表
+   */
+  private async updatePortOperationFromPlaces(
+    containerNumber: string,
+    places: any[]
+  ): Promise<string[]> {
+    const updatedFields: string[] = [];
+
+    for (const place of places) {
+      if (!place.locationCode || (place.type !== 'POL' && place.type !== 'POD')) {
+        continue;
+      }
+
+      const portOperation = await this.portOperationRepository.findOne({
+        where: {
+          containerNumber,
+          portCode: place.locationCode,
+          portType: place.type === 'POL' ? 'origin' : 'destination'
+        }
+      });
+
+      if (!portOperation) {
+        continue;
+      }
+
+      let hasUpdates = false;
+
+      // 更新 ETA
+      if (place.eta && shouldUpdateCoreField('eta', portOperation.etaDestPort)) {
+        if (place.type === 'POD') {
+          portOperation.etaDestPort = new Date(place.eta);
+          updatedFields.push('eta_dest_port');
+        } else if (place.type === 'POL') {
+          portOperation.etaOriginPort = new Date(place.eta);
+          updatedFields.push('eta_origin_port');
+        }
+        hasUpdates = true;
+      }
+
+      // 更新 ATA
+      if (place.ata && shouldUpdateCoreField('ata', portOperation.ataDestPort)) {
+        if (place.type === 'POD') {
+          portOperation.ataDestPort = new Date(place.ata);
+          updatedFields.push('ata_dest_port');
+        } else if (place.type === 'POL') {
+          portOperation.ataOriginPort = new Date(place.ata);
+          updatedFields.push('ata_origin_port');
+        }
+        hasUpdates = true;
+      }
+
+      // 更新 ETD
+      if (place.etd && shouldUpdateCoreField('etd', portOperation.etd)) {
+        portOperation.etd = new Date(place.etd);
+        updatedFields.push('etd');
+        hasUpdates = true;
+      }
+
+      // 更新 ATD
+      if (place.atd && shouldUpdateCoreField('atd', portOperation.atd)) {
+        portOperation.atd = new Date(place.atd);
+        updatedFields.push('atd');
+        hasUpdates = true;
+      }
+
+      if (hasUpdates) {
+        portOperation.dataSource = 'Feituo';
+        await this.portOperationRepository.save(portOperation);
+      }
+    }
+
+    return [...new Set(updatedFields)]; // 去重
   }
 
   private static readonly ATA_RELATED_FIELDS = ['ata_dest_port', 'dest_port_unload_date', 'discharged_time'];

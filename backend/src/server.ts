@@ -9,6 +9,7 @@ import { config } from './config/index.js';
 import { closeDatabase, initDatabase } from './database/index.js';
 import { containerStatusScheduler } from './schedulers/containerStatus.scheduler.js';
 import { demurrageWriteBackScheduler } from './schedulers/demurrageWriteBack.scheduler.js';
+import { alertScheduler } from './schedulers/alertScheduler.js';
 import { logisticsPathService } from './services/logisticsPath.service.js';
 import { log } from './utils/logger.js';
 import { flowEngine } from './ai/utils/flowEngine.js';
@@ -57,6 +58,12 @@ async function startServer() {
     log.info(
       `✅ Demurrage write-back scheduler started with ${demurrageWriteBackInterval} minute interval, first execution in ${demurrageWriteBackDelay}s (${Date.now() - demurrageSchedulerStartTime}ms)`
     );
+
+    // 启动预警检查调度器
+    const alertSchedulerStartTime = Date.now();
+    log.info('Starting alert scheduler...');
+    alertScheduler.start();
+    log.info(`✅ Alert scheduler started (${Date.now() - alertSchedulerStartTime}ms)`);
 
     // 检查微服务健康状态（带超时控制）
     const healthCheckStartTime = Date.now();
@@ -133,6 +140,10 @@ async function gracefulShutdown(signal: string) {
     log.info('Stopping demurrage write-back scheduler...');
     await demurrageWriteBackScheduler.stopAsync();
     log.info('✅ Demurrage write-back scheduler stopped');
+
+    log.info('Stopping alert scheduler...');
+    alertScheduler.stop();
+    log.info('✅ Alert scheduler stopped');
 
     // 2. 关闭 Socket.IO 与 HTTP 服务器
     await new Promise<void>((resolve) => {

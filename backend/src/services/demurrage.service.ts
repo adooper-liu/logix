@@ -72,6 +72,7 @@ export interface DemurrageCalculationResult {
     revisedEtaDestPort?: string | null; // 修正ETA
     dischargeDate?: string | null;
     lastPickupDate?: string | null;
+    plannedPickupDate?: string | null;
     lastPickupDateComputed?: string | null;
     lastPickupDateMode?: 'actual' | 'forecast'; // 最晚提柜日计算模式
     lastReturnDate?: string | null;
@@ -363,7 +364,7 @@ export class DemurrageService {
       etaDestPort: Date | null;
       revisedEtaDestPort: Date | null;
       dischargeDate: Date | null;
-      dischargeDateSource?: 'dest_port_unload_date' | 'discharged_time' | null;
+      dischargeDateSource?: string | null;
       /** 最晚提柜日（从 process_port_operations.last_free_date 读取） */
       lastPickupDate: Date | null;
       /** 计划提柜日（从 process_trucking_transport.last_pickup_date 读取，用于预测模式前置条件） */
@@ -374,7 +375,7 @@ export class DemurrageService {
       today: Date;
     };
     /** lastPickupDate 来源，用于展示 */
-    lastPickupDateSource?: 'process_port_operations.last_free_date' | 'process_trucking_transport.last_pickup_date' | null;
+    lastPickupDateSource?: 'process_port_operations.last_free_date' | 'process_trucking_transport.last_pickup_date' | 'process_trucking_transport.planned_pickup_date' | null;
   }> {
     const container = await this.containerRepo.findOne({
       where: { containerNumber },
@@ -1325,6 +1326,7 @@ export class DemurrageService {
     partialResults?: boolean;
     totalContainersInRange?: number;
     fromCache?: boolean;
+    byPort?: Array<{ port: string; totalAmount: number; containerCount: number }>;
   }> {
     const containerNumbers = await this.getContainerNumbersInDateRange(startDate, endDate);
     const totalInRange = containerNumbers.length;

@@ -2,16 +2,14 @@
 import CountdownCard from '@/components/CountdownCard.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import { useContainerCountdown } from '@/composables/useContainerCountdown'
+import { useLogisticsStatus } from '@/composables/useLogisticsStatus'
+import { useShipmentsTable } from '@/composables/useShipmentsTable'
+import { useShipmentsExport } from '@/composables/useShipmentsExport'
+import { useShipmentsSchedule } from '@/composables/useShipmentsSchedule'
 import { containerService } from '@/services/container'
 import { useAppStore } from '@/store/app'
 import { useGanttFilterStore } from '@/store/ganttFilters'
-import type { PaginationParams } from '@/types'
 import type { PortOperation } from '@/types/container'
-import {
-    getLogisticsStatusType,
-    getLogisticsStatusText as getStatusText,
-    SimplifiedStatus,
-} from '@/utils/logisticsStatusMachine'
 import {
     ArrowDown,
     ArrowRight,
@@ -25,19 +23,78 @@ import {
     Warning,
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, h, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { ElMessage } from 'element-plus'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
 const router = useRouter()
 const route = useRoute()
 const ganttFilterStore = useGanttFilterStore()
+const { t } = useI18n()
+
+// 使用物流状态 composable
+const { 
+  getLogisticsStatusText, 
+  getStatusType
+} = useLogisticsStatus()
+
+// 使用表格相关 composable
+const { 
+  containers,
+  loading,
+  searchKeyword,
+  pagination,
+  activeFilter,
+  tableSort,
+  tableSize,
+  columnOrder,
+  columnVisible,
+  columnSettingOpen,
+  quickStatusFilter,
+  alertFilter,
+  sortedVisibleColumnKeys,
+  paginatedContainers,
+  filteredContainers,
+  saveColumnVisible,
+  resetColumnVisible,
+  handleDragStart,
+  handleDragOver,
+  handleDragEnd,
+  handleDrop,
+  handleSortChange,
+  handlePageChange,
+  handlePageSizeChange,
+  handleSearch,
+  resetSearch,
+  handleCountdownFilter,
+  resetFilter,
+  columnLabels,
+  SimplifiedStatus
+} = useShipmentsTable()
+
+// 使用导出相关 composable
+const { 
+  handleExportCurrentPage,
+  handleExportAll,
+  handleBatchExport,
+  formatDate,
+  formatShipmentDate,
+  customsStatusMap
+} = useShipmentsExport()
+
+// 使用排产相关 composable
+const { 
+  batchScheduleLoading,
+  scheduleDialogVisible,
+  demurrageWriteBackLoading,
+  executeDirectSchedule,
+  handleDemurrageWriteBack
+} = useShipmentsSchedule()
 
 // 组件卸载标记，防止卸载后响应式更新
 const isUnmounted = ref(false)
 
-// 表格数据 - 使用 shallowRef 减少深度响应式开销
-const containers = shallowRef<any[]>([])
 // 统计数据（从后端API获取，不依赖全量数据）
 const statisticsData = ref<{
   statusDistribution: Record<string, number>
@@ -46,8 +103,6 @@ const statisticsData = ref<{
   lastPickupDistribution: Record<string, number>
   returnDistribution: Record<string, number>
 } | null>(null)
-const loading = ref(false)
-const searchKeyword = ref('')
 
 // 时间筛选（Dashboard风格的日期范围选择器）
 // 顶部时间窗口默认为本年（出运日期口径）
@@ -56,18 +111,23 @@ const shipmentDateRange = ref<[Date, Date]>([
   dayjs().endOf('day').toDate(),
 ])
 
-// 分页参数
-const pagination = ref<PaginationParams>({
-  page: 1,
-  pageSize: 10,
-  total: 0,
-})
+// 多选与批量导出
+const tableRef = ref<InstanceType<typeof import('element-plus').ElTable>>()
+const selectedRows = ref<any[]>([])
+const handleSelectionChange = (rows: any[]) => {
+  selectedRows.value = rows
+}
 
-// 过滤条件（type 为卡片标题，用于展示）
-const activeFilter = ref<{
-  type: '' | '按状态' | '按到港' | '按提柜计划' | '按最晚提柜' | '按最晚还箱'
-  days: string
-}>({ type: '', days: '' })
+// 使用倒计时composable（传入统计数据，不再依赖allContainers）
+const {
+  countdownByArrival,
+  countdownByPickup,
+  countdownByLastPickup,
+  countdownByReturn,
+  countdownByStatus,
+  startTimer,
+  stopTimer,
+} = useContainerCountdown(statisticsData)
 
 // 从URL参数初始化过滤条件
 const initFiltersFromUrl = () => {
@@ -100,166 +160,6 @@ const initFiltersFromUrl = () => {
   }
 }
 
-// 表格排序（前端排序：当前页/当前数据集）
-const tableSort = ref<{ prop: string; order: 'ascending' | 'descending' | null }>({
-  prop: '',
-  order: null,
-})
-
-// 表格密度（存 localStorage）
-const STORAGE_KEY_TABLE_SIZE = 'shipments-table-size'
-const tableSize = ref<'default' | 'large' | 'small'>('default')
-try {
-  const s = localStorage.getItem(STORAGE_KEY_TABLE_SIZE)
-  if (s === 'large' || s === 'small') tableSize.value = s
-} catch (_) {}
-watch(tableSize, v => {
-  try {
-    localStorage.setItem(STORAGE_KEY_TABLE_SIZE, v)
-  } catch (_) {}
-})
-
-// 列显隐（默认全部显示；存 localStorage 仅用于"保存"后下次恢复）
-const STORAGE_KEY_COLUMNS = 'shipments-table-column-visible'
-const STORAGE_KEY_COLUMN_ORDER = 'shipments-table-column-order'
-const columnLabels: Record<string, string> = {
-  containerNumber: '集装箱号',
-  orderNumber: '备货单号',
-  billOfLadingNumber: '提单号',
-  mblNumber: 'MBL Number',
-  containerTypeCode: '柜型',
-  logisticsStatus: '物流状态',
-  fiveNodeStatus: '五节点状态',
-  alerts: '预警',
-  totalCost: '总费用',
-  inspectionRequired: '查验',
-  isUnboxing: '开箱',
-  destinationPort: '目的港',
-  location: '当前位置',
-  actualShipDate: '出运日期',
-  etaDestPort: '预计到港',
-  etaCorrection: '修正ETA',
-  ataDestPort: '实际到港',
-  customsStatus: '清关状态',
-  plannedPickupDate: '计划提柜日',
-  pickupDate: '实际提柜日',
-  lastFreeDate: '最晚提柜日',
-  lastReturnDate: '最晚还箱日',
-  returnTime: '实际还箱日',
-  cargoDescription: '货物描述',
-  lastUpdated: '最后更新',
-  actions: '操作',
-}
-
-// 默认列顺序
-const defaultColumnOrder: string[] = Object.keys(columnLabels)
-
-// 默认显示全部列（与 columnLabels 保持一致）
-const defaultColumnVisible: Record<string, boolean> = Object.fromEntries(
-  Object.keys(columnLabels).map(k => [k, true])
-)
-
-// 列顺序（支持拖动排序）
-const columnOrder = ref<string[]>([...defaultColumnOrder])
-
-// 列设置弹窗
-const columnSettingOpen = ref(false)
-const draggedColumnKey = ref<string | null>(null)
-
-// 默认始终显示全部列，不读取 localStorage，保证每次进入页面都是全部字段
-const columnVisible = ref<Record<string, boolean>>({ ...defaultColumnVisible })
-
-// 保存列设置
-const saveColumnVisible = () => {
-  try {
-    localStorage.setItem(STORAGE_KEY_COLUMNS, JSON.stringify(columnVisible.value))
-    localStorage.setItem(STORAGE_KEY_COLUMN_ORDER, JSON.stringify(columnOrder.value))
-    columnSettingOpen.value = false
-    ElMessage.success('列设置已保存')
-  } catch (_) {
-    ElMessage.error('保存失败')
-  }
-}
-
-// 重置列设置
-const resetColumnVisible = () => {
-  columnVisible.value = { ...defaultColumnVisible }
-  columnOrder.value = [...defaultColumnOrder]
-  try {
-    localStorage.removeItem(STORAGE_KEY_COLUMNS)
-    localStorage.removeItem(STORAGE_KEY_COLUMN_ORDER)
-  } catch (_) {}
-}
-
-// 拖动相关方法
-const handleDragStart = (e: DragEvent, columnKey: string) => {
-  draggedColumnKey.value = columnKey
-  if (e.dataTransfer) {
-    e.dataTransfer.effectAllowed = 'move'
-    // 设置拖动时的透明度
-    setTimeout(() => {
-      ;(e.target as HTMLElement)?.classList.add('dragging')
-    }, 0)
-  }
-}
-
-const handleDragOver = (e: DragEvent) => {
-  e.preventDefault()
-  if (e.dataTransfer) {
-    e.dataTransfer.dropEffect = 'move'
-  }
-}
-
-const handleDragEnd = (e: DragEvent) => {
-  draggedColumnKey.value = null
-  // 移除拖动样式
-  ;(e.target as HTMLElement)?.classList.remove('dragging')
-}
-
-const handleDrop = (e: DragEvent, targetKey: string) => {
-  e.preventDefault()
-  const sourceKey = draggedColumnKey.value
-  if (!sourceKey || sourceKey === targetKey) return
-
-  const sourceIndex = columnOrder.value.indexOf(sourceKey)
-  const targetIndex = columnOrder.value.indexOf(targetKey)
-
-  // 移动数组元素
-  const newOrder = [...columnOrder.value]
-  newOrder.splice(sourceIndex, 1)
-  newOrder.splice(targetIndex, 0, sourceKey)
-  columnOrder.value = newOrder
-
-  draggedColumnKey.value = null
-}
-
-// 根据列顺序过滤并排序
-const sortedVisibleColumnKeys = computed(() => {
-  return columnOrder.value.filter(k => columnVisible.value[k] !== false)
-})
-
-// 清关状态映射
-const customsStatusMap: Record<
-  string,
-  { text: string; type: '' | 'success' | 'warning' | 'danger' | 'info' }
-> = {
-  NOT_STARTED: { text: '未开始', type: 'info' },
-  IN_PROGRESS: { text: '进行中', type: 'warning' },
-  COMPLETED: { text: '已完成', type: 'success' },
-  FAILED: { text: '失败', type: 'danger' },
-}
-
-// 使用倒计时composable（传入统计数据，不再依赖allContainers）
-const {
-  countdownByArrival,
-  countdownByPickup,
-  countdownByLastPickup,
-  countdownByReturn,
-  countdownByStatus,
-  startTimer,
-  stopTimer,
-} = useContainerCountdown(statisticsData)
-
 // 获取集装箱列表
 const loadContainers = async () => {
   if (isUnmounted.value) return
@@ -279,7 +179,7 @@ const loadContainers = async () => {
     }
 
     // 只加载当前页数据（用于表格显示）
-    const response = await containerService.getContainers(params)
+    const response = await containerService.getContainersWithCache(params)
 
     if (!isUnmounted.value) {
       containers.value = response.items ?? []
@@ -309,7 +209,7 @@ const loadStatistics = async () => {
       startDate = dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD')
       endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
     }
-    const response = await containerService.getStatisticsDetailed(startDate, endDate)
+    const response = await containerService.getStatisticsDetailedWithCache(startDate, endDate)
     if (response.success && response.data && !isUnmounted.value) {
       statisticsData.value = response.data
       if (response.dateFilterFallback) {
@@ -346,25 +246,14 @@ const loadContainersByFilter = async () => {
     const response = await containerService.getContainersByFilterCondition(
       filterCondition,
       startDate,
-      endDate
+      endDate,
+      pagination.value.page,
+      pagination.value.pageSize
     )
 
     if (response.success && response.items && !isUnmounted.value) {
-      // 只显示前 100 条数据，避免卡顿
-      const displayLimit = 100
-      const allItems = response.items
-      pagination.value.total = allItems.length
-
-      if (allItems.length > displayLimit) {
-        containers.value = allItems.slice(0, displayLimit)
-        ElMessage.warning({
-          message: `结果包含 ${allItems.length} 条记录，仅显示前 ${displayLimit} 条。请缩小日期范围或添加更多筛选条件。`,
-          customClass: 'bottom-message',
-          appendTo: document.body
-        })
-      } else {
-        containers.value = allItems
-      }
+      containers.value = response.items
+      pagination.value.total = response.pagination?.total ?? response.count ?? 0
     } else if (!isUnmounted.value) {
       containers.value = []
       pagination.value.total = 0
@@ -378,20 +267,6 @@ const loadContainersByFilter = async () => {
       loading.value = false
     }
   }
-}
-
-// 搜索处理
-const handleSearch = () => {
-  pagination.value.page = 1
-  loadContainers()
-}
-
-// 重置搜索
-const resetSearch = () => {
-  searchKeyword.value = ''
-  activeFilter.value = { type: '', days: '' }
-  pagination.value.page = 1
-  loadContainers()
 }
 
 // 处理Dashboard风格的日期范围筛选
@@ -411,20 +286,6 @@ const reloadStatistics = async () => {
 // 同时刷新列表和统计数据
 const reloadAllData = async () => {
   await Promise.all([loadContainers(), loadStatistics()])
-}
-
-// 处理倒计时卡片点击过滤（days 即后端 filterCondition，透传）
-const handleCountdownFilter = (type: string, days: string) => {
-  activeFilter.value = { type: type as any, days }
-  pagination.value.page = 1
-  loadContainersByFilter()
-}
-
-// 重置过滤器
-const resetFilter = () => {
-  activeFilter.value = { type: '', days: '' }
-  pagination.value.page = 1
-  loadContainers()
 }
 
 // 查看详情（兼容 containerNumber / container_number，并对柜号做 URL 编码）
@@ -458,63 +319,6 @@ const goToGantt = () => {
       filterLabel
     }
   })
-}
-
-// 分页改变
-const handlePageChange = (page: number) => {
-  pagination.value.page = page
-  if (activeFilter.value.type && activeFilter.value.days) {
-    // 有过滤条件时数据已全部加载，仅前端分页
-  } else {
-    loadContainers()
-  }
-}
-
-// 页面大小改变
-const handlePageSizeChange = (pageSize: number) => {
-  pagination.value.pageSize = pageSize
-  pagination.value.page = 1
-  if (activeFilter.value.type && activeFilter.value.days) {
-    // 有过滤条件时数据已全部加载，仅前端分页
-  } else {
-    loadContainers()
-  }
-}
-
-// 格式化日期（统一使用 toLocaleDateString，只显示日期部分）
-const formatDate = (date: string | Date): string => {
-  if (!date) return '-'
-  const d = new Date(date)
-  if (isNaN(d.getTime())) return '-'
-  return d.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
-}
-
-const formatShipmentDate = (date: string | Date): string => {
-  if (!date) return '-'
-  const d = new Date(date)
-  return d.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
-}
-
-// 根据港口类型动态显示物流状态
-const getLogisticsStatusText = (container: any): string => {
-  const status = container.logisticsStatus
-  const currentPortType = container.currentPortType || container.latestPortOperation?.portType
-
-  // 使用统一状态机获取状态文本
-  return getStatusText(status, currentPortType)
-}
-
-// 获取状态类型（用于 Tag 组件）
-const getStatusType = (status: string): string => {
-  return getLogisticsStatusType(status)
 }
 
 // 获取过滤条件标签
@@ -569,256 +373,24 @@ const getEtaCorrection = (container: any): string | Date | null => {
   return destPortOp?.etaCorrection || null
 }
 
-// 状态判断函数：是否已出运但未到港之后的状态
-const isShippedButNotArrived = (status: string) => {
-  const statusIndex = [
-    SimplifiedStatus.NOT_SHIPPED,
-    SimplifiedStatus.SHIPPED,
-    SimplifiedStatus.IN_TRANSIT,
-    SimplifiedStatus.AT_PORT,
-    SimplifiedStatus.PICKED_UP,
-    SimplifiedStatus.UNLOADED,
-    SimplifiedStatus.RETURNED_EMPTY,
-  ].indexOf(status as SimplifiedStatus)
-
-  // 已出运（SHIPPED、IN_TRANSIT、AT_PORT）
-  const isShipped = statusIndex >= 1 && statusIndex <= 3
-  return isShipped
-}
-
-// 状态判断函数：是否未提柜及之后状态没有任一发生
-const isNotPickedUp = (status: string) => {
-  const statusIndex = [
-    SimplifiedStatus.NOT_SHIPPED,
-    SimplifiedStatus.SHIPPED,
-    SimplifiedStatus.IN_TRANSIT,
-    SimplifiedStatus.AT_PORT,
-    SimplifiedStatus.PICKED_UP,
-    SimplifiedStatus.UNLOADED,
-    SimplifiedStatus.RETURNED_EMPTY,
-  ].indexOf(status as SimplifiedStatus)
-
-  // 未提柜及之后状态（NOT_SHIPPED、SHIPPED、IN_TRANSIT、AT_PORT）
-  return statusIndex >= 0 && statusIndex <= 3
-}
-
-// 前端分页计算属性（用于过滤后的数据）
-const paginatedContainers = computed(() => {
-  // 没有过滤条件时，使用后端分页数据
-  if (!activeFilter.value.type || !activeFilter.value.days) {
-    return containers.value
-  }
-
-  // 有过滤条件时，在前端进行分页
-  const start = (pagination.value.page - 1) * pagination.value.pageSize
-  const end = start + pagination.value.pageSize
-  return containers.value.slice(start, end)
-})
-
-// 取可排序列的原始值（日期列用时间戳，便于比较）
-const getSortValue = (row: any, prop: string): number | string => {
-  const val = prop === 'actualShipDate' ? row.actualShipDate || row.createdAt : row[prop]
-  if (val == null || val === '') return ''
-  if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val)) return new Date(val).getTime()
-  if (val instanceof Date) return val.getTime()
-  return String(val)
-}
-
-// 快捷筛选（表格上方）
-const quickStatusFilter = ref<string[]>([])
-
-// 根据过滤条件筛选货柜，应用表格排序与快捷筛选
-const filteredContainers = computed(() => {
-  let list = paginatedContainers.value
-  if (quickStatusFilter.value.length > 0) {
-    const set = new Set(quickStatusFilter.value)
-    list = list.filter((row: any) => set.has(row.logisticsStatus))
-  }
-  const { prop, order } = tableSort.value
-  if (!prop || !order) return list
-  const asc = order === 'ascending'
-  return [...list].sort((a, b) => {
-    const va = getSortValue(a, prop)
-    const vb = getSortValue(b, prop)
-    if (va === vb) return 0
-    if (va === '' || va === null) return asc ? 1 : -1
-    if (vb === '' || vb === null) return asc ? -1 : 1
-    const cmp =
-      typeof va === 'number' && typeof vb === 'number'
-        ? va - vb
-        : String(va).localeCompare(String(vb))
-    return asc ? cmp : -cmp
-  })
-})
-
-const handleSortChange = ({ prop, order }: { prop: string; order: string | null }) => {
-  tableSort.value = { prop: prop || '', order: (order as 'ascending' | 'descending') || null }
-}
-
-// 导出：将当前数据转为 CSV 并下载
-const exportToCsv = (rows: any[], filename: string) => {
-  const headers = [
-    '集装箱号',
-    '出运日期',
-    '备货单号',
-    '提单号',
-    'MBL Number',
-    '柜型',
-    '物流状态',
-    '查验',
-    '开箱',
-    '目的港',
-    '当前位置',
-    '预计到港',
-    '实际到港',
-    '清关状态',
-    '计划提柜日',
-    '最晚提柜日',
-    '最晚还箱日',
-    '实际还箱日',
-    '货物描述',
-    '最后更新',
-  ]
-  const escape = (v: any) => {
-    const s = v == null ? '' : String(v)
-    return /[,"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-  }
-  const line = (row: any) =>
-    [
-      row.containerNumber,
-      formatShipmentDate(row.actualShipDate || row.createdAt),
-      row.orderNumber,
-      row.mblNumber || row.billOfLadingNumber, // 优先取 MBL Number，没有则用提单号
-      row.mblNumber,
-      row.containerTypeCode,
-      getLogisticsStatusText(row),
-      row.inspectionRequired ? '是' : '否',
-      row.isUnboxing ? '是' : '否',
-      row.destinationPort,
-      row.location,
-      row.etaDestPort ? formatDate(row.etaDestPort) : '',
-      row.ataDestPort ? formatDate(row.ataDestPort) : '',
-      row.customsStatus ? (customsStatusMap[row.customsStatus]?.text ?? row.customsStatus) : '',
-      row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '',
-      row.lastFreeDate ? formatDate(row.lastFreeDate) : '',
-      row.lastReturnDate ? formatDate(row.lastReturnDate) : '',
-      row.returnTime ? formatDate(row.returnTime) : '',
-      row.cargoDescription ?? '',
-      row.lastUpdated ? formatDate(row.lastUpdated) : '',
-    ]
-      .map(escape)
-      .join(',')
-  const csv = '\uFEFF' + headers.map(escape).join(',') + '\n' + rows.map(line).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-const handleExportCurrentPage = () => {
-  const list = filteredContainers.value
-  if (list.length === 0) {
-    ElMessage.warning('当前页无数据可导出')
-    return
-  }
-  exportToCsv(list, `货柜列表-当前页-${dayjs().format('YYYY-MM-DD-HHmm')}.csv`)
-  ElMessage.success('已导出当前页')
-}
-
-const handleExportAll = () => {
-  if (!activeFilter.value.type) {
-    ElMessage.info('「导出全部」仅在已使用统计卡片筛选时可用，当前已导出当前页')
-    handleExportCurrentPage()
-    return
-  }
-  const list = containers.value
-  if (list.length === 0) {
-    ElMessage.warning('当前条件下无数据可导出')
-    return
-  }
-  exportToCsv(list, `货柜列表-${activeFilter.value.type}-${dayjs().format('YYYY-MM-DD-HHmm')}.csv`)
-  ElMessage.success(`已导出全部 ${list.length} 条`)
-}
-
-// 多选与批量导出
-const tableRef = ref<InstanceType<typeof import('element-plus').ElTable>>()
-const selectedRows = ref<any[]>([])
-const handleSelectionChange = (rows: any[]) => {
-  selectedRows.value = rows
-}
-const handleBatchExport = () => {
-  if (selectedRows.value.length === 0) {
-    ElMessage.warning('请先勾选要导出的行')
-    return
-  }
-  exportToCsv(
-    selectedRows.value,
-    `货柜列表-已选${selectedRows.value.length}条-${dayjs().format('YYYY-MM-DD-HHmm')}.csv`
-  )
-  ElMessage.success(`已导出 ${selectedRows.value.length} 条`)
-}
-
 // 一键排产（智能排柜）
-const batchScheduleLoading = ref(false)
-const scheduleDialogVisible = ref(false)
-
 const handleBatchSchedule = () => {
   scheduleDialogVisible.value = true
 }
 
-// 执行直接排产
-const executeDirectSchedule = async () => {
-  scheduleDialogVisible.value = false
-  
-  // 操作指引对话框
-  const confirmed = await ElMessageBox.confirm(
-    h('div', { style: 'text-align: left; line-height: 1.8;' }, [
-      h('p', { style: 'margin-bottom: 12px; font-weight: bold;' }, '智能排产流程：'),
-      h('ol', { style: 'padding-left: 20px; margin: 0;' }, [
-        h('li', '查询所有"待排产"状态的货柜（schedule_status = initial）'),
-        h('li', '按清关可放行日排序（先到先得）'),
-        h('li', '为每个货柜匹配滞港费标准，计算最晚提柜日'),
-        h('li', '根据目的港选择候选仓库和车队'),
-        h('li', '计算计划提柜日、计划卸柜日、最晚还箱日'),
-        h('li', '更新货柜的排产状态和计划日期')
-      ]),
-      h('p', { style: 'margin-top: 12px; color: #909399; font-size: 13px;' },
-        '提示：处理"待排产"(initial)和"已排产"(issued)状态，"已派工"(dispatched)的货柜不可重复处理'
-      )
-    ]),
-    '一键排产',
-    {
-      confirmButtonText: '开始排产',
-      cancelButtonText: '取消',
-      type: 'warning',
-      dangerouslyUseHTMLString: true
-    }
-  ).catch(() => false)
+// 执行直接排产（包装函数）
+const handleExecuteDirectSchedule = async () => {
+  const success = await executeDirectSchedule(shipmentDateRange.value)
+  if (success) {
+    await loadContainers()
+  }
+}
 
-  if (!confirmed) return
-
-  batchScheduleLoading.value = true
-  try {
-    const result = await containerService.batchSchedule({
-      country: useAppStore().scopedCountryCode?.trim() || undefined,
-      startDate: shipmentDateRange.value?.[0] ? dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD') : undefined,
-      endDate: shipmentDateRange.value?.[1] ? dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD') : undefined
-    })
-
-    if (result.success) {
-      ElMessage.success(`排产完成：成功 ${result.successCount}/${result.total} 个`)
-      // 刷新列表
-      await loadContainers()
-    } else {
-      ElMessage.error(result.results?.[0]?.message || '排产失败')
-    }
-  } catch (error: any) {
-    ElMessage.error(error.message || '排产失败')
-  } finally {
-    batchScheduleLoading.value = false
+// 执行免费日更新（包装函数）
+const handleDemurrageWriteBackWrapper = async () => {
+  const success = await handleDemurrageWriteBack()
+  if (success) {
+    await loadContainers()
   }
 }
 
@@ -839,62 +411,6 @@ const goToSchedulingPage = () => {
       filterLabel
     }
   })
-}
-
-// 免费日更新
-const demurrageWriteBackLoading = ref(false)
-const handleDemurrageWriteBack = async () => {
-  const confirmed = await ElMessageBox.confirm(
-    h('div', { style: 'text-align: left; line-height: 2;' }, [
-      h('p', { style: 'margin-bottom: 16px; font-weight: bold; font-size: 15px;' }, '免费日计算逻辑'),
-      h('div', { style: 'background: #f5f7fa; padding: 12px; border-radius: 4px; margin-bottom: 16px;' }, [
-        h('p', { style: 'font-weight: bold; margin-bottom: 8px;' }, '① 最晚提柜日 (last_free_date)'),
-        h('p', { style: 'margin: 0; color: #606266;' }, '计算公式：基准日 + (免费天数 - 1)天'),
-        h('p', { style: 'margin: 8px 0 0 0; color: #909399; font-size: 13px;' }, '基准日优先级：修正ETA → ETA → ATA → 实际卸船日'),
-        h('p', { style: 'margin: 8px 0 0 0; color: #409eff; font-size: 13px;' }, '举例：ETA=2026-02-16，免费天数=7天（来自滞港费标准表）→ last_free_date=2026-02-22')
-      ]),
-      h('div', { style: 'background: #f5f7fa; padding: 12px; border-radius: 4px;' }, [
-        h('p', { style: 'font-weight: bold; margin-bottom: 8px;' }, '② 最晚还箱日 (last_return_date)'),
-        h('p', { style: 'margin: 0; color: #606266;' }, '计算公式：(实际提柜日 或 last_free_date) + 免费用箱天数'),
-        h('p', { style: 'margin: 8px 0 0 0; color: #909399; font-size: 13px;' }, '免费天数来自滞箱费标准表'),
-        h('p', { style: 'margin: 8px 0 0 0; color: #409eff; font-size: 13px;' }, '举例：last_free_date=2026-02-22，免费用箱天数=7天 → last_return_date=2026-03-01')
-      ]),
-      h('p', { style: 'margin-top: 16px; color: #909399; font-size: 13px;' },
-        '注：定时任务每24小时自动执行一次'
-      )
-    ]),
-    '免费日更新',
-    {
-      confirmButtonText: '开始更新',
-      cancelButtonText: '取消',
-      type: 'info',
-      dangerouslyUseHTMLString: true
-    }
-  ).catch(() => false)
-
-  if (!confirmed) return
-
-  demurrageWriteBackLoading.value = true
-  try {
-    const result = await containerService.batchWriteBackDemurrageDates({
-      limitLastFree: 500,
-      limitLastReturn: 500
-    })
-
-    if (result.success) {
-      ElMessage.success(
-        `计算完成：最晚提柜日 ${result.lastFreeWritten}/${result.lastFreeProcessed}，最晚还箱日 ${result.lastReturnWritten}/${result.lastReturnProcessed}`
-      )
-      // 刷新列表
-      await loadContainers()
-    } else {
-      ElMessage.error('计算失败')
-    }
-  } catch (error: any) {
-    ElMessage.error(error.message || '计算失败')
-  } finally {
-    demurrageWriteBackLoading.value = false
-  }
 }
 
 // 辅助函数：根据筛选条件确定时间维度
@@ -946,11 +462,11 @@ const goGanttChart = () => {
 onMounted(() => {
   // 从 localStorage 加载列顺序
   try {
-    const savedOrder = localStorage.getItem(STORAGE_KEY_COLUMN_ORDER)
+    const savedOrder = localStorage.getItem('shipments-table-column-order')
     if (savedOrder) {
       const parsed = JSON.parse(savedOrder)
       // 验证保存的顺序是否包含所有列
-      if (Array.isArray(parsed) && parsed.length === defaultColumnOrder.length) {
+      if (Array.isArray(parsed) && parsed.length === Object.keys(columnLabels).length) {
         columnOrder.value = parsed
       }
     }
@@ -1018,18 +534,18 @@ export default {
       <div class="search-bar">
         <el-input
           v-model="searchKeyword"
-          placeholder="搜索集装箱号、备货单号、提单号..."
+          :placeholder="t('common.search') + '集装箱号、备货单号、提单号...'"
           :prefix-icon="Search"
           style="width: 300px; margin-right: 15px"
           @keyup.enter="handleSearch"
         />
         <el-button type="primary" @click="handleSearch">
           <el-icon><Search /></el-icon>
-          搜索
+          {{ t('common.search') }}
         </el-button>
         <el-button @click="resetSearch">
           <el-icon><Refresh /></el-icon>
-          重置
+          {{ t('common.reset') }}
         </el-button>
 
         <!-- 共用的日期范围选择器 -->
@@ -1052,19 +568,19 @@ export default {
         >
           <el-button type="primary" plain>
             <el-icon><Download /></el-icon>
-            导出
+            {{ t('common.export') }}
             <el-icon class="el-icon--right"><ArrowDown /></el-icon>
           </el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="page">导出当前页</el-dropdown-item>
-              <el-dropdown-item command="all">导出全部（当前条件）</el-dropdown-item>
+              <el-dropdown-item command="page">{{ t('common.export') }}当前页</el-dropdown-item>
+              <el-dropdown-item command="all">{{ t('common.export') }}全部（当前条件）</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
         <el-button type="success" @click="reloadAllData">
           <el-icon><Refresh /></el-icon>
-          刷新数据
+          {{ t('common.refresh') }}数据
         </el-button>
       </div>
     </el-card>
@@ -1088,7 +604,7 @@ export default {
           :data="countdownByArrival"
           :tree-layout="true"
           @filter="handleCountdownFilter"
-          description="<strong>统计范围：</strong>已出运至已还箱的全部货柜（shipped / in_transit / at_port / picked_up / unloaded / returned_empty）<br/><strong>分组结构：</strong><br/>① 已到目的港：目的港有 ATA，子项按今日到港 / 之前未提柜 / 之前已提柜<br/>② 已到中转港：有中转港到港记录且目的港无 ATA，子项按目的港 ETA 细分<br/>③ 预计到港：目的港无 ATA，按目的港 ETA 与今天比较（已逾期、3 天内、7 天内、7 天后、其他）<br/><strong>业务用途：</strong>监控海运段到港进度，区分中转港与目的港，预警逾期；统计与点击列表同源"
+          description="<strong>统计范围：</strong>已出运至已还箱的全部货柜（shipped / in_transit / at_port / picked_up / unloaded / returned_empty）<br/><strong>分组结构：</strong><br/>① 已到目的港：目的港有 ATA，子项按今日到港 / 之前未提柜 / 之前已提柜<br/>② 已到中转港：有中转港到港记录且目的港无 ATA，子项按目的港 ETA 细分<br/>③ 预计到港：目的港无 ATA，按目的港 ETA 与今天比较（已逾期、3 天内、7 天内、7 天后、其他），主数=子项之和<br/>④ 到港数据缺失：目的港无 ATA 无 ETA 但状态显示已到港/已提柜等，需补全数据<br/><strong>业务用途：</strong>监控海运段到港进度，区分中转港与目的港，预警逾期；统计与点击列表同源"
         />
         <CountdownCard
           title="按提柜计划"
@@ -1122,25 +638,30 @@ export default {
           <el-radio-button value="default">默认</el-radio-button>
           <el-radio-button value="large">宽松</el-radio-button>
         </el-radio-group>
-        <span class="toolbar-label">物流状态：</span>
+        <span class="toolbar-label">{{ t('container.logisticsStatus') }}：</span>
         <el-select
           v-model="quickStatusFilter"
           multiple
           collapse-tags
           collapse-tags-tooltip
-          placeholder="全部"
+          :placeholder="t('common.all')"
           clearable
           size="small"
           style="width: 220px; margin-right: 12px"
         >
-          <el-option label="未出运" :value="SimplifiedStatus.NOT_SHIPPED" />
-          <el-option label="已出运" :value="SimplifiedStatus.SHIPPED" />
-          <el-option label="在途" :value="SimplifiedStatus.IN_TRANSIT" />
-          <el-option label="已到目的港" :value="SimplifiedStatus.AT_PORT" />
-          <el-option label="已提柜" :value="SimplifiedStatus.PICKED_UP" />
-          <el-option label="已卸柜" :value="SimplifiedStatus.UNLOADED" />
-          <el-option label="已还箱" :value="SimplifiedStatus.RETURNED_EMPTY" />
+          <el-option :label="t('container.status.notShipped')" :value="SimplifiedStatus.NOT_SHIPPED" />
+          <el-option :label="t('container.status.shipped')" :value="SimplifiedStatus.SHIPPED" />
+          <el-option :label="t('container.status.inTransit')" :value="SimplifiedStatus.IN_TRANSIT" />
+          <el-option :label="t('container.status.arrivedAtTransit')" :value="'arrived_at_transit'" />
+          <el-option :label="t('container.status.atPort')" :value="'arrived_at_destination'" />
+          <el-option :label="t('container.status.pickedUp')" :value="SimplifiedStatus.PICKED_UP" />
+          <el-option :label="t('container.status.unloaded')" :value="SimplifiedStatus.UNLOADED" />
+          <el-option :label="t('container.status.returnedEmpty')" :value="SimplifiedStatus.RETURNED_EMPTY" />
         </el-select>
+        <el-checkbox v-model="alertFilter" size="small" style="margin-right: 12px">
+          <el-icon><Warning /></el-icon>
+          预警数量 > 0
+        </el-checkbox>
         <el-button type="default" plain @click="columnSettingOpen = true">
           <el-icon><Setting /></el-icon>
           列设置
@@ -1152,7 +673,7 @@ export default {
           @click="handleBatchExport"
         >
           <el-icon><Download /></el-icon>
-          批量导出
+          批量{{ t('common.export') }}
         </el-button>
         <!-- 甘特图按钮 -->
         <el-button type="success" @click="goGanttChart()">
@@ -1172,7 +693,7 @@ export default {
           type="info"
           plain
           :loading="demurrageWriteBackLoading"
-          @click="handleDemurrageWriteBack"
+          @click="handleDemurrageWriteBackWrapper"
         >
           <el-icon><Calendar /></el-icon>
           免费日更新
@@ -1234,7 +755,7 @@ export default {
         </template>
         <template v-for="key in sortedVisibleColumnKeys" :key="key">
           <!-- 集装箱号 -->
-          <el-table-column v-if="key === 'containerNumber'" prop="containerNumber" label="集装箱号" width="140" fixed />
+          <el-table-column v-if="key === 'containerNumber'" prop="containerNumber" :label="t('container.containerNumber')" width="140" fixed />
 
           <!-- 出运日期 -->
           <el-table-column v-else-if="key === 'actualShipDate'" prop="actualShipDate" label="出运日期" width="120" sortable="custom">
@@ -1244,7 +765,7 @@ export default {
           </el-table-column>
 
           <!-- 备货单号 -->
-          <el-table-column v-else-if="key === 'orderNumber'" prop="orderNumber" label="备货单号" width="140" />
+          <el-table-column v-else-if="key === 'orderNumber'" prop="orderNumber" :label="t('container.orderNumber')" width="140" />
 
           <!-- 提单号 -->
           <el-table-column v-else-if="key === 'billOfLadingNumber'" prop="billOfLadingNumber" label="提单号" width="140" />
@@ -1260,7 +781,7 @@ export default {
           </el-table-column>
 
           <!-- 物流状态 -->
-          <el-table-column v-else-if="key === 'logisticsStatus'" prop="logisticsStatus" label="物流状态" width="120">
+          <el-table-column v-else-if="key === 'logisticsStatus'" prop="logisticsStatus" :label="t('container.logisticsStatus')" width="120">
             <template #default="{ row }">
               <el-tag :type="getStatusType(row.logisticsStatus)" size="small">
                 {{ getLogisticsStatusText(row) || '-' }}
@@ -1401,7 +922,7 @@ export default {
           </el-table-column>
 
           <!-- 货物描述 -->
-          <el-table-column v-else-if="key === 'cargoDescription'" prop="cargoDescription" label="货物描述" min-width="150" show-overflow-tooltip />
+          <el-table-column v-else-if="key === 'cargoDescription'" prop="cargoDescription" :label="t('container.cargoDescription')" min-width="150" show-overflow-tooltip />
 
           <!-- 最后更新 -->
           <el-table-column v-else-if="key === 'lastUpdated'" prop="lastUpdated" label="最后更新" width="160" sortable="custom">
@@ -1411,7 +932,7 @@ export default {
           </el-table-column>
 
           <!-- 操作 -->
-          <el-table-column v-else-if="key === 'actions'" label="操作" width="100" fixed="right" align="center">
+          <el-table-column v-else-if="key === 'actions'" :label="t('common.actions')" width="100" fixed="right" align="center">
             <template #default="{ row }">
               <el-button size="small" type="primary" circle @click="viewDetails(row)" title="查看">
                 <el-icon><View /></el-icon>
@@ -1442,7 +963,7 @@ export default {
             >
               <el-icon class="drag-handle"><ArrowDown /></el-icon>
               <el-checkbox v-model="columnVisible[key]" @mousedown.stop :label="key">
-                {{ columnLabels[key] }}
+                {{ columnLabels[key].includes('.') ? t(columnLabels[key]) : columnLabels[key] }}
               </el-checkbox>
             </div>
           </div>
@@ -1494,7 +1015,7 @@ export default {
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="scheduleDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="executeDirectSchedule">
+        <el-button type="primary" @click="handleExecuteDirectSchedule">
           <el-icon><Edit /></el-icon>
           直接开始排产
         </el-button>

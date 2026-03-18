@@ -16,7 +16,7 @@
     "declarationMap": true,
     "sourceMap": true,
     "incremental": true,
-    "types": ["node"],
+    "types": ["node", "jest"],
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
     "baseUrl": ".",
