@@ -338,6 +338,16 @@ export const calculateLogisticsStatus = (
     return { status, currentPortType, latestPortOperation };
   }
 
+  // 优先级4a: 目的港有可提货时间（飞驼状态码 PCAB/AVLE/AVAIL 触发）
+  // availableTime 表示货柜已到港并可提货，即使没有ATA也视为已到港
+  const destWithAvailable = destPorts.find(po => po.availableTime);
+  if (destWithAvailable) {
+    status = SimplifiedStatus.AT_PORT;
+    currentPortType = 'destination';
+    latestPortOperation = destWithAvailable;
+    return { status, currentPortType, latestPortOperation };
+  }
+
   // 优先级5: 中转港有到港/进闸（ata_dest_port、gate_in_time 或 transit_arrival_date）
   const transitWithArrival = transitPorts.find(po =>
     po.ataDestPort || po.gateInTime || (po as any).transitArrivalDate

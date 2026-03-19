@@ -34,6 +34,9 @@ export class ContainerStatusEvent {
   @Column({ type: 'varchar', length: 200, nullable: true, name: 'location' })
   location: string;
 
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'terminal_name' })
+  terminalName: string; // 码头名称
+
   @Column({ type: 'text', nullable: true, name: 'description' })
   description: string;
 

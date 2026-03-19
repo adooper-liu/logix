@@ -118,6 +118,97 @@ export default {
       '20FR': '20英尺框架柜',
       '40FR': '40英尺框架柜',
     },
+    // 货柜详情
+    detail: {
+      title: '货柜详情',
+      editSchedule: '编辑计划',
+      exportDetail: '导出详情',
+      basicInfo: '基本信息',
+      keyDates: '关键日期',
+      logisticsPath: '物流路径',
+      containerInfo: '货柜信息',
+      seaFreight: '海运信息',
+      portOperations: '港口操作',
+      truckingTransport: '拖卡运输',
+      warehouseOperations: '仓库操作',
+      emptyReturn: '还空箱',
+      demurrage: '滞港费',
+      changeLog: '变更日志',
+      inspection: '查验记录',
+      alert: '预警',
+      timePrediction: '时间预测',
+      risk: '风险评估',
+      previousContainer: '上一个货柜',
+      nextContainer: '下一个货柜',
+      refresh: '刷新',
+      noContainerNumber: '缺少集装箱号，请从列表进入',
+      containerNotFound: '货柜不存在',
+      failedToLoad: '获取货柜详情失败',
+      alreadyFirst: '已经是第一个货柜',
+      alreadyLast: '已经是最后一个货柜',
+    },
+    // 物流路径
+    logisticsPath: {
+      loading: '加载物流路径中...',
+      viewModes: {
+        grouped: '阶段分组',
+        map: '地图'
+      },
+      durationExplanation: '历时/超期说明',
+      refresh: '刷新',
+      overdueAlert: {
+        title: '超期预警'
+      },
+      validation: {
+        passed: '✅ 路径验证通过',
+        failed: '❌ 路径验证失败',
+        errors: '错误',
+        warnings: '警告',
+        checks: '路径验证检查',
+        passedDescription: '各节点状态流转符合物流逻辑（如 装船→离港→航行→抵港→卸船→提柜→还箱）',
+        failedDescription: '存在非法流转（如 装船 直接跳到 还箱，中间缺少抵港、卸船等）',
+        purpose: '用于发现飞驼/Excel 等外部数据中的异常或缺失节点。'
+      },
+      noNodes: '暂无路径节点数据',
+      nodesCount: '个节点',
+      noPortCoordinates: '暂无港口坐标数据（需 location.code 匹配 dict_ports）',
+      sameBillOfLading: {
+        title: '同提单货柜对比',
+        currentContainer: '当前货柜: {containerNumber}。提单号: {billOfLadingNumber}。',
+        loadButton: '加载同提单货柜',
+        columns: {
+          containerNumber: '集装箱号',
+          logisticsStatus: '物流状态',
+          actualShipDate: '出运日期',
+          etaDestPort: '预计到港',
+          ataDestPort: '实际到港',
+          location: '当前位置'
+        },
+        emptyState: '点击「加载同提单货柜」按钮查看同提单的其他货柜',
+        errors: {
+          loadFailed: '加载同提单货柜失败'
+        }
+      },
+      nodeDetail: {
+        title: '节点详情',
+        status: '状态',
+        time: '时间',
+        location: '地点',
+        statusCode: '状态码',
+        nodeStatus: '节点状态',
+        alert: '异常',
+        dataSource: '数据来源',
+        rawData: '原始数据',
+        yes: '是',
+        no: '否'
+      },
+      noPathData: '暂无物流路径数据',
+      errors: {
+        loadFailed: '获取物流路径失败',
+        requestFailed: '请求失败',
+        serviceUnavailable: '物流路径微服务不可用，请确认已启动 logistics-path-system（端口 4000）'
+      }
+    },
   },
 
   // ========== 备货单相关 ==========

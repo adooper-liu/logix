@@ -15,6 +15,7 @@ import { log } from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
 import { apiRateLimit } from './middleware/rateLimit.middleware.js';
 import { scopedCountryMiddleware } from './middleware/scopedCountry.middleware.js';
+import { dateTimeMiddleware, dateTimeResponseMiddleware } from './middleware/dateTime.middleware.js';
 import routes from './routes/index.js';
 import monitoringRoutes from './routes/monitoring.routes.js';
 
@@ -66,6 +67,10 @@ app.use(compression());
 // 解析请求体（飞驼 Excel 大批量导入，放宽至 500MB；超大文件建议分批导入）
 app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ extended: true, limit: '500mb' }));
+
+// 日期时间规格机：统一请求/响应中的日期格式（ISO 8601）
+app.use(dateTimeMiddleware);
+app.use(dateTimeResponseMiddleware);
 
 // 日志中间件
 if (config.nodeEnv !== 'test') {

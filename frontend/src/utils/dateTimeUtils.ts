@@ -1,7 +1,64 @@
 /**
  * 日期时间处理工具
  * 统一服务端与前端的日期时间处理逻辑，避免时区问题
+ *
+ * 日期时间规格机：提供 UTC 与本地时区转换
+ * @see public/docs-temp/日期时间规格机实施方案.md
  */
+
+import dayjs from 'dayjs'
+import utc from 'dayjs/plugin/utc'
+import timezone from 'dayjs/plugin/timezone'
+
+dayjs.extend(utc)
+dayjs.extend(timezone)
+
+/**
+ * 日期时间规格机 - 前端核心类
+ * API 接收 UTC，展示时转换为用户本地时区
+ */
+export class DateTimeUtils {
+  /** 默认显示格式 */
+  static readonly DEFAULT_FORMAT = 'YYYY-MM-DD HH:mm:ss'
+
+  /** ISO 8601 格式 */
+  static readonly ISO_FORMAT = 'YYYY-MM-DDTHH:mm:ssZ'
+
+  /**
+   * 转换为 UTC 时间
+   */
+  static toUTC(date: Date | string): Date {
+    return dayjs(date).utc().toDate()
+  }
+
+  /**
+   * 转换为本地时间
+   */
+  static toLocal(utcDate: Date | string): Date {
+    return dayjs(utcDate).local().toDate()
+  }
+
+  /**
+   * 格式化日期时间（本地时区显示）
+   */
+  static format(date: Date | string, format: string = DateTimeUtils.DEFAULT_FORMAT): string {
+    return dayjs(date).local().format(format)
+  }
+
+  /**
+   * 解析日期时间字符串
+   */
+  static parse(dateString: string): Date {
+    return dayjs(dateString).toDate()
+  }
+
+  /**
+   * 获取当前时间（UTC）
+   */
+  static now(): Date {
+    return dayjs().utc().toDate()
+  }
+}
 
 /**
  * 解析日期时间字符串为本地日期对象，避免时区转换问题
@@ -163,6 +220,7 @@ export const isDateInRange = (date: Date | string, start: Date | string, end: Da
 }
 
 export default {
+  DateTimeUtils,
   parseLocalDate,
   formatDateToLocal,
   parseExcelDate,

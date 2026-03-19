@@ -13,6 +13,8 @@ const emit = defineEmits<{
   refresh: []
   navigateToPrevious: []
   navigateToNext: []
+  editSchedule: []
+  exportDetail: []
 }>()
 
 const router = useRouter()
@@ -58,6 +60,12 @@ const handleNavigateToNext = () => {
       </div>
     </div>
     <div class="header-right">
+      <el-button type="primary" @click="emit('editSchedule')">
+        编辑计划
+      </el-button>
+      <el-button type="success" @click="emit('exportDetail')">
+        导出详情
+      </el-button>
       <el-button 
         @click="handleNavigateToPrevious" 
         :disabled="currentContainerIndex === 0"
@@ -104,6 +112,13 @@ const handleNavigateToNext = () => {
 
 .header-info {
   min-width: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: $spacing-sm;
+  flex-wrap: wrap;
 }
 
 .breadcrumb {

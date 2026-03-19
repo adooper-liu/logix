@@ -235,7 +235,7 @@ interface ApifoxModel {
 | gate_in_time | 重箱进场时间 / 实际装船时间 | result.receipt.ata / places[].ata | ✅ 完整 |
 | gate_out_time | 实际提箱日期 / 出场时间 | result.containers[].status[].eventTime (STCS) | ✅ 完整 |
 | dest_port_unload_date | 目的港卸船/火车日期 | result.containers[].status[].eventTime (DSCH) | ✅ 完整 |
-| available_time | 可提箱日期 | result.containers[].status[].eventTime (PCAB) | ✅ 完整 |
+| available_time | 可提箱日期 | result.containers[].status[].eventTime (AVAIL/PCAB/AVLE) | ✅ 完整 |
 | last_free_date | 免费提箱截止日 | result.containers[].status[].eventTime (PLFD) | ✅ 完整 |
 | customs_status | HOLD状态 | result.containers[].status[].eventCode (PASS/HOLD) | ✅ 完整 |
 | gate_in_terminal | 码头名称 | places[].terminalName | ✅ 完整 |

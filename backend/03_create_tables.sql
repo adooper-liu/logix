@@ -210,7 +210,8 @@ CREATE INDEX idx_warehouses_company ON dict_warehouses(company_code);
 -- 娴佺▼琛?(Process Tables)
 -- ============================================================
 
--- 14. 娴疯繍淇℃伅琛?(process_sea_freight) - 鎻愬墠鍒涘缓锛屽洜涓篵iz_containers闇€瑕佸紩鐢ㄥ畠
+-- 14. 海运信息表 (process_sea_freight) - 提前创建，因为 biz_containers 需要引用它
+-- 字段类型统一为 TIMESTAMPTZ（支持时区），新增 revised_eta_dest_port
 CREATE TABLE IF NOT EXISTS process_sea_freight (
     bill_of_lading_number VARCHAR(50) PRIMARY KEY,
     booking_number VARCHAR(50),
@@ -220,10 +221,13 @@ CREATE TABLE IF NOT EXISTS process_sea_freight (
     freight_forwarder_id VARCHAR(50),
     vessel_name VARCHAR(100),
     voyage_number VARCHAR(50),
-    eta DATE,
-    etd DATE,
-    ata DATE,
-    atd DATE,
+    -- 目的港 ETA/ATA（TIMESTAMPTZ 支持时区）
+    eta TIMESTAMPTZ,
+    etd TIMESTAMPTZ,
+    ata TIMESTAMPTZ,
+    atd TIMESTAMPTZ,
+    -- 修正 ETA（滞港费用，优先级高于 eta）
+    revised_eta_dest_port TIMESTAMPTZ,
     customs_clearance_date DATE,
     mbl_scac VARCHAR(20),
     mbl_number VARCHAR(50),
@@ -234,8 +238,14 @@ CREATE TABLE IF NOT EXISTS process_sea_freight (
     transport_mode VARCHAR(20),
     mother_vessel_name VARCHAR(100),
     mother_voyage_number VARCHAR(50),
-    shipment_date DATE,
-    mother_shipment_date DATE,
+    -- 接货地/起运港时间
+    shipment_date TIMESTAMPTZ, -- 接货地实际离开时间
+    actual_loading_date TIMESTAMPTZ, -- 实际装船时间
+    eta_origin TIMESTAMPTZ,
+    ata_origin TIMESTAMPTZ,
+    port_open_date TIMESTAMPTZ,
+    port_close_date TIMESTAMPTZ,
+    mother_shipment_date TIMESTAMPTZ,
     document_release_date DATE,
     port_entry_date DATE,
     rail_yard_entry_date DATE,
@@ -246,10 +256,6 @@ CREATE TABLE IF NOT EXISTS process_sea_freight (
     imo_number VARCHAR(20),
     mmsi_number VARCHAR(20),
     flag VARCHAR(50),
-    eta_origin DATE,
-    ata_origin DATE,
-    port_open_date DATE,
-    port_close_date DATE,
     remarks TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -402,7 +408,8 @@ CREATE INDEX idx_container_skus_sku ON biz_container_skus(sku_code);
 -- 娴佺▼琛?(Process Tables)
 -- ============================================================
 
--- 15. 娓彛鎿嶄綔琛?(process_port_operations)
+-- 15. 港口操作表 (process_port_operations)
+-- 字段命名统一：eta_dest_port→eta, ata_dest_port→ata, etd_transit→etd, atd_transit→atd
 CREATE TABLE IF NOT EXISTS process_port_operations (
     id VARCHAR(50) PRIMARY KEY,
     container_number VARCHAR(50),
@@ -410,35 +417,44 @@ CREATE TABLE IF NOT EXISTS process_port_operations (
     port_code VARCHAR(50),
     port_name VARCHAR(100),
     port_sequence INT,
-    eta_dest_port TIMESTAMP,
-    ata_dest_port TIMESTAMP,
-    etd_transit DATE,
-    atd_transit DATE,
-    gate_in_time TIMESTAMP,
-    gate_out_time TIMESTAMP,
-    discharged_time TIMESTAMP,
-    available_time TIMESTAMP,
+    -- 目的港 ETA/ATA（统一命名）
+    eta TIMESTAMPTZ,
+    ata TIMESTAMPTZ,
+    -- 修正 ETA（滞港费用，优先级高于 eta）
+    revised_eta TIMESTAMPTZ,
+    eta_correction TIMESTAMPTZ,
+    -- 卸船时间
+    discharged_time TIMESTAMPTZ,
+    dest_port_unload_date TIMESTAMPTZ,
+    -- 中转港 ETD/ATD（统一命名）
+    etd TIMESTAMPTZ,
+    atd TIMESTAMPTZ,
+    -- 中转港到港时间
+    transit_arrival_date TIMESTAMPTZ,
+    -- 其他时间字段
+    gate_in_time TIMESTAMPTZ,
+    gate_out_time TIMESTAMPTZ,
+    available_time TIMESTAMPTZ,
     customs_status VARCHAR(20),
     isf_status VARCHAR(20),
+    -- 最后免费日（滞港费按日计算）
     last_free_date DATE,
     last_free_date_mode VARCHAR(20),
     gate_in_terminal VARCHAR(50),
     gate_out_terminal VARCHAR(50),
     berth_position VARCHAR(50),
-    eta_correction TIMESTAMP,
-    dest_port_unload_date TIMESTAMP,
-    transit_arrival_date TIMESTAMP,
-    planned_customs_date TIMESTAMP,
+    planned_customs_date TIMESTAMPTZ,
     actual_customs_date DATE,
     customs_broker_code VARCHAR(50),
     document_status VARCHAR(20),
     all_generated_date DATE,
     customs_remarks TEXT,
-    isf_declaration_date TIMESTAMP,
-    document_transfer_date TIMESTAMP,
+    isf_declaration_date TIMESTAMPTZ,
+    document_transfer_date TIMESTAMPTZ,
     free_storage_days INT,
     free_detention_days INT,
     free_off_terminal_days INT,
+    -- 飞驼专用字段
     status_code VARCHAR(20),
     status_occurred_at TIMESTAMP,
     has_occurred BOOLEAN,

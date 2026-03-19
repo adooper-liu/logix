@@ -196,12 +196,50 @@ const parseExcel = async () => {
       ElMessage.warning('Excel 至少需要表头与一行数据')
       return
     }
-    const headers = (data[0] as unknown[])?.map(h => String(h || '').trim()).filter(Boolean) as string[]
+
+    // 检测模板格式：
+    // 表一：4行头部（标题+说明+分组+字段名）
+    // 表二：3行头部（标题+说明+字段名，无分组行）
+    let headers: string[]
+    let dataStartIndex: number
+
+    // 检查第3行是否是分组名
+    const row3 = (data[2] as unknown[])?.map(h => String(h || '').trim())
+    const row4 = (data[3] as unknown[])?.map(h => String(h || '').trim())
+    const row2 = (data[1] as unknown[])?.map(h => String(h || '').trim())
+
+    // 飞驼表一分组关键字
+    const table1GroupKeywords = ['基本信息', '船公司信息', '订舱信息', '接货地信息', '交货地信息', '头程船信息', '当前状态信息', '港区船舶计划', '发生地信息', '路径信息', '集装箱物流信息', '船舶信息']
+    // 飞驼表二关键字（无分组行）
+    const table2FieldKeywords = ['提单号', '集装箱号', '港口代码', '码头代码', '箱状态', '箱型箱尺寸']
+
+    // 判断是表一还是表二格式
+    const hasTable1Group = row3?.some(h => table1GroupKeywords.includes(h))
+    const hasTable2Fields = row3?.some(h => table2FieldKeywords.includes(h))
+
+    if (hasTable1Group && row4?.some(h => h)) {
+      // 表一格式：第4行是字段名
+      headers = row4.filter(Boolean)
+      dataStartIndex = 4  // 从第5行开始读取数据
+    } else if (hasTable2Fields && !hasTable1Group) {
+      // 表二格式：第3行是字段名（无分组行）
+      headers = row3.filter(Boolean)
+      dataStartIndex = 3  // 从第4行开始读取数据
+    } else {
+      // 标准格式：第1行是字段名
+      headers = (data[0] as unknown[])?.map(h => String(h || '').trim()).filter(Boolean) as string[]
+      dataStartIndex = 1
+    }
+
     excelTableType.value = detectTableType(headers)
     const rows: Record<string, unknown>[] = []
     const rawRows: unknown[][] = []
-    for (let i = 1; i < data.length; i++) {
+    for (let i = dataStartIndex; i < data.length; i++) {
       const row = data[i] as unknown[]
+      // 跳过空行
+      if (!row || row.every(v => v === undefined || v === null || v === '')) {
+        continue
+      }
       const obj: Record<string, unknown> = {}
       headers.forEach((h, j) => {
         const v = row[j]

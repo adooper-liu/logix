@@ -228,15 +228,109 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
     };
   }
 
+  /**
+   * 获取货柜 HOLD 记录
+   * 从飞驼状态事件中提取滞留/放行信息
+   *
+   * HOLD 类型映射:
+   * - CUIP (海关滞留) -> CUSTOMS
+   * - SRHD (船公司滞留) -> CARRIER
+   * - TMHD (码头滞留) -> TERMINAL
+   * - PASS (海关放行) -> 释放
+   * - TMPS (码头放行) -> 释放
+   */
   async getContainerHoldRecords(
-    _containerNumber: string
+    containerNumber: string
   ): Promise<AdapterResponse<ContainerHoldData[]>> {
-    return {
-      success: false,
-      error: '飞驼适配器暂未实现 HOLD 记录接口',
-      source: this.sourceType,
-      timestamp: new Date(),
-    };
+    try {
+      // 获取状态事件
+      const statusResult = await this.getContainerStatusEvents(containerNumber);
+      if (!statusResult.success || !statusResult.data) {
+        return {
+          success: false,
+          error: statusResult.error || '获取状态事件失败',
+          source: this.sourceType,
+          timestamp: new Date(),
+        };
+      }
+
+      const holds: ContainerHoldData[] = [];
+      const events = statusResult.data;
+
+      // HOLD 状态码映射
+      const HOLD_STATUS_CODES: Record<string, { holdType: string; isHold: boolean }> = {
+        CUIP: { holdType: 'CUSTOMS', isHold: true },   // 海关滞留
+        SRHD: { holdType: 'CARRIER', isHold: true },  // 船公司滞留
+        TMHD: { holdType: 'TERMINAL', isHold: true }, // 码头滞留
+        PASS: { holdType: 'CUSTOMS', isHold: false }, // 海关放行
+        TMPS: { holdType: 'TERMINAL', isHold: false }, // 码头放行
+        SRRL: { holdType: 'CARRIER', isHold: false }, // 船公司放行
+      };
+
+      // 按时间排序事件
+      const sortedEvents = [...events].sort(
+        (a, b) => (a.occurredAt?.getTime() || 0) - (b.occurredAt?.getTime() || 0)
+      );
+
+      // 跟踪每个类型的 HOLD 状态
+      const activeHolds: Map<string, ContainerHoldData> = new Map();
+
+      for (const event of sortedEvents) {
+        const mapping = HOLD_STATUS_CODES[event.statusCode];
+        if (!mapping) continue;
+
+        const key = mapping.holdType;
+
+        if (mapping.isHold) {
+          // 创建新的 HOLD 记录
+          const hold: ContainerHoldData = {
+            holdType: mapping.holdType,
+            holdReason: event.statusNameCn || event.statusNameEn || getHoldReason(event.statusCode),
+            holdDate: event.occurredAt || new Date(),
+          };
+          activeHolds.set(key, hold);
+        } else {
+          // 放行事件，找到对应的 HOLD 并更新释放信息
+          const activeHold = activeHolds.get(key);
+          if (activeHold) {
+            activeHold.releaseDate = event.occurredAt;
+            activeHold.releaseReason = event.statusNameCn || event.statusNameEn;
+            holds.push(activeHold);
+            activeHolds.delete(key);
+          } else {
+            // 没有对应的滞留记录，创建一条释放记录
+            holds.push({
+              holdType: mapping.holdType,
+              holdReason: '',
+              holdDate: new Date(0), // 未知滞留日期
+              releaseDate: event.occurredAt,
+              releaseReason: event.statusNameCn || event.statusNameEn,
+            });
+          }
+        }
+      }
+
+      // 添加仍未释放的 HOLD 记录
+      for (const [, hold] of activeHolds) {
+        holds.push(hold);
+      }
+
+      return {
+        success: true,
+        data: holds,
+        source: this.sourceType,
+        timestamp: new Date(),
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      log.error(`[FeiTuoAdapter] 获取 HOLD 记录失败: ${containerNumber}`, { error: msg });
+      return {
+        success: false,
+        error: msg,
+        source: this.sourceType,
+        timestamp: new Date(),
+      };
+    }
   }
 
   async getContainerCharges(
@@ -270,6 +364,18 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
       timestamp: new Date(),
     };
   }
+}
+
+/**
+ * 根据状态码获取滞留原因描述
+ */
+function getHoldReason(statusCode: string): string {
+  const reasons: Record<string, string> = {
+    CUIP: '海关滞留 - 待清关检查',
+    SRHD: '船公司滞留 - 待支付费用或文件',
+    TMHD: '码头滞留 - 待支付码头费用',
+  };
+  return reasons[statusCode] || '未知原因';
 }
 
 export const feituoAdapter = new FeiTuoAdapter();

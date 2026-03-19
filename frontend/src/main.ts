@@ -18,6 +18,7 @@ import './assets/styles/global.scss'
 // 性能优化工具
 import { registerLazyDirective } from './utils/lazyLoader'
 import { performanceMonitorPlugin } from './utils/performanceMonitor'
+import dateTimePlugin from './plugins/dateTime'
 
 // 环境变量
 const enablePerformanceMonitor = import.meta.env.VITE_ENABLE_PERFORMANCE_MONITOR === 'true'
@@ -108,6 +109,7 @@ iconWhitelist.forEach((key) => {
 app.use(createPinia())
 app.use(router)
 app.use(i18n)
+app.use(dateTimePlugin)
 app.use(ElementPlus, {
   locale: zhCn
 })

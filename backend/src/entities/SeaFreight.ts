@@ -39,17 +39,22 @@ export class SeaFreight {
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'freight_forwarder_id' })
   freightForwarderId: string;
 
-  @Column({ type: 'date', nullable: true, name: 'eta' })
+  // 目的港 ETA/ATA（TIMESTAMPTZ 支持时区）
+  @Column({ type: 'timestamptz', nullable: true, name: 'eta' })
   eta: Date;
 
-  @Column({ type: 'date', nullable: true, name: 'etd' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'etd' })
   etd: Date;
 
-  @Column({ type: 'date', nullable: true, name: 'ata' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'ata' })
   ata: Date;
 
-  @Column({ type: 'date', nullable: true, name: 'atd' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'atd' })
   atd: Date;
+
+  // 修正 ETA（滞港费用，优先级高于 eta）
+  @Column({ type: 'timestamptz', nullable: true, name: 'revised_eta_dest_port' })
+  revisedEtaDestPort: Date;
 
   @Column({ type: 'date', nullable: true, name: 'customs_clearance_date' })
   customsClearanceDate: Date;
@@ -84,11 +89,26 @@ export class SeaFreight {
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'mother_voyage_number' })
   motherVoyageNumber?: string; // 母船航次
 
-  // 时间信息
-  @Column({ type: 'date', nullable: true, name: 'shipment_date' })
-  shipmentDate?: Date; // 出运日期
+  // 接货地/起运港时间
+  @Column({ type: 'timestamptz', nullable: true, name: 'shipment_date' })
+  shipmentDate?: Date; // 出运日期（接货地实际离开时间）
 
-  @Column({ type: 'date', nullable: true, name: 'mother_shipment_date' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'actual_loading_date' })
+  actualLoadingDate?: Date; // 实际装船时间
+
+  @Column({ type: 'timestamptz', nullable: true, name: 'eta_origin' })
+  etaOrigin?: Date; // 起运港ETA
+
+  @Column({ type: 'timestamptz', nullable: true, name: 'ata_origin' })
+  ataOrigin?: Date; // 起运港ATA
+
+  @Column({ type: 'timestamptz', nullable: true, name: 'port_open_date' })
+  portOpenDate?: Date; // 开港时间
+
+  @Column({ type: 'timestamptz', nullable: true, name: 'port_close_date' })
+  portCloseDate?: Date; // 截港时间
+
+  @Column({ type: 'timestamptz', nullable: true, name: 'mother_shipment_date' })
   motherShipmentDate?: Date; // 母船出运日期
 
   @Column({ type: 'date', nullable: true, name: 'document_release_date' })
@@ -122,18 +142,6 @@ export class SeaFreight {
 
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'flag' })
   flag?: string; // 船籍
-
-  @Column({ type: 'date', nullable: true, name: 'eta_origin' })
-  etaOrigin?: Date; // 起运港ETA
-
-  @Column({ type: 'date', nullable: true, name: 'ata_origin' })
-  ataOrigin?: Date; // 起运港ATA
-
-  @Column({ type: 'date', nullable: true, name: 'port_open_date' })
-  portOpenDate?: Date; // 开港时间
-
-  @Column({ type: 'date', nullable: true, name: 'port_close_date' })
-  portCloseDate?: Date; // 截港时间
 
   @Column({ type: 'text', nullable: true, name: 'remarks' })
   remarks: string;

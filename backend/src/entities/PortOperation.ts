@@ -34,20 +34,37 @@ export class PortOperation {
   @Column({ type: 'int', nullable: true, name: 'port_sequence' })
   portSequence: number;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'eta_dest_port' })
-  etaDestPort: Date;
+  // 目的港 ETA/ATA（统一命名）
+  @Column({ type: 'timestamptz', nullable: true, name: 'eta' })
+  eta: Date;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'revised_eta_dest_port' })
-  revisedEtaDestPort: Date; // 修正ETA（船公司更新的预计到港日）
+  @Column({ type: 'timestamptz', nullable: true, name: 'ata' })
+  ata: Date;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'ata_dest_port' })
-  ataDestPort: Date;
+  // 修正 ETA（滞港费用，优先级高于 eta）
+  @Column({ type: 'timestamptz', nullable: true, name: 'revised_eta' })
+  revisedEta: Date;
 
-  @Column({ type: 'date', nullable: true, name: 'etd_transit' })
-  etdTransit: Date;
+  @Column({ type: 'timestamptz', nullable: true, name: 'eta_correction' })
+  etaCorrection: Date;
 
-  @Column({ type: 'date', nullable: true, name: 'atd_transit' })
-  atdTransit: Date;
+  // 卸船时间
+  @Column({ type: 'timestamptz', nullable: true, name: 'discharged_time' })
+  dischargedTime: Date;
+
+  @Column({ type: 'timestamptz', nullable: true, name: 'dest_port_unload_date' })
+  destPortUnloadDate: Date;
+
+  // 中转港 ETD/ATD（统一命名）
+  @Column({ type: 'timestamptz', nullable: true, name: 'etd' })
+  etd: Date;
+
+  @Column({ type: 'timestamptz', nullable: true, name: 'atd' })
+  atd: Date;
+
+  // 中转港到港时间
+  @Column({ type: 'timestamptz', nullable: true, name: 'transit_arrival_date' })
+  transitArrivalDate: Date;
 
   @Column({ type: 'timestamp', nullable: true, name: 'gate_in_time' })
   gateInTime: Date;
@@ -82,17 +99,7 @@ export class PortOperation {
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'berth_position' })
   berthPosition: string;
 
-  // Excel映射字段 - 缺失字段
-  @Column({ type: 'timestamp', nullable: true, name: 'eta_correction' })
-  etaCorrection?: Date; // ETA修正
-
-  @Column({ type: 'timestamp', nullable: true, name: 'dest_port_unload_date' })
-  destPortUnloadDate?: Date; // 目的港卸船/火车日期
-
-  @Column({ type: 'timestamp', nullable: true, name: 'transit_arrival_date' })
-  transitArrivalDate?: Date; // 途经港到达日期
-
-  @Column({ type: 'timestamp', nullable: true, name: 'planned_customs_date' })
+  @Column({ type: 'timestamptz', nullable: true, name: 'planned_customs_date' })
   plannedCustomsDate?: Date; // 计划清关日期
 
   @Column({ type: 'date', nullable: true, name: 'actual_customs_date' })
@@ -115,6 +122,38 @@ export class PortOperation {
 
   @Column({ type: 'timestamp', nullable: true, name: 'document_transfer_date' })
   documentTransferDate?: Date; // 传递日期
+
+  // 飞驼新增字段 - 中国港区/海关时间节点
+  @Column({ type: 'timestamp', nullable: true, name: 'manifest_release_date' })
+  manifestReleaseDate?: Date; // 原始舱单放行日期
+
+  @Column({ type: 'timestamp', nullable: true, name: 'document_cutoff_date' })
+  documentCutoffDate?: Date; // 截单时间
+
+  @Column({ type: 'timestamp', nullable: true, name: 'customs_cutoff_date' })
+  customsCutoffDate?: Date; // 截关时间
+
+  // 滞留/放行日期 - 飞驼状态码映射
+  @Column({ type: 'timestamp', nullable: true, name: 'customs_hold_date' })
+  customsHoldDate?: Date; // 海关滞留日期 (CUIP)
+
+  @Column({ type: 'timestamp', nullable: true, name: 'carrier_hold_date' })
+  carrierHoldDate?: Date; // 船公司滞留日期 (SRHD)
+
+  @Column({ type: 'timestamp', nullable: true, name: 'terminal_hold_date' })
+  terminalHoldDate?: Date; // 码头滞留日期 (TMHD)
+
+  @Column({ type: 'timestamp', nullable: true, name: 'customs_release_date' })
+  customsReleaseDate?: Date; // 海关放行日期 (PASS)
+
+  @Column({ type: 'timestamp', nullable: true, name: 'terminal_release_date' })
+  terminalReleaseDate?: Date; // 码头放行日期 (TMPS)
+
+  @Column({ type: 'date', nullable: true, name: 'port_open_date' })
+  portOpenDate?: Date; // 开港日期（中国港区）
+
+  @Column({ type: 'date', nullable: true, name: 'port_close_date' })
+  portCloseDate?: Date; // 截港日期（中国港区）
 
   // 免费期信息 - Excel映射字段
   @Column({ type: 'int', nullable: true, name: 'free_storage_days' })

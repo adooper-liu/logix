@@ -11,8 +11,13 @@ import { Container } from '../entities/Container';
 import { SeaFreight } from '../entities/SeaFreight';
 import { TruckingTransport } from '../entities/TruckingTransport';
 import { EmptyReturn } from '../entities/EmptyReturn';
+import { WarehouseOperation } from '../entities/WarehouseOperation';
+import { InspectionRecord } from '../entities/InspectionRecord';
+import { InspectionEvent } from '../entities/InspectionEvent';
 import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
 import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
+import { ExtFeituoPlace } from '../entities/ExtFeituoPlace';
+import { ExtFeituoStatusEvent } from '../entities/ExtFeituoStatusEvent';
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { logger } from '../utils/logger';
 import {
@@ -102,6 +107,12 @@ export class ExternalDataService {
   // 数据仓库
   private portOperationRepository = AppDataSource.getRepository(PortOperation);
   private containerRepository = AppDataSource.getRepository(Container);
+  private seaFreightRepository = AppDataSource.getRepository(SeaFreight);
+  private truckingTransportRepository = AppDataSource.getRepository(TruckingTransport);
+  private warehouseOperationRepository = AppDataSource.getRepository(WarehouseOperation);
+  private emptyReturnRepository = AppDataSource.getRepository(EmptyReturn);
+  private inspectionRecordRepository = AppDataSource.getRepository(InspectionRecord);
+  private inspectionEventRepository = AppDataSource.getRepository(InspectionEvent);
   private demurrageService = new DemurrageService(
     AppDataSource.getRepository(ExtDemurrageStandard),
     AppDataSource.getRepository(Container),
@@ -369,6 +380,15 @@ export class ExternalDataService {
       if (feituoData.places && feituoData.places.length > 0) {
         logger.info(`[ExternalDataService] 检测到 places 数据，优先处理 ${feituoData.places.length} 个地点`);
         
+        // 【新增】先保存 places 原始数据到 ext_feituo_places
+        const syncRequestId = `API_${containerNumber}_${Date.now()}`;
+        await this.savePlacesRawData(
+          containerNumber,
+          feituoData.billNo,
+          feituoData.places,
+          syncRequestId
+        );
+        
         // 动态导入 places 处理器（避免循环依赖）
         const { feituoPlacesProcessor } = await import('./feituoPlaces.processor');
         
@@ -409,6 +429,20 @@ export class ExternalDataService {
         // 转换为状态事件
         const events = this.convertFeituoToStatusEvents(feituoData, dataSource);
 
+        // 【监控】检测非标准可提货状态码
+        const nonStandardCodes = events.filter(e => e.statusCode === 'AVLE' || e.statusCode === 'AVAIL');
+        if (nonStandardCodes.length > 0) {
+          logger.warn(`[ExternalDataService] 检测到非标准可提货状态码`, {
+            containerNumber,
+            nonStandardEvents: nonStandardCodes.map(e => ({
+              statusCode: e.statusCode,
+              occurredAt: e.occurredAt,
+              location: e.locationNameEn
+            })),
+            message: 'PCAB是飞驼官方标准码，AVLE/AVAIL为兼容码'
+          });
+        }
+
         // 保存到数据库
         savedEvents = await this.saveStatusEvents(events);
 
@@ -418,6 +452,9 @@ export class ExternalDataService {
           feituoData.trackingEvents
         );
       }
+
+      // 更新特殊核心字段（return_time、shipment_date）
+      await this.updateSpecialCoreFields(containerNumber, feituoData.trackingEvents || []);
 
       // 关键: 重新计算货柜的物流状态
       await this.recalculateLogisticsStatus(containerNumber);
@@ -429,12 +466,134 @@ export class ExternalDataService {
         );
       }
 
+      // 根据飞驼状态码自动标记查验状态
+      // 查验状态码: CUIP(海关滞留)、CPI(出口报关查验)、CPI_I(进口报关查验)
+      await this.updateInspectionStatus(containerNumber, feituoData.trackingEvents || []);
+
       logger.info(`[ExternalDataService] 成功同步货柜 ${containerNumber} 的 ${savedEvents.length} 个状态事件`);
       return savedEvents;
 
     } catch (error) {
       logger.error(`[ExternalDataService] 同步货柜 ${containerNumber} 失败:`, error);
       throw error;
+    }
+  }
+
+  /**
+   * 保存 places 原始数据到 ext_feituo_places 表
+   * 实现完整审计：先落库原始数据，再解析
+   */
+  private async savePlacesRawData(
+    containerNumber: string,
+    billOfLadingNumber: string | undefined,
+    places: any[],
+    syncRequestId: string
+  ): Promise<void> {
+    try {
+      const placeRepo = AppDataSource.getRepository(ExtFeituoPlace);
+      
+      for (let i = 0; i < places.length; i++) {
+        const place = places[i];
+        
+        const extPlace = placeRepo.create({
+          containerNumber,
+          billOfLadingNumber: billOfLadingNumber || null,
+          placeIndex: i,
+          placeType: place.type || 0,
+          portCode: place.code || place.locationCode || null,
+          portName: place.name || null,
+          portNameEn: place.nameEn || null,
+          portNameCn: place.nameCn || null,
+          nameOrigin: place.nameOrigin || null,
+          sta: place.sta ? new Date(place.sta) : null,
+          eta: place.eta ? new Date(place.eta) : null,
+          ata: place.ata ? new Date(place.ata) : null,
+          ataAis: place.ata_ais ? new Date(place.ata_ais) : null,
+          atbAis: place.atb_ais ? new Date(place.atb_ais) : null,
+          disc: place.disc ? new Date(place.disc) : null,
+          std: place.std ? new Date(place.std) : null,
+          etd: place.etd ? new Date(place.etd) : null,
+          atd: place.atd ? new Date(place.atd) : null,
+          atdAis: place.atd_ais ? new Date(place.atd_ais) : null,
+          atbdAis: place.atbd_ais ? new Date(place.atbd_ais) : null,
+          load: place.load ? new Date(place.load) : null,
+          vesselName: place.vessel || null,
+          voyageNumber: place.voyage || null,
+          transportModeIn: place.transportMode_in || null,
+          transportModeOut: place.transportMode_out || null,
+          terminalName: place.terminalName || null,
+          containerCountIn: place.containerCount_in || null,
+          containerCountOut: place.containerCount_out || null,
+          latitude: place.lat ? parseFloat(place.lat) : null,
+          longitude: place.lon ? parseFloat(place.lon) : null,
+          portTimezone: place.portTimezone || null,
+          firmsCode: place.firmsCode || null,
+          syncRequestId,
+          dataSource: 'API',
+          rawJson: place,
+        });
+        
+        await placeRepo.save(extPlace);
+      }
+      
+      logger.info(`[ExternalDataService] 保存 places 原始数据完成: ${containerNumber}, ${places.length} 条`);
+    } catch (error) {
+      logger.error(`[ExternalDataService] 保存 places 原始数据失败:`, error);
+      // 原始数据保存失败不影响主流程，继续处理
+    }
+  }
+
+  /**
+   * 保存 status 原始数据到 ext_feituo_status_events 表
+   * 实现完整审计：先落库原始数据，再解析
+   */
+  private async saveStatusRawData(
+    containerNumber: string,
+    billOfLadingNumber: string | undefined,
+    statuses: any[],
+    syncRequestId: string
+  ): Promise<void> {
+    try {
+      const statusRepo = AppDataSource.getRepository(ExtFeituoStatusEvent);
+      
+      for (let i = 0; i < statuses.length; i++) {
+        const s = statuses[i];
+        
+        const extStatus = statusRepo.create({
+          containerNumber,
+          billOfLadingNumber: billOfLadingNumber || null,
+          statusIndex: i,
+          eventCode: s.eventCode || 'UNKNOWN',
+          descriptionCn: s.descriptionCn || null,
+          descriptionEn: s.descriptionEn || null,
+          eventDescriptionOrigin: s.descriptionEn || s.descriptionCn || null,
+          eventTime: s.eventTime ? new Date(s.eventTime) : new Date(),
+          isEstimated: s.isEsti === 'Y',
+          portTimezone: s.portTimezone || null,
+          eventPlace: s.eventPlace || null,
+          eventPlaceOrigin: s.eventPlace || null,
+          portCode: s.portCode || null,
+          terminalName: s.terminalName || null,
+          transportMode: s.transportMode || null,
+          vesselName: s.vslName || s.vesselName || null,
+          voyageNumber: s.voy || s.voyageNumber || null,
+          relatedPlaceIndex: s.relatedPlaceIndex || null,
+          source: s.source || null,
+          firmsCode: s.firmsCode || null,
+          billNo: s.billNo || null,
+          declarationNo: s.declarationNo || null,
+          syncRequestId,
+          dataSource: 'API',
+          rawJson: s,
+        });
+        
+        await statusRepo.save(extStatus);
+      }
+      
+      logger.info(`[ExternalDataService] 保存 status 原始数据完成: ${containerNumber}, ${statuses.length} 条`);
+    } catch (error) {
+      logger.error(`[ExternalDataService] 保存 status 原始数据失败:`, error);
+      // 原始数据保存失败不影响主流程，继续处理
     }
   }
 
@@ -570,7 +729,16 @@ export class ExternalDataService {
     return [...new Set(updatedFields)]; // 去重
   }
 
-  private static readonly ATA_RELATED_FIELDS = ['ata_dest_port', 'dest_port_unload_date', 'discharged_time'];
+  private static readonly ATA_RELATED_FIELDS = [
+    'ata_dest_port',           // 目的港实际到港 - 核心状态机字段
+    'dest_port_unload_date',  // 目的港卸柜日期 - 状态机使用
+    'discharged_time',        // 卸船时间 - 状态机使用
+    'transit_arrival_date',   // 中转港到港 - 状态机使用
+    'gate_in_time',           // 进港时间 - 状态机使用
+    'shipment_date',          // 出运日期 - 状态机使用
+    'return_time',            // 还箱时间 - 状态机使用
+    'available_time',         // 可提货时间 - 状态机使用
+  ];
 
   /**
    * 更新PortOperation表的核心时间字段
@@ -722,17 +890,22 @@ export class ExternalDataService {
         .getMany();
 
       // 获取其他相关数据 (用于状态机计算)
-      // 注意: 这里需要根据实际情况导入其他Repository
-      // 为了简化,这里暂时只使用港口操作记录
+      // 必须完整查询这些关联数据，否则 picked_up / unloaded / returned_empty 状态无法正确计算
+      const [seaFreight, truckingTransport, warehouseOperation, emptyReturn] = await Promise.all([
+        this.seaFreightRepository.findOne({ where: { containerNumber } }),
+        this.truckingTransportRepository.findOne({ where: { containerNumber } }),
+        this.warehouseOperationRepository.findOne({ where: { containerNumber } }),
+        this.emptyReturnRepository.findOne({ where: { containerNumber } }),
+      ]);
 
       // 计算新的物流状态
       const result = calculateLogisticsStatus(
         container,
         portOperations,
-        undefined, // seaFreight
-        undefined, // truckingTransport
-        undefined, // warehouseOperation
-        undefined  // emptyReturn
+        seaFreight ?? undefined,
+        truckingTransport ?? undefined,
+        warehouseOperation ?? undefined,
+        emptyReturn ?? undefined
       );
 
       // 更新货柜的物流状态
@@ -781,6 +954,21 @@ export class ExternalDataService {
             const processPromises = externalData.map(async (data) => {
               try {
                 const events = this.convertFeituoToStatusEvents(data, dataSource);
+
+                // 【监控】检测非标准可提货状态码
+                const nonStandardCodes = events.filter(e => e.statusCode === 'AVLE' || e.statusCode === 'AVAIL');
+                if (nonStandardCodes.length > 0) {
+                  logger.warn(`[ExternalDataService] 检测到非标准可提货状态码`, {
+                    containerNumber: data.containerNumber,
+                    nonStandardEvents: nonStandardCodes.map(e => ({
+                      statusCode: e.statusCode,
+                      occurredAt: e.occurredAt,
+                      location: e.locationNameEn
+                    })),
+                    message: 'PCAB是飞驼官方标准码，AVLE/AVAIL为兼容码'
+                  });
+                }
+
                 await this.saveStatusEvents(events);
                 const updatedAtaFields = await this.updatePortOperationCoreFields(
                   data.containerNumber,
@@ -941,6 +1129,184 @@ export class ExternalDataService {
     } catch (error) {
       logger.error('[ExternalDataService] 清理过期状态事件失败:', error);
       throw error;
+    }
+  }
+
+  /**
+   * 更新特殊核心字段
+   * 处理 return_time（写 process_empty_return 表）和 shipment_date（写 process_sea_freight 表）
+   * 这些字段不在 PortOperation 表中，需要单独处理
+   *
+   * @param containerNumber 集装箱号
+   * @param feituoEvents 飞驼事件数组
+   */
+  private async updateSpecialCoreFields(containerNumber: string, feituoEvents: FeituoEvent[]): Promise<void> {
+    if (!feituoEvents || feituoEvents.length === 0) {
+      return;
+    }
+
+    for (const event of feituoEvents) {
+      // 检查是否应该更新核心字段
+      if (!shouldUpdateCoreField(event.statusCode, event.hasOccurred !== false)) {
+        continue;
+      }
+
+      const coreFieldName = getCoreFieldName(event.statusCode);
+      if (!coreFieldName) {
+        continue;
+      }
+
+      const eventTime = new Date(event.eventTime);
+
+      // 处理 return_time（还箱时间）- 写 process_empty_return 表
+      if (coreFieldName === 'return_time') {
+        try {
+          let emptyReturn = await this.emptyReturnRepository.findOne({ where: { containerNumber } });
+          if (!emptyReturn) {
+            emptyReturn = this.emptyReturnRepository.create({ containerNumber });
+          }
+          emptyReturn.returnTime = eventTime;
+          await this.emptyReturnRepository.save(emptyReturn);
+          logger.info(`[ExternalDataService] 写回 return_time: ${containerNumber} = ${eventTime}`);
+        } catch (err) {
+          logger.warn(`[ExternalDataService] 写回 return_time 失败:`, err);
+        }
+        continue;
+      }
+
+      // 处理 shipment_date（出运日期）- 写 process_sea_freight 表
+      if (coreFieldName === 'shipment_date') {
+        try {
+          // 先从 Container 获取关联的 SeaFreight
+          const container = await this.containerRepository.findOne({
+            where: { containerNumber },
+            relations: ['seaFreight'],
+          });
+          const bl = container?.seaFreight?.billOfLadingNumber;
+          if (bl) {
+            const seaFreight = await this.seaFreightRepository.findOne({ where: { billOfLadingNumber: bl } });
+            if (seaFreight) {
+              seaFreight.shipmentDate = eventTime;
+              await this.seaFreightRepository.save(seaFreight);
+              logger.info(`[ExternalDataService] 写回 shipment_date: ${containerNumber} = ${eventTime}`);
+            }
+          }
+        } catch (err) {
+          logger.warn(`[ExternalDataService] 写回 shipment_date 失败:`, err);
+        }
+        continue;
+      }
+    }
+  }
+
+  /**
+   * 根据飞驼状态码自动标记查验状态
+   * 当检测到查验相关状态码时：
+   * 1. 设置 Container.inspectionRequired = true
+   * 2. 创建/更新 ext_inspection_records 记录
+   * 3. 添加初始查验事件
+   *
+   * 查验状态码:
+   * - CUIP: 海关滞留( Customs on hold)
+   * - CPI: 出口报关查验 (Export Customs Inspection)
+   * - CPI_I: 进口报关查验 (Import Customs Inspection)
+   *
+   * @param containerNumber 集装箱号
+   * @param feituoEvents 飞驼事件数组
+   */
+  private async updateInspectionStatus(containerNumber: string, feituoEvents: FeituoEvent[]): Promise<void> {
+    if (!feituoEvents || feituoEvents.length === 0) {
+      return;
+    }
+
+    // 查验状态码列表
+    const INSPECTION_STATUS_CODES = ['CUIP', 'CPI', 'CPI_I'];
+
+    // 获取查验相关的事件
+    const inspectionEvents = feituoEvents.filter(event =>
+      INSPECTION_STATUS_CODES.includes(event.statusCode)
+    );
+
+    if (inspectionEvents.length === 0) {
+      return;
+    }
+
+    // 按时间排序，取最早的事件时间
+    const sortedEvents = inspectionEvents.sort(
+      (a, b) => new Date(a.eventTime).getTime() - new Date(b.eventTime).getTime()
+    );
+    const firstInspectionEvent = sortedEvents[0];
+
+    try {
+      // 获取货柜
+      const container = await this.containerRepository.findOne({
+        where: { containerNumber },
+      });
+
+      if (!container) {
+        logger.warn(`[ExternalDataService] 货柜不存在: ${containerNumber}`);
+        return;
+      }
+
+      // 如果已经是查验状态，只更新记录，不重复设置
+      const isNewInspection = !container.inspectionRequired;
+
+      // 设置查验标记
+      container.inspectionRequired = true;
+      await this.containerRepository.save(container);
+
+      // 查找或创建查验记录
+      let inspectionRecord = await this.inspectionRecordRepository.findOne({
+        where: { containerNumber },
+      });
+
+      if (!inspectionRecord) {
+        // 创建新的查验记录
+        inspectionRecord = this.inspectionRecordRepository.create({
+          containerNumber,
+          inspectionNoticeDate: new Date(firstInspectionEvent.eventTime),
+          latestStatus: '查验中',
+          customsClearanceStatus: '查验中',
+          dataSource: 'FeituoAPI',
+          remarks: `飞驼自动触发查验，状态码: ${inspectionEvents.map(e => e.statusCode).join(',')}`,
+        });
+        await this.inspectionRecordRepository.save(inspectionRecord);
+        logger.info(`[ExternalDataService] 创建查验记录: ${containerNumber}`);
+      } else {
+        // 更新已有记录
+        if (!inspectionRecord.inspectionNoticeDate) {
+          inspectionRecord.inspectionNoticeDate = new Date(firstInspectionEvent.eventTime);
+        }
+        if (!inspectionRecord.latestStatus || inspectionRecord.latestStatus !== '已放行') {
+          inspectionRecord.latestStatus = '查验中';
+          inspectionRecord.customsClearanceStatus = '查验中';
+        }
+        inspectionRecord.dataSource = 'FeituoAPI';
+        inspectionRecord.remarks = `飞驼自动触发更新，状态码: ${inspectionEvents.map(e => e.statusCode).join(',')}`;
+        await this.inspectionRecordRepository.save(inspectionRecord);
+        logger.info(`[ExternalDataService] 更新查验记录: ${containerNumber}`);
+      }
+
+      // 添加查验事件（只有新触发时才添加）
+      if (isNewInspection) {
+        const eventStatusMap: Record<string, string> = {
+          CUIP: '海关滞留 - 待清关检查',
+          CPI: '出口报关查验',
+          CPI_I: '进口报关查验',
+        };
+
+        const event = this.inspectionEventRepository.create({
+          inspectionRecordId: inspectionRecord.id,
+          eventDate: new Date(firstInspectionEvent.eventTime),
+          eventStatus: eventStatusMap[firstInspectionEvent.statusCode] || `飞驼状态码: ${firstInspectionEvent.statusCode}`,
+        });
+        await this.inspectionEventRepository.save(event);
+        logger.info(`[ExternalDataService] 添加查验事件: ${containerNumber}, 状态: ${event.eventStatus}`);
+      }
+
+      logger.info(`[ExternalDataService] 自动标记货柜为查验状态: ${containerNumber}, 状态码: ${inspectionEvents.map(e => e.statusCode).join(',')}`);
+    } catch (err) {
+      logger.warn(`[ExternalDataService] 自动标记查验状态失败:`, err);
     }
   }
 }

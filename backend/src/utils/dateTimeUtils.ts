@@ -1,7 +1,71 @@
 /**
  * 日期时间处理工具
  * 统一服务端与前端的日期时间处理逻辑，避免时区问题
+ *
+ * 日期时间规格机：提供 UTC 时区统一处理，支持多时区转换
+ * @see public/docs-temp/日期时间规格机实施方案.md
  */
+
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+/**
+ * 日期时间规格机 - 后端核心类
+ * 统一使用 UTC 存储与计算，支持指定时区转换
+ */
+export class DateTimeUtils {
+  /** 默认显示格式 */
+  static readonly DEFAULT_FORMAT = 'YYYY-MM-DD HH:mm:ss';
+
+  /** ISO 8601 格式 */
+  static readonly ISO_FORMAT = 'YYYY-MM-DDTHH:mm:ssZ';
+
+  /**
+   * 转换为 UTC 时间
+   */
+  static toUTC(date: Date | string): Date {
+    return dayjs(date).utc().toDate();
+  }
+
+  /**
+   * 从 UTC 转换为指定时区
+   */
+  static toTimezone(utcDate: Date | string, tz: string): Date {
+    return dayjs(utcDate).tz(tz).toDate();
+  }
+
+  /**
+   * 格式化日期时间（UTC）
+   */
+  static format(date: Date | string, format: string = DateTimeUtils.DEFAULT_FORMAT): string {
+    return dayjs(date).format(format);
+  }
+
+  /**
+   * 解析日期时间字符串
+   */
+  static parse(dateString: string): Date {
+    return dayjs(dateString).toDate();
+  }
+
+  /**
+   * 获取当前时间（UTC）
+   */
+  static now(): Date {
+    return dayjs().utc().toDate();
+  }
+
+  /**
+   * 转为 ISO 8601 字符串（API 响应标准格式）
+   */
+  static toISOString(date: Date | string): string {
+    return dayjs(date).utc().toISOString();
+  }
+}
 
 /**
  * 解析日期时间字符串为本地日期对象，避免时区转换问题
@@ -173,6 +237,7 @@ export const toDateOnly = (d: Date | string): Date => {
 };
 
 export default {
+  DateTimeUtils,
   parseLocalDate,
   formatDateToLocal,
   parseExcelDate,

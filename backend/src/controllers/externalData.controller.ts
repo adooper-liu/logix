@@ -21,6 +21,7 @@ import { logger } from '../utils/logger';
 import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
 import { getCoreFieldName } from '../constants/FeiTuoStatusMapping';
 import { DemurrageService } from '../services/demurrage.service';
+import { externalDataService } from '../services/externalDataService';
 
 const ATA_RELATED_FIELDS = ['ata_dest_port', 'dest_port_unload_date', 'discharged_time'];
 
@@ -92,37 +93,28 @@ export class ExternalDataController {
 
   /**
    * 执行同步逻辑（供 syncContainer 或 syncBatch 调用）
+   * 统一入口：调用 ExternalDataService 复用完整同步逻辑
    */
   private async doSyncContainer(
     containerNumber: string,
     dataSource: string
   ): Promise<{ success: true; savedEvents: ContainerStatusEvent[] } | { success: false; error: string }> {
-    let events: ContainerStatusEvent[] = [];
+    try {
+      // 统一入口：调用 ExternalDataService 的同步方法
+      // 该方法包含：
+      // - places 优先处理逻辑
+      // - 核心字段更新（PortOperation + EmptyReturn + SeaFreight）
+      // - 状态机重算（包含完整入参）
+      // - 滞港费重算触发
+      const savedEvents = await externalDataService.syncContainerEvents(containerNumber, 'Feituo' as any);
 
-    if (dataSource === 'Feituo') {
-      const options = await this.buildFeiTuoQueryOptions(containerNumber);
-      const result = await feituoAdapter.getContainerStatusEvents(containerNumber, options);
-      if (result.success && result.data) {
-        events = this.convertToStatusEvents(containerNumber, result.data);
-      } else {
-        return { success: false, error: result.error || '获取飞驼数据失败' };
-      }
-    } else {
-      return { success: false, error: `不支持的数据源: ${dataSource}` };
+      logger.info(`[ExternalDataController] 统一入口同步完成: ${containerNumber}, 事件数: ${savedEvents.length}`);
+      return { success: true, savedEvents };
+
+    } catch (error: any) {
+      logger.error(`[ExternalDataController] 统一入口同步失败:`, error);
+      return { success: false, error: error.message || '同步失败' };
     }
-
-    const savedEvents = await this.saveStatusEvents(events);
-    const updatedAtaFields = await this.applyFeiTuoToCoreFields(containerNumber, events);
-    await this.recalculateLogisticsStatus(containerNumber);
-
-    // ATA 到港后触发滞港费重算，actual 模式覆盖 forecast 写入的 last_free_date
-    if (updatedAtaFields.some((f) => ATA_RELATED_FIELDS.includes(f))) {
-      this.demurrageService.calculateForContainer(containerNumber).catch((e) =>
-        logger.warn('[ExternalDataController] demurrage recalc on ATA update failed:', e)
-      );
-    }
-
-    return { success: true, savedEvents };
   }
 
   /**

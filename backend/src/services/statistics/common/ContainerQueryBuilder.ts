@@ -42,7 +42,7 @@ export class ContainerQueryBuilder {
 
     if (params.search) {
       qb.andWhere(
-        'container.containerNumber ILIKE :search OR order.orderNumber ILIKE :search',
+        'container.containerNumber ILIKE :search OR order.orderNumber ILIKE :search OR sf.billOfLadingNumber ILIKE :search OR sf.mblNumber ILIKE :search',
         { search: `%${params.search}%` }
       );
     }

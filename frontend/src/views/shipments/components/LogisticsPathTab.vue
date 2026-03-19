@@ -2,7 +2,7 @@
   <div class="logistics-path-tab">
     <div v-if="loading" class="path-loading">
       <el-icon class="is-loading"><Loading /></el-icon>
-      <span>加载物流路径中...</span>
+      <span>{{ t('container.logisticsPath.loading') }}</span>
     </div>
     <div v-else-if="error" class="path-error">
       <el-alert type="warning" :title="error" show-icon />
@@ -12,8 +12,8 @@
       <div class="view-mode-row">
         <div class="view-mode-bar">
           <el-radio-group v-model="viewMode" size="small">
-            <el-radio-button value="grouped">阶段分组</el-radio-button>
-            <el-radio-button value="map">地图</el-radio-button>
+            <el-radio-button value="grouped">{{ t('container.logisticsPath.viewModes.grouped') }}</el-radio-button>
+            <el-radio-button value="map">{{ t('container.logisticsPath.viewModes.map') }}</el-radio-button>
           </el-radio-group>
         </div>
         <div class="view-mode-actions">
@@ -25,10 +25,10 @@
             class="help-link"
           >
             <el-icon><QuestionFilled /></el-icon>
-            <span>历时/超期说明</span>
+            <span>{{ t('container.logisticsPath.durationExplanation') }}</span>
           </router-link>
           <el-button type="primary" link size="small" class="refresh-btn" @click="loadPath">
-            刷新
+            {{ t('container.logisticsPath.refresh') }}
           </el-button>
         </div>
       </div>
@@ -37,7 +37,7 @@
       <el-alert
         v-if="path.isOverdue"
         type="error"
-        title="超期预警"
+        :title="t('container.logisticsPath.overdueAlert.title')"
         :description="overdueAlertText"
         show-icon
         class="overdue-alert"
@@ -48,25 +48,25 @@
             <span
               :class="['validation-badge', validationResult.isValid ? 'valid' : 'invalid']"
             >
-              {{ validationResult.isValid ? '✅ 路径验证通过' : '❌ 路径验证失败' }}
+              {{ validationResult.isValid ? t('container.logisticsPath.validation.passed') : t('container.logisticsPath.validation.failed') }}
             </span>
             <template v-if="validationResult.errors?.length">
-              <span class="validation-label">错误：</span>
+              <span class="validation-label">{{ t('container.logisticsPath.validation.errors') }}：</span>
               <span class="validation-text validation-errors">{{ validationResult.errors.join('；') }}</span>
             </template>
             <template v-if="validationResult.warnings?.length">
-              <span class="validation-label">警告：</span>
+              <span class="validation-label">{{ t('container.logisticsPath.validation.warnings') }}：</span>
               <span class="validation-text validation-warnings">{{ validationResult.warnings.join('；') }}</span>
             </template>
             <el-tooltip placement="top" :show-after="300">
               <template #content>
                 <div class="validation-tooltip">
-                  <p><strong>路径验证检查：</strong></p>
+                  <p><strong>{{ t('container.logisticsPath.validation.checks') }}：</strong></p>
                   <ul>
-                    <li><strong>通过</strong>：各节点状态流转符合物流逻辑（如 装船→离港→航行→抵港→卸船→提柜→还箱）</li>
-                    <li><strong>失败</strong>：存在非法流转（如 装船 直接跳到 还箱，中间缺少抵港、卸船等）</li>
+                    <li><strong>{{ t('container.logisticsPath.validation.passed') }}</strong>：{{ t('container.logisticsPath.validation.passedDescription') }}</li>
+                    <li><strong>{{ t('container.logisticsPath.validation.failed') }}</strong>：{{ t('container.logisticsPath.validation.failedDescription') }}</li>
                   </ul>
-                  <p>用于发现飞驼/Excel 等外部数据中的异常或缺失节点。</p>
+                  <p>{{ t('container.logisticsPath.validation.purpose') }}</p>
                 </div>
               </template>
               <el-icon class="validation-help-icon"><QuestionFilled /></el-icon>
@@ -75,7 +75,7 @@
 
       <!-- 阶段分组：一行多列 -->
       <div v-show="viewMode === 'grouped'" class="path-grouped">
-        <div v-if="!(path.nodes || []).length" class="path-timeline-empty">暂无路径节点数据</div>
+        <div v-if="!(path.nodes || []).length" class="path-timeline-empty">{{ t('container.logisticsPath.noNodes') }}</div>
         <div v-else class="stage-grid">
           <div
             v-for="group in nodesByStage"
@@ -84,7 +84,7 @@
           >
             <div class="stage-header">
               <span class="stage-name">{{ group.label }}</span>
-              <span class="stage-count">{{ group.nodes.length }} 个节点</span>
+              <span class="stage-count">{{ group.nodes.length }} {{ t('container.logisticsPath.nodesCount') }}</span>
             </div>
             <div class="stage-nodes">
               <div
@@ -131,15 +131,50 @@
       <!-- 地图路径视图（Leaflet + OpenStreetMap） -->
       <div v-show="viewMode === 'map'" class="path-map">
         <div ref="mapContainerRef" class="map-container"></div>
-        <div v-if="mapPoints.length === 0" class="map-empty">暂无港口坐标数据（需 location.code 匹配 dict_ports）</div>
+        <div v-if="mapPoints.length === 0" class="map-empty">{{ t('container.logisticsPath.noPortCoordinates') }}</div>
       </div>
 
       <!-- 8. 多柜对比（需传入 billOfLadingNumber） -->
       <div v-if="props.billOfLadingNumber" class="multi-container-section">
         <el-collapse>
-          <el-collapse-item title="同提单货柜对比" name="compare">
-            <div class="compare-hint">
-              当前货柜: {{ props.containerNumber }}。提单号: {{ props.billOfLadingNumber }}。同提单多柜并排对比需后端支持按提单号筛选货柜列表。
+          <el-collapse-item :title="t('container.logisticsPath.sameBillOfLading.title')" name="compare">
+            <div class="compare-header">
+              <div class="compare-hint">
+                {{ t('container.logisticsPath.sameBillOfLading.currentContainer', { containerNumber: props.containerNumber, billOfLadingNumber: props.billOfLadingNumber }) }}
+              </div>
+              <el-button 
+                type="primary" 
+                size="small" 
+                @click="loadContainersWithSameBillOfLading"
+                :loading="loadingSameBillOfLading"
+              >
+                {{ t('container.logisticsPath.sameBillOfLading.loadButton') }}
+              </el-button>
+            </div>
+            
+            <div v-if="errorSameBillOfLading" class="compare-error">
+              {{ errorSameBillOfLading }}
+            </div>
+            
+            <div v-else-if="containersWithSameBillOfLading.length > 0" class="compare-list">
+              <el-table :data="containersWithSameBillOfLading" border style="width: 100%">
+                <el-table-column prop="containerNumber" :label="t('container.logisticsPath.sameBillOfLading.columns.containerNumber')" width="120">
+                  <template #default="{ row }">
+                    <router-link :to="`/shipments/${row.containerNumber}`" class="container-link">
+                      {{ row.containerNumber }}
+                    </router-link>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="logisticsStatus" :label="t('container.logisticsPath.sameBillOfLading.columns.logisticsStatus')" width="120" />
+                <el-table-column prop="actualShipDate" :label="t('container.logisticsPath.sameBillOfLading.columns.actualShipDate')" width="120" />
+                <el-table-column prop="etaDestPort" :label="t('container.logisticsPath.sameBillOfLading.columns.etaDestPort')" width="120" />
+                <el-table-column prop="ataDestPort" :label="t('container.logisticsPath.sameBillOfLading.columns.ataDestPort')" width="120" />
+                <el-table-column prop="location" :label="t('container.logisticsPath.sameBillOfLading.columns.location')" />
+              </el-table>
+            </div>
+            
+            <div v-else-if="!loadingSameBillOfLading" class="compare-empty">
+              {{ t('container.logisticsPath.sameBillOfLading.emptyState') }}
             </div>
           </el-collapse-item>
         </el-collapse>
@@ -148,66 +183,70 @@
       <!-- 2. 节点详情面板 -->
       <el-drawer
         v-model="showNodeDetail"
-        title="节点详情"
+        :title="t('container.logisticsPath.nodeDetail.title')"
         direction="rtl"
         size="360px"
         :with-header="true"
       >
         <div v-if="selectedNode" class="node-detail-content">
           <div class="detail-item">
-            <span class="label">状态：</span>
+            <span class="label">{{ t('container.logisticsPath.nodeDetail.status') }}：</span>
             <span class="value">{{ selectedNode.description }}</span>
             <el-tag v-if="isNoDataNode(selectedNode)" type="info" size="small" class="detail-no-data-tag">
               {{ getNoDataNodeLabel(selectedNode) }}
             </el-tag>
           </div>
           <div class="detail-item">
-            <span class="label">时间：</span>
+            <span class="label">{{ t('container.logisticsPath.nodeDetail.time') }}：</span>
             <span class="value">{{ isNoDataNode(selectedNode) ? '—' : formatDateTime(selectedNode.timestamp) }}</span>
           </div>
           <div class="detail-item" v-if="selectedNode.location">
-            <span class="label">地点：</span>
+            <span class="label">{{ t('container.logisticsPath.nodeDetail.location') }}：</span>
             <span class="value">{{ selectedNode.location.name }} ({{ selectedNode.location.code }})</span>
           </div>
           <div class="detail-item">
-            <span class="label">状态码：</span>
+            <span class="label">{{ t('container.logisticsPath.nodeDetail.statusCode') }}：</span>
             <span class="value">{{ selectedNode.status }}</span>
           </div>
           <div class="detail-item">
-            <span class="label">节点状态：</span>
+            <span class="label">{{ t('container.logisticsPath.nodeDetail.nodeStatus') }}：</span>
             <span class="value">{{ getNodeStatusLabel(selectedNode.nodeStatus) }}</span>
           </div>
           <div class="detail-item">
-            <span class="label">异常：</span>
-            <span class="value">{{ selectedNode.isAlert ? '是' : '否' }}</span>
+            <span class="label">{{ t('container.logisticsPath.nodeDetail.alert') }}：</span>
+            <span class="value">{{ selectedNode.isAlert ? t('container.logisticsPath.nodeDetail.yes') : t('container.logisticsPath.nodeDetail.no') }}</span>
           </div>
           <div v-if="getNodeDataSource(selectedNode)" class="detail-item">
-            <span class="label">数据来源：</span>
+            <span class="label">{{ t('container.logisticsPath.nodeDetail.dataSource') }}：</span>
             <el-tag :type="getNodeDataSourceTagType(getNodeDataSource(selectedNode))" size="small">
               {{ getNodeDataSourceLabel(getNodeDataSource(selectedNode)) }}
             </el-tag>
           </div>
           <div v-if="selectedNode.rawData && Object.keys(selectedNode.rawData).length > 0" class="raw-data-section">
-            <div class="label">原始数据</div>
+            <div class="label">{{ t('container.logisticsPath.nodeDetail.rawData') }}</div>
             <pre class="raw-data">{{ JSON.stringify(selectedNode.rawData, null, 2) }}</pre>
           </div>
         </div>
       </el-drawer>
     </div>
-    <el-empty v-else description="暂无物流路径数据" class="path-empty" />
+    <el-empty :description="t('container.logisticsPath.noPathData')" class="path-empty" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { Loading, QuestionFilled } from '@element-plus/icons-vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { logisticsPathService, type StatusPath, type StatusNode } from '@/services/logisticsPath'
+import { containerService } from '@/services/container'
 import NodeDurationDisplay from '@/components/common/NodeDurationDisplay.vue'
+import type { ContainerListItem } from '@/types/container'
 
 const router = useRouter()
+const { t } = useI18n()
 
 const props = defineProps<{
   containerNumber: string
@@ -222,6 +261,11 @@ const selectedNode = ref<StatusNode | null>(null)
 const validationResult = ref<{ isValid: boolean; errors: string[]; warnings: string[] } | null>(null)
 const mapContainerRef = ref<HTMLElement | null>(null)
 let leafletMap: L.Map | null = null
+
+// 同提单货柜对比相关
+const loadingSameBillOfLading = ref(false)
+const errorSameBillOfLading = ref('')
+const containersWithSameBillOfLading = ref<ContainerListItem[]>([])
 
 const showNodeDetail = computed({
   get: () => !!selectedNode.value,
@@ -240,13 +284,13 @@ const loadPath = async () => {
       path.value = res.data
       await loadValidation(res.data.id)
     } else {
-      error.value = res.message || '获取物流路径失败'
+      error.value = res.message || t('container.logisticsPath.errors.loadFailed')
     }
   } catch (e: unknown) {
     const err = e as { response?: { status?: number }; message?: string }
-    let msg = err instanceof Error ? err.message : '请求失败'
+    let msg = err instanceof Error ? err.message : t('container.logisticsPath.errors.requestFailed')
     if (err.response?.status === 503 || /unhealthy|不可用/i.test(msg)) {
-      msg = '物流路径微服务不可用，请确认已启动 logistics-path-system（端口 4000）'
+      msg = t('container.logisticsPath.errors.serviceUnavailable')
     }
     error.value = msg
   } finally {
@@ -262,6 +306,34 @@ const loadValidation = async (pathId: string) => {
     }
   } catch {
     validationResult.value = null
+  }
+}
+
+// 加载同提单货柜列表
+const loadContainersWithSameBillOfLading = async () => {
+  if (!props.billOfLadingNumber) return
+  
+  loadingSameBillOfLading.value = true
+  errorSameBillOfLading.value = ''
+  
+  try {
+    const response = await containerService.getContainers({
+      page: 1,
+      pageSize: 50,
+      search: props.billOfLadingNumber
+    })
+    
+    if (response.success && response.items) {
+      // 过滤掉当前货柜，只显示其他同提单的货柜
+      containersWithSameBillOfLading.value = response.items.filter(
+        (container: ContainerListItem) => container.containerNumber !== props.containerNumber
+      )
+    }
+  } catch (error) {
+    console.error('Failed to load containers with same bill of lading:', error)
+    errorSameBillOfLading.value = t('container.logisticsPath.sameBillOfLading.errors.loadFailed')
+  } finally {
+    loadingSameBillOfLading.value = false
   }
 }
 
@@ -649,6 +721,7 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
 </script>
 
 <style scoped lang="scss">
+@use "sass:color";
 @use '@/assets/styles/variables' as *;
 
 .logistics-path-tab {
@@ -735,7 +808,7 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
   background: rgba(var(--el-color-primary-rgb), 0.04);
 
   &:hover {
-    color: lighten($primary-color, 10%);
+    color: color.adjust($primary-color, $lightness: 10%);
     text-decoration: none;
     background: rgba(var(--el-color-primary-rgb), 0.08);
   }
@@ -1056,6 +1129,46 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
 .compare-hint {
   font-size: 13px;
   color: var(--el-text-color-secondary);
+}
+
+.compare-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: $spacing-md;
+  flex-wrap: wrap;
+  gap: $spacing-sm;
+}
+
+.compare-error {
+  color: var(--el-color-danger);
+  font-size: 13px;
+  margin: $spacing-sm 0;
+}
+
+.compare-list {
+  margin-top: $spacing-sm;
+}
+
+.compare-empty {
+  text-align: center;
+  padding: $spacing-lg;
+  color: var(--el-text-color-placeholder);
+  font-size: 13px;
+  background: var(--el-fill-color-lighter);
+  border-radius: $radius-base;
+  margin-top: $spacing-sm;
+}
+
+.container-link {
+  color: var(--el-color-primary);
+  text-decoration: none;
+  transition: color $transition-base;
+  
+  &:hover {
+    color: color.adjust($primary-color, $lightness: 10%);
+    text-decoration: underline;
+  }
 }
 
 /* 路径验证：纯文本一行，无卡片 */

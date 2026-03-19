@@ -17,6 +17,7 @@ export interface Container {
   inspectionRequired: boolean;
   isUnboxing: boolean;
   logisticsStatus: string;
+  scheduleStatus?: 'initial' | 'issued' | 'dispatched' | 'adjusted';
   remarks?: string;
   requiresPallet?: boolean;
   requiresAssembly?: boolean;
@@ -201,14 +202,18 @@ export interface PortOperation {
   portName?: string;
   portSequence?: number;
   etaDestPort?: Date;
+  revisedEtaDestPort?: Date;
   etaCorrection?: Date;
   ataDestPort?: Date;
   ataTransit?: Date;
+  etdTransit?: Date;
+  atdTransit?: Date;
   transitArrivalDate?: Date;
   destPortUnloadDate?: Date;
   plannedCustomsDate?: Date;
   actualCustomsDate?: Date;
   lastFreeDate?: Date;
+  lastFreeDateMode?: 'actual' | 'forecast';
   allGeneratedDate?: Date;
   customsStatus?: string;
   documentStatus?: string;
@@ -233,12 +238,16 @@ export interface PortOperation {
   locationNameCn?: string;
   dataSource?: string;
   cargoLocation?: string;
+  latitude?: number;
+  longitude?: number;
   timezone?: number;
   customsRemarks?: string;
   remarks?: string;
   freeStorageDays?: number;
   freeDetentionDays?: number;
   freeOffTerminalDays?: number;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 // 海运信息
@@ -276,7 +285,6 @@ export interface SeaFreight {
   etd?: Date;
   atd?: Date;
   customsClearanceDate?: Date;
-  motherShipmentDate?: Date;
   portOpenDate?: Date;
   portCloseDate?: Date;
   routeCode?: string;

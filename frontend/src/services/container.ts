@@ -13,7 +13,7 @@ import type {
 } from '@/types/container';
 import type { PaginationParams } from '@/types';
 import { camelToSnake } from '@/utils/camelToSnake';
-import { withCache } from '@/utils/cache';
+import { cacheManager } from '@/utils/cacheManager';
 import { useAppStore } from '@/store/app';
 
 class ContainerService {
@@ -71,9 +71,10 @@ class ContainerService {
    * 获取带缓存的货柜列表
    * Get cached containers list
    */
-  getContainersWithCache = withCache(
+  getContainersWithCache = cacheManager.createCachedFunction(
+    'containers',
     this.getContainers.bind(this),
-    (filters: ContainerFilters) => `containers:${JSON.stringify(filters)}`,
+    (filters: ContainerFilters) => JSON.stringify(filters),
     30000 // 30秒缓存
   )
 
@@ -92,6 +93,9 @@ class ContainerService {
    */
   async createContainer(container: Partial<Container>): Promise<{ success: boolean; data: Container }> {
     const response = await this.api.post('/containers', camelToSnake(container as Record<string, any>));
+    // 清除相关缓存
+    cacheManager.clearContainersCache();
+    cacheManager.clearStatisticsCache();
     return response.data;
   }
 
@@ -101,6 +105,9 @@ class ContainerService {
    */
   async updateContainer(id: string, container: Partial<Container>): Promise<{ success: boolean; data: Container }> {
     const response = await this.api.put(`/containers/${id}`, camelToSnake(container as Record<string, any>));
+    // 清除相关缓存
+    cacheManager.clearContainersCache();
+    cacheManager.clearStatisticsCache();
     return response.data;
   }
 
@@ -110,6 +117,9 @@ class ContainerService {
    */
   async deleteContainer(id: string): Promise<{ success: boolean }> {
     const response = await this.api.delete(`/containers/${id}`);
+    // 清除相关缓存
+    cacheManager.clearContainersCache();
+    cacheManager.clearStatisticsCache();
     return response.data;
   }
 
@@ -132,6 +142,9 @@ class ContainerService {
     }
   ): Promise<{ success: boolean; message?: string }> {
     const response = await this.api.patch(`/containers/${id}/schedule`, schedule);
+    // 清除相关缓存
+    cacheManager.clearContainersCache();
+    cacheManager.clearStatisticsCache();
     return response.data;
   }
 
@@ -162,6 +175,10 @@ class ContainerService {
     const response = await this.api.post('/scheduling/batch-schedule', params, {
       timeout: 180000 // 3 分钟，排产可能较耗时
     })
+    // 清除相关缓存
+    cacheManager.clearContainersCache();
+    cacheManager.clearStatisticsCache();
+    cacheManager.clearSchedulingCache();
     return response.data
   }
 
@@ -213,6 +230,9 @@ class ContainerService {
     message?: string
   }> {
     const response = await this.api.post('/demurrage/batch-write-back', params || {})
+    // 清除相关缓存
+    cacheManager.clearContainersCache();
+    cacheManager.clearStatisticsCache();
     return response.data
   }
 
@@ -253,9 +273,10 @@ class ContainerService {
    * 获取带缓存的货柜详细统计数据
    * Get cached detailed container statistics for countdown cards
    */
-  getStatisticsDetailedWithCache = withCache(
+  getStatisticsDetailedWithCache = cacheManager.createCachedFunction(
+    'statistics',
     this.getStatisticsDetailed.bind(this),
-    (startDate?: string, endDate?: string) => `statistics-detailed:${startDate}:${endDate}`,
+    (startDate?: string, endDate?: string) => `${startDate}:${endDate}`,
     60000 // 60秒缓存
   )
 

@@ -17,7 +17,12 @@ import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
 import { ContainerType } from '../entities/ContainerType';
 import { ShippingCompany } from '../entities/ShippingCompany';
+import { InspectionRecord } from '../entities/InspectionRecord';
+import { InspectionEvent } from '../entities/InspectionEvent';
+import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
+import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { logger } from '../utils/logger';
+import { DemurrageService } from './demurrage.service';
 import { getCoreFieldName } from '../constants/FeiTuoStatusMapping';
 import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
 import { getGroupForColumn } from '../constants/FeituoFieldGroupMapping';
@@ -142,7 +147,49 @@ function detectTableType(columns: string[]): 1 | 2 {
   return hasBill ? 2 : 1;
 }
 
+/** 发生地信息数组类型 (Excel导入) */
+interface ExcelPlaceInfo {
+  code: string;
+  nameEn?: string;
+  nameCn?: string;
+  placeType?: string;
+  eta?: Date | null;
+  ata?: Date | null;
+  etd?: Date | null;
+  atd?: Date | null;
+  actualLoading?: Date | null;
+  actualDischarge?: Date | null;
+  terminal?: string;
+  sequence: number;
+}
+
+/** 状态信息数组类型 (Excel导入) */
+interface ExcelStatusInfo {
+  group: number;
+  vesselName?: string;
+  voyageNumber?: string;
+  transportMode?: string;
+  statusCode: string;
+  statusName?: string;
+  occurredAt: Date | null;
+  location?: string;
+  terminal?: string;
+  isEstimated: boolean;
+  dataSource: string;
+}
+
 export class FeituoImportService {
+  // 滞港费服务实例
+  private demurrageService = new DemurrageService(
+    AppDataSource.getRepository(ExtDemurrageStandard),
+    AppDataSource.getRepository(Container),
+    AppDataSource.getRepository(PortOperation),
+    AppDataSource.getRepository(SeaFreight),
+    AppDataSource.getRepository(TruckingTransport),
+    AppDataSource.getRepository(EmptyReturn),
+    AppDataSource.getRepository(InspectionRecord)
+  );
+
   /**
    * 导入飞驼 Excel 数据
    * @param tableType 1=表一, 2=表二
@@ -322,22 +369,38 @@ export class FeituoImportService {
         vesselName: getVal(row, '船名'),
         voyageNumber: getVal(row, '航次'),
         routeCode: getVal(row, '航线代码'),
-        shipmentDate: parseDate(getVal(row, '实际装船时间', '装船日期', '出运日期')),
+        shipmentDate: parseDate(getVal(row, '接货地实际离开时间')), // 出运日期
+        actualLoadingDate: parseDate(getVal(row, '实际装船时间')), // 实际装船时间
         portOpenDate: parseDate(getVal(row, '开港时间')),
         portCloseDate: parseDate(getVal(row, '截港时间')),
-        eta: parseDate(getVal(row, '交货地预计到达时间') || getVal(row, 5, '预计到达时间') || getVal(row, '预计到港日期')),
-        ata: parseDate(getVal(row, '交货地实际到达时间') || getVal(row, 5, '实际到达时间') || getVal(row, '目的港到达日期')),
+        eta: parseDate(getVal(row, '交货地预计到达时间') || getVal(row, '目的地预计到达时间') || getVal(row, 5, '预计到达时间') || getVal(row, '预计到港日期')),
+        ata: parseDate(getVal(row, '交货地实际到达时间') || getVal(row, '目的地实际到达时间') || getVal(row, 5, '实际到达时间') || getVal(row, '目的港到达日期')),
         imoNumber: getVal(row, 'imo'),
         mmsiNumber: getVal(row, 'mmsi'),
         flag: getVal(row, '船籍')
       });
       await seaFreightRepo.save(sf);
     } else {
-      if (!sf.shipmentDate) sf.shipmentDate = parseDate(getVal(row, '实际装船时间', '装船日期'));
+      if (!sf.shipmentDate) sf.shipmentDate = parseDate(getVal(row, '接货地实际离开时间'));
+      if (!sf.actualLoadingDate) sf.actualLoadingDate = parseDate(getVal(row, '实际装船时间'));
       if (!sf.mblNumber && mbl) sf.mblNumber = mbl;  // 更新 mbl_number
-      if (!sf.eta) sf.eta = parseDate(getVal(row, '交货地预计到达时间') || getVal(row, 5, '预计到达时间'));
-      if (!sf.ata) sf.ata = parseDate(getVal(row, '交货地实际到达时间') || getVal(row, 5, '实际到达时间'));
+      if (!sf.eta) sf.eta = parseDate(getVal(row, '交货地预计到达时间') || getVal(row, '目的地预计到达时间') || getVal(row, 5, '预计到达时间'));
+      if (!sf.ata) sf.ata = parseDate(getVal(row, '交货地实际到达时间') || getVal(row, '目的地实际到达时间') || getVal(row, 5, '实际到达时间'));
       await seaFreightRepo.save(sf);
+    }
+
+    // 更新备货单的预计出运日期 expectedShipDate
+    const expectedShipDate = parseDate(getVal(row, '接货地实际离开时间') || getVal(row, '实际装船时间', '装船日期', '出运日期'));
+    if (expectedShipDate) {
+      const replenishmentRepo = AppDataSource.getRepository(ReplenishmentOrder);
+      // 查找该货柜关联的备货单
+      const orders = await replenishmentRepo.find({ where: { containerNumber } });
+      for (const order of orders) {
+        if (!order.expectedShipDate) {
+          order.expectedShipDate = expectedShipDate;
+          await replenishmentRepo.save(order);
+        }
+      }
     }
 
     if (!container.billOfLadingNumber) {
@@ -364,8 +427,8 @@ export class FeituoImportService {
           portSequence: 1
         });
       }
-      po.etaDestPort = parseDate(getVal(row, '交货地预计到达时间') || getVal(row, 5, '预计到达时间') || getVal(row, '预计到港日期')) || po.etaDestPort;
-      po.ataDestPort = parseDate(getVal(row, '交货地实际到达时间') || getVal(row, 5, '实际到达时间') || getVal(row, '目的港到达日期')) || po.ataDestPort;
+      po.etaDestPort = parseDate(getVal(row, '交货地预计到达时间') || getVal(row, '目的地预计到达时间') || getVal(row, 5, '预计到达时间') || getVal(row, '预计到港日期')) || po.etaDestPort;
+      po.ataDestPort = parseDate(getVal(row, '交货地实际到达时间') || getVal(row, '目的地实际到达时间') || getVal(row, 5, '实际到达时间') || getVal(row, '目的港到达日期')) || po.ataDestPort;
       po.destPortUnloadDate = parseDate(getVal(row, '实际卸船时间', '目的港卸船/火车日期')) || po.destPortUnloadDate;
       po.gateInTerminal = getVal(row, '交货地码头名称') || getVal(row, 5, '码头名称') || po.gateInTerminal;
       await portOpRepo.save(po);
@@ -393,6 +456,13 @@ export class FeituoImportService {
     }
 
     await this.mergeStatusEvents(row, containerNumber, eventRepo, 1);
+    
+    // 处理发生地信息数组
+    const places = this.parsePlaceArray(row);
+    if (places.length > 0) {
+      await this.processPlaceArray(containerNumber, places);
+    }
+    
     await this.recalculateStatus(containerNumber);
   }
 
@@ -503,6 +573,13 @@ export class FeituoImportService {
 
     await this.mergeStatusEvents(row, containerNumber, eventRepo, 2);
     await this.deriveStatusEventsFromTable2TimeFields(row, containerNumber, eventRepo);
+    
+    // 处理发生地信息数组
+    const places = this.parsePlaceArray(row);
+    if (places.length > 0) {
+      await this.processPlaceArray(containerNumber, places);
+    }
+    
     await this.recalculateStatus(containerNumber);
   }
 
@@ -549,89 +626,335 @@ export class FeituoImportService {
       await eventRepo.save(event);
       logger.info(`[FeituoImport] 推导状态事件: ${containerNumber} ${d.statusCode} @ ${d.occurredAt.toISOString()}`);
     }
+}
+
+  /**
+   * 解析发生地信息数组
+   * 飞驼Excel中发生地信息通过多列传输，列名如：发生地信息_地点CODE, 发生地信息_地点CODE_2
+   */
+  private parsePlaceArray(row: FeituoRowData): ExcelPlaceInfo[] {
+    const places: ExcelPlaceInfo[] = [];
+    const suffixes = ['', '_2', '_3', '_4', '_5', '_6', '_7', '_8', '_9', '_10'];
+    
+    for (let i = 0; i < suffixes.length; i++) {
+      const suffix = suffixes[i];
+      const code = getVal(row, `发生地信息_地点CODE${suffix}`);
+      if (!code) break;
+      
+      places.push({
+        code,
+        nameEn: getVal(row, `发生地信息_地点名称英文（标准）${suffix}`) || undefined,
+        nameCn: getVal(row, `发生地信息_地点名称中文（标准）${suffix}`) || undefined,
+        placeType: getVal(row, `发生地信息_地点类型${suffix}`) || undefined,
+        eta: parseDate(getVal(row, `发生地信息_预计到达时间${suffix}`)),
+        ata: parseDate(getVal(row, `发生地信息_实际到达时间${suffix}`)),
+        etd: parseDate(getVal(row, `发生地信息_预计离开时间${suffix}`)),
+        atd: parseDate(getVal(row, `发生地信息_实际离开时间${suffix}`)),
+        actualLoading: parseDate(getVal(row, `发生地信息_实际装船时间${suffix}`)),
+        actualDischarge: parseDate(getVal(row, `发生地信息_实际卸船时间${suffix}`)),
+        terminal: getVal(row, `发生地信息_码头名称${suffix}`) || undefined,
+        sequence: i + 1,
+      });
+    }
+    
+    return places;
   }
 
+  /**
+   * 解析状态信息数组
+   * 遍历所有状态组（第12组起），每组一条状态记录
+   */
+  private parseStatusArray(row: FeituoRowData, tableType: 1 | 2): ExcelStatusInfo[] {
+    const statuses: ExcelStatusInfo[] = [];
+    const startGroup = tableType === 1 ? 12 : 14;
+    const maxGroups = 30;
+    
+    for (let group = startGroup; group < startGroup + maxGroups; group++) {
+      const statusCode = getVal(row, group, '状态代码') || getVal(row, group, '当前状态代码');
+      if (!statusCode) continue;
+      
+      const occurredAt = parseDate(getVal(row, group, '状态发生时间') || getVal(row, group, '发生时间'));
+      if (!occurredAt) continue;
+      
+      const isEsti = getVal(row, group, '是否预计') || getVal(row, group, '是否已发生');
+      
+      statuses.push({
+        group,
+        vesselName: getVal(row, group, '船名/车牌号') || undefined,
+        voyageNumber: getVal(row, group, '航次') || undefined,
+        transportMode: getVal(row, group, '运输方式') || undefined,
+        statusCode,
+        statusName: getVal(row, group, '状态描述中文（标准）') || getVal(row, group, '状态描述中文(标准)') || statusCode,
+        occurredAt,
+        location: getVal(row, group, '发生地') || undefined,
+        terminal: getVal(row, group, '码头名称') || undefined,
+        isEstimated: isEsti === 'Y' || isEsti === 'true',
+        dataSource: getVal(row, group, '数据来源') || 'Feituo',
+      });
+    }
+    
+    return statuses;
+  }
+
+  /**
+   * 根据地点类型获取港口操作记录的port_type
+   */
+  private getPortTypeFromPlaceType(placeType: string | undefined): 'origin' | 'transit' | 'destination' | null {
+    if (!placeType) return null;
+    
+    if (placeType.includes('起始地') || placeType.includes('起运港')) {
+      return 'origin';
+    }
+    if (placeType.includes('目的港预计')) {
+      return 'transit';
+    }
+    if (placeType.includes('目的地')) {
+      return 'destination';
+    }
+    return null;
+  }
+
+  /**
+   * 处理发生地信息数组 → 写入 process_port_operations
+   */
+  private async processPlaceArray(containerNumber: string, places: ExcelPlaceInfo[]): Promise<void> {
+    const portOpRepo = AppDataSource.getRepository(PortOperation);
+    const containerRepo = AppDataSource.getRepository(Container);
+    
+    for (const place of places) {
+      const portType = this.getPortTypeFromPlaceType(place.placeType);
+      if (!portType) continue;
+      
+      // 查找已存在的港口操作记录
+      let portOp = await portOpRepo.findOne({
+        where: { containerNumber, portType, portSequence: place.sequence }
+      });
+      
+      if (!portOp) {
+        portOp = portOpRepo.create({
+          containerNumber,
+          portType,
+          portSequence: place.sequence,
+        });
+      }
+      
+      // 写入公共字段
+      portOp.portCode = place.code;
+      portOp.portName = place.nameCn || place.nameEn || place.code;
+      portOp.portNameEn = place.nameEn;
+      portOp.portNameCn = place.nameCn;
+      portOp.gateInTerminal = place.terminal;
+      portOp.dataSource = 'Feituo';
+      
+      // 根据portType写入时间字段
+      if (portType === 'origin') {
+        // 起运港：实际装船时间写入海运表
+        if (place.actualLoading) {
+          const container = await containerRepo.findOne({ where: { containerNumber } });
+          const bl = container?.billOfLadingNumber;
+          if (bl) {
+            const sf = await AppDataSource.getRepository(SeaFreight).findOne({ where: { billOfLadingNumber: bl } });
+            if (sf) {
+              sf.actualLoadingDate = place.actualLoading;
+              await AppDataSource.getRepository(SeaFreight).save(sf);
+            }
+          }
+        }
+      } else if (portType === 'transit') {
+        // 中转港
+        portOp.transitArrivalDate = place.ata || place.eta;
+        portOp.atdTransit = place.atd || place.etd;
+      } else if (portType === 'destination') {
+        // 目的港
+        portOp.etaDestPort = place.eta;
+        portOp.ataDestPort = place.ata;
+        portOp.destPortUnloadDate = place.actualDischarge;
+      }
+      
+      await portOpRepo.save(portOp);
+    }
+  }
+
+  /**
+   * 根据运输方式判断是海运还是陆运，更新对应表的船名/车牌号
+   */
+  private async updateVesselOrTruckPlate(
+    containerNumber: string,
+    vesselName?: string,
+    voyageNumber?: string,
+    transportMode?: string
+  ): Promise<void> {
+    if (!vesselName && !voyageNumber && !transportMode) return;
+    
+    const containerRepo = AppDataSource.getRepository(Container);
+    const container = await containerRepo.findOne({ where: { containerNumber } });
+    const bl = container?.billOfLadingNumber;
+    if (!bl) return;
+    
+    const sfRepo = AppDataSource.getRepository(SeaFreight);
+    const sf = await sfRepo.findOne({ where: { billOfLadingNumber: bl } });
+    if (!sf) return;
+    
+    // 判断运输方式
+    const isOcean = !transportMode || 
+      transportMode.toUpperCase().includes('VESSEL') || 
+      transportMode.toUpperCase().includes('海运') ||
+      transportMode.toUpperCase().includes('船');
+    
+    if (isOcean) {
+      // 海运：更新 process_sea_freight
+      let updated = false;
+      if (vesselName && !sf.vesselName) {
+        sf.vesselName = vesselName;
+        updated = true;
+      }
+      if (voyageNumber && !sf.voyageNumber) {
+        sf.voyageNumber = voyageNumber;
+        updated = true;
+      }
+      if (transportMode && !sf.transportMode) {
+        sf.transportMode = transportMode;
+        updated = true;
+      }
+      if (updated) {
+        await sfRepo.save(sf);
+      }
+    } else {
+      // 陆运：更新 process_trucking_transport
+      const ttRepo = AppDataSource.getRepository(TruckingTransport);
+      let tt = await ttRepo.findOne({ where: { containerNumber } });
+      if (!tt) {
+        tt = ttRepo.create({ containerNumber });
+      }
+      
+      if (vesselName && !tt.truckPlate) {
+        tt.truckPlate = vesselName; // 陆运时船名/车牌号字段写入truck_plate
+      }
+      await ttRepo.save(tt);
+    }
+  }
+
+  /**
+   * 处理状态信息数组 → 写入 ext_container_status_events + 更新核心时间字段
+   */
+  private async processStatusArray(
+    containerNumber: string,
+    statuses: ExcelStatusInfo[]
+  ): Promise<void> {
+    const eventRepo = AppDataSource.getRepository(ContainerStatusEvent);
+    
+    for (const status of statuses) {
+      // 检查是否已存在（避免重复）
+      const existing = await eventRepo.findOne({
+        where: { 
+          containerNumber, 
+          statusCode: status.statusCode,
+          occurredAt: status.occurredAt
+        }
+      });
+      if (existing) continue;
+      
+      // 创建状态事件记录
+      const event = eventRepo.create({
+        containerNumber,
+        statusCode: status.statusCode,
+        statusName: status.statusName,
+        occurredAt: status.occurredAt!,
+        location: status.location,
+        terminalName: status.terminal,
+        description: status.statusName,
+        dataSource: status.dataSource,
+        rawData: { group: status.group, isEstimated: status.isEstimated }
+      });
+      await eventRepo.save(event);
+      
+      // 更新船名/航次/运输方式
+      await this.updateVesselOrTruckPlate(
+        containerNumber,
+        status.vesselName,
+        status.voyageNumber,
+        status.transportMode
+      );
+      
+      // 非预计状态：更新核心时间字段
+      if (!status.isEstimated && status.occurredAt) {
+        await this.updateCoreFieldsFromStatus(containerNumber, status.statusCode, status.occurredAt);
+      }
+    }
+  }
+
+  /**
+   * 根据状态码更新核心时间字段
+   */
+  private async updateCoreFieldsFromStatus(
+    containerNumber: string,
+    statusCode: string,
+    occurredAt: Date
+  ): Promise<void> {
+    const fieldName = getCoreFieldName(statusCode);
+    if (!fieldName) return;
+    
+    const poRepo = AppDataSource.getRepository(PortOperation);
+    const erRepo = AppDataSource.getRepository(EmptyReturn);
+    const containerRepo = AppDataSource.getRepository(Container);
+    
+    if (fieldName === 'return_time') {
+      let er = await erRepo.findOne({ where: { containerNumber } });
+      if (!er) er = erRepo.create({ containerNumber });
+      er.returnTime = occurredAt;
+      await erRepo.save(er);
+    } else if (fieldName === 'shipment_date') {
+      const container = await containerRepo.findOne({ where: { containerNumber } });
+      const bl = container?.billOfLadingNumber;
+      if (bl) {
+        const sf = await AppDataSource.getRepository(SeaFreight).findOne({ where: { billOfLadingNumber: bl } });
+        if (sf) {
+          sf.shipmentDate = occurredAt;
+          await AppDataSource.getRepository(SeaFreight).save(sf);
+        }
+      }
+    } else {
+      const portType = ['transit_arrival_date', 'atd_transit'].includes(fieldName) ? 'transit' : 'destination';
+      const po = await poRepo
+        .createQueryBuilder('p')
+        .where('p.container_number = :cn', { cn: containerNumber })
+        .andWhere('p.port_type = :pt', { pt: portType })
+        .getOne();
+      if (po) {
+        const map: Record<string, keyof PortOperation> = {
+          ata_dest_port: 'ataDestPort',
+          eta_dest_port: 'etaDestPort',
+          gate_in_time: 'gateInTime',
+          gate_out_time: 'gateOutTime',
+          dest_port_unload_date: 'destPortUnloadDate',
+          available_time: 'availableTime',
+          transit_arrival_date: 'transitArrivalDate',
+          atd_transit: 'atdTransit'
+        };
+        const col = map[fieldName];
+        if (col) {
+          (po as any)[col] = occurredAt;
+          await poRepo.save(po);
+        }
+      }
+    }
+  }
+
+  /**
+   * 合并状态事件（遍历所有状态组）
+   */
   private async mergeStatusEvents(
     row: FeituoRowData,
     containerNumber: string,
     eventRepo: ReturnType<typeof AppDataSource.getRepository<ContainerStatusEvent>>,
     tableType: 1 | 2
   ): Promise<void> {
-    const statusGroup = tableType === 1 ? 12 : 14;
-    const statusCode = getVal(row, statusGroup, '状态代码', '当前状态代码') || getVal(row, '状态代码', '当前状态代码');
-    const occurredAt = parseDate(getVal(row, statusGroup, '状态发生时间', '发生时间') || getVal(row, '状态发生时间', '发生时间'));
-    if (!statusCode || !occurredAt) return;
-
-    const isEsti = getVal(row, statusGroup, '是否预计', '是否已发生') || getVal(row, '是否预计', '是否已发生');
-    const isEstimated = isEsti === 'Y' || isEsti === 'true';
-
-    const existing = await eventRepo.findOne({
-      where: { containerNumber, statusCode, occurredAt }
-    });
-    if (existing) return;
-
-    const event = eventRepo.create({
-      containerNumber,
-      statusCode,
-      statusName: getVal(row, statusGroup, '状态描述中文（标准）', '状态描述中文(标准)', '状态描述英文（标准）') || getVal(row, '状态描述中文（标准）', '状态描述英文（标准）') || statusCode,
-      occurredAt,
-      location: getVal(row, statusGroup, '发生地') || getVal(row, '发生地'),
-      description: getVal(row, statusGroup, '状态描述英文（标准）', '状态描述中文（标准）') || getVal(row, '状态描述英文（标准）', '状态描述中文（标准）'),
-      dataSource: getVal(row, statusGroup, '数据来源') || getVal(row, '数据来源') || 'Feituo',
-      rawData: { isEstimated, statusCode }
-    });
-    await eventRepo.save(event);
-
-    if (!isEstimated) {
-      const fieldName = getCoreFieldName(statusCode);
-      if (fieldName) {
-        const poRepo = AppDataSource.getRepository(PortOperation);
-        const sfRepo = AppDataSource.getRepository(SeaFreight);
-        const erRepo = AppDataSource.getRepository(EmptyReturn);
-        const ttRepo = AppDataSource.getRepository(TruckingTransport);
-
-        if (fieldName === 'return_time') {
-          let er = await erRepo.findOne({ where: { containerNumber } });
-          if (!er) er = erRepo.create({ containerNumber });
-          er.returnTime = occurredAt;
-          await erRepo.save(er);
-        } else if (fieldName === 'shipment_date') {
-          const c = await AppDataSource.getRepository(Container).findOne({ where: { containerNumber }, relations: ['seaFreight'] });
-          const bl = c?.seaFreight?.billOfLadingNumber || c?.billOfLadingNumber;
-          if (bl) {
-            const sf = await sfRepo.findOne({ where: { billOfLadingNumber: bl } });
-            if (sf) {
-              sf.shipmentDate = occurredAt;
-              await sfRepo.save(sf);
-            }
-          }
-        } else {
-          const portType = ['transit_arrival_date', 'atd_transit'].includes(fieldName) ? 'transit' : 'destination';
-          const po = await poRepo
-            .createQueryBuilder('p')
-            .where('p.container_number = :cn', { cn: containerNumber })
-            .andWhere('p.port_type = :pt', { pt: portType })
-            .getOne();
-          if (po) {
-            const map: Record<string, keyof PortOperation> = {
-              ata_dest_port: 'ataDestPort',
-              eta_dest_port: 'etaDestPort',
-              gate_in_time: 'gateInTime',
-              gate_out_time: 'gateOutTime',
-              dest_port_unload_date: 'destPortUnloadDate',
-              available_time: 'availableTime',
-              transit_arrival_date: 'transitArrivalDate',
-              atd_transit: 'atdTransit'
-            };
-            const col = map[fieldName];
-            if (col) {
-              (po as any)[col] = occurredAt;
-              await poRepo.save(po);
-            }
-          }
-        }
-      }
-    }
+    // 解析状态信息数组
+    const statuses = this.parseStatusArray(row, tableType);
+    if (statuses.length === 0) return;
+    
+    // 处理所有状态
+    await this.processStatusArray(containerNumber, statuses);
   }
 
   /** 有船公司代码且船公司网站url时，upsert dict_shipping_companies 的 website_url */
@@ -694,8 +1017,125 @@ export class FeituoImportService {
         container.logisticsStatus = result.status;
         await AppDataSource.getRepository(Container).save(container);
       }
+
+      // 检查并更新查验状态
+      await this.checkAndUpdateInspectionStatus(containerNumber, portOps);
+
+      // 触发滞港费重算
+      await this.triggerDemurrageRecalculation(containerNumber);
     } catch (e) {
       logger.warn('[FeituoImport] recalculateStatus failed:', e);
+    }
+  }
+
+  /**
+   * 触发滞港费重算
+   * 当ATA等关键字段更新时，重新计算滞港费
+   */
+  private async triggerDemurrageRecalculation(containerNumber: string): Promise<void> {
+    try {
+      await this.demurrageService.calculateForContainer(containerNumber);
+      logger.info(`[FeituoImport] 滞港费重算完成: ${containerNumber}`);
+    } catch (e) {
+      logger.warn('[FeituoImport] 滞港费重算失败:', e);
+    }
+  }
+
+  /**
+   * 检查并更新查验状态
+   * 当检测到 CUIP/CPI/CPI_I 状态码时，自动标记查验状态
+   */
+  private async checkAndUpdateInspectionStatus(
+    containerNumber: string,
+    portOperations: PortOperation[]
+  ): Promise<void> {
+    try {
+      // 查验状态码列表
+      const INSPECTION_STATUS_CODES = ['CUIP', 'CPI', 'CPI_I'];
+
+      // 从港口操作记录中查找查验状态码
+      const inspectionPorts = portOperations.filter(po =>
+        po.statusCode && INSPECTION_STATUS_CODES.includes(po.statusCode)
+      );
+
+      if (inspectionPorts.length === 0) {
+        return;
+      }
+
+      // 按时间排序，取最早的事件
+      const sortedPorts = inspectionPorts.sort(
+        (a, b) => (a.statusOccurredAt?.getTime() || 0) - (b.statusOccurredAt?.getTime() || 0)
+      );
+      const firstInspectionPort = sortedPorts[0];
+
+      // 获取货柜
+      const container = await AppDataSource.getRepository(Container).findOne({
+        where: { containerNumber },
+      });
+
+      if (!container) {
+        return;
+      }
+
+      // 如果已是查验状态，只更新记录
+      const isNewInspection = !container.inspectionRequired;
+
+      // 设置查验标记
+      container.inspectionRequired = true;
+      await AppDataSource.getRepository(Container).save(container);
+
+      // 查找或创建查验记录
+      let inspectionRecord = await AppDataSource.getRepository(InspectionRecord).findOne({
+        where: { containerNumber },
+      });
+
+      if (!inspectionRecord) {
+        // 创建新的查验记录
+        inspectionRecord = AppDataSource.getRepository(InspectionRecord).create({
+          containerNumber,
+          inspectionNoticeDate: firstInspectionPort.statusOccurredAt,
+          latestStatus: '查验中',
+          customsClearanceStatus: '查验中',
+          dataSource: 'ExcelImport',
+          remarks: `Excel导入自动触发查验，状态码: ${inspectionPorts.map(p => p.statusCode).join(',')}`,
+        });
+        await AppDataSource.getRepository(InspectionRecord).save(inspectionRecord);
+        logger.info(`[FeituoImport] 创建查验记录: ${containerNumber}`);
+      } else {
+        // 更新已有记录
+        if (!inspectionRecord.inspectionNoticeDate) {
+          inspectionRecord.inspectionNoticeDate = firstInspectionPort.statusOccurredAt;
+        }
+        if (!inspectionRecord.latestStatus || inspectionRecord.latestStatus !== '已放行') {
+          inspectionRecord.latestStatus = '查验中';
+          inspectionRecord.customsClearanceStatus = '查验中';
+        }
+        inspectionRecord.dataSource = 'ExcelImport';
+        inspectionRecord.remarks = `Excel导入自动更新，状态码: ${inspectionPorts.map(p => p.statusCode).join(',')}`;
+        await AppDataSource.getRepository(InspectionRecord).save(inspectionRecord);
+        logger.info(`[FeituoImport] 更新查验记录: ${containerNumber}`);
+      }
+
+      // 添加查验事件（只有新触发时才添加）
+      if (isNewInspection) {
+        const eventStatusMap: Record<string, string> = {
+          CUIP: '海关滞留 - 待清关检查',
+          CPI: '出口报关查验',
+          CPI_I: '进口报关查验',
+        };
+
+        const event = AppDataSource.getRepository(InspectionEvent).create({
+          inspectionRecordId: inspectionRecord.id,
+          eventDate: firstInspectionPort.statusOccurredAt,
+          eventStatus: eventStatusMap[firstInspectionPort.statusCode!] || `状态码: ${firstInspectionPort.statusCode}`,
+        });
+        await AppDataSource.getRepository(InspectionEvent).save(event);
+        logger.info(`[FeituoImport] 添加查验事件: ${containerNumber}, 状态: ${event.eventStatus}`);
+      }
+
+      logger.info(`[FeituoImport] 自动标记货柜为查验状态: ${containerNumber}, 状态码: ${inspectionPorts.map(p => p.statusCode).join(',')}`);
+    } catch (e) {
+      logger.warn('[FeituoImport] 检查查验状态失败:', e);
     }
   }
 }

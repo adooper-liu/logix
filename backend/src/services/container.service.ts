@@ -181,18 +181,16 @@ export class ContainerService {
           currentPortType,
           latestPortOperation: this.formatPortOperation(latestPortOperation),
           // 扩展字段（与列表表头绑定一致）
-          etaDestPort: latestPortOperation?.etaDestPort || container.seaFreight?.eta || null,
-          etaCorrection: latestPortOperation?.etaCorrection || null,
-          ataDestPort:
-            currentPortType === 'transit'
-              ? latestPortOperation?.transitArrivalDate || null
-              : latestPortOperation?.ataDestPort || null,
-          customsStatus: latestPortOperation?.customsStatus || null,
+          // 始终使用目的港的ETA/ATA，不受中转港影响
+          etaDestPort: destPortOp?.etaDestPort || container.seaFreight?.eta || null,
+          etaCorrection: destPortOp?.etaCorrection || null,
+          ataDestPort: destPortOp?.ataDestPort || null,
+          customsStatus: destPortOp?.customsStatus || null,
           destinationPort: container.seaFreight?.portOfDischarge || null,
           billOfLadingNumber:
             container.seaFreight?.mblNumber || container.seaFreight?.billOfLadingNumber || null,
           mblNumber: container.seaFreight?.mblNumber || null,
-          actualShipDate: orderInfo?.actualShipDate || container.seaFreight?.shipmentDate || null,
+          actualShipDate: orderInfo?.expectedShipDate || container.seaFreight?.shipmentDate || null,
           sellToCountry: orderInfo?.sellToCountry || null,
           customerName: orderInfo?.customerName || null,
           // 计划提柜日 / 最晚提柜日 / 最晚还箱日 / 实际还箱日（列表表头用）
