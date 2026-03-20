@@ -1,10 +1,36 @@
 /**
  * 飞驼 Excel 字段与分组映射
+ * 支持两种格式：
+ * 1. 传统格式：直接字段名（如 "MBL Number"）
+ * 2. 分组_字段名 格式（如 "基本信息_MBL Number"）
+ * 
  * 按飞驼 Excel 实际导出结构对齐，分组与文档 20-飞驼Excel字段分组对照验证.md 一致
  * 未知分组（编码、名称、创建人、修改人、创建/修改时间等）不配置，归 group 0 不导入
  *
  * 表一：1-15 组；表二：1-17 组
  */
+
+/** 分组名称 -> 分组ID 映射 */
+export const GROUP_NAME_TO_ID: Record<string, number> = {
+  '基本信息': 1,
+  '船公司信息': 2,
+  '订舱信息': 3,
+  '接货地信息': 4,
+  '交货地信息': 5,
+  '头程船信息': 6,
+  '当前状态信息': 7,
+  '发生地信息': 8,
+  '路径信息': 9,
+  '港区船舶计划': 10,
+  '集装箱物流信息': 11,
+  '集装箱物流信息-状态': 12,
+  '船泊信息': 13,
+  '港区货运单证-装箱单信息': 14,
+  '港区货运单-VGM': 15,
+  // 表二额外分组
+  'HOLD信息': 2,
+  '费用信息': 3
+};
 
 /** 字段名 -> 分组ID，多出现时按 Excel 列顺序 occurrence 依次对应 */
 export type FieldGroupMap = Record<string, number | number[]>;
@@ -325,9 +351,53 @@ export function getGroupForColumn(
 ): number {
   const map = tableType === 1 ? FEITUO_TABLE1_FIELD_GROUPS : FEITUO_TABLE2_FIELD_GROUPS;
   const normalized = headerName.trim();
+
+  // 1. 优先尝试 "分组_字段名" 格式（如 "基本信息_MBL Number"）
+  const parts = normalized.split('_');
+  if (parts.length >= 2) {
+    // 尝试解析 "分组_字段名" 格式
+    const groupName = parts[0];
+    const fieldName = parts.slice(1).join('_'); // 字段名可能包含下划线
+    const groupId = GROUP_NAME_TO_ID[groupName];
+    
+    if (groupId !== undefined) {
+      // 查找字段名在映射表中的定义
+      const fieldGroup = map[fieldName];
+      if (fieldGroup !== undefined) {
+        if (typeof fieldGroup === 'number') return fieldGroup;
+        const arr = fieldGroup as number[];
+        // 检查该分组是否在允许的分组列表中
+        if (arr.includes(groupId)) return groupId;
+        return arr[Math.min(occurrenceIndex, arr.length - 1)] ?? arr[0];
+      }
+      // 如果字段名不在映射中，但分组已知，返回该分组
+      return groupId;
+    }
+  }
+
+  // 2. 传统格式：直接查找字段名
   const group = map[normalized] ?? map[headerName];
   if (group === undefined) return 0; // 未知字段不导入
   if (typeof group === 'number') return group;
   const arr = group as number[];
   return arr[Math.min(occurrenceIndex, arr.length - 1)] ?? arr[0];
+}
+
+/**
+ * 解析 "分组_字段名" 格式，获取分组ID和字段名
+ * 返回 { groupId, fieldName } 或 null
+ */
+export function parseGroupFieldName(headerName: string): { groupId: number; fieldName: string } | null {
+  const normalized = headerName.trim();
+  const parts = normalized.split('_');
+  
+  if (parts.length < 2) return null;
+  
+  const groupName = parts[0];
+  const fieldName = parts.slice(1).join('_');
+  const groupId = GROUP_NAME_TO_ID[groupName];
+  
+  if (groupId === undefined) return null;
+  
+  return { groupId, fieldName };
 }

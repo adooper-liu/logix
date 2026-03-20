@@ -29,6 +29,10 @@ function formatDate(d: string | Date | null): string {
 }
 
 const SOURCE_LABELS_SHORT: Record<string, string> = {
+  ata: '目的港ATA',
+  eta: '目的港ETA',
+  revised_eta: '修正ETA',
+  // 兼容旧键名
   ata_dest_port: '目的港ATA',
   eta_dest_port: '目的港ETA',
   revised_eta_dest_port: '修正ETA',

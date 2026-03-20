@@ -312,7 +312,7 @@ export class AlertService {
     if (container.portOperations && container.portOperations.length > 0) {
       const destinationPort = container.portOperations.find(op => op.portType === 'destination');
       if (destinationPort) {
-        const baseDate = destinationPort.ataDestPort || destinationPort.etaDestPort || destinationPort.etaCorrection;
+        const baseDate = destinationPort.ata || destinationPort.eta || destinationPort.etaCorrection;
         if (baseDate) {
           const freeDays = 7; // 假设免费期为7天
           const latestDate = new Date(baseDate);

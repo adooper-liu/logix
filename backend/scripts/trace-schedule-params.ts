@@ -65,7 +65,7 @@ async function main() {
 
   // 4. 目的港操作
   const destPo = await AppDataSource.query(
-    `SELECT port_code, port_name, eta_dest_port, ata_dest_port, last_free_date
+    `SELECT port_code, port_name, eta, ata, last_free_date
      FROM process_port_operations
      WHERE container_number = $1 AND port_type = 'destination'`,
     [CONTAINER]
@@ -73,7 +73,7 @@ async function main() {
   console.log('\n4. 目的港操作 (port_code, ATA/ETA, last_free_date):', destPo);
 
   const portCode = destPo[0]?.port_code;
-  const clearanceDate = destPo[0]?.ata_dest_port || destPo[0]?.eta_dest_port;
+  const clearanceDate = destPo[0]?.ata || destPo[0]?.eta;
   const lastFreeDate = destPo[0]?.last_free_date;
 
   // 5. 车队-港口映射

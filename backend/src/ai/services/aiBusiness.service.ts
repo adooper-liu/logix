@@ -37,7 +37,7 @@ export class AIBusinessService {
         SELECT COUNT(*) as count 
         FROM process_port_operations 
         WHERE port_type = 'destination' 
-        AND DATE(ata_dest_port) = CURRENT_DATE
+        AND DATE(ata) = CURRENT_DATE
       `);
 
       // 在途数量
@@ -53,7 +53,7 @@ export class AIBusinessService {
         FROM process_port_operations 
         WHERE port_type = 'destination' 
         AND customs_status != 'cleared'
-        AND ata_dest_port IS NOT NULL
+        AND ata IS NOT NULL
       `);
 
       return {
@@ -127,21 +127,21 @@ export class AIBusinessService {
       const params: any[] = [];
 
       if (dateRange) {
-        dateFilter = 'AND DATE(po.ata_dest_port) BETWEEN $1 AND $2';
+        dateFilter = 'AND DATE(po.ata) BETWEEN $1 AND $2';
         params.push(dateRange.start, dateRange.end);
       }
 
       const results = await AppDataSource.query(`
         SELECT 
           COUNT(*) as total,
-          COUNT(CASE WHEN DATE(po.ata_dest_port) = CURRENT_DATE THEN 1 END) as today,
-          COUNT(CASE WHEN DATE(po.ata_dest_port) < CURRENT_DATE AND po.port_sequence IN (
+          COUNT(CASE WHEN DATE(po.ata) = CURRENT_DATE THEN 1 END) as today,
+          COUNT(CASE WHEN DATE(po.ata) < CURRENT_DATE AND po.port_sequence IN (
             SELECT MAX(po2.port_sequence) FROM process_port_operations po2 
             WHERE po2.container_number = po.container_number AND po2.port_type = 'destination'
           ) THEN 1 END) as before_today
         FROM process_port_operations po
         WHERE po.port_type = 'destination'
-        AND po.ata_dest_port IS NOT NULL
+        AND po.ata IS NOT NULL
         ${dateFilter}
       `, params);
 
@@ -171,14 +171,14 @@ export class AIBusinessService {
       const results = await AppDataSource.query(`
         SELECT 
           COUNT(*) as total,
-          COUNT(CASE WHEN c.eta_dest_port < $1 THEN 1 END) as overdue,
-          COUNT(CASE WHEN c.eta_dest_port >= $1 AND c.eta_dest_port <= $2 THEN 1 END) as within_3_days,
-          COUNT(CASE WHEN c.eta_dest_port > $2 AND c.eta_dest_port <= $3 THEN 1 END) as within_7_days,
-          COUNT(CASE WHEN c.eta_dest_port > $3 THEN 1 END) as after_7_days
+          COUNT(CASE WHEN c.eta < $1 THEN 1 END) as overdue,
+          COUNT(CASE WHEN c.eta >= $1 AND c.eta <= $2 THEN 1 END) as within_3_days,
+          COUNT(CASE WHEN c.eta > $2 AND c.eta <= $3 THEN 1 END) as within_7_days,
+          COUNT(CASE WHEN c.eta > $3 THEN 1 END) as after_7_days
         FROM biz_containers c
         LEFT JOIN process_port_operations po ON c.container_number = po.container_number
         WHERE c.logistics_status IN ('shipped', 'in_transit', 'at_port')
-        AND (c.eta_dest_port IS NOT NULL OR po.eta_dest_port IS NOT NULL)
+        AND (c.eta IS NOT NULL OR po.eta IS NOT NULL)
       `, [today, in3Days, in7Days]);
 
       return {
@@ -737,15 +737,15 @@ export class AIBusinessService {
           c.container_number,
           c.logistics_status,
           c.destination_port,
-          po.ata_dest_port,
+          po.ata,
           po.customs_status,
           po.isf_status
         FROM biz_containers c
         INNER JOIN process_port_operations po ON c.container_number = po.container_number
         WHERE po.port_type = 'destination'
-        AND po.ata_dest_port IS NOT NULL
+        AND po.ata IS NOT NULL
         AND (po.customs_status != 'cleared' OR po.customs_status IS NULL)
-        ORDER BY po.ata_dest_port ASC
+        ORDER BY po.ata ASC
         LIMIT $1
       `, [limit]);
 
@@ -769,7 +769,7 @@ export class AIBusinessService {
           c.container_number,
           c.destination_port,
           po.last_free_date,
-          po.ata_dest_port,
+          po.ata,
           cc.amount as demurrage_amount,
           cc.status as charge_status,
           CURRENT_DATE - po.last_free_date as overdue_days
@@ -790,7 +790,7 @@ export class AIBusinessService {
           containerNumber: row.container_number,
           destinationPort: row.destination_port,
           lastFreeDate: row.last_free_date,
-          ataDestPort: row.ata_dest_port,
+          ataDestPort: row.ata,
           demurrageAmount: parseFloat(row.demurrage_amount || '0'),
           chargeStatus: row.charge_status,
           overdueDays: parseInt(row.overdue_days || '0')
@@ -812,8 +812,8 @@ export class AIBusinessService {
           c.container_number,
           c.logistics_status,
           c.destination_port,
-          c.eta_dest_port,
-          c.ata_dest_port,
+          c.eta,
+          c.ata,
           o.order_number,
           o.sell_to_country
         FROM biz_containers c

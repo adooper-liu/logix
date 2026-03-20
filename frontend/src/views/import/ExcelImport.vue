@@ -119,8 +119,8 @@ const FIELD_MAPPINGS: FieldMapping[] = [
 
   // ===== 港口操作表 (process_port_operations) =====
   { excelField: 'ETA修正', table: 'process_port_operations', field: 'eta_correction', required: false, transform: parseDate },
-  { excelField: '预计到港日期(目的港)', table: 'process_port_operations', field: 'eta_dest_port', required: false, transform: parseDate, aliases: ['预计到港日期(ETA)'] },
-  { excelField: '实际到港日期(目的港)', table: 'process_port_operations', field: 'ata_dest_port', required: false, transform: parseDate },
+  { excelField: '预计到港日期(目的港)', table: 'process_port_operations', field: 'eta', required: false, transform: parseDate, aliases: ['预计到港日期(ETA)'] },
+  { excelField: '实际到港日期(目的港)', table: 'process_port_operations', field: 'ata', required: false, transform: parseDate },
   { excelField: '目的港卸船/火车日期', table: 'process_port_operations', field: 'dest_port_unload_date', required: false, transform: parseDate },
   { excelField: '计划清关日期', table: 'process_port_operations', field: 'planned_customs_date', required: false, transform: parseDate },
   { excelField: '实际清关日期', table: 'process_port_operations', field: 'actual_customs_date', required: false, transform: parseDate },
@@ -144,7 +144,7 @@ const FIELD_MAPPINGS: FieldMapping[] = [
   { excelField: '可提箱日期', table: 'process_port_operations', field: 'available_time', required: false, transform: parseDate },
   { excelField: '最后免费日期', table: 'process_port_operations', field: 'last_free_date', required: false, transform: parseDate },
   { excelField: '中转港到港日期', table: 'process_port_operations', field: 'transit_arrival_date', required: false, transform: parseDate },
-  { excelField: '中转港离港日期', table: 'process_port_operations', field: 'atd_transit', required: false, transform: parseDate },
+  { excelField: '中转港离港日期', table: 'process_port_operations', field: 'atd', required: false, transform: parseDate },
 
   // ===== 拖卡运输表 (process_trucking_transport) =====
   { excelField: '是否预提', table: 'process_trucking_transport', field: 'is_pre_pickup', required: false, transform: transformBoolean },
@@ -262,7 +262,13 @@ function transformBoolean(value: any): boolean {
   if (typeof value === 'boolean') return value
   if (typeof value === 'number') return value === 1
   if (typeof value === 'string') {
-    return ['是', 'yes', 'true', '1', 'y'].includes(value.toLowerCase().trim())
+    const str = value.toString().trim()
+    // 符号类
+    if (['√', '✓', '✔', '×', '✗'].includes(str)) {
+      return str === '√' || str === '✓' || str === '✔'
+    }
+    // 文本类
+    return ['是', 'yes', 'true', '1', 'y'].includes(str.toLowerCase())
   }
   return false
 }
@@ -540,7 +546,7 @@ const splitRowToTables = async (
     console.log('[splitRowToTables] 添加起运港:', originPort, '代码:', originPortCode)
   }
 
-  // 2. 途经港 (transit)（与飞驼 API 对齐：transit_arrival_date、atd_transit）
+  // 2. 途经港 (transit)（与飞驼 API 对齐：transit_arrival_date、atd）
   const transitPort = transitPortRaw
   if (transitPort) {
     const transitOp: any = {
@@ -550,7 +556,7 @@ const splitRowToTables = async (
       port_name: transitPort,
       port_sequence: portSequence++,
       transit_arrival_date: parseDate(row['途经港到达日期'] || row['中转港到港日期']),
-      atd_transit: parseDate(row['途经港离港日期'] || row['中转港离港日期'])
+      atd: parseDate(row['途经港离港日期'] || row['中转港离港日期'])
     }
     portOperations.push(transitOp)
     console.log('[splitRowToTables] 添加途经港:', transitPort, '代码:', transitPortCode, '到达日期:', row['途经港到达日期'])
@@ -568,8 +574,8 @@ const splitRowToTables = async (
     }
 
     // 目的港相关日期字段（与飞驼 API/Excel 对齐）
-    if (row['预计到港日期'] || row['预计到港日期(目的港)'] || row['预计到港日期(ETA)']) destPortOp.eta_dest_port = parseDate(row['预计到港日期'] || row['预计到港日期(目的港)'] || row['预计到港日期(ETA)'])
-    if (row['目的港到达日期']) destPortOp.ata_dest_port = parseDate(row['目的港到达日期'])
+    if (row['预计到港日期'] || row['预计到港日期(目的港)'] || row['预计到港日期(ETA)']) destPortOp.eta = parseDate(row['预计到港日期'] || row['预计到港日期(目的港)'] || row['预计到港日期(ETA)'])
+    if (row['目的港到达日期']) destPortOp.ata = parseDate(row['目的港到达日期'])
     if (row['目的港卸船/火车日期']) destPortOp.dest_port_unload_date = parseDate(row['目的港卸船/火车日期'])
     if (row['最后免费日期']) destPortOp.last_free_date = parseDate(row['最后免费日期'])
     if (row['进闸时间'] || row['重箱进场时间']) destPortOp.gate_in_time = parseDate(row['进闸时间'] || row['重箱进场时间'])

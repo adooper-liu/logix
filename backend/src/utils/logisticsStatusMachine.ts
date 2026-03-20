@@ -285,8 +285,8 @@ export const isWmsConfirmed = (warehouseOperation?: WarehouseOperation): boolean
  * 1. 还空箱日期 → returned_empty
  * 2. 仓库卸柜（WMS已确认） → unloaded
  * 3. 拖车提柜日期 → picked_up
- * 4. 目的港实际到港（ata_dest_port） → at_port
- * 5. 中转港实际到港（ata_dest_port / gate_in_time / transit_arrival_date 任一） → at_port
+ * 4. 目的港实际到港（ata） → at_port
+ * 5. 中转港实际到港（ata / gate_in_time / transit_arrival_date 任一） → at_port
  * 6. 有海运记录（已实际出运）→ in_transit
  * 7. 默认状态（无出运记录）→ not_shipped
  */
@@ -330,7 +330,7 @@ export const calculateLogisticsStatus = (
   }
 
   // 优先级4: 目的港有实际到港时间
-  const destWithArrival = destPorts.find(po => po.ataDestPort);
+  const destWithArrival = destPorts.find(po => po.ata);
   if (destWithArrival) {
     status = SimplifiedStatus.AT_PORT;
     currentPortType = 'destination';
@@ -348,9 +348,9 @@ export const calculateLogisticsStatus = (
     return { status, currentPortType, latestPortOperation };
   }
 
-  // 优先级5: 中转港有到港/进闸（ata_dest_port、gate_in_time 或 transit_arrival_date）
+  // 优先级5: 中转港有到港/进闸（ata、gate_in_time 或 transit_arrival_date）
   const transitWithArrival = transitPorts.find(po =>
-    po.ataDestPort || po.gateInTime || (po as any).transitArrivalDate
+    po.ata || po.gateInTime || po.transitArrivalDate
   );
   if (transitWithArrival) {
     status = SimplifiedStatus.AT_PORT;

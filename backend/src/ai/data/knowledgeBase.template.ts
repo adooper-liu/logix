@@ -168,8 +168,8 @@ export const knowledgeBase = [
 
 ### 到港判定
 
-- **已到中转港**：有任一非空即可 — ata_dest_port、gate_in_time 或 transit_arrival_date
-- **已到目的港**：ata_dest_port 非空
+- **已到中转港**：有任一非空即可 — ata、gate_in_time 或 transit_arrival_date
+- **已到目的港**：ata 非空
 
 ### 港口操作记录
 
@@ -219,8 +219,8 @@ export const knowledgeBase = [
 | containerNumber | container_number | 集装箱号 |
 | actualShipDate | actual_ship_date | 实际出运日期 |
 | shipmentDate | shipment_date | 海运出运日期 |
-| etaDestPort | eta_dest_port | 预计到港时间 |
-| ataDestPort | ata_dest_port | 实际到港时间 |
+| etaDestPort | eta | 预计到港时间 |
+| ataDestPort | ata | 实际到港时间 |
 | lastFreeDate | last_free_date | 最晚提柜日 |
 | lastReturnDate | last_return_date | 最晚还箱日 |
 | returnTime | return_time | 实际还箱日 |

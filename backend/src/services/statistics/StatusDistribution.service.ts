@@ -37,8 +37,8 @@ export class StatusDistributionService {
    * - arrived_at_destination: at_port状态且current_port_type='destination'的货柜数（状态机优先级4）
    *
    * 状态机优先级说明：
-   * 优先级4: 目的港有ata_dest_port → at_port + current_port_type='destination'
-   * 优先级5: 中转港有 ata_dest_port / gate_in_time / transit_arrival_date 任一 → at_port + current_port_type='transit'
+   * 优先级4: 目的港有ata → at_port + current_port_type='destination'
+   * 优先级5: 中转港有 ata / gate_in_time / transit_arrival_date 任一 → at_port + current_port_type='transit'
    * 注意：两个统计都是基于状态机计算结果，受更高优先级状态（还空箱、WMS确认、拖车提柜）的排除
    */
   async getDistribution(startDate?: string, endDate?: string): Promise<Record<string, number>> {
@@ -153,16 +153,16 @@ export class StatusDistributionService {
             .from('process_port_operations', 'dest_po')
             .where('dest_po.container_number = container.container_number')
             .andWhere('dest_po.port_type = :destType', { destType: 'destination' })
-            .andWhere('dest_po.ata_dest_port IS NOT NULL')
+            .andWhere('dest_po.ata IS NOT NULL')
             .getQuery();
 
-          // 包含优先级5：中转港有到港/进闸（ata_dest_port、gate_in_time 或 transit_arrival_date）
+          // 包含优先级5：中转港有到港/进闸（ata、gate_in_time 或 transit_arrival_date）
           const hasTransitArrival = qb.subQuery()
             .select('1')
             .from('process_port_operations', 'transit_po')
             .where('transit_po.container_number = container.container_number')
             .andWhere('transit_po.port_type = :transitType')
-            .andWhere('(transit_po.ata_dest_port IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)')
+            .andWhere('(transit_po.ata IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)')
             .getQuery();
 
           return `NOT EXISTS ${notEmptyReturn} AND NOT EXISTS ${notWmsConfirmed} AND NOT EXISTS ${notPickedUp} AND NOT EXISTS ${notDestinationAta} AND EXISTS ${hasTransitArrival}`;
@@ -237,7 +237,7 @@ export class StatusDistributionService {
             .from('process_port_operations', 'dest_po')
             .where('dest_po.container_number = container.container_number')
             .andWhere('dest_po.port_type = :destType', { destType: 'destination' })
-            .andWhere('dest_po.ata_dest_port IS NOT NULL')
+            .andWhere('dest_po.ata IS NOT NULL')
             .getQuery();
 
           return `NOT EXISTS ${notEmptyReturn} AND NOT EXISTS ${notWmsConfirmed} AND NOT EXISTS ${notPickedUp} AND EXISTS ${hasDestinationAta}`;
@@ -273,7 +273,7 @@ export class StatusDistributionService {
 
   /**
    * 按状态维度：获取「已到中转港」货柜列表（与 getTransitArrivalCount 同源逻辑）
-   * 条件：无还箱/WMS/提柜/目的港ATA + 有中转港 ata_dest_port / gate_in_time / transit_arrival_date
+   * 条件：无还箱/WMS/提柜/目的港ATA + 有中转港 ata / gate_in_time / transit_arrival_date
    */
   async getContainersByArrivedAtTransit(startDate?: string, endDate?: string): Promise<Container[]> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
@@ -301,14 +301,14 @@ export class StatusDistributionService {
         .from('process_port_operations', 'dest_po')
         .where('dest_po.container_number = container.container_number')
         .andWhere('dest_po.port_type = :destType')
-        .andWhere('dest_po.ata_dest_port IS NOT NULL')
+        .andWhere('dest_po.ata IS NOT NULL')
         .getQuery();
       const hasTransitArrival = qb.subQuery()
         .select('1')
         .from('process_port_operations', 'transit_po')
         .where('transit_po.container_number = container.container_number')
         .andWhere('transit_po.port_type = :transitType')
-        .andWhere('(transit_po.ata_dest_port IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)')
+        .andWhere('(transit_po.ata IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)')
         .getQuery();
       return `NOT EXISTS ${notEmptyReturn} AND NOT EXISTS ${notWmsConfirmed} AND NOT EXISTS ${notPickedUp} AND NOT EXISTS ${notDestinationAta} AND EXISTS ${hasTransitArrival}`;
     });
@@ -354,7 +354,7 @@ export class StatusDistributionService {
         .from('process_port_operations', 'dest_po')
         .where('dest_po.container_number = container.container_number')
         .andWhere('dest_po.port_type = :destType', { destType: 'destination' })
-        .andWhere('dest_po.ata_dest_port IS NOT NULL')
+        .andWhere('dest_po.ata IS NOT NULL')
         .getQuery();
       return `NOT EXISTS ${notEmptyReturn} AND NOT EXISTS ${notWmsConfirmed} AND NOT EXISTS ${notPickedUp} AND EXISTS ${hasDestinationAta}`;
     });

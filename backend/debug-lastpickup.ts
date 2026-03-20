@@ -7,11 +7,11 @@ async function test() {
 
   // 查询目标集
   const result = await repo.query(`
-    SELECT c.container_number, c.logistics_status, po.ata_dest_port, po.last_free_date, po.port_sequence
+    SELECT c.container_number, c.logistics_status, po.ata, po.last_free_date, po.port_sequence
     FROM biz_containers c
     INNER JOIN process_port_operations po ON c.container_number = po.container_number
     WHERE po.port_type = 'destination'
-    AND po.ata_dest_port IS NOT NULL
+    AND po.ata IS NOT NULL
     AND po.port_sequence = (
       SELECT MAX(po2.port_sequence)
       FROM process_port_operations po2

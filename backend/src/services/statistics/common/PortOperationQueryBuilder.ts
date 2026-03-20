@@ -16,10 +16,10 @@ export class PortOperationQueryBuilder {
    */
   static getLatestDestinationPortWithAtaAlias(): string {
     return `(
-      SELECT po1.container_number, po1.ata_dest_port as latest_ata
+      SELECT po1.container_number, po1.ata as latest_ata
       FROM process_port_operations po1
       WHERE po1.port_type = 'destination'
-      AND po1.ata_dest_port IS NOT NULL
+      AND po1.ata IS NOT NULL
       AND po1.port_sequence = (
         SELECT MAX(po2.port_sequence)
         FROM process_port_operations po2
@@ -35,7 +35,7 @@ export class PortOperationQueryBuilder {
    */
   static getLatestDestinationPortWithEtaAlias(): string {
     return `(
-      SELECT po1.container_number, po1.eta_dest_port as latest_eta
+      SELECT po1.container_number, po1.eta as latest_eta
       FROM process_port_operations po1
       WHERE po1.port_type = 'destination'
       AND po1.port_sequence = (
@@ -56,7 +56,7 @@ export class PortOperationQueryBuilder {
       SELECT po1.container_number
       FROM process_port_operations po1
       WHERE po1.port_type = 'destination'
-      AND po1.ata_dest_port IS NOT NULL
+      AND po1.ata IS NOT NULL
       AND po1.port_sequence = (
         SELECT MAX(po2.port_sequence)
         FROM process_port_operations po2
@@ -93,8 +93,8 @@ export class PortOperationQueryBuilder {
       SELECT po1.container_number
       FROM process_port_operations po1
       WHERE po1.port_type = 'destination'
-      AND po1.ata_dest_port IS NULL
-      AND po1.eta_dest_port IS NULL
+      AND po1.ata IS NULL
+      AND po1.eta IS NULL
       AND po1.port_sequence = (
         SELECT MAX(po2.port_sequence)
         FROM process_port_operations po2
@@ -117,7 +117,7 @@ export class PortOperationQueryBuilder {
         FROM process_port_operations po2
         WHERE po2.container_number = po1.container_number
         AND po2.port_type = 'destination'
-        AND po2.ata_dest_port IS NOT NULL
+        AND po2.ata IS NOT NULL
       )
     )`;
   }

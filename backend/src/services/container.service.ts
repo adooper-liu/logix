@@ -182,9 +182,9 @@ export class ContainerService {
           latestPortOperation: this.formatPortOperation(latestPortOperation),
           // 扩展字段（与列表表头绑定一致）
           // 始终使用目的港的ETA/ATA，不受中转港影响
-          etaDestPort: destPortOp?.etaDestPort || container.seaFreight?.eta || null,
+          etaDestPort: destPortOp?.eta || container.seaFreight?.eta || null,
           etaCorrection: destPortOp?.etaCorrection || null,
-          ataDestPort: destPortOp?.ataDestPort || null,
+          ataDestPort: destPortOp?.ata || null,
           customsStatus: destPortOp?.customsStatus || null,
           destinationPort: container.seaFreight?.portOfDischarge || null,
           billOfLadingNumber:
@@ -357,11 +357,11 @@ export class ContainerService {
 
     for (const po of portOperations) {
       // 预计到港时间
-      if (po.etaDestPort) {
+      if (po.eta) {
         events.push({
           id: `${po.id}-eta`,
           statusCode: 'ETA',
-          occurredAt: po.etaDestPort,
+          occurredAt: po.eta,
           locationNameCn: po.portName || '目的港',
           locationNameEn: po.portName || 'Destination Port',
           locationCode: po.portCode,
@@ -373,11 +373,11 @@ export class ContainerService {
       }
 
       // 实际到港时间
-      if (po.ataDestPort) {
+      if (po.ata) {
         events.push({
           id: `${po.id}-ata`,
           statusCode: 'ATA',
-          occurredAt: po.ataDestPort,
+          occurredAt: po.ata,
           locationNameCn: po.portName || '目的港',
           locationNameEn: po.portName || 'Destination Port',
           locationCode: po.portCode,
@@ -1035,7 +1035,7 @@ export class ContainerService {
     if (logisticsStatus !== 'at_port' && latestPortOperation) {
       if (currentPortType === 'transit' && latestPortOperation.transitArrivalDate) {
         return `${latestPortOperation.portName || '中转港'} (中转)`;
-      } else if (currentPortType === 'destination' && latestPortOperation.ataDestPort) {
+      } else if (currentPortType === 'destination' && latestPortOperation.ata) {
         return `${latestPortOperation.portName || '目的港'} (目的)`;
       }
     }
@@ -1059,7 +1059,31 @@ export class ContainerService {
       portType: operation.portType,
       portName: operation.portName,
       portCode: operation.portCode,
-      portSequence: operation.portSequence
+      portSequence: operation.portSequence,
+      // 目的港 ETA/ATA
+      etaDestPort: operation.eta,
+      ataDestPort: operation.ata,
+      revisedEtaDestPort: operation.revisedEta,
+      etaCorrection: operation.etaCorrection,
+      // 中转港 ETA/ATA/ETD/ATD
+      etaTransit: operation.portType === 'transit' ? operation.eta : null,
+      ataTransit: operation.portType === 'transit' ? operation.ata : null,
+      etdTransit: operation.etd,
+      atdTransit: operation.atd,
+      // 卸船时间
+      dischargedTime: operation.dischargedTime,
+      destPortUnloadDate: operation.destPortUnloadDate,
+      // 清关状态
+      customsStatus: operation.customsStatus,
+      isfStatus: operation.isfStatus,
+      // 最后免费日
+      lastFreeDate: operation.lastFreeDate,
+      lastReturnDate: operation.lastReturnDate,
+      // 物流状态时间
+      gateInTime: operation.gateInTime,
+      gateOutTime: operation.gateOutTime,
+      availableTime: operation.availableTime,
+      transitArrivalDate: operation.transitArrivalDate
     };
   }
 }

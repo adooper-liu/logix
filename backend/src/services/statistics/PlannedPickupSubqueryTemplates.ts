@@ -24,7 +24,7 @@ export class PlannedPickupSubqueryTemplates {
     LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
     LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_number
     WHERE po.port_type = 'destination'
-    AND po.ata_dest_port IS NOT NULL
+    AND po.ata IS NOT NULL
     AND po.port_sequence = (
       SELECT MAX(po2.port_sequence)
       FROM process_port_operations po2

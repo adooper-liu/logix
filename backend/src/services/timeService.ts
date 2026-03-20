@@ -78,9 +78,9 @@ export class TimeService {
       return '已提柜';
     } else if (container.portOperations) {
       const destinationPort = container.portOperations.find(op => op.portType === 'destination');
-      if (destinationPort?.ataDestPort) {
+      if (destinationPort?.ata) {
         return '已到港';
-      } else if (destinationPort?.etaDestPort) {
+      } else if (destinationPort?.eta) {
         return '在途';
       }
     }
@@ -95,13 +95,13 @@ export class TimeService {
 
     if (container.portOperations) {
       const destinationPort = container.portOperations.find(op => op.portType === 'destination');
-      if (destinationPort?.ataDestPort) {
-        const ata = new Date(destinationPort.ataDestPort);
+      if (destinationPort?.ata) {
+        const ata = new Date(destinationPort.ata);
         const predicted = new Date(ata);
         predicted.setDate(predicted.getDate() + 2); // 到港后2天提柜
         return predicted;
-      } else if (destinationPort?.etaDestPort) {
-        const eta = new Date(destinationPort.etaDestPort);
+      } else if (destinationPort?.eta) {
+        const eta = new Date(destinationPort.eta);
         const predicted = new Date(eta);
         predicted.setDate(predicted.getDate() + 2); // 到港后2天提柜
         return predicted;

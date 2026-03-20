@@ -298,21 +298,21 @@ export class FeituoPlacesProcessor {
     let hasUpdates = false;
 
     // 更新 ETA（预计到港/离港时间）
-    if (place.eta && shouldUpdateCoreField('eta', portOperation.etaDestPort)) {
+    if (place.eta && shouldUpdateCoreField('eta', portOperation.eta)) {
       if (portType === 'destination') {
-        portOperation.etaDestPort = new Date(place.eta);
+        portOperation.eta = new Date(place.eta);
       } else if (portType === 'origin') {
-        portOperation.etaOriginPort = new Date(place.eta);
+        portOperation.eta = new Date(place.eta);
       }
       hasUpdates = true;
     }
 
     // 更新 ATA（实际到港/离港时间）
-    if (place.ata && shouldUpdateCoreField('ata', portOperation.ataDestPort)) {
+    if (place.ata && shouldUpdateCoreField('ata', portOperation.ata)) {
       if (portType === 'destination') {
-        portOperation.ataDestPort = new Date(place.ata);
+        portOperation.ata = new Date(place.ata);
       } else if (portType === 'origin') {
-        portOperation.ataOriginPort = new Date(place.ata);
+        portOperation.ata = new Date(place.ata);
       }
       hasUpdates = true;
     }

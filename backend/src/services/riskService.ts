@@ -165,8 +165,8 @@ export class RiskService {
 
     if (container.portOperations) {
       const destinationPort = container.portOperations.find(op => op.portType === 'destination');
-      if (destinationPort?.ataDestPort) {
-        const ata = new Date(destinationPort.ataDestPort);
+      if (destinationPort?.ata) {
+        const ata = new Date(destinationPort.ata);
         const daysSinceArrival = Math.ceil((new Date().getTime() - ata.getTime()) / (1000 * 60 * 60 * 24));
         
         if (daysSinceArrival > 7) {
@@ -235,8 +235,8 @@ export class RiskService {
     // 滞港费风险
     if (container.portOperations) {
       const destinationPort = container.portOperations.find(op => op.portType === 'destination');
-      if (destinationPort?.ataDestPort) {
-        const ata = new Date(destinationPort.ataDestPort);
+      if (destinationPort?.ata) {
+        const ata = new Date(destinationPort.ata);
         const freeDays = 7; // 假设免费期为7天
         const latestPickupDate = new Date(ata);
         latestPickupDate.setDate(latestPickupDate.getDate() + freeDays);

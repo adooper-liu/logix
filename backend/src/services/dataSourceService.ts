@@ -313,7 +313,7 @@ export class DataSourceService {
           sources: [DataSourceType.FEITUO_API, DataSourceType.FEITUO_EXCEL]
         })
         .andWhere('po.updated_at < :cutoffDate', { cutoffDate })
-        .andWhere('(po.eta_dest_port IS NOT NULL OR po.eta_correction IS NOT NULL)')
+        .andWhere('(po.eta IS NOT NULL OR po.eta_correction IS NOT NULL)')
         .delete()
         .execute();
 

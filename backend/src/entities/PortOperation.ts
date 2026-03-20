@@ -72,9 +72,6 @@ export class PortOperation {
   @Column({ type: 'timestamp', nullable: true, name: 'gate_out_time' })
   gateOutTime: Date;
 
-  @Column({ type: 'timestamp', nullable: true, name: 'discharged_time' })
-  dischargedTime: Date;
-
   @Column({ type: 'timestamp', nullable: true, name: 'available_time' })
   availableTime: Date;
 

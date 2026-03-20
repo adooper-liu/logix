@@ -16,12 +16,12 @@
  */
 export const FEITUO_STATUS_TO_CORE_FIELD_MAP: Record<string, string> = {
   // ===== 目的港相关 =====
-  'ARRIVE': 'ata_dest_port',
-  'ATA': 'ata_dest_port',
-  'ARRI': 'ata_dest_port',
-  'BDAR': 'ata_dest_port',             // 抵港 Vessel Arrived
-  'POCA': 'ata_dest_port',             // 靠泊 Vessel Berthed
-  'ETA': 'eta_dest_port',
+  'ARRIVE': 'ata',
+  'ATA': 'ata',
+  'ARRI': 'ata',
+  'BDAR': 'ata',             // 抵港 Vessel Arrived
+  'POCA': 'ata',             // 靠泊 Vessel Berthed
+  'ETA': 'eta',
 
   // ===== 闸口操作 =====
   'GATE_IN': 'gate_in_time',
@@ -44,9 +44,9 @@ export const FEITUO_STATUS_TO_CORE_FIELD_MAP: Record<string, string> = {
   // ===== 中转港相关 =====
   'TRANSIT_ARRIVE': 'transit_arrival_date',
   'TSBA': 'transit_arrival_date',      // 中转抵港 T/S Vessel Arrived
-  'TRANSIT_DEPART': 'atd_transit',
-  'TSDP': 'atd_transit',               // 中转离港 T/S Vessel Departed
-  'DEPA': 'atd_transit',
+  'TRANSIT_DEPART': 'atd',
+  'TSDP': 'atd',               // 中转离港 T/S Vessel Departed
+  'DEPA': 'atd',
 
   // ===== 起运港相关 =====
   'BO': 'shipment_date',
@@ -72,7 +72,7 @@ export const FEITUO_STATUS_TO_CORE_FIELD_MAP: Record<string, string> = {
   // 【中转港扩展】
   'TSCA': 'transit_arrival_date',     // 中转停泊 T/S Vessel Berthed
   'TSDC': 'transit_arrival_date',     // 中转卸船 T/S Vessel Discharged
-  'TSLB': 'atd_transit',              // 中转装船 T/S Vessel Loaded
+  'TSLB': 'atd',              // 中转装船 T/S Vessel Loaded
 
   // 【滞留/放行 - 影响物流状态】
   'DUMP': 'dumped_date',              // 甩柜 Dumped to be loaded

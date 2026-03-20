@@ -298,7 +298,7 @@ export class ContainerStatisticsService {
         .where('dest_po.container_number = container.container_number')
         .andWhere('dest_po.port_type = :portType', { portType: 'destination' })
         .andWhere('dest_po.port_sequence = (SELECT MAX(po2.port_sequence) FROM process_port_operations po2 WHERE po2.container_number = dest_po.container_number AND po2.port_type = \'destination\')')
-        .andWhere('dest_po.ata_dest_port IS NOT NULL')
+        .andWhere('dest_po.ata IS NOT NULL')
         .getQuery();
       return `NOT EXISTS ${destSubQuery}`;
     });

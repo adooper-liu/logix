@@ -132,8 +132,8 @@ export class EtaStatisticsService {
         SELECT po1.container_number
         FROM process_port_operations po1
         WHERE po1.port_type = 'destination'
-        AND po1.ata_dest_port IS NULL
-        AND po1.eta_dest_port IS NULL
+        AND po1.ata IS NULL
+        AND po1.eta IS NULL
         AND po1.port_sequence = (
           SELECT MAX(po2.port_sequence)
           FROM process_port_operations po2
@@ -195,7 +195,7 @@ export class EtaStatisticsService {
 
   /**
    * 仅排除已到中转港的货柜（与状态机在途未到港一致）
-   * 有 transit 记录但未到港（无 ata_dest_port/gate_in_time/transit_arrival_date）的仍算预计到港
+   * 有 transit 记录但未到港（无 ata/gate_in_time/transit_arrival_date）的仍算预计到港
    */
   private excludeContainersArrivedAtTransit(query: any): void {
     query.andWhere(`NOT EXISTS (
@@ -203,7 +203,7 @@ export class EtaStatisticsService {
       FROM process_port_operations transit_po
       WHERE transit_po.container_number = container.container_number
       AND transit_po.port_type = 'transit'
-      AND (transit_po.ata_dest_port IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)
+      AND (transit_po.ata IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)
     )`);
   }
 
@@ -261,8 +261,8 @@ export class EtaStatisticsService {
         SELECT po1.container_number
         FROM process_port_operations po1
         WHERE po1.port_type = 'destination'
-        AND po1.ata_dest_port IS NULL
-        AND po1.eta_dest_port IS NULL
+        AND po1.ata IS NULL
+        AND po1.eta IS NULL
         AND po1.port_sequence = (
           SELECT MAX(po2.port_sequence)
           FROM process_port_operations po2

@@ -1,111 +1,206 @@
 # ============================================================
-# LogiX Database Complete Re-initialization Script (Windows Docker)
+# LogiX 数据库一键初始化脚本
 # ============================================================
-# Description: Re-initialize LogiX database using Docker container
-#              Aligned with TypeORM entities and backend/docs/DATABASE_SCRIPTS_INDEX.md
-# Usage: .\reinit_database_docker.ps1
-# Date: 2026-03-14
+# Description: 一键执行所有数据库迁移脚本
+# Usage: .\init-database.ps1
 # ============================================================
 
 $ErrorActionPreference = "Stop"
 
 $CONTAINER_NAME = "logix-timescaledb-prod"
-$SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
-$BACKEND_DIR = $SCRIPT_DIR
-$MIGRATIONS_ROOT = Join-Path (Split-Path -Parent $BACKEND_DIR) "migrations"
+$SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path  # migrations/
+$BACKEND_DIR = Join-Path $SCRIPT_DIR "backend"
+$MIGRATIONS_DIR = $SCRIPT_DIR  # migrations/
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "LogiX Database Re-initialization" -ForegroundColor Cyan
+Write-Host "LogiX Database Initialization" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
+# 检查容器是否运行
 $containerRunning = docker ps | Select-String $CONTAINER_NAME
 if (-not $containerRunning) {
     Write-Host "Error: Container $CONTAINER_NAME is not running" -ForegroundColor Red
+    Write-Host "Please start the container first with: docker start $CONTAINER_NAME" -ForegroundColor Yellow
     exit 1
 }
 
 Write-Host "✓ Container $CONTAINER_NAME is running" -ForegroundColor Green
 
-# Copy SQL files to container
-Write-Host "`n[1/9] Copying SQL files to container..." -ForegroundColor Yellow
-docker cp "$BACKEND_DIR\01_drop_all_tables.sql" ${CONTAINER_NAME}:/tmp/01_drop_all_tables.sql
-docker cp "$BACKEND_DIR\03_create_tables.sql" ${CONTAINER_NAME}:/tmp/03_create_tables.sql
-docker cp "$BACKEND_DIR\02_init_dict_tables_final.sql" ${CONTAINER_NAME}:/tmp/02_init_dict_tables.sql
-docker cp "$BACKEND_DIR\04_fix_constraints.sql" ${CONTAINER_NAME}:/tmp/04_fix_constraints.sql
-docker cp "$BACKEND_DIR\05_init_warehouses.sql" ${CONTAINER_NAME}:/tmp/05_init_warehouses.sql
-docker cp "$BACKEND_DIR\migrations\add_demurrage_standards_and_records.sql" ${CONTAINER_NAME}:/tmp/mig_demurrage_standards.sql
-docker cp "$BACKEND_DIR\migrations\add_destination_port_to_demurrage_records.sql" ${CONTAINER_NAME}:/tmp/mig_destination_port.sql
-docker cp "$BACKEND_DIR\migrations\add_demurrage_record_permanence.sql" ${CONTAINER_NAME}:/tmp/mig_demurrage_permanence.sql
-docker cp "$BACKEND_DIR\migrations\add_feituo_import_tables.sql" ${CONTAINER_NAME}:/tmp/mig_feituo_import.sql
-docker cp "$BACKEND_DIR\migrations\add_feituo_raw_data_by_group.sql" ${CONTAINER_NAME}:/tmp/mig_feituo_raw_data.sql
-docker cp "$BACKEND_DIR\migrations\create_universal_dict_mapping.sql" ${CONTAINER_NAME}:/tmp/mig_universal_dict_mapping.sql
-docker cp "$BACKEND_DIR\migrations\add_inspection_records.sql" ${CONTAINER_NAME}:/tmp/mig_inspection.sql
-docker cp "$MIGRATIONS_ROOT\create_resource_occupancy_tables.sql" ${CONTAINER_NAME}:/tmp/mig_resource_occupancy.sql
-docker cp "$MIGRATIONS_ROOT\add_schedule_status.sql" ${CONTAINER_NAME}:/tmp/mig_schedule_status.sql
-docker cp "$MIGRATIONS_ROOT\add_daily_unload_capacity_to_warehouses.sql" ${CONTAINER_NAME}:/tmp/mig_warehouse_capacity.sql
-docker cp "$MIGRATIONS_ROOT\add_country_to_dict_tables.sql" ${CONTAINER_NAME}:/tmp/mig_country_dict.sql
-docker cp "$MIGRATIONS_ROOT\convert_date_to_timestamp.sql" ${CONTAINER_NAME}:/tmp/mig_convert_timestamp.sql
-docker cp "$BACKEND_DIR\migrations\add_sys_data_change_log.sql" ${CONTAINER_NAME}:/tmp/mig_sys_data_change_log.sql
-docker cp "$BACKEND_DIR\migrations\add_common_ports.sql" ${CONTAINER_NAME}:/tmp/mig_common_ports.sql
-docker cp "$BACKEND_DIR\migrations\add_savannah_port.sql" ${CONTAINER_NAME}:/tmp/mig_savannah_port.sql
-Write-Host "✓ SQL files copied" -ForegroundColor Green
+# ============================================================
+# Step 1: 基础表创建 (backend/)
+# ============================================================
+Write-Host "`n[1/5] Creating base tables..." -ForegroundColor Yellow
 
-# Execute initialization
-Write-Host "`n[2/9] Dropping all tables..." -ForegroundColor Yellow
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/01_drop_all_tables.sql
-Write-Host "✓ Tables dropped" -ForegroundColor Green
+$baseScripts = @(
+    "01_drop_all_tables.sql",
+    "03_create_tables.sql",
+    "02_init_dict_tables_final.sql",
+    "04_fix_constraints.sql",
+    "05_init_warehouses.sql"
+)
 
-Write-Host "`n[3/9] Creating table structure..." -ForegroundColor Yellow
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/03_create_tables.sql
-Write-Host "✓ Table structure created" -ForegroundColor Green
+foreach ($script in $baseScripts) {
+    $scriptPath = Join-Path $BACKEND_DIR $script
+    if (Test-Path $scriptPath) {
+        Write-Host "  - Executing $script..." -ForegroundColor Gray
+        docker cp "$scriptPath" ${CONTAINER_NAME}:/tmp/$script
+        docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/$script 2>&1 | Out-Null
+    }
+}
+Write-Host "✓ Base tables created" -ForegroundColor Green
 
-Write-Host "`n[4/9] Initializing dictionary data..." -ForegroundColor Yellow
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/02_init_dict_tables.sql
-Write-Host "✓ Dictionary data initialized" -ForegroundColor Green
+# ============================================================
+# Step 2: 核心迁移脚本 (migrations/)
+# ============================================================
+Write-Host "`n[2/5] Running core migrations..." -ForegroundColor Yellow
 
-Write-Host "`n[5/9] Fixing constraints and indexes..." -ForegroundColor Yellow
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/04_fix_constraints.sql
-Write-Host "✓ Constraints and indexes fixed" -ForegroundColor Green
+$coreMigrations = @(
+    # 滞港费相关
+    "add_demurrage_standards_and_records.sql",
+    "add_destination_port_to_demurrage_records.sql",
+    "add_demurrage_record_permanence.sql",
+    "add_demurrage_calculation_mode.sql",
+    
+    # 飞驼数据
+    "add_feituo_import_tables.sql",
+    "add_feituo_raw_data_by_group.sql",
+    "add_feituo_port_operation_fields.sql",
+    "add_ext_feituo_places.sql",
+    "add_ext_feituo_status_events.sql",
+    
+    # 系统表
+    "add_sys_data_change_log.sql",
+    "create_universal_dict_mapping.sql",
+    "add_inspection_records.sql",
+    
+    # 智能排产 - 核心
+    "create_resource_occupancy_tables.sql",
+    "add_schedule_status.sql",
+    "add_daily_unload_capacity_to_warehouses.sql",
+    "add_daily_capacity_to_trucking_companies.sql",
+    "add_trucking_return_and_yard_capacity.sql",
+    "add_trucking_port_mapping.sql",
+    "add_scheduling_config_indexes.sql"
+)
 
-Write-Host "`n[6/9] Initializing warehouses..." -ForegroundColor Yellow
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/05_init_warehouses.sql
-Write-Host "✓ Warehouses initialized" -ForegroundColor Green
+foreach ($script in $coreMigrations) {
+    $scriptPath = Join-Path $MIGRATIONS_DIR $script
+    if (Test-Path $scriptPath) {
+        Write-Host "  - Executing $script..." -ForegroundColor Gray
+        docker cp "$scriptPath" ${CONTAINER_NAME}:/tmp/$script
+        docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/$script 2>&1 | Out-Null
+    }
+}
+Write-Host "✓ Core migrations completed" -ForegroundColor Green
 
-Write-Host "`n[7/9] Running migrations..." -ForegroundColor Yellow
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/mig_demurrage_standards.sql
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/mig_destination_port.sql
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/mig_demurrage_permanence.sql
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/mig_feituo_import.sql
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/mig_feituo_raw_data.sql
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/mig_universal_dict_mapping.sql
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/mig_inspection.sql
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/mig_resource_occupancy.sql
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/mig_schedule_status.sql
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/mig_warehouse_capacity.sql
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/mig_country_dict.sql
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/mig_sys_data_change_log.sql
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/mig_convert_timestamp.sql
-Write-Host "✓ Migrations applied" -ForegroundColor Green
+# ============================================================
+# Step 3: 数据修复与扩展 (migrations/)
+# ============================================================
+Write-Host "`n[3/5] Running data fixes..." -ForegroundColor Yellow
 
-Write-Host "`n[8/9] Adding common ports data..." -ForegroundColor Yellow
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/mig_savannah_port.sql
-docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/mig_common_ports.sql
-Write-Host "✓ Common ports added" -ForegroundColor Green
+$dataFixes = @(
+    # 国家相关
+    "add_country_to_dict_tables.sql",
+    "add_country_to_warehouse_trucking_mapping.sql",
+    "normalize_country_uk_to_gb.sql",
+    "add_country_concept_comments.sql",
+    
+    # 清关公司国家
+    "006_add_customs_broker_country.sql",
+    "add_country_to_customs_brokers.sql",
+    
+    # 日期类型
+    "convert_date_to_timestamp.sql",
+    "unify-datetime-types.sql",
+    "add_actual_loading_date.sql",
+    "add_last_free_date_mode.sql",
+    
+    # 状态修复
+    "fix-at-port-status.sql",
+    "update-container-statuses.sql",
+    "batch-update-all-statuses.sql"
+)
 
-Write-Host "`n[9/9] Verifying..." -ForegroundColor Yellow
+foreach ($script in $dataFixes) {
+    $scriptPath = Join-Path $MIGRATIONS_DIR $script
+    if (Test-Path $scriptPath) {
+        Write-Host "  - Executing $script..." -ForegroundColor Gray
+        docker cp "$scriptPath" ${CONTAINER_NAME}:/tmp/$script
+        docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/$script 2>&1 | Out-Null
+    }
+}
+Write-Host "✓ Data fixes completed" -ForegroundColor Green
 
-# Verify results
+# ============================================================
+# Step 4: 港口数据 (migrations/)
+# ============================================================
+Write-Host "`n[4/5] Adding port data..." -ForegroundColor Yellow
+
+$portScripts = @(
+    "add_common_ports.sql",
+    "add_savannah_port.sql",
+    "fix_port_field_length.sql"
+)
+
+foreach ($script in $portScripts) {
+    $scriptPath = Join-Path $MIGRATIONS_DIR $script
+    if (Test-Path $scriptPath) {
+        Write-Host "  - Executing $script..." -ForegroundColor Gray
+        docker cp "$scriptPath" ${CONTAINER_NAME}:/tmp/$script
+        docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/$script 2>&1 | Out-Null
+    }
+}
+Write-Host "✓ Port data added" -ForegroundColor Green
+
+# ============================================================
+# Step 5: 智能处理与其他 (migrations/)
+# ============================================================
+Write-Host "`n[5/5] Running additional migrations..." -ForegroundColor Yellow
+
+$additionalScripts = @(
+    # 智能处理
+    "008_add_intelligent_processing.sql",
+    
+    # 流程表
+    "create_flow_definitions_table.sql",
+    "create_flow_instances_table.sql",
+    
+    # 数据回填
+    "backfill_customer_code_from_sell_to_country.sql",
+    "backfill_last_free_date.sql",
+    "backfill_last_return_date.sql",
+    
+    # 其他
+    "add_container_number_to_replenishment_orders.sql",
+    "add_hold_date_fields.sql",
+    "add_status_event_terminal_name.sql",
+    "insert_empty_return_data.sql"
+)
+
+foreach ($script in $additionalScripts) {
+    $scriptPath = Join-Path $MIGRATIONS_DIR $script
+    if (Test-Path $scriptPath) {
+        Write-Host "  - Executing $script..." -ForegroundColor Gray
+        docker cp "$scriptPath" ${CONTAINER_NAME}:/tmp/$script
+        docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/$script 2>&1 | Out-Null
+    }
+}
+Write-Host "✓ Additional migrations completed" -ForegroundColor Green
+
+# ============================================================
+# Verification
+# ============================================================
 Write-Host "`n========================================" -ForegroundColor Cyan
-Write-Host "Verifying Initialization Results" -ForegroundColor Cyan
+Write-Host "Verification Results" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
-$tableCount = docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -t -c "SELECT COUNT(*) FROM pg_tables WHERE schemaname = 'public';"
-$portCount = docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -t -c "SELECT COUNT(*) FROM dict_ports;"
-$warehouseCount = docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -t -c "SELECT COUNT(*) FROM dict_warehouses;"
+$tableCount = docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -t -c "SELECT COUNT(*) FROM pg_tables WHERE schemaname = 'public';" | ForEach-Object { $_.Trim() }
+$portCount = docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -t -c "SELECT COUNT(*) FROM dict_ports;" | ForEach-Object { $_.Trim() }
+$warehouseCount = docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -t -c "SELECT COUNT(*) FROM dict_warehouses;" | ForEach-Object { $_.Trim() }
 
-Write-Host "Total Tables: $tableCount (Expected: 30+ incl. sys_data_change_log, dict_universal_mapping, resource occupancy)"
-Write-Host "Total Ports: $portCount (Expected: from dictionary)"
-Write-Host "Total Warehouses: $warehouseCount (Expected: from dictionary)"
+Write-Host "Total Tables: $tableCount" -ForegroundColor White
+Write-Host "Total Ports: $portCount" -ForegroundColor White
+Write-Host "Total Warehouses: $warehouseCount" -ForegroundColor White
 
 Write-Host "`n========================================" -ForegroundColor Green
 Write-Host "Database Initialization Completed!" -ForegroundColor Green

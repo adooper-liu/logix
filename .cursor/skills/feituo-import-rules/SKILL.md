@@ -528,6 +528,102 @@ if (!date) {
 
 ---
 
+## 📅 出运日期业务规则（2026-03-19 新增）
+
+### 核心概念区分
+
+#### 1. expected_ship_date（预计出运日期）
+- **定义**: 备货单系统中记录的出运日期，用于参考与标记
+- **性质**: 业务计划日期，非真实开船日期
+- **用途**: 物流计划参考、进度跟踪
+- **更新规则**: 由用户在备货单中手动维护，导入时不更新
+
+#### 2. sea_freight.shipment_date（海运表出运日期）
+- **定义**: 真实起运港开船日期
+- **数据来源**: 飞驼 `发生地信息_实际离开时间`
+- **更新规则**: **只更新空值**（即仅在字段为空时才写入）
+- **飞驼字段映射**: `发生地信息_实际离开时间` → `shipment_date`
+
+#### 3. biz_replenishment_orders.actual_ship_date（备货单实际出运日期）
+- **定义**: 备货单的实际出运日期
+- **数据来源**: 飞驼 `发生地信息_实际离开时间`（与海运表同源）
+- **更新规则**: **只更新空值**（即仅在字段为空时才写入）
+- **飞驼字段映射**: `发生地信息_实际离开时间` → `actual_ship_date`
+
+### 实现代码示例
+
+```typescript
+/**
+ * 更新出运日期（只更新空值）
+ * @param containerNumber 集装箱号
+ * @param actualDepartureTime 飞驼实际离开时间
+ */
+private async updateShipmentDates(
+  containerNumber: string,
+  actualDepartureTime: Date | null
+): Promise<void> {
+  if (!actualDepartureTime) return;
+
+  // 1. 更新海运表 shipment_date（只更新空值）
+  await this.seaFreightRepo
+    .createQueryBuilder()
+    .update(SeaFreight)
+    .set({ shipmentDate: actualDepartureTime })
+    .where('containerNumber = :containerNumber', { containerNumber })
+    .andWhere('shipmentDate IS NULL')
+    .execute();
+
+  // 2. 获取关联的备货单号
+  const container = await this.containerRepo.findOne({
+    where: { containerNumber },
+    relations: ['replenishmentOrder']
+  });
+
+  if (container?.replenishmentOrder) {
+    // 3. 更新备货单 actual_ship_date（只更新空值）
+    await this.replenishmentOrderRepo
+      .createQueryBuilder()
+      .update(ReplenishmentOrder)
+      .set({ actualShipDate: actualDepartureTime })
+      .where('orderNumber = :orderNumber', { 
+        orderNumber: container.replenishmentOrder.orderNumber 
+      })
+      .andWhere('actualShipDate IS NULL')
+      .execute();
+  }
+}
+```
+
+### 数据流向图
+
+```
+飞驼Excel数据
+     │
+     ▼
+┌─────────────────────────────┐
+│  发生地信息_实际离开时间     │ ──────► 只更新空值
+└─────────────────────────────┘
+     │
+     ├──────────────────┬──────────────────┐
+     ▼                  ▼                  ▼
+┌─────────────┐  ┌─────────────┐  ┌─────────────────┐
+│sea_freight  │  │biz_replenish│  │ 不更新          │
+│.shipment_   │  │.actual_ship │  │ expected_ship_  │
+│   date      │  │   _date     │  │   date         │
+└─────────────┘  └─────────────┘  └─────────────────┘
+  (只更新空值)    (只更新空值)      (用户手动维护)
+```
+
+### 重要说明
+
+| 字段 | 来源 | 更新条件 | 用途 |
+|------|------|----------|------|
+| expected_ship_date | 用户手动 | 从不自动更新 | 计划参考 |
+| sea_freight.shipment_date | 飞驼实际离开时间 | 只更新空值 | 真实出运日期 |
+| biz_replenishment_orders.actual_ship_date | 飞驼实际离开时间 | 只更新空值 | 备货单实际出运 |
+
+---
+
 ## 📞 联系支持
 
 **技术负责人**: 开发团队

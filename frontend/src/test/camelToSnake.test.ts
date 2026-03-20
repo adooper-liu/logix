@@ -9,11 +9,13 @@ describe('camelToSnake', () => {
   });
 
   it('should convert multiple camelCase keys', () => {
-    expect(camelToSnake({ 
-      containerNumber: 'ABC123', 
-      logisticsStatus: 'in_transit',
-      etaDestPort: '2024-01-01'
-    })).toEqual({
+    expect(
+      camelToSnake({
+        containerNumber: 'ABC123',
+        logisticsStatus: 'in_transit',
+        etaDestPort: '2024-01-01'
+      })
+    ).toEqual({
       container_number: 'ABC123',
       logistics_status: 'in_transit',
       eta_dest_port: '2024-01-01'
@@ -37,13 +39,15 @@ describe('camelToSnake', () => {
   });
 
   it('should handle nested objects recursively', () => {
-    expect(camelToSnake({
-      containerNumber: 'ABC123',
-      portOperation: {
-        etaDestPort: '2024-01-01',
-        ataDestPort: '2024-01-05'
-      }
-    })).toEqual({
+    expect(
+      camelToSnake({
+        containerNumber: 'ABC123',
+        portOperation: {
+          etaDestPort: '2024-01-01',
+          ataDestPort: '2024-01-05'
+        }
+      })
+    ).toEqual({
       container_number: 'ABC123',
       port_operation: {
         eta_dest_port: '2024-01-01',

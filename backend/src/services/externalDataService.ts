@@ -683,24 +683,24 @@ export class ExternalDataService {
       let hasUpdates = false;
 
       // 更新 ETA
-      if (place.eta && shouldUpdateCoreField('eta', portOperation.etaDestPort)) {
+      if (place.eta && shouldUpdateCoreField('eta', portOperation.eta)) {
         if (place.type === 'POD') {
-          portOperation.etaDestPort = new Date(place.eta);
-          updatedFields.push('eta_dest_port');
+          portOperation.eta = new Date(place.eta);
+          updatedFields.push('eta');
         } else if (place.type === 'POL') {
-          portOperation.etaOriginPort = new Date(place.eta);
+          portOperation.eta = new Date(place.eta);
           updatedFields.push('eta_origin_port');
         }
         hasUpdates = true;
       }
 
       // 更新 ATA
-      if (place.ata && shouldUpdateCoreField('ata', portOperation.ataDestPort)) {
+      if (place.ata && shouldUpdateCoreField('ata', portOperation.ata)) {
         if (place.type === 'POD') {
-          portOperation.ataDestPort = new Date(place.ata);
-          updatedFields.push('ata_dest_port');
+          portOperation.ata = new Date(place.ata);
+          updatedFields.push('ata');
         } else if (place.type === 'POL') {
-          portOperation.ataOriginPort = new Date(place.ata);
+          portOperation.ata = new Date(place.ata);
           updatedFields.push('ata_origin_port');
         }
         hasUpdates = true;
@@ -730,7 +730,7 @@ export class ExternalDataService {
   }
 
   private static readonly ATA_RELATED_FIELDS = [
-    'ata_dest_port',           // 目的港实际到港 - 核心状态机字段
+    'ata',                    // 目的港实际到港 - 核心状态机字段
     'dest_port_unload_date',  // 目的港卸柜日期 - 状态机使用
     'discharged_time',        // 卸船时间 - 状态机使用
     'transit_arrival_date',   // 中转港到港 - 状态机使用

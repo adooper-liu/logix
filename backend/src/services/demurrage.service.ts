@@ -430,11 +430,11 @@ export class DemurrageService {
       foreignCompanyCode = customer?.overseasCompanyCode ?? (o as any).sellToCountry ?? null;
     }
 
-    const ata = destPort?.ataDestPort ? toDateOnly(destPort.ataDestPort) : null;
-    // 修正ETA：revised_eta_dest_port 为空时回退使用 eta_correction（Excel 导入的「ETA修正」）
-    const revisedEtaRaw = destPort?.revisedEtaDestPort ?? destPort?.etaCorrection;
+    const ata = destPort?.ata ? toDateOnly(destPort.ata) : null;
+    // 修正ETA：revised_eta 为空时回退使用 eta_correction（Excel 导入的「ETA修正」）
+    const revisedEtaRaw = destPort?.revisedEta ?? destPort?.etaCorrection;
     const revisedEta = revisedEtaRaw ? toDateOnly(revisedEtaRaw) : null;
-    const etaFromPort = destPort?.etaDestPort ? toDateOnly(destPort.etaDestPort) : null;
+    const etaFromPort = destPort?.eta ? toDateOnly(destPort.eta) : null;
     const etaFromSeaFreight = (sf as any)?.eta ? toDateOnly((sf as any).eta) : null;
     const eta = revisedEta ?? etaFromPort ?? etaFromSeaFreight;
     const discharge = destPort?.destPortUnloadDate
@@ -449,9 +449,9 @@ export class DemurrageService {
         : null;
     const startDate = ata ?? eta ?? discharge;
     const startDateSource = ata
-      ? 'ata_dest_port'
+      ? 'ata'
       : etaFromPort
-        ? 'eta_dest_port'
+        ? 'eta'
         : etaFromSeaFreight
           ? 'process_sea_freight.eta'
           : discharge
@@ -906,9 +906,9 @@ export class DemurrageService {
         if (params.calculationDates.dischargeDate) {
           demurrageStartDateSource = params.calculationDates.dischargeDateSource ?? 'discharged_time';
         } else if (params.calculationDates.revisedEtaDestPort) {
-          demurrageStartDateSource = 'revised_eta_dest_port';
+          demurrageStartDateSource = 'revised_eta';
         } else if (params.calculationDates.etaDestPort) {
-          demurrageStartDateSource = 'eta_dest_port';
+          demurrageStartDateSource = 'eta';
         } else {
           demurrageStartDateSource = null;
         }
@@ -919,7 +919,7 @@ export class DemurrageService {
           // actual模式：只用实际时间
           demurrageStartDate = params.calculationDates.ataDestPort ?? params.calculationDates.dischargeDate ?? null;
           demurrageStartDateSource = params.calculationDates.ataDestPort
-            ? 'ata_dest_port'
+            ? 'ata'
             : params.calculationDates.dischargeDate
               ? (params.calculationDates.dischargeDateSource ?? 'discharged_time')
               : null;
@@ -932,13 +932,13 @@ export class DemurrageService {
           params.calculationDates.etaDestPort ??
           null;
         if (params.calculationDates.ataDestPort) {
-          demurrageStartDateSource = 'ata_dest_port';
+          demurrageStartDateSource = 'ata';
         } else if (params.calculationDates.dischargeDate) {
           demurrageStartDateSource = 'dest_port_unload_date';
         } else if (params.calculationDates.revisedEtaDestPort) {
-          demurrageStartDateSource = 'revised_eta_dest_port';
+          demurrageStartDateSource = 'revised_eta';
         } else if (params.calculationDates.etaDestPort) {
-          demurrageStartDateSource = 'eta_dest_port';
+          demurrageStartDateSource = 'eta';
         } else {
           demurrageStartDateSource = null;
         }
@@ -1042,7 +1042,7 @@ export class DemurrageService {
             // actual模式：只用实际时间
             demurrageStartForStd = params.calculationDates.ataDestPort ?? params.calculationDates.dischargeDate ?? null;
             demurrageStartSource = params.calculationDates.ataDestPort
-              ? 'ata_dest_port'
+              ? 'ata'
               : params.calculationDates.dischargeDate
                 ? (params.calculationDates.dischargeDateSource ?? 'discharged_time')
                 : null;
@@ -1055,13 +1055,13 @@ export class DemurrageService {
               params.calculationDates.etaDestPort ??
               null;
             if (params.calculationDates.ataDestPort) {
-              demurrageStartSource = 'ata_dest_port';
+              demurrageStartSource = 'ata';
             } else if (params.calculationDates.dischargeDate) {
               demurrageStartSource = params.calculationDates.dischargeDateSource ?? 'discharged_time';
             } else if (params.calculationDates.revisedEtaDestPort) {
-              demurrageStartSource = 'revised_eta_dest_port';
+              demurrageStartSource = 'revised_eta';
             } else if (params.calculationDates.etaDestPort) {
-              demurrageStartSource = 'eta_dest_port';
+              demurrageStartSource = 'eta';
             } else {
               demurrageStartSource = null;
             }

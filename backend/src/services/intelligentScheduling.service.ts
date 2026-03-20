@@ -196,12 +196,12 @@ export class IntelligentSchedulingService {
       .where('c.scheduleStatus IN (:...statuses)', { statuses: ['initial', 'issued'] });
 
     if (request.startDate) {
-      query.andWhere('(po.ataDestPort >= :startDate OR po.etaDestPort >= :startDate)', {
+      query.andWhere('(po.ata >= :startDate OR po.eta >= :startDate)', {
         startDate: request.startDate
       });
     }
     if (request.endDate) {
-      query.andWhere('(po.ataDestPort <= :endDate OR po.etaDestPort <= :endDate)', {
+      query.andWhere('(po.ata <= :endDate OR po.eta <= :endDate)', {
         endDate: request.endDate
       });
     }
@@ -227,8 +227,8 @@ export class IntelligentSchedulingService {
       const aDestPo = a.portOperations?.find((po: any) => po.portType === 'destination');
       const bDestPo = b.portOperations?.find((po: any) => po.portType === 'destination');
 
-      const aDate = aDestPo?.ataDestPort || aDestPo?.etaDestPort || a.seaFreight?.eta;
-      const bDate = bDestPo?.ataDestPort || bDestPo?.etaDestPort || b.seaFreight?.eta;
+      const aDate = aDestPo?.ata || aDestPo?.eta || a.seaFreight?.eta;
+      const bDate = bDestPo?.ata || bDestPo?.eta || b.seaFreight?.eta;
 
       if (!aDate && !bDate) return 0;
       if (!aDate) return 1;
@@ -261,11 +261,11 @@ export class IntelligentSchedulingService {
       const containerInfo = {
         destinationPort: destPo?.portCode || '',
         destinationPortName: destPo?.portName || '',
-        etaDestPort: destPo?.etaDestPort
-          ? new Date(destPo.etaDestPort).toISOString().split('T')[0]
+        etaDestPort: destPo?.eta
+          ? new Date(destPo.eta).toISOString().split('T')[0]
           : '',
-        ataDestPort: destPo?.ataDestPort
-          ? new Date(destPo.ataDestPort).toISOString().split('T')[0]
+        ataDestPort: destPo?.ata
+          ? new Date(destPo.ata).toISOString().split('T')[0]
           : ''
       };
 
@@ -279,7 +279,7 @@ export class IntelligentSchedulingService {
       }
 
       // 1. 清关计划日默认等于 ETA（无 ETA 时回退 ATA）
-      const clearanceDate = destPo.etaDestPort || destPo.ataDestPort;
+      const clearanceDate = destPo.eta || destPo.ata;
       if (!clearanceDate) {
         return {
           containerNumber: container.containerNumber,
@@ -465,11 +465,11 @@ export class IntelligentSchedulingService {
       const errorContainerInfo = {
         destinationPort: destPo?.portCode || '',
         destinationPortName: destPo?.portName || '',
-        etaDestPort: destPo?.etaDestPort
-          ? new Date(destPo.etaDestPort).toISOString().split('T')[0]
+        etaDestPort: destPo?.eta
+          ? new Date(destPo.eta).toISOString().split('T')[0]
           : '',
-        ataDestPort: destPo?.ataDestPort
-          ? new Date(destPo.ataDestPort).toISOString().split('T')[0]
+        ataDestPort: destPo?.ata
+          ? new Date(destPo.ata).toISOString().split('T')[0]
           : ''
       };
       return {

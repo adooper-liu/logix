@@ -23,7 +23,7 @@ import { getCoreFieldName } from '../constants/FeiTuoStatusMapping';
 import { DemurrageService } from '../services/demurrage.service';
 import { externalDataService } from '../services/externalDataService';
 
-const ATA_RELATED_FIELDS = ['ata_dest_port', 'dest_port_unload_date', 'discharged_time'];
+const ATA_RELATED_FIELDS = ['ata', 'dest_port_unload_date', 'discharged_time'];
 
 export class ExternalDataController {
   private eventRepository = AppDataSource.getRepository(ContainerStatusEvent);
@@ -219,7 +219,7 @@ export class ExternalDataController {
           continue;
         }
         const portType =
-          ['transit_arrival_date', 'atd_transit'].includes(fieldName) ? 'transit' : 'destination';
+          ['transit_arrival_date', 'atd'].includes(fieldName) ? 'transit' : 'destination';
         const po = await this.portOperationRepository
           .createQueryBuilder('po')
           .where('po.containerNumber = :containerNumber', { containerNumber })
@@ -228,15 +228,15 @@ export class ExternalDataController {
           .getOne();
         if (po) {
           const updates: Partial<PortOperation> = {};
-          if (fieldName === 'ata_dest_port') updates.ataDestPort = occurredAt;
-          else if (fieldName === 'eta_dest_port') updates.etaDestPort = occurredAt;
+          if (fieldName === 'ata') updates.ata = occurredAt;
+          else if (fieldName === 'eta') updates.eta = occurredAt;
           else if (fieldName === 'gate_in_time') updates.gateInTime = occurredAt;
           else if (fieldName === 'gate_out_time') updates.gateOutTime = occurredAt;
           else if (fieldName === 'dest_port_unload_date') updates.destPortUnloadDate = occurredAt;
           else if (fieldName === 'discharged_time') updates.dischargedTime = occurredAt;
           else if (fieldName === 'available_time') updates.availableTime = occurredAt;
           else if (fieldName === 'transit_arrival_date') updates.transitArrivalDate = occurredAt;
-          else if (fieldName === 'atd_transit') updates.atdTransit = occurredAt;
+          else if (fieldName === 'atd') updates.atdTransit = occurredAt;
           if (Object.keys(updates).length > 0) {
             Object.assign(po, updates);
             await this.portOperationRepository.save(po);

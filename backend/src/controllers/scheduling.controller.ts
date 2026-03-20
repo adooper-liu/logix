@@ -79,7 +79,7 @@ export class SchedulingController {
       }
 
       // 计算计划时间（复用智能排柜的逻辑）
-      const clearanceDate = destPo.ataDestPort || destPo.etaDestPort;
+      const clearanceDate = destPo.ata || destPo.eta;
       if (!clearanceDate) {
         res.status(400).json({
           success: false,
@@ -122,8 +122,8 @@ export class SchedulingController {
           plannedUnloadDate: plannedUnloadDate.toISOString().split('T')[0],
           plannedReturnDate: plannedReturnDate.toISOString().split('T')[0],
           lastFreeDate: destPo.lastFreeDate ? new Date(destPo.lastFreeDate).toISOString().split('T')[0] : null,
-          eta: destPo.etaDestPort ? new Date(destPo.etaDestPort).toISOString().split('T')[0] : null,
-          ata: destPo.ataDestPort ? new Date(destPo.ataDestPort).toISOString().split('T')[0] : null
+          eta: destPo.eta ? new Date(destPo.eta).toISOString().split('T')[0] : null,
+          ata: destPo.ata ? new Date(destPo.ata).toISOString().split('T')[0] : null
         }
       });
     } catch (error: any) {
@@ -144,9 +144,9 @@ export class SchedulingController {
       const { startDate, endDate, country } = req.query;
       const hasDateRange = startDate && endDate;
       const dateCondition = hasDateRange
-        ? `AND (COALESCE(po.ata_dest_port, po.eta_dest_port)::date >= $1::date AND COALESCE(po.ata_dest_port, po.eta_dest_port)::date <= $2::date)`
+        ? `AND (COALESCE(po.ata, po.eta)::date >= $1::date AND COALESCE(po.ata, po.eta)::date <= $2::date)`
         : '';
-      const ataEtaCondition = 'AND (po.ata_dest_port IS NOT NULL OR po.eta_dest_port IS NOT NULL)';
+      const ataEtaCondition = 'AND (po.ata IS NOT NULL OR po.eta IS NOT NULL)';
 
       // 查询待排产货柜数量（与 batchSchedule 口径一致：有目的港、ATA/ETA 非空、可选日期范围、可选国家）
       const containerRepo = AppDataSource.getRepository(Container);

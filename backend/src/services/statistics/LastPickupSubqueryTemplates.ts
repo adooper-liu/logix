@@ -22,7 +22,7 @@ export class LastPickupSubqueryTemplates {
     FROM biz_containers c
     INNER JOIN process_port_operations po ON c.container_number = po.container_number
     WHERE po.port_type = 'destination'
-    AND po.ata_dest_port IS NOT NULL
+    AND po.ata IS NOT NULL
     AND po.port_sequence = (
       SELECT MAX(po2.port_sequence)
       FROM process_port_operations po2
@@ -94,8 +94,8 @@ export class LastPickupSubqueryTemplates {
     FROM biz_containers c
     INNER JOIN process_port_operations po ON c.container_number = po.container_number
     WHERE po.port_type = 'destination'
-    AND po.ata_dest_port IS NULL
-    AND (po.eta_dest_port IS NOT NULL OR po.revised_eta_dest_port IS NOT NULL)
+    AND po.ata IS NULL
+    AND (po.eta IS NOT NULL OR po.revised_eta IS NOT NULL)
     AND po.last_free_date IS NULL
     AND po.port_sequence = (
       SELECT MAX(po2.port_sequence)
@@ -118,7 +118,7 @@ export class LastPickupSubqueryTemplates {
     INNER JOIN process_port_operations po ON c.container_number = po.container_number
     WHERE po.port_type = 'destination'
     AND po.last_free_date_mode = 'forecast'
-    AND (po.ata_dest_port IS NOT NULL OR po.revised_eta_dest_port IS NOT NULL)
+    AND (po.ata IS NOT NULL OR po.revised_eta IS NOT NULL)
     AND po.port_sequence = (
       SELECT MAX(po2.port_sequence)
       FROM process_port_operations po2

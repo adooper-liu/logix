@@ -22,7 +22,7 @@ export class ArrivalSubqueryTemplates {
     LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
     LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_number
     WHERE po.port_type = 'destination'
-    AND po.ata_dest_port IS NOT NULL
+    AND po.ata IS NOT NULL
     AND po.port_sequence = (
       SELECT MAX(po2.port_sequence)
       FROM process_port_operations po2
@@ -51,7 +51,7 @@ export class ArrivalSubqueryTemplates {
     LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
     LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_number
     WHERE po.port_type = 'destination'
-    AND po.ata_dest_port IS NOT NULL
+    AND po.ata IS NOT NULL
     AND po.port_sequence = (
       SELECT MAX(po2.port_sequence)
       FROM process_port_operations po2
@@ -81,7 +81,7 @@ export class ArrivalSubqueryTemplates {
     LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
     LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_number
     WHERE po.port_type = 'destination'
-    AND po.ata_dest_port IS NOT NULL
+    AND po.ata IS NOT NULL
     AND po.port_sequence = (
       SELECT MAX(po2.port_sequence)
       FROM process_port_operations po2
@@ -113,7 +113,7 @@ export class ArrivalSubqueryTemplates {
     LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
     LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_number
     WHERE po.port_type = 'destination'
-    AND po.ata_dest_port IS NULL
+    AND po.ata IS NULL
     AND po.port_sequence = (
       SELECT MAX(po2.port_sequence)
       FROM process_port_operations po2
@@ -128,7 +128,7 @@ export class ArrivalSubqueryTemplates {
       FROM process_port_operations transit_po
       WHERE transit_po.container_number = c.container_number
       AND transit_po.port_type = 'transit'
-      AND (transit_po.ata_dest_port IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)
+      AND (transit_po.ata IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)
     )
   `;
 
@@ -143,9 +143,9 @@ export class ArrivalSubqueryTemplates {
     LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
     LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_number
     WHERE po.port_type = 'destination'
-    AND po.ata_dest_port IS NULL
-    AND po.eta_dest_port IS NOT NULL
-    AND DATE(po.eta_dest_port) < '${today.toISOString().split('T')[0]}'
+    AND po.ata IS NULL
+    AND po.eta IS NOT NULL
+    AND DATE(po.eta) < '${today.toISOString().split('T')[0]}'
     AND po.port_sequence = (
       SELECT MAX(po2.port_sequence)
       FROM process_port_operations po2
@@ -160,7 +160,7 @@ export class ArrivalSubqueryTemplates {
       FROM process_port_operations transit_po
       WHERE transit_po.container_number = c.container_number
       AND transit_po.port_type = 'transit'
-      AND (transit_po.ata_dest_port IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)
+      AND (transit_po.ata IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)
     )
   `;
 
@@ -175,10 +175,10 @@ export class ArrivalSubqueryTemplates {
     LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
     LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_number
     WHERE po.port_type = 'destination'
-    AND po.ata_dest_port IS NULL
-    AND po.eta_dest_port IS NOT NULL
-    AND DATE(po.eta_dest_port) >= '${today.toISOString().split('T')[0]}'
-    AND DATE(po.eta_dest_port) <= '${threeDaysLater.toISOString().split('T')[0]}'
+    AND po.ata IS NULL
+    AND po.eta IS NOT NULL
+    AND DATE(po.eta) >= '${today.toISOString().split('T')[0]}'
+    AND DATE(po.eta) <= '${threeDaysLater.toISOString().split('T')[0]}'
     AND po.port_sequence = (
       SELECT MAX(po2.port_sequence)
       FROM process_port_operations po2
@@ -193,7 +193,7 @@ export class ArrivalSubqueryTemplates {
       FROM process_port_operations transit_po
       WHERE transit_po.container_number = c.container_number
       AND transit_po.port_type = 'transit'
-      AND (transit_po.ata_dest_port IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)
+      AND (transit_po.ata IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)
     )
   `;
 
@@ -208,10 +208,10 @@ export class ArrivalSubqueryTemplates {
     LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
     LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_number
     WHERE po.port_type = 'destination'
-    AND po.ata_dest_port IS NULL
-    AND po.eta_dest_port IS NOT NULL
-    AND DATE(po.eta_dest_port) > '${threeDaysLater.toISOString().split('T')[0]}'
-    AND DATE(po.eta_dest_port) <= '${sevenDaysLater.toISOString().split('T')[0]}'
+    AND po.ata IS NULL
+    AND po.eta IS NOT NULL
+    AND DATE(po.eta) > '${threeDaysLater.toISOString().split('T')[0]}'
+    AND DATE(po.eta) <= '${sevenDaysLater.toISOString().split('T')[0]}'
     AND po.port_sequence = (
       SELECT MAX(po2.port_sequence)
       FROM process_port_operations po2
@@ -226,7 +226,7 @@ export class ArrivalSubqueryTemplates {
       FROM process_port_operations transit_po
       WHERE transit_po.container_number = c.container_number
       AND transit_po.port_type = 'transit'
-      AND (transit_po.ata_dest_port IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)
+      AND (transit_po.ata IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)
     )
   `;
 
@@ -241,9 +241,9 @@ export class ArrivalSubqueryTemplates {
     LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
     LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_number
     WHERE po.port_type = 'destination'
-    AND po.ata_dest_port IS NULL
-    AND po.eta_dest_port IS NOT NULL
-    AND DATE(po.eta_dest_port) > '${sevenDaysLater.toISOString().split('T')[0]}'
+    AND po.ata IS NULL
+    AND po.eta IS NOT NULL
+    AND DATE(po.eta) > '${sevenDaysLater.toISOString().split('T')[0]}'
     AND po.port_sequence = (
       SELECT MAX(po2.port_sequence)
       FROM process_port_operations po2
@@ -258,7 +258,7 @@ export class ArrivalSubqueryTemplates {
       FROM process_port_operations transit_po
       WHERE transit_po.container_number = c.container_number
       AND transit_po.port_type = 'transit'
-      AND (transit_po.ata_dest_port IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)
+      AND (transit_po.ata IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)
     )
   `;
 
@@ -273,8 +273,8 @@ export class ArrivalSubqueryTemplates {
     LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
     LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_number
     WHERE po.port_type = 'destination'
-    AND po.ata_dest_port IS NULL
-    AND po.eta_dest_port IS NULL
+    AND po.ata IS NULL
+    AND po.eta IS NULL
     AND po.port_sequence = (
       SELECT MAX(po2.port_sequence)
       FROM process_port_operations po2
@@ -289,7 +289,7 @@ export class ArrivalSubqueryTemplates {
       FROM process_port_operations transit_po
       WHERE transit_po.container_number = c.container_number
       AND transit_po.port_type = 'transit'
-      AND (transit_po.ata_dest_port IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)
+      AND (transit_po.ata IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)
     )
   `;
 
@@ -308,8 +308,8 @@ export class ArrivalSubqueryTemplates {
     LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
     LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_number
     WHERE po.port_type = 'destination'
-    AND po.ata_dest_port IS NULL
-    AND po.eta_dest_port IS NULL
+    AND po.ata IS NULL
+    AND po.eta IS NULL
     AND po.port_sequence = (
       SELECT MAX(po2.port_sequence)
       FROM process_port_operations po2
@@ -353,7 +353,7 @@ export class ArrivalSubqueryTemplates {
     LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
     LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_number
     WHERE po.port_type = 'destination'
-    AND po.ata_dest_port IS NULL
+    AND po.ata IS NULL
     AND po.port_sequence = (
       SELECT MAX(po2.port_sequence)
       FROM process_port_operations po2
