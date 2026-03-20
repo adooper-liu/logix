@@ -566,6 +566,47 @@ let railDestPlace = destPlaces.find(p => p.placeType?.includes('交货地'));
 
 ---
 
+## 🔨 重构（2026-03-19 实施）
+
+### 重构目的
+飞驼导入服务代码行数过多(~1400行)，存在大量重复代码，需要提取为独立组件以增强复用能力。
+
+### 新增组件
+
+#### 1. FeituoPlaceAnalyzer.ts
+- **位置**: `backend/src/services/feituo/FeituoPlaceAnalyzer.ts`
+- **功能**: 地点解析、港口类型区分
+- **核心方法**:
+  - `parsePlaceArray(row)`: 解析发生地信息数组，支持JSON数组格式和后缀列格式
+  - `analyzePorts(places, existingSeaFreight)`: 区分海港目的港和火车目的地
+
+#### 2. FeituoSmartDateUpdater.ts
+- **位置**: `backend/src/services/feituo/FeituoSmartDateUpdater.ts`
+- **功能**: ETA/ATA智能更新（带状态机验证）
+- **核心方法**:
+  - `smartUpdateETA(containerNumber, newEta, newAta)`: 根据物流状态决定更新策略
+  - `validateETA(eta, ata, shipDate, logisticsStatus)`: 验证ETA有效性
+
+### 重构效果
+- 移除重复代码约 ~80行
+- 主服务类从 ~1423行 减少到 ~1340行 (减少约6%)
+- 职责分离，更易于测试和维护
+
+### 调用方式
+```typescript
+import { feituoPlaceAnalyzer, PortAnalysisResult } from './feituo/FeituoPlaceAnalyzer';
+import { feituoSmartDateUpdater } from './feituo/FeituoSmartDateUpdater';
+
+// 地点解析
+const places = feituoPlaceAnalyzer.parsePlaceArray(row);
+const portAnalysis = feituoPlaceAnalyzer.analyzePorts(places, existingSf);
+
+// 智能日期更新
+const result = await feituoSmartDateUpdater.smartUpdateETA(containerNumber, newEta, newAta);
+```
+
+---
+
 ## 🔗 相关文件
 
 - **状态机**: `backend/src/utils/logisticsStatusMachine.ts`

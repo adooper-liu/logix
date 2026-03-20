@@ -227,8 +227,8 @@ export class IntelligentSchedulingService {
       const aDestPo = a.portOperations?.find((po: any) => po.portType === 'destination');
       const bDestPo = b.portOperations?.find((po: any) => po.portType === 'destination');
 
-      const aDate = aDestPo?.ata || aDestPo?.eta || a.seaFreight?.eta;
-      const bDate = bDestPo?.ata || bDestPo?.eta || b.seaFreight?.eta;
+      const aDate = aDestPo?.ataDestPort || aDestPo?.etaDestPort || a.seaFreight?.eta;
+      const bDate = bDestPo?.ataDestPort || bDestPo?.etaDestPort || b.seaFreight?.eta;
 
       if (!aDate && !bDate) return 0;
       if (!aDate) return 1;

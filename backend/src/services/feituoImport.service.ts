@@ -26,6 +26,8 @@ import { DemurrageService } from './demurrage.service';
 import { getCoreFieldName } from '../constants/FeiTuoStatusMapping';
 import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
 import { getGroupForColumn } from '../constants/FeituoFieldGroupMapping';
+import { feituoPlaceAnalyzer, PortAnalysisResult } from './feituo/FeituoPlaceAnalyzer';
+import { feituoSmartDateUpdater } from './feituo/FeituoSmartDateUpdater';
 
 type FeituoRow = Record<string, unknown>;
 
@@ -357,47 +359,18 @@ export class FeituoImportService {
       await containerRepo.save(container);
     }
 
-    // 优先从发生地信息数组获取地点和时间数据
-    // 混合方案：先用 placeType 判断，如果没有找到就用已存在的 sea_freight 港口名称匹配
-    const places = this.parsePlaceArray(row);
-    
-    // 优先：根据 placeType 判断港口类型
-    let originPlace = places.find(p => p.placeType?.includes('起始地') || p.placeType?.includes('起运港'));
-    // 目的地可能有多个：海港目的港 + 火车目的地（交货地）
-    const destPlaces = places.filter(p => p.placeType?.includes('目的地') || p.placeType?.includes('交货地'));
-    // 海港目的港：不是交货地的目的地（用于滞港费计算）
-    let seaDestPlace = destPlaces.find(p => !p.placeType?.includes('交货地'));
-    // 火车目的地：交货地类型的地点（用于海铁联运跟踪）
-    let railDestPlace = destPlaces.find(p => p.placeType?.includes('交货地'));
-    
     // 查找已存在的 sea_freight（用于兜底匹配）
     const existingSf = await seaFreightRepo.findOne({ where: { billOfLadingNumber: bl } });
     
-    // 兜底：用已存在的港口名称匹配（如果 placeType 未找到）
-    if (!originPlace && existingSf?.portOfLoading) {
-      originPlace = places.find(p => 
-        p.code === existingSf.portOfLoading || 
-        p.nameCn === existingSf.portOfLoading ||
-        p.nameEn === existingSf.portOfLoading ||
-        (existingSf.portOfLoading.includes(p.code)) // 部分匹配
-      );
-    }
-    // 海港目的港匹配（用于滞港费计算）
-    if (!seaDestPlace && existingSf?.portOfDischarge) {
-      seaDestPlace = places.find(p => 
-        p.code === existingSf.portOfDischarge || 
-        p.nameCn === existingSf.portOfDischarge ||
-        p.nameEn === existingSf.portOfDischarge ||
-        (existingSf.portOfDischarge.includes(p.code)) // 部分匹配
-      );
-    }
-    // 火车目的地匹配（交货地）- 找最后一个目的地
-    if (!railDestPlace) {
-      railDestPlace = destPlaces[destPlaces.length - 1];
-    }
+    // 使用 FeituoPlaceAnalyzer 分析港口类型
+    const places = feituoPlaceAnalyzer.parsePlaceArray(row);
+    const portAnalysis: PortAnalysisResult = feituoPlaceAnalyzer.analyzePorts(places, existingSf);
     
-    // 统一变量名用于后续兼容
-    const destPlace = seaDestPlace;
+    const originPlace = portAnalysis.originPlace;
+    const seaDestPlace = portAnalysis.seaDestPlace;
+    const railDestPlace = portAnalysis.railDestPlace;
+    const destPlaces = portAnalysis.destPlaces;
+    const destPlace = seaDestPlace; // 统一变量名用于后续兼容
 
     let sf = existingSf;
     if (!sf) {
@@ -485,7 +458,7 @@ export class FeituoImportService {
       const newAta = parseDate(seaDestPlace?.ata || destPlace?.ata || getVal(row, '交货地实际到达时间') || getVal(row, '目的地实际到达时间') || getVal(row, 5, '实际到达时间') || getVal(row, '目的港到达日期'));
       
       // 调用smartUpdateETA进行智能更新（带状态机验证）
-      const etaUpdateResult = await this.smartUpdateETA(containerNumber, newEta, newAta);
+      const etaUpdateResult = await feituoSmartDateUpdater.smartUpdateETA(containerNumber, newEta, newAta);
       if (etaUpdateResult.updated) {
         logger.info(`[FeituoImport] ${containerNumber} smartETA update: ${etaUpdateResult.reason}`);
       }
@@ -564,65 +537,18 @@ export class FeituoImportService {
       await containerRepo.save(container);
     }
 
-    // 优先从发生地信息数组获取地点和时间数据
-    // 混合方案：先用 placeType 判断，如果没有找到就用已存在的 sea_freight 港口名称匹配
-    const places = this.parsePlaceArray(row);
-    
-    // 优先：根据 placeType 判断港口类型
-    let originPlace = places.find(p => p.placeType?.includes('起始地') || p.placeType?.includes('起运港'));
-    // 目的地可能有多个：海港目的港 + 火车目的地（交货地）
-    const destPlaces = places.filter(p => p.placeType?.includes('目的地') || p.placeType?.includes('交货地'));
-    // 海港目的港：不是交货地的目的地（用于滞港费计算）
-    let seaDestPlace = destPlaces.find(p => !p.placeType?.includes('交货地'));
-    // 火车目的地：交货地类型的地点（用于海铁联运跟踪）
-    let railDestPlace = destPlaces.find(p => p.placeType?.includes('交货地'));
-    
     // 查找已存在的 sea_freight（用于兜底匹配）
     const existingSf = await seaFreightRepo.findOne({ where: { billOfLadingNumber: billNumber } });
     
-    // 兜底：用已存在的港口名称匹配（如果 placeType 未找到）
-    if (!originPlace && existingSf?.portOfLoading) {
-      originPlace = places.find(p => 
-        p.code === existingSf.portOfLoading || 
-        p.nameCn === existingSf.portOfLoading ||
-        p.nameEn === existingSf.portOfLoading ||
-        (existingSf.portOfLoading.includes(p.code))
-      );
-    }
-    // 海港目的港匹配（用于滞港费计算）
-    if (!seaDestPlace && existingSf?.portOfDischarge) {
-      seaDestPlace = places.find(p => 
-        p.code === existingSf.portOfDischarge || 
-        p.nameCn === existingSf.portOfDischarge ||
-        p.nameEn === existingSf.portOfDischarge ||
-        (existingSf.portOfDischarge.includes(p.code))
-      );
-    }
-    // 火车目的地匹配（交货地）- 找最后一个目的地
-    if (!railDestPlace) {
-      railDestPlace = destPlaces[destPlaces.length - 1];
-    }
+    // 使用 FeituoPlaceAnalyzer 分析港口类型
+    const places = feituoPlaceAnalyzer.parsePlaceArray(row);
+    const portAnalysis: PortAnalysisResult = feituoPlaceAnalyzer.analyzePorts(places, existingSf);
     
-    // 统一变量名用于后续兼容
-    const destPlace = seaDestPlace;
-    
-    // 兜底：用已存在的港口名称匹配（如果 placeType 未找到）
-    if (!originPlace && existingSf?.portOfLoading) {
-      originPlace = places.find(p => 
-        p.code === existingSf.portOfLoading || 
-        p.nameCn === existingSf.portOfLoading ||
-        p.nameEn === existingSf.portOfLoading ||
-        (existingSf.portOfLoading.includes(p.code))
-      );
-    }
-    if (!destPlace && existingSf?.portOfDischarge) {
-      destPlace = places.find(p => 
-        p.code === existingSf.portOfDischarge || 
-        p.nameCn === existingSf.portOfDischarge ||
-        p.nameEn === existingSf.portOfDischarge ||
-        (existingSf.portOfDischarge.includes(p.code))
-      );
-    }
+    const originPlace = portAnalysis.originPlace;
+    const seaDestPlace = portAnalysis.seaDestPlace;
+    const railDestPlace = portAnalysis.railDestPlace;
+    const destPlaces = portAnalysis.destPlaces;
+    const destPlace = seaDestPlace; // 统一变量名用于后续兼容
 
     let sf = existingSf;
     if (!sf) {
@@ -655,7 +581,7 @@ export class FeituoImportService {
       // 使用smartUpdateETA进行智能更新（带状态机验证）
       const newEta = parseDate(destPlace?.eta || undefined);
       const newAta = parseDate(destPlace?.ata || undefined);
-      const etaUpdateResult = await this.smartUpdateETA(containerNumber, newEta, newAta);
+      const etaUpdateResult = await feituoSmartDateUpdater.smartUpdateETA(containerNumber, newEta, newAta);
       if (etaUpdateResult.updated) {
         logger.info(`[FeituoImport] ${containerNumber} smartETA update (Table2): ${etaUpdateResult.reason}`);
       }
@@ -775,38 +701,6 @@ export class FeituoImportService {
       logger.info(`[FeituoImport] 推导状态事件: ${containerNumber} ${d.statusCode} @ ${d.occurredAt.toISOString()}`);
     }
 }
-
-  /**
-   * 解析发生地信息数组
-   * 飞驼Excel中发生地信息通过多列传输，列名如：发生地信息_地点CODE, 发生地信息_地点CODE_2
-   */
-  private parsePlaceArray(row: FeituoRowData): ExcelPlaceInfo[] {
-    const places: ExcelPlaceInfo[] = [];
-    const suffixes = ['', '_2', '_3', '_4', '_5', '_6', '_7', '_8', '_9', '_10'];
-    
-    for (let i = 0; i < suffixes.length; i++) {
-      const suffix = suffixes[i];
-      const code = getVal(row, `发生地信息_地点CODE${suffix}`);
-      if (!code) break;
-      
-      places.push({
-        code,
-        nameEn: getVal(row, `发生地信息_地点名称英文（标准）${suffix}`) || undefined,
-        nameCn: getVal(row, `发生地信息_地点名称中文（标准）${suffix}`) || undefined,
-        placeType: getVal(row, `发生地信息_地点类型${suffix}`) || undefined,
-        eta: parseDate(getVal(row, `发生地信息_预计到达时间${suffix}`)),
-        ata: parseDate(getVal(row, `发生地信息_实际到达时间${suffix}`)),
-        etd: parseDate(getVal(row, `发生地信息_预计离开时间${suffix}`)),
-        atd: parseDate(getVal(row, `发生地信息_实际离开时间${suffix}`)),
-        actualLoading: parseDate(getVal(row, `发生地信息_实际装船时间${suffix}`)),
-        actualDischarge: parseDate(getVal(row, `发生地信息_实际卸船时间${suffix}`)),
-        terminal: getVal(row, `发生地信息_码头名称${suffix}`) || undefined,
-        sequence: i + 1,
-      });
-    }
-    
-    return places;
-  }
 
   /**
    * 解析状态信息数组
@@ -1187,143 +1081,6 @@ export class FeituoImportService {
     } catch (e) {
       logger.warn('[FeituoImport] 滞港费重算失败:', e);
     }
-  }
-
-  /**
-   * 智能ETA更新（带状态机推理和验证）
-   * 根据物流状态决定ETA更新策略，并验证时间逻辑
-   */
-  private async smartUpdateETA(
-    containerNumber: string,
-    newEta: Date | null,
-    newAta: Date | null
-  ): Promise<{ updated: boolean; reason: string }> {
-    try {
-      // 1. 获取当前物流状态
-      const container = await AppDataSource.getRepository(Container).findOne({
-        where: { containerNumber },
-        relations: ['seaFreight']
-      });
-      if (!container) {
-        return { updated: false, reason: 'Container not found' };
-      }
-
-      const portOps = await AppDataSource.getRepository(PortOperation)
-        .createQueryBuilder('p')
-        .where('p.container_number = :cn', { cn: containerNumber })
-        .orderBy('p.port_sequence', 'DESC')
-        .getMany();
-
-      const seaFreight = container.seaFreight;
-      const destPo = portOps.find(po => po.portType === 'destination');
-
-      // 获取当前物流状态
-      const statusResult = calculateLogisticsStatus(
-        container,
-        portOps,
-        seaFreight ?? undefined
-      );
-      const currentStatus = statusResult.status;
-      const currentPortType = statusResult.currentPortType;
-
-      // 2. 根据状态决定更新策略
-      let updateReason = '';
-
-      switch (currentStatus) {
-        case 'not_shipped':
-          // 未出运：不更新ETA
-          return { updated: false, reason: 'not_shipped status, skip ETA update' };
-
-        case 'shipped':
-        case 'in_transit':
-          // 在途：ETA可以更新，ATA不更新
-          if (newEta) {
-            const validation = this.validateETA(newEta, newAta, seaFreight?.shipmentDate || null, currentStatus);
-            if (validation.valid) {
-              if (seaFreight) {
-                seaFreight.eta = newEta;
-                await AppDataSource.getRepository(SeaFreight).save(seaFreight);
-              }
-              if (destPo) {
-                destPo.eta = newEta;
-                await AppDataSource.getRepository(PortOperation).save(destPo);
-              }
-              updateReason = `Updated ETA in ${currentStatus} status`;
-            } else {
-              return { updated: false, reason: `ETA validation failed: ${validation.reason}` };
-            }
-          }
-          break;
-
-        case 'at_port':
-          // 已到港：ETA可能需要修正（但ATA已确定）
-          if (newEta && destPo?.ataDestPort) {
-            // ATA已确定，ETA应该 <= ATA
-            if (newEta > destPo.ataDestPort) {
-              // ETA晚于ATA，需要验证或修正
-              const validation = this.validateETA(newEta, destPo.ataDestPort, seaFreight?.shipmentDate || null, currentStatus);
-              if (!validation.valid) {
-                return { updated: false, reason: `ETA validation failed: ${validation.reason}` };
-              }
-            }
-          }
-          if (newEta && seaFreight) {
-            seaFreight.eta = newEta;
-            await AppDataSource.getRepository(SeaFreight).save(seaFreight);
-          }
-          updateReason = 'Updated ETA in at_port status';
-          break;
-
-        case 'picked_up':
-        case 'unloaded':
-        case 'returned_empty':
-          // 已完成物流：ETA应该稳定，不建议更新
-          if (newEta && !seaFreight?.eta) {
-            seaFreight.eta = newEta;
-            await AppDataSource.getRepository(SeaFreight).save(seaFreight);
-            updateReason = `Updated ETA in ${currentStatus} status (was empty)`;
-          } else {
-            return { updated: false, reason: `${currentStatus} status, ETA should be stable` };
-          }
-          break;
-      }
-
-      return { updated: !!updateReason, reason: updateReason || 'No update needed' };
-    } catch (e) {
-      logger.warn('[FeituoImport] smartUpdateETA failed:', e);
-      return { updated: false, reason: 'Error in smartUpdateETA' };
-    }
-  }
-
-  /**
-   * 验证ETA是否有效
-   */
-  private validateETA(
-    eta: Date,
-    ata: Date | null,
-    shipDate: Date | null,
-    logisticsStatus: string
-  ): { valid: boolean; reason?: string } {
-    const now = new Date();
-
-    // 规则1: ETA不能是未来太久（shipped状态允许90天内，其他最多60天）
-    const maxDaysAhead = logisticsStatus === 'shipped' ? 90 : 60;
-    const maxFutureDate = new Date(now.getTime() + maxDaysAhead * 24 * 60 * 60 * 1000);
-    if (eta > maxFutureDate) {
-      return { valid: false, reason: `ETA is too far in future (${maxDaysAhead} days)` };
-    }
-
-    // 规则2: ETA不能早于出运日期
-    if (shipDate && eta < shipDate) {
-      return { valid: false, reason: 'ETA is before ship date' };
-    }
-
-    // 规则3: ETA不能在ATA之后
-    if (ata && eta > ata) {
-      return { valid: false, reason: 'ETA is after ATA' };
-    }
-
-    return { valid: true };
   }
 
   /**
