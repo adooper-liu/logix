@@ -177,24 +177,88 @@ export class TruckingPortMappingController {
         return;
       }
 
+      let successCount = 0;
+      let skipCount = 0;
+      const errors: string[] = [];
+
+      logger.info('[TruckingPortMapping batchCreate] 开始批量导入，记录数:', records.length);
+
       for (const record of records) {
-        await AppDataSource.query(
-          `INSERT INTO dict_trucking_port_mapping 
-           (country, trucking_company_id, trucking_company_name, port_code, port_name,
-            yard_capacity, standard_rate, unit, yard_operation_fee,
-            mapping_type, is_default, is_active, remarks, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
-           ON CONFLICT DO NOTHING`,
-          [
-            record.country, record.truckingCompanyId, record.truckingCompanyName,
-            record.portCode, record.portName,
-            record.yardCapacity || 0, record.standardRate || 0, record.unit || '', record.yardOperationFee || 0,
-            record.mappingType || 'DEFAULT', record.isDefault || false, record.isActive !== false, record.remarks || ''
-          ]
-        );
+        try {
+          // 先检查是否已存在相同的映射（通过 country + trucking_company_id + port_code 判断）
+          const existing = await AppDataSource.query(
+            `SELECT id FROM dict_trucking_port_mapping 
+             WHERE country = $1 AND trucking_company_id = $2 AND port_code = $3`,
+            [record.country, record.truckingCompanyId, record.portCode]
+          );
+
+          if (existing.length > 0) {
+            // 已存在，执行更新
+            logger.info(`[TruckingPortMapping batchCreate] 更新已有映射：${record.truckingCompanyName} - ${record.portName}`);
+            await AppDataSource.query(
+              `UPDATE dict_trucking_port_mapping 
+               SET trucking_company_name = $1, port_name = $2, 
+                   yard_capacity = $3, standard_rate = $4, 
+                   unit = $5, yard_operation_fee = $6, 
+                   mapping_type = $7, is_default = $8, 
+                   is_active = $9, remarks = $10, updated_at = NOW()
+               WHERE id = $11`,
+              [
+                record.truckingCompanyName, record.portName,
+                record.yardCapacity || 0, record.standardRate || 0,
+                record.unit || '', record.yardOperationFee || 0,
+                record.mappingType || 'DEFAULT', record.isDefault || false,
+                record.isActive !== false, record.remarks || '',
+                existing[0].id
+              ]
+            );
+            skipCount++;
+          } else {
+            // 不存在，执行插入
+            logger.info(`[TruckingPortMapping batchCreate] 插入新映射：${record.truckingCompanyName} - ${record.portName}`);
+            const insertResult = await AppDataSource.query(
+              `INSERT INTO dict_trucking_port_mapping 
+               (country, trucking_company_id, trucking_company_name, port_code, port_name,
+                yard_capacity, standard_rate, unit, yard_operation_fee,
+                mapping_type, is_default, is_active, remarks, created_at, updated_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
+               RETURNING *`,
+              [
+                record.country, record.truckingCompanyId, record.truckingCompanyName,
+                record.portCode, record.portName,
+                record.yardCapacity || 0, record.standardRate || 0, record.unit || '', record.yardOperationFee || 0,
+                record.mappingType || 'DEFAULT', record.isDefault || false, record.isActive !== false, record.remarks || ''
+              ]
+            );
+            logger.info('[TruckingPortMapping batchCreate] 插入成功，ID:', insertResult[0]?.id);
+            successCount++;
+          }
+        } catch (innerError: any) {
+          const errorMsg = `处理记录失败 ${record.truckingCompanyName} - ${record.portName}: ${innerError.message}`;
+          logger.error('[TruckingPortMapping batchCreate] Single record error:', innerError);
+          errors.push(errorMsg);
+          // 继续处理其他记录，不中断整个流程
+        }
       }
 
-      res.json({ success: true, message: `批量导入成功，共${records.length}条` });
+      const resultMessage = `批量导入完成，共${records.length}条，新建${successCount}条，更新${skipCount}条`;
+      if (errors.length > 0) {
+        logger.warn('[TruckingPortMapping batchCreate] 部分记录失败:', errors);
+      }
+      
+      logger.info('[TruckingPortMapping batchCreate]', resultMessage);
+      
+      res.json({ 
+        success: true, 
+        message: resultMessage,
+        stats: {
+          total: records.length,
+          created: successCount,
+          updated: skipCount,
+          failed: errors.length
+        },
+        errors: errors.length > 0 ? errors : undefined
+      });
     } catch (error: any) {
       logger.error('[TruckingPortMapping batchCreate] Error:', error);
       res.status(500).json({ error: error.message });

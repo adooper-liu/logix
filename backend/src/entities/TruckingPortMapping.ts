@@ -21,7 +21,8 @@ export class TruckingPortMapping {
   @Column({ type: 'varchar', length: 50, name: 'country' })
   country: string;
 
-  @Column({ type: 'varchar', length: 50, name: 'trucking_company_id' })
+  /** 车队代码，引用 dict_trucking_companies.company_code */
+  @Column({ type: 'varchar', length: 100, name: 'trucking_company_id' })
   truckingCompanyId: string;
 
   @Column({ type: 'varchar', length: 200, nullable: true, name: 'trucking_company_name' })

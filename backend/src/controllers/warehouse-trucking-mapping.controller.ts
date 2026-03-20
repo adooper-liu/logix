@@ -157,21 +157,81 @@ export class WarehouseTruckingMappingController {
         return;
       }
 
+      let successCount = 0;
+      let skipCount = 0;
+      const errors: string[] = [];
+
+      logger.info('[WarehouseTruckingMapping batchCreate] 开始批量导入，记录数:', records.length);
+
       for (const record of records) {
-        await AppDataSource.query(
-          `INSERT INTO dict_warehouse_trucking_mapping 
-           (country, warehouse_code, warehouse_name, trucking_company_id, trucking_company_name, mapping_type, is_default, is_active, remarks, created_at, updated_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
-           ON CONFLICT DO NOTHING`,
-          [
-            record.country, record.warehouseCode, record.warehouseName, 
-            record.truckingCompanyId, record.truckingCompanyName, 
-            record.mappingType || 'DEFAULT', record.isDefault || false, record.isActive !== false, record.remarks || ''
-          ]
-        );
+        try {
+          // 先检查是否已存在相同的映射（通过 country + warehouse_code + trucking_company_id 判断）
+          const existing = await AppDataSource.query(
+            `SELECT id FROM dict_warehouse_trucking_mapping 
+             WHERE country = $1 AND warehouse_code = $2 AND trucking_company_id = $3`,
+            [record.country, record.warehouseCode, record.truckingCompanyId]
+          );
+
+          if (existing.length > 0) {
+            // 已存在，执行更新
+            logger.info(`[WarehouseTruckingMapping batchCreate] 更新已有映射：${record.warehouseName} - ${record.truckingCompanyName}`);
+            await AppDataSource.query(
+              `UPDATE dict_warehouse_trucking_mapping 
+               SET warehouse_name = $1, trucking_company_name = $2, 
+                   mapping_type = $3, is_default = $4, 
+                   is_active = $5, remarks = $6, updated_at = NOW()
+               WHERE id = $7`,
+              [
+                record.warehouseName, record.truckingCompanyName,
+                record.mappingType || 'DEFAULT', record.isDefault || false,
+                record.isActive !== false, record.remarks || '',
+                existing[0].id
+              ]
+            );
+            skipCount++;
+          } else {
+            // 不存在，执行插入
+            logger.info(`[WarehouseTruckingMapping batchCreate] 插入新映射：${record.warehouseName} - ${record.truckingCompanyName}`);
+            const insertResult = await AppDataSource.query(
+              `INSERT INTO dict_warehouse_trucking_mapping 
+               (country, warehouse_code, warehouse_name, trucking_company_id, trucking_company_name, mapping_type, is_default, is_active, remarks, created_at, updated_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+               RETURNING *`,
+              [
+                record.country, record.warehouseCode, record.warehouseName, 
+                record.truckingCompanyId, record.truckingCompanyName, 
+                record.mappingType || 'DEFAULT', record.isDefault || false, record.isActive !== false, record.remarks || ''
+              ]
+            );
+            logger.info('[WarehouseTruckingMapping batchCreate] 插入成功，ID:', insertResult[0]?.id);
+            successCount++;
+          }
+        } catch (innerError: any) {
+          const errorMsg = `处理记录失败 ${record.warehouseName} - ${record.truckingCompanyName}: ${innerError.message}`;
+          logger.error('[WarehouseTruckingMapping batchCreate] Single record error:', innerError);
+          errors.push(errorMsg);
+          // 继续处理其他记录，不中断整个流程
+        }
       }
 
-      res.json({ success: true, message: `批量导入成功，共${records.length}条` });
+      const resultMessage = `批量导入完成，共${records.length}条，新建${successCount}条，更新${skipCount}条`;
+      if (errors.length > 0) {
+        logger.warn('[WarehouseTruckingMapping batchCreate] 部分记录失败:', errors);
+      }
+      
+      logger.info('[WarehouseTruckingMapping batchCreate]', resultMessage);
+      
+      res.json({ 
+        success: true, 
+        message: resultMessage,
+        stats: {
+          total: records.length,
+          created: successCount,
+          updated: skipCount,
+          failed: errors.length
+        },
+        errors: errors.length > 0 ? errors : undefined
+      });
     } catch (error: any) {
       logger.error('[WarehouseTruckingMapping batchCreate] Error:', error);
       res.status(500).json({ error: error.message });

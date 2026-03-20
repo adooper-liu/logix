@@ -26,7 +26,7 @@ export class WarehouseTruckingMapping {
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'warehouse_name' })
   warehouseName: string;
 
-  @Column({ type: 'varchar', length: 50, name: 'trucking_company_id' })
+  @Column({ type: 'varchar', length: 100, name: 'trucking_company_id' })
   truckingCompanyId: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'trucking_company_name' })

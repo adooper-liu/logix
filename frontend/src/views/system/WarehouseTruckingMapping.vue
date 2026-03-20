@@ -229,15 +229,15 @@ const handleFileChange = async (file: any) => {
     console.log('第一行数据:', jsonData[0])
 
     // 转换数据
-    const records: WarehouseTruckingRecord[] = (jsonData as any[]).map((row: any) => {
+    const records: WarehouseTruckingRecord[] = (jsonData as any[]).map((row: any, index: number) => {
       // 支持多种列名变体
       const truckingCompanyId = row['车队代码'] || row['车队.ID'] || row['trucking_company_id'] || row['trucking_company_code'] || ''
       const truckingCompanyName = row['车队'] || row['车队名称'] || row['trucking_company_name'] || row['trucking_company'] || ''
       
-      return {
+      const record = {
         country: row['国家'] || row['country'] || '',
-        warehouseCode: row['仓库。代码'] || row['仓库代码'] || row['warehouse_code'] || row['warehouse.code'] || '',
-        warehouseName: row['仓库。仓库名称'] || row['仓库名称'] || row['warehouse_name'] || row['warehouse.name'] || '',
+        warehouseCode: row['仓库代码'] || row['warehouse_code'] || row['warehouse.code'] || '',
+        warehouseName: row['仓库名称'] || row['warehouse_name'] || row['warehouse.name'] || '',
         truckingCompanyId,
         truckingCompanyName,
         mappingType: 'DEFAULT',
@@ -245,6 +245,13 @@ const handleFileChange = async (file: any) => {
         isActive: true,
         remarks: ''
       }
+      
+      // 调试：打印前 3 条记录
+      if (index < 3) {
+        console.log(`[Excel 解析] 第${index + 1}条记录:`, record)
+      }
+      
+      return record
     })
 
     // 验证必填字段
@@ -282,7 +289,90 @@ const confirmImport = async () => {
 
   try {
     importLoading.value = true
-    await axios.post(`${BASE_URL}/warehouse-trucking-mapping/batch`, pendingImportRecords.value)
+    
+    // 先处理车队：确保所有车队都存在于 dict_trucking_companies
+    const uniqueTruckingCompanies = new Map<string, { name: string; country?: string }>()
+    pendingImportRecords.value.forEach((record: WarehouseTruckingRecord) => {
+      if (record.truckingCompanyName && !uniqueTruckingCompanies.has(record.truckingCompanyName)) {
+        uniqueTruckingCompanies.set(record.truckingCompanyName, {
+          name: record.truckingCompanyName,
+          country: record.country
+        })
+      }
+    })
+    
+    // 批量创建/更新车队 - 使用 dict-manage/TRUCKING_COMPANY 接口
+    if (uniqueTruckingCompanies.size > 0) {
+      const truckingCompaniesData = Array.from(uniqueTruckingCompanies.entries()).map(([name, data]) => ({
+        companyCode: name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50), // 生成公司代码
+        companyName: name,
+        companyNameEn: name, // 暂时使用相同名称
+        country: data.country,
+        status: 'ACTIVE',
+        isActive: true
+      }))
+      
+      // 逐个创建或更新车队
+      console.log('[导入] 开始处理车队，数量:', truckingCompaniesData.length)
+      let createdCount = 0
+      let updatedCount = 0
+      
+      for (const company of truckingCompaniesData) {
+        try {
+          // 先尝试创建
+          await axios.post(`${BASE_URL}/dict-manage/TRUCKING_COMPANY`, company)
+          console.log('[导入] ✓ 车队创建成功:', company.companyName, '代码:', company.companyCode)
+          createdCount++
+        } catch (error: any) {
+          if (error?.response?.status === 400) {
+            // 已存在，尝试更新
+            try {
+              await axios.put(`${BASE_URL}/dict-manage/TRUCKING_COMPANY/${encodeURIComponent(company.companyCode)}`, {
+                companyName: company.companyName,
+                companyNameEn: company.companyNameEn,
+                country: company.country,
+                status: company.status,
+                isActive: company.isActive
+              })
+              console.log('[导入] ~ 车队已存在并更新:', company.companyName, '代码:', company.companyCode)
+              updatedCount++
+            } catch (updateError: any) {
+              console.warn('[导入] 更新车队失败:', company.companyName, updateError?.message)
+            }
+          } else {
+            console.warn('[导入] 创建车队失败:', company.companyName, error?.message)
+            if (error?.response?.data?.message) {
+              console.warn('[导入] 错误详情:', error.response.data.message)
+            }
+          }
+        }
+      }
+      
+      console.log('[导入] 车队处理完成：新建', createdCount, '个，更新', updatedCount, '个')
+      
+      // ⭐ 关键：用车队代码更新所有映射记录的 truckingCompanyId
+      const companyCodeMap = new Map<string, string>()
+      for (const [name, data] of uniqueTruckingCompanies.entries()) {
+        const code = name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50)
+        companyCodeMap.set(name, code)
+      }
+      
+      // 更新所有映射记录
+      pendingImportRecords.value.forEach((record: WarehouseTruckingRecord) => {
+        if (record.truckingCompanyName && companyCodeMap.has(record.truckingCompanyName)) {
+          record.truckingCompanyId = companyCodeMap.get(record.truckingCompanyName) || ''
+        }
+      })
+      
+      console.log('[导入] 已更新所有映射记录的车队代码')
+    }
+    
+    // 现在导入映射关系
+    console.log('[导入] 开始导入仓库 - 车队映射，数量:', pendingImportRecords.value.length)
+    console.log('[导入] 第一条数据:', pendingImportRecords.value[0])
+    
+    const response = await axios.post(`${BASE_URL}/warehouse-trucking-mapping/batch`, pendingImportRecords.value)
+    console.log('[导入] 后端响应:', response.data)
     importResult.success = pendingImportRecords.value.length
     ElMessage.success(`导入成功：${pendingImportRecords.value.length}条`)
     loadData()
