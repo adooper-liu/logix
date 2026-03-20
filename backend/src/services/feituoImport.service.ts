@@ -275,7 +275,7 @@ export class FeituoImportService {
     repo: ReturnType<typeof AppDataSource.getRepository<ExtFeituoImportTable1>>
   ): Promise<void> {
     const mbl = getVal(row, 'MBL Number', 'MBL Number（一）', 'MBLNumber', 'mbl_number');
-    const containerNumber = getVal(row, '集装箱号', '集装箱号（一）', 'container_number');
+    const containerNumber = getVal(row, '集装箱物流信息_集装箱号', '集装箱号', '集装箱号（一）', 'container_number');
     if (!containerNumber) throw new Error('缺少集装箱号');
 
     const rec = repo.create({
@@ -298,7 +298,7 @@ export class FeituoImportService {
     repo: ReturnType<typeof AppDataSource.getRepository<ExtFeituoImportTable2>>
   ): Promise<void> {
     const billNumber = getVal(row, '提单号', '提单号（一）', 'bill_number');
-    const containerNumber = getVal(row, '集装箱号', '集装箱号（一）', 'container_number');
+    const containerNumber = getVal(row, '集装箱物流信息_集装箱号', '集装箱号', '集装箱号（一）', 'container_number');
     if (!containerNumber) throw new Error('缺少集装箱号');
 
     const portCode = getVal(row, '港口代码', '港口代码（一）', 'port_code');
@@ -321,7 +321,7 @@ export class FeituoImportService {
   /** 表一合并到核心表 */
   private async mergeTable1ToCore(row: FeituoRowData): Promise<void> {
     const mbl = getVal(row, 'MBL Number', 'MBL Number（一）', 'MBLNumber') || getVal(row, '提单号');
-    const containerNumber = getVal(row, '集装箱号', '集装箱号（一）', 'container_number');
+    const containerNumber = getVal(row, '集装箱物流信息_集装箱号', '集装箱号', '集装箱号（一）', 'container_number');
     if (!containerNumber) return;
 
     const containerRepo = AppDataSource.getRepository(Container);
@@ -509,10 +509,10 @@ export class FeituoImportService {
 
   /** 表二合并到核心表 */
   private async mergeTable2ToCore(row: FeituoRowData): Promise<void> {
-    const billNumber = getVal(row, '提单号', '提单号（一）') || `FEITUO_${getVal(row, '集装箱号', '集装箱号（一）')}`;
+    const billNumber = getVal(row, '提单号', '提单号（一）') || `FEITUO_${getVal(row, '集装箱物流信息_集装箱号', '集装箱号', '集装箱号（一）')}`;
     const mblNumber = getVal(row, 'MBL Number', 'MBL Number（一）', 'MBLNumber');  // 获取 MBL
     const hblNumber = getVal(row, 'HBL Number', 'HBL Number（一）', 'HBLNumber');  // 获取 HBL
-    const containerNumber = getVal(row, '集装箱号', '集装箱号（一）', 'container_number');
+    const containerNumber = getVal(row, '集装箱物流信息_集装箱号', '集装箱号', '集装箱号（一）', 'container_number');
     if (!containerNumber) return;
 
     const containerRepo = AppDataSource.getRepository(Container);

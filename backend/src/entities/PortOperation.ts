@@ -87,6 +87,9 @@ export class PortOperation {
   @Column({ type: 'varchar', length: 20, nullable: true, name: 'last_free_date_mode' })
   lastFreeDateMode?: 'actual' | 'forecast';
 
+  @Column({ type: 'varchar', length: 20, nullable: true, name: 'last_free_date_source' })
+  lastFreeDateSource?: 'computed' | 'manual';
+
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'gate_in_terminal' })
   gateInTerminal: string;
 
@@ -151,6 +154,25 @@ export class PortOperation {
 
   @Column({ type: 'date', nullable: true, name: 'port_close_date' })
   portCloseDate?: Date; // 截港日期（中国港区）
+
+  // ==================== 火车/海铁联运专用字段 ====================
+  @Column({ type: 'timestamp', nullable: true, name: 'train_arrival_date' })
+  trainArrivalDate?: Date; // 火车到站日期（海铁联运）
+
+  @Column({ type: 'timestamp', nullable: true, name: 'train_discharge_date' })
+  trainDischargeDate?: Date; // 火车卸箱日期（海铁联运）
+
+  @Column({ type: 'timestamp', nullable: true, name: 'train_departure_time' })
+  trainDepartureTime?: Date; // 火车出发时间（海铁联运）
+
+  @Column({ type: 'timestamp', nullable: true, name: 'rail_last_free_date' })
+  railLastFreeDate?: Date; // 铁路最后免费日（LFD）
+
+  @Column({ type: 'boolean', nullable: true, name: 'last_free_date_invalid' })
+  lastFreeDateInvalid?: boolean; // LFD是否无效
+
+  @Column({ type: 'text', nullable: true, name: 'last_free_date_remark' })
+  lastFreeDateRemark?: string; // LFD备注
 
   // 免费期信息 - Excel映射字段
   @Column({ type: 'int', nullable: true, name: 'free_storage_days' })

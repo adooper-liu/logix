@@ -379,6 +379,27 @@ export const FEITUO_STATUS_TYPE_MAP: Record<string, 'ETA' | 'ATA' | 'GATE_IN' | 
 };
 
 /**
+ * 未知状态码记录（用于监控和映射表扩展）
+ * 记录所有遇到但未在映射表中定义的状态码
+ */
+const unknownStatusCodes = new Set<string>();
+
+/**
+ * 获取所有未知状态码（用于监控台或日志输出）
+ * @returns 未知状态码数组
+ */
+export const getUnknownStatusCodes = (): string[] => {
+  return Array.from(unknownStatusCodes);
+};
+
+/**
+ * 重置未知状态码记录（用于测试）
+ */
+export const resetUnknownStatusCodes = (): void => {
+  unknownStatusCodes.clear();
+};
+
+/**
  * 判断飞驼状态代码是否应该更新核心字段
  * Check if FeiTuo status code should update core field
  *
@@ -393,7 +414,15 @@ export const shouldUpdateCoreField = (statusCode: string, hasOccurred: boolean):
   }
 
   // 只有在映射表中的状态代码才更新核心字段
-  return statusCode in FEITUO_STATUS_TO_CORE_FIELD_MAP;
+  const isKnown = statusCode in FEITUO_STATUS_TO_CORE_FIELD_MAP;
+
+  // 记录未知状态码（用于监控和映射表扩展）
+  if (!isKnown && !unknownStatusCodes.has(statusCode)) {
+    unknownStatusCodes.add(statusCode);
+    console.warn(`[FeiTuoStatusMapping] 未知状态码: ${statusCode}, 请在映射表中添加定义`);
+  }
+
+  return isKnown;
 };
 
 /**
@@ -477,4 +506,6 @@ export default {
   isEstimatedStatus,
   isActualStatus,
   getAllStatusCodesWithCoreField,
+  getUnknownStatusCodes,
+  resetUnknownStatusCodes,
 };

@@ -74,15 +74,27 @@ export class ContainerStatusService {
 
       // 如果状态需要更新
       if (result.status !== container.logisticsStatus) {
+        // 【增强审计】构建详细的状态变更信息
+        const oldStatus = container.logisticsStatus;
+        const newStatus = result.status;
+
+        // 获取触发状态变更的关键字段
+        const triggerFields: Record<string, { old?: unknown; new?: unknown }> = {};
+        if (result.triggerFields) {
+          for (const [field, value] of Object.entries(result.triggerFields)) {
+            triggerFields[field] = { new: value };
+          }
+        }
+
         await this.containerRepository.update(
           { containerNumber },
-          { logisticsStatus: result.status }
+          { logisticsStatus: newStatus }
         );
         logger.info(
-          `[StatusUpdate] ${containerNumber}: ${container.logisticsStatus} -> ${result.status}`
+          `[StatusUpdate] ${containerNumber}: ${oldStatus} -> ${newStatus}, 触发字段: ${Object.keys(triggerFields).join(', ') || '无'}`
         );
 
-        // 记录数据变更日志
+        // 【增强审计】记录详细的状态变更日志
         await auditLogService.logChange({
           sourceType: 'status_update',
           entityType: 'biz_containers',
@@ -90,11 +102,29 @@ export class ContainerStatusService {
           action: 'UPDATE',
           changedFields: {
             logistics_status: {
-              old: container.logisticsStatus,
-              new: result.status
+              old: oldStatus,
+              new: newStatus
+            },
+            // 添加触发字段信息
+            _triggerFields: {
+              old: null,
+              new: triggerFields
+            },
+            // 添加状态计算详情
+            _statusCalculation: {
+              old: null,
+              new: {
+                reason: result.reason || null,
+                hasReturnTime: !!emptyReturn?.returnTime,
+                hasWmsConfirm: !!warehouseOperation?.wmsConfirmDate,
+                hasPickupDate: !!truckingTransport?.pickupDate,
+                hasDestAta: portOperations.some(po => po.portType === 'destination' && po.ata),
+                hasTransitAta: portOperations.some(po => po.portType === 'transit' && po.ata),
+                hasShipmentDate: !!seaFreight?.shipmentDate,
+              }
             }
           },
-          remark: '状态机重算'
+          remark: `状态机重算: ${oldStatus} → ${newStatus}`
         });
 
         return true;

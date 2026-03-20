@@ -1144,4 +1144,154 @@ export class ContainerController {
       await queryRunner.release();
     }
   };
+
+  /**
+   * 设置手工最晚提柜日（LFD）
+   * PATCH /api/containers/:containerNumber/manual-lfd
+   * @body {
+   *   lastFreeDate: Date,     // 手工维护的最晚提柜日
+   *   remark?: string,        // 备注说明
+   * }
+   * 设置后不会被自动计算覆盖
+   */
+  setManualLastFreeDate = async (req: Request, res: Response): Promise<void> => {
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const { containerNumber } = req.params;
+      const { lastFreeDate, remark } = req.body;
+
+      if (!lastFreeDate) {
+        res.status(400).json({ success: false, message: '缺少 lastFreeDate 参数' });
+        return;
+      }
+
+      logger.info('[setManualLastFreeDate] Setting manual LFD:', { containerNumber, lastFreeDate, remark });
+
+      // 1. 校验货柜是否存在
+      const container = await queryRunner.manager.findOne(Container, {
+        where: { containerNumber }
+      });
+
+      if (!container) {
+        await queryRunner.rollbackTransaction();
+        res.status(404).json({ success: false, message: '货柜不存在' });
+        return;
+      }
+
+      // 2. 查找目的港港口操作记录
+      const destPort = await queryRunner.manager.findOne(PortOperation, {
+        where: { containerNumber, portType: 'destination' },
+        order: { portSequence: 'DESC' }
+      });
+
+      if (!destPort) {
+        await queryRunner.rollbackTransaction();
+        res.status(404).json({ success: false, message: '未找到目的港操作记录' });
+        return;
+      }
+
+      // 3. 更新LFD为手工维护
+      const parsedDate = new Date(lastFreeDate);
+      if (isNaN(parsedDate.getTime())) {
+        res.status(400).json({ success: false, message: '无效的日期格式' });
+        return;
+      }
+
+      await queryRunner.manager.update(PortOperation, { id: destPort.id }, {
+        lastFreeDate: parsedDate,
+        lastFreeDateSource: 'manual',
+        lastFreeDateRemark: remark || null,
+        lastFreeDateInvalid: false
+      });
+
+      await queryRunner.commitTransaction();
+
+      logger.info('[setManualLastFreeDate] Manual LFD set successfully:', { containerNumber, lastFreeDate: parsedDate });
+
+      res.json({
+        success: true,
+        message: '手工最晚提柜日设置成功',
+        data: {
+          containerNumber,
+          lastFreeDate: parsedDate.toISOString().split('T')[0],
+          source: 'manual',
+          remark
+        }
+      });
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      logger.error('[setManualLastFreeDate] Error:', error);
+      res.status(500).json({ success: false, message: '设置手工最晚提柜日失败', error: String(error) });
+    } finally {
+      await queryRunner.release();
+    }
+  };
+
+  /**
+   * 恢复自动计算LFD
+   * DELETE /api/containers/:containerNumber/manual-lfd
+   * 删除手工维护的LFD，恢复为自动计算
+   */
+  resetLastFreeDateToComputed = async (req: Request, res: Response): Promise<void> => {
+    const queryRunner = AppDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const { containerNumber } = req.params;
+
+      logger.info('[resetLastFreeDateToComputed] Resetting LFD to computed:', { containerNumber });
+
+      // 1. 校验货柜是否存在
+      const container = await queryRunner.manager.findOne(Container, {
+        where: { containerNumber }
+      });
+
+      if (!container) {
+        await queryRunner.rollbackTransaction();
+        res.status(404).json({ success: false, message: '货柜不存在' });
+        return;
+      }
+
+      // 2. 查找目的港港口操作记录
+      const destPort = await queryRunner.manager.findOne(PortOperation, {
+        where: { containerNumber, portType: 'destination' },
+        order: { portSequence: 'DESC' }
+      });
+
+      if (!destPort) {
+        await queryRunner.rollbackTransaction();
+        res.status(404).json({ success: false, message: '未找到目的港操作记录' });
+        return;
+      }
+
+      // 3. 恢复为自动计算模式（清空手工标记和备注，保留原lastFreeDate值供下次计算覆盖）
+      await queryRunner.manager.update(PortOperation, { id: destPort.id }, {
+        lastFreeDateSource: 'computed',
+        lastFreeDateRemark: null
+      });
+
+      await queryRunner.commitTransaction();
+
+      logger.info('[resetLastFreeDateToComputed] LFD reset to computed:', { containerNumber });
+
+      res.json({
+        success: true,
+        message: '已恢复为自动计算模式',
+        data: {
+          containerNumber,
+          lastFreeDateSource: 'computed'
+        }
+      });
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      logger.error('[resetLastFreeDateToComputed] Error:', error);
+      res.status(500).json({ success: false, message: '恢复自动计算模式失败', error: String(error) });
+    } finally {
+      await queryRunner.release();
+    }
+  };
 }

@@ -124,4 +124,19 @@ router.post('/update-statuses/batch', containerController.batchUpdateContainerSt
  */
 router.patch('/:id/schedule', containerController.updateSchedule);
 
+/**
+ * @route   PATCH /:containerNumber/manual-lfd
+ * @desc    设置手工最晚提柜日（LFD），设置后不会被自动计算覆盖
+ * @access  Public
+ * @body    lastFreeDate (必填), remark (可选)
+ */
+router.patch('/:containerNumber/manual-lfd', containerController.setManualLastFreeDate);
+
+/**
+ * @route   DELETE /:containerNumber/manual-lfd
+ * @desc    恢复为自动计算LFD（删除手工维护标记）
+ * @access  Public
+ */
+router.delete('/:containerNumber/manual-lfd', containerController.resetLastFreeDateToComputed);
+
 export default router;

@@ -28,6 +28,7 @@ import {
 import { auditLogService } from './auditLog.service';
 import { DemurrageService } from './demurrage.service';
 import { feituoPlacesProcessor } from './feituoPlaces.processor';
+import { feituoSmartDateUpdater } from './feituo/FeituoSmartDateUpdater';
 
 /**
  * 飞驼API响应数据结构
@@ -103,6 +104,17 @@ export class ExternalDataService {
   private requestQueue: Promise<any>[] = [];
   private readonly MAX_CONCURRENT_REQUESTS = 5;
   private readonly REQUEST_DELAY_MS = 200;
+
+  // 【监控指标】同步统计
+  private syncStats = {
+    totalSyncCount: 0,        // 总同步次数
+    successCount: 0,          // 成功次数
+    failedCount: 0,           // 失败次数
+    totalContainers: 0,       // 总同步货柜数
+    successContainers: 0,     // 成功货柜数
+    failedContainers: 0,      // 失败货柜数
+    lastSyncTime: null as Date | null,  // 最后同步时间
+  };
 
   // 数据仓库
   private portOperationRepository = AppDataSource.getRepository(PortOperation);
@@ -222,6 +234,38 @@ export class ExternalDataService {
    */
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  /**
+   * 【优化】批量重算滞港费
+   * 使用并发控制避免数据库连接耗尽
+   *
+   * @param containerNumbers 货柜号数组
+   */
+  private async batchRecalculateDemurrage(containerNumbers: string[]): Promise<void> {
+    const CONCURRENCY_LIMIT = 3; // 限制并发数量
+
+    logger.info(`[ExternalDataService] 开始批量重算滞港费: ${containerNumbers.length} 个货柜`);
+
+    // 分批并发处理
+    const batches = this.chunkArray(containerNumbers, CONCURRENCY_LIMIT);
+
+    for (const batch of batches) {
+      const promises = batch.map(containerNumber =>
+        this.demurrageService.calculateForContainer(containerNumber).catch((e) => {
+          logger.warn(`[ExternalDataService] 滞港费重算失败: ${containerNumber}`, e);
+        })
+      );
+
+      await Promise.all(promises);
+
+      // 批次之间短暂延迟，避免数据库压力
+      if (batches.indexOf(batch) < batches.length - 1) {
+        await this.sleep(100);
+      }
+    }
+
+    logger.info(`[ExternalDataService] 批量重算滞港费完成: ${containerNumbers.length} 个货柜`);
   }
 
   /**
@@ -768,6 +812,32 @@ export class ExternalDataService {
         return [];
       }
 
+      // 【新增】查询货柜、拖卡运输、仓库操作信息，用于智能验证
+      const [container, truckingTransport, warehouseOperation] = await Promise.all([
+        this.containerRepository.findOne({ where: { containerNumber } }),
+        this.truckingTransportRepository.findOne({ where: { containerNumber } }),
+        this.warehouseOperationRepository.findOne({ where: { containerNumber } }),
+      ]);
+
+      // 构建港口操作链信息（用于内部一致性校验）
+      const portOperationsChain = portOperations.map(po => ({
+        portSequence: po.portSequence ?? 0,
+        portType: po.portType as 'origin' | 'transit' | 'destination',
+        ata: po.ata,
+        atd: po.atd,
+        eta: po.eta,
+        etd: po.etd,
+      }));
+
+      // 找到上一港信息
+      const destinationPort = portOperations.find(po => po.portType === 'destination');
+      const previousPort = destinationPort
+        ? portOperations
+            .filter(po => po.portSequence !== undefined && destinationPort.portSequence !== undefined)
+            .filter(po => (po.portSequence ?? 0) < (destinationPort.portSequence ?? 0))
+            .sort((a, b) => (b.portSequence ?? 0) - (a.portSequence ?? 0))[0]
+        : undefined;
+
       let updatedCount = 0;
       const changedFields: Record<string, { old?: unknown; new?: unknown }> = {};
       const updatedAtaFields: string[] = [];
@@ -785,6 +855,48 @@ export class ExternalDataService {
           continue;
         }
 
+        // 【新增】ATA更新前智能验证
+        if (coreFieldName === 'ata' && event.statusCode !== 'ETA') {
+          const validationResult = feituoSmartDateUpdater.validateATA({
+            ata: new Date(event.eventTime),
+            eta: destinationPort?.eta ?? null,
+            shipDate: null,
+            logisticsStatus: container?.logisticsStatus ?? 'unknown',
+            portType: destinationPort?.portType as 'origin' | 'transit' | 'destination' | null ?? null,
+            portOperations: portOperationsChain,
+            previousPort: previousPort ? {
+              portSequence: previousPort.portSequence ?? 0,
+              portType: previousPort.portType as 'origin' | 'transit' | 'destination',
+              atd: previousPort.atd,
+              ata: previousPort.ata,
+            } : undefined,
+            truckingTransport: truckingTransport ? {
+              pickupDate: truckingTransport.pickupDate ?? null,
+              deliveryDate: truckingTransport.deliveryDate ?? null,
+              gateInTime: truckingTransport.gateInTime ?? null,
+            } : undefined,
+            warehouseOperation: warehouseOperation ? {
+              wmsConfirmDate: warehouseOperation.wmsConfirmDate ?? null,
+              inboundDate: warehouseOperation.inboundDate ?? null,
+            } : undefined,
+          });
+
+          if (!validationResult.valid) {
+            logger.warn(`[ExternalDataService] ATA智能验证失败: ${validationResult.reason}, 跳过更新`, {
+              containerNumber,
+              newAta: event.eventTime,
+            });
+            continue; // 验证不通过，跳过更新
+          }
+
+          if (validationResult.warnings && validationResult.warnings.length > 0) {
+            logger.warn(`[ExternalDataService] ATA智能验证警告:`, {
+              containerNumber,
+              warnings: validationResult.warnings,
+            });
+          }
+        }
+
         // 获取港口类型
         const portType = getPortTypeForStatusCode(event.statusCode);
 
@@ -792,16 +904,31 @@ export class ExternalDataService {
         let targetPortOperation: PortOperation | null = null;
 
         if (portType) {
-          // 根据港口类型和地点代码查找
-          targetPortOperation = portOperations.find(po =>
+          // 根据港口类型和地点代码查找匹配的记录
+          const matchedByLocation = portOperations.filter(po =>
             po.portType === portType &&
             (po.portCode === event.locationCode || po.portName === event.locationName || po.portName === event.locationNameEn || po.portName === event.locationNameCn)
-          ) || null;
+          );
+
+          if (matchedByLocation.length > 0) {
+            // 如果有多个匹配，选择 port_sequence 最大的（最新的）
+            targetPortOperation = matchedByLocation.reduce((latest, current) =>
+              (current.portSequence ?? 0) > (latest.portSequence ?? 0) ? current : latest
+            );
+          } else {
+            // 如果没有匹配的港口，按港口类型选择 port_sequence 最大的记录
+            const sameTypePorts = portOperations.filter(po => po.portType === portType);
+            if (sameTypePorts.length > 0) {
+              targetPortOperation = sameTypePorts.reduce((latest, current) =>
+                (current.portSequence ?? 0) > (latest.portSequence ?? 0) ? current : latest
+              );
+            }
+          }
         }
 
         if (!targetPortOperation) {
-          // 如果找不到对应的港口操作记录,尝试创建或使用第一个记录
-          targetPortOperation = portOperations.find(po => po.portType === portType) || portOperations[0];
+          // 如果仍然找不到，使用第一个记录（兜底）
+          targetPortOperation = portOperations[0];
         }
 
         if (!targetPortOperation) {
@@ -932,12 +1059,18 @@ export class ExternalDataService {
   async syncBatchContainerEvents(containerNumbers: string[], dataSource: DataSource = DataSource.FEITUO): Promise<{ success: string[]; failed: { containerNumber: string; error: string }[] }> {
     logger.info(`[ExternalDataService] 开始批量同步 ${containerNumbers.length} 个货柜的状态事件`);
 
+    // 【监控】记录同步开始
+    this.recordSyncStart(containerNumbers.length);
+
     const result = {
       success: [] as string[],
       failed: [] as { containerNumber: string; error: string }[],
     };
 
     try {
+      // 【优化】收集需要重算滞港费的货柜，批次处理完成后统一重算
+      const containersNeedingDemurrageRecalc: string[] = [];
+
       // 策略1: 使用飞驼批量API一次性获取所有数据
       if (containerNumbers.length <= 50) {
         // 分批处理，每批最多50个货柜
@@ -975,10 +1108,10 @@ export class ExternalDataService {
                   data.trackingEvents
                 );
                 await this.recalculateLogisticsStatus(data.containerNumber);
+
+                // 【优化】收集需要重算滞港费的货柜，而不是立即触发
                 if (updatedAtaFields.length > 0) {
-                  this.demurrageService.calculateForContainer(data.containerNumber).catch((e) =>
-                    logger.warn('[ExternalDataService] demurrage recalc on ATA update failed:', e)
-                  );
+                  containersNeedingDemurrageRecalc.push(data.containerNumber);
                 }
                 return data.containerNumber;
               } catch (error: any) {
@@ -1008,6 +1141,12 @@ export class ExternalDataService {
           }
         }
 
+        // 【优化】批次处理完成后，统一触发滞港费重算
+        if (containersNeedingDemurrageRecalc.length > 0) {
+          logger.info(`[ExternalDataService] 批次处理完成，统一重算 ${containersNeedingDemurrageRecalc.length} 个货柜的滞港费`);
+          await this.batchRecalculateDemurrage(containersNeedingDemurrageRecalc);
+        }
+
       } else {
         // 超过50个货柜，使用逐个请求的方式(避免单次请求过大)
         for (const containerNumber of containerNumbers) {
@@ -1029,6 +1168,15 @@ export class ExternalDataService {
 
     } catch (error: any) {
       logger.error('[ExternalDataService] 批量同步失败:', error);
+      // 【监控】记录同步失败
+      this.recordSyncFailed(containerNumbers.length);
+    }
+
+    // 【监控】根据结果记录成功/失败
+    if (result.success.length > 0 && result.failed.length === 0) {
+      this.recordSyncSuccess(result.success.length);
+    } else if (result.failed.length > 0) {
+      this.recordSyncFailed(result.failed.length);
     }
 
     logger.info(`[ExternalDataService] 批量同步完成: 成功 ${result.success.length}, 失败 ${result.failed.length}`);
@@ -1308,6 +1456,67 @@ export class ExternalDataService {
     } catch (err) {
       logger.warn(`[ExternalDataService] 自动标记查验状态失败:`, err);
     }
+  }
+
+  // ==================== 监控指标方法 ====================
+
+  /**
+   * 获取同步统计信息
+   * @returns 同步统计对象
+   */
+  getSyncStats() {
+    return {
+      ...this.syncStats,
+      successRate: this.syncStats.totalSyncCount > 0
+        ? ((this.syncStats.successCount / this.syncStats.totalSyncCount) * 100).toFixed(2) + '%'
+        : '0%',
+      containerSuccessRate: this.syncStats.totalContainers > 0
+        ? ((this.syncStats.successContainers / this.syncStats.totalContainers) * 100).toFixed(2) + '%'
+        : '0%',
+    };
+  }
+
+  /**
+   * 记录同步开始
+   * @param containerCount 货柜数量
+   */
+  private recordSyncStart(containerCount: number): void {
+    this.syncStats.totalSyncCount++;
+    this.syncStats.totalContainers += containerCount;
+    this.syncStats.lastSyncTime = new Date();
+  }
+
+  /**
+   * 记录同步成功
+   * @param containerCount 成功货柜数量
+   */
+  private recordSyncSuccess(containerCount: number): void {
+    this.syncStats.successCount++;
+    this.syncStats.successContainers += containerCount;
+  }
+
+  /**
+   * 记录同步失败
+   * @param containerCount 失败货柜数量
+   */
+  private recordSyncFailed(containerCount: number): void {
+    this.syncStats.failedCount++;
+    this.syncStats.failedContainers += containerCount;
+  }
+
+  /**
+   * 重置统计信息
+   */
+  resetSyncStats(): void {
+    this.syncStats = {
+      totalSyncCount: 0,
+      successCount: 0,
+      failedCount: 0,
+      totalContainers: 0,
+      successContainers: 0,
+      failedContainers: 0,
+      lastSyncTime: null,
+    };
   }
 }
 

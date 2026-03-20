@@ -59,7 +59,7 @@ export const dataSourceOptions: DataSourceOptions = {
   username: databaseConfig.username,
   password: databaseConfig.password,
   database: databaseConfig.database,
-  naming: new SnakeNamingStrategy(),
+  namingStrategy: new SnakeNamingStrategy(),
   entities: [
     // 字典表 (Dictionary Tables)
     Country,
@@ -153,7 +153,7 @@ export const initDatabase = async (): Promise<void> => {
     });
 
     // 验证命名策略是否生效
-    const namingStrategy = AppDataSource.options.naming;
+    const namingStrategy = AppDataSource.options.namingStrategy;
     if (namingStrategy) {
       const testColumnName = namingStrategy.columnName('orderNumber', '', []);
       logger.info('✅ Naming strategy verified', {

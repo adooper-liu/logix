@@ -35,7 +35,7 @@ interface LastFreeRow {
 
 /** 流程表补充数据：抵港/卸船/可提货/提柜/还箱 */
 interface ProcessSupplement {
-  ata_dest_port: Date | null;
+  ata: Date | null;
   dest_port_unload_date: Date | null;
   available_time: Date | null;
   gate_out_time: Date | null;
@@ -189,7 +189,7 @@ function buildFullPathNodes(
   let placeholderIndex = 0;
 
   const stageToSupplement: Record<number, { ts: Date; locCode: string | null; locName: string | null } | null> = {
-    7: supplement?.ata_dest_port ? { ts: new Date(supplement.ata_dest_port), locCode: portCode, locName: portName } : null,
+    7: supplement?.ata ? { ts: new Date(supplement.ata), locCode: portCode, locName: portName } : null,
     8: supplement?.dest_port_unload_date ? { ts: new Date(supplement.dest_port_unload_date), locCode: portCode, locName: portName } : null,
     9: supplement?.available_time ? { ts: new Date(supplement.available_time), locCode: portCode, locName: portName } : null,
     10: supplement?.gate_out_time
@@ -249,12 +249,12 @@ export async function getStatusPathByContainerFromDb(
         [containerNumber]
       ),
       query<{
-        ata_dest_port: Date | null;
+        ata: Date | null;
         dest_port_unload_date: Date | null;
         available_time: Date | null;
         gate_out_time: Date | null;
       }>(
-        `SELECT ata_dest_port, dest_port_unload_date, available_time, gate_out_time
+        `SELECT ata, dest_port_unload_date, available_time, gate_out_time
          FROM process_port_operations
          WHERE container_number = $1 AND port_type = 'destination'
          ORDER BY port_sequence DESC
@@ -283,7 +283,7 @@ export async function getStatusPathByContainerFromDb(
     const supplement: ProcessSupplement | null =
       portRow || truckRow || returnRow
         ? {
-            ata_dest_port: portRow?.ata_dest_port ?? null,
+            ata: portRow?.ata ?? null,
             dest_port_unload_date: portRow?.dest_port_unload_date ?? null,
             available_time: portRow?.available_time ?? null,
             gate_out_time: portRow?.gate_out_time ?? null,

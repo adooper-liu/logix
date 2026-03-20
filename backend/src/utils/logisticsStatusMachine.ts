@@ -290,6 +290,16 @@ export const isWmsConfirmed = (warehouseOperation?: WarehouseOperation): boolean
  * 6. 有海运记录（已实际出运）→ in_transit
  * 7. 默认状态（无出运记录）→ not_shipped
  */
+export interface LogisticsStatusResult {
+  status: SimplifiedStatus;
+  currentPortType: 'origin' | 'transit' | 'destination' | null;
+  latestPortOperation: PortOperation | null;
+  /** 触发状态变更的字段及值 */
+  triggerFields?: Record<string, unknown>;
+  /** 状态计算的原因说明 */
+  reason?: string;
+}
+
 export const calculateLogisticsStatus = (
   container: Container,
   portOperations: PortOperation[],
@@ -297,11 +307,7 @@ export const calculateLogisticsStatus = (
   truckingTransport?: TruckingTransport,
   warehouseOperation?: WarehouseOperation,
   emptyReturn?: EmptyReturn
-): {
-  status: SimplifiedStatus;
-  currentPortType: 'origin' | 'transit' | 'destination' | null;
-  latestPortOperation: PortOperation | null;
-} => {
+): LogisticsStatusResult => {
   // 分类港口操作记录
   const transitPorts = portOperations.filter(po => po.portType === 'transit');
   const destPorts = portOperations.filter(po => po.portType === 'destination');
@@ -309,24 +315,36 @@ export const calculateLogisticsStatus = (
   let status = SimplifiedStatus.NOT_SHIPPED;
   let currentPortType: 'origin' | 'transit' | 'destination' | null = null;
   let latestPortOperation: PortOperation | null = null;
+  let triggerFields: Record<string, unknown> = {};
+  let reason = '';
 
   // 优先级1: 还空箱日期（最高优先级）
   if (emptyReturn?.returnTime) {
     status = SimplifiedStatus.RETURNED_EMPTY;
-    return { status, currentPortType, latestPortOperation };
+    triggerFields = { returnTime: emptyReturn.returnTime };
+    reason = '已还空箱';
+    return { status, currentPortType, latestPortOperation, triggerFields, reason };
   }
 
   // 优先级2: 仓库卸柜（WMS已确认）
   // 判断条件：wmsStatus === 'WMS已完成' OR ebsStatus === '已入库' OR wmsConfirmDate !== null
   if (isWmsConfirmed(warehouseOperation)) {
     status = SimplifiedStatus.UNLOADED;
-    return { status, currentPortType, latestPortOperation };
+    triggerFields = {
+      wmsStatus: warehouseOperation?.wmsStatus,
+      ebsStatus: warehouseOperation?.ebsStatus,
+      wmsConfirmDate: warehouseOperation?.wmsConfirmDate
+    };
+    reason = '仓库已卸柜（WMS确认）';
+    return { status, currentPortType, latestPortOperation, triggerFields, reason };
   }
 
   // 优先级3: 拖车提柜日期
   if (truckingTransport?.pickupDate) {
     status = SimplifiedStatus.PICKED_UP;
-    return { status, currentPortType, latestPortOperation };
+    triggerFields = { pickupDate: truckingTransport.pickupDate };
+    reason = '已提柜';
+    return { status, currentPortType, latestPortOperation, triggerFields, reason };
   }
 
   // 优先级4: 目的港有实际到港时间
@@ -335,7 +353,9 @@ export const calculateLogisticsStatus = (
     status = SimplifiedStatus.AT_PORT;
     currentPortType = 'destination';
     latestPortOperation = destWithArrival;
-    return { status, currentPortType, latestPortOperation };
+    triggerFields = { ata: destWithArrival.ata };
+    reason = '目的港已到港（ATA）';
+    return { status, currentPortType, latestPortOperation, triggerFields, reason };
   }
 
   // 优先级4a: 目的港有可提货时间（飞驼状态码 PCAB/AVLE/AVAIL 触发）
@@ -345,7 +365,9 @@ export const calculateLogisticsStatus = (
     status = SimplifiedStatus.AT_PORT;
     currentPortType = 'destination';
     latestPortOperation = destWithAvailable;
-    return { status, currentPortType, latestPortOperation };
+    triggerFields = { availableTime: destWithAvailable.availableTime };
+    reason = '目的港可提货（PCAB/AVLE/AVAIL）';
+    return { status, currentPortType, latestPortOperation, triggerFields, reason };
   }
 
   // 优先级5: 中转港有到港/进闸（ata、gate_in_time 或 transit_arrival_date）
@@ -356,7 +378,13 @@ export const calculateLogisticsStatus = (
     status = SimplifiedStatus.AT_PORT;
     currentPortType = 'transit';
     latestPortOperation = transitWithArrival;
-    return { status, currentPortType, latestPortOperation };
+    triggerFields = {
+      ata: transitWithArrival.ata,
+      gateInTime: transitWithArrival.gateInTime,
+      transitArrivalDate: transitWithArrival.transitArrivalDate
+    };
+    reason = '中转港已到港';
+    return { status, currentPortType, latestPortOperation, triggerFields, reason };
   }
 
   // 优先级6: 有海运记录（已实际出运）→ 在途
@@ -367,12 +395,16 @@ export const calculateLogisticsStatus = (
       ? [...destPorts].sort((a, b) => (b.portSequence ?? 0) - (a.portSequence ?? 0))[0]
       : null;
     latestPortOperation = destForEta ?? null;
-    return { status, currentPortType, latestPortOperation };
+    triggerFields = { shipmentDate: seaFreight.shipmentDate };
+    reason = '已出运（在途）';
+    return { status, currentPortType, latestPortOperation, triggerFields, reason };
   }
 
   // 优先级7: 默认状态（未出运）
   status = SimplifiedStatus.NOT_SHIPPED;
-  return { status, currentPortType, latestPortOperation };
+  triggerFields = {};
+  reason = '未出运';
+  return { status, currentPortType, latestPortOperation, triggerFields, reason };
 };
 
 // ============================================================================
