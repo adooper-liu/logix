@@ -15,7 +15,7 @@ import { getDateRangeSubqueryRaw as getDateRangeSubqueryRawImpl } from './DateRa
 export class DateFilterBuilder {
   /**
    * 为查询添加出运时间过滤
-   * 按 actualShipDate 筛选，如果备货单没有actualShipDate则使用海运日期
+   * 优先使用 expectedShipDate，如果为空则使用 actualShipDate，如果还为空则使用海运日期
    */
   static addDateFilters(
     query: SelectQueryBuilder<any>,
@@ -23,17 +23,27 @@ export class DateFilterBuilder {
     endDate?: string
   ): SelectQueryBuilder<any> {
     if (startDate) {
-      query.andWhere('(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))', {
-        startDate: new Date(startDate)
-      });
+      query.andWhere(
+        '(order.expectedShipDate >= :startDate OR (order.expectedShipDate IS NULL AND order.actualShipDate >= :startDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate3))',
+        {
+          startDate: new Date(startDate),
+          startDate2: new Date(startDate),
+          startDate3: new Date(startDate)
+        }
+      );
     }
 
     if (endDate) {
       const endDateObj = new Date(endDate);
       endDateObj.setHours(23, 59, 59, 999);
-      query.andWhere('(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))', {
-        endDate: endDateObj
-      });
+      query.andWhere(
+        '(order.expectedShipDate <= :endDate OR (order.expectedShipDate IS NULL AND order.actualShipDate <= :endDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate3))',
+        {
+          endDate: endDateObj,
+          endDate2: endDateObj,
+          endDate3: endDateObj
+        }
+      );
     }
 
     return query;

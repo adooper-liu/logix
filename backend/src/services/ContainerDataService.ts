@@ -33,6 +33,12 @@ export class ContainerDataService {
   async getContainersForList(params: ListParams) {
     const qb = ContainerQueryBuilder.createListQuery(this.containerRepository, params);
     
+    // 添加调试日志
+    if (params.startDate || params.endDate) {
+      console.log('SQL Query:', qb.getQuery());
+      console.log('Query Parameters:', qb.getParameters());
+    }
+    
     // 应用分页
     const [containers, total] = await qb
       .skip((params.page - 1) * params.pageSize)

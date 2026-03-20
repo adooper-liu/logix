@@ -16,7 +16,7 @@ export class ExtDemurrageStandard {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'foreign_company_code' })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'foreign_company_code' })
   foreignCompanyCode: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'foreign_company_name' })
@@ -28,13 +28,13 @@ export class ExtDemurrageStandard {
   @Column({ type: 'date', nullable: true, name: 'expiry_date' })
   expiryDate: Date;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'destination_port_code' })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'destination_port_code' })
   destinationPortCode: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'destination_port_name' })
   destinationPortName: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'shipping_company_code' })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'shipping_company_code' })
   shippingCompanyCode: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'shipping_company_name' })
@@ -43,7 +43,7 @@ export class ExtDemurrageStandard {
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'terminal' })
   terminal: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'origin_forwarder_code' })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'origin_forwarder_code' })
   originForwarderCode: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'origin_forwarder_name' })
@@ -52,10 +52,10 @@ export class ExtDemurrageStandard {
   @Column({ type: 'varchar', length: 20, nullable: true, name: 'transport_mode_code' })
   transportModeCode: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'transport_mode_name' })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'transport_mode_name' })
   transportModeName: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'charge_type_code' })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'charge_type_code' })
   chargeTypeCode: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'charge_name' })

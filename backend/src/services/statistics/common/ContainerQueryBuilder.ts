@@ -49,16 +49,16 @@ export class ContainerQueryBuilder {
 
     if (params.startDate) {
       qb.andWhere(
-        '(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))',
-        { startDate: new Date(params.startDate) }
+        '(order.expectedShipDate >= :startDate OR (order.expectedShipDate IS NULL AND order.actualShipDate >= :startDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate3))',
+        { startDate: new Date(params.startDate), startDate2: new Date(params.startDate), startDate3: new Date(params.startDate) }
       );
     }
     if (params.endDate) {
       const end = new Date(params.endDate);
       end.setHours(23, 59, 59, 999);
       qb.andWhere(
-        '(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))',
-        { endDate: end }
+        '(order.expectedShipDate <= :endDate OR (order.expectedShipDate IS NULL AND order.actualShipDate <= :endDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate3))',
+        { endDate: end, endDate2: end, endDate3: end }
       );
     }
 

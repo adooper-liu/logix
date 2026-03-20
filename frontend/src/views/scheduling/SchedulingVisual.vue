@@ -183,6 +183,13 @@
       </el-col>
     </el-row>
 
+    <!-- 智能日历能力展示（新增） -->
+    <el-row :gutter="12" style="margin-top: 20px;">
+      <el-col :span="24">
+        <CalendarCapacityView ref="calendarRef" />
+      </el-col>
+    </el-row>
+
     <!-- 排产结果 -->
     <el-card v-if="scheduleResult" class="mt-4 compact-card">
       <template #header>
@@ -448,10 +455,14 @@ import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import { containerService } from '@/services/container'
 import { useAppStore } from '@/store/app'
 import dayjs from 'dayjs'
+import CalendarCapacityView from './components/CalendarCapacityView.vue'
 
 const appStore = useAppStore()
 const router = useRouter()
 const route = useRoute()
+
+// 日历能力展示
+const calendarRef = ref<InstanceType<typeof CalendarCapacityView>>()
 
 // 日期范围（出运日期口径，与 Shipments 一致）
 const dateRange = ref<[Date, Date]>([

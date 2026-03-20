@@ -6,7 +6,7 @@
  * 数据用途（与 Shipments 卡片、桑基图对齐）：
  * - Shipments 页「按状态」卡片及子维度（已到中转港、已到目的港）与本服务 getDistribution 同源。
  * - 桑基图各节点数值均由此服务 getDistribution 返回的 statusDistribution 计算，不改变桑基图结构。
- * - 日期口径：与 Shipments 一致，按出运日期（actual_ship_date / shipment_date）在 [startDate,endDate] 内，
+ * - 日期口径：与 Shipments 一致，按出运日期（expected_ship_date / shipment_date）在 [startDate,endDate] 内，
  *   使用 createDateRangeSubQuery 统一子查询，与 ArrivalStatistics、LastPickupStatistics 等卡片统计同源。
  */
 
@@ -21,7 +21,7 @@ export class StatusDistributionService {
 
   /**
    * 获取状态分布统计
-   * 支持按出运时间（actualShipDate 或 shipmentDate）筛选
+   * 支持按出运时间（expectedShipDate 或 shipmentDate）筛选
    *
    * 状态机定义（严格按状态机7优先级）：
    * - not_shipped: 无任何流程记录

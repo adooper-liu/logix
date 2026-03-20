@@ -13,7 +13,7 @@ import {
 
 @Entity('dict_shipping_companies')
 export class ShippingCompany {
-  @PrimaryColumn({ type: 'varchar', length: 50, name: 'company_code' })
+  @PrimaryColumn({ type: 'varchar', length: 100, name: 'company_code' })
   companyCode: string;
 
   @Column({ type: 'varchar', length: 100, name: 'company_name' })
@@ -22,10 +22,10 @@ export class ShippingCompany {
   @Column({ type: 'varchar', length: 200, nullable: true, name: 'company_name_en' })
   companyNameEn?: string;
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'scac_code' })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'scac_code' })
   scacCode?: string; // Standard Carrier Alpha Code
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'api_provider' })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'api_provider' })
   apiProvider?: string; // API提供商 (MSK/CMA/COSCO等)
 
   @Column({ type: 'boolean', default: true, nullable: true, name: 'support_booking' })
@@ -40,7 +40,7 @@ export class ShippingCompany {
   @Column({ type: 'varchar', length: 200, nullable: true, name: 'website_url' })
   websiteUrl?: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'contact_phone' })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'contact_phone' })
   contactPhone?: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'contact_email' })

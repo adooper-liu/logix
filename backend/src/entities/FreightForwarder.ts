@@ -13,7 +13,7 @@ import {
 
 @Entity('dict_freight_forwarders')
 export class FreightForwarder {
-  @PrimaryColumn({ type: 'varchar', length: 50, name: 'forwarder_code' })
+  @PrimaryColumn({ type: 'varchar', length: 100, name: 'forwarder_code' })
   forwarderCode: string;
 
   @Column({ type: 'varchar', length: 100, name: 'forwarder_name' })
@@ -22,7 +22,7 @@ export class FreightForwarder {
   @Column({ type: 'varchar', length: 200, nullable: true, name: 'forwarder_name_en' })
   forwarderNameEn?: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'contact_phone' })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'contact_phone' })
   contactPhone?: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'contact_email' })

@@ -5,7 +5,7 @@
  * 负责生成所有可行方案、评估成本、选择最优方案
  */
 
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
 import { Warehouse } from '../entities/Warehouse';
@@ -19,9 +19,18 @@ import { EmptyReturn } from '../entities/EmptyReturn';
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { ExtWarehouseDailyOccupancy } from '../entities/ExtWarehouseDailyOccupancy';
 import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
+import { TruckingPortMapping } from '../entities/TruckingPortMapping';
 import { DemurrageService } from './demurrage.service';
-import { logger } from '../utils/logger';
+// 导入日志工具，添加降级方案
+import * as loggerModule from '../utils/logger';
+const log = loggerModule.log || {
+  info: console.log,
+  warn: console.warn,
+  error: console.error,
+  debug: console.debug
+};
 import * as dateTimeUtils from '../utils/dateTimeUtils';
+import { smartCalendarCapacity } from '../utils/smartCalendarCapacity';
 
 /**
  * 卸柜方案选项
@@ -89,6 +98,7 @@ export class SchedulingCostOptimizerService {
   private warehouseRepo: Repository<Warehouse>;
   private warehouseOccupancyRepo: Repository<ExtWarehouseDailyOccupancy>;
   private warehouseTruckingMappingRepo: Repository<WarehouseTruckingMapping>;
+  private truckingPortMappingRepo: Repository<TruckingPortMapping>;
   private truckingCompanyRepo: Repository<TruckingCompany>;
   private demurrageService: DemurrageService;
 
@@ -119,6 +129,7 @@ export class SchedulingCostOptimizerService {
     this.warehouseRepo = AppDataSource.getRepository(Warehouse);
     this.warehouseOccupancyRepo = AppDataSource.getRepository(ExtWarehouseDailyOccupancy);
     this.warehouseTruckingMappingRepo = AppDataSource.getRepository(WarehouseTruckingMapping);
+    this.truckingPortMappingRepo = AppDataSource.getRepository(TruckingPortMapping);
     this.truckingCompanyRepo = AppDataSource.getRepository(TruckingCompany);
     this.demurrageService = new DemurrageService(
       AppDataSource.getRepository(ExtDemurrageStandard),
@@ -142,20 +153,63 @@ export class SchedulingCostOptimizerService {
     portCode: string
   ): Promise<Warehouse[]> {
     try {
-      // 优先选择同一国家的活跃仓库
-      const warehouses = await this.warehouseRepo.find({
+      // 1. 首先获取该国家和港口的车队映射
+      const truckingPortMappings = await this.truckingPortMappingRepo.find({
         where: {
           country: countryCode,
-          status: 'ACTIVE'
-        },
-        order: {
-          warehouseCode: 'ASC'
+          portCode: portCode,
+          isActive: true
         }
       });
       
-      // 如果没有找到，返回所有活跃仓库
+      // 2. 提取车队ID列表
+      const truckingCompanyIds = truckingPortMappings.map(mapping => mapping.truckingCompanyId);
+      
+      // 3. 获取与这些车队关联的仓库
+      let warehouses: Warehouse[] = [];
+      
+      if (truckingCompanyIds.length > 0) {
+        // 通过 WarehouseTruckingMapping 获取关联的仓库
+        const warehouseTruckingMappings = await this.warehouseTruckingMappingRepo.find({
+          where: {
+            country: countryCode,
+            truckingCompanyId: In(truckingCompanyIds),
+            isActive: true
+          }
+        });
+        
+        // 提取仓库代码列表
+        const warehouseCodes = warehouseTruckingMappings.map(mapping => mapping.warehouseCode);
+        
+        if (warehouseCodes.length > 0) {
+          // 查询仓库信息
+          const warehouseList = await this.warehouseRepo.find({
+            where: {
+              warehouseCode: In(warehouseCodes),
+              status: 'ACTIVE'
+            }
+          });
+          
+          warehouses = warehouseList;
+        }
+      }
+      
+      // 4. 如果没有找到映射的仓库，返回同一国家的活跃仓库
       if (warehouses.length === 0) {
-        return this.warehouseRepo.find({
+        warehouses = await this.warehouseRepo.find({
+          where: {
+            country: countryCode,
+            status: 'ACTIVE'
+          },
+          order: {
+            warehouseCode: 'ASC'
+          }
+        });
+      }
+      
+      // 5. 如果仍然没有找到，返回所有活跃仓库
+      if (warehouses.length === 0) {
+        warehouses = await this.warehouseRepo.find({
           where: { status: 'ACTIVE' },
           order: { warehouseCode: 'ASC' }
         });
@@ -163,8 +217,22 @@ export class SchedulingCostOptimizerService {
       
       return warehouses;
     } catch (error) {
-      logger.warn(`[CostOptimizer] Failed to get candidate warehouses:`, error);
-      return [];
+      log.warn(`[CostOptimizer] Failed to get candidate warehouses:`, error);
+      // 出错时返回同一国家的活跃仓库作为后备
+      try {
+        return await this.warehouseRepo.find({
+          where: {
+            country: countryCode,
+            status: 'ACTIVE'
+          },
+          order: {
+            warehouseCode: 'ASC'
+          }
+        });
+      } catch (backupError) {
+        log.warn(`[CostOptimizer] Failed to get backup warehouses:`, backupError);
+        return [];
+      }
     }
   }
 
@@ -184,23 +252,30 @@ export class SchedulingCostOptimizerService {
       const queryDate = new Date(date);
       queryDate.setHours(0, 0, 0, 0);
       
-      // 查询仓库档期
-      const occupancy = await this.warehouseOccupancyRepo.findOne({
-        where: {
-          warehouseCode: warehouse.warehouseCode,
-          date: queryDate
-        }
-      });
+      // 使用智能日历能力确保档期记录存在并设置正确的 capacity
+      const occupancy = await smartCalendarCapacity.ensureWarehouseOccupancy(
+        warehouse.warehouseCode,
+        queryDate
+      );
       
-      // 如果没有档期记录，默认可用（使用仓库的日产能）
       if (!occupancy) {
-        return true;
+        log.warn(`[CostOptimizer] No occupancy record for warehouse ${warehouse.warehouseCode} on ${queryDate.toISOString().split('T')[0]}`);
+        return false;
       }
       
       // 检查剩余容量
-      return occupancy.remaining > 0;
+      const available = occupancy.remaining > 0;
+      
+      if (!available) {
+        log.debug(
+          `[CostOptimizer] Warehouse ${warehouse.warehouseCode} not available on ${queryDate.toISOString().split('T')[0]}: ` +
+          `capacity=${occupancy.capacity}, planned=${occupancy.plannedCount}, remaining=${occupancy.remaining}`
+        );
+      }
+      
+      return available;
     } catch (error) {
-      logger.warn(`[CostOptimizer] Failed to check warehouse availability:`, error);
+      log.warn(`[CostOptimizer] Failed to check warehouse availability:`, error);
       return true; // 出错时默认可用
     }
   }
@@ -293,7 +368,7 @@ export class SchedulingCostOptimizerService {
       );
       breakdown.demurrageCost = demurrage.demurrageCost;
     } catch (error) {
-      logger.warn(`[CostOptimizer] Demurrage prediction failed for ${option.containerNumber}:`, error);
+      log.warn(`[CostOptimizer] Demurrage prediction failed for ${option.containerNumber}:`, error);
     }
     
     // 2. 滞箱费（可选链调用，Phase 2 可暂不计入）
@@ -306,15 +381,63 @@ export class SchedulingCostOptimizerService {
     //     );
     //     breakdown.detentionCost = detention.detentionCost;
     //   } catch (error) {
-    //     logger.warn(`[CostOptimizer] Detention prediction failed:`, error);
+    //     log.warn(`[CostOptimizer] Detention prediction failed:`, error);
     //   }
     // }
     
-    // 3. 堆存费（Drop off 模式，从配置读取）
+    // 3. 堆存费（Drop off 模式，从 TruckingPortMapping 读取）
     if (option.strategy === 'Drop off') {
       const storageDays = this.calculateStorageDays(option);
-      const rate = await this.getConfigNumber('external_storage_daily_rate', 50);
-      breakdown.storageCost = rate * storageDays;
+      
+      // 从 TruckingPortMapping 获取外部堆场费用
+      let dailyRate = await this.getConfigNumber('external_storage_daily_rate', 50);
+      let operationFee = 0;
+      
+      try {
+        // 获取与仓库关联的车队
+        const warehouseTruckingMappings = await this.warehouseTruckingMappingRepo.find({
+          where: {
+            warehouseCode: option.warehouse.warehouseCode,
+            country: option.warehouse.country || 'US',
+            isActive: true
+          }
+        });
+        
+        if (warehouseTruckingMappings.length > 0) {
+          // 获取货柜信息以确定港口
+          const container = await AppDataSource.getRepository(Container).findOne({
+            where: { containerNumber: option.containerNumber },
+            relations: ['portOperations']
+          });
+          
+          if (container) {
+            const destPo = container.portOperations?.find((po: any) => po.portType === 'destination');
+            const portCode = destPo?.portCode || 'USLAX';
+            
+            // 从 TruckingPortMapping 获取费用
+            for (const mapping of warehouseTruckingMappings) {
+              const truckingPortMapping = await this.truckingPortMappingRepo.findOne({
+                where: {
+                  country: option.warehouse.country || 'US',
+                  portCode: portCode,
+                  truckingCompanyId: mapping.truckingCompanyId,
+                  isActive: true
+                }
+              });
+              
+              if (truckingPortMapping) {
+                dailyRate = truckingPortMapping.standardRate || dailyRate;
+                operationFee = truckingPortMapping.yardOperationFee || 0;
+                break;
+              }
+            }
+          }
+        }
+      } catch (error) {
+        log.warn(`[CostOptimizer] Failed to get storage cost from TruckingPortMapping:`, error);
+      }
+      
+      breakdown.storageCost = (dailyRate * storageDays) + operationFee;
     }
     
     // 4. 运输费（基于距离和卸柜方式估算）
@@ -369,7 +492,7 @@ export class SchedulingCostOptimizerService {
     // 选择成本最低的方案
     const best = evaluatedOptions.sort((a, b) => (a.option.totalCost || 0) - (b.option.totalCost || 0))[0];
     
-    logger.info(
+    log.info(
       `[CostOptimizer] Selected optimal option: ` +
       `Strategy=${best.option.strategy}, ` +
       `Date=${best.option.unloadDate.toISOString().split('T')[0]}, ` +
@@ -419,12 +542,28 @@ export class SchedulingCostOptimizerService {
       }
       
       if (truckingCompaniesWithYard.size === 0) {
-        logger.warn(`[CostOptimizer] No trucking companies with yard found for country: ${countryCode}`);
+        log.warn(`[CostOptimizer] No trucking companies with yard found for country: ${countryCode}`);
         return options; // 没有堆场车队，返回空数组
       }
       
       // 2. 为每个有堆场的车队生成 Drop off 方案（仅在免费期外）
       for (const [truckingId, trucking] of truckingCompaniesWithYard) {
+        // 检查 TruckingPortMapping 中的堆场容量
+        const truckingPortMapping = await this.truckingPortMappingRepo.findOne({
+          where: {
+            country: countryCode,
+            portCode: portCode,
+            truckingCompanyId: truckingId,
+            isActive: true
+          }
+        });
+        
+        // 检查堆场容量
+        if (truckingPortMapping && truckingPortMapping.yardCapacity <= 0) {
+          log.warn(`[CostOptimizer] Trucking company ${truckingId} has no yard capacity`);
+          continue;
+        }
+        
         // Drop off 模式通常用于免费期外，搜索免费期后 3 天
         for (let offset = 0; offset < 3; offset++) {
           const candidateDate = dateTimeUtils.addDays(lastFreeDate, offset + 1);
@@ -457,7 +596,7 @@ export class SchedulingCostOptimizerService {
         }
       }
     } catch (error) {
-      logger.warn(`[CostOptimizer] Failed to generate drop off options:`, error);
+      log.warn(`[CostOptimizer] Failed to generate drop off options:`, error);
     }
     
     return options;
@@ -488,11 +627,11 @@ export class SchedulingCostOptimizerService {
       
       // 只有在紧急情况下才生成加急方案
       if (daysUntilFreezeExpires > 2) {
-        logger.info(`[CostOptimizer] Not urgent (${daysUntilFreezeExpires} days left), skipping expedited options`);
+        log.info(`[CostOptimizer] Not urgent (${daysUntilFreezeExpires} days left), skipping expedited options`);
         return [];
       }
       
-      logger.info(`[CostOptimizer] Urgent case detected (${daysUntilFreezeExpires} days left), generating expedited options`);
+      log.info(`[CostOptimizer] Urgent case detected (${daysUntilFreezeExpires} days left), generating expedited options`);
       
       // 2. 获取候选仓库
       const warehouses = await this.getCandidateWarehouses(
@@ -531,7 +670,7 @@ export class SchedulingCostOptimizerService {
         }
       }
     } catch (error) {
-      logger.warn(`[CostOptimizer] Failed to generate expedited options:`, error);
+      log.warn(`[CostOptimizer] Failed to generate expedited options:`, error);
     }
     
     return options;
@@ -544,12 +683,15 @@ export class SchedulingCostOptimizerService {
    */
   private calculateStorageDays(option: UnloadOption): number {
     // Drop off 模式：从卸柜日到还箱日
-    // Phase 2 简化处理：假设 3 天堆存
+    // 考虑 TruckingPortMapping 中的堆场容量和费用
+    
+    // 简化处理：假设 3 天堆存
+    // 实际项目中，应该根据堆场容量和还箱计划动态计算
     return 3;
   }
 
   /**
-   * 计算运输费（基于距离和卸柜方式）
+   * 计算运输费（基于 TruckingPortMapping）
    * @param containerNumber 柜号
    * @param warehouse 仓库
    * @param strategy 策略（Direct/Drop off/Expedited）
@@ -568,46 +710,79 @@ export class SchedulingCostOptimizerService {
       });
       
       if (!container) {
-        logger.warn(`[CostOptimizer] Container ${containerNumber} not found, using default transport cost`);
+        log.warn(`[CostOptimizer] Container ${containerNumber} not found, using default transport cost`);
         return 0;
       }
       
       const destPo = container.portOperations?.find((po: any) => po.portType === 'destination');
       const portCode = destPo?.portCode || 'USLAX'; // 默认洛杉矶港
+      const countryCode = warehouse.country || 'US';
       
-      // 2. 获取距离（英里）
-      const distance = this.getDistance(portCode, warehouse.warehouseCode);
+      // 2. 获取与仓库关联的车队
+      const warehouseTruckingMappings = await this.warehouseTruckingMappingRepo.find({
+        where: {
+          warehouseCode: warehouse.warehouseCode,
+          country: countryCode,
+          isActive: true
+        }
+      });
       
-      // 3. 从配置读取费率
-      const baseRate = await this.getConfigNumber('transport_base_rate_per_mile', 2.5); // $2.5/英里
-      const rateConfig: TransportRateConfig = {
-        baseRatePerMile: baseRate,
-        directMultiplier: await this.getConfigNumber('transport_direct_multiplier', 1.0),
-        dropOffMultiplier: await this.getConfigNumber('transport_dropoff_multiplier', 1.2),
-        expeditedMultiplier: await this.getConfigNumber('transport_expedited_multiplier', 1.5)
-      };
+      if (warehouseTruckingMappings.length === 0) {
+        log.warn(`[CostOptimizer] No trucking mapping found for warehouse ${warehouse.warehouseCode}`);
+        return 0;
+      }
       
-      // 4. 根据策略选择倍数
-      const multipliers: Record<string, number> = {
-        'Direct': rateConfig.directMultiplier,
-        'Drop off': rateConfig.dropOffMultiplier,
-        'Expedited': rateConfig.expeditedMultiplier
-      };
+      // 3. 从 TruckingPortMapping 获取运输费用
+      let totalTransportCost = 0;
       
-      const multiplier = multipliers[strategy] || 1.0;
+      for (const mapping of warehouseTruckingMappings) {
+        const truckingPortMapping = await this.truckingPortMappingRepo.findOne({
+          where: {
+            country: countryCode,
+            portCode: portCode,
+            truckingCompanyId: mapping.truckingCompanyId,
+            isActive: true
+          }
+        });
+        
+        if (truckingPortMapping) {
+          // 使用 TruckingPortMapping 中的费用作为运输费
+          totalTransportCost = truckingPortMapping.standardRate || 0;
+          break; // 只使用第一个匹配的映射
+        }
+      }
       
-      // 5. 计算运输费
-      const transportCost = distance * rateConfig.baseRatePerMile * multiplier;
+      // 4. 如果没有找到映射，使用默认值
+      if (totalTransportCost === 0) {
+        log.warn(`[CostOptimizer] No trucking-port mapping found for port ${portCode}, using default cost`);
+        totalTransportCost = await this.getConfigNumber('transport_default_cost', 100);
+      }
       
-      logger.info(
+      // 5. 根据策略调整费用
+      let multiplier = 1.0;
+      switch (strategy) {
+        case 'Direct':
+          multiplier = await this.getConfigNumber('transport_direct_multiplier', 1.0);
+          break;
+        case 'Drop off':
+          multiplier = await this.getConfigNumber('transport_dropoff_multiplier', 1.2);
+          break;
+        case 'Expedited':
+          multiplier = await this.getConfigNumber('transport_expedited_multiplier', 1.5);
+          break;
+      }
+      
+      const finalCost = totalTransportCost * multiplier;
+      
+      log.info(
         `[CostOptimizer] Transport cost for ${containerNumber}: ` +
-        `Port=${portCode}, Warehouse=${warehouse.warehouseCode}, Distance=${distance}mi, ` +
-        `Strategy=${strategy}, Cost=$${transportCost.toFixed(2)}`
+        `Port=${portCode}, Warehouse=${warehouse.warehouseCode}, ` +
+        `Strategy=${strategy}, Cost=$${finalCost.toFixed(2)}`
       );
       
-      return transportCost;
+      return finalCost;
     } catch (error) {
-      logger.warn(`[CostOptimizer] Failed to calculate transportation cost:`, error);
+      log.warn(`[CostOptimizer] Failed to calculate transportation cost:`, error);
       return 0; // 出错时返回 0
     }
   }

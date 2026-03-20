@@ -13,22 +13,22 @@ import {
 
 @Entity('dict_ports')
 export class Port {
-  @PrimaryColumn({ type: 'varchar', length: 50, name: 'port_code' })
+  @PrimaryColumn({ type: 'varchar', length: 100, name: 'port_code' })
   portCode: string;
 
-  @Column({ type: 'varchar', length: 50, name: 'port_name' })
+  @Column({ type: 'varchar', length: 100, name: 'port_name' })
   portName: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'port_name_en' })
   portNameEn?: string;
 
   @Column({ type: 'varchar', length: 20, nullable: true, name: 'port_type' })
-  portType?: string; // PORT/TERMINAL/RAIL
+  portType?: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'country' })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'country' })
   country?: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'state' })
+  @Column({ type: 'varchar', length: 20, nullable: true, name: 'state' })
   state?: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'city' })

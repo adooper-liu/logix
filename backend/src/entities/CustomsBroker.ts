@@ -13,7 +13,7 @@ import {
 
 @Entity('dict_customs_brokers')
 export class CustomsBroker {
-  @PrimaryColumn({ type: 'varchar', length: 50, name: 'broker_code' })
+  @PrimaryColumn({ type: 'varchar', length: 100, name: 'broker_code' })
   brokerCode: string;
 
   @Column({ type: 'varchar', length: 100, name: 'broker_name' })
@@ -22,17 +22,14 @@ export class CustomsBroker {
   @Column({ type: 'varchar', length: 200, nullable: true, name: 'broker_name_en' })
   brokerNameEn?: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'contact_phone' })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'country' })
+  country?: string;
+
+  @Column({ type: 'varchar', length: 20, nullable: true, name: 'contact_phone' })
   contactPhone?: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'contact_email' })
   contactEmail?: string;
-
-  @Column({ type: 'varchar', length: 10, default: 'ACTIVE', name: 'status' })
-  status: string;
-
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'country' })
-  country?: string;
 
   @Column({ type: 'text', nullable: true, name: 'remarks' })
   remarks?: string;

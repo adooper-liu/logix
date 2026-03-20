@@ -12,9 +12,12 @@ import { TruckingCompany } from '../entities/TruckingCompany';
 import { Yard } from '../entities/Yard';
 import { intelligentSchedulingService } from '../services/intelligentScheduling.service';
 import { containerService } from '../services/container.service';
+import { SchedulingCostOptimizerService } from '../services/schedulingCostOptimizer.service';
 import { logger } from '../utils/logger';
 
 export class SchedulingController {
+  private costOptimizerService = new SchedulingCostOptimizerService();
+
   /**
    * POST /api/v1/containers/batch-schedule
    * 批量排产
@@ -650,6 +653,137 @@ export class SchedulingController {
     } catch (error: any) {
       logger.error('[Scheduling] getTruckingOccupancy error:', error);
       res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  /**
+   * POST /api/v1/scheduling/evaluate-cost
+   * 评估单个方案的成本
+   */
+  evaluateCost = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { containerNumber, option } = req.body;
+
+      if (!containerNumber || !option) {
+        res.status(400).json({ 
+          success: false, 
+          message: '缺少必要参数：containerNumber 和 option' 
+        });
+        return;
+      }
+
+      // 调用成本优化服务评估成本
+      const costBreakdown = await this.costOptimizerService.evaluateTotalCost(option);
+
+      res.json({
+        success: true,
+        data: {
+          containerNumber,
+          option,
+          costBreakdown
+        }
+      });
+    } catch (error: any) {
+      logger.error('[Scheduling] evaluateCost error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: error.message 
+      });
+    }
+  };
+
+  /**
+   * POST /api/v1/scheduling/compare-options
+   * 对比多个方案的成本
+   */
+  compareOptions = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { containerNumber, options } = req.body;
+
+      if (!containerNumber || !options || options.length === 0) {
+        res.status(400).json({ 
+          success: false, 
+          message: '缺少必要参数：containerNumber 和 options' 
+        });
+        return;
+      }
+
+      // 并行评估所有方案
+      const comparisons = await Promise.all(
+        options.map(async (option: any) => {
+          const costBreakdown = await this.costOptimizerService.evaluateTotalCost(option);
+          return {
+            option,
+            costBreakdown,
+            rank: 0 // 后续根据总成本排名
+          };
+        })
+      );
+
+      // 按总成本排序
+      comparisons.sort((a, b) => 
+        a.costBreakdown.totalCost - b.costBreakdown.totalCost
+      );
+
+      // 更新排名
+      comparisons.forEach((item, index) => {
+        item.rank = index + 1;
+      });
+
+      // 获取推荐方案
+      const recommendedOption = comparisons[0];
+      const savings = comparisons.length > 1 
+        ? comparisons[1].costBreakdown.totalCost - recommendedOption.costBreakdown.totalCost 
+        : 0;
+
+      res.json({
+        success: true,
+        data: {
+          containerNumber,
+          comparisons,
+          recommendedOption: {
+            option: recommendedOption.option,
+            reason: `总成本最低，比其他方案节省 $${savings.toFixed(2)}`,
+            savings
+          }
+        }
+      });
+    } catch (error: any) {
+      logger.error('[Scheduling] compareOptions error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: error.message 
+      });
+    }
+  };
+
+  /**
+   * GET /api/v1/scheduling/recommend-option/:containerNumber
+   * 获取推荐的最优方案
+   */
+  getRecommendOption = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { containerNumber } = req.params;
+
+      // TODO: 实现智能推荐逻辑
+      // 暂时返回一个简单的响应
+      res.json({
+        success: true,
+        data: {
+          containerNumber,
+          message: '推荐方案功能开发中',
+          optimalOption: null,
+          costBreakdown: null,
+          alternatives: [],
+          reasoning: ''
+        }
+      });
+    } catch (error: any) {
+      logger.error('[Scheduling] getRecommendOption error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: error.message 
+      });
     }
   };
 }

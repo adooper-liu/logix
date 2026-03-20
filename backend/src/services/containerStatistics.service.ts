@@ -256,16 +256,16 @@ export class ContainerStatisticsService {
     query.leftJoin('container.seaFreight', 'sf');
     if (startDate) {
       query.andWhere(
-        '(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))',
-        { startDate: new Date(startDate) }
+        '(order.expectedShipDate >= :startDate OR (order.expectedShipDate IS NULL AND order.actualShipDate >= :startDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate3))',
+        { startDate: new Date(startDate), startDate2: new Date(startDate), startDate3: new Date(startDate) }
       );
     }
     if (endDate) {
       const endDateObj = new Date(endDate);
       endDateObj.setHours(23, 59, 59, 999);
       query.andWhere(
-        '(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))',
-        { endDate: endDateObj }
+        '(order.expectedShipDate <= :endDate OR (order.expectedShipDate IS NULL AND order.actualShipDate <= :endDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate3))',
+        { endDate: endDateObj, endDate2: endDateObj, endDate3: endDateObj }
       );
     }
     DateFilterBuilder.addCountryFilters(query);
@@ -306,16 +306,16 @@ export class ContainerStatisticsService {
     query.leftJoin('container.seaFreight', 'sf');
     if (startDate) {
       query.andWhere(
-        '(order.actualShipDate >= :startDate OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))',
-        { startDate: new Date(startDate) }
+        '(order.expectedShipDate >= :startDate OR (order.expectedShipDate IS NULL AND order.actualShipDate >= :startDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate3))',
+        { startDate: new Date(startDate), startDate2: new Date(startDate), startDate3: new Date(startDate) }
       );
     }
     if (endDate) {
       const endDateObj = new Date(endDate);
       endDateObj.setHours(23, 59, 59, 999);
       query.andWhere(
-        '(order.actualShipDate <= :endDate OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))',
-        { endDate: endDateObj }
+        '(order.expectedShipDate <= :endDate OR (order.expectedShipDate IS NULL AND order.actualShipDate <= :endDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate3))',
+        { endDate: endDateObj, endDate2: endDateObj, endDate3: endDateObj }
       );
     }
     DateFilterBuilder.addCountryFilters(query);

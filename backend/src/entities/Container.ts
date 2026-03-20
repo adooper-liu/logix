@@ -21,10 +21,10 @@ import { ContainerSku } from './ContainerSku';
 
 @Entity('biz_containers')
 export class Container {
-  @PrimaryColumn({ type: 'varchar', length: 50, name: 'container_number' })
+  @PrimaryColumn({ type: 'varchar', length: 100, name: 'container_number' })
   containerNumber!: string;
 
-  @Column({ type: 'varchar', length: 50, name: 'container_type_code' })
+  @Column({ type: 'varchar', length: 100, name: 'container_type_code' })
   containerTypeCode!: string;
 
   @Column({ type: 'text', nullable: true, name: 'cargo_description' })
@@ -42,7 +42,7 @@ export class Container {
   @Column({ type: 'int', nullable: true, name: 'packages' })
   packages!: number;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'seal_number' })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'seal_number' })
   sealNumber!: string;
 
   @Column({ type: 'boolean', default: false, name: 'inspection_required' })
@@ -85,10 +85,10 @@ export class Container {
   @Column({ type: 'boolean', default: false, nullable: true, name: 'is_rolled' })
   isRolled?: boolean; // 是否甩柜
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'operator' })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'operator' })
   operator?: string; // 运营方
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'container_holder' })
+  @Column({ type: 'varchar', length: 100, nullable: true, name: 'container_holder' })
   containerHolder?: string; // 持箱人
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, name: 'tare_weight' })
@@ -112,6 +112,10 @@ export class Container {
 
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'current_status_desc_en' })
   currentStatusDescEn?: string; // 当前状态英文描述
+
+  // 关联字段
+  @Column({ type: 'varchar', length: 50, nullable: true, name: 'bill_of_lading_number' })
+  billOfLadingNumber?: string; // 提单号
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;

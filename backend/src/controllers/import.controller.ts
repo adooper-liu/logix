@@ -249,7 +249,12 @@ export class ImportController {
     if (code) return code;
     if (!companyName || !companyName.trim()) return null;
     const trimmedName = companyName.trim();
-    const newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : 'NEW_' + Date.now();
+    let newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : 'NEW_' + Date.now();
+    // 确保代码长度不超过 50 字符
+    if (newCode.length > 50) {
+      newCode = 'NEW_' + Date.now() + '_' + trimmedName.substring(0, 20).toUpperCase().replace(/\s+/g, '_');
+      newCode = newCode.substring(0, 50);
+    }
     const newCompany = queryRunner.manager.create(ShippingCompany, {
       companyCode: newCode,
       companyName: trimmedName,
@@ -268,7 +273,12 @@ export class ImportController {
     if (code) return code;
     if (!forwarderName || !forwarderName.trim()) return null;
     const trimmedName = forwarderName.trim();
-    const newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : 'NEW_FF_' + Date.now();
+    let newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : 'NEW_FF_' + Date.now();
+    // 确保代码长度不超过 50 字符
+    if (newCode.length > 50) {
+      newCode = 'NEW_FF_' + Date.now() + '_' + trimmedName.substring(0, 15).toUpperCase().replace(/\s+/g, '_');
+      newCode = newCode.substring(0, 50);
+    }
     const newForwarder = queryRunner.manager.create(FreightForwarder, {
       forwarderCode: newCode,
       forwarderName: trimmedName,
@@ -287,7 +297,12 @@ export class ImportController {
     if (code) return code;
     if (!portName || !portName.trim()) return null;
     const trimmedName = portName.trim();
-    const newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : 'NEW_PORT_' + Date.now();
+    let newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : 'NEW_PORT_' + Date.now();
+    // 确保代码长度不超过 50 字符
+    if (newCode.length > 50) {
+      newCode = 'NEW_PORT_' + Date.now() + '_' + trimmedName.substring(0, 10).toUpperCase().replace(/\s+/g, '_');
+      newCode = newCode.substring(0, 50);
+    }
     const newPort = queryRunner.manager.create(Port, {
       portCode: newCode,
       portName: trimmedName,
@@ -325,7 +340,12 @@ export class ImportController {
     if (byName) return byName.brokerCode;
 
     // 不存在，自动创建
-    const newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : 'NEW_BROKER_' + Date.now();
+    let newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : 'NEW_BROKER_' + Date.now();
+    // 确保代码长度不超过 50 字符
+    if (newCode.length > 50) {
+      newCode = 'NEW_BROKER_' + Date.now() + '_' + trimmedName.substring(0, 15).toUpperCase().replace(/\s+/g, '_');
+      newCode = newCode.substring(0, 50);
+    }
 
     const newBroker = queryRunner.manager.create(CustomsBroker, {
       brokerCode: newCode,
@@ -365,7 +385,12 @@ export class ImportController {
     if (byName) return byName.companyCode;
 
     // 不存在，自动创建
-    const newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : 'NEW_TRUCK_' + Date.now();
+    let newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : 'NEW_TRUCK_' + Date.now();
+    // 确保代码长度不超过 50 字符
+    if (newCode.length > 50) {
+      newCode = 'NEW_TRUCK_' + Date.now() + '_' + trimmedName.substring(0, 15).toUpperCase().replace(/\s+/g, '_');
+      newCode = newCode.substring(0, 50);
+    }
 
     const newCompany = queryRunner.manager.create(TruckingCompany, {
       companyCode: newCode,
@@ -478,15 +503,11 @@ export class ImportController {
           }
 
           let existingSeaFreight;
-          if (seaFreightData.billOfLadingNumber) {
-            existingSeaFreight = await queryRunner.manager.findOne(SeaFreight, {
-              where: { billOfLadingNumber: seaFreightData.billOfLadingNumber }
-            });
-          } else if (seaFreightData.containerNumber) {
-            existingSeaFreight = await queryRunner.manager.findOne(SeaFreight, {
-              where: { containerNumber: seaFreightData.containerNumber }
-            });
-          }
+      if (seaFreightData.billOfLadingNumber) {
+        existingSeaFreight = await queryRunner.manager.findOne(SeaFreight, {
+          where: { billOfLadingNumber: seaFreightData.billOfLadingNumber }
+        });
+      }
 
           if (existingSeaFreight) {
             Object.assign(existingSeaFreight, seaFreightData);
@@ -893,15 +914,11 @@ export class ImportController {
             }
 
             let existingSeaFreight;
-            if (seaFreightData.billOfLadingNumber) {
-              existingSeaFreight = await queryRunner.manager.findOne(SeaFreight, {
-                where: { billOfLadingNumber: seaFreightData.billOfLadingNumber }
-              });
-            } else if (seaFreightData.containerNumber) {
-              existingSeaFreight = await queryRunner.manager.findOne(SeaFreight, {
-                where: { containerNumber: seaFreightData.containerNumber }
-              });
-            }
+      if (seaFreightData.billOfLadingNumber) {
+        existingSeaFreight = await queryRunner.manager.findOne(SeaFreight, {
+          where: { billOfLadingNumber: seaFreightData.billOfLadingNumber }
+        });
+      }
 
             if (existingSeaFreight) {
               Object.assign(existingSeaFreight, seaFreightData);
@@ -1208,12 +1225,15 @@ export class ImportController {
 
       try {
         // 从数据库查询各表的数据
-        const [container, order, seaFreight, portOp, trucking, warehouse, emptyReturn] = await Promise.all([
-          this.containerRepository.findOne({ where: { containerNumber }, relations: [] }),
+        // 先查询货柜
+        const container = await this.containerRepository.findOne({ where: { containerNumber }, relations: [] });
+        
+        // 然后查询其他相关数据
+        const [order, seaFreight, portOp, trucking, warehouse, emptyReturn] = await Promise.all([
           item.tables.replenishment_orders?.orderNumber
             ? this.orderRepository.findOne({ where: { orderNumber: item.tables.replenishment_orders.orderNumber } })
             : null,
-          this.seaFreightRepository.findOne({ where: { containerNumber } }),
+          container?.billOfLadingNumber ? this.seaFreightRepository.findOne({ where: { billOfLadingNumber: container.billOfLadingNumber } }) : null,
           this.portOperationRepository.findOne({ where: { containerNumber } }),
           this.truckingRepository.findOne({ where: { containerNumber } }),
           this.warehouseRepository.findOne({ where: { containerNumber } }),

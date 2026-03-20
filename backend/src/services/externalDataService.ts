@@ -1038,10 +1038,45 @@ export class ExternalDataService {
       // 更新货柜的物流状态
       if (result.status !== container.logisticsStatus) {
         const oldStatus = container.logisticsStatus;
-        container.logisticsStatus = result.status;
+        const newStatus = result.status;
+
+        container.logisticsStatus = newStatus;
         await this.containerRepository.save(container);
 
-        logger.info(`[ExternalDataService] 货柜 ${containerNumber} 物流状态更新: ${oldStatus} -> ${result.status}`);
+        logger.info(`[ExternalDataService] 货柜 ${containerNumber} 物流状态更新: ${oldStatus} -> ${newStatus}`);
+
+        // 【增强审计】记录详细的状态变更日志
+        await auditLogService.logChange({
+          sourceType: 'feituo_sync',
+          entityType: 'biz_containers',
+          entityId: containerNumber,
+          action: 'UPDATE',
+          changedFields: {
+            logistics_status: {
+              old: oldStatus,
+              new: newStatus
+            },
+            // 添加触发字段信息
+            _triggerFields: {
+              old: null,
+              new: result.triggerFields || null
+            },
+            // 添加状态计算详情
+            _statusCalculation: {
+              old: null,
+              new: {
+                reason: result.reason || null,
+                hasReturnTime: !!emptyReturn?.returnTime,
+                hasWmsConfirm: !!warehouseOperation?.wmsConfirmDate,
+                hasPickupDate: !!truckingTransport?.pickupDate,
+                hasDestAta: portOperations.some(po => po.portType === 'destination' && po.ata),
+                hasTransitAta: portOperations.some(po => po.portType === 'transit' && po.ata),
+                hasShipmentDate: !!seaFreight?.shipmentDate,
+              }
+            }
+          },
+          remark: `飞驼同步触发状态机重算: ${oldStatus} → ${newStatus}`
+        });
       }
 
     } catch (error) {

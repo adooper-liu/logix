@@ -70,12 +70,12 @@ export class MonthlyVolumeService {
         ]
       })
       .andWhere(
-        '(order.actualShipDate >= :yearStart OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :yearStart))',
-        { yearStart }
+        '(order.expectedShipDate >= :yearStart OR (order.expectedShipDate IS NULL AND order.actualShipDate >= :yearStart2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate >= :yearStart3))',
+        { yearStart, yearStart2: yearStart, yearStart3: yearStart }
       )
       .andWhere(
-        '(order.actualShipDate < :yearEnd OR (order.actualShipDate IS NULL AND sf.shipmentDate < :yearEnd))',
-        { yearEnd }
+        '(order.expectedShipDate < :yearEnd OR (order.expectedShipDate IS NULL AND order.actualShipDate < :yearEnd2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate < :yearEnd3))',
+        { yearEnd, yearEnd2: yearEnd, yearEnd3: yearEnd }
       )
       .getRawOne<{ count: string }>();
 
@@ -120,12 +120,12 @@ export class MonthlyVolumeService {
         ]
       })
       .andWhere(
-        '(order.actualShipDate >= :monthStart OR (order.actualShipDate IS NULL AND sf.shipmentDate >= :monthStart))',
-        { monthStart }
+        '(order.expectedShipDate >= :monthStart OR (order.expectedShipDate IS NULL AND order.actualShipDate >= :monthStart2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate >= :monthStart3))',
+        { monthStart, monthStart2: monthStart, monthStart3: monthStart }
       )
       .andWhere(
-        '(order.actualShipDate <= :monthEnd OR (order.actualShipDate IS NULL AND sf.shipmentDate <= :monthEnd))',
-        { monthEnd }
+        '(order.expectedShipDate <= :monthEnd OR (order.expectedShipDate IS NULL AND order.actualShipDate <= :monthEnd2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate <= :monthEnd3))',
+        { monthEnd, monthEnd2: monthEnd, monthEnd3: monthEnd }
       )
       .getRawOne<{ count: string }>();
 

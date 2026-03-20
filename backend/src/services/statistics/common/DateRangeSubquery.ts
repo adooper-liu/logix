@@ -35,12 +35,12 @@ export function createDateRangeSubQuery(
     .leftJoin('c.replenishmentOrders', 'o')
     .leftJoin('c.seaFreight', 'sf')
     .where(
-      '(o.actualShipDate >= :startDate OR (o.actualShipDate IS NULL AND sf.shipmentDate >= :startDate))',
-      { startDate: new Date(startDate) }
+      '(o.expectedShipDate >= :startDate OR (o.expectedShipDate IS NULL AND o.actualShipDate >= :startDate2) OR (o.expectedShipDate IS NULL AND o.actualShipDate IS NULL AND sf.shipmentDate >= :startDate3))',
+      { startDate: new Date(startDate), startDate2: new Date(startDate), startDate3: new Date(startDate) }
     )
     .andWhere(
-      '(o.actualShipDate <= :endDate OR (o.actualShipDate IS NULL AND sf.shipmentDate <= :endDate))',
-      { endDate: toEndDateEnd(endDate) }
+      '(o.expectedShipDate <= :endDate OR (o.expectedShipDate IS NULL AND o.actualShipDate <= :endDate2) OR (o.expectedShipDate IS NULL AND o.actualShipDate IS NULL AND sf.shipmentDate <= :endDate3))',
+      { endDate: toEndDateEnd(endDate), endDate2: toEndDateEnd(endDate), endDate3: toEndDateEnd(endDate) }
     );
 
   const raw = (countryCode !== undefined && countryCode !== null ? String(countryCode).trim() : getScopedCountryCode()) || '';
@@ -70,8 +70,8 @@ export function getDateRangeSubqueryRaw(
 LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
 LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_number
 LEFT JOIN biz_customers cust ON cust.customer_name = o.sell_to_country
-WHERE (o.actual_ship_date >= $1 OR (o.actual_ship_date IS NULL AND sf.shipment_date >= $1))
-AND (o.actual_ship_date <= $2 OR (o.actual_ship_date IS NULL AND sf.shipment_date <= $2))`;
+WHERE (o.expected_ship_date >= $1 OR (o.expected_ship_date IS NULL AND o.actual_ship_date >= $1) OR (o.expected_ship_date IS NULL AND o.actual_ship_date IS NULL AND sf.shipment_date >= $1))
+AND (o.expected_ship_date <= $2 OR (o.expected_ship_date IS NULL AND o.actual_ship_date <= $2) OR (o.expected_ship_date IS NULL AND o.actual_ship_date IS NULL AND sf.shipment_date <= $2))`;
   if (code) {
     params.push(code);
     sql += ` AND cust.country = $3`;

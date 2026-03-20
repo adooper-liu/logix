@@ -169,6 +169,34 @@ export class ContainerController {
 
       logger.info('[getContainers] Query params:', { page, pageSize, search, startDate, endDate });
 
+      // 添加调试：查看数据库中符合条件的记录数
+      if (startDate && endDate) {
+        const debugQuery = this.containerRepository
+          .createQueryBuilder('container')
+          .select('COUNT(DISTINCT container.containerNumber)', 'count')
+          .leftJoin('container.replenishmentOrders', 'order')
+          .leftJoin('container.seaFreight', 'sf')
+          .where(
+            '(order.expectedShipDate >= :startDate OR (order.expectedShipDate IS NULL AND order.actualShipDate >= :startDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate3))',
+            { startDate: new Date(startDate as string), startDate2: new Date(startDate as string), startDate3: new Date(startDate as string) }
+          )
+          .andWhere(
+            '(order.expectedShipDate <= :endDate OR (order.expectedShipDate IS NULL AND order.actualShipDate <= :endDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate3))',
+            { endDate: new Date(endDate as string), endDate2: new Date(endDate as string), endDate3: new Date(endDate as string) }
+          );
+
+        const debugResult = await debugQuery.getRawOne();
+        logger.info(`[getContainers] Debug count for date range: ${debugResult?.count || 0}`);
+
+        // 查看匹配的备货单数据
+        const debugOrders = await AppDataSource.query(`
+          SELECT o.order_number, o.expected_ship_date, o.actual_ship_date
+          FROM biz_replenishment_orders o
+          WHERE o.order_number IN ('25DSE8726', '25DSE8725', '25DSE8724', '25DSE8723', '25DSE8722')
+        `);
+        logger.info(`[getContainers] Debug orders: ${JSON.stringify(debugOrders)}`);
+      }
+
       // 使用新的数据服务
       const result = await this.containerDataService.getContainersForList({
         page: Number(page),

@@ -32,4 +32,9 @@ router.delete('/resources/yards/:code', controller.deleteYard);
 router.get('/resources/occupancy/warehouse', controller.getWarehouseOccupancy);
 router.get('/resources/occupancy/trucking', controller.getTruckingOccupancy);
 
+// 成本评估
+router.post('/evaluate-cost', controller.evaluateCost);
+router.post('/compare-options', controller.compareOptions);
+router.get('/recommend-option/:id', controller.getRecommendOption);
+
 export default router;

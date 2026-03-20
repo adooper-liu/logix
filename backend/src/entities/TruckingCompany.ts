@@ -7,7 +7,7 @@ import { Column, CreateDateColumn, Entity, PrimaryColumn, UpdateDateColumn } fro
 
 @Entity('dict_trucking_companies')
 export class TruckingCompany {
-  @PrimaryColumn({ type: 'varchar', length: 50, name: 'company_code' })
+  @PrimaryColumn({ type: 'varchar', length: 100, name: 'company_code' })
   companyCode: string;
 
   @Column({ type: 'varchar', length: 100, name: 'company_name' })
@@ -16,7 +16,7 @@ export class TruckingCompany {
   @Column({ type: 'varchar', length: 200, nullable: true, name: 'company_name_en' })
   companyNameEn?: string;
 
-  @Column({ type: 'varchar', length: 50, nullable: true, name: 'contact_phone' })
+  @Column({ type: 'varchar', length: 20, nullable: true, name: 'contact_phone' })
   contactPhone?: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'contact_email' })

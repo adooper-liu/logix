@@ -33,17 +33,24 @@ export class TruckingPortMapping {
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'port_name' })
   portName: string;
 
+  /** 堆场容量（每天最多可接受的 Drop 模式货柜量） */
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, name: 'yard_capacity' })
   yardCapacity: number;
 
+  /** 堆场收费标准（每天费用 USD/天） */
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, name: 'standard_rate' })
   standardRate: number;
 
   @Column({ type: 'varchar', length: 20, nullable: true })
   unit: string;
 
+  /** 堆场操作费（每个货柜一次性收费 USD） */
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, name: 'yard_operation_fee' })
   yardOperationFee: number;
+
+  /** 拖卡费（每次运输总费用 USD） */
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, name: 'transport_fee' })
+  transportFee: number;
 
   @Column({ type: 'varchar', length: 20, default: 'DEFAULT', name: 'mapping_type' })
   mappingType: string;

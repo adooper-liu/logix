@@ -24,14 +24,14 @@ export class ArrivalStatisticsService {
   private addDateFilterToSubquery(sql: string, startDate?: string, endDate?: string, params: any[] = []): { sql: string; params: any[] } {
     if (startDate) {
       const idx = params.length + 1;
-      sql += ` AND (o.actual_ship_date >= $${idx} OR (o.actual_ship_date IS NULL AND sf.shipment_date >= $${idx}))`;
+      sql += ` AND (o.expected_ship_date >= $${idx} OR (o.expected_ship_date IS NULL AND o.actual_ship_date >= $${idx}) OR (o.expected_ship_date IS NULL AND o.actual_ship_date IS NULL AND sf.shipment_date >= $${idx}))`;
       params.push(new Date(startDate));
     }
     if (endDate) {
       const endDateObj = new Date(endDate);
       endDateObj.setHours(23, 59, 59, 999);
       const idx = params.length + 1;
-      sql += ` AND (o.actual_ship_date <= $${idx} OR (o.actual_ship_date IS NULL AND sf.shipment_date <= $${idx}))`;
+      sql += ` AND (o.expected_ship_date <= $${idx} OR (o.expected_ship_date IS NULL AND o.actual_ship_date <= $${idx}) OR (o.expected_ship_date IS NULL AND o.actual_ship_date IS NULL AND sf.shipment_date <= $${idx}))`;
       params.push(endDateObj);
     }
     return { sql, params };
