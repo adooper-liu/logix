@@ -7,8 +7,8 @@
           <div class="header-actions">
             <!-- 资源类型切换 -->
             <el-radio-group v-model="resourceType" size="small" @change="onResourceTypeChange">
-              <el-radio-button label="warehouse">🏭 仓库</el-radio-button>
-              <el-radio-button label="trucking">🚛 车队</el-radio-button>
+              <el-radio-button value="warehouse">🏭 仓库</el-radio-button>
+              <el-radio-button value="trucking">🚛 车队</el-radio-button>
             </el-radio-group>
             
             <el-button size="small" @click="loadCapacityData">
@@ -352,7 +352,7 @@ const loadResources = async () => {
     const countrySet = new Set<string>()
     
     // 加载仓库列表
-    const warehouseResponse = await api.get('/api/scheduling/resources/warehouses')
+    const warehouseResponse = await api.get('/scheduling/resources/warehouses')
     if (warehouseResponse.data.success) {
       allWarehouses.value = warehouseResponse.data.data
       allWarehouses.value.forEach((wh: any) => {
@@ -363,7 +363,7 @@ const loadResources = async () => {
     }
     
     // 加载车队列表
-    const truckingResponse = await api.get('/api/scheduling/resources/truckings')
+    const truckingResponse = await api.get('/scheduling/resources/truckings')
     if (truckingResponse.data.success) {
       allTruckingCompanies.value = truckingResponse.data.data
       allTruckingCompanies.value.forEach((tc: any) => {

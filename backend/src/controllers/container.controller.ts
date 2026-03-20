@@ -26,8 +26,8 @@ import { ContainerService } from '../services/container.service';
 import { ContainerDataService } from '../services/ContainerDataService';
 import { ContainerStatisticsService } from '../services/containerStatistics.service';
 import { ContainerStatusService } from '../services/containerStatus.service';
-import { DateFilterBuilder } from '../services/statistics/common/DateFilterBuilder';
 import { auditLogService } from '../services/auditLog.service';
+import { getScopedCountryCode } from '../utils/requestContext';
 
 export class ContainerController {
   private containerRepository: Repository<Container>;
@@ -91,11 +91,6 @@ export class ContainerController {
       containerRepository,
       truckingTransportRepository,
       emptyReturnRepository
-    );
-
-    this.containerDataService = new ContainerDataService(
-      containerRepository,
-      this.containerService
     );
 
     this.containerStatusService = new ContainerStatusService();
@@ -169,35 +164,6 @@ export class ContainerController {
 
       logger.info('[getContainers] Query params:', { page, pageSize, search, startDate, endDate });
 
-      // 添加调试：查看数据库中符合条件的记录数
-      if (startDate && endDate) {
-        const debugQuery = this.containerRepository
-          .createQueryBuilder('container')
-          .select('COUNT(DISTINCT container.containerNumber)', 'count')
-          .leftJoin('container.replenishmentOrders', 'order')
-          .leftJoin('container.seaFreight', 'sf')
-          .where(
-            '(order.expectedShipDate >= :startDate OR (order.expectedShipDate IS NULL AND order.actualShipDate >= :startDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate3))',
-            { startDate: new Date(startDate as string), startDate2: new Date(startDate as string), startDate3: new Date(startDate as string) }
-          )
-          .andWhere(
-            '(order.expectedShipDate <= :endDate OR (order.expectedShipDate IS NULL AND order.actualShipDate <= :endDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate3))',
-            { endDate: new Date(endDate as string), endDate2: new Date(endDate as string), endDate3: new Date(endDate as string) }
-          );
-
-        const debugResult = await debugQuery.getRawOne();
-        logger.info(`[getContainers] Debug count for date range: ${debugResult?.count || 0}`);
-
-        // 查看匹配的备货单数据
-        const debugOrders = await AppDataSource.query(`
-          SELECT o.order_number, o.expected_ship_date, o.actual_ship_date
-          FROM biz_replenishment_orders o
-          WHERE o.order_number IN ('25DSE8726', '25DSE8725', '25DSE8724', '25DSE8723', '25DSE8722')
-        `);
-        logger.info(`[getContainers] Debug orders: ${JSON.stringify(debugOrders)}`);
-      }
-
-      // 使用新的数据服务
       const result = await this.containerDataService.getContainersForList({
         page: Number(page),
         pageSize: Number(pageSize),
@@ -206,28 +172,18 @@ export class ContainerController {
         endDate: endDate as string
       });
 
-      let dateFilterFallback = false;
-
-      // 当传了日期且按日期筛选结果为 0 时，回退为「全部货柜」并打标
-      if (startDate && endDate && result.total === 0) {
-        dateFilterFallback = true;
-        const fallbackResult = await this.containerDataService.getContainersForList({
-          page: Number(page),
-          pageSize: Number(pageSize),
-          search: String(search)
-          // 不传入日期参数，获取全部货柜
-        });
-        
-        result.items = fallbackResult.items;
-        result.total = fallbackResult.total;
-        logger.info(`[getContainers] Date range had no matches, fallback to all: ${result.total} containers`);
-      }
-
       logger.info(`[getContainers] Found ${result.items.length} containers, total: ${result.total}`);
+
+      if (result.total === 0 && startDate && endDate) {
+        logger.info('[getContainers] No rows: date range applied; if data should exist, check X-Country-Code vs customer country (GB/CN) or COALESCE ship dates', {
+          startDate,
+          endDate,
+          scopedCountry: getScopedCountryCode() ?? null
+        });
+      }
 
       res.json({
         success: true,
-        dateFilterFallback: dateFilterFallback || undefined,
         items: result.items,
         pagination: {
           page: Number(page),
@@ -636,26 +592,6 @@ export class ContainerController {
       const returnDistribution = await this.statisticsService.getReturnDistribution(startDate as string, endDate as string);
       logger.info('[getStatisticsDetailed] Return distribution completed');
 
-      // 当传了日期且按状态/到港合计为 0 时，回退为「不按日期」的统计并打标，避免卡片全 0
-      // 修复：必须同时回退 status 与 arrival，否则两卡片使用不同日期范围导致总数不一致（按状态 6 vs 按到港 10）
-      let dateFilterFallback = false;
-      if (startDate && endDate) {
-        const statusTotal = Object.entries(statusDistribution).reduce((s, [k, v]) => (k === 'arrived_at_transit' || k === 'arrived_at_destination' ? s : s + (v || 0)), 0);
-        const arrivalTotal =
-          (arrivalDistribution.arrivedAtDestination || 0) +
-          (arrivalDistribution.arrivedAtTransit || 0) +
-          (arrivalDistribution.expectedArrival || 0) +
-          (arrivalDistribution.arrivedBeforeTodayNoATA || 0);
-        if (statusTotal === 0 || arrivalTotal === 0) {
-          dateFilterFallback = true;
-          [statusDistribution, arrivalDistribution] = await Promise.all([
-            this.statisticsService.getStatusDistribution(undefined, undefined),
-            this.statisticsService.getArrivalDistribution(undefined, undefined)
-          ]);
-          logger.info('[getStatisticsDetailed] Date range had no status/arrival matches, fallback to unfiltered stats (both)');
-        }
-      }
-
       logger.info('[getStatisticsDetailed] Detailed statistics calculation completed');
       logger.info('[getStatisticsDetailed] Results:', {
         statusDistribution,
@@ -667,7 +603,6 @@ export class ContainerController {
 
       res.json({
         success: true,
-        dateFilterFallback: dateFilterFallback || undefined,
         data: {
           statusDistribution,
           arrivalDistribution,

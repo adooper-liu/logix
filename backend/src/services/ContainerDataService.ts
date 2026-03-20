@@ -8,7 +8,7 @@ import { Container } from '../entities/Container';
 import { ContainerService } from './container.service';
 import { ContainerQueryBuilder } from './statistics/common/ContainerQueryBuilder';
 
-interface ListParams {
+interface IListParams {
   page: number;
   pageSize: number;
   search?: string;
@@ -16,7 +16,7 @@ interface ListParams {
   endDate?: string;
 }
 
-interface StatsParams {
+interface IStatsParams {
   startDate?: string;
   endDate?: string;
 }
@@ -30,22 +30,14 @@ export class ContainerDataService {
   /**
    * 获取货柜列表（用于列表页面）
    */
-  async getContainersForList(params: ListParams) {
+  async getContainersForList(params: IListParams) {
     const qb = ContainerQueryBuilder.createListQuery(this.containerRepository, params);
-    
-    // 添加调试日志
-    if (params.startDate || params.endDate) {
-      console.log('SQL Query:', qb.getQuery());
-      console.log('Query Parameters:', qb.getParameters());
-    }
-    
-    // 应用分页
-    const [containers, total] = await qb
+    const total = await qb.clone().getCount();
+    const containers = await qb
       .skip((params.page - 1) * params.pageSize)
       .take(params.pageSize)
-      .getManyAndCount();
-    
-    // 使用现有enrichContainersList方法
+      .getMany();
+
     const enriched = await this.containerService.enrichContainersList(containers);
     return { items: enriched, total };
   }
@@ -53,11 +45,10 @@ export class ContainerDataService {
   /**
    * 获取货柜列表（用于统计）
    */
-  async getContainersForStats(params: StatsParams) {
+  async getContainersForStats(params: IStatsParams) {
     const qb = ContainerQueryBuilder.createListQuery(this.containerRepository, params);
     const containers = await qb.getMany();
-    
-    // 使用现有enrichContainersList方法
+
     const enriched = await this.containerService.enrichContainersList(containers);
     return enriched;
   }
@@ -68,12 +59,11 @@ export class ContainerDataService {
   async getContainerDetail(containerNumber: string) {
     const container = await this.containerRepository.findOne({
       where: { containerNumber },
-      relations: ['seaFreight', 'replenishmentOrders'] // 去掉portOperations，由enrich处理
+      relations: ['seaFreight', 'replenishmentOrders']
     });
-    
+
     if (!container) return null;
-    
-    // 使用现有enrichContainersList方法（传入单元素数组）
+
     const [enriched] = await this.containerService.enrichContainersList([container]);
     return enriched;
   }

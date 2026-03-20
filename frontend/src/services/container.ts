@@ -36,6 +36,11 @@ class ContainerService {
         if (appStore.scopedCountryCode) {
           config.headers['X-Country-Code'] = appStore.scopedCountryCode;
         }
+        // 避免浏览器对 GET /containers、/statistics-detailed 等使用 304 空响应
+        if (String(config.method || 'get').toLowerCase() === 'get') {
+          config.headers['Cache-Control'] = 'no-cache';
+          config.headers['Pragma'] = 'no-cache';
+        }
         return config;
       },
       (error) => {

@@ -1,22 +1,26 @@
 /**
- * 货柜查询构建�? * 负责构建常用的货柜查询基础
+ * 货柜查询构建器 - 负责构建常用的货柜查询基础
  */
 
-import { SelectQueryBuilder } from 'typeorm';
+import { Brackets, SelectQueryBuilder } from 'typeorm';
 import { PortOperationQueryBuilder } from './PortOperationQueryBuilder';
 import { DateFilterBuilder } from './DateFilterBuilder';
 
 /**
- * 货柜查询构建�? * 提供常用的货柜查询模�? */
+ * 货柜查询构建器 - 提供常用的货柜查询模板
+ */
 export class ContainerQueryBuilder {
   /**
-   * 物流状态常�?   */
+   * 物流状态常量
+   */
+  /* eslint-disable @typescript-eslint/naming-convention -- 与既有统计/筛选键名一致 */
   static readonly STATUSES = {
     ALL_SHIPPED: ['shipped', 'in_transit', 'at_port', 'picked_up', 'unloaded', 'returned_empty'],
     NOT_PICKED_UP: ['not_shipped', 'shipped', 'in_transit', 'at_port'],
     PICKED_UP: ['picked_up', 'unloaded', 'returned_empty'],
     ETA_TARGET: ['shipped', 'in_transit'],
   };
+  /* eslint-enable @typescript-eslint/naming-convention */
 
   /**
    * 创建基础查询（带 order 和 sf 连接）
@@ -26,8 +30,8 @@ export class ContainerQueryBuilder {
   }
 
   /**
-   * 创建货柜列表查询（用于 getContainers、getContainersByFilterCondition）
-   * 使用 leftJoinAndSelect 加载 seaFreight，供 enrich 使用
+   * 创建货柜列表查询（用于 getContainers）
+   * 日期/国家用 EXISTS，避免多备货单行膨胀；仅 leftJoinAndSelect 海运供 enrich
    */
   static createListQuery(
     containerRepository: any,
@@ -35,38 +39,36 @@ export class ContainerQueryBuilder {
   ): SelectQueryBuilder<any> {
     const qb = containerRepository
       .createQueryBuilder('container')
-      .leftJoin('container.replenishmentOrders', 'order')
       .leftJoinAndSelect('container.seaFreight', 'sf');
 
-    DateFilterBuilder.addCountryFilters(qb);
-
     if (params.search) {
+      const search = `%${params.search}%`;
       qb.andWhere(
-        'container.containerNumber ILIKE :search OR order.orderNumber ILIKE :search OR sf.billOfLadingNumber ILIKE :search OR sf.mblNumber ILIKE :search',
-        { search: `%${params.search}%` }
+        new Brackets((sub) => {
+          sub
+            .where('container.containerNumber ILIKE :search', { search })
+            .orWhere('sf.billOfLadingNumber ILIKE :search', { search })
+            .orWhere('sf.mblNumber ILIKE :search', { search })
+            .orWhere(
+              'EXISTS (SELECT 1 FROM biz_replenishment_orders ro_search WHERE ' +
+                'ro_search.container_number = "container"."container_number" AND ro_search.order_number ILIKE :search)',
+              { search }
+            );
+        })
       );
     }
 
-    if (params.startDate) {
-      qb.andWhere(
-        '(order.expectedShipDate >= :startDate OR (order.expectedShipDate IS NULL AND order.actualShipDate >= :startDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate3))',
-        { startDate: new Date(params.startDate), startDate2: new Date(params.startDate), startDate3: new Date(params.startDate) }
-      );
-    }
-    if (params.endDate) {
-      const end = new Date(params.endDate);
-      end.setHours(23, 59, 59, 999);
-      qb.andWhere(
-        '(order.expectedShipDate <= :endDate OR (order.expectedShipDate IS NULL AND order.actualShipDate <= :endDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate3))',
-        { endDate: end, endDate2: end, endDate3: end }
-      );
-    }
+    DateFilterBuilder.addListFiltersAsExists(qb, {
+      startDate: params.startDate,
+      endDate: params.endDate
+    });
 
     return qb.orderBy('container.updatedAt', 'DESC');
   }
 
   /**
-   * 为查询添加最新目的港操作的内连接（含 ATA�?   */
+   * 为查询添加最新目的港操作的内连接（含 ATA）
+   */
   static joinLatestDestinationWithAta(
     query: SelectQueryBuilder<any>,
     alias: string = 'latest_po'
@@ -75,7 +77,8 @@ export class ContainerQueryBuilder {
   }
 
   /**
-   * 为查询添加最新目的港操作的内连接（含 ETA�?   */
+   * 为查询添加最新目的港操作的内连接（含 ETA）
+   */
   static joinLatestDestinationWithEta(
     query: SelectQueryBuilder<any>,
     alias: string = 'latest_po'
@@ -94,7 +97,8 @@ export class ContainerQueryBuilder {
   }
 
   /**
-   * 为查询添加最新目的港操作的内连接（含 lastFreeDate�?   */
+   * 为查询添加最新目的港操作的内连接（含 lastFreeDate）
+   */
   static joinLatestDestinationWithLastFreeDate(
     query: SelectQueryBuilder<any>,
     alias: string = 'latest_po'
@@ -131,7 +135,8 @@ export class ContainerQueryBuilder {
   }
 
   /**
-   * 为查询添加日期过�?   */
+   * 为查询添加日期过滤
+   */
   static addDateFilters(
     query: SelectQueryBuilder<any>,
     startDate?: string,
@@ -140,7 +145,7 @@ export class ContainerQueryBuilder {
     return DateFilterBuilder.addDateFilters(query, startDate, endDate);
   }
 
-  /** 为查询添加国家过滤（销住国家/客户国家/目的港所在国） */
+  /** 为查询添加国家过滤 */
   static addCountryFilters(
     query: SelectQueryBuilder<any>,
     countryCode?: string
@@ -149,7 +154,8 @@ export class ContainerQueryBuilder {
   }
 
   /**
-   * 为查询添加物流状态过�?   */
+   * 为查询添加物流状态过滤
+   */
   static filterByLogisticsStatus(
     query: SelectQueryBuilder<any>,
     statuses: string[]
@@ -160,7 +166,8 @@ export class ContainerQueryBuilder {
   }
 
   /**
-   * 为查询排除指定的物流状�?   */
+   * 为查询排除指定的物流状态
+   */
   static excludeLogisticsStatus(
     query: SelectQueryBuilder<any>,
     statuses: string[]
@@ -171,11 +178,11 @@ export class ContainerQueryBuilder {
   }
 
   /**
-   * 过滤目标集（必须是已出运状态的货柜�?   */
+   * 过滤目标集（必须是已出运状态的货柜）
+   */
   static filterTargetStatus(
     query: SelectQueryBuilder<any>
   ): SelectQueryBuilder<any> {
     return this.filterByLogisticsStatus(query, this.STATUSES.ALL_SHIPPED);
   }
 }
-

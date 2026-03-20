@@ -93,7 +93,7 @@ const formData = reactive<WarehouseTruckingRecord>({
   remarks: ''
 })
 
-// Excel导入
+// Excel 导入
 const importDialogVisible = ref(false)
 const importLoading = ref(false)
 const importResult = reactive({
@@ -101,6 +101,7 @@ const importResult = reactive({
   failed: 0,
   errors: [] as string[]
 })
+const pendingImportRecords = ref<WarehouseTruckingRecord[]>([])  // 待导入的数据
 
 // ==================== API方法 ====================
 const loadData = async () => {
@@ -194,7 +195,7 @@ const handleDelete = async (row: WarehouseTruckingRecord) => {
   }
 }
 
-// Excel导入
+// Excel 导入
 const handleImportClick = () => {
   importResult.success = 0
   importResult.failed = 0
@@ -202,56 +203,91 @@ const handleImportClick = () => {
   importDialogVisible.value = true
 }
 
-const handleFileChange = async (event: Event) => {
-  const file = (event.target as HTMLInputElement).files?.[0]
-  if (!file) return
+const handleFileChange = async (file: any) => {
+  // Element Plus Upload 组件传递的是 file 对象，不是 Event
+  if (!file || !file.raw) return
+  
+  const rawFile = file.raw as File
+  if (!rawFile) return
 
   importLoading.value = true
   importResult.errors = []
 
   try {
-    const data = await file.arrayBuffer()
+    const data = await rawFile.arrayBuffer()
     const workbook = XLSX.read(data)
     const sheetName = workbook.SheetNames[0]
     const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName])
 
     if (!jsonData || jsonData.length === 0) {
-      ElMessage.warning('Excel文件为空')
+      ElMessage.warning('Excel 文件为空')
       return
     }
 
+    // 打印第一行数据的键，用于调试
+    console.log('Excel 列名:', Object.keys(jsonData[0] as object))
+    console.log('第一行数据:', jsonData[0])
+
     // 转换数据
-    const records: WarehouseTruckingRecord[] = (jsonData as any[]).map((row: any) => ({
-      country: row['国家'] || row['country'] || '',
-      warehouseCode: row['仓库.代码'] || row['仓库代码'] || row['warehouse_code'] || '',
-      warehouseName: row['仓库.仓库名称'] || row['仓库名称'] || row['warehouse_name'] || '',
-      truckingCompanyId: row['车队代码'] || row['trucking_company_id'] || '',
-      truckingCompanyName: row['车队'] || row['trucking_company_name'] || '',
-      mappingType: 'DEFAULT',
-      isDefault: false,
-      isActive: true,
-      remarks: ''
-    }))
+    const records: WarehouseTruckingRecord[] = (jsonData as any[]).map((row: any) => {
+      // 支持多种列名变体
+      const truckingCompanyId = row['车队代码'] || row['车队.ID'] || row['trucking_company_id'] || row['trucking_company_code'] || ''
+      const truckingCompanyName = row['车队'] || row['车队名称'] || row['trucking_company_name'] || row['trucking_company'] || ''
+      
+      return {
+        country: row['国家'] || row['country'] || '',
+        warehouseCode: row['仓库。代码'] || row['仓库代码'] || row['warehouse_code'] || row['warehouse.code'] || '',
+        warehouseName: row['仓库。仓库名称'] || row['仓库名称'] || row['warehouse_name'] || row['warehouse.name'] || '',
+        truckingCompanyId,
+        truckingCompanyName,
+        mappingType: 'DEFAULT',
+        isDefault: false,
+        isActive: true,
+        remarks: ''
+      }
+    })
 
     // 验证必填字段
     const validRecords: WarehouseTruckingRecord[] = []
     for (let i = 0; i < records.length; i++) {
       const record = records[i]
       if (!record.country || !record.warehouseCode || !record.truckingCompanyName) {
-        importResult.errors.push(`第${i + 2}行数据不完整: 国家=${record.country}, 仓库代码=${record.warehouseCode}, 车队=${record.truckingCompanyName}`)
+        importResult.errors.push(`第${i + 2}行数据不完整：国家=${record.country}, 仓库代码=${record.warehouseCode}, 车队=${record.truckingCompanyName}`)
         importResult.failed++
       } else {
         validRecords.push(record)
       }
     }
 
-    // 批量导入
-    if (validRecords.length > 0) {
-      await axios.post(`${BASE_URL}/warehouse-trucking-mapping/batch`, validRecords)
-      importResult.success = validRecords.length
-      ElMessage.success(`导入成功: ${validRecords.length}条`)
-      loadData()
+    // 存储待导入的数据，等待用户确认
+    pendingImportRecords.value = validRecords
+    
+    // 显示预览信息，但不自动导入
+    if (validRecords.length > 0 && importResult.errors.length === 0) {
+      ElMessage.info(`已读取 ${validRecords.length}条有效数据，请点击"确认导入"按钮`)
     }
+  } catch (error: any) {
+    ElMessage.error(error?.message || '导入失败')
+  } finally {
+    importLoading.value = false
+  }
+}
+
+// 确认导入
+const confirmImport = async () => {
+  if (!pendingImportRecords.value || pendingImportRecords.value.length === 0) {
+    ElMessage.warning('没有可导入的数据')
+    return
+  }
+
+  try {
+    importLoading.value = true
+    await axios.post(`${BASE_URL}/warehouse-trucking-mapping/batch`, pendingImportRecords.value)
+    importResult.success = pendingImportRecords.value.length
+    ElMessage.success(`导入成功：${pendingImportRecords.value.length}条`)
+    loadData()
+    importDialogVisible.value = false
+    pendingImportRecords.value = []
   } catch (error: any) {
     ElMessage.error(error?.message || '导入失败')
   } finally {
@@ -443,7 +479,15 @@ onMounted(() => {
       </div>
 
       <template #footer>
-        <el-button @click="importDialogVisible = false">关闭</el-button>
+        <el-button @click="importDialogVisible = false" :disabled="importLoading">关闭</el-button>
+        <el-button 
+          type="primary" 
+          @click="confirmImport" 
+          :loading="importLoading"
+          :disabled="pendingImportRecords.length === 0"
+        >
+          确认导入
+        </el-button>
       </template>
     </el-dialog>
   </div>

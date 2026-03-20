@@ -10,13 +10,8 @@ import { getScopedCountryCode } from '../../../utils/requestContext';
 import { normalizeCountryCode } from '../../../utils/countryCode';
 import { DateFilterBuilder } from './DateFilterBuilder';
 import { ContainerQueryBuilder } from './ContainerQueryBuilder';
-
-/** 出运日期 endDate 使用当天 23:59:59.999 */
-function toEndDateEnd(endDate: string): Date {
-  const d = new Date(endDate);
-  d.setHours(23, 59, 59, 999);
-  return d;
-}
+import { RAW_O_CUSTOMER_JOIN_ON, TYPEORM_O_CUSTOMER_JOIN_ON } from './customerCountryMatchSql';
+import { parseIsoDateOnlyForFilter } from '../../../utils/dateTimeUtils';
 
 /**
  * TypeORM 版：创建「出运日期在 [startDate, endDate] 内」且可选「国家」的货柜号子查询
@@ -29,24 +24,26 @@ export function createDateRangeSubQuery(
   endDate: string,
   countryCode?: string
 ): SelectQueryBuilder<Container> {
+  const startDay = parseIsoDateOnlyForFilter(startDate);
+  const endDay = parseIsoDateOnlyForFilter(endDate);
   const qb = containerRepository
     .createQueryBuilder('c')
     .select('DISTINCT c.containerNumber')
     .leftJoin('c.replenishmentOrders', 'o')
     .leftJoin('c.seaFreight', 'sf')
     .where(
-      '(o.expectedShipDate >= :startDate OR (o.expectedShipDate IS NULL AND o.actualShipDate >= :startDate2) OR (o.expectedShipDate IS NULL AND o.actualShipDate IS NULL AND sf.shipmentDate >= :startDate3))',
-      { startDate: new Date(startDate), startDate2: new Date(startDate), startDate3: new Date(startDate) }
+      'CAST(COALESCE(o.actualShipDate, o.expectedShipDate, sf.shipmentDate) AS date) >= CAST(:startDate AS date)',
+      { startDate: startDay ?? startDate }
     )
     .andWhere(
-      '(o.expectedShipDate <= :endDate OR (o.expectedShipDate IS NULL AND o.actualShipDate <= :endDate2) OR (o.expectedShipDate IS NULL AND o.actualShipDate IS NULL AND sf.shipmentDate <= :endDate3))',
-      { endDate: toEndDateEnd(endDate), endDate2: toEndDateEnd(endDate), endDate3: toEndDateEnd(endDate) }
+      'CAST(COALESCE(o.actualShipDate, o.expectedShipDate, sf.shipmentDate) AS date) <= CAST(:endDate AS date)',
+      { endDate: endDay ?? endDate }
     );
 
   const raw = (countryCode !== undefined && countryCode !== null ? String(countryCode).trim() : getScopedCountryCode()) || '';
   const code = normalizeCountryCode(raw);
   if (code) {
-    qb.leftJoin('biz_customers', 'cust', 'cust.customer_name = o.sell_to_country').andWhere('cust.country = :countryCode', {
+    qb.leftJoin('biz_customers', 'cust', TYPEORM_O_CUSTOMER_JOIN_ON).andWhere('cust.country = :countryCode', {
       countryCode: code
     });
   }
@@ -63,15 +60,17 @@ export function getDateRangeSubqueryRaw(
   endDate: string,
   countryCode?: string
 ): { sql: string; params: any[] } {
-  const params: any[] = [new Date(startDate), toEndDateEnd(endDate)];
+  const startDay = parseIsoDateOnlyForFilter(startDate) ?? startDate;
+  const endDay = parseIsoDateOnlyForFilter(endDate) ?? endDate;
+  const params: any[] = [startDay, endDay];
   const raw = (countryCode !== undefined && countryCode !== null ? String(countryCode).trim() : getScopedCountryCode()) || '';
   const code = normalizeCountryCode(raw);
   let sql = `SELECT DISTINCT c.container_number FROM biz_containers c
 LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
 LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_number
-LEFT JOIN biz_customers cust ON cust.customer_name = o.sell_to_country
-WHERE (o.expected_ship_date >= $1 OR (o.expected_ship_date IS NULL AND o.actual_ship_date >= $1) OR (o.expected_ship_date IS NULL AND o.actual_ship_date IS NULL AND sf.shipment_date >= $1))
-AND (o.expected_ship_date <= $2 OR (o.expected_ship_date IS NULL AND o.actual_ship_date <= $2) OR (o.expected_ship_date IS NULL AND o.actual_ship_date IS NULL AND sf.shipment_date <= $2))`;
+LEFT JOIN biz_customers cust ON ${RAW_O_CUSTOMER_JOIN_ON.replace(/\s+/g, ' ').trim()}
+WHERE COALESCE(o.actual_ship_date, o.expected_ship_date, sf.shipment_date)::date >= $1::date
+AND COALESCE(o.actual_ship_date, o.expected_ship_date, sf.shipment_date)::date <= $2::date`;
   if (code) {
     params.push(code);
     sql += ` AND cust.country = $3`;

@@ -23,6 +23,9 @@ import monitoringRoutes from './routes/monitoring.routes.js';
 const app: Application = express();
 const httpServer = createServer(app);
 
+// 关闭对 JSON 响应的 ETag，避免 GET API 返回 304 + 空 body，浏览器/axios 误用旧统计
+app.set('etag', false);
+
 // Socket.IO 配置
 export const io = new SocketIOServer(httpServer, {
   cors: {
@@ -117,6 +120,13 @@ app.get('/info', (_req: Request, res: Response) => {
     port: config.port,
     apiPrefix: config.apiPrefix
   });
+});
+
+// API：禁止中间缓存（与 etag 关闭配合，保证货柜/统计等动态数据始终带 body）
+app.use(config.apiPrefix, (_req: Request, res: Response, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache');
+  next();
 });
 
 // API 路由

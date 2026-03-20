@@ -236,6 +236,15 @@ export const toDateOnly = (d: Date | string): Date => {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 };
 
+/**
+ * 从查询串（如 2026-01-01 或 ISO 带时间）提取 YYYY-MM-DD，供 PG CAST(:x AS date) 使用，避免 JS Date 时区导致与 date 列比较错位。
+ */
+export const parseIsoDateOnlyForFilter = (input?: string | null): string | undefined => {
+  if (input == null || input === '') return undefined;
+  const m = String(input).trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : undefined;
+};
+
 export default {
   DateTimeUtils,
   parseLocalDate,
@@ -248,5 +257,6 @@ export default {
   getDayEnd,
   isSameDay,
   isDateInRange,
-  toDateOnly
+  toDateOnly,
+  parseIsoDateOnlyForFilter
 };

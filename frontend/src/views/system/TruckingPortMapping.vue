@@ -107,6 +107,8 @@ const formData = reactive<TruckingPortRecord>({
 // Excel导入
 const importDialogVisible = ref(false)
 const importLoading = ref(false)
+const importFileList = ref<any[]>([])
+const parsedRecords = ref<TruckingPortRecord[]>([])
 const importResult = reactive({
   success: 0,
   failed: 0,

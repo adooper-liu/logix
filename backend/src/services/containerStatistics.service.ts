@@ -254,20 +254,7 @@ export class ContainerStatisticsService {
     query.where('container.logisticsStatus = :logisticsStatus', { logisticsStatus });
     query.leftJoin('container.replenishmentOrders', 'order');
     query.leftJoin('container.seaFreight', 'sf');
-    if (startDate) {
-      query.andWhere(
-        '(order.expectedShipDate >= :startDate OR (order.expectedShipDate IS NULL AND order.actualShipDate >= :startDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate3))',
-        { startDate: new Date(startDate), startDate2: new Date(startDate), startDate3: new Date(startDate) }
-      );
-    }
-    if (endDate) {
-      const endDateObj = new Date(endDate);
-      endDateObj.setHours(23, 59, 59, 999);
-      query.andWhere(
-        '(order.expectedShipDate <= :endDate OR (order.expectedShipDate IS NULL AND order.actualShipDate <= :endDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate3))',
-        { endDate: endDateObj, endDate2: endDateObj, endDate3: endDateObj }
-      );
-    }
+    DateFilterBuilder.addDateFilters(query, startDate, endDate);
     DateFilterBuilder.addCountryFilters(query);
     return query.getMany();
   }
@@ -304,20 +291,7 @@ export class ContainerStatisticsService {
     });
     query.leftJoin('container.replenishmentOrders', 'order');
     query.leftJoin('container.seaFreight', 'sf');
-    if (startDate) {
-      query.andWhere(
-        '(order.expectedShipDate >= :startDate OR (order.expectedShipDate IS NULL AND order.actualShipDate >= :startDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate3))',
-        { startDate: new Date(startDate), startDate2: new Date(startDate), startDate3: new Date(startDate) }
-      );
-    }
-    if (endDate) {
-      const endDateObj = new Date(endDate);
-      endDateObj.setHours(23, 59, 59, 999);
-      query.andWhere(
-        '(order.expectedShipDate <= :endDate OR (order.expectedShipDate IS NULL AND order.actualShipDate <= :endDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate3))',
-        { endDate: endDateObj, endDate2: endDateObj, endDate3: endDateObj }
-      );
-    }
+    DateFilterBuilder.addDateFilters(query, startDate, endDate);
     DateFilterBuilder.addCountryFilters(query);
     return query.getMany();
   }

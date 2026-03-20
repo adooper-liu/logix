@@ -178,15 +178,12 @@ const loadContainers = async () => {
       params.endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
     }
 
-    // 只加载当前页数据（用于表格显示）
-    const response = await containerService.getContainersWithCache(params)
+    // 列表与顶部日期一致，不走短缓存，避免与统计卡片口径不一致
+    const response = await containerService.getContainers(params)
 
     if (!isUnmounted.value) {
       containers.value = response.items ?? []
       pagination.value.total = response.pagination?.total ?? 0
-      if (response.dateFilterFallback) {
-        ElMessage.info('所选日期范围内无出运记录，已显示全部货柜')
-      }
     }
   } catch (error) {
     console.error('Failed to load containers:', error)
@@ -209,12 +206,9 @@ const loadStatistics = async () => {
       startDate = dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD')
       endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
     }
-    const response = await containerService.getStatisticsDetailedWithCache(startDate, endDate)
+    const response = await containerService.getStatisticsDetailed(startDate, endDate)
     if (response.success && response.data && !isUnmounted.value) {
       statisticsData.value = response.data
-      if (response.dateFilterFallback) {
-        ElMessage.info('所选日期范围内无出运记录，统计已显示全部货柜')
-      }
     }
   } catch (error) {
     console.error('Failed to load statistics:', error)
@@ -591,7 +585,7 @@ export default {
         <CountdownCard
           title="按状态"
           label="物流状态分布"
-          subtitle="（全部货柜）"
+          subtitle="（所选出运日期范围内）"
           :data="countdownByStatus"
           tree-layout="column"
           @filter="handleCountdownFilter"
@@ -600,7 +594,7 @@ export default {
         <CountdownCard
           title="按到港"
           label="到港时间分布"
-          subtitle="（全部货柜）"
+          subtitle="（所选出运日期范围内）"
           :data="countdownByArrival"
           :tree-layout="true"
           @filter="handleCountdownFilter"

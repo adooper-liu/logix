@@ -131,9 +131,6 @@ const loadData = async () => {
     if (statusResponse?.success && statusResponse?.data) {
       const res = statusResponse
       const dist = res.data.statusDistribution
-      if (res.dateFilterFallback) {
-        ElMessage.info('所选日期范围内无出运记录，统计已显示全部货柜')
-      }
 
       // 总柜数：与 Shipments/statistics-verify 一致，仅 7 个主状态之和（不含 arrived_at_transit/arrived_at_destination 子维度）
       const totalContainers = MAIN_STATUS_KEYS.reduce((sum, key) => sum + (dist[key] ?? 0), 0)

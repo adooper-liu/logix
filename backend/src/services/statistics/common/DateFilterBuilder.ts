@@ -6,7 +6,12 @@
 import { SelectQueryBuilder } from 'typeorm';
 import { getScopedCountryCode } from '../../../utils/requestContext';
 import { normalizeCountryCode } from '../../../utils/countryCode';
+import { parseIsoDateOnlyForFilter } from '../../../utils/dateTimeUtils';
 import { getDateRangeSubqueryRaw as getDateRangeSubqueryRawImpl } from './DateRangeSubquery';
+import {
+  RAW_RO_CUSTOMER_JOIN_ON,
+  TYPEORM_ORDER_CUSTOMER_JOIN_ON
+} from './customerCountryMatchSql';
 
 /**
  * 日期过滤构建器
@@ -14,35 +19,28 @@ import { getDateRangeSubqueryRaw as getDateRangeSubqueryRawImpl } from './DateRa
  */
 export class DateFilterBuilder {
   /**
-   * 为查询添加出运时间过滤
-   * 优先使用 expectedShipDate，如果为空则使用 actualShipDate，如果还为空则使用海运日期
+   * 为查询添加出运时间过滤（已带 order、sf 连接时）
+   * 有效出运日：COALESCE(actual, expected, shipment)，与统计子查询一致
    */
   static addDateFilters(
     query: SelectQueryBuilder<any>,
     startDate?: string,
     endDate?: string
   ): SelectQueryBuilder<any> {
-    if (startDate) {
+    const startDay = startDate ? parseIsoDateOnlyForFilter(String(startDate)) : undefined;
+    const endDay = endDate ? parseIsoDateOnlyForFilter(String(endDate)) : undefined;
+
+    if (startDay) {
       query.andWhere(
-        '(order.expectedShipDate >= :startDate OR (order.expectedShipDate IS NULL AND order.actualShipDate >= :startDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate >= :startDate3))',
-        {
-          startDate: new Date(startDate),
-          startDate2: new Date(startDate),
-          startDate3: new Date(startDate)
-        }
+        'CAST(COALESCE(order.actualShipDate, order.expectedShipDate, sf.shipmentDate) AS date) >= CAST(:startDate AS date)',
+        { startDate: startDay }
       );
     }
 
-    if (endDate) {
-      const endDateObj = new Date(endDate);
-      endDateObj.setHours(23, 59, 59, 999);
+    if (endDay) {
       query.andWhere(
-        '(order.expectedShipDate <= :endDate OR (order.expectedShipDate IS NULL AND order.actualShipDate <= :endDate2) OR (order.expectedShipDate IS NULL AND order.actualShipDate IS NULL AND sf.shipmentDate <= :endDate3))',
-        {
-          endDate: endDateObj,
-          endDate2: endDateObj,
-          endDate3: endDateObj
-        }
+        'CAST(COALESCE(order.actualShipDate, order.expectedShipDate, sf.shipmentDate) AS date) <= CAST(:endDate AS date)',
+        { endDate: endDay }
       );
     }
 
@@ -50,19 +48,17 @@ export class DateFilterBuilder {
   }
 
   /**
-   * 为国家筛选添加条件：
-   * 数据链：biz_containers --[container_number]--> biz_replenishment_orders 取得 sell_to_country
-   *        → sell_to_country 与 biz_customers.customer_name 关联 → 取 biz_customers.country 作为国家过滤值
-   * 即：JOIN biz_customers cust ON cust.customer_name = order.sell_to_country，过滤 WHERE cust.country = :countryCode
+   * 为国家筛选添加条件（已带 order 连接时）
    */
   static addCountryFilters(
     query: SelectQueryBuilder<any>,
     countryCode?: string
   ): SelectQueryBuilder<any> {
-    const raw = (countryCode !== undefined && countryCode !== null ? String(countryCode).trim() : getScopedCountryCode()) || '';
+    const raw =
+      (countryCode !== undefined && countryCode !== null ? String(countryCode).trim() : getScopedCountryCode()) || '';
     const code = normalizeCountryCode(raw);
     if (!code) return query;
-    query.leftJoin('biz_customers', 'cust', 'cust.customer_name = order.sell_to_country');
+    query.leftJoin('biz_customers', 'cust', TYPEORM_ORDER_CUSTOMER_JOIN_ON);
     query.andWhere('cust.country = :countryCode', { countryCode: code });
     return query;
   }
@@ -112,5 +108,80 @@ export class DateFilterBuilder {
    */
   static getDateRangeSubqueryRaw(startDate: string, endDate: string): { sql: string; params: any[] } {
     return getDateRangeSubqueryRawImpl(startDate, endDate);
+  }
+
+  /**
+   * 列表查询：用单一 EXISTS 同时施加国家筛选（可选）与出运日筛选（可选），
+   * 要求同一备货单行同时满足国家与日期，与统计子查询口径一致。
+   */
+  static addListFiltersAsExists(
+    query: SelectQueryBuilder<any>,
+    params: { startDate?: string; endDate?: string; countryCode?: string }
+  ): SelectQueryBuilder<any> {
+    const dateParts: string[] = [];
+    const dateParams: Record<string, unknown> = {};
+    const startDay = params.startDate ? parseIsoDateOnlyForFilter(String(params.startDate)) : undefined;
+    const endDay = params.endDate ? parseIsoDateOnlyForFilter(String(params.endDate)) : undefined;
+    if (startDay) {
+      dateParts.push(
+        '(COALESCE(ro.actual_ship_date, ro.expected_ship_date, sf2.shipment_date)::date) >= CAST(:startDate AS date)'
+      );
+      dateParams.startDate = startDay;
+    }
+    if (endDay) {
+      dateParts.push(
+        '(COALESCE(ro.actual_ship_date, ro.expected_ship_date, sf2.shipment_date)::date) <= CAST(:endDate AS date)'
+      );
+      dateParams.endDate = endDay;
+    }
+    const hasDate = dateParts.length > 0;
+
+    const rawCountry =
+      (params.countryCode !== undefined && params.countryCode !== null
+        ? String(params.countryCode).trim()
+        : getScopedCountryCode()) || '';
+    const code = normalizeCountryCode(rawCountry);
+    const hasCountry = !!code;
+
+    if (!hasDate && !hasCountry) return query;
+
+    const mergeParams = { ...dateParams, ...(hasCountry ? { countryCode: code } : {}) };
+
+    if (hasCountry && hasDate) {
+      query.andWhere(
+        `EXISTS (
+        SELECT 1 FROM biz_replenishment_orders ro
+        LEFT JOIN process_sea_freight sf2 ON sf2.bill_of_lading_number = "container"."bill_of_lading_number"
+        INNER JOIN biz_customers cust ON (
+          ${RAW_RO_CUSTOMER_JOIN_ON}
+        ) AND cust.country = :countryCode
+        WHERE ro.container_number = "container"."container_number"
+        AND ${dateParts.join(' AND ')}
+      )`,
+        mergeParams
+      );
+    } else if (hasCountry && !hasDate) {
+      query.andWhere(
+        `EXISTS (
+        SELECT 1 FROM biz_replenishment_orders ro
+        INNER JOIN biz_customers cust ON (
+          ${RAW_RO_CUSTOMER_JOIN_ON}
+        ) AND cust.country = :countryCode
+        WHERE ro.container_number = "container"."container_number"
+      )`,
+        { countryCode: code }
+      );
+    } else {
+      query.andWhere(
+        `EXISTS (
+        SELECT 1 FROM biz_replenishment_orders ro
+        LEFT JOIN process_sea_freight sf2 ON sf2.bill_of_lading_number = "container"."bill_of_lading_number"
+        WHERE ro.container_number = "container"."container_number"
+        AND ${dateParts.join(' AND ')}
+      )`,
+        dateParams
+      );
+    }
+    return query;
   }
 }
