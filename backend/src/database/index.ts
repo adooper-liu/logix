@@ -30,6 +30,7 @@ import { ExtFeituoImportTable1 } from '../entities/ExtFeituoImportTable1';
 import { ExtFeituoImportTable2 } from '../entities/ExtFeituoImportTable2';
 import { ExtFeituoPlace } from '../entities/ExtFeituoPlace';
 import { ExtFeituoStatusEvent } from '../entities/ExtFeituoStatusEvent';
+import { ExtFeituoVessel } from '../entities/ExtFeituoVessel';
 import { SysDataChangeLog } from '../entities/SysDataChangeLog';
 import { Port } from '../entities/Port';
 import { ShippingCompany } from '../entities/ShippingCompany';
@@ -105,6 +106,7 @@ export const dataSourceOptions: DataSourceOptions = {
     ExtFeituoImportTable2,
     ExtFeituoPlace,
     ExtFeituoStatusEvent,
+    ExtFeituoVessel,
 
     // 系统审计表 (System Audit Tables)
     SysDataChangeLog,

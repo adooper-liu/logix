@@ -13,6 +13,7 @@
 /** 分组名称 -> 分组ID 映射 */
 export const GROUP_NAME_TO_ID: Record<string, number> = {
   '基本信息': 1,
+  '基础信息': 1,  // 与"基本信息"相同，部分Excel使用"基础信息"前缀
   '船公司信息': 2,
   '订舱信息': 3,
   '接货地信息': 4,

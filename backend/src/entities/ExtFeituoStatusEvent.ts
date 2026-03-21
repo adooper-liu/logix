@@ -21,9 +21,9 @@ export class ExtFeituoStatusEvent {
   @Column({ type: 'varchar', length: 50, nullable: true, name: 'bill_of_lading_number' })
   billOfLadingNumber: string | null;
 
-  // 状态基本信息
-  @Column({ type: 'int', name: 'status_index' })
-  statusIndex: number;
+  // 状态基本信息（API 同步时有值，Excel 导入时为 NULL）
+  @Column({ type: 'int', nullable: true, name: 'status_index' })
+  statusIndex: number | null;
 
   @Column({ type: 'varchar', length: 20, name: 'event_code' })
   eventCode: string;
@@ -94,8 +94,8 @@ export class ExtFeituoStatusEvent {
   @Column({ type: 'varchar', length: 50, default: 'API', name: 'data_source' })
   dataSource: string;
 
-  @Column({ type: 'jsonb' })
-  rawJson: Record<string, unknown>;
+  @Column({ type: 'jsonb', nullable: true })
+  rawJson: Record<string, unknown> | null;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

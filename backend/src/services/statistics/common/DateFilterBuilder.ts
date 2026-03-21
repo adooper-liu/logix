@@ -147,38 +147,48 @@ export class DateFilterBuilder {
 
     const mergeParams = { ...dateParams, ...(hasCountry ? { countryCode: code } : {}) };
 
+    // 使用 OR 逻辑：有备货单的按国家/日期筛选，无备货单的直接显示（支持飞驼导入数据）
     if (hasCountry && hasDate) {
       query.andWhere(
-        `EXISTS (
-        SELECT 1 FROM biz_replenishment_orders ro
-        LEFT JOIN process_sea_freight sf2 ON sf2.bill_of_lading_number = "container"."bill_of_lading_number"
-        INNER JOIN biz_customers cust ON (
-          ${RAW_RO_CUSTOMER_JOIN_ON}
-        ) AND cust.country = :countryCode
-        WHERE ro.container_number = "container"."container_number"
-        AND ${dateParts.join(' AND ')}
-      )`,
+        `(
+          EXISTS (
+            SELECT 1 FROM biz_replenishment_orders ro
+            LEFT JOIN process_sea_freight sf2 ON sf2.bill_of_lading_number = "container"."bill_of_lading_number"
+            INNER JOIN biz_customers cust ON (
+              ${RAW_RO_CUSTOMER_JOIN_ON}
+            ) AND cust.country = :countryCode
+            WHERE ro.container_number = "container"."container_number"
+            AND ${dateParts.join(' AND ')}
+          )
+          OR NOT EXISTS (SELECT 1 FROM biz_replenishment_orders ro2 WHERE ro2.container_number = "container"."container_number")
+        )`,
         mergeParams
       );
     } else if (hasCountry && !hasDate) {
       query.andWhere(
-        `EXISTS (
-        SELECT 1 FROM biz_replenishment_orders ro
-        INNER JOIN biz_customers cust ON (
-          ${RAW_RO_CUSTOMER_JOIN_ON}
-        ) AND cust.country = :countryCode
-        WHERE ro.container_number = "container"."container_number"
-      )`,
+        `(
+          EXISTS (
+            SELECT 1 FROM biz_replenishment_orders ro
+            INNER JOIN biz_customers cust ON (
+              ${RAW_RO_CUSTOMER_JOIN_ON}
+            ) AND cust.country = :countryCode
+            WHERE ro.container_number = "container"."container_number"
+          )
+          OR NOT EXISTS (SELECT 1 FROM biz_replenishment_orders ro2 WHERE ro2.container_number = "container"."container_number")
+        )`,
         { countryCode: code }
       );
     } else {
       query.andWhere(
-        `EXISTS (
-        SELECT 1 FROM biz_replenishment_orders ro
-        LEFT JOIN process_sea_freight sf2 ON sf2.bill_of_lading_number = "container"."bill_of_lading_number"
-        WHERE ro.container_number = "container"."container_number"
-        AND ${dateParts.join(' AND ')}
-      )`,
+        `(
+          EXISTS (
+            SELECT 1 FROM biz_replenishment_orders ro
+            LEFT JOIN process_sea_freight sf2 ON sf2.bill_of_lading_number = "container"."bill_of_lading_number"
+            WHERE ro.container_number = "container"."container_number"
+            AND ${dateParts.join(' AND ')}
+          )
+          OR NOT EXISTS (SELECT 1 FROM biz_replenishment_orders ro2 WHERE ro2.container_number = "container"."container_number")
+        )`,
         dateParams
       );
     }

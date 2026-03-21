@@ -86,14 +86,34 @@ export class WarehouseTruckingMappingController {
    */
   create = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { country, warehouseCode, warehouseName, truckingCompanyId, truckingCompanyName, mappingType, isDefault, isActive, remarks } = req.body;
+      const {
+        country,
+        warehouseCode,
+        warehouseName,
+        truckingCompanyId,
+        truckingCompanyName,
+        mappingType,
+        isDefault,
+        isActive,
+        remarks
+      } = req.body;
 
       const result = await AppDataSource.query(
         `INSERT INTO dict_warehouse_trucking_mapping 
          (country, warehouse_code, warehouse_name, trucking_company_id, trucking_company_name, mapping_type, is_default, is_active, remarks, created_at, updated_at)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
          RETURNING *`,
-        [country, warehouseCode, warehouseName, truckingCompanyId, truckingCompanyName, mappingType || 'DEFAULT', isDefault || false, isActive !== false, remarks || '']
+        [
+          country,
+          warehouseCode,
+          warehouseName,
+          truckingCompanyId,
+          truckingCompanyName,
+          mappingType || 'DEFAULT',
+          isDefault || false,
+          isActive !== false,
+          remarks || ''
+        ]
       );
 
       res.json({ success: true, data: result[0] });
@@ -109,7 +129,17 @@ export class WarehouseTruckingMappingController {
   update = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const { country, warehouseCode, warehouseName, truckingCompanyId, truckingCompanyName, mappingType, isDefault, isActive, remarks } = req.body;
+      const {
+        country,
+        warehouseCode,
+        warehouseName,
+        truckingCompanyId,
+        truckingCompanyName,
+        mappingType,
+        isDefault,
+        isActive,
+        remarks
+      } = req.body;
 
       const result = await AppDataSource.query(
         `UPDATE dict_warehouse_trucking_mapping 
@@ -117,7 +147,18 @@ export class WarehouseTruckingMappingController {
              trucking_company_name = $5, mapping_type = $6, is_default = $7, is_active = $8, remarks = $9, updated_at = NOW()
          WHERE id = $10
          RETURNING *`,
-        [country, warehouseCode, warehouseName, truckingCompanyId, truckingCompanyName, mappingType, isDefault, isActive, remarks, id]
+        [
+          country,
+          warehouseCode,
+          warehouseName,
+          truckingCompanyId,
+          truckingCompanyName,
+          mappingType,
+          isDefault,
+          isActive,
+          remarks,
+          id
+        ]
       );
 
       if (result.length === 0) {
@@ -174,7 +215,9 @@ export class WarehouseTruckingMappingController {
 
           if (existing.length > 0) {
             // 已存在，执行更新
-            logger.info(`[WarehouseTruckingMapping batchCreate] 更新已有映射：${record.warehouseName} - ${record.truckingCompanyName}`);
+            logger.info(
+              `[WarehouseTruckingMapping batchCreate] 更新已有映射：${record.warehouseName} - ${record.truckingCompanyName}`
+            );
             await AppDataSource.query(
               `UPDATE dict_warehouse_trucking_mapping 
                SET warehouse_name = $1, trucking_company_name = $2, 
@@ -182,28 +225,42 @@ export class WarehouseTruckingMappingController {
                    is_active = $5, remarks = $6, updated_at = NOW()
                WHERE id = $7`,
               [
-                record.warehouseName, record.truckingCompanyName,
-                record.mappingType || 'DEFAULT', record.isDefault || false,
-                record.isActive !== false, record.remarks || '',
+                record.warehouseName,
+                record.truckingCompanyName,
+                record.mappingType || 'DEFAULT',
+                record.isDefault || false,
+                record.isActive !== false,
+                record.remarks || '',
                 existing[0].id
               ]
             );
             skipCount++;
           } else {
             // 不存在，执行插入
-            logger.info(`[WarehouseTruckingMapping batchCreate] 插入新映射：${record.warehouseName} - ${record.truckingCompanyName}`);
+            logger.info(
+              `[WarehouseTruckingMapping batchCreate] 插入新映射：${record.warehouseName} - ${record.truckingCompanyName}`
+            );
             const insertResult = await AppDataSource.query(
               `INSERT INTO dict_warehouse_trucking_mapping 
                (country, warehouse_code, warehouse_name, trucking_company_id, trucking_company_name, mapping_type, is_default, is_active, remarks, created_at, updated_at)
                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
                RETURNING *`,
               [
-                record.country, record.warehouseCode, record.warehouseName, 
-                record.truckingCompanyId, record.truckingCompanyName, 
-                record.mappingType || 'DEFAULT', record.isDefault || false, record.isActive !== false, record.remarks || ''
+                record.country,
+                record.warehouseCode,
+                record.warehouseName,
+                record.truckingCompanyId,
+                record.truckingCompanyName,
+                record.mappingType || 'DEFAULT',
+                record.isDefault || false,
+                record.isActive !== false,
+                record.remarks || ''
               ]
             );
-            logger.info('[WarehouseTruckingMapping batchCreate] 插入成功，ID:', insertResult[0]?.id);
+            logger.info(
+              '[WarehouseTruckingMapping batchCreate] 插入成功，ID:',
+              insertResult[0]?.id
+            );
             successCount++;
           }
         } catch (innerError: any) {
@@ -218,11 +275,11 @@ export class WarehouseTruckingMappingController {
       if (errors.length > 0) {
         logger.warn('[WarehouseTruckingMapping batchCreate] 部分记录失败:', errors);
       }
-      
+
       logger.info('[WarehouseTruckingMapping batchCreate]', resultMessage);
-      
-      res.json({ 
-        success: true, 
+
+      res.json({
+        success: true,
         message: resultMessage,
         stats: {
           total: records.length,

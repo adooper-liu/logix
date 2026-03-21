@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Refresh, Upload, Download } from '@element-plus/icons-vue'
-import * as XLSX from 'xlsx'
+import { Download, Plus, Refresh, Search, Upload } from '@element-plus/icons-vue'
 import axios from 'axios'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { onMounted, reactive, ref } from 'vue'
+import * as XLSX from 'xlsx'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1'
 
@@ -24,7 +24,7 @@ const loadDictOptions = async () => {
     const [portRes, truckingRes, overseasRes] = await Promise.all([
       axios.get(`${BASE_URL}/dict/ports`),
       axios.get(`${BASE_URL}/dict/trucking-companies`),
-      axios.get(`${BASE_URL}/dict/overseas-companies`)
+      axios.get(`${BASE_URL}/dict/overseas-companies`),
     ])
     portOptions.value = portRes.data?.data || []
     truckingCompanyOptions.value = truckingRes.data?.data || []
@@ -72,14 +72,14 @@ const tableData = ref<TruckingPortRecord[]>([])
 const pagination = reactive({
   page: 1,
   pageSize: 20,
-  total: 0
+  total: 0,
 })
 
 // 搜索表单
 const searchForm = reactive({
   country: '',
   truckingCompanyName: '',
-  portName: ''
+  portName: '',
 })
 
 // 弹窗
@@ -101,7 +101,7 @@ const formData = reactive<TruckingPortRecord>({
   mappingType: 'DEFAULT',
   isDefault: false,
   isActive: true,
-  remarks: ''
+  remarks: '',
 })
 
 // Excel 导入
@@ -111,7 +111,7 @@ const parsedRecords = ref<TruckingPortRecord[]>([])
 const importResult = reactive({
   success: 0,
   failed: 0,
-  errors: [] as string[]
+  errors: [] as string[],
 })
 
 // ==================== API方法 ====================
@@ -121,7 +121,7 @@ const loadData = async () => {
     const params = {
       page: pagination.page,
       pageSize: pagination.pageSize,
-      ...searchForm
+      ...searchForm,
     }
     const response = await axios.get(`${BASE_URL}/trucking-port-mapping`, { params })
     tableData.value = response.data?.data || []
@@ -164,7 +164,7 @@ const handleCreate = () => {
     mappingType: 'DEFAULT',
     isDefault: false,
     isActive: true,
-    remarks: ''
+    remarks: '',
   })
   dialogVisible.value = true
 }
@@ -198,7 +198,7 @@ const handleSave = async () => {
 const handleDelete = async (row: TruckingPortRecord) => {
   try {
     await ElMessageBox.confirm('确认删除该映射记录?', '提示', {
-      type: 'warning'
+      type: 'warning',
     })
     await axios.delete(`${BASE_URL}/trucking-port-mapping/${row.id}`)
     ElMessage.success('删除成功')
@@ -221,7 +221,7 @@ const handleImportClick = () => {
 const handleFileChange = async (file: any) => {
   // Element Plus Upload 组件传递的是 file 对象，不是 Event
   if (!file || !file.raw) return
-  
+
   const rawFile = file.raw as File
   if (!rawFile) return
 
@@ -246,12 +246,22 @@ const handleFileChange = async (file: any) => {
     // 转换数据 - 支持多种列名变体
     const records: TruckingPortRecord[] = (jsonData as any[]).map((row: any) => {
       // 支持多种列名变体
-      const truckingCompanyId = row['车队代码'] || row['车队.ID'] || row['trucking_company_id'] || row['trucking_company_code'] || ''
-      const truckingCompanyName = row['车队名称'] || row['车队'] || row['trucking_company_name'] || row['trucking_company'] || ''
+      const truckingCompanyId =
+        row['车队代码'] ||
+        row['车队.ID'] ||
+        row['trucking_company_id'] ||
+        row['trucking_company_code'] ||
+        ''
+      const truckingCompanyName =
+        row['车队名称'] ||
+        row['车队'] ||
+        row['trucking_company_name'] ||
+        row['trucking_company'] ||
+        ''
       const portCode = row['港口代码'] || row['港口.ID'] || row['port_code'] || ''
       const portName = row['港口名称'] || row['港口'] || row['port_name'] || ''
       const country = row['国家'] || row['country'] || ''
-      
+
       return {
         country: country?.trim() || '',
         truckingCompanyId: truckingCompanyId?.trim() || '',
@@ -265,7 +275,7 @@ const handleFileChange = async (file: any) => {
         mappingType: row['映射类型'] || row['mapping_type'] || 'DEFAULT',
         isDefault: row['默认'] === 'Y' || row['is_default'] === true || false,
         isActive: row['启用'] !== 'N' && row['is_active'] !== false,
-        remarks: row['备注'] || row['remarks'] || ''
+        remarks: row['备注'] || row['remarks'] || '',
       }
     })
 
@@ -273,7 +283,7 @@ const handleFileChange = async (file: any) => {
     const validRecords: TruckingPortRecord[] = []
     for (let i = 0; i < records.length; i++) {
       const record = records[i]
-      
+
       // 检查必填字段
       if (!record.country) {
         importResult.errors.push(`第${i + 2}行：缺少国家`)
@@ -290,13 +300,13 @@ const handleFileChange = async (file: any) => {
         importResult.failed++
         continue
       }
-      
+
       validRecords.push(record)
     }
 
     // 存储待导入的数据，等待用户确认
     parsedRecords.value = validRecords
-    
+
     // 显示预览信息
     if (validRecords.length > 0 && importResult.errors.length === 0) {
       ElMessage.success(`已读取 ${validRecords.length}条有效数据，请点击"确认导入"按钮`)
@@ -319,34 +329,36 @@ const confirmImport = async () => {
 
   try {
     importLoading.value = true
-    
+
     // 先处理车队：确保所有车队都存在于 dict_trucking_companies
     const uniqueTruckingCompanies = new Map<string, { name: string; country?: string }>()
     parsedRecords.value.forEach((record: TruckingPortRecord) => {
       if (record.truckingCompanyName && !uniqueTruckingCompanies.has(record.truckingCompanyName)) {
         uniqueTruckingCompanies.set(record.truckingCompanyName, {
           name: record.truckingCompanyName,
-          country: record.country
+          country: record.country,
         })
       }
     })
-    
+
     // 批量创建/更新车队 - 使用 dict-manage/TRUCKING_COMPANY 接口
     if (uniqueTruckingCompanies.size > 0) {
-      const truckingCompaniesData = Array.from(uniqueTruckingCompanies.entries()).map(([name, data]) => ({
-        companyCode: name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50), // 生成公司代码
-        companyName: name,
-        companyNameEn: name, // 暂时使用相同名称
-        country: data.country,
-        status: 'ACTIVE',
-        isActive: true
-      }))
-      
+      const truckingCompaniesData = Array.from(uniqueTruckingCompanies.entries()).map(
+        ([name, data]) => ({
+          companyCode: name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50), // 生成公司代码
+          companyName: name,
+          companyNameEn: name, // 暂时使用相同名称
+          country: data.country,
+          status: 'ACTIVE',
+          isActive: true,
+        })
+      )
+
       // 逐个创建或更新车队
       console.log('[导入] 开始处理车队，数量:', truckingCompaniesData.length)
       let createdCount = 0
       let updatedCount = 0
-      
+
       for (const company of truckingCompaniesData) {
         try {
           // 先尝试创建
@@ -357,14 +369,22 @@ const confirmImport = async () => {
           if (error?.response?.status === 400) {
             // 已存在，尝试更新
             try {
-              await axios.put(`${BASE_URL}/dict-manage/TRUCKING_COMPANY/${encodeURIComponent(company.companyCode)}`, {
-                companyName: company.companyName,
-                companyNameEn: company.companyNameEn,
-                country: company.country,
-                status: company.status,
-                isActive: company.isActive
-              })
-              console.log('[导入] ~ 车队已存在并更新:', company.companyName, '代码:', company.companyCode)
+              await axios.put(
+                `${BASE_URL}/dict-manage/TRUCKING_COMPANY/${encodeURIComponent(company.companyCode)}`,
+                {
+                  companyName: company.companyName,
+                  companyNameEn: company.companyNameEn,
+                  country: company.country,
+                  status: company.status,
+                  isActive: company.isActive,
+                }
+              )
+              console.log(
+                '[导入] ~ 车队已存在并更新:',
+                company.companyName,
+                '代码:',
+                company.companyCode
+              )
               updatedCount++
             } catch (updateError: any) {
               console.warn('[导入] 更新车队失败:', company.companyName, updateError?.message)
@@ -377,33 +397,36 @@ const confirmImport = async () => {
           }
         }
       }
-      
+
       console.log('[导入] 车队处理完成：新建', createdCount, '个，更新', updatedCount, '个')
-      
+
       // ⭐ 关键：用车队代码更新所有映射记录的 truckingCompanyId
       const companyCodeMap = new Map<string, string>()
       for (const [name, data] of uniqueTruckingCompanies.entries()) {
         const code = name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50)
         companyCodeMap.set(name, code)
       }
-      
+
       // 更新所有映射记录
       parsedRecords.value.forEach((record: TruckingPortRecord) => {
         if (record.truckingCompanyName && companyCodeMap.has(record.truckingCompanyName)) {
           record.truckingCompanyId = companyCodeMap.get(record.truckingCompanyName) || ''
         }
       })
-      
+
       console.log('[导入] 已更新所有映射记录的车队代码')
     }
-    
+
     // 现在导入映射关系
     console.log('[导入] 开始导入映射关系，数量:', parsedRecords.value.length)
     console.log('[导入] 第一条映射数据:', parsedRecords.value[0])
-    
-    const response = await axios.post(`${BASE_URL}/trucking-port-mapping/batch`, parsedRecords.value)
+
+    const response = await axios.post(
+      `${BASE_URL}/trucking-port-mapping/batch`,
+      parsedRecords.value
+    )
     console.log('[导入] 映射关系导入响应:', response.data)
-    
+
     importResult.success = parsedRecords.value.length
     ElMessage.success(`导入成功：${parsedRecords.value.length}条`)
     loadData()
@@ -419,36 +442,36 @@ const confirmImport = async () => {
 // 导出模板
 const handleExportTemplate = () => {
   const templateData = [
-    { 
-      '国家': 'US', 
-      '车队代码': 'LFT001',
-      '车队名称': 'LFT TRANSPORTATION INC', 
-      '港口代码': 'USSTA',
-      '港口名称': '斯塔滕岛', 
-      '堆场容量': 0, 
-      '收费标准': 50, 
-      '单位': 'USD', 
-      '堆场操作费': 0,
-      '映射类型': 'DEFAULT',
-      '默认': 'Y',
-      '启用': 'Y',
-      '备注': ''
+    {
+      国家: 'US',
+      车队代码: 'LFT001',
+      车队名称: 'LFT TRANSPORTATION INC',
+      港口代码: 'USSTA',
+      港口名称: '斯塔滕岛',
+      堆场容量: 0,
+      收费标准: 50,
+      单位: 'USD',
+      堆场操作费: 0,
+      映射类型: 'DEFAULT',
+      默认: 'Y',
+      启用: 'Y',
+      备注: '',
     },
-    { 
-      '国家': 'CA', 
-      '车队代码': 'SAR001',
-      '车队名称': 'S AND R TRUCKING', 
-      '港口代码': 'CAVAN',
-      '港口名称': '多伦多', 
-      '堆场容量': 300, 
-      '收费标准': 60, 
-      '单位': 'CAD', 
-      '堆场操作费': 0,
-      '映射类型': 'DEFAULT',
-      '默认': 'Y',
-      '启用': 'Y',
-      '备注': ''
-    }
+    {
+      国家: 'CA',
+      车队代码: 'SAR001',
+      车队名称: 'S AND R TRUCKING',
+      港口代码: 'CAVAN',
+      港口名称: '多伦多',
+      堆场容量: 300,
+      收费标准: 60,
+      单位: 'CAD',
+      堆场操作费: 0,
+      映射类型: 'DEFAULT',
+      默认: 'Y',
+      启用: 'Y',
+      备注: '',
+    },
   ]
   const ws = XLSX.utils.json_to_sheet(templateData)
   const wb = XLSX.utils.book_new()
@@ -469,15 +492,35 @@ onMounted(() => {
     <el-card class="search-card" shadow="never">
       <el-form :model="searchForm" inline>
         <el-form-item label="国家">
-          <el-select v-model="searchForm.country" placeholder="请选择" clearable style="width: 150px">
-            <el-option v-for="item in countryOptions" :key="item.code" :label="item.name" :value="item.code" />
+          <el-select
+            v-model="searchForm.country"
+            placeholder="请选择"
+            clearable
+            style="width: 150px"
+          >
+            <el-option
+              v-for="item in countryOptions"
+              :key="item.code"
+              :label="item.name"
+              :value="item.code"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="车队">
-          <el-input v-model="searchForm.truckingCompanyName" placeholder="请输入" clearable style="width: 150px" />
+          <el-input
+            v-model="searchForm.truckingCompanyName"
+            placeholder="请输入"
+            clearable
+            style="width: 150px"
+          />
         </el-form-item>
         <el-form-item label="港口">
-          <el-input v-model="searchForm.portName" placeholder="请输入" clearable style="width: 150px" />
+          <el-input
+            v-model="searchForm.portName"
+            placeholder="请输入"
+            clearable
+            style="width: 150px"
+          />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :icon="Search" @click="handleSearch">搜索</el-button>
@@ -507,12 +550,16 @@ onMounted(() => {
         <el-table-column prop="yard_operation_fee" label="堆场操作费" width="100" align="right" />
         <el-table-column prop="is_default" label="默认" width="60">
           <template #default="{ row }">
-            <el-tag :type="row.is_default ? 'success' : 'info'" size="small">{{ row.is_default ? '是' : '否' }}</el-tag>
+            <el-tag :type="row.is_default ? 'success' : 'info'" size="small">{{
+              row.is_default ? '是' : '否'
+            }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="is_active" label="状态" width="60">
           <template #default="{ row }">
-            <el-tag :type="row.is_active ? 'success' : 'danger'" size="small">{{ row.is_active ? '启用' : '禁用' }}</el-tag>
+            <el-tag :type="row.is_active ? 'success' : 'danger'" size="small">{{
+              row.is_active ? '启用' : '禁用'
+            }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="120" fixed="right">
@@ -540,30 +587,42 @@ onMounted(() => {
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="国家" required>
-              <el-select v-model="formData.country" placeholder="请选择" style="width: 100%" filterable>
-                <el-option v-for="item in countryOptions" :key="item.code" :label="item.name" :value="item.code" />
+              <el-select
+                v-model="formData.country"
+                placeholder="请选择"
+                style="width: 100%"
+                filterable
+              >
+                <el-option
+                  v-for="item in countryOptions"
+                  :key="item.code"
+                  :label="item.name"
+                  :value="item.code"
+                />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="车队" required>
-              <el-select 
-                v-model="formData.truckingCompanyId" 
-                placeholder="请选择车队" 
+              <el-select
+                v-model="formData.truckingCompanyId"
+                placeholder="请选择车队"
                 style="width: 100%"
                 filterable
-                @change="(val: string) => {
-                  const trucking = truckingCompanyOptions.find(t => t.code === val)
-                  if (trucking) {
-                    formData.truckingCompanyName = trucking.name
+                @change="
+                  (val: string) => {
+                    const trucking = truckingCompanyOptions.find(t => t.code === val)
+                    if (trucking) {
+                      formData.truckingCompanyName = trucking.name
+                    }
                   }
-                }"
+                "
               >
-                <el-option 
-                  v-for="item in truckingCompanyOptions" 
-                  :key="item.code" 
-                  :label="`${item.name} (${item.code})`" 
-                  :value="item.code" 
+                <el-option
+                  v-for="item in truckingCompanyOptions"
+                  :key="item.code"
+                  :label="`${item.name} (${item.code})`"
+                  :value="item.code"
                 />
               </el-select>
             </el-form-item>
@@ -572,23 +631,25 @@ onMounted(() => {
         <el-row :gutter="20">
           <el-col :span="24">
             <el-form-item label="港口" required>
-              <el-select 
-                v-model="formData.portCode" 
-                placeholder="请选择港口" 
+              <el-select
+                v-model="formData.portCode"
+                placeholder="请选择港口"
                 style="width: 100%"
                 filterable
-                @change="(val: string) => {
-                  const port = portOptions.find(p => p.code === val)
-                  if (port) {
-                    formData.portName = port.name
+                @change="
+                  (val: string) => {
+                    const port = portOptions.find(p => p.code === val)
+                    if (port) {
+                      formData.portName = port.name
+                    }
                   }
-                }"
+                "
               >
-                <el-option 
-                  v-for="item in portOptions" 
-                  :key="item.code" 
-                  :label="`${item.name} (${item.code})`" 
-                  :value="item.code" 
+                <el-option
+                  v-for="item in portOptions"
+                  :key="item.code"
+                  :label="`${item.name} (${item.code})`"
+                  :value="item.code"
                 />
               </el-select>
             </el-form-item>
@@ -597,14 +658,24 @@ onMounted(() => {
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="堆场容量">
-              <el-input-number v-model="formData.yardCapacity" :min="0" :precision="2" style="width: 100%" />
+              <el-input-number
+                v-model="formData.yardCapacity"
+                :min="0"
+                :precision="2"
+                style="width: 100%"
+              />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="20">
           <el-col :span="8">
             <el-form-item label="收费标准">
-              <el-input-number v-model="formData.standardRate" :min="0" :precision="2" style="width: 100%" />
+              <el-input-number
+                v-model="formData.standardRate"
+                :min="0"
+                :precision="2"
+                style="width: 100%"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="8">
@@ -614,7 +685,12 @@ onMounted(() => {
           </el-col>
           <el-col :span="8">
             <el-form-item label="堆场操作费">
-              <el-input-number v-model="formData.yardOperationFee" :min="0" :precision="2" style="width: 100%" />
+              <el-input-number
+                v-model="formData.yardOperationFee"
+                :min="0"
+                :precision="2"
+                style="width: 100%"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -642,16 +718,14 @@ onMounted(() => {
 
     <!-- Excel 导入弹窗 -->
     <el-dialog v-model="importDialogVisible" title="Excel 导入" width="700px">
-      <el-alert 
-        type="info" 
-        :closable="false" 
-        style="margin-bottom: 16px"
-      >
+      <el-alert type="info" :closable="false" style="margin-bottom: 16px">
         <template #title>
           <div>支持的列名格式：</div>
-          <ul style="margin: 8px 0 0 20px; padding: 0;">
+          <ul style="margin: 8px 0 0 20px; padding: 0">
             <li>必填字段：国家、车队名称、港口名称</li>
-            <li>可选字段：车队代码、港口代码、堆场容量、收费标准、单位、堆场操作费、映射类型、默认、启用、备注</li>
+            <li>
+              可选字段：车队代码、港口代码、堆场容量、收费标准、单位、堆场操作费、映射类型、默认、启用、备注
+            </li>
             <li>默认值：映射类型=DEFAULT，默认=Y，启用=Y</li>
             <li>注意：缺少必填字段的行将被跳过</li>
           </ul>
@@ -670,12 +744,17 @@ onMounted(() => {
         </template>
       </el-upload>
 
-      <div v-if="importResult.errors.length > 0" style="margin-top: 16px; max-height: 300px; overflow-y: auto;">
+      <div
+        v-if="importResult.errors.length > 0"
+        style="margin-top: 16px; max-height: 300px; overflow-y: auto"
+      >
         <el-alert type="error" :closable="false">
           <template #title>
             <div>验证失败：{{ importResult.failed }}条</div>
           </template>
-          <div v-for="(err, idx) in importResult.errors" :key="idx" style="margin-bottom: 4px;">{{ err }}</div>
+          <div v-for="(err, idx) in importResult.errors" :key="idx" style="margin-bottom: 4px">
+            {{ err }}
+          </div>
         </el-alert>
       </div>
 
@@ -683,10 +762,13 @@ onMounted(() => {
         <el-alert type="success" :closable="false" :title="`导入成功: ${importResult.success}条`" />
       </div>
 
-      <div v-if="parsedRecords.length > 0 && importResult.errors.length === 0" style="margin-top: 16px">
-        <el-alert 
-          type="success" 
-          :closable="false" 
+      <div
+        v-if="parsedRecords.length > 0 && importResult.errors.length === 0"
+        style="margin-top: 16px"
+      >
+        <el-alert
+          type="success"
+          :closable="false"
           :title="`已读取 ${parsedRecords.length}条有效数据`"
           show-icon
         />
@@ -694,9 +776,9 @@ onMounted(() => {
 
       <template #footer>
         <el-button @click="importDialogVisible = false">关闭</el-button>
-        <el-button 
-          type="primary" 
-          @click="confirmImport" 
+        <el-button
+          type="primary"
+          @click="confirmImport"
           :disabled="!parsedRecords.length || importResult.errors.length > 0"
           :loading="importLoading"
         >

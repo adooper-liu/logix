@@ -55,6 +55,33 @@ export class ImportController {
    * 当 customer_code 为空且 sell_to_country 有值时，从 biz_customers 补全 customer_code
    * 见 15-排柜数据补全与缺省方案.md
    */
+  /**
+   * 根据 customer_name 自动填充 sell_to_country
+   * 从 biz_customers 表查询 customer_name 对应的 country 字段
+   */
+  private async fillSellToCountryFromCustomer(orderData: {
+    customerName?: string;
+    sellToCountry?: string;
+  }): Promise<void> {
+    // 如果 sell_to_country 已有值，不覆盖
+    if (orderData.sellToCountry?.trim()) return;
+    // 如果 customer_name 为空，无法查询
+    if (!orderData.customerName?.trim()) return;
+
+    const cust = await this.customerRepository.findOne({
+      where: { customerName: orderData.customerName.trim() },
+      select: ['country']
+    });
+    if (cust?.country) {
+      orderData.sellToCountry = cust.country;
+      logger.info(`[Import] 从 customer_name 补全 sell_to_country: ${cust.country}`);
+    }
+  }
+
+  /**
+   * 当 customer_code 为空且 sell_to_country 有值时，从 biz_customers 补全 customer_code
+   * 见 15-排柜数据补全与缺省方案.md
+   */
   private async fillCustomerCodeFromSellToCountry(orderData: {
     customerCode?: string;
     sellToCountry?: string;
@@ -568,6 +595,9 @@ export class ImportController {
           if (containerData?.containerNumber) {
             orderData.containerNumber = containerData.containerNumber;
           }
+          // 先根据 customer_name 自动填充 sell_to_country
+          await this.fillSellToCountryFromCustomer(orderData);
+          // 再从 sell_to_country 补全 customer_code
           await this.fillCustomerCodeFromSellToCountry(orderData);
           logger.info('[Import] 处理备货单:', orderData.orderNumber);
 
@@ -590,8 +620,14 @@ export class ImportController {
           logger.info(`[Import] 处理港口操作，数量: ${portOperations.length}`);
 
           for (const port of portOperations) {
-            if (!port.containerNumber || !port.portType) {
-              logger.warn('[Import] 跳过无效港口操作:', port);
+            // portType 默认为 destination（目的港）
+            if (!port.portType) {
+              port.portType = 'destination';
+              logger.info(`[Import] 港口操作缺少portType，使用默认值 destination`);
+            }
+            
+            if (!port.containerNumber) {
+              logger.warn('[Import] 跳过无效港口操作（缺少containerNumber）:', port);
               continue;
             }
 
@@ -977,6 +1013,9 @@ export class ImportController {
             if (containerData?.containerNumber) {
               orderData.containerNumber = containerData.containerNumber;
             }
+            // 先根据 customer_name 自动填充 sell_to_country
+            await this.fillSellToCountryFromCustomer(orderData);
+            // 再从 sell_to_country 补全 customer_code
             await this.fillCustomerCodeFromSellToCountry(orderData);
             logger.info(`[Import] 第${i + 1}行: 创建备货单 - ${orderData.orderNumber}`);
             const existingOrder = await queryRunner.manager.findOne(ReplenishmentOrder, {

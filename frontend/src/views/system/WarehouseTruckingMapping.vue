@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Edit, Delete, Search, Refresh, Upload, Download } from '@element-plus/icons-vue'
-import * as XLSX from 'xlsx'
+import { Download, Plus, Refresh, Search, Upload } from '@element-plus/icons-vue'
 import axios from 'axios'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { onMounted, reactive, ref } from 'vue'
+import * as XLSX from 'xlsx'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1'
 
@@ -24,7 +24,7 @@ const loadDictOptions = async () => {
     const [warehouseRes, truckingRes, overseasRes] = await Promise.all([
       axios.get(`${BASE_URL}/dict/warehouses`),
       axios.get(`${BASE_URL}/dict/trucking-companies`),
-      axios.get(`${BASE_URL}/dict/overseas-companies`)
+      axios.get(`${BASE_URL}/dict/overseas-companies`),
     ])
     warehouseOptions.value = warehouseRes.data?.data || []
     truckingCompanyOptions.value = truckingRes.data?.data || []
@@ -65,14 +65,14 @@ const tableData = ref<WarehouseTruckingRecord[]>([])
 const pagination = reactive({
   page: 1,
   pageSize: 20,
-  total: 0
+  total: 0,
 })
 
 // 搜索表单
 const searchForm = reactive({
   country: '',
   warehouseCode: '',
-  truckingCompanyName: ''
+  truckingCompanyName: '',
 })
 
 // 弹窗
@@ -90,7 +90,7 @@ const formData = reactive<WarehouseTruckingRecord>({
   mappingType: 'DEFAULT',
   isDefault: false,
   isActive: true,
-  remarks: ''
+  remarks: '',
 })
 
 // Excel 导入
@@ -99,9 +99,9 @@ const importLoading = ref(false)
 const importResult = reactive({
   success: 0,
   failed: 0,
-  errors: [] as string[]
+  errors: [] as string[],
 })
-const pendingImportRecords = ref<WarehouseTruckingRecord[]>([])  // 待导入的数据
+const pendingImportRecords = ref<WarehouseTruckingRecord[]>([]) // 待导入的数据
 
 // ==================== API方法 ====================
 const loadData = async () => {
@@ -110,7 +110,7 @@ const loadData = async () => {
     const params = {
       page: pagination.page,
       pageSize: pagination.pageSize,
-      ...searchForm
+      ...searchForm,
     }
     const response = await axios.get(`${BASE_URL}/warehouse-trucking-mapping`, { params })
     tableData.value = response.data?.data || []
@@ -149,7 +149,7 @@ const handleCreate = () => {
     mappingType: 'DEFAULT',
     isDefault: false,
     isActive: true,
-    remarks: ''
+    remarks: '',
   })
   dialogVisible.value = true
 }
@@ -183,7 +183,7 @@ const handleSave = async () => {
 const handleDelete = async (row: WarehouseTruckingRecord) => {
   try {
     await ElMessageBox.confirm('确认删除该映射记录?', '提示', {
-      type: 'warning'
+      type: 'warning',
     })
     await axios.delete(`${BASE_URL}/warehouse-trucking-mapping/${row.id}`)
     ElMessage.success('删除成功')
@@ -206,7 +206,7 @@ const handleImportClick = () => {
 const handleFileChange = async (file: any) => {
   // Element Plus Upload 组件传递的是 file 对象，不是 Event
   if (!file || !file.raw) return
-  
+
   const rawFile = file.raw as File
   if (!rawFile) return
 
@@ -229,37 +229,51 @@ const handleFileChange = async (file: any) => {
     console.log('第一行数据:', jsonData[0])
 
     // 转换数据
-    const records: WarehouseTruckingRecord[] = (jsonData as any[]).map((row: any, index: number) => {
-      // 支持多种列名变体
-      const truckingCompanyId = row['车队代码'] || row['车队.ID'] || row['trucking_company_id'] || row['trucking_company_code'] || ''
-      const truckingCompanyName = row['车队'] || row['车队名称'] || row['trucking_company_name'] || row['trucking_company'] || ''
-      
-      const record = {
-        country: row['国家'] || row['country'] || '',
-        warehouseCode: row['仓库代码'] || row['warehouse_code'] || row['warehouse.code'] || '',
-        warehouseName: row['仓库名称'] || row['warehouse_name'] || row['warehouse.name'] || '',
-        truckingCompanyId,
-        truckingCompanyName,
-        mappingType: 'DEFAULT',
-        isDefault: false,
-        isActive: true,
-        remarks: ''
+    const records: WarehouseTruckingRecord[] = (jsonData as any[]).map(
+      (row: any, index: number) => {
+        // 支持多种列名变体
+        const truckingCompanyId =
+          row['车队代码'] ||
+          row['车队.ID'] ||
+          row['trucking_company_id'] ||
+          row['trucking_company_code'] ||
+          ''
+        const truckingCompanyName =
+          row['车队'] ||
+          row['车队名称'] ||
+          row['trucking_company_name'] ||
+          row['trucking_company'] ||
+          ''
+
+        const record = {
+          country: row['国家'] || row['country'] || '',
+          warehouseCode: row['仓库代码'] || row['warehouse_code'] || row['warehouse.code'] || '',
+          warehouseName: row['仓库名称'] || row['warehouse_name'] || row['warehouse.name'] || '',
+          truckingCompanyId,
+          truckingCompanyName,
+          mappingType: 'DEFAULT',
+          isDefault: false,
+          isActive: true,
+          remarks: '',
+        }
+
+        // 调试：打印前 3 条记录
+        if (index < 3) {
+          console.log(`[Excel 解析] 第${index + 1}条记录:`, record)
+        }
+
+        return record
       }
-      
-      // 调试：打印前 3 条记录
-      if (index < 3) {
-        console.log(`[Excel 解析] 第${index + 1}条记录:`, record)
-      }
-      
-      return record
-    })
+    )
 
     // 验证必填字段
     const validRecords: WarehouseTruckingRecord[] = []
     for (let i = 0; i < records.length; i++) {
       const record = records[i]
       if (!record.country || !record.warehouseCode || !record.truckingCompanyName) {
-        importResult.errors.push(`第${i + 2}行数据不完整：国家=${record.country}, 仓库代码=${record.warehouseCode}, 车队=${record.truckingCompanyName}`)
+        importResult.errors.push(
+          `第${i + 2}行数据不完整：国家=${record.country}, 仓库代码=${record.warehouseCode}, 车队=${record.truckingCompanyName}`
+        )
         importResult.failed++
       } else {
         validRecords.push(record)
@@ -268,7 +282,7 @@ const handleFileChange = async (file: any) => {
 
     // 存储待导入的数据，等待用户确认
     pendingImportRecords.value = validRecords
-    
+
     // 显示预览信息，但不自动导入
     if (validRecords.length > 0 && importResult.errors.length === 0) {
       ElMessage.info(`已读取 ${validRecords.length}条有效数据，请点击"确认导入"按钮`)
@@ -289,34 +303,36 @@ const confirmImport = async () => {
 
   try {
     importLoading.value = true
-    
+
     // 先处理车队：确保所有车队都存在于 dict_trucking_companies
     const uniqueTruckingCompanies = new Map<string, { name: string; country?: string }>()
     pendingImportRecords.value.forEach((record: WarehouseTruckingRecord) => {
       if (record.truckingCompanyName && !uniqueTruckingCompanies.has(record.truckingCompanyName)) {
         uniqueTruckingCompanies.set(record.truckingCompanyName, {
           name: record.truckingCompanyName,
-          country: record.country
+          country: record.country,
         })
       }
     })
-    
+
     // 批量创建/更新车队 - 使用 dict-manage/TRUCKING_COMPANY 接口
     if (uniqueTruckingCompanies.size > 0) {
-      const truckingCompaniesData = Array.from(uniqueTruckingCompanies.entries()).map(([name, data]) => ({
-        companyCode: name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50), // 生成公司代码
-        companyName: name,
-        companyNameEn: name, // 暂时使用相同名称
-        country: data.country,
-        status: 'ACTIVE',
-        isActive: true
-      }))
-      
+      const truckingCompaniesData = Array.from(uniqueTruckingCompanies.entries()).map(
+        ([name, data]) => ({
+          companyCode: name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50), // 生成公司代码
+          companyName: name,
+          companyNameEn: name, // 暂时使用相同名称
+          country: data.country,
+          status: 'ACTIVE',
+          isActive: true,
+        })
+      )
+
       // 逐个创建或更新车队
       console.log('[导入] 开始处理车队，数量:', truckingCompaniesData.length)
       let createdCount = 0
       let updatedCount = 0
-      
+
       for (const company of truckingCompaniesData) {
         try {
           // 先尝试创建
@@ -327,14 +343,22 @@ const confirmImport = async () => {
           if (error?.response?.status === 400) {
             // 已存在，尝试更新
             try {
-              await axios.put(`${BASE_URL}/dict-manage/TRUCKING_COMPANY/${encodeURIComponent(company.companyCode)}`, {
-                companyName: company.companyName,
-                companyNameEn: company.companyNameEn,
-                country: company.country,
-                status: company.status,
-                isActive: company.isActive
-              })
-              console.log('[导入] ~ 车队已存在并更新:', company.companyName, '代码:', company.companyCode)
+              await axios.put(
+                `${BASE_URL}/dict-manage/TRUCKING_COMPANY/${encodeURIComponent(company.companyCode)}`,
+                {
+                  companyName: company.companyName,
+                  companyNameEn: company.companyNameEn,
+                  country: company.country,
+                  status: company.status,
+                  isActive: company.isActive,
+                }
+              )
+              console.log(
+                '[导入] ~ 车队已存在并更新:',
+                company.companyName,
+                '代码:',
+                company.companyCode
+              )
               updatedCount++
             } catch (updateError: any) {
               console.warn('[导入] 更新车队失败:', company.companyName, updateError?.message)
@@ -347,31 +371,34 @@ const confirmImport = async () => {
           }
         }
       }
-      
+
       console.log('[导入] 车队处理完成：新建', createdCount, '个，更新', updatedCount, '个')
-      
+
       // ⭐ 关键：用车队代码更新所有映射记录的 truckingCompanyId
       const companyCodeMap = new Map<string, string>()
       for (const [name, data] of uniqueTruckingCompanies.entries()) {
         const code = name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 50)
         companyCodeMap.set(name, code)
       }
-      
+
       // 更新所有映射记录
       pendingImportRecords.value.forEach((record: WarehouseTruckingRecord) => {
         if (record.truckingCompanyName && companyCodeMap.has(record.truckingCompanyName)) {
           record.truckingCompanyId = companyCodeMap.get(record.truckingCompanyName) || ''
         }
       })
-      
+
       console.log('[导入] 已更新所有映射记录的车队代码')
     }
-    
+
     // 现在导入映射关系
     console.log('[导入] 开始导入仓库 - 车队映射，数量:', pendingImportRecords.value.length)
     console.log('[导入] 第一条数据:', pendingImportRecords.value[0])
-    
-    const response = await axios.post(`${BASE_URL}/warehouse-trucking-mapping/batch`, pendingImportRecords.value)
+
+    const response = await axios.post(
+      `${BASE_URL}/warehouse-trucking-mapping/batch`,
+      pendingImportRecords.value
+    )
     console.log('[导入] 后端响应:', response.data)
     importResult.success = pendingImportRecords.value.length
     ElMessage.success(`导入成功：${pendingImportRecords.value.length}条`)
@@ -388,7 +415,12 @@ const confirmImport = async () => {
 // 导出模板
 const handleExportTemplate = () => {
   const templateData = [
-    { '国家': 'AOSOM CANADA INC.', '仓库.代码': 'CA-S003', '仓库.仓库名称': 'Oshawa', '车队': 'S AND R TRUCKING' }
+    {
+      国家: 'AOSOM CANADA INC.',
+      '仓库.代码': 'CA-S003',
+      '仓库.仓库名称': 'Oshawa',
+      车队: 'S AND R TRUCKING',
+    },
   ]
   const ws = XLSX.utils.json_to_sheet(templateData)
   const wb = XLSX.utils.book_new()
@@ -409,15 +441,36 @@ onMounted(() => {
     <el-card class="search-card" shadow="never">
       <el-form :model="searchForm" inline>
         <el-form-item label="国家">
-          <el-select v-model="searchForm.country" placeholder="请选择" clearable style="width: 180px" filterable>
-            <el-option v-for="item in countryOptions" :key="item.code" :label="item.name" :value="item.code" />
+          <el-select
+            v-model="searchForm.country"
+            placeholder="请选择"
+            clearable
+            style="width: 180px"
+            filterable
+          >
+            <el-option
+              v-for="item in countryOptions"
+              :key="item.code"
+              :label="item.name"
+              :value="item.code"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="仓库代码">
-          <el-input v-model="searchForm.warehouseCode" placeholder="请输入" clearable style="width: 150px" />
+          <el-input
+            v-model="searchForm.warehouseCode"
+            placeholder="请输入"
+            clearable
+            style="width: 150px"
+          />
         </el-form-item>
         <el-form-item label="车队">
-          <el-input v-model="searchForm.truckingCompanyName" placeholder="请输入" clearable style="width: 150px" />
+          <el-input
+            v-model="searchForm.truckingCompanyName"
+            placeholder="请输入"
+            clearable
+            style="width: 150px"
+          />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :icon="Search" @click="handleSearch">搜索</el-button>
@@ -444,12 +497,16 @@ onMounted(() => {
         <el-table-column prop="mapping_type" label="映射类型" width="100" />
         <el-table-column prop="is_default" label="默认" width="60">
           <template #default="{ row }">
-            <el-tag :type="row.is_default ? 'success' : 'info'" size="small">{{ row.is_default ? '是' : '否' }}</el-tag>
+            <el-tag :type="row.is_default ? 'success' : 'info'" size="small">{{
+              row.is_default ? '是' : '否'
+            }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="is_active" label="状态" width="60">
           <template #default="{ row }">
-            <el-tag :type="row.is_active ? 'success' : 'danger'" size="small">{{ row.is_active ? '启用' : '禁用' }}</el-tag>
+            <el-tag :type="row.is_active ? 'success' : 'danger'" size="small">{{
+              row.is_active ? '启用' : '禁用'
+            }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="150" fixed="right">
@@ -476,48 +533,57 @@ onMounted(() => {
       <el-form :model="formData" label-width="100px">
         <el-form-item label="国家" required>
           <el-select v-model="formData.country" placeholder="请选择" style="width: 100%" filterable>
-            <el-option v-for="item in countryOptions" :key="item.code" :label="item.name" :value="item.code" />
+            <el-option
+              v-for="item in countryOptions"
+              :key="item.code"
+              :label="item.name"
+              :value="item.code"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="仓库" required>
-          <el-select 
-            v-model="formData.warehouseCode" 
-            placeholder="请选择仓库" 
+          <el-select
+            v-model="formData.warehouseCode"
+            placeholder="请选择仓库"
             style="width: 100%"
             filterable
-            @change="(val: string) => {
-              const warehouse = warehouseOptions.find(w => w.code === val)
-              if (warehouse) {
-                formData.warehouseName = warehouse.name
+            @change="
+              (val: string) => {
+                const warehouse = warehouseOptions.find(w => w.code === val)
+                if (warehouse) {
+                  formData.warehouseName = warehouse.name
+                }
               }
-            }"
+            "
           >
-            <el-option 
-              v-for="item in warehouseOptions" 
-              :key="item.code" 
-              :label="`${item.name} (${item.code})`" 
-              :value="item.code" 
+            <el-option
+              v-for="item in warehouseOptions"
+              :key="item.code"
+              :label="`${item.name} (${item.code})`"
+              :value="item.code"
             />
           </el-select>
         </el-form-item>
         <el-form-item label="车队" required>
-          <el-select 
-            v-model="formData.truckingCompanyId" 
-            placeholder="请选择车队" 
+          <el-select
+            v-model="formData.truckingCompanyId"
+            placeholder="请选择车队"
             style="width: 100%"
             filterable
-            @change="(val: string) => {
-              const trucking = truckingCompanyOptions.find(t => t.code === val)
-              if (trucking) {
-                formData.truckingCompanyName = trucking.name
+            @change="
+              (val: string) => {
+                const trucking = truckingCompanyOptions.find(t => t.code === val)
+                if (trucking) {
+                  formData.truckingCompanyName = trucking.name
+                }
               }
-            }"
+            "
           >
-            <el-option 
-              v-for="item in truckingCompanyOptions" 
-              :key="item.code" 
-              :label="`${item.name} (${item.code})`" 
-              :value="item.code" 
+            <el-option
+              v-for="item in truckingCompanyOptions"
+              :key="item.code"
+              :label="`${item.name} (${item.code})`"
+              :value="item.code"
             />
           </el-select>
         </el-form-item>
@@ -570,9 +636,9 @@ onMounted(() => {
 
       <template #footer>
         <el-button @click="importDialogVisible = false" :disabled="importLoading">关闭</el-button>
-        <el-button 
-          type="primary" 
-          @click="confirmImport" 
+        <el-button
+          type="primary"
+          @click="confirmImport"
           :loading="importLoading"
           :disabled="pendingImportRecords.length === 0"
         >

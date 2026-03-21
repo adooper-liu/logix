@@ -16,6 +16,130 @@ description: Defines requirements and specifications for Excel import in LogiX. 
 
 ---
 
+## 业务数据完整导入流程（7表）
+
+### 数据流架构
+
+```
+Excel文件 → useExcelParser → groupByTable → /api/v1/import/excel/batch → 后端7表写入
+```
+
+### 7表写入流程
+
+| 序号 | 表名 | 后端处理方法 | 关键字段 |
+|------|------|-------------|----------|
+| 1 | biz_replenishment_orders | 第615行 | order_number |
+| 2 | biz_containers | 第548-596行 | container_number |
+| 3 | process_sea_freight | 第501-546行 | bill_of_lading_number |
+| 4 | process_port_operations | 第618-661行 | container_number + port_type + port_sequence（数组） |
+| 5 | process_trucking_transport | 第663-683行 | container_number |
+| 6 | process_warehouse_operations | 第685-700行 | container_number |
+| 7 | process_empty_return | 第702-722行 | container_number |
+
+### 关键处理逻辑
+
+1. **外键依赖顺序**：
+   - 先创建海运（process_sea_freight）→ 货柜（biz_containers）依赖 bill_of_lading_number
+   - 再创建货柜 → 备货单（biz_replenishment_orders）依赖 container_number
+   - 最后创建备货单
+
+2. **港口操作多港经停**：
+   - 支持数组格式，每个元素包含 port_type（origin/transit/destination）和 port_sequence
+   - 按 container_number + port_type + port_sequence 作为主键
+   - **自动识别**：根据Excel中"起运港"/"途径港"/"目的港"字段自动拆分多条记录
+   - **port_sequence**：起运港=1，途径港=2，目的港=3（自动递增）
+
+### 港口操作字段映射（自动多港拆分）
+
+| Excel列名 | 映射字段 | 说明 |
+|----------|---------|------|
+| 起运港 | port_type=origin, port_sequence=1 | 航次第一港 |
+| 途径港/中转港 | port_type=transit, port_sequence=2 | 航次中转港 |
+| 目的港 | port_type=destination, port_sequence=3 | 航次目的港 |
+| 预计到港日期(ETA) | eta | 预计到港日期 |
+| 实际到港日期(ATA) | ata | 实际到港日期 |
+| 免堆期(天) | free_storage_days | 免堆期天数 |
+| 场内免箱期(天) | free_detention_days | 免箱期天数 |
+| 最后免费日期 | last_free_date | 最后免费日期 |
+
+3. **导入后自动触发**：
+   - 第741-752行：导入成功后自动调用 `ContainerStatusService.updateStatus()` 更新货柜物流状态
+   - 自动计算状态机流转
+
+### 子表字段映射（前端 container.ts）
+
+| 表 | Excel列名示例 | 数据库字段 |
+|---|--------------|-----------|
+| process_port_operations | 预计到港日期(目的港)、实际到港日期(目的港)、免堆期、最后免费日期 | eta, ata, free_storage_days, last_free_date |
+| process_trucking_transport | 最晚提柜日期、提柜日期、最晚送仓日期、送仓日期 | last_pickup_date, pickup_date, last_delivery_date, delivery_date |
+| process_warehouse_operations | 入库仓库组、仓库(计划)、卸空日期、入库日期 | warehouse_group, planned_warehouse, unload_date, warehouse_arrival_date |
+| process_empty_return | 最晚还箱日期、还箱日期、还箱地点 | last_return_date, return_time, return_terminal_name |
+
+### 子表为空的常见原因与修复
+
+**原因1**：Excel模板缺少子表对应的列字段
+- 排查：检查前端控制台日志 `[uploadBatchData] 分组后的数据 tables:` 确认有哪些表
+- 修复：更新Excel模板，添加子表对应的列字段
+
+**原因2**：缺少 port_type 字段映射
+- 现象：后端日志显示"跳过无效港口操作"
+- 修复：前端 container.ts 已添加 port_type 字段映射，Excel列名"港口类型"
+
+**原因3**：groupByTable 未创建空子表
+- 现象：transformed 有 container_number 但子表未创建
+- 修复：groupByTable 第二轮确保子表在主表有 container_number 时也被创建
+
+**当前支持字段**：
+| 表 | 必需字段 | 可选字段 |
+|---|---------|----------|
+| process_port_operations | container_number, port_type | eta, ata, free_storage_days, last_free_date |
+| process_trucking_transport | container_number | last_pickup_date, pickup_date, last_delivery_date, delivery_date |
+| process_warehouse_operations | container_number | warehouse_group, planned_warehouse, unload_date, warehouse_arrival_date |
+| process_empty_return | container_number | last_return_date, return_time, return_terminal_name |
+
+---
+
+## 🔧 实战问题排查与修复
+
+### 问题：process_port_operations 导入为空
+
+**现象**：Excel导入后，process_port_operations 表无数据
+
+**排查过程**：
+
+1. **第一轮检查**：groupByTable 是否创建子表？
+   - 结果：已创建，确保有 container_number
+
+2. **第二轮检查**：port_type 字段映射？
+   - 结果：已添加 port_type 字段映射，支持智能推断
+
+3. **第三轮检查**：多港经停拆分逻辑？
+   - 结果：已实现自动拆分，起运港/途径港/目的港分别创建记录
+
+4. **根本原因**：字段名不匹配
+   - 问题：groupByTable 检查 `transformed['起运港']`
+   - 实际：Excel "起运港" 已被字段映射转换为 `port_of_loading`
+   - 所以 `transformed['起运港']` 永远为 undefined
+
+**修复方案**（useFileUpload.ts）：
+
+```javascript
+// 修改前（错误）
+if (transformed['起运港']) { ... }
+
+// 修改后（正确）- 同时支持中文字段名和英文字段名
+if (transformed['起运港'] || transformed['port_of_loading']) { ... }
+if (transformed['目的港'] || transformed['port_of_discharge']) { ... }
+```
+
+**修改文件**：
+- `frontend/src/components/common/UniversalImport/useFileUpload.ts`
+
+**验证结果**：
+- 5个货柜 × 2个港口（起运港+目的港）= 10条记录
+
+---
+
 ## 1. 映射与命名
 
 ### 1.1 数据库对齐（必须）

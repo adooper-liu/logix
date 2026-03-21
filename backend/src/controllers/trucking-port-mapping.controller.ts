@@ -86,10 +86,20 @@ export class TruckingPortMappingController {
    */
   create = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { 
-        country, truckingCompanyId, truckingCompanyName, portCode, portName,
-        yardCapacity, standardRate, unit, yardOperationFee,
-        mappingType, isDefault, isActive, remarks 
+      const {
+        country,
+        truckingCompanyId,
+        truckingCompanyName,
+        portCode,
+        portName,
+        yardCapacity,
+        standardRate,
+        unit,
+        yardOperationFee,
+        mappingType,
+        isDefault,
+        isActive,
+        remarks
       } = req.body;
 
       const result = await AppDataSource.query(
@@ -100,9 +110,19 @@ export class TruckingPortMappingController {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
          RETURNING *`,
         [
-          country, truckingCompanyId, truckingCompanyName, portCode, portName,
-          yardCapacity || 0, standardRate || 0, unit || '', yardOperationFee || 0,
-          mappingType || 'DEFAULT', isDefault || false, isActive !== false, remarks || ''
+          country,
+          truckingCompanyId,
+          truckingCompanyName,
+          portCode,
+          portName,
+          yardCapacity || 0,
+          standardRate || 0,
+          unit || '',
+          yardOperationFee || 0,
+          mappingType || 'DEFAULT',
+          isDefault || false,
+          isActive !== false,
+          remarks || ''
         ]
       );
 
@@ -119,10 +139,20 @@ export class TruckingPortMappingController {
   update = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const { 
-        country, truckingCompanyId, truckingCompanyName, portCode, portName,
-        yardCapacity, standardRate, unit, yardOperationFee,
-        mappingType, isDefault, isActive, remarks 
+      const {
+        country,
+        truckingCompanyId,
+        truckingCompanyName,
+        portCode,
+        portName,
+        yardCapacity,
+        standardRate,
+        unit,
+        yardOperationFee,
+        mappingType,
+        isDefault,
+        isActive,
+        remarks
       } = req.body;
 
       const result = await AppDataSource.query(
@@ -134,9 +164,20 @@ export class TruckingPortMappingController {
          WHERE id = $14
          RETURNING *`,
         [
-          country, truckingCompanyId, truckingCompanyName, portCode, portName,
-          yardCapacity, standardRate, unit, yardOperationFee,
-          mappingType, isDefault, isActive, remarks, id
+          country,
+          truckingCompanyId,
+          truckingCompanyName,
+          portCode,
+          portName,
+          yardCapacity,
+          standardRate,
+          unit,
+          yardOperationFee,
+          mappingType,
+          isDefault,
+          isActive,
+          remarks,
+          id
         ]
       );
 
@@ -194,7 +235,9 @@ export class TruckingPortMappingController {
 
           if (existing.length > 0) {
             // 已存在，执行更新
-            logger.info(`[TruckingPortMapping batchCreate] 更新已有映射：${record.truckingCompanyName} - ${record.portName}`);
+            logger.info(
+              `[TruckingPortMapping batchCreate] 更新已有映射：${record.truckingCompanyName} - ${record.portName}`
+            );
             await AppDataSource.query(
               `UPDATE dict_trucking_port_mapping 
                SET trucking_company_name = $1, port_name = $2, 
@@ -204,18 +247,25 @@ export class TruckingPortMappingController {
                    is_active = $9, remarks = $10, updated_at = NOW()
                WHERE id = $11`,
               [
-                record.truckingCompanyName, record.portName,
-                record.yardCapacity || 0, record.standardRate || 0,
-                record.unit || '', record.yardOperationFee || 0,
-                record.mappingType || 'DEFAULT', record.isDefault || false,
-                record.isActive !== false, record.remarks || '',
+                record.truckingCompanyName,
+                record.portName,
+                record.yardCapacity || 0,
+                record.standardRate || 0,
+                record.unit || '',
+                record.yardOperationFee || 0,
+                record.mappingType || 'DEFAULT',
+                record.isDefault || false,
+                record.isActive !== false,
+                record.remarks || '',
                 existing[0].id
               ]
             );
             skipCount++;
           } else {
             // 不存在，执行插入
-            logger.info(`[TruckingPortMapping batchCreate] 插入新映射：${record.truckingCompanyName} - ${record.portName}`);
+            logger.info(
+              `[TruckingPortMapping batchCreate] 插入新映射：${record.truckingCompanyName} - ${record.portName}`
+            );
             const insertResult = await AppDataSource.query(
               `INSERT INTO dict_trucking_port_mapping 
                (country, trucking_company_id, trucking_company_name, port_code, port_name,
@@ -224,10 +274,19 @@ export class TruckingPortMappingController {
                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
                RETURNING *`,
               [
-                record.country, record.truckingCompanyId, record.truckingCompanyName,
-                record.portCode, record.portName,
-                record.yardCapacity || 0, record.standardRate || 0, record.unit || '', record.yardOperationFee || 0,
-                record.mappingType || 'DEFAULT', record.isDefault || false, record.isActive !== false, record.remarks || ''
+                record.country,
+                record.truckingCompanyId,
+                record.truckingCompanyName,
+                record.portCode,
+                record.portName,
+                record.yardCapacity || 0,
+                record.standardRate || 0,
+                record.unit || '',
+                record.yardOperationFee || 0,
+                record.mappingType || 'DEFAULT',
+                record.isDefault || false,
+                record.isActive !== false,
+                record.remarks || ''
               ]
             );
             logger.info('[TruckingPortMapping batchCreate] 插入成功，ID:', insertResult[0]?.id);
@@ -245,11 +304,11 @@ export class TruckingPortMappingController {
       if (errors.length > 0) {
         logger.warn('[TruckingPortMapping batchCreate] 部分记录失败:', errors);
       }
-      
+
       logger.info('[TruckingPortMapping batchCreate]', resultMessage);
-      
-      res.json({ 
-        success: true, 
+
+      res.json({
+        success: true,
         message: resultMessage,
         stats: {
           total: records.length,

@@ -9,8 +9,8 @@ CREATE TABLE IF NOT EXISTS ext_feituo_status_events (
     container_number VARCHAR(50) NOT NULL,
     bill_of_lading_number VARCHAR(50),
     
-    -- 状态基本信息
-    status_index INT NOT NULL,
+    -- 状态基本信息（API 同步时有值，Excel 导入时为 NULL）
+    status_index INT,
     event_code VARCHAR(20) NOT NULL,
     description_cn VARCHAR(200),
     description_en VARCHAR(200),
@@ -44,16 +44,16 @@ CREATE TABLE IF NOT EXISTS ext_feituo_status_events (
     -- 元数据
     sync_request_id VARCHAR(100),
     data_source VARCHAR(50) DEFAULT 'API',
-    raw_json JSONB NOT NULL,
+    raw_json JSONB,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     
     FOREIGN KEY (container_number) REFERENCES biz_containers(container_number) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_feituo_status_container ON ext_feituo_status_events(container_number);
-CREATE INDEX idx_feituo_status_bol ON ext_feituo_status_events(bill_of_lading_number);
-CREATE INDEX idx_feituo_status_code ON ext_feituo_status_events(event_code);
-CREATE INDEX idx_feituo_status_time ON ext_feituo_status_events(event_time DESC);
-CREATE INDEX idx_feituo_status_created ON ext_feituo_status_events(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feituo_status_container ON ext_feituo_status_events(container_number);
+CREATE INDEX IF NOT EXISTS idx_feituo_status_bol ON ext_feituo_status_events(bill_of_lading_number);
+CREATE INDEX IF NOT EXISTS idx_feituo_status_code ON ext_feituo_status_events(event_code);
+CREATE INDEX IF NOT EXISTS idx_feituo_status_time ON ext_feituo_status_events(event_time DESC);
+CREATE INDEX IF NOT EXISTS idx_feituo_status_created ON ext_feituo_status_events(created_at DESC);
 
 COMMENT ON TABLE ext_feituo_status_events IS '飞驼API status[] 原始数据，支持完整审计与追溯';

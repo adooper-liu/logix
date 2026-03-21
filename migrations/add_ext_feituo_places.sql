@@ -50,16 +50,16 @@ CREATE TABLE IF NOT EXISTS ext_feituo_places (
     -- 元数据
     sync_request_id VARCHAR(100),
     data_source VARCHAR(50) DEFAULT 'API',
-    raw_json JSONB NOT NULL,
+    raw_json JSONB,
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
-    
+
     FOREIGN KEY (container_number) REFERENCES biz_containers(container_number) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_feituo_places_container ON ext_feituo_places(container_number);
-CREATE INDEX idx_feituo_places_bol ON ext_feituo_places(bill_of_lading_number);
-CREATE INDEX idx_feituo_places_type ON ext_feituo_places(place_type);
-CREATE INDEX idx_feituo_places_created ON ext_feituo_places(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_feituo_places_container ON ext_feituo_places(container_number);
+CREATE INDEX IF NOT EXISTS idx_feituo_places_bol ON ext_feituo_places(bill_of_lading_number);
+CREATE INDEX IF NOT EXISTS idx_feituo_places_type ON ext_feituo_places(place_type);
+CREATE INDEX IF NOT EXISTS idx_feituo_places_created ON ext_feituo_places(created_at DESC);
 
 COMMENT ON TABLE ext_feituo_places IS '飞驼API places[] 原始数据，支持完整审计与追溯';
 COMMENT ON COLUMN ext_feituo_places.place_type IS '飞驼type: 1=起运港接货, 2=起运港码头, 4=中转港, 5=目的港';
