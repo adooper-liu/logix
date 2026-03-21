@@ -5,7 +5,6 @@
 
 import { AppDataSource } from '../../database';
 import { SeaFreight } from '../../entities/SeaFreight';
-import { logger } from '../../utils/logger';
 import { parseDate } from '../feituoImport.service';
 
 /** 发生地信息数组类型 (Excel导入) */
@@ -36,11 +35,22 @@ export interface PortAnalysisResult {
   destPlaces: PlaceInfo[];
 }
 
-/** 从行中取值，支持多列名 */
+/** 从行中取值，支持多列名；与 feituoImport 一致扫描 _rawDataByGroup（分组扁平化后键可能在子对象） */
 function getVal(row: Record<string, any>, ...keys: string[]): string | null {
   for (const k of keys) {
     const v = row[k];
     if (v !== undefined && v !== null && v !== '') return String(v).trim();
+  }
+  const byG = row._rawDataByGroup;
+  if (byG && typeof byG === 'object') {
+    for (const g of Object.values(byG)) {
+      if (!g || typeof g !== 'object') continue;
+      const gr = g as Record<string, unknown>;
+      for (const k of keys) {
+        const v = gr[k];
+        if (v !== undefined && v !== null && v !== '') return String(v).trim();
+      }
+    }
   }
   return null;
 }
@@ -50,60 +60,36 @@ export class FeituoPlaceAnalyzer {
 
   /**
    * 解析发生地信息数组
-   * 支持两种格式：1) JSON数组格式 2) 后缀列格式(发生地信息_地点CODE_2)
+   * 支持三种格式： 
+   * 1) 接货地信息_ + 交货地信息_（飞驼 Excel 宽表）
+   * 2) 发生地信息_* 后缀列
+   * 3) 发生地信息 JSON 数组
+   * 1 与 2 按港口 CODE 合并，发生地可补全接货地/交货地缺失的 ETA/ATA。
    */
   parsePlaceArray(row: Record<string, any>): PlaceInfo[] {
-    // 方式1: 尝试JSON数组格式
-    const rawPlaces = row['发生地信息'];
-    if (rawPlaces) {
-      let placeArray: any[];
-      if (typeof rawPlaces === 'string') {
-        try {
-          placeArray = JSON.parse(rawPlaces);
-        } catch {
-          // JSON解析失败，尝试后缀列格式
-          placeArray = null;
-        }
-      } else if (Array.isArray(rawPlaces)) {
-        placeArray = rawPlaces;
-      } else {
-        placeArray = null;
-      }
+    const primary: PlaceInfo[] = [];
+    const originPlace = this.parseOriginPlace(row);
+    const destPlace = this.parseDestPlace(row);
+    if (originPlace) primary.push(originPlace);
+    if (destPlace) primary.push(destPlace);
 
-      if (placeArray && Array.isArray(placeArray)) {
-        const places: PlaceInfo[] = [];
-        for (let i = 0; i < placeArray.length; i++) {
-          const p = placeArray[i];
-          if (!p) continue;
+    const suffixPlaces = this.parseOccurrencePlaceSuffixes(row);
+    const jsonPlaces = this.parseJsonPlaces(row);
 
-          places.push({
-            code: p['地点CODE'] || p['code'] || '',
-            nameEn: p['地点英文名'] || p['nameEn'] || p['name_en'] || '',
-            nameCn: p['地点中文名'] || p['nameCn'] || p['name_cn'] || '',
-            placeType: p['地点类型'] || p['placeType'] || p['place_type'] || '',
-            eta: parseDate(p['预计到达时间'] || p['eta']),
-            ata: parseDate(p['实际到达时间'] || p['ata']),
-            etd: parseDate(p['预计离开时间'] || p['etd']),
-            atd: parseDate(p['实际离开时间'] || p['atd']),
-            actualLoading: parseDate(p['实际装船时间'] || p['actualLoading']),
-            actualDischarge: parseDate(p['实际卸船时间'] || p['actualDischarge']),
-            terminal: p['码头名称'] || p['terminal'],
-            sequence: p['序号'] || p['sequence'] || i + 1
-          });
-        }
-        return places;
-      }
-    }
+    const merged = this.mergePlacesByCode(primary, suffixPlaces, jsonPlaces);
+    if (merged.length > 0) return merged;
 
-    // 方式2: 后缀列格式（兼容旧格式）
+    return suffixPlaces.length > 0 ? suffixPlaces : jsonPlaces;
+  }
+
+  /** 发生地信息_* 后缀列 */
+  private parseOccurrencePlaceSuffixes(row: Record<string, any>): PlaceInfo[] {
     const places: PlaceInfo[] = [];
     const suffixes = ['', '_2', '_3', '_4', '_5', '_6', '_7', '_8', '_9', '_10'];
-    
     for (let i = 0; i < suffixes.length; i++) {
       const suffix = suffixes[i];
       const code = getVal(row, `发生地信息_地点CODE${suffix}`);
       if (!code) break;
-      
       places.push({
         code,
         nameEn: getVal(row, `发生地信息_地点名称英文（标准）${suffix}`) || undefined,
@@ -119,8 +105,136 @@ export class FeituoPlaceAnalyzer {
         sequence: i + 1,
       });
     }
-    
     return places;
+  }
+
+  /** 发生地信息 JSON 数组 */
+  private parseJsonPlaces(row: Record<string, any>): PlaceInfo[] {
+    const places: PlaceInfo[] = [];
+    const rawPlaces = row['发生地信息'];
+    if (!rawPlaces) return places;
+
+    let placeArray: any[] | null = null;
+    if (typeof rawPlaces === 'string') {
+      try {
+        placeArray = JSON.parse(rawPlaces);
+      } catch {
+        placeArray = null;
+      }
+    } else if (Array.isArray(rawPlaces)) {
+      placeArray = rawPlaces;
+    }
+
+    if (!placeArray || !Array.isArray(placeArray)) return places;
+
+    for (let i = 0; i < placeArray.length; i++) {
+      const p = placeArray[i];
+      if (!p) continue;
+      places.push({
+        code: p['地点CODE'] || p['code'] || '',
+        nameEn: p['地点英文名'] || p['nameEn'] || p['name_en'] || '',
+        nameCn: p['地点中文名'] || p['nameCn'] || p['name_cn'] || '',
+        placeType: p['地点类型'] || p['placeType'] || p['place_type'] || '',
+        eta: parseDate(p['预计到达时间'] || p['eta']),
+        ata: parseDate(p['实际到达时间'] || p['ata']),
+        etd: parseDate(p['预计离开时间'] || p['etd']),
+        atd: parseDate(p['实际离开时间'] || p['atd']),
+        actualLoading: parseDate(p['实际装船时间'] || p['actualLoading']),
+        actualDischarge: parseDate(p['实际卸船时间'] || p['actualDischarge']),
+        terminal: p['码头名称'] || p['terminal'],
+        sequence: p['序号'] || p['sequence'] || i + 1,
+      });
+    }
+    return places;
+  }
+
+  /** 按港口 CODE 合并，后序来源仅填补前者为空的日期/名称 */
+  private mergePlacesByCode(...groups: PlaceInfo[][]): PlaceInfo[] {
+    const map = new Map<string, PlaceInfo>();
+
+    const fillNull = (base: PlaceInfo, inc: PlaceInfo): PlaceInfo => {
+      const m = { ...base };
+      const take = <K extends keyof PlaceInfo>(k: K) => {
+        const a = m[k];
+        const b = inc[k];
+        if ((a === undefined || a === null || a === '') && b !== undefined && b !== null && b !== '') {
+          (m as any)[k] = b;
+        }
+      };
+      take('eta');
+      take('ata');
+      take('etd');
+      take('atd');
+      take('actualLoading');
+      take('actualDischarge');
+      take('terminal');
+      take('nameCn');
+      take('nameEn');
+      take('placeType');
+      m.sequence = Math.min(m.sequence, inc.sequence);
+      return m;
+    };
+
+    for (const group of groups) {
+      for (const p of group) {
+        const key = (p.code || '').trim().toUpperCase();
+        if (!key) continue;
+        const ex = map.get(key);
+        if (!ex) {
+          map.set(key, { ...p });
+        } else {
+          map.set(key, fillNull(ex, p));
+        }
+      }
+    }
+
+    return Array.from(map.values()).sort((a, b) => a.sequence - b.sequence);
+  }
+
+  /**
+   * 解析接货地信息（起运港）
+   * placeType需要匹配analyzePorts的判断逻辑
+   */
+  private parseOriginPlace(row: Record<string, any>): PlaceInfo | undefined {
+    const code = getVal(row, '接货地信息_地点CODE', '接货地信息_CODE');
+    if (!code) return undefined;
+    
+    return {
+      code,
+      nameEn: getVal(row, '接货地信息_地点名称英文（标准）', '接货地信息_地点名称（英文）') || undefined,
+      nameCn: getVal(row, '接货地信息_地点名称中文（标准）', '接货地信息_地点名称（中文）', '接货地信息_地点名称（原始）') || undefined,
+      placeType: '起运港', // 匹配analyzePorts中的判断
+      eta: parseDate(getVal(row, '接货地信息_预计到达时间')),
+      ata: parseDate(getVal(row, '接货地信息_实际到达时间')),
+      etd: parseDate(getVal(row, '接货地信息_预计离开时间')),
+      atd: parseDate(getVal(row, '接货地信息_实际离开时间')),
+      actualLoading: parseDate(getVal(row, '接货地信息_实际装船时间')),
+      terminal: getVal(row, '接货地信息_码头名称') || undefined,
+      sequence: 1,
+    };
+  }
+
+  /**
+   * 解析交货地信息（目的港）
+   * placeType需要匹配analyzePorts的判断逻辑
+   */
+  private parseDestPlace(row: Record<string, any>): PlaceInfo | undefined {
+    const code = getVal(row, '交货地信息_地点CODE', '交货地信息_CODE');
+    if (!code) return undefined;
+    
+    return {
+      code,
+      nameEn: getVal(row, '交货地信息_地点名称英文（标准）', '交货地信息_地点名称（英文）') || undefined,
+      nameCn: getVal(row, '交货地信息_地点名称中文（标准）', '交货地信息_地点名称（中文）', '交货地信息_地点名称（原始）') || undefined,
+      // 使用「目的港」：analyzePorts 中 seaDestPlace = 非「交货地」的目的地；原「交货地」会导致 seaDestPlace 为空、ETA/ATA 不落库
+      placeType: '目的港',
+      eta: parseDate(getVal(row, '交货地信息_预计到达时间')),
+      ata: parseDate(getVal(row, '交货地信息_实际到达时间')),
+      etd: parseDate(getVal(row, '交货地信息_预计离开时间')),
+      atd: parseDate(getVal(row, '交货地信息_实际离开时间')),
+      terminal: getVal(row, '交货地信息_码头名称') || undefined,
+      sequence: 2,
+    };
   }
 
   /**
@@ -135,11 +249,13 @@ export class FeituoPlaceAnalyzer {
     );
     
     // 目的地可能有多个：海港目的港 + 火车目的地（交货地）
-    const destPlaces = places.filter(p => 
-      p.placeType?.includes('目的地') || p.placeType?.includes('交货地')
+    const destPlaces = places.filter(p =>
+      p.placeType?.includes('目的地') ||
+      p.placeType?.includes('交货地') ||
+      p.placeType?.includes('目的港')
     );
     
-    // 海港目的港：不是交货地的目的地（用于滞港费计算）
+    // 海港目的港：不是铁路「交货地」的目的地（用于滞港费计算）；「目的港」类型计入海港目的港
     let seaDestPlace = destPlaces.find(p => !p.placeType?.includes('交货地'));
     
     // 火车目的地：交货地类型的地点（用于海铁联运跟踪）
@@ -155,9 +271,12 @@ export class FeituoPlaceAnalyzer {
       );
     }
 
-    // 火车目的地兜底：找最后一个目的地
+    // 火车目的地兜底：仅当最后一个目的地明确为「交货地」时（避免纯海运单目的港被当成铁路）
     if (!railDestPlace && destPlaces.length > 0) {
-      railDestPlace = destPlaces[destPlaces.length - 1];
+      const last = destPlaces[destPlaces.length - 1];
+      if (last.placeType?.includes('交货地')) {
+        railDestPlace = last;
+      }
     }
 
     // 起运港兜底

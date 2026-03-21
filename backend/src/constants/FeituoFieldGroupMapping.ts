@@ -365,7 +365,12 @@ export function getGroupForColumn(
       // 查找字段名在映射表中的定义
       const fieldGroup = map[fieldName];
       if (fieldGroup !== undefined) {
-        if (typeof fieldGroup === 'number') return fieldGroup;
+        if (typeof fieldGroup === 'number') {
+          // 同名字段在不同业务分组：映射表可能只标了其中一个分组（如「集装箱号」标为 1），
+          // 但表头为「集装箱物流信息_集装箱号」时，必须以表头前缀分组为准（11）。
+          if (fieldGroup === groupId) return fieldGroup;
+          return groupId;
+        }
         const arr = fieldGroup as number[];
         // 检查该分组是否在允许的分组列表中
         if (arr.includes(groupId)) return groupId;
