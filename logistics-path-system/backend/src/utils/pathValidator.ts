@@ -20,6 +20,7 @@ const STATUS_TRANSITIONS: Record<StandardStatus, StandardStatus[]> = {
   ],
   [StandardStatus.EMPTY_PICKED_UP]: [
     StandardStatus.GATE_IN,
+    StandardStatus.CONTAINER_STUFFED,
     StandardStatus.HOLD
   ],
   [StandardStatus.GATE_IN]: [
@@ -72,6 +73,7 @@ const STATUS_TRANSITIONS: Record<StandardStatus, StandardStatus[]> = {
   ],
   [StandardStatus.AVAILABLE]: [
     StandardStatus.GATE_OUT,
+    StandardStatus.DELIVERY_ARRIVED,
     StandardStatus.CUSTOMS_HOLD,
     StandardStatus.CARRIER_HOLD,
     StandardStatus.TERMINAL_HOLD,

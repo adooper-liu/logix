@@ -3,6 +3,8 @@
 **分析日期**: 2026-03-18  
 **目的**: 分析两套飞驼同步实现的差异、重复与不一致风险
 
+> **2026-03-21 更新**：`ExternalDataService.fetchFromFeituo` 已改为与 FeiTuoAdapter 相同，使用 OpenAPI `POST /application/v1/query`，不再使用 `/tracking/batch`。下文「数据获取层」对比中关于 batch 的描述已过时，仅保留作历史记录。
+
 ---
 
 ## 一、调用关系与入口

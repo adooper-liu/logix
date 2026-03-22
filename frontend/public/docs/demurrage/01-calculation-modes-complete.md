@@ -40,8 +40,10 @@ const calculationMode = hasAtaOrDischarge ? 'actual' : 'forecast'
 #### 标准为"按到港"
 
 ```
-起算日 = ATA（实际到港日） > 实际卸船日
+起算日 = ATA（实际到港日）
 ```
+
+**说明**：按到港标准时，只使用实际到港日（ATA），不考虑实际卸船日。
 
 #### 标准为"按卸船"
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import DemurrageDetailSection from '@/components/demurrage/DemurrageDetailSection.vue'
 import { ElMessage } from 'element-plus'
-import { onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useContainerDetail } from '@/composables/useContainerDetail'
@@ -12,7 +12,6 @@ import ContainerHeader from './components/ContainerHeader.vue'
 import ContainerInfo from './components/ContainerInfo.vue'
 import ContainerSummary from './components/ContainerSummary.vue'
 import EmptyReturn from './components/EmptyReturn.vue'
-import FiveNodeTimeline from './components/FiveNodeTimeline.vue'
 import InspectionRecord from './components/InspectionRecord.vue'
 import KeyDatesTimeline from './components/KeyDatesTimeline.vue'
 import LogisticsPathTab from './components/LogisticsPathTab.vue'
@@ -28,6 +27,8 @@ import RiskCardTab from './components/RiskCardTab.vue'
 const route = useRoute()
 const router = useRouter()
 const demurrageRef = ref<{ load: () => Promise<void> } | null>(null)
+/** 物流地图 Tab：切回时触发 Leaflet invalidateSize */
+const logisticsPathMapTabRef = ref<{ invalidateMap?: () => void } | null>(null)
 const activeTab = ref('logistics-path')
 
 // 计划编辑对话框
@@ -40,7 +41,6 @@ const {
   loading,
   calculationDates,
   demurrageCalculation,
-  fiveNodeData,
   containerList,
   loadingContainerList,
   currentContainerIndex,
@@ -57,6 +57,14 @@ const { handleExportContainerDetail } = useShipmentsExport()
 // 使用 i18n
 const { t } = useI18n()
 
+/** 物流路径 / 物流地图 Tab 共用：提单号（同提单对比等） */
+const billOfLadingNumberForPath = computed(() => {
+  const sf = Array.isArray(containerData.value?.seaFreight)
+    ? containerData.value?.seaFreight?.[0]
+    : containerData.value?.seaFreight
+  return sf?.mblNumber || sf?.billOfLadingNumber || ''
+})
+
 // 导出货柜详情
 const exportContainerDetail = () => {
   if (containerData.value) {
@@ -68,12 +76,20 @@ onMounted(() => {
   loadContainerDetail()
 })
 
+function onDetailTabChange(tabName: string | number) {
+  if (tabName !== 'logistics-path-map') return
+  nextTick(() => {
+    logisticsPathMapTabRef.value?.invalidateMap?.()
+  })
+}
+
 // 根据路由 query.tab 打开对应页签（如从高费用货柜卡片跳转时打开滞港费页签）
 watch(
   () => route.query.tab,
   tab => {
     if (tab === 'demurrage') activeTab.value = 'demurrage'
     else if (tab === 'logistics-path') activeTab.value = 'logistics-path'
+    else if (tab === 'logistics-path-map') activeTab.value = 'logistics-path-map'
     else if (tab === 'change-log') activeTab.value = 'change-log'
     else if (tab === 'inspection') activeTab.value = 'inspection'
     else if (tab === 'alert') activeTab.value = 'alert'
@@ -91,18 +107,13 @@ watch(
     
     <!-- 实际内容 -->
     <template v-else>
-      <!-- 物流状态标签（右上角） -->
-      <div v-if="containerData" class="logistics-status-badge" :class="logisticsStatusDisplay.type">
-        <span class="badge-dot"></span>
-        <span class="badge-text">{{ logisticsStatusDisplay.text }}</span>
-      </div>
-
-      <!-- 页面头部 -->
+      <!-- 页面头部（物流状态并入标题区，避免悬浮标签干扰阅读） -->
       <ContainerHeader
         :container-number="containerNumber"
         :loading="loading"
         :current-container-index="currentContainerIndex"
         :container-list-length="containerList.length"
+        :status-badge="containerData ? logisticsStatusDisplay : undefined"
         @refresh="loadContainerDetail"
         @navigate-to-previous="navigateToPrevious"
         @navigate-to-next="navigateToNext"
@@ -131,46 +142,45 @@ watch(
 
       <!-- 内容区域 -->
       <div v-if="containerData" class="detail-content">
-        <!-- 概览区：基本信息 + 关键日期 + 五节点时间线 -->
         <section class="overview-section">
-          <ContainerSummary
-            :container-data="containerData"
-            :demurrage-calculation="demurrageCalculation"
-            @open-demurrage-tab="activeTab = 'demurrage'"
-          />
-          <KeyDatesTimeline :container-data="containerData" :calculation-dates="calculationDates" />
-          <FiveNodeTimeline
-            :container-data="containerData"
-            :demurrage-calculation="demurrageCalculation"
-            :five-node-data="fiveNodeData"
-          />
+          <div class="overview-panel">
+            <ContainerSummary
+              :container-data="containerData"
+              :demurrage-calculation="demurrageCalculation"
+              @open-demurrage-tab="activeTab = 'demurrage'"
+            />
+            <KeyDatesTimeline :container-data="containerData" :calculation-dates="calculationDates" />
+          </div>
         </section>
 
-        <!-- 详情 Tab 区 -->
         <section class="tabs-section">
-          <el-card class="detail-card" shadow="hover">
-            <el-tabs v-model="activeTab" class="detail-tabs">
-              <el-tab-pane label="物流路径" name="logistics-path">
+          <el-card class="detail-card" shadow="never">
+            <el-tabs v-model="activeTab" class="detail-tabs" @tab-change="onDetailTabChange">
+              <el-tab-pane :label="t('container.detail.logisticsPath')" name="logistics-path" lazy>
                 <div class="tab-content">
                   <LogisticsPathTab
+                    variant="grouped"
                     :container-number="containerNumber"
-                    :bill-of-lading-number="
-                      (() => {
-                        const sf = Array.isArray(containerData?.seaFreight)
-                          ? containerData?.seaFreight?.[0]
-                          : containerData?.seaFreight
-                        return sf?.mblNumber || sf?.billOfLadingNumber || ''
-                      })()
-                    "
+                    :bill-of-lading-number="billOfLadingNumberForPath"
                   />
                 </div>
               </el-tab-pane>
-              <el-tab-pane label="货柜信息" name="info">
+              <el-tab-pane :label="t('container.detail.logisticsPathMap')" name="logistics-path-map" lazy>
+                <div class="tab-content">
+                  <LogisticsPathTab
+                    ref="logisticsPathMapTabRef"
+                    variant="map"
+                    :container-number="containerNumber"
+                    :bill-of-lading-number="billOfLadingNumberForPath"
+                  />
+                </div>
+              </el-tab-pane>
+              <el-tab-pane label="货柜信息" name="info" lazy>
                 <div class="tab-content">
                   <ContainerInfo :container-data="containerData" />
                 </div>
               </el-tab-pane>
-              <el-tab-pane label="海运信息" name="seafreight">
+              <el-tab-pane label="海运信息" name="seafreight" lazy>
                 <div class="tab-content">
                   <SeaFreightInfo
                     :sea-freights="containerData.seaFreight"
@@ -178,27 +188,27 @@ watch(
                   />
                 </div>
               </el-tab-pane>
-              <el-tab-pane label="港口操作" name="port">
+              <el-tab-pane label="港口操作" name="port" lazy>
                 <div class="tab-content">
                   <PortOperations :port-operations="containerData.portOperations" />
                 </div>
               </el-tab-pane>
-              <el-tab-pane label="拖卡运输" name="trucking">
+              <el-tab-pane label="拖卡运输" name="trucking" lazy>
                 <div class="tab-content">
                   <TruckingTransport :trucking-transports="containerData.truckingTransports" />
                 </div>
               </el-tab-pane>
-              <el-tab-pane label="仓库操作" name="warehouse">
+              <el-tab-pane label="仓库操作" name="warehouse" lazy>
                 <div class="tab-content">
                   <WarehouseOperations :warehouse-operations="containerData.warehouseOperations" />
                 </div>
               </el-tab-pane>
-              <el-tab-pane label="还空箱" name="emptyreturn">
+              <el-tab-pane label="还空箱" name="emptyreturn" lazy>
                 <div class="tab-content">
                   <EmptyReturn :empty-returns="containerData.emptyReturns" />
                 </div>
               </el-tab-pane>
-              <el-tab-pane label="滞港费" name="demurrage">
+              <el-tab-pane label="滞港费" name="demurrage" lazy>
                 <div class="tab-content">
                   <div class="tab-header-row">
                     <el-button type="primary" link size="small" @click="demurrageRef?.load?.()">
@@ -208,27 +218,27 @@ watch(
                   <DemurrageDetailSection ref="demurrageRef" :container-number="containerNumber" />
                 </div>
               </el-tab-pane>
-              <el-tab-pane label="变更日志" name="change-log">
+              <el-tab-pane label="变更日志" name="change-log" lazy>
                 <div class="tab-content">
                   <ChangeLogTab :container-number="containerNumber" />
                 </div>
               </el-tab-pane>
-              <el-tab-pane label="查验记录" name="inspection">
+              <el-tab-pane label="查验记录" name="inspection" lazy>
                 <div class="tab-content">
                   <InspectionRecord :container-number="containerNumber" />
                 </div>
               </el-tab-pane>
-              <el-tab-pane label="预警" name="alert">
+              <el-tab-pane label="预警" name="alert" lazy>
                 <div class="tab-content">
                   <AlertTab :container-number="containerNumber" />
                 </div>
               </el-tab-pane>
-              <el-tab-pane label="时间预测" name="time-prediction">
+              <el-tab-pane label="时间预测" name="time-prediction" lazy>
                 <div class="tab-content">
                   <TimePredictionTab :container-number="containerNumber" />
                 </div>
               </el-tab-pane>
-              <el-tab-pane label="风险评估" name="risk">
+              <el-tab-pane label="风险评估" name="risk" lazy>
                 <div class="tab-content">
                   <RiskCardTab :container-number="containerNumber" />
                 </div>
@@ -245,135 +255,75 @@ watch(
 @use '@/assets/styles/variables' as *;
 
 .container-detail-page {
-  padding: $spacing-md;
+  padding: $spacing-lg $spacing-md;
   position: relative;
-  max-width: 1400px;
+  max-width: 1280px;
   margin: 0 auto;
   min-height: 100vh;
+  background: $bg-page;
 
   @media (max-width: 768px) {
     padding: $spacing-sm;
   }
 }
 
-.action-bar {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: $spacing-md;
-}
-
-.navigation-buttons {
-  display: flex;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding: 12px;
-  background: #f5f7fa;
-  border-radius: 8px;
-  border: 1px solid #e4e7ed;
-}
-
 .detail-content {
   display: flex;
   flex-direction: column;
-  gap: $spacing-md;
+  gap: $spacing-xl;
 }
 
 .overview-section {
   display: flex;
   flex-direction: column;
-  gap: $spacing-sm;
+}
+
+/* 概览：白底块 + 圆角，不靠多重描边分区；块与块之间用留白区分 */
+.overview-panel {
+  border-radius: $radius-large;
+  background: #fff;
+  padding: $spacing-md $spacing-lg;
+  overflow: hidden;
+
+  :deep(.el-card) {
+    box-shadow: none !important;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  :deep(.summary-card .el-card__body),
+  :deep(.key-dates-card .el-card__body) {
+    padding-top: $spacing-sm;
+  }
+
+  :deep(.summary-card .el-card__body) {
+    padding-bottom: $spacing-lg;
+  }
+
+  :deep(.key-dates-card .el-card__body) {
+    padding-bottom: $spacing-lg;
+  }
 }
 
 .tabs-section {
   flex: 1;
 }
 
-/* 物流状态标签：右上角可视化，避开导航条 */
-.logistics-status-badge {
-  position: fixed;
-  top: 72px;
-  right: 80px;
-  z-index: 999;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: 999px;
-  font-size: $font-size-sm;
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  box-shadow: $shadow-base;
-  pointer-events: none;
-  transition: $transition-base;
-
-  .badge-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-    animation: badge-pulse 2s ease-in-out infinite;
-  }
-
-  .badge-text {
-    white-space: nowrap;
-  }
-
-  &.success {
-    background: linear-gradient(135deg, rgba($success-color, 0.95) 0%, $success-color 100%);
-    color: #fff;
-    .badge-dot {
-      background: #fff;
-    }
-  }
-
-  &.warning {
-    background: linear-gradient(135deg, rgba($warning-color, 0.95) 0%, $warning-color 100%);
-    color: #fff;
-    .badge-dot {
-      background: #fff;
-    }
-  }
-
-  &.danger {
-    background: linear-gradient(135deg, rgba($danger-color, 0.95) 0%, $danger-color 100%);
-    color: #fff;
-    .badge-dot {
-      background: #fff;
-    }
-  }
-
-  &.info {
-    background: linear-gradient(135deg, rgba($info-color, 0.95) 0%, $info-color 100%);
-    color: #fff;
-    .badge-dot {
-      background: #fff;
-    }
-  }
-}
-
-@keyframes badge-pulse {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.6;
-  }
-}
-
 .detail-card {
   border-radius: $radius-large;
-  border: 1px solid $border-lighter;
+  border: none;
   overflow: hidden;
+  background: #fff;
 
   :deep(.el-card__body) {
-    padding: $spacing-lg;
+    padding: $spacing-md $spacing-lg $spacing-lg;
   }
 
   .detail-tabs {
     :deep(.el-tabs__header) {
-      margin-bottom: $spacing-lg;
-      border-bottom: 1px solid $border-lighter;
+      margin: 0 0 $spacing-md 0;
+      border-bottom: none;
     }
 
     :deep(.el-tabs__nav-wrap::after) {
@@ -383,6 +333,7 @@ watch(
     :deep(.el-tabs__item) {
       font-size: $font-size-sm;
       font-weight: 500;
+      color: $text-secondary;
     }
 
     :deep(.el-tabs__item.is-active) {
@@ -392,11 +343,7 @@ watch(
 
     :deep(.el-tabs__active-bar) {
       background: $primary-color;
-      height: 3px;
-    }
-
-    :deep(.el-tabs__indicator) {
-      background: $primary-color;
+      height: 2px;
     }
 
     :deep(.el-tabs__content) {
@@ -417,8 +364,7 @@ watch(
       font-weight: 600;
       color: $text-primary;
       margin: 0;
-      padding-bottom: $spacing-sm;
-      border-bottom: 1px solid $border-lighter;
+      padding-bottom: 0;
     }
   }
 }

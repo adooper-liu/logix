@@ -8,31 +8,6 @@
       <el-alert type="warning" :title="error" show-icon />
     </div>
     <div v-else-if="path" class="path-content">
-      <!-- 视图切换 + 刷新 -->
-      <div class="view-mode-row">
-        <div class="view-mode-bar">
-          <el-radio-group v-model="viewMode" size="small">
-            <el-radio-button value="grouped">{{ t('container.logisticsPath.viewModes.grouped') }}</el-radio-button>
-            <el-radio-button value="map">{{ t('container.logisticsPath.viewModes.map') }}</el-radio-button>
-          </el-radio-group>
-        </div>
-        <div class="view-mode-actions">
-          <router-link
-            :to="{
-              path: '/docs/help/时间概念说明-历时倒计时超期.md',
-              query: { from: router.currentRoute.value.fullPath }
-            }"
-            class="help-link"
-          >
-            <el-icon><QuestionFilled /></el-icon>
-            <span>{{ t('container.logisticsPath.durationExplanation') }}</span>
-          </router-link>
-          <el-button type="primary" link size="small" class="refresh-btn" @click="loadPath">
-            {{ t('container.logisticsPath.refresh') }}
-          </el-button>
-        </div>
-      </div>
-
       <!-- 超期预警 -->
       <el-alert
         v-if="path.isOverdue"
@@ -74,7 +49,7 @@
       </div>
 
       <!-- 阶段分组：一行多列 -->
-      <div v-show="viewMode === 'grouped'" class="path-grouped">
+      <div v-if="variant === 'grouped'" class="path-grouped">
         <div v-if="!(path.nodes || []).length" class="path-timeline-empty">{{ t('container.logisticsPath.noNodes') }}</div>
         <div v-else class="stage-grid">
           <div
@@ -113,6 +88,7 @@
                       :next-timestamp="item.globalIndex < (path.nodes?.length ?? 0) - 1 ? path.nodes[item.globalIndex + 1]?.timestamp : null"
                       :index="item.globalIndex"
                       :total-count="path.nodes?.length ?? 0"
+                      :node-status="item.node.status"
                       :standard-hours="STANDARD_DURATIONS[item.node.status] ?? 0"
                       :is-in-progress="isCurrentNode(item.node, item.globalIndex)"
                       :is-no-data="isNoDataNode(item.node)"
@@ -128,14 +104,47 @@
         </div>
       </div>
 
-      <!-- 地图路径视图（Leaflet + OpenStreetMap） -->
-      <div v-show="viewMode === 'map'" class="path-map">
+      <!-- 地图路径视图（Leaflet，独立 Tab 时 variant=map） -->
+      <div v-if="variant === 'map'" class="path-map">
         <div ref="mapContainerRef" class="map-container"></div>
-        <div v-if="mapPoints.length === 0" class="map-empty">{{ t('container.logisticsPath.noPortCoordinates') }}</div>
+        <div v-if="mapPoints.length === 0" class="map-empty">
+          <div>
+            {{
+              mapLocationCandidatesCount > 0
+                ? t('container.logisticsPath.noPortCoordinates')
+                : t('container.logisticsPath.noPortLocationData')
+            }}
+          </div>
+          <div v-if="unmatchedMapEntries.length" class="map-empty-unmatched">
+            <div class="map-empty-unmatched-title">本柜未命中的 code/name：</div>
+            <div class="map-empty-unmatched-list">
+              {{ unmatchedMapEntries.join('，') }}
+            </div>
+          </div>
+        </div>
+        <div class="map-debug-panel">
+          <el-collapse>
+            <el-collapse-item title="地图匹配调试信息（当前货柜）" name="map-debug">
+              <el-table :data="mapDebugRows" size="small" border max-height="280">
+                <el-table-column prop="nodeStatus" label="节点" min-width="140" />
+                <el-table-column prop="code" label="提取 code" min-width="140" />
+                <el-table-column prop="name" label="提取 name" min-width="160" />
+                <el-table-column label="匹配来源" width="140">
+                  <template #default="{ row }">
+                    <el-tag :type="getMapMatchTagType(row.matchSource)" size="small">
+                      {{ row.matchSourceLabel }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="matchedWith" label="命中值" min-width="160" />
+              </el-table>
+            </el-collapse-item>
+          </el-collapse>
+        </div>
       </div>
 
-      <!-- 8. 多柜对比（需传入 billOfLadingNumber） -->
-      <div v-if="props.billOfLadingNumber" class="multi-container-section">
+      <!-- 8. 多柜对比（仅阶段分组 Tab；需传入 billOfLadingNumber） -->
+      <div v-if="variant === 'grouped' && props.billOfLadingNumber" class="multi-container-section">
         <el-collapse>
           <el-collapse-item :title="t('container.logisticsPath.sameBillOfLading.title')" name="compare">
             <div class="compare-header">
@@ -229,31 +238,33 @@
         </div>
       </el-drawer>
     </div>
-    <el-empty :description="t('container.logisticsPath.noPathData')" class="path-empty" />
+    <el-empty v-else :description="t('container.logisticsPath.noPathData')" class="path-empty" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
-import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { Loading, QuestionFilled } from '@element-plus/icons-vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { logisticsPathService, type StatusPath, type StatusNode } from '@/services/logisticsPath'
+import { dictService } from '@/services/dict'
 import { containerService } from '@/services/container'
 import NodeDurationDisplay from '@/components/common/NodeDurationDisplay.vue'
 import type { ContainerListItem } from '@/types/container'
 
-const router = useRouter()
 const { t } = useI18n()
 
-const props = defineProps<{
-  containerNumber: string
-  billOfLadingNumber?: string
-}>()
-
-const viewMode = ref<'grouped' | 'map'>('grouped')
+const props = withDefaults(
+  defineProps<{
+    containerNumber: string
+    billOfLadingNumber?: string
+    /** grouped=阶段分组；map=仅地图（由父级货柜详情独立 Tab 使用） */
+    variant?: 'grouped' | 'map'
+  }>(),
+  { variant: 'grouped' }
+)
 const loading = ref(false)
 const error = ref('')
 const path = ref<StatusPath | null>(null)
@@ -261,6 +272,86 @@ const selectedNode = ref<StatusNode | null>(null)
 const validationResult = ref<{ isValid: boolean; errors: string[]; warnings: string[] } | null>(null)
 const mapContainerRef = ref<HTMLElement | null>(null)
 let leafletMap: L.Map | null = null
+let mapResizeObserver: ResizeObserver | null = null
+
+/** dict_ports 经纬度缓存（全量只拉一次，供物流地图匹配） */
+type DictPortCoordMaps = { byCode: Record<string, [number, number]>; byNameNorm: Record<string, [number, number]> }
+let cachedDictPortCoords: DictPortCoordMaps | null = null
+let dictPortCoordsInflight: Promise<DictPortCoordMaps> | null = null
+
+function normalizePortNameKey(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, '')
+}
+
+/** 与 dict_ports / 内置表 不一致时的五字码别名（飞驼等常用 CNNBO，字典多为 CNNGB） */
+const PORT_CODE_ALIASES: Record<string, string> = {
+  CNNBO: 'CNNGB',
+  CNZOS: 'CNNGB',
+  CNZHE: 'CNNGB',
+  CNSHA: 'CNSHG',
+  CNSHP: 'CNSHG',
+  CNQIN: 'CNQNG',
+  CNQDO: 'CNTAO'
+}
+
+/** 生成用于匹配 dict 港口名称的若干 key（如「宁波港」→「宁波」） */
+function portNameLookupKeys(displayName: string): string[] {
+  const base = normalizePortNameKey(displayName)
+  if (!base) return []
+  const keys = new Set<string>([base])
+  const noSuffix = base
+    .replace(/(国际)?港口?$|港$|码头$|湾$|港区$/u, '')
+    .trim()
+  if (noSuffix && noSuffix !== base) keys.add(noSuffix)
+  return [...keys]
+}
+
+async function loadDictPortCoordsOnce(): Promise<DictPortCoordMaps> {
+  if (cachedDictPortCoords) return cachedDictPortCoords
+  if (!dictPortCoordsInflight) {
+    dictPortCoordsInflight = (async () => {
+      try {
+        const res = await dictService.getPorts()
+        const byCode: Record<string, [number, number]> = {}
+        const byNameNorm: Record<string, [number, number]> = {}
+        if (res.success && res.data?.length) {
+          for (const p of res.data) {
+            const lat = p.latitude
+            const lng = p.longitude
+            if (lat == null || lng == null) continue
+            const latN = Number(lat)
+            const lngN = Number(lng)
+            if (Number.isNaN(latN) || Number.isNaN(lngN)) continue
+            const pair: [number, number] = [lngN, latN]
+            const pc = (p.code || '').toUpperCase().replace(/\s/g, '')
+            if (pc) byCode[pc] = pair
+            const n1 = normalizePortNameKey(p.name || '')
+            if (n1) byNameNorm[n1] = pair
+            const n2 = normalizePortNameKey(p.nameEn || '')
+            if (n2) byNameNorm[n2] = pair
+            for (const k of portNameLookupKeys(p.name || '')) {
+              if (k) byNameNorm[k] = pair
+            }
+          }
+        }
+        cachedDictPortCoords = { byCode, byNameNorm }
+      } catch {
+        cachedDictPortCoords = { byCode: {}, byNameNorm: {} }
+      }
+      return cachedDictPortCoords!
+    })().finally(() => {
+      dictPortCoordsInflight = null
+    })
+  }
+  return dictPortCoordsInflight
+}
+
+const dictPortCoords = ref<DictPortCoordMaps | null>(null)
+
+const teardownMapResizeObserver = () => {
+  mapResizeObserver?.disconnect()
+  mapResizeObserver = null
+}
 
 // 同提单货柜对比相关
 const loadingSameBillOfLading = ref(false)
@@ -345,7 +436,26 @@ watch(
   { immediate: true }
 )
 
-defineExpose({ load: loadPath })
+watch(
+  () => props.containerNumber,
+  (val) => {
+    if (!val?.trim()) return
+    loadDictPortCoordsOnce().then((m) => {
+      dictPortCoords.value = m
+    })
+  },
+  { immediate: true }
+)
+
+const invalidateMap = () => {
+  if (props.variant !== 'map' || !leafletMap) return
+  leafletMap.invalidateSize({ animate: false })
+  requestAnimationFrame(() => {
+    leafletMap?.invalidateSize({ animate: false })
+  })
+}
+
+defineExpose({ load: loadPath, invalidateMap })
 
 /** 超期预警文案 */
 const overdueAlertText = computed(() => {
@@ -466,7 +576,7 @@ const pathDataSourceSummary = computed(() => {
   return Object.entries(counts).map(([source, count]) => ({ source, count }))
 })
 
-/** 地图：常用港口坐标（dict_ports 部分） */
+/** 地图：内置兜底坐标（[lng, lat]）；优先使用 dict_ports 接口返回的经纬度 */
 const PORT_COORDS: Record<string, [number, number]> = {
   CNSHG: [121.47, 31.23], CNSZX: [114.06, 22.54], CNNGB: [121.54, 29.87], CNYTN: [114.27, 22.56],
   CNQNG: [120.38, 36.07], CNTAO: [117.20, 39.08], CNDLC: [121.61, 38.91], CNXMN: [118.09, 24.48],
@@ -476,21 +586,254 @@ const PORT_COORDS: Record<string, [number, number]> = {
   NLRTM: [4.48, 51.92], DEHAM: [9.93, 53.55], GBSOU: [-1.40, 50.90], BEANR: [4.42, 51.22]
 }
 
+function resolveNodePortLngLat(
+  code: string,
+  displayName: string,
+  dict: DictPortCoordMaps | null
+): [number, number] | null {
+  const compact = code.replace(/\s/g, '').toUpperCase()
+  const aliased = PORT_CODE_ALIASES[compact] || compact
+  const tryCodes = [aliased, compact].filter((c, i, a) => c && a.indexOf(c) === i)
+
+  for (const c of tryCodes) {
+    if (dict?.byCode[c]) return dict.byCode[c]
+  }
+  for (const c of tryCodes) {
+    if (PORT_COORDS[c]) return [...PORT_COORDS[c]] as [number, number]
+  }
+  for (const c of tryCodes) {
+    const fuzzy = Object.entries(PORT_COORDS).find(
+      ([k]) => c.includes(k) || k.includes(c) || c.endsWith(k) || k.endsWith(c)
+    )?.[1]
+    if (fuzzy) return [...fuzzy] as [number, number]
+  }
+  for (const nk of portNameLookupKeys(displayName)) {
+    if (dict && nk && dict.byNameNorm[nk]) return dict.byNameNorm[nk]
+  }
+  return null
+}
+
+type MapMatchSource = 'dict' | 'builtin' | 'raw' | 'none'
+
+function resolveNodePortLngLatWithSource(
+  code: string,
+  displayName: string,
+  dict: DictPortCoordMaps | null
+): { coord: [number, number] | null; source: MapMatchSource; matchedWith?: string } {
+  const compact = code.replace(/\s/g, '').toUpperCase()
+  const aliased = PORT_CODE_ALIASES[compact] || compact
+  const tryCodes = [aliased, compact].filter((c, i, a) => c && a.indexOf(c) === i)
+
+  for (const c of tryCodes) {
+    if (dict?.byCode[c]) return { coord: dict.byCode[c], source: 'dict', matchedWith: c }
+  }
+  for (const c of tryCodes) {
+    if (PORT_COORDS[c]) return { coord: [...PORT_COORDS[c]] as [number, number], source: 'builtin', matchedWith: c }
+  }
+  for (const c of tryCodes) {
+    const fuzzy = Object.entries(PORT_COORDS).find(
+      ([k]) => c.includes(k) || k.includes(c) || c.endsWith(k) || k.endsWith(c)
+    )
+    if (fuzzy) return { coord: [...fuzzy[1]] as [number, number], source: 'builtin', matchedWith: `${c}~${fuzzy[0]}` }
+  }
+  for (const nk of portNameLookupKeys(displayName)) {
+    if (dict && nk && dict.byNameNorm[nk]) {
+      return { coord: dict.byNameNorm[nk], source: 'dict', matchedWith: `name:${nk}` }
+    }
+  }
+  return { coord: null, source: 'none' }
+}
+
+function getRawDataLngLat(node: StatusNode): [number, number] | null {
+  const raw = (node.rawData || {}) as Record<string, unknown>
+  const pickNum = (...keys: string[]): number | null => {
+    for (const k of keys) {
+      const v = raw[k]
+      if (v === null || v === undefined || v === '') continue
+      const n = Number(String(v).trim())
+      if (Number.isFinite(n)) return n
+    }
+    return null
+  }
+  const lat = pickNum('latitude', 'lat', '纬度', '发生地信息_纬度')
+  const lng = pickNum('longitude', 'lng', 'lon', '经度', '发生地信息_经度')
+  if (lat === null || lng === null) return null
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null
+  return [lng, lat]
+}
+
+function extractNodePortCodeAndName(node: StatusNode): { code: string; name: string } | null {
+  const rawData = (node.rawData || {}) as Record<string, unknown>
+  const firstNonEmpty = (...vals: unknown[]): string => {
+    for (const v of vals) {
+      const s = (v ?? '').toString().trim()
+      if (s) return s
+    }
+    return ''
+  }
+
+  // 匹配口径对齐 ext_feituo_status_events：
+  // code 优先 port_code，其次 event_place_code，再回退到 location.code
+  const code = firstNonEmpty(
+    rawData.port_code,
+    rawData.portCode,
+    rawData.event_place_code,
+    rawData.locationCode,
+    rawData.location_code,
+    rawData.eventPlaceCode,
+    rawData['eventPlaceCode'],
+    rawData['portCode'],
+    rawData['地点CODE'],
+    rawData['发生地信息_地点CODE'],
+    node.location?.code
+  )
+  // name 优先 event_place / event_place_origin，其次 port_name，再回退到 location.name
+  const name = firstNonEmpty(
+    rawData.event_place,
+    rawData.eventPlace,
+    rawData.event_place_origin,
+    rawData['event_place_origin'],
+    rawData.port_name,
+    rawData.portName,
+    rawData.location,
+    rawData.portName,
+    rawData.port_name,
+    rawData['发生地'],
+    rawData['发生地信息_地点名称中文（标准）'],
+    rawData['发生地信息_地点名称英文（标准）'],
+    node.location?.name
+  )
+
+  if (!code && !name) return null
+  return { code: code || name, name: name || code }
+}
+
 const mapPoints = computed(() => {
   if (!path.value?.nodes?.length) return []
+  const dict = dictPortCoords.value
   const pts: { name: string; value: [number, number]; node: StatusNode }[] = []
   const seen = new Set<string>()
   for (const node of path.value!.nodes) {
-    const raw = (node.location?.code || node.location?.name || node.rawData?.location || node.rawData?.portCode || '').toString().trim()
-    if (!raw) continue
-    const code = raw.toUpperCase().replace(/\s/g, '')
-    const match = PORT_COORDS[code] ?? Object.entries(PORT_COORDS).find(([k]) => code.includes(k) || k.includes(code) || code.endsWith(k) || k.endsWith(code))?.[1]
+    const extracted = extractNodePortCodeAndName(node)
+    if (!extracted) continue
+    const code = extracted.code.toUpperCase().replace(/\s/g, '')
+    const displayName = extracted.name
+    const match = resolveNodePortLngLat(code, displayName, dict) || getRawDataLngLat(node)
     if (match && !seen.has(code)) {
-      pts.push({ name: node.location?.name || raw, value: [...match], node })
+      pts.push({ name: displayName, value: match, node })
       seen.add(code)
     }
   }
   return pts
+})
+
+const mapDebugRows = computed(() => {
+  if (!path.value?.nodes?.length) return [] as Array<{
+    nodeStatus: string
+    code: string
+    name: string
+    matchSource: MapMatchSource
+    matchSourceLabel: string
+    matchedWith: string
+  }>
+
+  const dict = dictPortCoords.value
+  return path.value.nodes.map((node) => {
+    const extracted = extractNodePortCodeAndName(node)
+    const rawCoord = getRawDataLngLat(node)
+
+    if (!extracted && rawCoord) {
+      return {
+        nodeStatus: `${node.description} (${node.status})`,
+        code: '-',
+        name: '-',
+        matchSource: 'raw' as MapMatchSource,
+        matchSourceLabel: 'raw 经纬度命中',
+        matchedWith: `[${rawCoord[0]}, ${rawCoord[1]}]`
+      }
+    }
+
+    if (!extracted) {
+      return {
+        nodeStatus: `${node.description} (${node.status})`,
+        code: '-',
+        name: '-',
+        matchSource: 'none' as MapMatchSource,
+        matchSourceLabel: '未命中',
+        matchedWith: '-'
+      }
+    }
+
+    const code = extracted.code.toUpperCase().replace(/\s/g, '')
+    const name = extracted.name
+    const resolved = resolveNodePortLngLatWithSource(code, name, dict)
+
+    if (resolved.coord) {
+      return {
+        nodeStatus: `${node.description} (${node.status})`,
+        code,
+        name,
+        matchSource: resolved.source,
+        matchSourceLabel: resolved.source === 'dict' ? '字典命中' : '内置命中',
+        matchedWith: resolved.matchedWith || '-'
+      }
+    }
+
+    if (rawCoord) {
+      return {
+        nodeStatus: `${node.description} (${node.status})`,
+        code,
+        name,
+        matchSource: 'raw' as MapMatchSource,
+        matchSourceLabel: 'raw 经纬度命中',
+        matchedWith: `[${rawCoord[0]}, ${rawCoord[1]}]`
+      }
+    }
+
+    return {
+      nodeStatus: `${node.description} (${node.status})`,
+      code,
+      name,
+      matchSource: 'none' as MapMatchSource,
+      matchSourceLabel: '未命中',
+      matchedWith: '-'
+    }
+  })
+})
+
+const mapLocationCandidatesCount = computed(() => {
+  if (!path.value?.nodes?.length) return 0
+  let count = 0
+  for (const node of path.value.nodes) {
+    if (extractNodePortCodeAndName(node) || getRawDataLngLat(node)) {
+      count += 1
+    }
+  }
+  return count
+})
+
+const getMapMatchTagType = (source: MapMatchSource): 'success' | 'primary' | 'warning' | 'danger' => {
+  if (source === 'dict') return 'success'
+  if (source === 'builtin') return 'primary'
+  if (source === 'raw') return 'warning'
+  return 'danger'
+}
+
+const unmatchedMapEntries = computed(() => {
+  if (!path.value?.nodes?.length) return [] as string[]
+  const dict = dictPortCoords.value
+  const misses = new Set<string>()
+  for (const node of path.value.nodes) {
+    const extracted = extractNodePortCodeAndName(node)
+    if (!extracted) continue
+    const code = extracted.code.toUpperCase().replace(/\s/g, '')
+    const displayName = extracted.name
+    const match = resolveNodePortLngLat(code, displayName, dict) || getRawDataLngLat(node)
+    if (!match) {
+      misses.add(`${code}${displayName && displayName !== code ? `(${displayName})` : ''}`)
+    }
+  }
+  return Array.from(misses).slice(0, 20)
 })
 
 /** 创建路径点标记（纯 CSS，避免默认图标加载失败出现灰色块） */
@@ -503,9 +846,18 @@ const createRouteMarkerIcon = (index: number) =>
   })
 
 const initLeafletMap = () => {
-  if (!mapContainerRef.value || !path.value || viewMode.value !== 'map') return
+  if (!mapContainerRef.value || !path.value || props.variant !== 'map') return
+  const el = mapContainerRef.value
+  if (el.offsetWidth < 8 || el.offsetHeight < 8) return
+
   const pts = mapPoints.value
-  if (pts.length === 0) return
+  if (pts.length === 0) {
+    if (leafletMap) {
+      leafletMap.remove()
+      leafletMap = null
+    }
+    return
+  }
 
   if (leafletMap) {
     leafletMap.remove()
@@ -550,27 +902,67 @@ const initLeafletMap = () => {
   if (latlngs.length > 1) {
     leafletMap.fitBounds(bounds.pad(0.2))
   }
-  // 确保地图在 v-show 显示后正确计算尺寸并加载瓦片
-  setTimeout(() => leafletMap?.invalidateSize(), 50)
+  // Tab / 懒加载面板初次显示时需在布局稳定后再算尺寸，否则瓦片灰块
+  requestAnimationFrame(() => {
+    leafletMap?.invalidateSize({ animate: false })
+    requestAnimationFrame(() => {
+      leafletMap?.invalidateSize({ animate: false })
+    })
+  })
+}
+
+const setupMapResizeObserver = () => {
+  teardownMapResizeObserver()
+  if (props.variant !== 'map' || !mapContainerRef.value || mapPoints.value.length === 0) return
+
+  mapResizeObserver = new ResizeObserver(() => {
+    if (props.variant !== 'map') return
+    const node = mapContainerRef.value
+    if (!node || node.offsetWidth < 8 || node.offsetHeight < 8) return
+
+    if (leafletMap) {
+      leafletMap.invalidateSize({ animate: false })
+      requestAnimationFrame(() => leafletMap?.invalidateSize({ animate: false }))
+    } else if (path.value && mapPoints.value.length > 0) {
+      initLeafletMap()
+    }
+  })
+  mapResizeObserver.observe(mapContainerRef.value)
 }
 
 const destroyLeafletMap = () => {
+  teardownMapResizeObserver()
   if (leafletMap) {
     leafletMap.remove()
     leafletMap = null
   }
 }
 
-watch([() => path.value, viewMode], () => {
+const scheduleMapInit = () => {
+  if (props.variant !== 'map') return
   nextTick(() => {
-    if (viewMode.value === 'map') {
-      // 延迟初始化，确保 v-show 显示后容器已有尺寸，底图能正确加载
-      setTimeout(initLeafletMap, 150)
-    } else {
-      destroyLeafletMap()
-    }
+    // 懒加载 Tab 首次激活时多等一帧，避免容器仍为 0 宽高
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        initLeafletMap()
+        setupMapResizeObserver()
+      })
+    })
   })
-})
+}
+
+watch(
+  [() => path.value, () => props.variant, () => dictPortCoords.value],
+  () => {
+    nextTick(() => {
+      if (props.variant === 'map') {
+        setTimeout(scheduleMapInit, 120)
+      } else {
+        destroyLeafletMap()
+      }
+    })
+  }
+)
 
 onBeforeUnmount(destroyLeafletMap)
 
@@ -725,10 +1117,9 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
 @use '@/assets/styles/variables' as *;
 
 .logistics-path-tab {
-  padding: $spacing-lg;
+  padding: 0;
   min-height: 200px;
-  background: linear-gradient(180deg, var(--el-bg-color-page, #f5f7fa) 0%, var(--el-bg-color) 100%);
-  border-radius: $radius-large;
+  background: transparent;
 }
 
 .path-loading {
@@ -750,77 +1141,6 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
 .path-content {
   max-width: 100%;
   margin: 0 auto;
-}
-
-/* 视图切换 + 刷新 */
-.view-mode-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: $spacing-lg;
-  gap: $spacing-md;
-}
-
-.view-mode-bar {
-  padding: 4px;
-  background: var(--el-fill-color-lighter);
-  border-radius: 999px;
-  display: inline-flex;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.06);
-
-  :deep(.el-radio-button__inner) {
-    border: none;
-    border-radius: 999px;
-    padding: 8px 20px;
-    font-weight: 500;
-    transition: $transition-base;
-  }
-  :deep(.el-radio-group) {
-    display: flex;
-    gap: 4px;
-  }
-  :deep(.el-radio-button__original-radio:checked + .el-radio-button__inner) {
-    background: var(--el-color-primary);
-    color: #fff;
-    box-shadow: $shadow-light;
-  }
-  :deep(.el-radio-button:not(.is-active) .el-radio-button__inner:hover) {
-    background: rgba(255, 255, 255, 0.8);
-  }
-}
-
-.view-mode-actions {
-  display: flex;
-  align-items: center;
-  gap: $spacing-sm;
-}
-
-.help-link {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--el-color-primary);
-  text-decoration: none;
-  font-size: $font-size-sm;
-  transition: all $transition-base;
-  padding: 6px 12px;
-  border-radius: $radius-base;
-  background: rgba(var(--el-color-primary-rgb), 0.04);
-
-  &:hover {
-    color: color.adjust($primary-color, $lightness: 10%);
-    text-decoration: none;
-    background: rgba(var(--el-color-primary-rgb), 0.08);
-  }
-
-  span {
-    font-size: 12px;
-    font-weight: 500;
-  }
-}
-
-.refresh-btn {
-  flex-shrink: 0;
 }
 
 /* 阶段分组：一行多列 */
@@ -1030,11 +1350,11 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
 .path-map {
   margin-top: $spacing-md;
   position: relative;
-  padding: $spacing-lg;
-  background: linear-gradient(180deg, var(--el-fill-color-lighter) 0%, var(--el-bg-color) 100%);
-  border: 1px solid var(--el-border-color-lighter);
-  border-radius: $radius-large;
-  box-shadow: $shadow-light;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
   overflow: hidden;
 }
 
@@ -1115,6 +1435,32 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
   background: var(--el-fill-color-lighter);
   border-radius: $radius-base;
   border: 1px dashed var(--el-border-color-lighter);
+}
+
+.map-empty-unmatched {
+  margin-top: $spacing-sm;
+  text-align: left;
+  max-width: 100%;
+  padding: $spacing-sm;
+  border-radius: $radius-base;
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.map-empty-unmatched-title {
+  font-size: $font-size-xs;
+  color: var(--el-text-color-primary);
+  margin-bottom: 4px;
+}
+
+.map-empty-unmatched-list {
+  font-size: $font-size-xs;
+  color: var(--el-text-color-secondary);
+  word-break: break-all;
+  line-height: 1.5;
+}
+
+.map-debug-panel {
+  margin-top: $spacing-sm;
 }
 
 /* 8. 多柜对比 */

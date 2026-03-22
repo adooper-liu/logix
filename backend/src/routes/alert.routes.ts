@@ -55,4 +55,25 @@ router.post('/:id/resolve', async (req, res) => {
   }
 });
 
+/** 手动全量检查并写入 ext_container_alerts（与定时任务逻辑相同） */
+router.post('/run-check-all', async (_req, res) => {
+  try {
+    const alerts = await alertService.checkAllAlerts();
+    res.json({ success: true, count: alerts.length });
+  } catch (error) {
+    res.status(500).json({ error: '批量预警检查失败' });
+  }
+});
+
+/** 单箱检查并写入 ext_container_alerts */
+router.post('/run-check/:containerNumber', async (req, res) => {
+  try {
+    const { containerNumber } = req.params;
+    const alerts = await alertService.checkContainerAlerts(decodeURIComponent(containerNumber));
+    res.json({ success: true, count: alerts.length, data: alerts });
+  } catch (error) {
+    res.status(500).json({ error: '单箱预警检查失败' });
+  }
+});
+
 export default router;

@@ -7,18 +7,20 @@ interface SeaFreight {
   portOfLoading?: string
   portOfDischarge?: string
   portOfTransit?: string
-  shippingDate?: Date | string
+  shipmentDate?: Date | string
   eta?: Date | string
   ata?: Date | string
   freightForwarder?: string
   bookingNumber?: string
+  mblNumber?: string
+  hblNumber?: string
 }
 
 interface Props {
   seaFreights?: SeaFreight[]
   destinationPortOperation?: {
-    etaDestPort?: Date | string
-    ataDestPort?: Date | string
+    eta?: Date | string
+    ata?: Date | string
   }
 }
 
@@ -84,15 +86,15 @@ const formatDateOnly = (date: Date | string | undefined): string => {
           </div>
           <div class="field-item">
             <span class="field-label">装船日期</span>
-            <span class="field-value">{{ formatDateOnly(sf.shippingDate) }}</span>
+            <span class="field-value">{{ formatDateOnly(sf.shipmentDate) }}</span>
           </div>
           <div class="field-item">
             <span class="field-label">预计到港</span>
-            <span class="field-value">{{ formatDateOnly(sf.eta || destinationPortOperation?.etaDestPort) }}</span>
+            <span class="field-value">{{ formatDateOnly(sf.eta || destinationPortOperation?.eta) }}</span>
           </div>
           <div class="field-item">
             <span class="field-label">实际到港</span>
-            <span class="field-value highlight">{{ formatDateOnly(sf.ata || destinationPortOperation?.ataDestPort) }}</span>
+            <span class="field-value highlight">{{ formatDateOnly(sf.ata || destinationPortOperation?.ata) }}</span>
           </div>
           <div class="field-item">
             <span class="field-label">货代公司</span>

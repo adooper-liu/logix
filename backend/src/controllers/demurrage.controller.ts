@@ -188,8 +188,12 @@ export class DemurrageController {
           calculationDates: result.calculationDates,
           matchedStandards: result.matchedStandards,
           items: result.items,
+          skippedItems: result.skippedItems,
           totalAmount: result.totalAmount,
-          currency: result.currency
+          currency: result.currency,
+          calculationMode: result.calculationMode,
+          dateOrderWarnings: result.dateOrderWarnings,
+          logisticsStatusSnapshot: result.logisticsStatusSnapshot
         }
       });
     } catch (error) {

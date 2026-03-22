@@ -51,14 +51,9 @@ const getLogisticsStatusText = (status: string): string => {
 
 // 滞港费汇总（从计算结果中提取）
 const demurrageSummary = computed(() => {
-  console.log('[ContainerSummary] demurrageCalculation:', props.demurrageCalculation)
-
   if (!props.demurrageCalculation?.items) {
-    console.log('[ContainerSummary] No items, returning null')
     return null
   }
-
-  console.log('[ContainerSummary] Items:', props.demurrageCalculation.items)
 
   // 按费用类型分组汇总
   const chargeTypeMap = new Map<
@@ -95,13 +90,7 @@ const demurrageSummary = computed(() => {
 </script>
 
 <template>
-  <el-card class="summary-card" shadow="hover">
-    <template #header>
-      <div class="card-header">
-        <span class="card-icon">📦</span>
-        <span class="card-title">基本信息</span>
-      </div>
-    </template>
+  <el-card class="summary-card" shadow="never">
     <div class="info-row">
       <div class="info-item highlight">
         <span class="label">集装箱号</span>
@@ -124,9 +113,12 @@ const demurrageSummary = computed(() => {
         </el-tag>
       </div>
       <!-- 滞港费汇总 -->
-      <div v-if="demurrageSummary" class="demurrage-inline" @click="emit('openDemurrageTab')">
-        <span class="demurrage-icon">💰</span>
-        <span class="demurrage-title">滞港费汇总</span>
+      <div
+        v-if="demurrageSummary"
+        class="demurrage-inline"
+        title="滞港费"
+        @click="emit('openDemurrageTab')"
+      >
         <span class="demurrage-total">
           {{ demurrageSummary.currency }} {{ demurrageSummary.totalAmount.toFixed(2) }}
         </span>
@@ -156,40 +148,12 @@ const demurrageSummary = computed(() => {
 @use '@/assets/styles/variables' as *;
 
 .summary-card {
-  border-radius: $radius-large;
-  border: 1px solid $border-lighter;
-  transition: $transition-base;
+  border-radius: 0;
+  border: none;
   margin-bottom: 0;
 
-  &:hover {
-    box-shadow: $shadow-base;
-  }
-
-  :deep(.el-card__header) {
-    padding: $spacing-sm $spacing-md;
-    border-bottom: 1px solid $border-lighter;
-    background: $bg-page;
-  }
-
   :deep(.el-card__body) {
-    padding: $spacing-md;
-  }
-
-  .card-header {
-    display: flex;
-    align-items: center;
-    gap: $spacing-xs;
-
-    .card-icon {
-      font-size: $font-size-base;
-      line-height: 1;
-    }
-
-    .card-title {
-      font-size: $font-size-sm;
-      font-weight: 600;
-      color: $text-primary;
-    }
+    padding: 0;
   }
 
   .info-row {
@@ -246,38 +210,26 @@ const demurrageSummary = computed(() => {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 12px;
-    background: linear-gradient(135deg, #fff7e6 0%, #ffe8cc 100%);
+    padding: 6px 10px;
+    background: rgba($warning-color, 0.08);
     border-radius: $radius-base;
-    border: 1px solid #e6a23c;
+    border: none;
     flex-shrink: 0;
     cursor: pointer;
-    transition: $transition-base;
+    transition: border-color $transition-base, background $transition-base;
 
     &:hover {
-      box-shadow: $shadow-light;
-      transform: translateY(-1px);
-      border-color: $warning-color;
-    }
-
-    &:active {
-      transform: translateY(0);
+      background: rgba($warning-color, 0.12);
     }
 
     .demurrage-icon {
       font-size: $font-size-sm;
     }
 
-    .demurrage-title {
-      font-size: 11px;
-      font-weight: 600;
-      color: #e6a23c;
-    }
-
     .demurrage-total {
       font-size: $font-size-sm;
       font-weight: 700;
-      color: $danger-color;
+      color: $text-primary;
     }
   }
 
@@ -286,9 +238,9 @@ const demurrageSummary = computed(() => {
     gap: 4px;
     margin-top: $spacing-sm;
     padding: $spacing-sm $spacing-md;
-    background: linear-gradient(135deg, #fff7e6 0%, #ffe8cc 100%);
+    background: rgba($warning-color, 0.06);
     border-radius: $radius-base;
-    border: 1px solid #e6a23c;
+    border: none;
   }
 
   .demurrage-type-item {
@@ -296,9 +248,9 @@ const demurrageSummary = computed(() => {
     align-items: center;
     justify-content: space-between;
     padding: 4px 8px;
-    background: rgba(255, 255, 255, 0.6);
+    background: #fff;
     border-radius: $radius-small;
-    font-size: 11px;
+    font-size: $font-size-xs;
 
     .charge-type-name {
       color: $text-secondary;

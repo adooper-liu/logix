@@ -8,20 +8,22 @@
 
 ## 计算模式自动判断
 
-系统会根据货柜的实际状态自动判断使用哪种计算模式：
+**第一步（必须）**：用与全链路一致的 **`calculateLogisticsStatus`**（`backend/src/utils/logisticsStatusMachine.ts`）判断是否已**到达目的港**或已进入**提柜/卸柜/还箱**。
+
+**第二步**：再确定计算模式：
 
 ```typescript
-// 自动判断逻辑
-const hasAtaOrDischarge = !!(
-  params.calculationDates.ataDestPort ??
-  params.calculationDates.dischargeDate
-);
-const calculationMode: 'actual' | 'forecast' = hasAtaOrDischarge ? 'actual' : 'forecast';
+// 与 DemurrageService.calculateForContainer 一致
+const arrivedAtDestinationPort = isArrivedAtDestinationPortForDemurrage(logisticsSnapshot);
+// true：目的港 AT_PORT，或已 PICKED_UP / UNLOADED / RETURNED_EMPTY
+const calculationMode = arrivedAtDestinationPort ? 'actual' : 'forecast';
 ```
 
-**判断规则**：
-- ✅ 有ATA（实际到港日）或实际卸船日 → `actual` 模式
-- ❌ 只有ETA（预计到港日）无ATA/实际卸船日 → `forecast` 模式
+**判断规则（状态机优先，不单看 ATA 字段）**：
+- ✅ **actual**：状态机为「目的港已到港」或之后（已提柜、已卸柜、已还箱等）
+- ❌ **forecast**：未到目的港（例如在途、仅中转港到港、未出运等）→ 用 **计划/预测** 逻辑（ETA、计划提柜日等）
+
+> 历史说明：曾仅用「有无 ATA/卸船」切换模式；现改为**状态机先行**，避免与货柜 `logistics_status` 不一致。
 
 ---
 

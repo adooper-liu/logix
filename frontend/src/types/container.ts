@@ -311,6 +311,8 @@ export interface TruckingTransport {
   lastPickupDate?: Date;
   plannedPickupDate?: Date;
   pickupDate?: Date;
+  /** feituo | business | manual */
+  pickupDateSource?: string;
   isPrePickup?: boolean;
   pickupNotification?: string;
   pickupLocation?: string;
@@ -384,6 +386,16 @@ export interface StatusEvent {
 }
 
 // 货柜列表项类型，用于列表视图
+export interface ContainerAlert {
+  id: number;
+  type: string;
+  level: string;
+  message: string;
+  resolved: boolean;
+  createdAt: Date;
+  resolvedAt?: Date;
+}
+
 export interface ContainerListItem {
   containerNumber: string;
   orderNumber: string;
@@ -391,8 +403,10 @@ export interface ContainerListItem {
   mblNumber?: string;
   containerTypeCode: string;
   logisticsStatus: string;
-  alerts?: number;
+  alerts?: ContainerAlert[];
   alertCount?: number;
+  resolvedAlertCount?: number;
+  hasResolvedAlerts?: boolean;
   totalCost?: number;
   inspectionRequired: boolean;
   isUnboxing: boolean;

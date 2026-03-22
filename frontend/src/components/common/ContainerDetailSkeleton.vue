@@ -43,20 +43,6 @@
           </div>
         </div>
       </div>
-
-      <!-- 五节点时间线骨架 -->
-      <div class="five-node-skeleton">
-        <div class="card-header-skeleton"></div>
-        <div class="five-node-content-skeleton">
-          <div v-for="i in 5" :key="i" class="node-skeleton">
-            <div class="node-circle-skeleton"></div>
-            <div class="node-content-skeleton">
-              <div class="node-label-skeleton"></div>
-              <div class="node-date-skeleton"></div>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
 
     <!-- 详情Tab区骨架 -->
@@ -252,55 +238,6 @@
           width: 70px;
           height: 14px;
           border-radius: 999px;
-        }
-      }
-    }
-  }
-}
-
-/* 五节点时间线骨架 */
-.five-node-skeleton {
-  @extend .skeleton;
-  padding: $spacing-md;
-  border-radius: $radius-large;
-
-  .five-node-content-skeleton {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-
-    .node-skeleton {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      flex: 1;
-
-      .node-circle-skeleton {
-        @extend .skeleton;
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        margin-bottom: $spacing-xs;
-      }
-
-      .node-content-skeleton {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: $spacing-xs;
-
-        .node-label-skeleton {
-          @extend .skeleton;
-          width: 80px;
-          height: 16px;
-          border-radius: $radius-small;
-        }
-
-        .node-date-skeleton {
-          @extend .skeleton;
-          width: 100px;
-          height: 14px;
-          border-radius: $radius-small;
         }
       }
     }

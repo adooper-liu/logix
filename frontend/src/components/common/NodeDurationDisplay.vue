@@ -16,6 +16,8 @@ interface Props {
   index?: number
   /** 节点总数（用于判断是否为最后一个节点） */
   totalCount?: number
+  /** 路径节点状态码（如 RETURNED_EMPTY），与关键日期「实际还箱」对齐 */
+  nodeStatus?: string
   /** 标准耗时（小时） */
   standardHours?: number
   /** 是否为当前正在进行的节点 */
@@ -44,26 +46,17 @@ const hasNextNode = computed(() => {
   return next !== null
 })
 
-// 计算历时（从上一节点到当前节点）- 只在有后一节点时显示
-const elapsedInfo = computed(() => {
-  if (!props.showElapsed) return null
-  // 统一标准：只有有后一节点时才显示历时
-  if (!hasNextNode.value) return null
+/** 还空完成节点：与关键日期时间线「实际还箱」一致，历时=本节点−上一节点（非相对今天的超期） */
+const isTerminalReturnedEmpty = computed(() => props.nodeStatus === 'RETURNED_EMPTY')
 
-  const current = toTimestamp(props.timestamp)
-  const prev = toTimestamp(props.prevTimestamp)
-
-  if (!current || !prev || props.index === 0) return null
-
+function buildElapsedFromPrev(current: number, prev: number, index: number) {
+  if (!current || !prev || index === 0) return null
   const diffMs = current - prev
-  if (diffMs < 0) return null // 时间顺序异常
-
+  if (diffMs < 0) return null
   const hours = Math.floor(diffMs / (1000 * 60 * 60))
   const days = Math.floor(hours / 24)
   const remainingHours = hours % 24
-
-  if (days === 0 && remainingHours === 0) return null // 小于1小时不显示
-
+  if (days === 0 && remainingHours === 0) return null
   return {
     days,
     hours: remainingHours,
@@ -73,6 +66,30 @@ const elapsedInfo = computed(() => {
         ? `${days}天`
         : `${days}天${remainingHours}小时`
   }
+}
+
+/** 无下一节点时的还空节点：只显示与上一节点的历时（与 DurationDisplay 实际还箱 行为一致） */
+const terminalReturnElapsedInfo = computed(() => {
+  if (!props.showElapsed) return null
+  if (!isTerminalReturnedEmpty.value) return null
+  if (hasNextNode.value) return null
+  const current = toTimestamp(props.timestamp)
+  const prev = toTimestamp(props.prevTimestamp)
+  if (current === null || prev === null) return null
+  return buildElapsedFromPrev(current, prev, props.index ?? 0)
+})
+
+// 计算历时（从上一节点到当前节点）- 只在有后一节点时显示
+const elapsedInfo = computed(() => {
+  if (!props.showElapsed) return null
+  // 统一标准：只有有后一节点时才显示历时
+  if (!hasNextNode.value) return null
+
+  const current = toTimestamp(props.timestamp)
+  const prev = toTimestamp(props.prevTimestamp)
+
+  if (current === null || prev === null) return null
+  return buildElapsedFromPrev(current, prev, props.index ?? 0)
 })
 
 // 计算倒计时/超期 - 只在没有后一节点时显示
@@ -80,6 +97,9 @@ const countdownOrOverdueInfo = computed(() => {
   if (!props.showOverdue) return null
   // 统一标准：只有没有后一节点时才显示倒计时/超期
   if (hasNextNode.value) return null
+
+  // 实际还箱（还空）终点：历时由 terminalReturnElapsedInfo 展示，不对「今天」算超期/倒计时
+  if (isTerminalReturnedEmpty.value && toTimestamp(props.prevTimestamp)) return null
 
   const current = toTimestamp(props.timestamp)
   if (!current) return null
@@ -155,8 +175,13 @@ const countdownOrOverdueInfo = computed(() => {
 
 <template>
   <div class="node-duration-display">
+    <!-- 还空终点：与关键日期一致，历时=本节点−上一节点 -->
+    <span v-if="terminalReturnElapsedInfo" class="duration-tag duration-tag--elapsed">
+      历时 {{ terminalReturnElapsedInfo.text }}
+    </span>
+
     <!-- 历时：有后一节点时显示 -->
-    <span v-if="elapsedInfo" class="duration-tag duration-tag--elapsed">
+    <span v-else-if="elapsedInfo" class="duration-tag duration-tag--elapsed">
       历时 {{ elapsedInfo.text }}
     </span>
 

@@ -5,6 +5,7 @@
  */
 
 import { Repository } from 'typeorm';
+import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
 import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
 import { Country } from '../entities/Country';
@@ -17,6 +18,8 @@ import { TruckingCompany } from '../entities/TruckingCompany';
 import { TruckingTransport } from '../entities/TruckingTransport';
 import { Warehouse } from '../entities/Warehouse';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
+import { AlertLevel, AlertType, ContainerAlert } from '../entities/ContainerAlert';
+import { ExtFeituoStatusEvent } from '../entities/ExtFeituoStatusEvent';
 import { logger } from '../utils/logger';
 import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
 
@@ -43,6 +46,7 @@ export class ContainerService {
     private warehouseOperationRepository: Repository<WarehouseOperation>,
     private emptyReturnRepository: Repository<EmptyReturn>,
     private orderRepository: Repository<ReplenishmentOrder>,
+    private alertRepository: Repository<ContainerAlert>,
     // 字典表
     private customsBrokerRepository: Repository<CustomsBroker>,
     private truckingCompanyRepository: Repository<TruckingCompany>,
@@ -61,7 +65,7 @@ export class ContainerService {
     const containerNumbers = containers.map((c) => c.containerNumber);
 
     // 批量查询所有相关数据
-    const [ordersMap, eventsMap, portOperationsMap, truckingMap, warehouseMap, emptyReturnsMap, customsBrokersMap, truckingCompaniesMap, warehousesMap, countriesMap] =
+    const [ordersMap, eventsMap, portOperationsMap, truckingMap, warehouseMap, emptyReturnsMap, alertsMap, customsBrokersMap, truckingCompaniesMap, warehousesMap, countriesMap] =
       await Promise.all([
         this.batchFetchOrders(containerNumbers),
         this.batchFetchStatusEvents(containerNumbers),
@@ -69,6 +73,7 @@ export class ContainerService {
         this.batchFetchTruckingTransports(containerNumbers),
         this.batchFetchWarehouseOperations(containerNumbers),
         this.batchFetchEmptyReturns(containerNumbers),
+        this.batchFetchAlerts(containerNumbers),
         this.batchFetchCustomsBrokers(),
         this.batchFetchTruckingCompanies(),
         this.batchFetchWarehouses(),
@@ -99,11 +104,12 @@ export class ContainerService {
 
         const currentPortType = logisticsResult.currentPortType;
         const latestPortOperation = logisticsResult.latestPortOperation;
+        const latestLogisticsStatus = logisticsResult.status;
 
         // 计算当前位置
         const currentLocation = this.calculateCurrentLocation(
           latestEvent,
-          container.logisticsStatus,
+          latestLogisticsStatus,
           latestPortOperation,
           currentPortType
         );
@@ -172,6 +178,12 @@ export class ContainerService {
           returnTerminalName: getReturnTerminalName()
         };
 
+        // 获取预警信息
+        const alerts = alertsMap.get(containerNumber) || [];
+        const alertCount = alerts.filter(alert => !alert.resolved).length;
+        const resolvedAlertCount = alerts.filter(alert => alert.resolved).length;
+        const hasResolvedAlerts = resolvedAlertCount > 0;
+
         return {
           ...container,
           orderNumber: orderInfo?.orderNumber ?? null,
@@ -180,6 +192,20 @@ export class ContainerService {
           lastUpdated: container.updatedAt,
           currentPortType,
           latestPortOperation: this.formatPortOperation(latestPortOperation),
+          logisticsStatus: latestLogisticsStatus,
+          // 预警信息
+          alerts: alerts.map(alert => ({
+            id: alert.id,
+            type: alert.type,
+            level: alert.level,
+            message: alert.message,
+            resolved: alert.resolved,
+            createdAt: alert.createdAt,
+            resolvedAt: alert.resolvedAt
+          })),
+          alertCount,
+          resolvedAlertCount,
+          hasResolvedAlerts,
           // 扩展字段（与列表表头绑定一致）
           // 始终使用目的港的ETA/ATA，不受中转港影响
           etaDestPort: destPortOp?.eta || container.seaFreight?.eta || null,
@@ -619,7 +645,7 @@ export class ContainerService {
     for (const er of emptyReturns) {
       if (er.returnTime) {
         events.push({
-          id: `${er.id}-return`,
+          id: `${er.containerNumber}-return`,
           statusCode: 'RETURNED_EMPTY',
           occurredAt: er.returnTime,
           locationNameCn: er.returnTerminalName || '还箱点',
@@ -1000,6 +1026,83 @@ export class ContainerService {
       logger.warn('[batchFetchCountries] Failed:', error);
       return new Map();
     }
+  }
+
+  /**
+   * 批量查询预警信息
+   */
+  private async batchFetchAlerts(containerNumbers: string[]): Promise<Map<string, ContainerAlert[]>> {
+    const result = new Map<string, ContainerAlert[]>();
+
+    try {
+      const alerts = await this.alertRepository
+        .createQueryBuilder('alert')
+        .where('alert.containerNumber IN (:...containerNumbers)', { containerNumbers })
+        .getMany();
+
+      // 按containerNumber分组
+      alerts.forEach((alert) => {
+        const containerNumber = alert.containerNumber;
+        const containerAlerts = result.get(containerNumber) || [];
+        containerAlerts.push(alert);
+        result.set(containerNumber, containerAlerts);
+      });
+
+      // 确保所有container都有记录
+      containerNumbers.forEach((cn) => {
+        if (!result.has(cn)) {
+          result.set(cn, []);
+        }
+      });
+
+      /**
+       * 列表只读 ext_container_alerts；若未跑 checkAllAlerts 则甩柜预警为空。
+       * 对 ext_feituo_status_events 中 event_code=DUMP 补充展示用预警（不落库，id 为负避免与 DB 冲突）。
+       */
+      if (containerNumbers.length > 0) {
+        const feituoRepo = AppDataSource.getRepository(ExtFeituoStatusEvent);
+        const dumpRows = await feituoRepo
+          .createQueryBuilder('e')
+          .where('e.containerNumber IN (:...cns)', { cns: containerNumbers })
+          .andWhere('UPPER(TRIM(e.eventCode)) = :code', { code: 'DUMP' })
+          .orderBy('e.eventTime', 'DESC')
+          .getMany();
+        const latestDumpByCn = new Map<string, ExtFeituoStatusEvent>();
+        for (const ev of dumpRows) {
+          if (!latestDumpByCn.has(ev.containerNumber)) {
+            latestDumpByCn.set(ev.containerNumber, ev);
+          }
+        }
+        for (const cn of containerNumbers) {
+          const list = result.get(cn) || [];
+          const hasUnresolvedDumpInDb = list.some(
+            (a) => !a.resolved && (a.message.includes('甩柜') || a.message.toLowerCase().includes('dump'))
+          );
+          if (hasUnresolvedDumpInDb) continue;
+          const ev = latestDumpByCn.get(cn);
+          if (!ev) continue;
+          const desc =
+            ev.descriptionCn || ev.descriptionEn || ev.eventDescriptionOrigin || '甩柜';
+          const synthetic = {
+            id: -ev.id,
+            containerNumber: cn,
+            type: AlertType.OTHER,
+            level: AlertLevel.CRITICAL,
+            message: `甩柜事件: ${desc}`,
+            resolved: false,
+            createdAt: ev.eventTime,
+            updatedAt: ev.eventTime,
+          } as ContainerAlert;
+          list.push(synthetic);
+          result.set(cn, list);
+        }
+      }
+    } catch (error) {
+      logger.warn('[batchFetchAlerts] Failed:', error);
+      containerNumbers.forEach((cn) => result.set(cn, []));
+    }
+
+    return result;
   }
 
   // ==================== 格式化辅助方法 ====================

@@ -6,6 +6,7 @@ import { useLogisticsStatus } from '@/composables/useLogisticsStatus'
 import { useShipmentsTable } from '@/composables/useShipmentsTable'
 import { useShipmentsExport } from '@/composables/useShipmentsExport'
 import { useShipmentsSchedule } from '@/composables/useShipmentsSchedule'
+import { getCurrentLocationText } from '@/utils/logisticsStatusMachine'
 import { containerService } from '@/services/container'
 import { useAppStore } from '@/store/app'
 import { useGanttFilterStore } from '@/store/ganttFilters'
@@ -801,11 +802,51 @@ export default {
           </el-table-column>
 
           <!-- 预警 -->
-          <el-table-column v-else-if="key === 'alerts'" label="预警" width="80" align="center">
+          <el-table-column v-else-if="key === 'alerts'" label="预警" min-width="180" align="left">
             <template #default="{ row }">
-              <el-badge :value="row.alertCount || 0" type="danger" :hidden="!(row.alertCount > 0)">
-                <el-icon><Warning /></el-icon>
-              </el-badge>
+              <div v-if="row.alerts && row.alerts.length > 0" class="alerts-container">
+                <el-tooltip 
+                  v-for="(alert, index) in row.alerts" 
+                  :key="alert.id || index"
+                  :content="alert.message"
+                  placement="top"
+                  effect="light"
+                >
+                  <el-badge 
+                    :value="alert.type"
+                    :type="alert.resolved ? 'info' : 'danger'"
+                    class="alert-badge"
+                    :class="{ 'resolved-alert': alert.resolved }"
+                  >
+                    <el-icon :size="14"><Warning /></el-icon>
+                  </el-badge>
+                </el-tooltip>
+              </div>
+              <div v-else-if="row.alertCount && row.alertCount > 0" class="alerts-container">
+                <el-tooltip content="点击查看详细预警信息" placement="top" effect="light">
+                  <el-badge 
+                    :value="row.alertCount" 
+                    :type="row.hasResolvedAlerts ? 'info' : 'danger'"
+                    class="alert-badge"
+                  >
+                    <el-icon :size="14"><Warning /></el-icon>
+                  </el-badge>
+                </el-tooltip>
+              </div>
+              <div v-else-if="row.resolvedAlertCount && row.resolvedAlertCount > 0" class="alerts-container">
+                <el-tooltip content="已处理的预警" placement="top" effect="light">
+                  <el-badge 
+                    :value="row.resolvedAlertCount" 
+                    type="info"
+                    class="alert-badge resolved-alert"
+                  >
+                    <el-icon :size="14"><Warning /></el-icon>
+                  </el-badge>
+                </el-tooltip>
+              </div>
+              <template v-else>
+                <el-icon :size="14" style="color: #ccc;"><Warning /></el-icon>
+              </template>
             </template>
           </el-table-column>
 
@@ -838,7 +879,11 @@ export default {
           <el-table-column v-else-if="key === 'destinationPort'" prop="destinationPort" label="目的港" width="100" />
 
           <!-- 当前位置 -->
-          <el-table-column v-else-if="key === 'location'" prop="location" label="当前位置" width="100" />
+          <el-table-column v-else-if="key === 'location'" label="当前位置" width="100">
+            <template #default="{ row }">
+              {{ getCurrentLocationText(row.logisticsStatus, row.destinationPort, row.currentPortType || row.latestPortOperation?.portType) || '-' }}
+            </template>
+          </el-table-column>
 
           <!-- 预计到港 -->
           <el-table-column v-else-if="key === 'etaDestPort'" prop="etaDestPort" label="预计到港" width="110" sortable="custom">
@@ -1157,6 +1202,55 @@ export default {
   .status-tag {
     font-size: 11px;
     padding: 2px 6px;
+  }
+}
+
+.alerts-container {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
+  width: 100%;
+  max-width: 100%;
+  min-height: 24px;
+  white-space: normal;
+  word-wrap: break-word;
+
+  .alert-badge {
+    margin-right: 0;
+    transform: scale(0.85);
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    align-self: flex-start;
+
+    &:hover {
+      transform: scale(0.95);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .el-icon {
+      font-size: 14px;
+    }
+
+    .el-badge__content {
+      font-size: 10px;
+      padding: 0 6px;
+      min-width: 16px;
+      height: 16px;
+      line-height: 16px;
+    }
+  }
+
+  .el-badge {
+    margin-right: 0;
+  }
+
+  .resolved-alert {
+    opacity: 0.7;
+
+    &:hover {
+      opacity: 1;
+    }
   }
 }
 

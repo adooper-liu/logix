@@ -35,10 +35,14 @@ import { logger } from '../utils/logger';
 import { DemurrageService } from './demurrage.service';
 import { auditLogService } from './auditLog.service';
 import { getCoreFieldName } from '../constants/FeiTuoStatusMapping';
+import { PICKUP_DATE_SOURCE } from '../constants/pickupDateSource';
+import { tryApplyFeituoPickupFromGateOutEvent } from '../utils/truckingPickupFromFeituo';
 import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
 import { getGroupForColumn } from '../constants/FeituoFieldGroupMapping';
 import { feituoPlaceAnalyzer, PortAnalysisResult } from './feituo/FeituoPlaceAnalyzer';
 import { feituoSmartDateUpdater } from './feituo/FeituoSmartDateUpdater';
+import { externalDataService, DataSource } from './externalDataService';
+import { AlertService } from './alertService';
 import type { Repository } from 'typeorm';
 
 type FeituoRow = Record<string, unknown>;
@@ -523,6 +527,9 @@ interface ExcelStatusInfo {
   statusName?: string;
   occurredAt: Date | null;
   location?: string;
+  eventPlace?: string;
+  eventPlaceOrigin?: string;
+  portCode?: string;
   terminal?: string;
   isEstimated: boolean;
   dataSource: string;
@@ -567,6 +574,97 @@ export class FeituoImportService {
     const port = await AppDataSource.getRepository(Port).findOne({ where: { portCode: code } });
     if (!port) return null;
     return { portName: port.portName, portNameEn: port.portNameEn ?? null };
+  }
+
+  private parseNullableFloat(v: string | null | undefined): number | null {
+    if (v === null || v === undefined || v === '') return null;
+    const n = Number(String(v).trim());
+    return Number.isFinite(n) ? n : null;
+  }
+
+  private parseTimezoneToInt(v: string | null | undefined): number | null {
+    if (!v) return null;
+    const s = String(v).trim().toUpperCase();
+    const matched = s.match(/[+-]?\d+(?:\.\d+)?/);
+    if (!matched) return null;
+    const n = Number(matched[0]);
+    if (!Number.isFinite(n)) return null;
+    const rounded = Math.round(n);
+    if (rounded < -12 || rounded > 14) return null;
+    return rounded;
+  }
+
+  private normalizeDictPortType(v: string | null | undefined): string | null {
+    if (!v) return null;
+    const s = String(v).trim().toUpperCase();
+    if (!s) return null;
+    if (s === 'PORT') return 'PORT';
+    if (s === 'TERMINAL') return 'TERMINAL';
+    if (s === 'WAREHOUSE') return 'WAREHOUSE';
+    if (s === 'CUSTOMS') return 'CUSTOMS';
+    if (s === '1' || s.includes('起始') || s.includes('起运')) return 'PORT';
+    if (s === '2' || s.includes('中转')) return 'PORT';
+    if (s === '3' || s.includes('目的') || s.includes('交货')) return 'PORT';
+    return null;
+  }
+
+  /**
+   * 用发生地字段维护 dict_ports：按 port_code upsert
+   * 字段来源：地点CODE / 中英文名 / 原始名 / 地点类型 / 纬度 / 经度 / 时区
+   */
+  private async upsertDictPortFromOccurrenceFields(data: {
+    portCode: string;
+    portNameEn?: string | null;
+    portNameCn?: string | null;
+    portNameOrigin?: string | null;
+    placeType?: string | null;
+    latitude?: string | null;
+    longitude?: string | null;
+    timezone?: string | null;
+  }): Promise<void> {
+    const rawCode = String(data.portCode || '').trim();
+    if (!rawCode) return;
+    const resolvedCode = await this.findPortCode(rawCode);
+    const candidate = (resolvedCode || rawCode).trim().toUpperCase();
+    // 仅接受标准 UN/LOCODE（5位字母数字），避免把“宁波/费利克斯托”写进 port_code
+    const code = /^[A-Z0-9]{5}$/.test(candidate) ? candidate : null;
+    if (!code) return;
+
+    const portRepo = AppDataSource.getRepository(Port);
+    const existing = await portRepo.findOne({ where: { portCode: code } });
+
+    const cn = data.portNameCn && stringLikelyHasCjk(data.portNameCn) ? data.portNameCn.trim() : null;
+    const en = data.portNameEn && !stringLikelyHasCjk(data.portNameEn) ? data.portNameEn.trim() : null;
+    const origin = data.portNameOrigin ? String(data.portNameOrigin).trim() : null;
+    const resolvedName = cn || en || origin || code;
+
+    const latitude = this.parseNullableFloat(data.latitude);
+    const longitude = this.parseNullableFloat(data.longitude);
+    const timezone = this.parseTimezoneToInt(data.timezone);
+    const normalizedPortType = this.normalizeDictPortType(data.placeType);
+
+    if (existing) {
+      if (!existing.portName || !stringLikelyHasCjk(existing.portName)) existing.portName = cn || existing.portName || resolvedName;
+      if (!existing.portNameEn && en) existing.portNameEn = en;
+      if (!existing.portType && normalizedPortType) existing.portType = normalizedPortType;
+      if ((existing.latitude === null || existing.latitude === undefined) && latitude !== null) existing.latitude = latitude;
+      if ((existing.longitude === null || existing.longitude === undefined) && longitude !== null) existing.longitude = longitude;
+      if ((existing.timezone === null || existing.timezone === undefined) && timezone !== null) existing.timezone = timezone;
+      await portRepo.save(existing);
+      return;
+    }
+
+    const rec = portRepo.create({
+      portCode: code,
+      portName: resolvedName,
+      portNameEn: en || undefined,
+      portType: normalizedPortType || 'PORT',
+      latitude: latitude ?? undefined,
+      longitude: longitude ?? undefined,
+      timezone: timezone ?? undefined,
+      status: 'ACTIVE',
+    });
+    await portRepo.save(rec);
   }
 
   /**
@@ -1185,6 +1283,7 @@ export class FeituoImportService {
         tt = truckRepo.create({ containerNumber });
       }
       tt.pickupDate = pickupDate;
+      tt.pickupDateSource = PICKUP_DATE_SOURCE.BUSINESS;
       tt.plannedPickupDate = parseDate(getVal(row, '计划提柜日期')) || tt.plannedPickupDate;
       tt.lastPickupDate = parseDate(getVal(row, '最晚提柜日期')) || tt.lastPickupDate;
       await truckRepo.save(tt);
@@ -1199,9 +1298,23 @@ export class FeituoImportService {
       await emptyRepo.save(er);
     }
 
-    await this.mergeStatusEvents(row, containerNumber, eventRepo, 1);
-    // 多行 Excel 每行一条状态时，数据在 ext_feituo_status_events；parseStatusArray 只读「单行多组」格式，需从 ext 表回灌核心
-    await this.syncExtFeituoStatusEventsToCore(containerNumber, bl);
+    try {
+      const fromExt = await externalDataService.ingestFromExtFeituoStatusEvents(
+        containerNumber,
+        bl,
+        DataSource.EXCEL
+      );
+      if (fromExt.length === 0) {
+        await this.mergeStatusEvents(row, containerNumber, eventRepo, 1);
+      }
+    } catch (e) {
+      logger.error(`[FeituoImport] ingestFromExt/mergeStatusEvents 失败 ${containerNumber}:`, e);
+      try {
+        await this.mergeStatusEvents(row, containerNumber, eventRepo, 1);
+      } catch (e2) {
+        logger.error(`[FeituoImport] mergeStatusEvents 兜底失败 ${containerNumber}:`, e2);
+      }
+    }
 
     // 处理发生地信息数组（已在上面解析）
     if (places.length > 0) {
@@ -1209,6 +1322,7 @@ export class FeituoImportService {
     }
 
     await this.recalculateStatus(containerNumber);
+    await this.persistContainerAlertsAfterMerge(containerNumber);
   }
 
   /** 表二合并到核心表 */
@@ -1349,6 +1463,7 @@ export class FeituoImportService {
       let tt = await truckRepo.findOne({ where: { containerNumber } });
       if (!tt) tt = truckRepo.create({ containerNumber });
       tt.pickupDate = pickupDate;
+      tt.pickupDateSource = PICKUP_DATE_SOURCE.BUSINESS;
       tt.plannedPickupDate = parseDate(getVal(row, '卡车预约提柜时间')) || tt.plannedPickupDate;
       await truckRepo.save(tt);
     }
@@ -1373,9 +1488,24 @@ export class FeituoImportService {
       await portOpRepo.save(po);
     }
 
-    await this.mergeStatusEvents(row, containerNumber, eventRepo, 2);
+    try {
+      const fromExt2 = await externalDataService.ingestFromExtFeituoStatusEvents(
+        containerNumber,
+        mainBillNumber,
+        DataSource.EXCEL
+      );
+      if (fromExt2.length === 0) {
+        await this.mergeStatusEvents(row, containerNumber, eventRepo, 2);
+      }
+    } catch (e) {
+      logger.error(`[FeituoImport] 表二 ingestFromExt/mergeStatusEvents 失败 ${containerNumber}:`, e);
+      try {
+        await this.mergeStatusEvents(row, containerNumber, eventRepo, 2);
+      } catch (e2) {
+        logger.error(`[FeituoImport] 表二 mergeStatusEvents 兜底失败 ${containerNumber}:`, e2);
+      }
+    }
     await this.deriveStatusEventsFromTable2TimeFields(row, containerNumber, eventRepo);
-    await this.syncExtFeituoStatusEventsToCore(containerNumber, mainBillNumber);
 
     // 处理发生地信息数组（已在上面解析）
     if (places.length > 0) {
@@ -1434,6 +1564,7 @@ export class FeituoImportService {
     }
     
     await this.recalculateStatus(containerNumber);
+    await this.persistContainerAlertsAfterMerge(containerNumber);
   }
 
   /**
@@ -1507,8 +1638,18 @@ export class FeituoImportService {
         statusCode,
         statusName: getVal(row, group, '状态描述中文（标准）') || getVal(row, group, '状态描述中文(标准)') || statusCode,
         occurredAt,
-        location: getVal(row, group, '发生地') || undefined,
-        terminal: getVal(row, group, '码头名称') || undefined,
+        eventPlace: getVal(row, group, '发生地') || getVal(row, group, 'event_place') || undefined,
+        eventPlaceOrigin: getVal(row, group, '发生地原文') || getVal(row, group, 'event_place_origin') || undefined,
+        portCode: getVal(row, group, '发生地信息_地点CODE') || getVal(row, group, '港口代码') || getVal(row, group, 'port_code') || undefined,
+        location:
+          getVal(row, group, '发生地') ||
+          getVal(row, group, 'event_place') ||
+          getVal(row, group, '发生地原文') ||
+          getVal(row, group, 'event_place_origin') ||
+          getVal(row, group, '发生地信息_地点CODE') ||
+          getVal(row, group, '港口代码') ||
+          undefined,
+        terminal: getVal(row, group, '码头名称') || getVal(row, group, 'terminal_name') || undefined,
         isEstimated: isEsti === 'Y' || isEsti === 'true',
         dataSource: getVal(row, group, '数据来源') || 'Feituo',
       });
@@ -1697,7 +1838,14 @@ export class FeituoImportService {
         terminalName: status.terminal,
         description: status.statusName,
         dataSource: status.dataSource,
-        rawData: { group: status.group, isEstimated: status.isEstimated }
+        rawData: {
+          group: status.group,
+          isEstimated: status.isEstimated,
+          event_place: status.eventPlace ?? null,
+          event_place_origin: status.eventPlaceOrigin ?? null,
+          port_code: status.portCode ?? null,
+          terminal_name: status.terminal ?? null
+        }
       });
       await eventRepo.save(event);
       
@@ -1730,7 +1878,8 @@ export class FeituoImportService {
     const poRepo = AppDataSource.getRepository(PortOperation);
     const erRepo = AppDataSource.getRepository(EmptyReturn);
     const containerRepo = AppDataSource.getRepository(Container);
-    
+    const ttRepo = AppDataSource.getRepository(TruckingTransport);
+
     if (fieldName === 'return_time') {
       let er = await erRepo.findOne({ where: { containerNumber } });
       if (!er) er = erRepo.create({ containerNumber });
@@ -1768,43 +1917,23 @@ export class FeituoImportService {
         if (col) {
           (po as any)[col] = occurredAt;
           await poRepo.save(po);
+
+          if (fieldName === 'gate_out_time' && col === 'gateOutTime') {
+            let tt = await ttRepo.findOne({ where: { containerNumber } });
+            const applied = tryApplyFeituoPickupFromGateOutEvent({
+              trucking: tt,
+              containerNumber,
+              eventTime: occurredAt,
+              statusCode,
+              createTrucking: () => ttRepo.create({ containerNumber })
+            });
+            if (applied.updated && applied.trucking) {
+              await ttRepo.save(applied.trucking);
+            }
+          }
         }
       }
     }
-  }
-
-  /**
-   * 多行 Excel 每行一条状态时，事件已写入 ext_feituo_status_events，但 parseStatusArray 只识别「单行多组」列；
-   * 在 merge 后从 ext 表回灌 ext_container_status_events 并 updateCoreFieldsFromStatus，再参与 recalculateStatus。
-   */
-  private async syncExtFeituoStatusEventsToCore(
-    containerNumber: string,
-    billOfLadingNumber: string
-  ): Promise<void> {
-    const extRepo = AppDataSource.getRepository(ExtFeituoStatusEvent);
-    const fallbackBl = `FEITUO_${containerNumber}`;
-    const bills = [billOfLadingNumber, fallbackBl].filter((b, i, a) => b && a.indexOf(b) === i);
-    const rows = await extRepo.find({
-      where: bills.map((billOfLadingNumber) => ({ containerNumber, billOfLadingNumber })),
-      order: { eventTime: 'ASC' },
-    });
-    if (rows.length === 0) return;
-
-    const statuses: ExcelStatusInfo[] = rows.map((ext, idx) => ({
-      group: 12 + idx,
-      vesselName: ext.vesselName || undefined,
-      voyageNumber: ext.voyageNumber || undefined,
-      transportMode: ext.transportMode || undefined,
-      statusCode: ext.eventCode,
-      statusName: ext.descriptionCn || ext.descriptionEn || ext.eventCode,
-      occurredAt: ext.eventTime,
-      location: ext.eventPlace || undefined,
-      terminal: ext.terminalName || undefined,
-      isEstimated: ext.isEstimated,
-      dataSource: ext.dataSource || 'Excel',
-    }));
-
-    await this.processStatusArray(containerNumber, statuses);
   }
 
   /**
@@ -1849,6 +1978,18 @@ export class FeituoImportService {
         websiteUrl: websiteUrl || undefined
       });
       await repo.save(ship);
+    }
+  }
+
+  /**
+   * 合并完成后写入 ext_container_alerts（与列表页 batchFetchAlerts 合成逻辑互补：库中已有未解决甩柜预警则 check 内不再重复插入）
+   */
+  private async persistContainerAlertsAfterMerge(containerNumber: string): Promise<void> {
+    try {
+      const alertService = new AlertService();
+      await alertService.checkContainerAlerts(containerNumber);
+    } catch (e) {
+      logger.warn(`[FeituoImport] persistContainerAlertsAfterMerge failed ${containerNumber}:`, e);
     }
   }
 
@@ -2464,6 +2605,17 @@ export class FeituoImportService {
       terminalName: occ2('发生地信息_码头名称') as string | null,
       dataSource: 'Excel',
     };
+
+    await this.upsertDictPortFromOccurrenceFields({
+      portCode: portCodeFinal,
+      portNameEn: occ2('发生地信息_地点名称英文（标准）'),
+      portNameCn: occ2('发生地信息_地点名称中文（标准）'),
+      portNameOrigin: occ2('发生地信息_地点名称（原始）'),
+      placeType: occ2('发生地信息_地点类型'),
+      latitude: occ2('发生地信息_纬度'),
+      longitude: occ2('发生地信息_经度'),
+      timezone: occ2('发生地信息_时区'),
+    });
 
     if (existing) {
       Object.assign(existing, fieldValues);

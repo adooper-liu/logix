@@ -176,26 +176,33 @@ export function useFileUpload() {
     
     try {
       // 分批上传
+      const isDemurrageStandardsImport = /\/api\/v1\/import\/demurrage-standards$/.test(endpoint)
       for (let i = 0; i < totalRecords; i += batchSize) {
         const batch = data.slice(i, i + batchSize)
         
-        // 将扁平数据转换为按表分组的结构
-        const groupedBatch = fieldMappings
-          ? batch.map(row => {
-              const grouped = groupByTable(row, fieldMappings)
-              console.log('[uploadBatchData] 分组后的数据 tables:', Object.keys(grouped.tables))
-              return grouped
-            })
-          : batch
+        // 滞港费标准导入接口要求 body 为 { records: [...] }，不能发送 { batch: [{ tables: ... }] }
+        const groupedBatch = isDemurrageStandardsImport
+          ? batch
+          : fieldMappings
+            ? batch.map(row => {
+                const grouped = groupByTable(row, fieldMappings)
+                console.log('[uploadBatchData] 分组后的数据 tables:', Object.keys(grouped.tables))
+                return grouped
+              })
+            : batch
         
         console.log(`[uploadBatchData] 发送批次 ${Math.floor(i / batchSize) + 1}, 数据量:`, batch.length)
         console.log('[uploadBatchData] 第一条分组数据 JSON:', JSON.stringify(groupedBatch[0], null, 2))
         
         try {
-          const response = await axios.post(endpoint, {
-            batch: groupedBatch,
-            batchIndex: Math.floor(i / batchSize) + 1
-          })
+          const payload = isDemurrageStandardsImport
+            ? { records: groupedBatch }
+            : {
+                batch: groupedBatch,
+                batchIndex: Math.floor(i / batchSize) + 1
+              }
+
+          const response = await axios.post(endpoint, payload)
           
           console.log('[uploadBatchData] 后端响应 JSON:', JSON.stringify(response.data, null, 2))
           

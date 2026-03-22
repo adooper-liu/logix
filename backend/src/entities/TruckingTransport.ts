@@ -43,6 +43,10 @@ export class TruckingTransport {
   @Column({ type: 'timestamp', nullable: true, name: 'pickup_date' })
   pickupDate?: Date;
 
+  /** feituo | business | manual — 见 constants/pickupDateSource */
+  @Column({ type: 'varchar', length: 20, nullable: true, name: 'pickup_date_source' })
+  pickupDateSource?: string;
+
   @Column({ type: 'date', nullable: true, name: 'last_delivery_date' })
   lastDeliveryDate?: Date;
 

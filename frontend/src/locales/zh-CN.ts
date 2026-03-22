@@ -126,6 +126,7 @@ export default {
       basicInfo: '基本信息',
       keyDates: '关键日期',
       logisticsPath: '物流路径',
+      logisticsPathMap: '物流地图',
       containerInfo: '货柜信息',
       seaFreight: '海运信息',
       portOperations: '港口操作',
@@ -171,7 +172,8 @@ export default {
       },
       noNodes: '暂无路径节点数据',
       nodesCount: '个节点',
-      noPortCoordinates: '暂无港口坐标数据（需 location.code 匹配 dict_ports）',
+      noPortCoordinates: '暂无港口坐标数据（请在字典管理中为港口维护经纬度，或检查节点 location 与港口代码是否一致）',
+      noPortLocationData: '暂无可用于绘图的位置数据（请检查状态事件是否包含 location/发生地字段）',
       sameBillOfLading: {
         title: '同提单货柜对比',
         currentContainer: '当前货柜: {containerNumber}。提单号: {billOfLadingNumber}。',

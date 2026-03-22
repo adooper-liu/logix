@@ -14,6 +14,9 @@ export enum AlertType {
   INSPECTION = 'inspection',
   DEMURRAGE = 'demurrage',
   DETENTION = 'detention',
+  ROLLOVER = 'rollover',
+  SHIPMENT_CHANGE = 'shipmentChange',
+  OTHER = 'other',
 }
 
 @Entity('ext_container_alerts')

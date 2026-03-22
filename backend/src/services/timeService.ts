@@ -44,10 +44,16 @@ export class TimeService {
         order: { createdAt: 'DESC' }
       });
 
-      // 计算各个节点的预测时间
+      const dest = container.portOperations?.find(op => op.portType === 'destination');
+      const sf = container.seaFreight;
+
+      // 计算各个节点的预测时间（与前端 TimePredictionTab 字段对齐）
       const predictions = {
         containerNumber: container.containerNumber,
         currentStatus: this.getCurrentStatus(container, trucking, warehouseOp, emptyReturn),
+        /** 目的港预计/实际到港（展示用） */
+        eta: dest?.eta ?? sf?.eta ?? null,
+        ata: dest?.ata ?? sf?.ata ?? null,
         estimatedTimes: {
           pickup: this.predictPickupTime(container, trucking),
           unloading: this.predictUnloadingTime(container, trucking, warehouseOp),
@@ -55,9 +61,9 @@ export class TimeService {
           completion: this.predictCompletionTime(container, trucking, warehouseOp, emptyReturn)
         },
         actualTimes: {
-          pickup: trucking?.pickupDate,
-          unloading: warehouseOp?.unboxingTime,
-          return: emptyReturn?.returnTime
+          pickup: trucking?.pickupDate ?? null,
+          unloading: warehouseOp?.unloadDate ?? warehouseOp?.unboxingTime ?? null,
+          return: emptyReturn?.returnTime ?? null
         }
       };
 
@@ -72,7 +78,7 @@ export class TimeService {
   private getCurrentStatus(container: Container, trucking: any, warehouseOp: any, emptyReturn: any): string {
     if (emptyReturn?.returnTime) {
       return '已还箱';
-    } else if (warehouseOp?.unboxingTime) {
+    } else if (warehouseOp?.unloadDate || warehouseOp?.unboxingTime) {
       return '已卸柜';
     } else if (trucking?.pickupDate) {
       return '已提柜';
@@ -113,8 +119,9 @@ export class TimeService {
 
   // 预测卸柜时间
   private predictUnloadingTime(container: Container, trucking: any, warehouseOp: any): Date | null {
-    if (warehouseOp?.unboxingTime) {
-      return new Date(warehouseOp.unboxingTime);
+    const doneUnload = warehouseOp?.unloadDate ?? warehouseOp?.unboxingTime;
+    if (doneUnload) {
+      return new Date(doneUnload);
     }
 
     if (trucking?.pickupDate) {

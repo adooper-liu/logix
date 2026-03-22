@@ -157,9 +157,9 @@ export class RiskService {
     return { factor: '查验风险', score: 0, description: '查验正常' };
   }
 
-  // 评估拖卡风险
+  // 评估拖卡风险（提柜时间字段：process_trucking_transport.pickup_date → pickupDate）
   private assessTruckingRisk(trucking: any, container: Container): { factor: string; score: number; description: string } {
-    if (trucking?.pickupTime) {
+    if (trucking?.pickupDate) {
       return { factor: '拖卡风险', score: 0, description: '已提柜' };
     }
 
@@ -180,14 +180,15 @@ export class RiskService {
     return { factor: '拖卡风险', score: 0, description: '正常' };
   }
 
-  // 评估卸柜风险
+  // 评估卸柜风险（卸柜：unload_date / unboxing_time）
   private assessUnloadingRisk(warehouseOp: any, trucking: any): { factor: string; score: number; description: string } {
-    if (warehouseOp?.unloadingTime) {
+    const unloadDone = warehouseOp?.unloadDate ?? warehouseOp?.unboxingTime;
+    if (unloadDone) {
       return { factor: '卸柜风险', score: 0, description: '已卸柜' };
     }
 
-    if (trucking?.pickupTime) {
-      const pickupDate = new Date(trucking.pickupTime);
+    if (trucking?.pickupDate) {
+      const pickupDate = new Date(trucking.pickupDate);
       const daysSincePickup = Math.ceil((new Date().getTime() - pickupDate.getTime()) / (1000 * 60 * 60 * 24));
       
       if (daysSincePickup > 5) {
@@ -206,8 +207,9 @@ export class RiskService {
       return { factor: '还箱风险', score: 0, description: '已还箱' };
     }
 
-    if (warehouseOp?.unloadingTime) {
-      const unloadingDate = new Date(warehouseOp.unloadingTime);
+    const unloadDone = warehouseOp?.unloadDate ?? warehouseOp?.unboxingTime;
+    if (unloadDone) {
+      const unloadingDate = new Date(unloadDone);
       const daysSinceUnloading = Math.ceil((new Date().getTime() - unloadingDate.getTime()) / (1000 * 60 * 60 * 24));
       
       if (daysSinceUnloading > 7) {
@@ -215,8 +217,8 @@ export class RiskService {
       } else if (daysSinceUnloading > 4) {
         return { factor: '还箱风险', score: 45, description: `已卸柜 ${daysSinceUnloading} 天未还箱` };
       }
-    } else if (trucking?.pickupTime) {
-      const pickupDate = new Date(trucking.pickupTime);
+    } else if (trucking?.pickupDate) {
+      const pickupDate = new Date(trucking.pickupDate);
       const daysSincePickup = Math.ceil((new Date().getTime() - pickupDate.getTime()) / (1000 * 60 * 60 * 24));
       
       if (daysSincePickup > 10) {
@@ -250,8 +252,8 @@ export class RiskService {
     }
 
     // 滞箱费风险
-    if (trucking?.pickupTime) {
-      const pickupDate = new Date(trucking.pickupTime);
+    if (trucking?.pickupDate) {
+      const pickupDate = new Date(trucking.pickupDate);
       const freeDays = 7; // 假设免费用箱期为7天
       const latestReturnDate = new Date(pickupDate);
       latestReturnDate.setDate(latestReturnDate.getDate() + freeDays);

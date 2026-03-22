@@ -4,17 +4,104 @@
 
 import { ref } from 'vue'
 import * as XLSX from 'xlsx'
+import { applyDemurrageDerivedFreeDays } from '@/utils/demurrageTiers'
 import type { PreviewRow, FieldMapping } from './types'
 
 export function useExcelParser() {
+  function normalizeHeaderName(name: string): string {
+    return String(name || '')
+      .trim()
+      .replace(/^\*+/, '')
+      .replace(/[（]/g, '(')
+      .replace(/[）]/g, ')')
+      .replace(/[。．]/g, '.')
+      .replace(/[，]/g, ',')
+      .replace(/[：]/g, ':')
+      .replace(/\s+/g, '')
+      .toLowerCase()
+  }
+
+  function buildHeaderIndex(row: Record<string, any>): Map<string, string> {
+    const idx = new Map<string, string>()
+    Object.keys(row).forEach((k) => {
+      const nk = normalizeHeaderName(k)
+      if (!idx.has(nk)) idx.set(nk, k)
+      // 同时保留去点版本，兼容“运输方式.运输方式编码” vs “运输方式运输方式编码”
+      const noDot = nk.replace(/[.]/g, '')
+      if (!idx.has(noDot)) idx.set(noDot, k)
+    })
+    return idx
+  }
+
   const previewData = ref<PreviewRow[]>([])
   const previewColumns = ref<string[]>([])
   const parsingError = ref<string | null>(null)
 
   /**
-   * 解析 Excel 文件
+   * 读取单元格（兼容 xlsx 用数字 1 与字符串 "1" 作列键；0 为有效费率）
    */
-  async function parseExcelFile(file: File, fieldMappings: FieldMapping[]): Promise<void> {
+  function readRawCellValue(rawRow: Record<string, any>, key: string): unknown {
+    const tryKey = (k: string | number) => {
+      if (!Object.prototype.hasOwnProperty.call(rawRow, k)) return undefined
+      const v = rawRow[k as keyof typeof rawRow]
+      if (v === undefined || v === null || v === '') return undefined
+      return v
+    }
+    let v = tryKey(key)
+    if (v !== undefined) return v
+    if (/^\d+$/.test(key)) {
+      const n = Number(key)
+      if (Number.isInteger(n)) v = tryKey(n)
+    }
+    return v
+  }
+
+  /**
+   * 从原始行合并滞港费阶梯费率列 -> { "1": 50, "2": 60, ... }，供 ext_demurrage_standards.tiers（jsonb）
+   */
+  function extractDemurrageTiersFromRaw(
+    rawRow: Record<string, any>,
+    tierColumnAliases: Record<string, string[]>
+  ): Record<string, number> | null {
+    const headerIndex = buildHeaderIndex(rawRow)
+    const out: Record<string, number> = {}
+
+    for (const [tierKey, aliases] of Object.entries(tierColumnAliases)) {
+      let cell: unknown = null
+      for (const c of aliases) {
+        const direct = readRawCellValue(rawRow, c)
+        if (direct !== undefined) {
+          cell = direct
+          break
+        }
+        const nc = normalizeHeaderName(c)
+        const matchedKey = headerIndex.get(nc) || headerIndex.get(nc.replace(/[.]/g, ''))
+        if (matchedKey) {
+          const v = readRawCellValue(rawRow, matchedKey)
+          if (v !== undefined) {
+            cell = v
+            break
+          }
+        }
+      }
+      if (cell === null || cell === undefined || cell === '') continue
+      const num = typeof cell === 'number' ? cell : Number(String(cell).replace(/,/g, '').trim())
+      if (!Number.isFinite(num) || num < 0) continue
+      out[tierKey] = num
+    }
+
+    return Object.keys(out).length > 0 ? out : null
+  }
+
+  /**
+   * 解析 Excel 文件
+   * @param tierColumnAliases 若提供（滞港费标准），从原始行读取阶梯列并写入 transformed.tiers
+   */
+  async function parseExcelFile(
+    file: File,
+    fieldMappings: FieldMapping[],
+    tierColumnAliases?: Record<string, string[]>
+  ): Promise<void> {
     parsingError.value = null
     
     try {
@@ -56,15 +143,25 @@ export function useExcelParser() {
         throw new Error('Excel 文件中没有数据')
       }
       
-      // 获取列名（使用转换后的字段名）
-      const firstTransformed = jsonData[0] ? transformRow(jsonData[0], fieldMappings) : {}
+      const enrichDemurrageRow = (row: Record<string, any>) => {
+        const transformed = transformRow(row, fieldMappings)
+        if (tierColumnAliases && Object.keys(tierColumnAliases).length > 0) {
+          const tiers = extractDemurrageTiersFromRaw(row, tierColumnAliases)
+          if (tiers) transformed.tiers = tiers
+          applyDemurrageDerivedFreeDays(transformed)
+        }
+        return transformed
+      }
+
+      // 获取列名（使用转换后的字段名，含 tiers / 推导的 free_days）
+      const firstTransformed = jsonData[0] ? enrichDemurrageRow(jsonData[0]) : {}
       previewColumns.value = Object.keys(firstTransformed)
       console.log('[ExcelParser] 设置 previewColumns (基于 transformed):', previewColumns.value)
       console.log('[ExcelParser] 设置 previewData, 行数:', jsonData.length)
       
       // 转换数据
       previewData.value = jsonData.map((row, index) => {
-        const transformed = transformRow(row, fieldMappings)
+        const transformed = enrichDemurrageRow(row)
         // 传递原始行给验证函数，用于检查列是否存在
         const errors = validateRow(transformed, fieldMappings, row)
         
@@ -151,37 +248,20 @@ export function useExcelParser() {
    * 获取单元格值（支持别名）
    */
   function getCellValue(row: Record<string, any>, mapping: FieldMapping): any {
-    console.log(`[getCellValue] 查找字段:`, {
-      excelField: mapping.excelField,
-      aliases: mapping.aliases,
-      originalRow: row,
-      originalRowKeys: Object.keys(row).map(k => ({
-        key: k,
-        charCodes: Array.from(k).map(c => c.charCodeAt(0).toString(16)),
-        length: k.length
-      }))
-    })
-    
-    // 主列名
-    if (row[mapping.excelField] !== undefined && row[mapping.excelField] !== '') {
-      console.log(`[getCellValue] ✅ 找到主列名 "${mapping.excelField}":`, row[mapping.excelField])
-      return row[mapping.excelField]
-    }
-    
-    // 别名列表
-    if (mapping.aliases) {
-      for (const alias of mapping.aliases) {
-        console.log(`[getCellValue] 尝试别名 "${alias}", 存在性：${row[alias] !== undefined}`)
-        if (row[alias] !== undefined && row[alias] !== '') {
-          console.log(`[getCellValue] ✅ 找到别名 "${alias}":`, row[alias])
-          return row[alias]
-        }
+    const headerIndex = buildHeaderIndex(row)
+    const candidates = [mapping.excelField, ...(mapping.aliases || [])]
+    for (const c of candidates) {
+      const direct = row[c]
+      if (direct !== undefined && direct !== '') return direct
+
+      const nc = normalizeHeaderName(c)
+      const matchedKey = headerIndex.get(nc) || headerIndex.get(nc.replace(/[.]/g, ''))
+      if (matchedKey) {
+        const v = row[matchedKey]
+        if (v !== undefined && v !== '') return v
       }
-      console.log(`[getCellValue] ❌ 未找到任何匹配的列名，尝试的别名:`, mapping.aliases)
-    } else {
-      console.log(`[getCellValue] ❌ 未找到主列名且无别名`)
     }
-    
+
     return null
   }
 
@@ -189,19 +269,13 @@ export function useExcelParser() {
    * 检查原始行中是否存在某列（包括主列名和别名）
    */
   function hasOriginalColumn(row: Record<string, any>, mapping: FieldMapping): boolean {
-    // 检查主列名是否存在
-    if (Object.prototype.hasOwnProperty.call(row, mapping.excelField)) {
-      return true
-    }
-    // 检查别名是否存在
-    if (mapping.aliases) {
-      for (const alias of mapping.aliases) {
-        if (Object.prototype.hasOwnProperty.call(row, alias)) {
-          return true
-        }
-      }
-    }
-    return false
+    const headerIndex = buildHeaderIndex(row)
+    const candidates = [mapping.excelField, ...(mapping.aliases || [])]
+    return candidates.some((c) => {
+      if (Object.prototype.hasOwnProperty.call(row, c)) return true
+      const nc = normalizeHeaderName(c)
+      return headerIndex.has(nc) || headerIndex.has(nc.replace(/[.]/g, ''))
+    })
   }
 
   /**

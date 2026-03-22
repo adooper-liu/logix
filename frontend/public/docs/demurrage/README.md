@@ -10,4 +10,7 @@
 | 04 | [04-DEMURRAGE_STANDARDS_EXCEL_IMPORT.md](./04-DEMURRAGE_STANDARDS_EXCEL_IMPORT.md) | 滞港费标准 Excel 导入：字段映射、阶梯转换、free_days 推导、导入方案 |
 | 05 | [05-DEMURRAGE_DATA_CALIBER_UNIFICATION.md](./05-DEMURRAGE_DATA_CALIBER_UNIFICATION.md) | 货柜与滞港费标准口径统一：字典表为唯一编码源、导入/新建时的映射与校验 |
 
-**关联**：01 为概念与计算口径基础；02 为方案与配置设计（已按 01 对齐）；03 为表结构与迁移落地；04 为 Excel 导入落地。
+| 13 | [13-DEMURRAGE_CALCULATION_LOGIC_FINAL.md](./13-DEMURRAGE_CALCULATION_LOGIC_FINAL.md) | 滞港费计算逻辑最终版：业务规则与代码实现完全一致，完整记录 actual/forecast 模式、起算日/截止日规则 |
+| 14 | [14-TIMELINE_METRICS_MINIMAL_PLAN.md](./14-TIMELINE_METRICS_MINIMAL_PLAN.md) | 关键日期历时/倒计时/超期主后端统一：DTO、与 demurrage/calculate 衔接、路径微服务可选的最小落地清单 |
+
+**关联**：01 为概念与计算口径基础；02 为方案与配置设计（已按 01 对齐）；03 为表结构与迁移落地；04 为 Excel 导入落地；13 为最终验证确认版；14 为关键日期与滞港费同源的后端化拆分说明。

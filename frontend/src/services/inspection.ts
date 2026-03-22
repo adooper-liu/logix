@@ -35,12 +35,12 @@ export interface InspectionEvent {
 class InspectionService {
   // 获取货柜的查验记录
   async getInspectionRecord(containerNumber: string) {
-    return api.get<InspectionRecord>(`/v1/inspection/container/${containerNumber}`)
+    return api.get<InspectionRecord>(`/inspection/container/${containerNumber}`)
   }
 
   // 创建或更新查验记录
   async createOrUpdateInspectionRecord(record: InspectionRecord) {
-    return api.post<InspectionRecord>('/v1/inspection/record', record)
+    return api.post<InspectionRecord>('/inspection/record', record)
   }
 
   // 添加查验事件
@@ -48,7 +48,7 @@ class InspectionService {
     eventDate: string
     eventStatus: string
   }) {
-    return api.post<InspectionEvent>('/v1/inspection/event', {
+    return api.post<InspectionEvent>('/inspection/event', {
       inspectionRecordId,
       eventDate: event.eventDate,
       eventStatus: event.eventStatus,
@@ -57,7 +57,7 @@ class InspectionService {
 
   // 删除查验事件
   async deleteInspectionEvent(eventId: number) {
-    return api.delete(`/v1/inspection/event/${eventId}`)
+    return api.delete(`/inspection/event/${eventId}`)
   }
 
   // 获取查验记录列表（用于报表）
@@ -66,7 +66,7 @@ class InspectionService {
     endDate?: string
     customsClearanceStatus?: string
   }) {
-    return api.get<InspectionRecord[]>('/v1/inspection/records', { params: filters })
+    return api.get<InspectionRecord[]>('/inspection/records', { params: filters })
   }
 }
 

@@ -23,7 +23,7 @@ export class DictController {
     try {
       const repo = AppDataSource.getRepository(Port);
       const list = await repo.find({
-        select: ['portCode', 'portName', 'portNameEn', 'country'],
+        select: ['portCode', 'portName', 'portNameEn', 'country', 'latitude', 'longitude'],
         order: { portName: 'ASC' }
       });
       res.json({
@@ -32,7 +32,9 @@ export class DictController {
           code: p.portCode,
           name: p.portName,
           nameEn: p.portNameEn,
-          country: p.country
+          country: p.country,
+          latitude: p.latitude != null ? Number(p.latitude) : null,
+          longitude: p.longitude != null ? Number(p.longitude) : null
         }))
       });
     } catch (error: any) {

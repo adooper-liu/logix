@@ -149,6 +149,8 @@ interface Props {
   title: string
   fieldMappings: FieldMapping[]
   apiEndpoint: string
+  /** 滞港费标准等：Excel 中「第 N 天」列合并为 transformed.tiers */
+  tierColumnAliases?: Record<string, string[]>
   showPreview?: boolean
   enableBatchImport?: boolean
   batchSize?: number
@@ -241,7 +243,7 @@ async function handleFileChange(file: any) {
   selectedFile.value = rawFile
 
   try {
-    await parseExcelFile(rawFile, props.fieldMappings)
+    await parseExcelFile(rawFile, props.fieldMappings, props.tierColumnAliases)
     
     if (parsingError.value) {
       throw new Error(parsingError.value)

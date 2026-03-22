@@ -12,6 +12,9 @@ export interface DictItem {
   name: string
   nameEn?: string
   country?: string
+  /** dict_ports.latitude / longitude，供物流地图等使用 */
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export interface DictListResponse {

@@ -388,9 +388,11 @@ API_PREFIX=/api/v1
 LOGISTICS_PATH_SERVICE_URL=http://localhost:4000
 LOGISTICS_PATH_SERVICE_TOKEN=your_token
 
-# 飞驼API配置 ⭐ NEW
-FEITUO_API_ENDPOINT=https://api.feituo.com/v1
-FEITUO_API_KEY=your_feituo_api_key
+# 飞驼 OpenAPI（集装箱综合跟踪，与 FeiTuoAdapter 同源；未配置时仍可用 Excel 导入）
+# FEITUO_API_BASE_URL=https://openapi.freightower.com
+# FEITUO_ACCESS_TOKEN=
+# FEITUO_CLIENT_ID=
+# FEITUO_CLIENT_SECRET=
 
 # 适配器配置 ⭐ NEW
 DEFAULT_ADAPTER_SOURCE=logistics_path
@@ -519,8 +521,9 @@ curl http://localhost:3001/api/v1/adapters/status
 | `DB_DATABASE`                   | 数据库名称             | `logix_db`                  | 是   |
 | `LOGISTICS_PATH_SERVICE_URL`    | 物流路径微服务URL      | `http://localhost:4000`     | 是   |
 | `LOGISTICS_PATH_SERVICE_TOKEN`  | 微服务认证Token        | -                           | 否   |
-| `FEITUO_API_ENDPOINT`           | 飞驼API端点            | `https://api.feituo.com/v1` | 否   |
-| `FEITUO_API_KEY`                | 飞驼API密钥            | -                           | 否   |
+| `FEITUO_API_BASE_URL`           | 飞驼 OpenAPI 根地址    | `https://openapi.freightower.com` | 否   |
+| `FEITUO_ACCESS_TOKEN`         | 飞驼 Bearer Token（任选其一） | -                     | 否   |
+| `FEITUO_CLIENT_ID` / `FEITUO_CLIENT_SECRET` | 换取 Token（任选其一） | -                | 否   |
 | `DEFAULT_ADAPTER_SOURCE`        | 默认适配器数据源       | `logistics_path`            | 否   |
 | `ADAPTER_HEALTH_CHECK_INTERVAL` | 适配器健康检查间隔(ms) | `60000`                     | 否   |
 | `ADAPTER_ENABLE_AUTO_FAILOVER`  | 是否启用自动故障转移   | `true`                      | 否   |

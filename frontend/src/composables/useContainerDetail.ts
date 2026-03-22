@@ -4,7 +4,6 @@ import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { containerService } from '@/services/container'
 import { demurrageService, type CalculationDates } from '@/services/demurrage'
-import { fiveNodeService } from '@/services/fiveNode'
 import type { Container, ContainerListItem, PortOperation } from '@/types/container'
 
 export function useContainerDetail() {
@@ -29,9 +28,6 @@ export function useContainerDetail() {
   // 滞港费相关
   const calculationDates = ref<CalculationDates | null>(null)
   const demurrageCalculation = ref<any>(null) // 滞港费计算结果
-  
-  // 五节点数据
-  const fiveNodeData = ref<any>(null) // 五节点数据
 
   // 加载货柜列表（按需加载，只在需要导航时调用）
   const loadContainerList = async (retries = 2) => {
@@ -72,7 +68,6 @@ export function useContainerDetail() {
         containerData.value = response.data
         // 加载相关数据
         await loadDemurrageDates()
-        await loadFiveNodeData()
       } else {
         ElMessage.error((response as { message?: string }).message || t('container.detail.failedToLoad'))
       }
@@ -116,27 +111,6 @@ export function useContainerDetail() {
       }
       calculationDates.value = null
       demurrageCalculation.value = null
-    }
-  }
-
-  // 加载五节点数据
-  const loadFiveNodeData = async (retries = 2) => {
-    if (!containerNumber.value?.trim()) return
-    try {
-      const response = await fiveNodeService.getFiveNodeInfo(containerNumber.value)
-      if (response.success) {
-        fiveNodeData.value = response.data
-      } else {
-        fiveNodeData.value = null
-      }
-    } catch (error) {
-      console.error('[ContainerDetail] Failed to load five node data:', error)
-      if (retries > 0) {
-        console.log(`Retrying to load five node data... ${retries} attempts left`)
-        await new Promise(resolve => setTimeout(resolve, 1000))
-        return loadFiveNodeData(retries - 1)
-      }
-      fiveNodeData.value = null
     }
   }
 
@@ -211,7 +185,6 @@ export function useContainerDetail() {
     loading,
     calculationDates,
     demurrageCalculation,
-    fiveNodeData,
     containerList,
     loadingContainerList,
     currentContainerIndex,

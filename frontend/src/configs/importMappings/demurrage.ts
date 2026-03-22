@@ -145,18 +145,19 @@ export const DEMURRAGE_FIELD_MAPPINGS: FieldMapping[] = [
     required: false,
     aliases: ['目的港条件'] 
   },
+  // 「单据状态」= 已审核 等；勿与「处理状态」(是/否) 混用
   { 
     excelField: '单据状态', 
     table: 'dict_demurrage_standards', 
     field: 'process_status', 
-    required: false,
-    aliases: ['处理状态'] 
+    required: false
   },
+  // 无此列时由 1～60、60+ 阶梯（0=免费档、>0=收费）自动推导 free_days
   { 
     excelField: '免费天数', 
     table: 'dict_demurrage_standards', 
     field: 'free_days', 
-    required: true, 
+    required: false, 
     transform: parseDecimal 
   },
   { 
@@ -175,12 +176,21 @@ export const DEMURRAGE_FIELD_MAPPINGS: FieldMapping[] = [
 ]
 
 /**
- * 阶梯费率列别名（特殊处理）
+ * 阶梯费率：Excel 表头「天」-> 可能的列名别名（与 useExcelParser 合并 tiers 一致）
+ * 后端 demurrage.service normalizeTiers 支持对象形如 { "1": 50, "2-5": 60, "60+": 100 }
  */
-export const TIER_COLUMNS: Record<string, string[]> = {
-  '1': ['1', '1.0'],
-  '2': ['2', '2.0'],
-  '3': ['3', '3.0'],
-  // ... 可扩展到 60
-  '60+': ['60+', '60+']
+function buildTierColumnAliases(maxDay = 60): Record<string, string[]> {
+  const m: Record<string, string[]> = {}
+  for (let d = 1; d <= maxDay; d++) {
+    const k = String(d)
+    m[k] = [k, `${d}.0`, `第${d}天`, `Day${d}`, `day${d}`]
+  }
+  m['60+'] = ['60+', '60+天', '61+', '60+ ']
+  return m
 }
+
+/** 滞港费标准导入：从原始 Excel 行合并为 `tiers` 字段时使用 */
+export const DEMURRAGE_TIER_COLUMN_ALIASES = buildTierColumnAliases(60)
+
+/** @deprecated 使用 DEMURRAGE_TIER_COLUMN_ALIASES */
+export const TIER_COLUMNS = DEMURRAGE_TIER_COLUMN_ALIASES

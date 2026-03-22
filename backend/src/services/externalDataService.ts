@@ -24,29 +24,47 @@ import {
   shouldUpdateCoreField,
   getCoreFieldName,
   getPortTypeForStatusCode,
+  resolvePortOperationTimeKeyFromCoreField,
 } from '../constants/FeiTuoStatusMapping';
+import { tryApplyFeituoPickupFromGateOutEvent } from '../utils/truckingPickupFromFeituo';
 import { auditLogService } from './auditLog.service';
 import { DemurrageService } from './demurrage.service';
 import { feituoPlacesProcessor } from './feituoPlaces.processor';
 import { feituoSmartDateUpdater } from './feituo/FeituoSmartDateUpdater';
+import { config } from '../config/index.js';
 
 /**
- * 飞驼API响应数据结构
+ * 内部统一结构：由飞驼 OpenAPI「集装箱综合跟踪」`data.result` 映射而来（与 Excel 轨迹管道一致）
  */
-interface FeituoTrackingResponse {
-  code: number;
-  message: string;
-  data: FeituoTrackingData[];
-}
-
 interface FeituoTrackingData {
   containerNumber: string;
   trackingEvents: FeituoEvent[];
-  places?: any[];  // 【增强】飞驼API返回的地点信息（优先于trackingEvents使用）
-  billNo?: string;  // 提单号
+  places?: any[];
+  billNo?: string;
 }
 
-interface FeituoEvent {
+/** 飞驼 OpenAPI 外层（订阅+查询成功一般为 statusCode 20000） */
+interface FeituoOpenApiResponse {
+  statusCode?: number;
+  message?: string;
+  data?: {
+    result?: FeituoOpenApiResult;
+  };
+}
+
+/** `data.result`：与 FeiTuoAdapter / 飞驼文档「集装箱综合跟踪」一致 */
+interface FeituoOpenApiResult {
+  billNo?: string;
+  containerNo?: string;
+  places?: any[];
+  containers?: Array<{
+    containerNo?: string;
+    status?: any[];
+  }>;
+}
+
+/** 与飞驼 API `trackingEvents` 项对齐；Excel/ext 回灌时复用同一结构 */
+export interface FeituoEvent {
   eventCode: string;
   eventName?: string;
   eventNameEn?: string;
@@ -57,6 +75,8 @@ interface FeituoEvent {
   locationNameEn?: string;
   locationNameCn?: string;
   isEstimated?: boolean;
+  /** 为 false 时不应写核心字段（与 shouldUpdateCoreField 第二参数一致） */
+  hasOccurred?: boolean;
   statusCode?: string;
   latitude?: number;
   longitude?: number;
@@ -100,7 +120,8 @@ export enum DataSource {
  */
 export class ExternalDataService {
   private apiClient: AxiosInstance;
-  private apiConfig: any;
+  /** OpenAPI Token 缓存（与 FeiTuoAdapter 同源配置） */
+  private openApiTokenCache: { token: string; expiresAt: number } | null = null;
   private requestQueue: Promise<any>[] = [];
   private readonly MAX_CONCURRENT_REQUESTS = 5;
   private readonly REQUEST_DELAY_MS = 200;
@@ -136,18 +157,12 @@ export class ExternalDataService {
     AppDataSource.getRepository(ExtDemurrageRecord)
   );
 
-  constructor(config?: { apiKey?: string; apiUrl?: string }) {
-    this.apiConfig = config || {
-      apiKey: process.env.FEITUO_API_KEY || '',
-      apiUrl: process.env.FEITUO_API_URL || 'https://api.feituo.com/v1',
-    };
-
+  constructor() {
     this.apiClient = axios.create({
-      baseURL: this.apiConfig.apiUrl,
-      timeout: 30000,
+      baseURL: config.feituo.apiBaseUrl,
+      timeout: config.feituo.timeout || 30000,
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiConfig.apiKey}`,
       },
     });
 
@@ -170,62 +185,180 @@ export class ExternalDataService {
     );
   }
 
+  /** 与 FeiTuoAdapter 相同：直接 Token 或 clientId+secret */
+  private isFeituoOpenApiConfigured(): boolean {
+    const f = config.feituo;
+    return !!(f.accessToken?.trim() || (f.clientId?.trim() && f.clientSecret?.trim()));
+  }
+
+  private async getFeituoOpenApiToken(): Promise<string> {
+    const f = config.feituo;
+    if (f.accessToken?.trim()) {
+      return f.accessToken.trim();
+    }
+    if (!f.clientId?.trim() || !f.clientSecret?.trim()) {
+      throw new Error('飞驼 OpenAPI 未配置：请设置 FEITUO_ACCESS_TOKEN 或 FEITUO_CLIENT_ID + FEITUO_CLIENT_SECRET');
+    }
+    if (this.openApiTokenCache && this.openApiTokenCache.expiresAt > Date.now() + 60000) {
+      return this.openApiTokenCache.token;
+    }
+    const res = await this.apiClient.post<{ access_token?: string; expires_in?: number; message?: string }>(
+      '/auth/api/token',
+      { clientId: f.clientId.trim(), secret: f.clientSecret.trim() }
+    );
+    const token = res.data?.access_token;
+    if (!token) {
+      throw new Error(res.data?.message || '获取飞驼 Token 失败');
+    }
+    const expiresIn = (res.data?.expires_in ?? 7200) * 1000;
+    this.openApiTokenCache = { token, expiresAt: Date.now() + expiresIn };
+    return token;
+  }
+
+  /** 从本库补全 query 参数，提高命中率（与 FeiTuoAdapter 请求体一致） */
+  private async resolveFeituoQueryOptions(containerNumber: string): Promise<{
+    billNo?: string;
+    carrierCode?: string;
+    portCode?: string;
+    isExport?: 'E' | 'I';
+  }> {
+    const container = await this.containerRepository.findOne({
+      where: { containerNumber },
+      relations: ['seaFreight'],
+    });
+    const bl = container?.billOfLadingNumber ?? container?.seaFreight?.billOfLadingNumber;
+    let sf = container?.seaFreight;
+    if (!sf && bl) {
+      sf = (await this.seaFreightRepository.findOne({ where: { billOfLadingNumber: bl } })) ?? undefined;
+    }
+    const carrierCode = sf?.shippingCompanyId?.trim() || undefined;
+    return { billNo: bl || undefined, carrierCode };
+  }
+
+  private mapQueryStatusListToFeituoEvents(statusList: any[]): FeituoEvent[] {
+    if (!statusList?.length) return [];
+    return statusList.map((s) => ({
+      eventCode: s.eventCode || 'UNKNOWN',
+      statusCode: s.eventCode || 'UNKNOWN',
+      eventTime: s.eventTime ? String(s.eventTime) : new Date().toISOString(),
+      locationCode: s.portCode,
+      locationNameEn: s.eventPlace,
+      locationNameCn: s.eventPlace,
+      terminalName: s.terminalName,
+      isEstimated: s.isEsti === 'Y',
+      hasOccurred: s.isEsti !== 'Y',
+      eventNameCn: s.descriptionCn,
+      eventNameEn: s.descriptionEn,
+    }));
+  }
+
+  private mapOpenApiResultToFeituoTrackingData(
+    containerNumber: string,
+    result: FeituoOpenApiResult | undefined
+  ): FeituoTrackingData | null {
+    if (!result) return null;
+    const containers = result.containers || [];
+    const match = containers.find(
+      (c) => (c.containerNo || '').toUpperCase() === containerNumber.toUpperCase()
+    );
+    const statusList = match?.status || [];
+    const trackingEvents = this.mapQueryStatusListToFeituoEvents(statusList);
+    return {
+      containerNumber,
+      billNo: result.billNo,
+      places: result.places,
+      trackingEvents,
+    };
+  }
+
+  private isRetriableFeituoError(error: unknown): boolean {
+    const err = error as { code?: string; response?: { status?: number }; message?: string };
+    return (
+      err?.code === 'ECONNRESET' ||
+      err?.code === 'ETIMEDOUT' ||
+      err?.response?.status === 429 ||
+      String(err?.message || '').includes('Too many requests')
+    );
+  }
+
   /**
-   * 从飞驼获取货柜追踪数据
-   * @param containerNumbers 集装箱号数组
-   * @param retries 重试次数
+   * 从飞驼 OpenAPI 获取单箱：POST /application/v1/query（集装箱综合跟踪），映射为内部 FeituoTrackingData
    */
-  async fetchFromFeituo(containerNumbers: string[], retries: number = 3): Promise<any[]> {
-    let lastError: any = null;
+  private async fetchOneContainerFromOpenApi(containerNumber: string, retries: number): Promise<FeituoTrackingData | null> {
+    const opts = await this.resolveFeituoQueryOptions(containerNumber);
+    let lastError: unknown;
 
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
-        logger.info(`[ExternalDataService] 从飞驼获取 ${containerNumbers.length} 个货柜的数据 (尝试 ${attempt + 1}/${retries + 1})`);
+        const token = await this.getFeituoOpenApiToken();
+        const body: Record<string, string> = { containerNo: containerNumber };
+        if (opts.billNo) body.billNo = opts.billNo;
+        if (opts.carrierCode) body.carrierCode = opts.carrierCode;
+        if (opts.portCode) body.portCode = opts.portCode;
+        if (opts.isExport) body.isExport = opts.isExport;
 
-        const response = await this.apiClient.post<FeituoTrackingResponse>('/tracking/batch', {
-          containerNumbers,
-          includeHistory: true,
+        const response = await this.apiClient.post<FeituoOpenApiResponse>('/application/v1/query', body, {
+          headers: { Authorization: `Bearer ${token}` },
         });
 
-        if (response.data.code !== 200) {
-          const errorMsg = response.data.message || '未知错误';
-
-          // 如果是速率限制错误，等待后重试
-          if (errorMsg.includes('Too many requests') || response.status === 429) {
-            logger.warn(`[ExternalDataService] 触发速率限制，等待后重试 (尝试 ${attempt + 1}/${retries + 1})`);
-            await this.sleep(Math.pow(2, attempt) * 1000); // 指数退避: 1s, 2s, 4s
-            lastError = new Error(errorMsg);
+        const sc = response.data?.statusCode;
+        if (sc !== undefined && sc !== 20000) {
+          const msg = response.data?.message || '飞驼 OpenAPI 业务错误';
+          if (sc === 429 || String(msg).includes('Too many') || String(msg).includes('限流')) {
+            await this.sleep(Math.pow(2, attempt) * 1000);
+            lastError = new Error(`${msg} (${sc})`);
             continue;
           }
-
-          throw new Error(`飞驼API错误: ${errorMsg}`);
+          throw new Error(`${msg} (${sc})`);
         }
 
-        logger.info(`[ExternalDataService] 成功获取 ${response.data.data.length} 个货柜的追踪数据`);
-        return response.data.data;
-
-      } catch (error: any) {
+        const mapped = this.mapOpenApiResultToFeituoTrackingData(
+          containerNumber,
+          response.data?.data?.result
+        );
+        return mapped;
+      } catch (error: unknown) {
         lastError = error;
-
-        // 如果是网络错误或速率限制错误，继续重试
-        if (error.code === 'ECONNRESET' || error.code === 'ETIMEDOUT' || error.response?.status === 429) {
-          if (attempt < retries) {
-            const delay = Math.pow(2, attempt) * 1000;
-            logger.warn(`[ExternalDataService] 请求失败，${delay}ms后重试 (尝试 ${attempt + 1}/${retries + 1}): ${error.message}`);
-            await this.sleep(delay);
-            continue;
-          }
+        if (attempt < retries && this.isRetriableFeituoError(error)) {
+          const delay = Math.pow(2, attempt) * 1000;
+          logger.warn(
+            `[ExternalDataService] OpenAPI query 失败，${delay}ms 后重试 (${attempt + 1}/${retries + 1}):`,
+            error
+          );
+          await this.sleep(delay);
+          continue;
         }
-
-        // 其他错误直接抛出
-        if (attempt === retries) {
-          logger.error('[ExternalDataService] 从飞驼获取数据失败，已达到最大重试次数:', error);
-          throw error;
-        }
+        throw error;
       }
     }
 
-    throw lastError || new Error('从飞驼获取数据失败');
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  }
+
+  /**
+   * 从飞驼获取货柜追踪数据（OpenAPI 逐箱查询，与 FeiTuoAdapter 同源）
+   * @param containerNumbers 集装箱号数组
+   * @param retries 单箱重试次数
+   */
+  async fetchFromFeituo(containerNumbers: string[], retries: number = 3): Promise<FeituoTrackingData[]> {
+    if (!this.isFeituoOpenApiConfigured()) {
+      throw new Error(
+        '飞驼 OpenAPI 未配置：请设置 FEITUO_ACCESS_TOKEN 或 FEITUO_CLIENT_ID + FEITUO_CLIENT_SECRET（与 FeiTuoAdapter 相同），并确认 FEITUO_API_BASE_URL 指向 openapi.freightower.com'
+      );
+    }
+
+    const out: FeituoTrackingData[] = [];
+    for (let i = 0; i < containerNumbers.length; i++) {
+      const cn = containerNumbers[i];
+      logger.info(`[ExternalDataService] OpenAPI query 货柜 ${cn} (${i + 1}/${containerNumbers.length})`);
+      const data = await this.fetchOneContainerFromOpenApi(cn, retries);
+      if (data) out.push(data);
+      if (i < containerNumbers.length - 1) {
+        await this.sleep(this.REQUEST_DELAY_MS);
+      }
+    }
+    logger.info(`[ExternalDataService] 成功获取 ${out.length} 条货柜追踪数据`);
+    return out;
   }
 
   /**
@@ -278,7 +411,7 @@ export class ExternalDataService {
 
     feituoData.trackingEvents.forEach((event, index) => {
       const statusEvent = new ContainerStatusEvent();
-      statusEvent.id = `${feituoData.containerNumber}-${dataSource}-${index}-${Date.now()}`;
+      // id 为 ext_container_status_events 自增主键，勿赋字符串，否则 INSERT 失败会导致整段同步静默失败
       statusEvent.containerNumber = feituoData.containerNumber;
 
       // 状态代码转换
@@ -399,6 +532,136 @@ export class ExternalDataService {
   }
 
   /**
+   * 将 API/Excel 原始轨迹规范化为 saveStatusRawData 可接受的行（字段名与飞驼文档对齐）
+   */
+  private normalizeStatusesForExtRaw(events: FeituoEvent[]): Record<string, unknown>[] {
+    return events.map((e) => ({
+      ...e,
+      eventCode: e.eventCode || e.statusCode || 'UNKNOWN',
+      eventTime: e.eventTime,
+      isEsti: e.isEstimated ? 'Y' : 'N',
+    }));
+  }
+
+  /**
+   * 飞驼状态轨迹统一「前半段」：可选写 ext_feituo_status_events → ext_container_status_events → updatePortOperationCoreFields。
+   * 与 syncContainerEvents 中「无 places、仅 tracking」分支一致；后半段见 finalizeTrackingSyncTail。
+   */
+  private async processTrackingEventsBranch(
+    containerNumber: string,
+    billNo: string | undefined,
+    trackingEvents: FeituoEvent[],
+    dataSource: DataSource,
+    options?: { persistRawToExt?: boolean; syncRequestId?: string }
+  ): Promise<{ savedEvents: ContainerStatusEvent[]; updatedAtaFields: string[] }> {
+    if (!trackingEvents?.length) {
+      return { savedEvents: [], updatedAtaFields: [] };
+    }
+
+    const syncRequestId = options?.syncRequestId ?? `API_${containerNumber}_${Date.now()}`;
+    if (options?.persistRawToExt !== false) {
+      await this.saveStatusRawData(
+        containerNumber,
+        billNo,
+        this.normalizeStatusesForExtRaw(trackingEvents) as unknown[],
+        syncRequestId
+      );
+    }
+
+    const feituoData: FeituoTrackingData = { containerNumber, trackingEvents };
+    const events = this.convertFeituoToStatusEvents(feituoData, dataSource);
+
+    const nonStandardCodes = events.filter((e) => e.statusCode === 'AVLE' || e.statusCode === 'AVAIL');
+    if (nonStandardCodes.length > 0) {
+      logger.warn(`[ExternalDataService] 检测到非标准可提货状态码`, {
+        containerNumber,
+        nonStandardEvents: nonStandardCodes.map((e) => ({
+          statusCode: e.statusCode,
+          occurredAt: e.occurredAt,
+          location: e.locationNameEn,
+        })),
+        message: 'PCAB是飞驼官方标准码，AVLE/AVAIL为兼容码',
+      });
+    }
+
+    const savedEvents = await this.saveStatusEvents(events);
+    const updatedAtaFields = await this.updatePortOperationCoreFields(containerNumber, trackingEvents);
+    return { savedEvents, updatedAtaFields };
+  }
+
+  /**
+   * 与 syncContainerEvents 末尾一致：特殊字段、（可选）重算物流状态、滞港费、查验
+   */
+  private async finalizeTrackingSyncTail(
+    containerNumber: string,
+    trackingEvents: FeituoEvent[],
+    updatedAtaFields: string[],
+    options?: { includeRecalculate?: boolean; deferDemurrage?: boolean }
+  ): Promise<void> {
+    await this.updateSpecialCoreFields(containerNumber, trackingEvents);
+    if (options?.includeRecalculate !== false) {
+      await this.recalculateLogisticsStatus(containerNumber);
+    }
+    if (updatedAtaFields.length > 0 && !options?.deferDemurrage) {
+      this.demurrageService.calculateForContainer(containerNumber).catch((e) =>
+        logger.warn('[ExternalDataService] demurrage recalc on ATA update failed:', e)
+      );
+    }
+    await this.updateInspectionStatus(containerNumber, trackingEvents);
+  }
+
+  /**
+   * Excel 导入：从已写入的 ext_feituo_status_events 组装与 API 相同的轨迹，走与 API 一致的处理链。
+   * 不在此重算 logistics_status，由 FeituoImport merge 末尾在 processPlaceArray 之后统一重算。
+   */
+  async ingestFromExtFeituoStatusEvents(
+    containerNumber: string,
+    billOfLadingNumber: string,
+    dataSource: DataSource = DataSource.EXCEL
+  ): Promise<ContainerStatusEvent[]> {
+    const extRepo = AppDataSource.getRepository(ExtFeituoStatusEvent);
+    const fallbackBl = `FEITUO_${containerNumber}`;
+    const bills = [billOfLadingNumber, fallbackBl].filter((b, i, a) => b && a.indexOf(b) === i);
+    let rows = await extRepo.find({
+      where: bills.map((billOfLadingNumber) => ({ containerNumber, billOfLadingNumber })),
+      order: { eventTime: 'ASC' },
+    });
+    if (rows.length === 0) {
+      rows = await extRepo.find({
+        where: { containerNumber },
+        order: { eventTime: 'ASC' },
+      });
+    }
+    if (rows.length === 0) {
+      return [];
+    }
+
+    const trackingEvents: FeituoEvent[] = rows.map((ext) => ({
+      eventCode: ext.eventCode,
+      statusCode: ext.eventCode,
+      eventTime: ext.eventTime instanceof Date ? ext.eventTime.toISOString() : String(ext.eventTime),
+      locationCode: ext.portCode || undefined,
+      locationNameEn: ext.eventPlace || undefined,
+      locationNameCn: ext.eventPlace || undefined,
+      terminalName: ext.terminalName || undefined,
+      isEstimated: ext.isEstimated,
+      hasOccurred: !ext.isEstimated,
+    }));
+
+    const { savedEvents, updatedAtaFields } = await this.processTrackingEventsBranch(
+      containerNumber,
+      billOfLadingNumber,
+      trackingEvents,
+      dataSource,
+      { persistRawToExt: false }
+    );
+    await this.finalizeTrackingSyncTail(containerNumber, trackingEvents, updatedAtaFields, {
+      includeRecalculate: false,
+    });
+    return savedEvents;
+  }
+
+  /**
    * 同步单个货柜的状态事件
    * @param containerNumber 集装箱号
    * @param dataSource 数据源类型
@@ -432,7 +695,16 @@ export class ExternalDataService {
           feituoData.places,
           syncRequestId
         );
-        
+
+        if (feituoData.trackingEvents && feituoData.trackingEvents.length > 0) {
+          await this.saveStatusRawData(
+            containerNumber,
+            feituoData.billNo,
+            this.normalizeStatusesForExtRaw(feituoData.trackingEvents) as unknown[],
+            syncRequestId
+          );
+        }
+
         // 动态导入 places 处理器（避免循环依赖）
         const { feituoPlacesProcessor } = await import('./feituoPlaces.processor');
         
@@ -467,52 +739,24 @@ export class ExternalDataService {
           eventsGenerated: placeEvents.length
         });
       } else {
-        // 回退到传统的 trackingEvents 处理
         logger.info(`[ExternalDataService] 未检测到 places 数据，使用 trackingEvents`);
-        
-        // 转换为状态事件
-        const events = this.convertFeituoToStatusEvents(feituoData, dataSource);
-
-        // 【监控】检测非标准可提货状态码
-        const nonStandardCodes = events.filter(e => e.statusCode === 'AVLE' || e.statusCode === 'AVAIL');
-        if (nonStandardCodes.length > 0) {
-          logger.warn(`[ExternalDataService] 检测到非标准可提货状态码`, {
-            containerNumber,
-            nonStandardEvents: nonStandardCodes.map(e => ({
-              statusCode: e.statusCode,
-              occurredAt: e.occurredAt,
-              location: e.locationNameEn
-            })),
-            message: 'PCAB是飞驼官方标准码，AVLE/AVAIL为兼容码'
-          });
-        }
-
-        // 保存到数据库
-        savedEvents = await this.saveStatusEvents(events);
-
-        // 更新PortOperation表的核心时间字段
-        updatedAtaFields = await this.updatePortOperationCoreFields(
+        const branch = await this.processTrackingEventsBranch(
           containerNumber,
-          feituoData.trackingEvents
+          feituoData.billNo,
+          feituoData.trackingEvents || [],
+          dataSource,
+          { persistRawToExt: true }
         );
+        savedEvents = branch.savedEvents;
+        updatedAtaFields = branch.updatedAtaFields;
       }
 
-      // 更新特殊核心字段（return_time、shipment_date）
-      await this.updateSpecialCoreFields(containerNumber, feituoData.trackingEvents || []);
-
-      // 关键: 重新计算货柜的物流状态
-      await this.recalculateLogisticsStatus(containerNumber);
-
-      // ATA 到港后触发滞港费重算，actual 模式覆盖 forecast 写入的 last_free_date
-      if (updatedAtaFields.length > 0) {
-        this.demurrageService.calculateForContainer(containerNumber).catch((e) =>
-          logger.warn('[ExternalDataService] demurrage recalc on ATA update failed:', e)
-        );
-      }
-
-      // 根据飞驼状态码自动标记查验状态
-      // 查验状态码: CUIP(海关滞留)、CPI(出口报关查验)、CPI_I(进口报关查验)
-      await this.updateInspectionStatus(containerNumber, feituoData.trackingEvents || []);
+      await this.finalizeTrackingSyncTail(
+        containerNumber,
+        feituoData.trackingEvents || [],
+        updatedAtaFields,
+        { includeRecalculate: true }
+      );
 
       logger.info(`[ExternalDataService] 成功同步货柜 ${containerNumber} 的 ${savedEvents.length} 个状态事件`);
       return savedEvents;
@@ -612,7 +856,7 @@ export class ExternalDataService {
           descriptionEn: s.descriptionEn || null,
           eventDescriptionOrigin: s.descriptionEn || s.descriptionCn || null,
           eventTime: s.eventTime ? new Date(s.eventTime) : new Date(),
-          isEstimated: s.isEsti === 'Y',
+          isEstimated: s.isEsti === 'Y' || s.isEstimated === true,
           portTimezone: s.portTimezone || null,
           eventPlace: s.eventPlace || null,
           eventPlaceOrigin: s.eventPlace || null,
@@ -658,7 +902,6 @@ export class ExternalDataService {
       // 到达事件
       if (place.ata && place.type !== 'PRE' && place.type !== 'PDE') {
         const arrivalEvent = new ContainerStatusEvent();
-        arrivalEvent.id = `${containerNumber}-${dataSource}-place-arrival-${index}-${Date.now()}`;
         arrivalEvent.containerNumber = containerNumber;
         arrivalEvent.statusCode = 'ARRI';
         arrivalEvent.eventCode = 'ARRI';
@@ -676,7 +919,6 @@ export class ExternalDataService {
       // 离港事件
       if (place.atd && place.type !== 'PRE' && place.type !== 'PDE') {
         const departureEvent = new ContainerStatusEvent();
-        departureEvent.id = `${containerNumber}-${dataSource}-place-departure-${index}-${Date.now()}`;
         departureEvent.containerNumber = containerNumber;
         departureEvent.statusCode = 'DEPA';
         departureEvent.eventCode = 'DEPA';
@@ -841,6 +1083,8 @@ export class ExternalDataService {
       let updatedCount = 0;
       const changedFields: Record<string, { old?: unknown; new?: unknown }> = {};
       const updatedAtaFields: string[] = [];
+      let truckingMut: TruckingTransport | null = truckingTransport;
+      let truckingPickupUpdated = false;
 
       // 遍历飞驼事件,更新对应的核心时间字段
       for (const event of feituoEvents) {
@@ -852,6 +1096,12 @@ export class ExternalDataService {
         // 获取核心字段名
         const coreFieldName = getCoreFieldName(event.statusCode);
         if (!coreFieldName) {
+          continue;
+        }
+
+        /** 映射表多为 snake_case，PortOperation 实体为 camelCase；非港口时间列由 finalize 其它分支处理 */
+        const poTimeKey = resolvePortOperationTimeKeyFromCoreField(coreFieldName);
+        if (!poTimeKey) {
           continue;
         }
 
@@ -936,9 +1186,9 @@ export class ExternalDataService {
           continue;
         }
 
-        // 更新核心时间字段
+        // 更新核心时间字段（必须用实体属性名，否则 TypeORM save 不落库）
         const eventTime = new Date(event.eventTime);
-        const currentValue = (targetPortOperation as any)[coreFieldName];
+        const currentValue = targetPortOperation[poTimeKey] as Date | undefined | null;
 
         // 只有当飞驼数据更新时才更新字段
         if (!currentValue || eventTime > currentValue) {
@@ -946,7 +1196,7 @@ export class ExternalDataService {
             old: currentValue ? (currentValue instanceof Date ? currentValue.toISOString() : currentValue) : null,
             new: eventTime.toISOString()
           };
-          (targetPortOperation as any)[coreFieldName] = eventTime;
+          (targetPortOperation as Record<keyof PortOperation, unknown>)[poTimeKey] = eventTime;
           if (
             targetPortOperation.portType === 'destination' &&
             ExternalDataService.ATA_RELATED_FIELDS.includes(coreFieldName)
@@ -961,6 +1211,20 @@ export class ExternalDataService {
 
           logger.info(`[ExternalDataService] 更新核心字段: ${containerNumber} - ${coreFieldName} = ${eventTime}`);
           updatedCount++;
+
+          // 目的港 GATE_OUT/GTOT/STCS → 拖卡 pickup_date（飞驼），业务/手工来源不覆盖
+          if (coreFieldName === 'gate_out_time') {
+            const applied = tryApplyFeituoPickupFromGateOutEvent({
+              trucking: truckingMut,
+              containerNumber,
+              eventTime,
+              statusCode: event.statusCode,
+              createTrucking: () =>
+                this.truckingTransportRepository.create({ containerNumber })
+            });
+            truckingMut = applied.trucking;
+            if (applied.updated) truckingPickupUpdated = true;
+          }
         }
       }
 
@@ -977,6 +1241,24 @@ export class ExternalDataService {
           action: 'UPDATE',
           changedFields: Object.keys(changedFields).length > 0 ? changedFields : null,
           remark: `飞驼API同步，更新 ${updatedCount} 个核心字段`
+        });
+      }
+
+      if (truckingPickupUpdated && truckingMut) {
+        await this.truckingTransportRepository.save(truckingMut);
+        await auditLogService.logChange({
+          sourceType: 'feituo_api',
+          entityType: 'process_trucking_transport',
+          entityId: containerNumber,
+          action: 'UPDATE',
+          changedFields: {
+            pickup_date: {
+              old: null,
+              new: truckingMut.pickupDate ? (truckingMut.pickupDate as Date).toISOString() : null
+            },
+            pickup_date_source: { old: null, new: truckingMut.pickupDateSource ?? 'feituo' }
+          },
+          remark: '飞驼同步：GATE_OUT 等出闸事件写入实际提柜日'
         });
       }
 
@@ -1121,31 +1403,20 @@ export class ExternalDataService {
             // 并发处理每个货柜
             const processPromises = externalData.map(async (data) => {
               try {
-                const events = this.convertFeituoToStatusEvents(data, dataSource);
-
-                // 【监控】检测非标准可提货状态码
-                const nonStandardCodes = events.filter(e => e.statusCode === 'AVLE' || e.statusCode === 'AVAIL');
-                if (nonStandardCodes.length > 0) {
-                  logger.warn(`[ExternalDataService] 检测到非标准可提货状态码`, {
-                    containerNumber: data.containerNumber,
-                    nonStandardEvents: nonStandardCodes.map(e => ({
-                      statusCode: e.statusCode,
-                      occurredAt: e.occurredAt,
-                      location: e.locationNameEn
-                    })),
-                    message: 'PCAB是飞驼官方标准码，AVLE/AVAIL为兼容码'
-                  });
-                }
-
-                await this.saveStatusEvents(events);
-                const updatedAtaFields = await this.updatePortOperationCoreFields(
+                const branch = await this.processTrackingEventsBranch(
                   data.containerNumber,
-                  data.trackingEvents
+                  data.billNo,
+                  data.trackingEvents || [],
+                  dataSource,
+                  { persistRawToExt: true }
                 );
-                await this.recalculateLogisticsStatus(data.containerNumber);
-
-                // 【优化】收集需要重算滞港费的货柜，而不是立即触发
-                if (updatedAtaFields.length > 0) {
+                await this.finalizeTrackingSyncTail(
+                  data.containerNumber,
+                  data.trackingEvents || [],
+                  branch.updatedAtaFields,
+                  { includeRecalculate: true, deferDemurrage: true }
+                );
+                if (branch.updatedAtaFields.length > 0) {
                   containersNeedingDemurrageRecalc.push(data.containerNumber);
                 }
                 return data.containerNumber;

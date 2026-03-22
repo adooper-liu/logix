@@ -10,6 +10,7 @@ import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { SeaFreight } from '../entities/SeaFreight';
 import { PortOperation } from '../entities/PortOperation';
 import { TruckingTransport } from '../entities/TruckingTransport';
+import { PICKUP_DATE_SOURCE } from '../constants/pickupDateSource';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { ContainerType } from '../entities/ContainerType';
@@ -24,6 +25,7 @@ import { feituoImportService } from '../services/feituoImport.service';
 import { OverseasCompany } from '../entities/OverseasCompany';
 import { Repository } from 'typeorm';
 import { logger } from '../utils/logger';
+import { resolveDemurrageFreeDays } from '../utils/demurrageTiers';
 import { auditLogService } from '../services/auditLog.service';
 
 export class ImportController {
@@ -324,12 +326,13 @@ export class ImportController {
     if (code) return code;
     if (!portName || !portName.trim()) return null;
     const trimmedName = portName.trim();
-    let newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : 'NEW_PORT_' + Date.now();
-    // 确保代码长度不超过 50 字符
-    if (newCode.length > 50) {
-      newCode = 'NEW_PORT_' + Date.now() + '_' + trimmedName.substring(0, 10).toUpperCase().replace(/\s+/g, '_');
-      newCode = newCode.substring(0, 50);
+    // 仅允许标准 UN/LOCODE 自动建港口，避免把中文名/描述写进 port_code
+    const candidate = trimmedName.toUpperCase().replace(/\s+/g, '');
+    if (!/^[A-Z0-9]{5}$/.test(candidate)) {
+      logger.warn(`[Import] 跳过自动创建港口：非标准 port_code（${trimmedName}）`);
+      return null;
     }
+    const newCode = candidate;
     const newPort = queryRunner.manager.create(Port, {
       portCode: newCode,
       portName: trimmedName,
@@ -681,9 +684,15 @@ export class ImportController {
 
           if (existingTrucking) {
             Object.assign(existingTrucking, truckingData);
+            if (truckingData.pickupDate != null && truckingData.pickupDate !== undefined) {
+              existingTrucking.pickupDateSource = PICKUP_DATE_SOURCE.BUSINESS;
+            }
             await queryRunner.manager.save(existingTrucking);
           } else {
             const trucking = queryRunner.manager.create(TruckingTransport, truckingData);
+            if (truckingData.pickupDate != null && truckingData.pickupDate !== undefined) {
+              trucking.pickupDateSource = PICKUP_DATE_SOURCE.BUSINESS;
+            }
             await queryRunner.manager.save(trucking);
           }
         }
@@ -1087,9 +1096,15 @@ export class ImportController {
 
             if (existingTrucking) {
               Object.assign(existingTrucking, truckingData);
+              if (truckingData.pickupDate != null && truckingData.pickupDate !== undefined) {
+                existingTrucking.pickupDateSource = PICKUP_DATE_SOURCE.BUSINESS;
+              }
               await queryRunner.manager.save(existingTrucking);
             } else {
               const trucking = queryRunner.manager.create(TruckingTransport, truckingData);
+              if (truckingData.pickupDate != null && truckingData.pickupDate !== undefined) {
+                trucking.pickupDateSource = PICKUP_DATE_SOURCE.BUSINESS;
+              }
               await queryRunner.manager.save(trucking);
             }
           }
@@ -1438,7 +1453,10 @@ export class ImportController {
           sequenceNumber: resolvedRow.sequence_number ?? null,
           portCondition: resolvedRow.port_condition ?? null,
           freeDaysBasis: resolvedRow.free_days_basis ?? '自然日',
-          freeDays: Number(resolvedRow.free_days ?? 0),
+          freeDays: resolveDemurrageFreeDays(
+            resolvedRow.free_days,
+            (resolvedRow.tiers as Record<string, unknown> | null | undefined) ?? null
+          ),
           calculationBasis: resolvedRow.calculation_basis ?? '按卸船',
           ratePerDay: resolvedRow.rate_per_day ?? null,
           tiers: (resolvedRow.tiers as Record<string, unknown>) ?? null,

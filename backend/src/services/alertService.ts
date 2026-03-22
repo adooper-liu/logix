@@ -5,6 +5,7 @@ import { TruckingTransport } from '../entities/TruckingTransport';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { ContainerAlert, AlertLevel, AlertType } from '../entities/ContainerAlert';
+import { ExtFeituoStatusEvent } from '../entities/ExtFeituoStatusEvent';
 import { AppDataSource } from '../database';
 import { logger } from '../utils/logger';
 
@@ -16,6 +17,7 @@ export class AlertService {
   private warehouseRepository = AppDataSource.getRepository(WarehouseOperation);
   private emptyReturnRepository = AppDataSource.getRepository(EmptyReturn);
   private alertRepository = AppDataSource.getRepository(ContainerAlert);
+  private feituoStatusEventRepository = AppDataSource.getRepository(ExtFeituoStatusEvent);
 
   // 检查单个货柜的预警
   async checkContainerAlerts(containerNumber: string): Promise<ContainerAlert[]> {
@@ -50,6 +52,9 @@ export class AlertService {
 
     // 检查滞箱费预警
     alerts.push(...await this.checkDetentionAlerts(container));
+
+    // 检查飞驼事件预警（包括甩柜）
+    alerts.push(...await this.checkFeituoEvents(container));
 
     // 保存预警到数据库
     for (const alert of alerts) {
@@ -403,5 +408,94 @@ export class AlertService {
       logger.error('[AlertService] 解决预警失败', error);
       return false;
     }
+  }
+
+  /** 是否已有未解决的甩柜类预警（与列表合成逻辑一致，避免重复 INSERT） */
+  private async findUnresolvedDumpAlert(containerNumber: string): Promise<ContainerAlert | null> {
+    return this.alertRepository
+      .createQueryBuilder('a')
+      .where('a.containerNumber = :cn', { cn: containerNumber })
+      .andWhere('a.resolved = :r', { r: false })
+      .andWhere('(a.message LIKE :m1 OR LOWER(a.message) LIKE :m2)', {
+        m1: '%甩柜%',
+        m2: '%dump%',
+      })
+      .getOne();
+  }
+
+  // 检查飞驼事件预警（包括甩柜）
+  private async checkFeituoEvents(container: Container): Promise<ContainerAlert[]> {
+    const alerts: ContainerAlert[] = [];
+
+    try {
+      // 查询该货柜的飞驼状态事件
+      const feituoEvents = await this.feituoStatusEventRepository.find({
+        where: { containerNumber: container.containerNumber },
+        order: { eventTime: 'DESC' },
+        take: 20 // 只查询最近20条记录
+      });
+
+      if (feituoEvents.length === 0) {
+        return alerts;
+      }
+
+      // 检查甩柜事件
+      const dumpedEvents = feituoEvents.filter(event => {
+        const description = (event.descriptionCn || event.descriptionEn || event.eventDescriptionOrigin || '').toLowerCase();
+        logger.debug('[AlertService] Checking feituo event for dump', {
+          containerNumber: event.containerNumber,
+          eventCode: event.eventCode,
+        });
+        return description.includes('甩柜') || description.includes('dumped') || event.eventCode === 'DUMP';
+      });
+
+      if (dumpedEvents.length > 0) {
+        const existingDump = await this.findUnresolvedDumpAlert(container.containerNumber);
+        if (!existingDump) {
+          const latestDumpedEvent = dumpedEvents[0];
+          const description =
+            latestDumpedEvent.descriptionCn ||
+            latestDumpedEvent.descriptionEn ||
+            latestDumpedEvent.eventDescriptionOrigin ||
+            '甩柜';
+
+          alerts.push(
+            this.alertRepository.create({
+              containerNumber: container.containerNumber,
+              type: AlertType.ROLLOVER,
+              level: AlertLevel.CRITICAL,
+              message: `甩柜事件: ${description}`,
+              resolved: false,
+            })
+          );
+        }
+      }
+
+      // 检查其他重要事件
+      const importantEvents = feituoEvents.filter(event => {
+        const description = (event.descriptionCn || event.descriptionEn || event.eventDescriptionOrigin || '').toLowerCase();
+        return description.includes('船名') && description.includes('变更') ||
+               description.includes('voyage') && description.includes('change') ||
+               description.includes('vessel') && description.includes('change');
+      });
+
+      if (importantEvents.length > 0) {
+        const latestEvent = importantEvents[0];
+        const description = latestEvent.descriptionCn || latestEvent.descriptionEn || latestEvent.eventDescriptionOrigin || '船舶信息变更';
+
+        alerts.push(this.alertRepository.create({
+          containerNumber: container.containerNumber,
+          type: AlertType.SHIPMENT_CHANGE,
+          level: AlertLevel.WARNING,
+          message: `船舶信息变更: ${description}`,
+          resolved: false,
+        }));
+      }
+
+    } catch (error) {
+      logger.error('[AlertService] 检查飞驼事件失败', error);
+    }
+
+    return alerts;
   }
 }

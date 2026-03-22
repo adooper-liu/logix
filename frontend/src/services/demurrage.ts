@@ -28,6 +28,8 @@ export interface MatchedDemurrageStandard {
   id: number
   chargeName: string
   chargeTypeCode: string
+  foreignCompanyCode?: string
+  foreignCompanyName?: string
   destinationPortCode?: string
   destinationPortName?: string
   shippingCompanyCode?: string
@@ -72,6 +74,18 @@ export interface DemurrageItemResult {
   }>
 }
 
+export interface DemurrageSkippedItem {
+  standardId: number
+  chargeName: string
+  chargeTypeCode: string
+  reasonCode:
+    | 'missing_pickup_date_actual'
+    | 'missing_planned_pickup_date'
+    | 'missing_eta_combined_forecast'
+    | 'missing_arrival_for_combined_actual'
+  reason: string
+}
+
 /** 用于滞港费/滞箱费计算的原始日期（含自动计算的最晚提柜日、最晚还箱日） */
 export interface CalculationDates {
   ataDestPort?: string | null
@@ -80,7 +94,7 @@ export interface CalculationDates {
   dischargeDate?: string | null
   /** 最晚提柜日（从 process_port_operations.last_free_date 读取） */
   lastPickupDate?: string | null
-  /** 计划提柜日（从 process_trucking_transport.last_pickup_date 读取，用于预测模式前置条件） */
+  /** 计划提柜日（process_trucking_transport.planned_pickup_date；forecast 滞港费截止日 = max(今天, 计划提柜日)） */
   plannedPickupDate?: string | null
   /** 最晚提柜日（计算出的） */
   lastPickupDateComputed?: string | null
@@ -91,7 +105,49 @@ export interface CalculationDates {
   lastReturnDateMode?: 'actual' | 'forecast' | null
   pickupDateActual?: string | null
   returnTime?: string | null
+  /** 计划还箱日（process_empty_return.planned_return_date；forecast 滞箱截止 = max(今天, 计划还箱)） */
+  plannedReturnDate?: string | null
+  /** 出运日（备货 actual_ship_date / 海运 shipment_date） */
+  shipmentDate?: string | null
   today: string
+}
+
+/** 关键日期时间线（与后端 GET /demurrage/calculate/:containerNumber 的 keyTimeline 对齐） */
+export type KeyTimelineMilestoneKey =
+  | 'shipment'
+  | 'eta'
+  | 'revised_eta'
+  | 'ata'
+  | 'discharge'
+  | 'last_pickup'
+  | 'pickup_actual'
+  | 'last_return'
+  | 'return_actual'
+
+export type KeyTimelineDisplayMode = 'elapsed' | 'countdown' | 'overdue' | 'none'
+
+export interface KeyTimelineNodeDto {
+  milestoneKey: KeyTimelineMilestoneKey
+  date: string | null
+  hasNextEffective: boolean
+  nextMilestoneDate: string | null
+  prevMilestoneDate: string | null
+  displayMode: KeyTimelineDisplayMode
+  isKeyNode: boolean
+  standardHours: number
+  displayDays?: number
+  displayText?: string
+}
+
+export interface KeyTimelineMetaDto {
+  calculationMode: 'actual' | 'forecast'
+  arrivedAtDestinationPort: boolean
+  warnings?: string[]
+}
+
+export interface KeyTimelineResult {
+  nodes: KeyTimelineNodeDto[]
+  meta: KeyTimelineMetaDto
 }
 
 export interface DemurrageCalculationResponse {
@@ -106,8 +162,20 @@ export interface DemurrageCalculationResponse {
     calculationMode?: 'actual' | 'forecast'
     matchedStandards: MatchedDemurrageStandard[]
     items: DemurrageItemResult[]
+    skippedItems?: DemurrageSkippedItem[]
     totalAmount: number
     currency: string
+    /** 与状态机顺序不一致时的提示（后端 dateOrderWarnings） */
+    dateOrderWarnings?: string[]
+    /** 滞港费 actual/forecast 所依据的状态机快照（calculateLogisticsStatus） */
+    logisticsStatusSnapshot?: {
+      status: string
+      reason: string
+      arrivedAtDestinationPort: boolean
+      currentPortType: 'origin' | 'transit' | 'destination' | null
+    }
+    /** 关键日期历时/倒计时/超期（Phase 1 占位 nodes 可为空） */
+    keyTimeline?: KeyTimelineResult
   }
   message?: string
   /** 无法计算时的原因，用于前端区分展示样式：
@@ -116,7 +184,12 @@ export interface DemurrageCalculationResponse {
    *   - no_matching_standards: 未匹配到滞港费标准
    *   - missing_arrival_dates: 已有实际提柜但缺少到港/ETA/卸船日
    */
-  reason?: 'no_arrival_at_dest' | 'missing_arrival_dates' | 'no_matching_standards' | 'missing_dates'
+  reason?:
+    | 'no_arrival_at_dest'
+    | 'missing_arrival_dates'
+    | 'no_matching_standards'
+    | 'missing_dates'
+    | 'missing_pickup_date_actual'
 }
 
 class DemurrageService {

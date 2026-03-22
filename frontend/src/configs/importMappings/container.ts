@@ -248,6 +248,20 @@ export const CONTAINER_FIELD_MAPPINGS: FieldMapping[] = [
     aliases: ['目的港名称', '目的港。名称'],
   },
   {
+    excelField: '船公司',
+    table: 'process_sea_freight',
+    field: 'shipping_company_id',
+    required: false,
+    aliases: ['船公司名称', '船公司代码', '船公司。编码', '船公司。名称'],
+  },
+  {
+    excelField: '起运港货代公司',
+    table: 'process_sea_freight',
+    field: 'freight_forwarder_id',
+    required: false,
+    aliases: ['起运港货代公司名称', '起运港货代公司编码', '货代', '货代公司', '货代公司名称'],
+  },
+  {
     excelField: '出运日期',
     table: 'biz_replenishment_orders',
     field: 'expected_ship_date',

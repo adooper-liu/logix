@@ -114,7 +114,11 @@ const displayText = computed(() => {
   const time = overdueTime.value
   if (!time) return ''
   if (time < 0) return getCountdownText() // 未来：倒计时
-  // 过去：显示超期
+  // 实际还箱为业务闭环终点：历时 = 本节点 - 上一节点，非「今天 - 还箱日」的超期
+  if (props.label === '实际还箱' && prevDateObj.value) {
+    return getElapsedText()
+  }
+  // 过去：显示超期（关键节点等）
   return getOverdueText() // 已超期：超期
 })
 
@@ -211,6 +215,10 @@ const displayType = computed((): 'countdown' | 'elapsed' | 'overdue' => {
   const time = overdueTime.value
   if (!time) return 'elapsed'
   if (time < 0) return 'countdown'
+  // 实际还箱：业务终点，文案为历时，非超期
+  if (props.label === '实际还箱' && prevDateObj.value) {
+    return 'elapsed'
+  }
   // 关键节点在过去：总是显示超期（文本为"超期X天"），颜色根据是否超过标准决定
   if (isKeyNode.value) {
     return 'overdue'

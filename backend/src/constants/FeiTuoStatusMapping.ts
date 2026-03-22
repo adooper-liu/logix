@@ -8,6 +8,8 @@
  * 参考: https://doc.freightower.com/7113318m0 节点状态码
  */
 
+import type { PortOperation } from '../entities/PortOperation';
+
 /**
  * 飞驼状态代码到核心字段的映射表
  * FeiTuo Status Code to Core Field Mapping
@@ -20,6 +22,7 @@ export const FEITUO_STATUS_TO_CORE_FIELD_MAP: Record<string, string> = {
   'ATA': 'ata',
   'ARRI': 'ata',
   'BDAR': 'ata',             // 抵港 Vessel Arrived
+  'FETA': 'ata',             // 交货地抵达 Delivery Arrived（与 BDAR 同写 ata，时间常一致）
   'POCA': 'ata',             // 靠泊 Vessel Berthed
   'ETA': 'eta',
 
@@ -182,6 +185,7 @@ export const FEITUO_STATUS_TO_PORT_TYPE_MAP: Record<string, 'origin' | 'transit'
   'ATA': 'destination',
   'ARRI': 'destination',
   'BDAR': 'destination',
+  'FETA': 'destination',               // 交货地抵达
   'POCA': 'destination',
   'ETA': 'destination',
   'GATE_IN': 'destination',
@@ -274,6 +278,7 @@ export const FEITUO_STATUS_TYPE_MAP: Record<string, 'ETA' | 'ATA' | 'GATE_IN' | 
   'ATA': 'ATA',
   'ARRI': 'ATA',
   'BDAR': 'ATA',
+  'FETA': 'ATA',
   'POCA': 'ATA',
   'GATE_IN': 'GATE_IN',
   'GATE_OUT': 'GATE_OUT',
@@ -437,6 +442,66 @@ export const getCoreFieldName = (statusCode: string): string | null => {
 };
 
 /**
+ * 映射表中的核心字段名（多为 DB snake_case）→ PortOperation 实体时间字段（camelCase）。
+ * updatePortOperationCoreFields 必须用实体属性赋值，否则 TypeORM 无法持久化。
+ */
+const CORE_FIELD_TO_PORT_OPERATION_TIME_KEY: Record<string, keyof PortOperation> = {
+  ata: 'ata',
+  eta: 'eta',
+  revised_eta: 'revisedEta',
+  eta_correction: 'etaCorrection',
+  discharged_time: 'dischargedTime',
+  dest_port_unload_date: 'destPortUnloadDate',
+  etd: 'etd',
+  atd: 'atd',
+  transit_arrival_date: 'transitArrivalDate',
+  gate_in_time: 'gateInTime',
+  gate_out_time: 'gateOutTime',
+  available_time: 'availableTime',
+  last_free_date: 'lastFreeDate',
+  planned_customs_date: 'plannedCustomsDate',
+  actual_customs_date: 'actualCustomsDate',
+  isf_declaration_date: 'isfDeclarationDate',
+  document_transfer_date: 'documentTransferDate',
+  manifest_release_date: 'manifestReleaseDate',
+  document_cutoff_date: 'documentCutoffDate',
+  customs_cutoff_date: 'customsCutoffDate',
+  customs_hold_date: 'customsHoldDate',
+  carrier_hold_date: 'carrierHoldDate',
+  terminal_hold_date: 'terminalHoldDate',
+  customs_release_date: 'customsReleaseDate',
+  terminal_release_date: 'terminalReleaseDate',
+  port_open_date: 'portOpenDate',
+  port_close_date: 'portCloseDate',
+  train_arrival_date: 'trainArrivalDate',
+  train_discharge_date: 'trainDischargeDate',
+  train_departure_time: 'trainDepartureTime',
+  rail_last_free_date: 'railLastFreeDate',
+  status_occurred_at: 'statusOccurredAt',
+};
+
+/** 非港口操作时间列：由 SeaFreight / EmptyReturn 等处理 */
+const CORE_FIELD_NOT_PORT_OPERATION_TIME = new Set<string>([
+  'shipment_date',
+  'return_time',
+  'stuffing_date',
+  'stripping_date',
+  'dumped_date',
+]);
+
+/**
+ * 将飞驼核心字段名解析为 PortOperation 上的可写时间属性；无法对应时返回 null（含非港口表字段）。
+ */
+export const resolvePortOperationTimeKeyFromCoreField = (
+  coreFieldName: string
+): keyof PortOperation | null => {
+  if (CORE_FIELD_NOT_PORT_OPERATION_TIME.has(coreFieldName)) {
+    return null;
+  }
+  return CORE_FIELD_TO_PORT_OPERATION_TIME_KEY[coreFieldName] ?? null;
+};
+
+/**
  * 获取飞驼状态代码对应的港口类型
  * Get port type for FeiTuo status code
  *
@@ -501,6 +566,7 @@ export default {
   FEITUO_STATUS_TYPE_MAP,
   shouldUpdateCoreField,
   getCoreFieldName,
+  resolvePortOperationTimeKeyFromCoreField,
   getPortTypeForStatusCode,
   getStatusTypeForStatusCode,
   isEstimatedStatus,

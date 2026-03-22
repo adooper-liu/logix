@@ -2,7 +2,7 @@
 import { Box, Ship, Check, Warning } from '@element-plus/icons-vue'
 
 interface StatsCardProps {
-  type: 'total' | 'active' | 'alert' | 'completed'
+  type: 'total' | 'active' | 'alert' | 'completed' | 'danger'
   value: number
   /** 自定义显示值（如滞港费合计的 "USD 12,345.00"），优先于 value */
   displayValue?: string
@@ -28,7 +28,8 @@ const icons = {
   total: Box,
   active: Ship,
   alert: Warning,
-  completed: Check
+  completed: Check,
+  danger: Warning
 }
 
 const emit = defineEmits<{
@@ -145,6 +146,9 @@ const handleClick = () => {
       }
       &.completed {
         background: linear-gradient(135deg, $info-color 0%, $info-light 100%);
+      }
+      &.danger {
+        background: linear-gradient(135deg, $danger-color 0%, $danger-light 100%);
       }
     }
 

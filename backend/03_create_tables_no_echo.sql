@@ -473,6 +473,7 @@ CREATE TABLE IF NOT EXISTS process_trucking_transport (
     last_pickup_date DATE,
     planned_pickup_date DATE,
     pickup_date TIMESTAMP,
+    pickup_date_source VARCHAR(20),
     last_delivery_date DATE,
     planned_delivery_date DATE,
     delivery_date TIMESTAMP,

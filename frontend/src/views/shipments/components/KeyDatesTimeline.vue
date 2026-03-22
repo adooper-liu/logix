@@ -397,22 +397,19 @@ const getNextBusinessNodeDate = (
 </script>
 
 <template>
-  <el-card class="key-dates-card" v-if="timelineEvents.length > 0">
-    <template #header>
-      <div class="card-header">
-        <span class="title">关键日期</span>
-        <router-link
-          :to="{
-            path: '/docs/help/时间概念说明-历时倒计时超期.md',
-            query: { from: router.currentRoute.value.fullPath }
-          }"
-          class="help-link"
-        >
-          <el-icon><QuestionFilled /></el-icon>
-          <span class="help-text">历时/倒计时/超期说明</span>
-        </router-link>
-      </div>
-    </template>
+  <el-card class="key-dates-card" shadow="never" v-if="timelineEvents.length > 0">
+    <div class="key-dates-help">
+      <router-link
+        :to="{
+          path: '/docs/help/时间概念说明-历时倒计时超期.md',
+          query: { from: router.currentRoute.value.fullPath }
+        }"
+        class="help-link"
+        title="历时/倒计时/超期说明"
+      >
+        <el-icon><QuestionFilled /></el-icon>
+      </router-link>
+    </div>
 
     <div class="timeline-horizontal">
       <div
@@ -472,69 +469,36 @@ const getNextBusinessNodeDate = (
 @use '@/assets/styles/variables' as *;
 
 .key-dates-card {
-  border-radius: $radius-large;
-  border: 1px solid $border-lighter;
-  box-shadow: $shadow-light;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
   margin-bottom: 0;
 
-  :deep(.el-card__header) {
-    padding: $spacing-sm $spacing-md;
-    border-bottom: 1px solid $border-lighter;
-    background: $bg-page;
-  }
-
   :deep(.el-card__body) {
-    padding: $spacing-md;
+    padding: 0;
+    position: relative;
   }
 
-  .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-
-    .title {
-      font-size: $font-size-sm;
-      font-weight: 700;
-      color: $text-primary;
-      letter-spacing: 0.02em;
-      position: relative;
-      padding-left: 10px;
-
-      &::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 3px;
-        height: 14px;
-        background: linear-gradient(180deg, $primary-color, darken($primary-color, 10%));
-        border-radius: 2px;
-      }
-    }
+  .key-dates-help {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 2;
   }
 
   .help-link {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 4px;
-    color: $primary-color;
+    justify-content: center;
+    padding: 4px;
+    color: $text-secondary;
     text-decoration: none;
-    font-size: 11px;
-    padding: 4px 8px;
     border-radius: $radius-base;
-    background: rgba($primary-color, 0.08);
-    transition: all $transition-base;
-    font-weight: 500;
+    transition: color $transition-base, background $transition-base;
 
     &:hover {
-      background: rgba($primary-color, 0.15);
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba($primary-color, 0.2);
-    }
-
-    .help-text {
-      font-size: 10px;
+      color: $primary-color;
+      background: rgba($primary-color, 0.08);
     }
   }
 
@@ -542,9 +506,12 @@ const getNextBusinessNodeDate = (
     display: flex;
     flex-direction: row;
     align-items: flex-start;
+    justify-content: center;
     gap: 8px;
     overflow-x: auto;
-    padding: 8px 0;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 4px 32px 8px 32px;
   }
 
   .timeline-item {
@@ -719,6 +686,7 @@ const getNextBusinessNodeDate = (
   }
 
   .item-date-wrapper {
+    text-align: center;
     padding: 4px 8px;
     margin-bottom: 4px;
     transition: all $transition-base;
@@ -739,7 +707,8 @@ const getNextBusinessNodeDate = (
   }
 
   .item-status {
-    display: inline-flex;
+    width: 100%;
+    display: flex;
     align-items: center;
     justify-content: center;
     gap: 3px;

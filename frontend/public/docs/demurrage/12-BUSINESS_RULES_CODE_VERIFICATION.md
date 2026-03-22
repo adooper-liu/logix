@@ -1,0 +1,55 @@
+# 最终验证结果：代码与业务规则差异
+
+> **验证基准**：`backend/src/services/demurrage.service.ts`  
+> **说明**：行号以文档更新时仓库为准，若代码变更请以函数名与变量名为准重新核对。
+
+**更新（业务确认后已对齐）**：滞箱 forecast/actual 在 `getContainerMatchParams` 中按是否到达目的港分支；合并 D&D 在 `calculateForContainer` 中单独分支（forecast：修正 ETA/ETA 起算 + 与滞箱 forecast 一致的截止；actual：与滞港同口径到港/卸船起算 + 实际还箱或 Today 截止）。下文「差异表」中曾标 ❌ 的滞箱/合并项**已按业务修正**，请以当前代码为准。
+
+---
+
+## 一、滞港费 (Demurrage) ✅ 一致
+
+| 您的描述 | 代码实现 | 状态 |
+|----------|----------|------|
+| **forecast**：截止日 = max(Today, 计划提柜日) | `calculateForContainer` 内约第 **1123–1127** 行：`calculationMode === 'forecast'` 时 `demurragePortEndDate = plannedPickupDate ? maxDate(today, plannedPickupDate) : today` | ✅ 一致 |
+| **forecast**：起算日 = 修正 ETA 或 ETA | 约第 **1231–1249** 行（「按到港」且 forecast）：`ataDestPort` → `dischargeDate` → `revisedEtaDestPort` → `etaDestPort`；若标准为「按卸船」则见约 **1196–1219** 行 | ✅ 一致 |
+| **actual**：截止日 = 实际提柜日 或 Today | 约第 **1128–1132** 行：`demurragePortEndDate = pickupDateActualEarly ?? today` | ✅ 一致 |
+| **actual**：起算日 = ATA 或 实际卸船日 | 约第 **1222–1230** 行（「按到港」且 actual）：`ataDestPort ?? dischargeDate`；「按卸船」时约 **1198–1203** 行仅用卸船日 | ✅ 一致 |
+
+---
+
+## 二、滞箱费 (Detention) ✅ 已与业务对齐
+
+| 您的描述 | 代码实现 | 状态 |
+|----------|----------|------|
+| **forecast**：截止日 = **max(Today, 计划还箱日)** | `getContainerMatchParams`：未到达目的港时 `detentionEndDate = max(today, plannedReturnDate)`（`plannedReturnDate` 来自 `process_empty_return.planned_return_date`） | ✅ 一致 |
+| **forecast**：起算日 = **计划提柜日** | 未到达目的港时 `detentionStartDate = plannedPickupDate`（`process_trucking_transport.planned_pickup_date`） | ✅ 一致 |
+| **actual**：截止日 = 实际还箱日 或 Today | 已到达目的港：`detentionEndDate = returnTime ?? today` | ✅ 一致 |
+| **actual**：起算日 = 实际提柜日 | 已到达：`detentionStartDate = pickupDateActual` | ✅ 一致 |
+
+**核对入口**：`getContainerMatchParams` 中 `isArrivedAtDestinationPortForDemurrage` 分支 + `detentionStartDate` / `detentionEndDate` 及对应 `*Source` 字段。
+
+---
+
+## 三、合并模式 (Demurrage & Detention) ✅ 已与业务对齐
+
+| 您的描述 | 代码实现 | 状态 |
+|----------|----------|------|
+| **forecast**：截止日 = 与滞箱 forecast 一致（含 max(Today, 计划还箱)） | `calculateForContainer` 内 `isCombined`：`rangeEnd` 使用与滞箱 forecast 相同的 `detentionEndDate` / `detentionEndDateSource` | ✅ 一致 |
+| **forecast**：起算日 = **修正 ETA 或 ETA**（不经 ATA/卸船优先链作滞港用） | 合并 forecast：`rangeStart` 来自 `revisedEtaDestPort` / `etaDestPort`（见合并分支注释） | ✅ 一致 |
+| **actual**：截止日 = 实际还箱日 或 Today | 合并 actual：`rangeEnd` = 实际还箱或 `today` | ✅ 一致 |
+| **actual**：起算日 = 与滞港一致（按到港：ATA/卸船；按标准「按卸船」则仅卸船） | 合并 actual：复用滞港起算日 `demurragePortStartDate`（与 `useDischargeOnly` 等一致） | ✅ 一致 |
+
+**说明**：纯滞箱/堆存仍走 `enhancedParams.detention*`；合并项**不再**要求「必须有实际提柜」才计费（与纯滞箱跳过逻辑区分）。
+
+---
+
+## 四、核心结论（修正后）
+
+1. **滞箱 forecast**：在匹配参数层按「未到达目的港」写入计划提柜起算、计划还箱参与截止的 max。  
+2. **合并 forecast**：起算 ETA 系、截止与滞箱 forecast 对齐。  
+3. **合并 actual**：起算与滞港到港/卸船口径一致、截止还箱或当天。
+
+---
+
+*文档用途：业务确认版「最终验证结果」归档；与 `01-DEMURRAGE_LOGIC_FROM_CONTAINER_SYSTEM.md`、`08-DEMURRAGE_CALCULATION_MODES.md` 交叉阅读。*

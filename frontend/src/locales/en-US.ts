@@ -115,6 +115,10 @@ export default {
       '40OT': '40ft Open Top',
       '20FR': '20ft Flat Rack',
       '40FR': '40ft Flat Rack'
+    },
+    detail: {
+      logisticsPath: 'Logistics path',
+      logisticsPathMap: 'Logistics map'
     }
   },
 

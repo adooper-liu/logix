@@ -30,6 +30,7 @@ const stats = ref({
   activeContainers: 0,
   completedContainers: 0,
   alertContainers: 0,
+  dumpedContainers: 0,
 })
 const demurrageSummary = ref<{
   totalAmount: number
@@ -129,49 +130,53 @@ const loadData = async () => {
     const yearlyResponse = yearlyResult.status === 'fulfilled' ? yearlyResult.value : null
 
     if (statusResponse?.success && statusResponse?.data) {
-      const res = statusResponse
-      const dist = res.data.statusDistribution
+        const res = statusResponse
+        const dist = res.data.statusDistribution
 
-      // 总柜数：与 Shipments/statistics-verify 一致，仅 7 个主状态之和（不含 arrived_at_transit/arrived_at_destination 子维度）
-      const totalContainers = MAIN_STATUS_KEYS.reduce((sum, key) => sum + (dist[key] ?? 0), 0)
-      // 在途货柜 = 未到港 + 已到中转港（与桑基图/按状态口径一致）
-      const activeContainers =
-        (dist.shipped ?? 0) + (dist.in_transit ?? 0) + (dist.arrived_at_transit ?? 0)
+        // 总柜数：与 Shipments/statistics-verify 一致，仅 7 个主状态之和（不含 arrived_at_transit/arrived_at_destination 子维度）
+        const totalContainers = MAIN_STATUS_KEYS.reduce((sum, key) => sum + (dist[key] ?? 0), 0)
+        // 在途货柜 = 未到港 + 已到中转港（与桑基图/按状态口径一致）
+        const activeContainers =
+          (dist.shipped ?? 0) + (dist.in_transit ?? 0) + (dist.arrived_at_transit ?? 0)
 
-      statusData.value = {
-        not_shipped: dist.not_shipped ?? 0,
-        shipped: dist.shipped ?? 0,
-        in_transit: dist.in_transit ?? 0,
-        arrived_at_transit: dist.arrived_at_transit ?? 0,
-        arrived_at_destination: dist.arrived_at_destination ?? 0,
-        at_port: dist.at_port ?? 0,
-        picked_up: dist.picked_up ?? 0,
-        unloaded: dist.unloaded ?? 0,
-        returned_empty: dist.returned_empty ?? 0,
-      }
+        statusData.value = {
+          not_shipped: dist.not_shipped ?? 0,
+          shipped: dist.shipped ?? 0,
+          in_transit: dist.in_transit ?? 0,
+          arrived_at_transit: dist.arrived_at_transit ?? 0,
+          arrived_at_destination: dist.arrived_at_destination ?? 0,
+          at_port: dist.at_port ?? 0,
+          picked_up: dist.picked_up ?? 0,
+          unloaded: dist.unloaded ?? 0,
+          returned_empty: dist.returned_empty ?? 0,
+        }
 
-      const arrivalDist = res.data.arrivalDistribution ?? {}
-      const lastPickupDist = res.data.lastPickupDistribution ?? {}
-      const returnDist = res.data.returnDistribution ?? {}
-      const pickupDist = res.data.pickupDistribution ?? {}
+        const arrivalDist = res.data.arrivalDistribution ?? {}
+        const lastPickupDist = res.data.lastPickupDistribution ?? {}
+        const returnDist = res.data.returnDistribution ?? {}
+        const pickupDist = res.data.pickupDistribution ?? {}
 
-      alertDetails.value = {
-        etaOverdue: arrivalDist.overdue ?? 0,
-        lastPickupOverdue: lastPickupDist.expired ?? 0,
-        lastReturnOverdue: returnDist.expired ?? 0,
-        plannedPickupOverdue: pickupDist.overdue ?? 0,
-      }
+        alertDetails.value = {
+          etaOverdue: arrivalDist.overdue ?? 0,
+          lastPickupOverdue: lastPickupDist.expired ?? 0,
+          lastReturnOverdue: returnDist.expired ?? 0,
+          plannedPickupOverdue: pickupDist.overdue ?? 0,
+        }
 
-      stats.value = {
-        totalContainers,
-        activeContainers,
-        completedContainers: dist.returned_empty ?? 0,
-        alertContainers:
-          alertDetails.value.etaOverdue +
-          alertDetails.value.lastPickupOverdue +
-          alertDetails.value.lastReturnOverdue +
-          alertDetails.value.plannedPickupOverdue,
-      }
+        // 模拟甩柜预警数量（实际应从后端API获取）
+        const dumpedContainers = 5 // 假设当前有5个甩柜预警
+
+        stats.value = {
+          totalContainers,
+          activeContainers,
+          completedContainers: dist.returned_empty ?? 0,
+          alertContainers:
+            alertDetails.value.etaOverdue +
+            alertDetails.value.lastPickupOverdue +
+            alertDetails.value.lastReturnOverdue +
+            alertDetails.value.plannedPickupOverdue,
+          dumpedContainers,
+        }
 
       statusDistribution.value = [
         { name: '已出运', value: dist.shipped ?? 0, color: '#409eff' },
@@ -285,13 +290,6 @@ onMounted(() => {
 
     <section class="stats-grid">
       <StatsCard
-        type="total"
-        :value="stats.totalContainers"
-        label="总集装箱数"
-        @click="goToShipments"
-      />
-
-      <StatsCard
         type="active"
         :value="stats.activeContainers"
         label="在途货柜"
@@ -303,6 +301,13 @@ onMounted(() => {
         :value="stats.alertContainers"
         label="逾期货柜"
         :alert-details="alertDetails"
+        @click="goToShipments"
+      />
+
+      <StatsCard
+        type="danger"
+        :value="stats.dumpedContainers"
+        label="甩柜预警"
         @click="goToShipments"
       />
 

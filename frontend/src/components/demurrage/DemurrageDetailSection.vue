@@ -16,8 +16,16 @@ const error = ref<any>(null)
 const data = ref<DemurrageCalculationResponse['data'] | null>(null)
 const emptyMessage = ref<any>(null)
 const isNoArrivalHint = ref(false)
+const currentReason = ref<DemurrageCalculationResponse['reason'] | null>(null)
 const diagnoseLoading = ref(false)
-const diagnoseResult = ref<string>('')
+const diagnoseResult = ref<{
+  containerParams: Record<string, any>
+  allStandardsSample: Array<Record<string, any>>
+  standardsTotal: number
+  standardsAfterEffectiveDate: number
+  standardsAfterFourFieldMatch: number
+  excludedByIsChargeable: number
+} | null>(null)
 
 /** 错误提示配置 */
 const ERROR_MESSAGES = {
@@ -37,9 +45,16 @@ const ERROR_MESSAGES = {
   },
   missing_dates: {
     icon: '📋',
-    title: '计划提柜日未维护',
-    message: '预测模式下，未实际到港且未维护计划提柜日，无法计算滞港费',
-    suggestion: '请先维护计划提柜日或等待实际到港后再计算',
+    title: '缺少可计算日期',
+    message: '缺少起算日或截止日，无法计算滞港费',
+    suggestion: '请确保有目的港到港/卸船/ETA 等起算日，或检查拖卡/还箱日期',
+    type: 'warning' as const
+  },
+  missing_pickup_date_actual: {
+    icon: '📋',
+    title: '缺少实际提柜日',
+    message: '堆存、滞箱等费用需维护实际提柜日（拖卡运输 pickup_date）',
+    suggestion: '最晚提柜日（录入）不能代替实际提柜日，请在拖卡运输中填写实际提柜日期',
     type: 'warning' as const
   },
   no_matching_standards: {
@@ -51,6 +66,61 @@ const ERROR_MESSAGES = {
   }
 }
 
+const DIAG_FIELDS = [
+  { key: 'foreignCompanyCode', label: '客户/境外公司', containerKey: 'foreignCompanyCode', standardCode: 'foreignCompanyCode', standardName: 'foreignCompanyName' },
+  { key: 'destinationPortCode', label: '目的港', containerKey: 'destinationPortCode', standardCode: 'destinationPortCode', standardName: 'destinationPortName' },
+  { key: 'shippingCompanyCode', label: '船公司', containerKey: 'shippingCompanyCode', standardCode: 'shippingCompanyCode', standardName: 'shippingCompanyName' },
+  { key: 'originForwarderCode', label: '货代', containerKey: 'originForwarderCode', standardCode: 'originForwarderCode', standardName: 'originForwarderName' }
+] as const
+
+function normalizeValue(v: unknown): string {
+  const s = (v ?? '').toString().trim()
+  return s
+}
+
+function valueEqual(a: unknown, b: unknown): boolean {
+  return normalizeValue(a).toLowerCase() === normalizeValue(b).toLowerCase()
+}
+
+function renderStandardValue(std: Record<string, any>, codeKey: string, nameKey: string): string {
+  const code = normalizeValue(std?.[codeKey])
+  const name = normalizeValue(std?.[nameKey])
+  if (code && name && code !== name) return `${code} / ${name}`
+  return code || name || '-'
+}
+
+function getContainerValue(containerParams: Record<string, any>, key: string): string {
+  const resolved = containerParams?.resolvedForMatch?.[key]
+  const raw = containerParams?.[key]
+  return normalizeValue(resolved) || normalizeValue(raw) || '-'
+}
+
+function getDiagnoseRows() {
+  if (!diagnoseResult.value) return [] as Array<{
+    field: string
+    containerValue: string
+    standardValue: string
+    matched: boolean
+  }>
+
+  const std = diagnoseResult.value.allStandardsSample?.[0] || {}
+  const containerParams = diagnoseResult.value.containerParams || {}
+  return DIAG_FIELDS.map((f) => {
+    const containerValue = getContainerValue(containerParams, f.containerKey)
+    const standardValue = renderStandardValue(std, f.standardCode, f.standardName)
+    const stdCode = normalizeValue(std?.[f.standardCode])
+    const stdName = normalizeValue(std?.[f.standardName])
+    const cv = containerValue === '-' ? '' : containerValue
+    const matched = !!cv && (valueEqual(cv, stdCode) || valueEqual(cv, stdName))
+    return {
+      field: f.label,
+      containerValue: containerValue || '-',
+      standardValue,
+      matched
+    }
+  })
+}
+
 async function load() {
   if (!props.containerNumber?.trim()) {
     data.value = null
@@ -60,21 +130,24 @@ async function load() {
   error.value = null
   emptyMessage.value = null
   isNoArrivalHint.value = false
+  currentReason.value = null
   try {
     const res = await demurrageService.calculateForContainer(props.containerNumber)
     if (res.success && res.data) {
       data.value = res.data
     } else {
       data.value = null
+      currentReason.value = res.reason ?? null
       // 根据reason显示不同的友好提示
       if (res.reason && ERROR_MESSAGES[res.reason]) {
         const config = ERROR_MESSAGES[res.reason]
         isNoArrivalHint.value = res.reason === 'no_arrival_at_dest'
-        emptyMessage.value = res.message || config.message
-        // 额外保存配置信息供模板使用
+        const finalMessage = (res.message || config.message) === config.title
+          ? config.message
+          : (res.message || config.message)
         emptyMessage.value = {
           title: config.title,
-          message: res.message || config.message,
+          message: finalMessage,
           suggestion: config.suggestion,
           icon: config.icon,
           type: config.type
@@ -143,8 +216,9 @@ watch(
       data.value = null
       emptyMessage.value = null
       isNoArrivalHint.value = false
+      currentReason.value = null
     }
-    diagnoseResult.value = ''
+    diagnoseResult.value = null
   },
   { immediate: true }
 )
@@ -152,16 +226,23 @@ watch(
 async function runDiagnose() {
   if (!props.containerNumber?.trim()) return
   diagnoseLoading.value = true
-  diagnoseResult.value = ''
+  diagnoseResult.value = null
   try {
     const res = await demurrageService.diagnoseMatch(props.containerNumber)
     if (res.success && res.data) {
-      diagnoseResult.value = JSON.stringify(res.data, null, 2)
+      diagnoseResult.value = {
+        containerParams: res.data.containerParams || {},
+        allStandardsSample: Array.isArray(res.data.allStandardsSample) ? res.data.allStandardsSample : [],
+        standardsTotal: Number(res.data.standardsTotal || 0),
+        standardsAfterEffectiveDate: Number(res.data.standardsAfterEffectiveDate || 0),
+        standardsAfterFourFieldMatch: Number(res.data.standardsAfterFourFieldMatch || 0),
+        excludedByIsChargeable: Number(res.data.excludedByIsChargeable || 0)
+      }
     } else {
-      diagnoseResult.value = '诊断失败'
+      diagnoseResult.value = null
     }
-  } catch (e: any) {
-    diagnoseResult.value = e?.response?.data?.message || e?.message || '诊断请求失败'
+  } catch {
+    diagnoseResult.value = null
   } finally {
     diagnoseLoading.value = false
   }
@@ -208,6 +289,36 @@ defineExpose({ load })
       <div v-if="emptyMessage?.suggestion" class="suggestion-box">
         <span class="suggestion-icon">💡</span>
         <span class="suggestion-text">{{ emptyMessage.suggestion }}</span>
+      </div>
+      <el-button
+        v-if="currentReason === 'no_matching_standards'"
+        type="primary"
+        link
+        size="small"
+        :loading="diagnoseLoading"
+        @click="runDiagnose"
+        class="diagnose-btn"
+      >
+        诊断匹配失败原因
+      </el-button>
+      <div v-if="currentReason === 'no_matching_standards' && diagnoseResult" class="diagnose-result">
+        <div class="diagnose-stats">
+          <el-tag type="info" size="small">标准总数：{{ diagnoseResult.standardsTotal }}</el-tag>
+          <el-tag type="warning" size="small">日期有效后：{{ diagnoseResult.standardsAfterEffectiveDate }}</el-tag>
+          <el-tag type="danger" size="small">四字段命中：{{ diagnoseResult.standardsAfterFourFieldMatch }}</el-tag>
+        </div>
+        <el-table :data="getDiagnoseRows()" size="small" border>
+          <el-table-column prop="field" label="字段" width="130" />
+          <el-table-column prop="containerValue" label="货柜值" min-width="150" />
+          <el-table-column prop="standardValue" label="标准值（样本）" min-width="180" />
+          <el-table-column label="是否命中" width="110">
+            <template #default="{ row }">
+              <el-tag :type="row.matched ? 'success' : 'danger'" size="small">
+                {{ row.matched ? '命中' : '未命中' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
       </div>
     </div>
 
@@ -319,14 +430,13 @@ defineExpose({ load })
 
 .diagnose-result {
   margin-top: $spacing-md;
-  padding: $spacing-md;
-  background: $bg-page;
-  border-radius: $radius-base;
-  font-size: $font-size-xs;
-  max-height: 400px;
-  overflow: auto;
-  white-space: pre-wrap;
-  word-break: break-all;
+}
+
+.diagnose-stats {
+  display: flex;
+  gap: $spacing-sm;
+  flex-wrap: wrap;
+  margin-bottom: $spacing-sm;
 }
 
 .suggestion-box {

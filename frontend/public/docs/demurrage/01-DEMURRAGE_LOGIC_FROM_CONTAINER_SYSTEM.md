@@ -24,16 +24,27 @@
 ### 2.1 时间范围
 
 - **起算日（免费期开始）**：由「计算方式」决定  
-  - **按到港**：优先 **ATA**（目的港实际到港 `ata_dest_port`），无则 **ETA**（`eta_dest_port`）  
+  - **按到港**：**ATA**（目的港实际到港 `ata_dest_port`）  
   - **按卸船**：**卸船日**（`discharge_date` / 目的港卸船时间）  
-- **截止日（计费截止）**：**实际提柜日**（`process_trucking_transport.pickup_date`）；无则当天。
+- **计算模式先后**：先由 **`calculateLogisticsStatus`**（与货柜 `logistics_status` 同源逻辑）判定是否已到达**目的港**或之后环节 → **actual**；否则 → **forecast**（计划）。再按下行区分截止日。
+- **截止日（计费截止）**：按**滞港费计算模式**（见 [08-DEMURRAGE_CALCULATION_MODES.md](./08-DEMURRAGE_CALCULATION_MODES.md)）区分：
+  - **forecast（未到港、无 ATA/无实际卸船）**：预计滞港费，每日更新；**截止日 = max(今天, 计划提柜日)**（`process_trucking_transport.planned_pickup_date`）；无计划提柜日则用**今天**滚动。起算日为修正 ETA 或 ETA（与标准「按到港/按卸船」一致）。
+  - **actual（已到港 ATA 或已卸船）**：**截止日 = 实际提柜日**（`pickup_date`）；无则**今天**。有实际提柜后费用封顶，不再随日历日增长。起算日为 **ATA** 或 **实际卸船日**（由「计算方式」决定）。
 
-即：**滞港费 = 从到港/卸船到提柜（或到“计算日”）的停留中，超出免费期的部分按费率计费。**
+即：**滞港费 = 从到港/卸船起算到上述截止日的停留中，超出免费期的部分按费率计费。**
+
+**日期顺序**：应用 `calculateLogisticsStatus` / 业务状态机校验先后（到港/卸船 → 提柜 → 还箱）；若 **实际提柜日早于 ATA/卸船日**，应提示核对数据。
 
 **滞箱费（Detention）**：货柜提走后超过免费期未还空箱产生的费用。
 - **起算日**：实际提柜日（`process_trucking_transport.pickup_date`）；**无实际提柜日则不计算此项费用**（不得用最晚提柜日 last_free_date 作为回退）
 - **截止日**：实际还空箱日期（`process_empty_return.return_time`）；无则当天。
 - 即：**滞箱费 = 从提柜到还箱（或到“计算日”）的占用中，超出免费期的部分按费率计费。**
+
+**堆存费（Storage Charge）**（标准表单独一行费用项）：
+- **时间范围**：与 **滞箱费** 相同——**起算日** = 实际提柜日（`process_trucking_transport.pickup_date`）；**截止日** = 实际还空箱日（`process_empty_return.return_time`），无则当天。**不是**滞港费的「到港/卸船 → 提柜」区间。
+- **无实际提柜日则不计算此项**（不得用最晚提柜日 `last_free_date` 代替）。
+- **识别**：`charge_type_code` / `charge_name` 含 Storage、堆存等（实现见后端 `isStorageCharge`）。
+- **计算模式**：该项**起止均为实际日期**，与 [08-DEMURRAGE_CALCULATION_MODES.md](./08-DEMURRAGE_CALCULATION_MODES.md) 中整柜「actual」语义一致；整柜层面 `forecast/actual` 仍由是否有 ATA/卸船决定，但不改变「堆存区间 = 提柜→还箱」的定义。
 
 **Demurrage & Detention Charge（合并费用项）**：单费用项类型，不拆分为滞港费与滞箱费分别计算。
 - **起算日**：与滞港费一致（到港 ATA/ETA 或卸船日，由 `calculation_basis` 决定）
@@ -99,8 +110,8 @@
 
 | 计算方式 | 基准时间 | 说明 |
 |----------|----------|------|
-| 按到港   | ATA 优先，无则 ETA | 免费期从到港日开始 |
-| 按卸船   | 卸船日   | 免费期从卸船完成日开始 |
+| 按到港   | ATA | 免费期从实际到港日开始 |
+| 按卸船   | 卸船日   | 免费期从实际卸船完成日开始 |
 
 ---
 

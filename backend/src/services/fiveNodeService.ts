@@ -7,6 +7,8 @@ import { TruckingTransport } from '../entities/TruckingTransport';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { EmptyReturn } from '../entities/EmptyReturn';
 
+const DEST_PORT = 'destination';
+
 export class FiveNodeService {
   private containerRepository: Repository<Container>;
   private inspectionRepository: Repository<InspectionRecord>;
@@ -24,19 +26,30 @@ export class FiveNodeService {
     this.emptyReturnRepository = AppDataSource.getRepository(EmptyReturn);
   }
 
+  /** 目的港港口操作（ETA/ATA、清关计划/实际等） */
+  private async getDestinationPortOperation(containerNumber: string): Promise<PortOperation | null> {
+    return this.portOperationRepository.findOne({
+      where: { containerNumber, portType: DEST_PORT },
+      order: { portSequence: 'DESC' },
+    });
+  }
+
   // 获取货柜的五节点聚合信息
   async getFiveNodeInfo(containerNumber: string) {
     // 获取货柜基本信息
     const container = await this.containerRepository.findOne({
       where: { containerNumber },
+      relations: ['seaFreight'],
     });
 
     if (!container) {
       return null;
     }
 
+    const destPort = await this.getDestinationPortOperation(containerNumber);
+
     // 清关节点信息
-    const customsInfo = await this.getCustomsInfo(containerNumber);
+    const customsInfo = await this.getCustomsInfo(destPort);
     
     // 拖卡节点信息
     const truckingInfo = await this.getTruckingInfo(containerNumber);
@@ -62,12 +75,13 @@ export class FiveNodeService {
     // 费用信息
     const costs = await this.calculateCosts(containerNumber);
 
+    const sf = container.seaFreight;
     return {
       containerNumber: container.containerNumber,
-      vessel: container.vessel,
-      voyage: container.voyage,
-      eta: container.eta,
-      ata: container.ata,
+      vessel: sf?.vesselName ?? null,
+      voyage: sf?.voyageNumber ?? null,
+      eta: destPort?.eta ?? sf?.eta ?? null,
+      ata: destPort?.ata ?? sf?.ata ?? null,
       fiveNodes: {
         customs: customsInfo,
         trucking: truckingInfo,
@@ -87,16 +101,18 @@ export class FiveNodeService {
     };
   }
 
-  // 获取清关信息
-  private async getCustomsInfo(containerNumber: string) {
-    // 这里需要根据实际的清关数据结构来实现
-    // 暂时返回模拟数据
+  // 获取清关信息（目的港 process_port_operations）
+  private async getCustomsInfo(destPort: PortOperation | null) {
+    const planned = destPort?.plannedCustomsDate ?? null;
+    const actual = destPort?.actualCustomsDate ?? null;
+    const cleared = !!actual;
+    const customsStatus = destPort?.customsStatus?.trim();
     return {
-      status: 'cleared',
-      plannedDate: null,
-      actualDate: null,
+      status: cleared ? 'cleared' : 'pending',
+      plannedDate: planned,
+      actualDate: actual,
       estimatedDate: null,
-      latestStatus: '已清关',
+      latestStatus: customsStatus || (cleared ? '已清关' : '待清关'),
     };
   }
 
@@ -107,14 +123,15 @@ export class FiveNodeService {
       order: { createdAt: 'DESC' },
     });
 
+    const pickup = trucking?.pickupDate ?? null;
     return {
-      status: trucking ? 'pickedUp' : 'notPickedUp',
-      plannedDate: null,
-      actualDate: trucking?.pickupTime || null,
+      status: pickup ? 'pickedUp' : 'notPickedUp',
+      plannedDate: trucking?.plannedPickupDate ?? null,
+      actualDate: pickup,
       estimatedDate: null,
-      latestStatus: trucking ? '已提柜' : '未提柜',
-      pickupTime: trucking?.pickupTime || null,
-      deliveryTime: trucking?.deliveryTime || null,
+      latestStatus: pickup ? '已提柜' : '未提柜',
+      pickupTime: pickup,
+      deliveryTime: trucking?.deliveryDate ?? null,
     };
   }
 
@@ -125,13 +142,14 @@ export class FiveNodeService {
       order: { createdAt: 'DESC' },
     });
 
+    const unload = warehouseOp?.unloadDate ?? null;
     return {
-      status: warehouseOp ? 'unloaded' : 'notUnloaded',
-      plannedDate: null,
-      actualDate: warehouseOp?.unloadingTime || null,
+      status: unload ? 'unloaded' : 'notUnloaded',
+      plannedDate: warehouseOp?.plannedUnloadDate ?? null,
+      actualDate: unload,
       estimatedDate: null,
-      latestStatus: warehouseOp ? '已卸柜' : '未卸柜',
-      unloadingTime: warehouseOp?.unloadingTime || null,
+      latestStatus: unload ? '已卸柜' : '未卸柜',
+      unloadingTime: unload,
     };
   }
 
@@ -142,13 +160,14 @@ export class FiveNodeService {
       order: { createdAt: 'DESC' },
     });
 
+    const returned = !!emptyReturn?.returnTime;
     return {
-      status: emptyReturn ? 'returned' : 'notReturned',
-      plannedDate: null,
-      actualDate: emptyReturn?.returnTime || null,
+      status: returned ? 'returned' : 'notReturned',
+      plannedDate: emptyReturn?.plannedReturnDate ?? null,
+      actualDate: emptyReturn?.returnTime ?? null,
       estimatedDate: null,
-      latestStatus: emptyReturn ? '已还箱' : '未还箱',
-      returnTime: emptyReturn?.returnTime || null,
+      latestStatus: returned ? '已还箱' : '未还箱',
+      returnTime: emptyReturn?.returnTime ?? null,
     };
   }
 
@@ -159,8 +178,9 @@ export class FiveNodeService {
       relations: ['events'],
     });
 
+    const inspected = !!inspection?.inspectionDate;
     return {
-      status: inspection ? 'inspected' : 'notInspected',
+      status: inspected ? 'inspected' : 'notInspected',
       plannedDate: inspection?.inspectionPlannedDate || null,
       actualDate: inspection?.inspectionDate || null,
       estimatedDate: null,
@@ -173,19 +193,24 @@ export class FiveNodeService {
   private async calculateWarnings(container: Container, nodeInfo: any) {
     const warnings = [];
 
-    // 清关预警
-    if (!nodeInfo.customs.status || nodeInfo.customs.status === 'pending') {
+    // 清关预警：有计划清关日且已过期、尚无实际清关日
+    const customs = nodeInfo.customs;
+    if (
+      customs.plannedDate &&
+      !customs.actualDate &&
+      new Date(customs.plannedDate) < new Date(new Date().toDateString())
+    ) {
       warnings.push({
         type: 'customs',
         level: 'warning',
-        message: '清关状态未更新',
+        message: '清关计划日期已过，尚未完成',
       });
     }
 
     // 拖卡预警
     if (!nodeInfo.trucking.status || nodeInfo.trucking.status === 'notPickedUp') {
       // 检查是否超过最晚提柜日
-      const latestPickupDate = this.calculateLatestPickupDate(container);
+      const latestPickupDate = await this.calculateLatestPickupDate(container);
       if (latestPickupDate && new Date() > latestPickupDate) {
         warnings.push({
           type: 'trucking',
@@ -196,7 +221,7 @@ export class FiveNodeService {
     }
 
     // 还箱预警
-    if (nodeInfo.trucking.status === 'pickedUp' && !nodeInfo.emptyReturn.status) {
+    if (nodeInfo.trucking.status === 'pickedUp' && nodeInfo.emptyReturn.status !== 'returned') {
       // 检查是否超过最晚还箱日
       const latestReturnDate = this.calculateLatestReturnDate(container, nodeInfo.trucking.pickupTime);
       if (latestReturnDate && new Date() > latestReturnDate) {
@@ -271,13 +296,14 @@ export class FiveNodeService {
     return statuses.join(' | ');
   }
 
-  // 计算最晚提柜日
-  private calculateLatestPickupDate(container: Container): Date | null {
-    if (!container.ata && !container.eta) {
+  // 计算最晚提柜日（目的港 ATA/ETA + 免费期，与业务简化一致）
+  private async calculateLatestPickupDate(container: Container): Promise<Date | null> {
+    const portOp = await this.getDestinationPortOperation(container.containerNumber);
+    const baseDate = portOp?.ata || portOp?.eta;
+    if (!baseDate) {
       return null;
     }
 
-    const baseDate = container.ata || container.eta;
     const freeDays = 7; // 假设免费期为7天
     const latestDate = new Date(baseDate);
     latestDate.setDate(latestDate.getDate() + freeDays);

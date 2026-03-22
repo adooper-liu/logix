@@ -19,6 +19,7 @@ import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
+import { ContainerAlert } from '../entities/ContainerAlert';
 import { In, Repository, MoreThanOrEqual } from 'typeorm';
 import { logger } from '../utils/logger';
 import { snakeToCamel } from '../utils/snakeToCamel';
@@ -51,6 +52,7 @@ export class ContainerController {
     const warehouseOperationRepository = AppDataSource.getRepository(WarehouseOperation);
     const emptyReturnRepository = AppDataSource.getRepository(EmptyReturn);
     const orderRepository = AppDataSource.getRepository(ReplenishmentOrder);
+    const alertRepository = AppDataSource.getRepository(ContainerAlert);
     // 字典表
     const customsBrokerRepository = AppDataSource.getRepository(CustomsBroker);
     const truckingCompanyRepository = AppDataSource.getRepository(TruckingCompany);
@@ -76,6 +78,7 @@ export class ContainerController {
       warehouseOperationRepository,
       emptyReturnRepository,
       orderRepository,
+      alertRepository,
       customsBrokerRepository,
       truckingCompanyRepository,
       warehouseRepository,
@@ -1093,6 +1096,15 @@ export class ContainerController {
       }
 
       await queryRunner.commitTransaction();
+
+      // 更新计划后自动更新货柜状态
+      try {
+        await this.containerStatusService.updateStatus(id);
+        logger.info(`[ContainerController] 货柜 ${id} 状态已自动更新`);
+      } catch (statusError) {
+        logger.warn(`[ContainerController] 自动更新货柜状态失败:`, statusError);
+        // 不影响计划更新结果，只记录警告
+      }
 
       res.json({
         success: true,
