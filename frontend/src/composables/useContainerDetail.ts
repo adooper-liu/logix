@@ -5,6 +5,11 @@ import { ElMessage } from 'element-plus'
 import { containerService } from '@/services/container'
 import { demurrageService, type CalculationDates } from '@/services/demurrage'
 import type { Container, ContainerListItem, PortOperation } from '@/types/container'
+import {
+  getLogisticsStatusText,
+  getLogisticsStatusType,
+  type PortType
+} from '@/utils/logisticsStatusMachine'
 
 export function useContainerDetail() {
   const route = useRoute()
@@ -143,26 +148,25 @@ export function useContainerDetail() {
     }
   }
 
-  // 物流状态标签：中文文案 + 类型
-  const LOGISTICS_STATUS_MAP: Record<
-    string,
-    { text: string; type: 'success' | 'warning' | 'danger' | 'info' }
-  > = {
-    not_shipped: { text: '未出运', type: 'info' },
-    shipped: { text: '已装船', type: 'success' },
-    in_transit: { text: '在途', type: 'success' },
-    at_port: { text: '已到目的港', type: 'success' },
-    arrived_at_transit_port: { text: '已到中转港', type: 'success' },
-    picked_up: { text: '已提柜', type: 'warning' },
-    unloaded: { text: '已卸柜', type: 'warning' },
-    returned_empty: { text: '已还箱', type: 'success' },
-    cancelled: { text: '已取消', type: 'danger' },
-    hold: { text: '扣留', type: 'danger' },
-    completed: { text: '已完成', type: 'success' },
-  }
+  /** 与列表/状态机一致：at_port 时依赖 currentPortType 区分「已到中转港 / 已到目的港」 */
   const logisticsStatusDisplay = computed(() => {
-    const s = containerData.value?.logisticsStatus
-    return LOGISTICS_STATUS_MAP[s] || { text: s || '—', type: 'info' as const }
+    const c = containerData.value
+    if (!c?.logisticsStatus) {
+      return { text: '—', type: 'info' as const }
+    }
+    const portType =
+      (c.currentPortType as PortType | undefined) ||
+      (c.latestPortOperation?.portType as PortType | undefined) ||
+      null
+    const text = getLogisticsStatusText(c.logisticsStatus, portType)
+    let tagType = getLogisticsStatusType(c.logisticsStatus)
+    if (tagType === 'primary') {
+      tagType = 'success'
+    }
+    return {
+      text,
+      type: tagType as 'success' | 'warning' | 'danger' | 'info'
+    }
   })
 
   // 计算属性：目的港操作信息

@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import type { DemurrageCalculationResponse } from '@/services/demurrage'
 import { computed } from 'vue'
+import {
+  getLogisticsStatusText,
+  getLogisticsStatusType,
+  type PortType
+} from '@/utils/logisticsStatusMachine'
 
 const emit = defineEmits<{
   openDemurrageTab: []
@@ -19,35 +24,26 @@ const orderNumber = computed(
     '-'
 )
 
-// 物流状态映射
-const statusMap: Record<
-  string,
-  { text: string; type: '' | 'success' | 'warning' | 'danger' | 'info' }
-> = {
-  not_shipped: { text: '未出运', type: 'info' },
-  shipped: { text: '已装船', type: 'success' },
-  in_transit: { text: '在途', type: 'success' },
-  at_port: { text: '已到目的港', type: 'success' },
-  picked_up: { text: '已提柜', type: 'warning' },
-  unloaded: { text: '已卸柜', type: 'warning' },
-  returned_empty: { text: '已还箱', type: 'success' },
-  cancelled: { text: '已取消', type: 'danger' },
-  hold: { text: '扣留', type: 'danger' },
-  completed: { text: '已完成', type: 'success' },
-  未出运: { text: '未出运', type: 'info' },
-  已装船: { text: '已装船', type: 'success' },
-  在途: { text: '在途', type: 'success' },
-  已到中转港: { text: '已到中转港', type: 'success' },
-  已到目的港: { text: '已到目的港', type: 'success' },
-  已提柜: { text: '已提柜', type: 'warning' },
-  已卸柜: { text: '已卸柜', type: 'warning' },
-  已还箱: { text: '已还箱', type: 'success' },
-  已取消: { text: '已取消', type: 'danger' },
-}
-
-const getLogisticsStatusText = (status: string): string => {
-  return statusMap[status]?.text || status
-}
+/** 与列表/状态机一致（at_port + currentPortType → 已到中转港/已到目的港） */
+const logisticsStatusTag = computed(() => {
+  const c = props.containerData
+  if (!c?.logisticsStatus) {
+    return { text: '—', type: 'info' as const }
+  }
+  const portType =
+    (c.currentPortType as PortType | undefined) ||
+    (c.latestPortOperation?.portType as PortType | undefined) ||
+    null
+  const text = getLogisticsStatusText(c.logisticsStatus, portType)
+  let tagType = getLogisticsStatusType(c.logisticsStatus)
+  if (tagType === 'primary') {
+    tagType = 'success'
+  }
+  return {
+    text,
+    type: tagType as 'success' | 'warning' | 'danger' | 'info'
+  }
+})
 
 // 滞港费汇总（从计算结果中提取）
 const demurrageSummary = computed(() => {
@@ -103,13 +99,11 @@ const demurrageSummary = computed(() => {
       <div class="info-item">
         <span class="label">物流状态</span>
         <el-tag
-          :type="statusMap[containerData.logisticsStatus]?.type || 'info'"
+          :type="logisticsStatusTag.type"
           size="small"
           effect="light"
         >
-          {{
-            getLogisticsStatusText(containerData.logisticsStatus) || containerData.logisticsStatus
-          }}
+          {{ logisticsStatusTag.text }}
         </el-tag>
       </div>
       <!-- 滞港费汇总 -->

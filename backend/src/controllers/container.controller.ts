@@ -29,6 +29,7 @@ import { ContainerStatisticsService } from '../services/containerStatistics.serv
 import { ContainerStatusService } from '../services/containerStatus.service';
 import { auditLogService } from '../services/auditLog.service';
 import { getScopedCountryCode } from '../utils/requestContext';
+import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine.js';
 
 export class ContainerController {
   private containerRepository: Repository<Container>;
@@ -299,6 +300,21 @@ export class ContainerController {
         }));
       }
 
+      // 与列表一致：即时计算物流状态 + currentPortType（at_port 时区分中转/目的港）
+      const portOpsList = container.portOperations ?? [];
+      const truckingFirst = truckingTransports[0];
+      const warehouseFirst = warehouseOperations[0];
+      const emptyFirst = emptyReturns[0];
+      const logisticsResult = calculateLogisticsStatus(
+        container,
+        portOpsList,
+        seaFreightData ?? undefined,
+        truckingFirst,
+        warehouseFirst,
+        emptyFirst
+      );
+      const latestPo = logisticsResult.latestPortOperation;
+
       const summary = (container as any).summary;
       const responseData = {
         containerNumber: container.containerNumber,
@@ -314,7 +330,17 @@ export class ContainerController {
         sealNumber: container.sealNumber,
         inspectionRequired: container.inspectionRequired,
         isUnboxing: container.isUnboxing,
-        logisticsStatus: container.logisticsStatus,
+        logisticsStatus: logisticsResult.status,
+        currentPortType: logisticsResult.currentPortType,
+        latestPortOperation: latestPo
+          ? {
+              portType: latestPo.portType,
+              portCode: latestPo.portCode,
+              portName: latestPo.portName,
+              ata: latestPo.ata,
+              portSequence: latestPo.portSequence
+            }
+          : null,
         remarks: container.remarks,
         requiresPallet: container.requiresPallet,
         requiresAssembly: container.requiresAssembly,

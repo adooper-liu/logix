@@ -26,6 +26,8 @@ interface Props {
   nextDate?: Date | string | null
   /** 是否有后一节点（用于判断显示历时/倒计时/超期） */
   hasNextNode?: boolean
+  /** 超期时提示的下一业务环节名称（如「还空箱」），格式：已超期X天→xxx */
+  nextMilestoneLabel?: string | null
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -33,6 +35,7 @@ const props = withDefaults(defineProps<Props>(), {
   mode: 'auto',
   isCurrentNode: false,
   hasNextNode: false,
+  nextMilestoneLabel: null,
 })
 
 // 转换为Date对象
@@ -130,12 +133,20 @@ const getCountdownTextFromTime = (time: number): string => {
   return `倒计时${diffDays}天`
 }
 
+function formatOverdueCore(days: number): string {
+  if (days === 0) return ''
+  const base = days === 1 ? '超期1天' : `超期${days}天`
+  if (props.nextMilestoneLabel) {
+    return `已${base}→${props.nextMilestoneLabel}`
+  }
+  return base
+}
+
 // 从超期时间计算超期文本
 const getOverdueTextFromTime = (time: number): string => {
   const diffDays = Math.floor(time / (1000 * 60 * 60 * 24))
   if (diffDays === 0) return '今天'
-  if (diffDays === 1) return '超期1天'
-  return `超期${diffDays}天`
+  return formatOverdueCore(diffDays)
 }
 
 // 倒计时文本
@@ -176,8 +187,7 @@ const getElapsedText = (): string => {
 const getOverdueText = (): string => {
   const days = overdueDays.value
   if (days === 0) return ''
-  if (days === 1) return '超期1天'
-  return `超期${days}天`
+  return formatOverdueCore(days)
 }
 
 // 历时文本（今天 - 当前节点，用于无后一节点且未超标准时）
@@ -223,8 +233,8 @@ const displayType = computed((): 'countdown' | 'elapsed' | 'overdue' => {
   if (isKeyNode.value) {
     return 'overdue'
   }
-  // 非关键节点在过去：显示历时
-  return 'elapsed'
+  // 非关键节点在过去：文案为超期（如实际提柜后待还箱），与「历时」区分
+  return 'overdue'
 })
 
 // 获取颜色类型
@@ -232,26 +242,34 @@ const colorType = computed((): 'danger' | 'warning' | 'success' | 'info' | '' =>
   const type = displayType.value
 
   if (type === 'overdue') {
-    // 关键节点超期：检查是否超过标准，超过则红色，否则蓝色
+    // 关键节点：相对「节点日」已过去的天数 vs 标准免费天数
     if (isKeyNode.value && props.standardHours && props.standardHours > 0) {
       const time = overdueTime.value
       if (time) {
         const standardDays = props.standardHours / 24
         const days = Math.floor(time / (1000 * 60 * 60 * 24))
         if (days > standardDays) return 'danger'
+        if (days > 0) return 'warning'
       }
     }
-    // 未超过标准或非关键节点超期：蓝色
+    // 非关键节点超期（如实际提柜后长期未还箱）：用 warning，避免与「历时」info 同色
+    if (!isKeyNode.value) {
+      return 'warning'
+    }
     return 'info'
   }
   if (type === 'countdown') {
     const date = dateObj.value
-    if (!date) return ''
+    if (!date) return 'info'
 
     const now = new Date()
     const diffDays = Math.ceil((date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     if (diffDays <= 3) return 'warning'
     return 'success'
+  }
+  // 历时：统一中性蓝
+  if (type === 'elapsed') {
+    return 'info'
   }
   return 'info'
 })
@@ -298,19 +316,24 @@ const tagClass = computed(() => {
 .duration-tag {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 4px;
   padding: 2px 8px;
   border-radius: $radius-base;
   font-size: $font-size-xs;
   font-weight: 500;
-  white-space: nowrap;
+  max-width: 100%;
+  text-align: center;
 
   .duration-icon {
     font-size: 14px;
+    flex-shrink: 0;
   }
 
   .duration-text {
     line-height: 1.2;
+    word-break: break-word;
   }
 
   // 倒计时：绿色（安全）或橙色（即将到期）

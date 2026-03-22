@@ -324,6 +324,22 @@ const STANDARD_DURATIONS: Record<string, number> = {
   最晚还箱: 24 * 7, // 最晚还箱：标准7天
 }
 
+/** 超期文案中「下一节点」展示名（与 TIMELINE_NODE_ORDER 业务顺序一致） */
+const NEXT_MILESTONE_HINT: Record<string, string> = {
+  出运: 'ETA',
+  ETA: 'ATA',
+  修正ETA: 'ATA',
+  ATA: '卸船',
+  卸船: '实际提柜',
+  最晚提柜: '实际提柜',
+  实际提柜: '还空箱',
+  最晚还箱: '实际还箱',
+}
+
+function getNextMilestoneLabel(label: string): string | null {
+  return NEXT_MILESTONE_HINT[label] ?? null
+}
+
 /**
  * 获取最晚提柜日的计算来源文字
  * @param mode 计算模式（actual/forecast）
@@ -456,6 +472,7 @@ const getNextBusinessNodeDate = (
               :prev-date="index > 0 ? timelineEvents[index - 1].date : null"
               :next-date="getNextBusinessNodeDate(event, index, timelineEvents)"
               :has-next-node="getEffectiveHasNextNode(event, index, timelineEvents)"
+              :next-milestone-label="getNextMilestoneLabel(event.label)"
               mode="auto"
             />
           </div>
@@ -522,8 +539,8 @@ const getNextBusinessNodeDate = (
     min-width: 90px;
     max-width: 120px;
 
-    &.is-expired .item-date,
-    &.is-expired .item-status {
+    /* 仅淡化日期；历时/倒计时/超期由 DurationDisplay 自控色，勿对 .item-status 设 color，否则会盖住标签色 */
+    &.is-expired .item-date {
       color: $text-secondary;
     }
 
@@ -713,65 +730,13 @@ const getNextBusinessNodeDate = (
     justify-content: center;
     gap: 3px;
     font-size: 10px;
-    padding: 3px 8px;
-    border-radius: 10px;
+    padding: 0;
     font-weight: 500;
+    color: inherit;
     transition: all $transition-base;
 
-    .status-icon {
-      font-size: 9px;
-      line-height: 1;
-    }
-
-    .status-text {
-      font-weight: 600;
-    }
-
-    &.red {
-      background: linear-gradient(135deg, rgba($danger-color, 0.12), rgba($danger-color, 0.06));
-      color: darken($danger-color, 5%);
-      border: 1px solid rgba($danger-color, 0.2);
-      animation: pulse-red 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-    }
-
-    &.orange {
-      background: linear-gradient(135deg, rgba($warning-color, 0.12), rgba($warning-color, 0.06));
-      color: darken($warning-color, 5%);
-      border: 1px solid rgba($warning-color, 0.2);
-    }
-
-    &.green {
-      background: linear-gradient(135deg, rgba($success-color, 0.12), rgba($success-color, 0.06));
-      color: darken($success-color, 5%);
-      border: 1px solid rgba($success-color, 0.2);
-    }
-
-    &.blue {
-      background: linear-gradient(135deg, rgba($info-color, 0.12), rgba($info-color, 0.06));
-      color: darken($info-color, 5%);
-      border: 1px solid rgba($info-color, 0.2);
-    }
-  }
-
-  @keyframes pulse-red {
-    0%,
-    100% {
-      opacity: 1;
-      box-shadow: 0 0 0 0 rgba($danger-color, 0.4);
-    }
-    50% {
-      opacity: 0.85;
-      box-shadow: 0 0 0 3px rgba($danger-color, 0);
-    }
-  }
-
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.7;
+    :deep(.duration-tag) {
+      max-width: 100%;
     }
   }
 }
