@@ -1317,48 +1317,82 @@ export class ExternalDataService {
         emptyReturn ?? undefined
       );
 
-      // 更新货柜的物流状态
-      if (result.status !== container.logisticsStatus) {
+      const { buildGanttDerived, ganttDerivedSemanticEqual } = await import('../utils/ganttDerivedBuilder');
+      const ganttDerived = buildGanttDerived(
+        portOperations,
+        truckingTransport,
+        warehouseOperation,
+        emptyReturn
+      );
+      const statusChanged = result.status !== container.logisticsStatus;
+      const prevGantt = container.ganttDerived;
+      const ganttChanged = !ganttDerivedSemanticEqual(prevGantt ?? null, ganttDerived);
+
+      // 更新货柜的物流状态与甘特派生（落库单一真相）
+      if (statusChanged || ganttChanged) {
         const oldStatus = container.logisticsStatus;
         const newStatus = result.status;
 
         container.logisticsStatus = newStatus;
+        container.ganttDerived = ganttDerived;
         await this.containerRepository.save(container);
 
-        logger.info(`[ExternalDataService] 货柜 ${containerNumber} 物流状态更新: ${oldStatus} -> ${newStatus}`);
+        if (statusChanged) {
+          logger.info(`[ExternalDataService] 货柜 ${containerNumber} 物流状态更新: ${oldStatus} -> ${newStatus}`);
 
-        // 【增强审计】记录详细的状态变更日志
-        await auditLogService.logChange({
-          sourceType: 'feituo_sync',
-          entityType: 'biz_containers',
-          entityId: containerNumber,
-          action: 'UPDATE',
-          changedFields: {
-            logistics_status: {
-              old: oldStatus,
-              new: newStatus
+          await auditLogService.logChange({
+            sourceType: 'feituo_sync',
+            entityType: 'biz_containers',
+            entityId: containerNumber,
+            action: 'UPDATE',
+            changedFields: {
+              logistics_status: {
+                old: oldStatus,
+                new: newStatus
+              },
+              _triggerFields: {
+                old: null,
+                new: result.triggerFields || null
+              },
+              _statusCalculation: {
+                old: null,
+                new: {
+                  reason: result.reason || null,
+                  hasReturnTime: !!emptyReturn?.returnTime,
+                  hasWmsConfirm: !!warehouseOperation?.wmsConfirmDate,
+                  hasPickupDate: !!truckingTransport?.pickupDate,
+                  hasDestAta: portOperations.some(po => po.portType === 'destination' && po.ata),
+                  hasTransitAta: portOperations.some(po => po.portType === 'transit' && po.ata),
+                  hasShipmentDate: !!seaFreight?.shipmentDate,
+                }
+              },
+              ...(ganttChanged
+                ? {
+                    gantt_derived: {
+                      old: prevGantt ?? null,
+                      new: ganttDerived
+                    }
+                  }
+                : {})
             },
-            // 添加触发字段信息
-            _triggerFields: {
-              old: null,
-              new: result.triggerFields || null
-            },
-            // 添加状态计算详情
-            _statusCalculation: {
-              old: null,
-              new: {
-                reason: result.reason || null,
-                hasReturnTime: !!emptyReturn?.returnTime,
-                hasWmsConfirm: !!warehouseOperation?.wmsConfirmDate,
-                hasPickupDate: !!truckingTransport?.pickupDate,
-                hasDestAta: portOperations.some(po => po.portType === 'destination' && po.ata),
-                hasTransitAta: portOperations.some(po => po.portType === 'transit' && po.ata),
-                hasShipmentDate: !!seaFreight?.shipmentDate,
+            remark: `飞驼同步触发状态机重算: ${oldStatus} → ${newStatus}`
+          });
+        } else if (ganttChanged) {
+          logger.info(`[ExternalDataService] 货柜 ${containerNumber} gantt_derived 更新`);
+          await auditLogService.logChange({
+            sourceType: 'feituo_sync',
+            entityType: 'biz_containers',
+            entityId: containerNumber,
+            action: 'UPDATE',
+            changedFields: {
+              gantt_derived: {
+                old: prevGantt ?? null,
+                new: ganttDerived
               }
-            }
-          },
-          remark: `飞驼同步触发状态机重算: ${oldStatus} → ${newStatus}`
-        });
+            },
+            remark: '甘特派生字段重算（飞驼同步）'
+          });
+        }
       }
 
     } catch (error) {

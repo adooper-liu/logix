@@ -30,6 +30,7 @@ import { ContainerStatusService } from '../services/containerStatus.service';
 import { auditLogService } from '../services/auditLog.service';
 import { getScopedCountryCode } from '../utils/requestContext';
 import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine.js';
+import { buildGanttDerived } from '../utils/ganttDerivedBuilder';
 
 export class ContainerController {
   private containerRepository: Repository<Container>;
@@ -331,6 +332,8 @@ export class ContainerController {
         inspectionRequired: container.inspectionRequired,
         isUnboxing: container.isUnboxing,
         logisticsStatus: logisticsResult.status,
+        // 与列表 enrich 一致：由流程表即时构建，不依赖可能过期的 gantt_derived 列
+        ganttDerived: buildGanttDerived(portOpsList, truckingFirst, warehouseFirst, emptyFirst),
         currentPortType: logisticsResult.currentPortType,
         latestPortOperation: latestPo
           ? {
@@ -924,6 +927,33 @@ export class ContainerController {
       res.status(500).json({
         success: false,
         message: '批量更新货柜状态失败'
+      });
+    }
+  };
+
+  /**
+   * 手工重算 gantt_derived（gantt-v2 各节点日期）及物流状态，可全表或限量
+   * POST /api/v1/containers/rebuild-gantt-derived
+   * body: { maxContainers?: number } 不传则处理全表
+   */
+  rebuildGanttDerivedSnapshot = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const raw = req.body as { maxContainers?: number; max_containers?: number };
+      const max = raw?.maxContainers ?? raw?.max_containers;
+      const result = await this.containerStatusService.rebuildGanttDerivedSnapshot(
+        max != null && Number(max) > 0 ? { maxContainers: Number(max) } : undefined
+      );
+      res.json({
+        success: true,
+        processed: result.processed,
+        updatedCount: result.updatedCount,
+        message: `已处理 ${result.processed} 条，其中写库更新 ${result.updatedCount} 条`
+      });
+    } catch (error) {
+      logger.error('rebuildGanttDerivedSnapshot failed', error);
+      res.status(500).json({
+        success: false,
+        message: '重算甘特快照失败'
       });
     }
   };

@@ -29,6 +29,7 @@ import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { normalizeCountryCode } from '../utils/countryCode';
 import { logger } from '../utils/logger';
 import { DemurrageService } from './demurrage.service';
+import { ContainerStatusService } from './containerStatus.service';
 
 /**
  * 未指定的清关公司编码
@@ -92,6 +93,7 @@ export class IntelligentSchedulingService {
   private customerRepo = AppDataSource.getRepository(Customer);
   private customsBrokerRepo = AppDataSource.getRepository(CustomsBroker);
   private schedulingConfigRepo = AppDataSource.getRepository(DictSchedulingConfig);
+  private containerStatusService = new ContainerStatusService();
   private demurrageService = new DemurrageService(
     AppDataSource.getRepository(ExtDemurrageStandard),
     AppDataSource.getRepository(Container),
@@ -425,6 +427,16 @@ export class IntelligentSchedulingService {
       };
 
       await this.updateContainerSchedule(container.containerNumber, plannedData);
+
+      // 与 biz_containers.gantt_derived / logistics_status 对齐（流程表已更新）
+      try {
+        await this.containerStatusService.updateStatus(container.containerNumber);
+      } catch (syncErr) {
+        logger.warn(
+          `[IntelligentScheduling] updateStatus after schedule failed for ${container.containerNumber}:`,
+          syncErr
+        );
+      }
 
       // 10. 扣减仓库日产能
       await this.decrementWarehouseOccupancy(warehouse.warehouseCode, unloadDate);

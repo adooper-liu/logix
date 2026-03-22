@@ -79,162 +79,11 @@ export function useGanttLogic() {
     returned_empty: '#67c23a',
   }
 
-  // ========== 甘特图节点类型 ==========
   /**
-   * 甘特图节点类型
+   * 甘特主/虚/完成态与英文四节点阶段：由 SimpleGanttChartRefactored 内 calculateNodeStatus +
+   * getDisplayItems 负责；三级分组用下方 getNodeAndSupplier（中文五节点）。
+   * 后端 gantt_derived 仍可供其它页面/报表使用，甘特图不再重复推导。
    */
-  type GanttNodeType = 'customs' | 'pickup' | 'unload' | 'return'
-
-  /**
-   * 节点任务类型：主任务/虚线任务
-   */
-  type TaskType = 'main' | 'dashed'
-
-  /**
-   * 获取货柜当前处于哪个阶段
-   * 阶段1: 清关阶段（主任务：清关）
-   * 阶段2: 提柜阶段（主任务：提柜）
-   * 阶段3: 卸柜阶段（主任务：卸柜）
-   * 阶段4: 还箱阶段（主任务：还箱）
-   * 阶段5: 流程结束（无主任务）
-   */
-  const getContainerStage = (container: Container): number => {
-    // 还箱完成（流程结束）
-    const emptyReturn = container.emptyReturns?.[0]
-    if (emptyReturn?.returnTime) return 5
-
-    // 卸柜完成（还箱为主任务）
-    const warehouseOp = container.warehouseOperations?.[0]
-    if (warehouseOp?.unloadDate) return 4
-
-    // 提柜完成（卸柜为主任务）
-    const trucking = container.truckingTransports?.[0]
-    if (trucking?.deliveryDate) return 3
-
-    // 清关完成（提柜为主任务）
-    const portOp = container.portOperations?.find(op => op.portType === 'destination')
-    if (portOp?.actualCustomsDate) return 2
-
-    // 默认：清关为主任务
-    return 1
-  }
-
-  /**
-   * 获取货柜在指定节点的任务类型
-   * @param container 货柜
-   * @param nodeType 节点类型
-   */
-  const getNodeTaskType = (container: Container, nodeType: GanttNodeType): TaskType | null => {
-    const stage = getContainerStage(container)
-
-    // 阶段5：流程结束，无任务
-    if (stage === 5) return null
-
-    // 节点顺序：清关 → 提柜 → 卸柜 → 还箱
-    const nodeOrder: GanttNodeType[] = ['customs', 'pickup', 'unload', 'return']
-    const nodeIndex = nodeOrder.indexOf(nodeType)
-
-    // 节点序号大于等于阶段序号，表示已完成，任务销毁
-    if (nodeIndex >= stage) return null
-
-    // 节点序号等于阶段序号-1，表示当前主任务
-    if (nodeIndex === stage - 1) return 'main'
-
-    // 节点序号小于阶段序号-1，表示虚线任务
-    return 'dashed'
-  }
-
-  /**
-   * 获取指定节点的日期
-   * 优先级：实际日期 > 计划日期
-   */
-  const getNodeDate = (container: Container, nodeType: GanttNodeType): Date | null => {
-    const portOp = container.portOperations?.find(op => op.portType === 'destination')
-    const trucking = container.truckingTransports?.[0]
-    const warehouseOp = container.warehouseOperations?.[0]
-    const emptyReturn = container.emptyReturns?.[0]
-
-    switch (nodeType) {
-      case 'customs':
-        // 清关：actualCustomsDate > plannedCustomsDate > etaDestPort
-        if (portOp?.actualCustomsDate) return new Date(portOp.actualCustomsDate)
-        if (portOp?.plannedCustomsDate) return new Date(portOp.plannedCustomsDate)
-        if (portOp?.ataDestPort) return new Date(portOp.ataDestPort)
-        if (portOp?.etaDestPort) return new Date(portOp.etaDestPort)
-        return container.ataDestPort ? new Date(container.ataDestPort) : (container.etaDestPort ? new Date(container.etaDestPort) : null)
-
-      case 'pickup':
-        // 提柜：deliveryDate > plannedDeliveryDate > pickupDate > plannedPickupDate
-        if (trucking?.deliveryDate) return new Date(trucking.deliveryDate)
-        if (trucking?.plannedDeliveryDate) return new Date(trucking.plannedDeliveryDate)
-        if (trucking?.pickupDate) return new Date(trucking.pickupDate)
-        if (trucking?.plannedPickupDate) return new Date(trucking.plannedPickupDate)
-        return null
-
-      case 'unload':
-        // 卸柜：unloadDate > plannedUnloadDate
-        if (warehouseOp?.unloadDate) return new Date(warehouseOp.unloadDate)
-        if (warehouseOp?.plannedUnloadDate) return new Date(warehouseOp.plannedUnloadDate)
-        return null
-
-      case 'return':
-        // 还箱：returnTime > plannedReturnDate
-        if (emptyReturn?.returnTime) return new Date(emptyReturn.returnTime)
-        if (emptyReturn?.lastReturnDate) return new Date(emptyReturn.lastReturnDate)
-        return null
-    }
-  }
-
-  /**
-   * 获取指定节点的分组键（用于甘特图分组显示）
-   */
-  const getNodeGroupKey = (container: Container, nodeType: GanttNodeType): string => {
-    const portOp = container.portOperations?.find(op => op.portType === 'destination')
-    const trucking = container.truckingTransports?.[0]
-    const warehouseOp = container.warehouseOperations?.[0]
-    const supplierNames = container.supplierNames
-
-    switch (nodeType) {
-      case 'customs':
-        // 优先使用字典表解析的名称，其次使用代码
-        return supplierNames?.customsBrokerName 
-          || portOp?.customsBrokerCode 
-          || portOp?.customsBroker 
-          || '未指定清关'
-      case 'pickup':
-        return supplierNames?.truckingCompanyName
-          || trucking?.truckingCompanyId 
-          || trucking?.carrierCompany 
-          || '未指定车队'
-      case 'unload':
-      case 'return':
-        return supplierNames?.warehouseName
-          || warehouseOp?.warehouseId 
-          || warehouseOp?.actualWarehouse 
-          || '未指定仓库'
-    }
-  }
-
-  /**
-   * 判断节点是否已完成（用于显示✓标记）
-   */
-  const isNodeCompleted = (container: Container, nodeType: GanttNodeType): boolean => {
-    const portOp = container.portOperations?.find(op => op.portType === 'destination')
-    const trucking = container.truckingTransports?.[0]
-    const warehouseOp = container.warehouseOperations?.[0]
-    const emptyReturn = container.emptyReturns?.[0]
-
-    switch (nodeType) {
-      case 'customs':
-        return !!portOp?.actualCustomsDate
-      case 'pickup':
-        return !!trucking?.deliveryDate
-      case 'unload':
-        return !!warehouseOp?.unloadDate
-      case 'return':
-        return !!emptyReturn?.returnTime
-    }
-  }
 
   // ========== 智能预警系统 ==========
 
@@ -1121,12 +970,7 @@ export function useGanttLogic() {
     isToday,
     getContainerDate,
     getStatusColor,
-    getContainerStage,
-    getNodeTaskType,
-    getNodeDate,
-    getNodeGroupKey,
     getNodeAndSupplier,
-    isNodeCompleted,
     calculateDynamicDateRange,
     handleDotClick,
     handleViewDetail,

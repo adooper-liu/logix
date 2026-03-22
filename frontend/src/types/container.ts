@@ -3,6 +3,28 @@
  * Container Type Definitions
  */
 
+/** 后端 gantt_derived（与 backend ganttDerivedBuilder gantt-v1 一致） */
+export type GanttNodeKey = 'customs' | 'pickup' | 'unload' | 'return'
+
+export interface GanttDerivedNode {
+  key: GanttNodeKey
+  taskRole: 'main' | 'dashed' | 'none'
+  completed: boolean
+  /** 甘特展示计划日 YYYY-MM-DD（后端 gantt-v2+） */
+  plannedDate?: string | null
+  /** 甘特展示实际日 YYYY-MM-DD（后端 gantt-v2+） */
+  actualDate?: string | null
+}
+
+export interface GanttDerived {
+  phase: 1 | 2 | 3 | 4 | 5
+  phaseLabel: string
+  primaryNode: GanttNodeKey | null
+  nodes: GanttDerivedNode[]
+  ruleVersion: string
+  derivedAt: string
+}
+
 export interface Container {
   id?: string;
   containerNumber: string;
@@ -17,6 +39,8 @@ export interface Container {
   inspectionRequired: boolean;
   isUnboxing: boolean;
   logisticsStatus: string;
+  /** 甘特阶段/主任务（后端落库 + 接口返回，单一真相） */
+  ganttDerived?: GanttDerived | null;
   scheduleStatus?: 'initial' | 'issued' | 'dispatched' | 'adjusted';
   remarks?: string;
   requiresPallet?: boolean;

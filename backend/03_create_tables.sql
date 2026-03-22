@@ -311,6 +311,7 @@ CREATE TABLE IF NOT EXISTS biz_containers (
     inspection_required BOOLEAN DEFAULT false,
     is_unboxing BOOLEAN DEFAULT false,
     logistics_status VARCHAR(20) DEFAULT 'not_shipped',
+    gantt_derived JSONB DEFAULT NULL,
     remarks TEXT,
     requires_pallet BOOLEAN DEFAULT false,
     requires_assembly BOOLEAN DEFAULT false,

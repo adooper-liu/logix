@@ -5,9 +5,11 @@
       :filter-label="filterLabel"
       :container-count="finalFilteredContainers.length"
       :loading="loading"
+      :rebuild-snapshot-loading="rebuildSnapshotLoading"
       @export="exportData"
       @back="goBack"
       @refresh="loadData"
+      @rebuild-gantt-snapshot="handleRebuildGanttSnapshot"
     >
       <!-- 搜索栏 -->
       <GanttSearchBar @search="handleSearch" @update:searchField="handleSearchFieldChange" />
@@ -628,6 +630,7 @@
 import { dictService } from '@/services/dict'
 import type { Container } from '@/types/container'
 import { ArrowDown, ArrowRight, ArrowUp, Check, Warning } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -639,6 +642,8 @@ import GanttLegend from './gantt/GanttLegend.vue'
 import GanttSearchBar from './gantt/GanttSearchBar.vue'
 import GanttStatisticsPanel from './gantt/GanttStatisticsPanel.vue'
 import { useGanttLogic } from './gantt/useGanttLogic'
+import type { GanttDerived, GanttDerivedNode, GanttNodeKey } from '@/types/container'
+import { containerService } from '@/services/container'
 
 const route = useRoute()
 const router = useRouter()
@@ -1101,12 +1106,7 @@ const {
   formatDateShort,
   getContainerDate,
   getStatusColor,
-  getContainerStage,
-  getNodeTaskType,
-  getNodeDate,
-  getNodeGroupKey,
   getNodeAndSupplier,
-  isNodeCompleted,
   calculateDynamicDateRange,
   handleViewDetail,
   handleEditDate,
@@ -1124,6 +1124,32 @@ const {
   handleDragOver,
   handleGlobalDrop,
 } = useGanttLogic()
+
+/** 全表重算 gantt_derived（后端 POST /containers/rebuild-gantt-derived） */
+const rebuildSnapshotLoading = ref(false)
+
+async function handleRebuildGanttSnapshot() {
+  try {
+    await ElMessageBox.confirm(
+      '将按「全表」货柜重算并写入 gantt_derived（含 gantt-v2 节点日期）及物流状态；数据量大时可能耗时数分钟。是否继续？',
+      '重算甘特快照',
+      { type: 'warning', confirmButtonText: '开始', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  rebuildSnapshotLoading.value = true
+  try {
+    const res = await containerService.rebuildGanttDerivedSnapshot()
+    ElMessage.success(res.message || `已处理 ${res.processed} 条，写库更新 ${res.updatedCount} 条`)
+    await loadData()
+  } catch (e: unknown) {
+    const err = e as { response?: { data?: { message?: string } }; message?: string }
+    ElMessage.error(err?.response?.data?.message || err?.message || '重算失败')
+  } finally {
+    rebuildSnapshotLoading.value = false
+  }
+}
 
 // 视图模式：independent-独立表格, modal-弹窗详情
 const viewMode = ref<'independent' | 'modal'>('independent')
@@ -1191,15 +1217,27 @@ const getNodeDisplayType = (container: any, nodeName: string): 'main' | 'dashed'
 
   if (!node?.supplier || node.supplier === '未指定') return null
 
-  // 已完成的节点不显示
+  // 查验：后端 gantt-v1 无此节点，仅信本地状态
+  if (nodeName === '查验') {
+    if (node.status === 'completed') return null
+    if (node.status === 'active') return 'main'
+    if (node.status === 'pending') return 'dashed'
+    return null
+  }
+
+  const gd = container.ganttDerived as GanttDerived | null | undefined
+  const key = CHINESE_TO_GANTT_KEY[nodeName]
+  if (gd?.nodes?.length && key) {
+    const gn = gd.nodes.find(x => x.key === key)
+    if (!gn || gn.completed) return null
+    if (gn.taskRole === 'main') return 'main'
+    if (gn.taskRole === 'dashed') return 'dashed'
+    return null
+  }
+
   if (node.status === 'completed') return null
-
-  // 活跃节点显示为主任务
   if (node.status === 'active') return 'main'
-
-  // 待处理节点显示为虚线任务
   if (node.status === 'pending') return 'dashed'
-
   return null
 }
 
@@ -1207,6 +1245,11 @@ const getNodeDisplayType = (container: any, nodeName: string): 'main' | 'dashed'
  * 判断节点是否已完成（显示✓标记）
  */
 const isNodeFinished = (container: any, nodeName: string): boolean => {
+  const key = CHINESE_TO_GANTT_KEY[nodeName]
+  const gd = container.ganttDerived as GanttDerived | null | undefined
+  if (key && gd?.nodes?.length) {
+    return gd.nodes.find(x => x.key === key)?.completed ?? false
+  }
   const nodeStatus = calculateNodeStatus(container)
   const node = nodeStatus.nodes[nodeName as keyof typeof nodeStatus.nodes]
   return node?.status === 'completed'
@@ -1722,6 +1765,135 @@ const calculateNodeStatus = (container: any): ContainerNodeStatus => {
   }
 }
 
+/** 中文节点 ↔ 后端 gantt_derived.nodes[].key（查验不在四节点内，单独走 calculateNodeStatus） */
+const CHINESE_TO_GANTT_KEY: Record<string, GanttNodeKey | null> = {
+  清关: 'customs',
+  提柜: 'pickup',
+  卸柜: 'unload',
+  还箱: 'return',
+  查验: null,
+}
+
+/** gantt-v2+ 节点上的 plannedDate/actualDate（YYYY-MM-DD）优先，否则回退 calculateNodeStatus */
+function mergeGanttNodeDisplayDates(
+  gn: GanttDerivedNode,
+  fallback: { plannedDate?: Date; actualDate?: Date }
+): { plannedDate?: Date; actualDate?: Date } {
+  const plannedDate =
+    gn.plannedDate != null && gn.plannedDate !== ''
+      ? dayjs(gn.plannedDate).toDate()
+      : fallback.plannedDate
+  const actualDate =
+    gn.actualDate != null && gn.actualDate !== ''
+      ? dayjs(gn.actualDate).toDate()
+      : fallback.actualDate
+  return { plannedDate, actualDate }
+}
+
+/**
+ * 主/虚/销毁仅信 ganttDerived（+ 查验用本地状态）；计划/实际日期优先 gantt_derived JSON（gantt-v2+）
+ */
+function getDisplayItemsFromGanttDerived(
+  container: any,
+  gd: GanttDerived,
+  nodeStatus: ContainerNodeStatus
+): GanttDisplayItem[] {
+  const displayItems: GanttDisplayItem[] = []
+  const needsInspection = container.inspectionRequired || false
+  const nodeOrder: Array<'清关' | '查验' | '提柜' | '卸柜' | '还箱'> = needsInspection
+    ? ['清关', '查验', '提柜', '卸柜', '还箱']
+    : ['清关', '提柜', '卸柜', '还箱']
+
+  let foundActive = false
+
+  for (const nodeName of nodeOrder) {
+    const node = nodeStatus.nodes[nodeName as keyof typeof nodeStatus.nodes]
+
+    if (nodeName === '查验') {
+      if (node?.supplier && node.supplier !== '未指定') {
+        if (node.status === 'active') {
+          displayItems.push({
+            type: 'main',
+            port: nodeStatus.portCode,
+            node: nodeName,
+            supplier: node.supplier,
+            containerNumber: nodeStatus.containerNumber,
+            container,
+            plannedDate: node.plannedDate,
+            actualDate: node.actualDate,
+            isCurrent: true,
+          })
+          foundActive = true
+        } else if (!foundActive && node.status === 'pending') {
+          displayItems.push({
+            type: 'dashed',
+            port: nodeStatus.portCode,
+            node: nodeName,
+            supplier: node.supplier,
+            containerNumber: nodeStatus.containerNumber,
+            container,
+            plannedDate: node.plannedDate,
+            actualDate: node.actualDate,
+            isCurrent: false,
+          })
+        }
+      }
+      continue
+    }
+
+    const key = CHINESE_TO_GANTT_KEY[nodeName]
+    if (!key) continue
+
+    const gn = gd.nodes.find(x => x.key === key)
+    if (!gn || gn.completed) continue
+
+    if (!node?.supplier || node.supplier === '未指定') continue
+
+    if (nodeName === '清关') {
+      const hasPlannedPickup = container.truckingTransports?.[0]?.plannedPickupDate
+      const hasCustomsBroker =
+        node.supplier && node.supplier !== '未指定' && node.supplier !== '未指定清关公司'
+      if (!hasPlannedPickup && !hasCustomsBroker) {
+        continue
+      }
+    }
+
+    const mergedDates = mergeGanttNodeDisplayDates(gn, {
+      plannedDate: node.plannedDate,
+      actualDate: node.actualDate,
+    })
+
+    if (gn.taskRole === 'main') {
+      displayItems.push({
+        type: 'main',
+        port: nodeStatus.portCode,
+        node: nodeName,
+        supplier: node.supplier,
+        containerNumber: nodeStatus.containerNumber,
+        container,
+        plannedDate: mergedDates.plannedDate,
+        actualDate: mergedDates.actualDate,
+        isCurrent: true,
+      })
+      foundActive = true
+    } else if (gn.taskRole === 'dashed' && !foundActive) {
+      displayItems.push({
+        type: 'dashed',
+        port: nodeStatus.portCode,
+        node: nodeName,
+        supplier: node.supplier,
+        containerNumber: nodeStatus.containerNumber,
+        container,
+        plannedDate: mergedDates.plannedDate,
+        actualDate: mergedDates.actualDate,
+        isCurrent: false,
+      })
+    }
+  }
+
+  return displayItems
+}
+
 /**
  * 甘特图显示项接口
  */
@@ -1739,14 +1911,17 @@ interface GanttDisplayItem {
 
 /**
  * 获取货柜的显示项（根据节点状态）
+ * 有 ganttDerived 时：主/虚/销毁仅信后端 gantt-v1；查验仍用 calculateNodeStatus
  */
 const getDisplayItems = (container: any): GanttDisplayItem[] => {
-  const displayItems: GanttDisplayItem[] = []
   const nodeStatus = calculateNodeStatus(container)
+  const gd = container.ganttDerived as GanttDerived | null | undefined
+  if (gd?.nodes?.length) {
+    return getDisplayItemsFromGanttDerived(container, gd, nodeStatus)
+  }
 
+  const displayItems: GanttDisplayItem[] = []
   const needsInspection = container.inspectionRequired || false
-
-  // 根据是否需要查验，使用不同的节点顺序
   const nodeOrder: Array<'清关' | '查验' | '提柜' | '卸柜' | '还箱'> = needsInspection
     ? ['清关', '查验', '提柜', '卸柜', '还箱']
     : ['清关', '提柜', '卸柜', '还箱']
@@ -1756,19 +1931,16 @@ const getDisplayItems = (container: any): GanttDisplayItem[] => {
   nodeOrder.forEach(nodeName => {
     const node = nodeStatus.nodes[nodeName as keyof typeof nodeStatus.nodes]
 
-    // 清关节点：仅当有计划提柜日或有清关行时才显示
     if (nodeName === '清关') {
       const hasPlannedPickup = container.truckingTransports?.[0]?.plannedPickupDate
       const hasCustomsBroker = node.supplier && node.supplier !== '未指定' && node.supplier !== '未指定清关公司'
       if (!hasPlannedPickup && !hasCustomsBroker) {
-        return // 跳过清关节点
+        return
       }
     }
 
-    // 有供应商信息就显示节点（不依赖日期）
     if (node.supplier && node.supplier !== '未指定') {
       if (node.status === 'active') {
-        // 当前节点 - 主任务（实线圆点）
         displayItems.push({
           type: 'main',
           port: nodeStatus.portCode,
@@ -1782,7 +1954,6 @@ const getDisplayItems = (container: any): GanttDisplayItem[] => {
         })
         foundActive = true
       } else if (!foundActive && node.status === 'pending') {
-        // 未来节点 - 虚线任务（计划中）
         displayItems.push({
           type: 'dashed',
           port: nodeStatus.portCode,
@@ -1795,7 +1966,6 @@ const getDisplayItems = (container: any): GanttDisplayItem[] => {
           isCurrent: false,
         })
       }
-      // 已完成的节点不显示（销毁）
     }
   })
 

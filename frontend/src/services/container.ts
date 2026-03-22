@@ -129,6 +129,28 @@ class ContainerService {
   }
 
   /**
+   * 手工重算 gantt_derived（gantt-v2）及物流状态；全表或前 N 条
+   * POST /api/v1/containers/rebuild-gantt-derived
+   */
+  async rebuildGanttDerivedSnapshot(params?: {
+    maxContainers?: number
+  }): Promise<{
+    success: boolean
+    processed: number
+    updatedCount: number
+    message?: string
+  }> {
+    const response = await this.api.post(
+      '/containers/rebuild-gantt-derived',
+      params?.maxContainers != null ? { maxContainers: params.maxContainers } : {},
+      { timeout: 600000 }
+    )
+    cacheManager.clearContainersCache()
+    cacheManager.clearStatisticsCache()
+    return response.data
+  }
+
+  /**
    * 更新货柜计划（手工排柜）
    * PATCH /api/containers/:id/schedule
    */

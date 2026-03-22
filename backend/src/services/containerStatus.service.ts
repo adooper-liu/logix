@@ -8,6 +8,11 @@ import { EmptyReturn } from '../entities/EmptyReturn';
 import { AppDataSource } from '../database';
 import { logger } from '../utils/logger';
 import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
+import {
+  buildGanttDerived,
+  ganttDerivedSemanticEqual,
+  type GanttDerivedPayload
+} from '../utils/ganttDerivedBuilder';
 import { auditLogService } from './auditLog.service';
 
 /**
@@ -72,11 +77,30 @@ export class ContainerStatusService {
         emptyReturn
       );
 
-      // 如果状态需要更新
-      if (result.status !== container.logisticsStatus) {
-        // 【增强审计】构建详细的状态变更信息
+      const ganttDerived = buildGanttDerived(
+        portOperations,
+        truckingTransport,
+        warehouseOperation,
+        emptyReturn
+      );
+
+      const statusChanged = result.status !== container.logisticsStatus;
+      const prevGantt = container.ganttDerived as GanttDerivedPayload | null | undefined;
+      const ganttChanged = !ganttDerivedSemanticEqual(prevGantt ?? null, ganttDerived);
+
+      if (!statusChanged && !ganttChanged) {
+        return false;
+      }
+
+      const newStatus = result.status;
+
+      await this.containerRepository.update(
+        { containerNumber },
+        { logisticsStatus: newStatus, ganttDerived }
+      );
+
+      if (statusChanged) {
         const oldStatus = container.logisticsStatus;
-        const newStatus = result.status;
 
         // 获取触发状态变更的关键字段
         const triggerFields: Record<string, { old?: unknown; new?: unknown }> = {};
@@ -86,15 +110,10 @@ export class ContainerStatusService {
           }
         }
 
-        await this.containerRepository.update(
-          { containerNumber },
-          { logisticsStatus: newStatus }
-        );
         logger.info(
           `[StatusUpdate] ${containerNumber}: ${oldStatus} -> ${newStatus}, 触发字段: ${Object.keys(triggerFields).join(', ') || '无'}`
         );
 
-        // 【增强审计】记录详细的状态变更日志
         await auditLogService.logChange({
           sourceType: 'status_update',
           entityType: 'biz_containers',
@@ -105,12 +124,10 @@ export class ContainerStatusService {
               old: oldStatus,
               new: newStatus
             },
-            // 添加触发字段信息
             _triggerFields: {
               old: null,
               new: triggerFields
             },
-            // 添加状态计算详情
             _statusCalculation: {
               old: null,
               new: {
@@ -122,15 +139,36 @@ export class ContainerStatusService {
                 hasTransitAta: portOperations.some(po => po.portType === 'transit' && po.ata),
                 hasShipmentDate: !!seaFreight?.shipmentDate,
               }
-            }
+            },
+            ...(ganttChanged
+              ? {
+                  gantt_derived: {
+                    old: prevGantt ?? null,
+                    new: ganttDerived
+                  }
+                }
+              : {})
           },
           remark: `状态机重算: ${oldStatus} → ${newStatus}`
         });
-
-        return true;
+      } else if (ganttChanged) {
+        logger.info(`[StatusUpdate] ${containerNumber}: gantt_derived 更新（物流状态未变）`);
+        await auditLogService.logChange({
+          sourceType: 'status_update',
+          entityType: 'biz_containers',
+          entityId: containerNumber,
+          action: 'UPDATE',
+          changedFields: {
+            gantt_derived: {
+              old: prevGantt ?? null,
+              new: ganttDerived
+            }
+          },
+          remark: '甘特派生字段重算（流程日期变更）'
+        });
       }
 
-      return false;
+      return true;
     } catch (error) {
       logger.error(`更新货柜 ${containerNumber} 状态失败`, error);
       return false;
@@ -215,18 +253,29 @@ export class ContainerStatusService {
           emptyReturn
         );
 
-        // 如果状态需要更新
-        if (result.status !== container.logisticsStatus) {
+        const ganttDerived = buildGanttDerived(
+          portOperations,
+          truckingTransport,
+          warehouseOperation,
+          emptyReturn
+        );
+        const statusChanged = result.status !== container.logisticsStatus;
+        const prevGantt = container.ganttDerived as GanttDerivedPayload | null | undefined;
+        const ganttChanged = !ganttDerivedSemanticEqual(prevGantt ?? null, ganttDerived);
+
+        if (statusChanged || ganttChanged) {
           updatePromises.push(
-            this.containerRepository.update(
-              { containerNumber: container.containerNumber },
-              { logisticsStatus: result.status }
-            ).then(() => {
-              logger.debug(
-                `[StatusUpdate] ${container.containerNumber}: ${container.logisticsStatus} -> ${result.status}`
-              );
-              return true;
-            })
+            this.containerRepository
+              .update(
+                { containerNumber: container.containerNumber },
+                { logisticsStatus: result.status, ganttDerived }
+              )
+              .then(() => {
+                logger.debug(
+                  `[StatusUpdate] ${container.containerNumber}: status=${container.logisticsStatus}->${result.status}, gantt=${ganttChanged}`
+                );
+                return true;
+              })
           );
         }
       }
@@ -261,4 +310,35 @@ export class ContainerStatusService {
     return updatedCount;
   }
 
+  /**
+   * 全表（或限量）重算 logistics_status + gantt_derived（含 gantt-v2 各节点日期）
+   * 用于升级后手工回填；逐柜调用 updateStatus，与飞驼同步/导入写入规则一致
+   */
+  async rebuildGanttDerivedSnapshot(options?: { maxContainers?: number }): Promise<{
+    processed: number;
+    updatedCount: number;
+  }> {
+    const qb = this.containerRepository
+      .createQueryBuilder('c')
+      .select('c.containerNumber')
+      .orderBy('c.containerNumber', 'ASC');
+
+    if (options?.maxContainers != null && options.maxContainers > 0) {
+      qb.take(options.maxContainers);
+    }
+
+    const rows = await qb.getMany();
+    const numbers = rows.map((r) => r.containerNumber);
+    let updatedCount = 0;
+
+    for (const cn of numbers) {
+      const updated = await this.updateStatus(cn);
+      if (updated) updatedCount++;
+    }
+
+    logger.info(
+      `[GanttDerived] rebuild snapshot: processed=${numbers.length}, updated=${updatedCount}`
+    );
+    return { processed: numbers.length, updatedCount };
+  }
 }

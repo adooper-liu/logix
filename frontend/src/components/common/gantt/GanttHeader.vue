@@ -9,6 +9,14 @@
       <slot></slot>
     </div>
     <div class="header-right">
+      <el-button
+        size="small"
+        :loading="rebuildSnapshotLoading"
+        :disabled="loading || rebuildSnapshotLoading"
+        @click="$emit('rebuildGanttSnapshot')"
+      >
+        重算甘特快照
+      </el-button>
       <el-button :icon="Download" @click="$emit('export')" size="small">导出</el-button>
       <el-button @click="$emit('back')" size="small">返回</el-button>
       <el-button @click="$emit('refresh')" type="primary" size="small" :loading="loading">
@@ -25,12 +33,15 @@ defineProps<{
   filterLabel?: string
   containerCount: number
   loading: boolean
+  /** 全表重算 gantt_derived 进行中 */
+  rebuildSnapshotLoading?: boolean
 }>()
 
 defineEmits<{
   export: []
   back: []
   refresh: []
+  rebuildGanttSnapshot: []
 }>()
 </script>
 

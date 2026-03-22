@@ -117,6 +117,13 @@ router.post('/:containerNumber/update-status', containerController.updateContain
 router.post('/update-statuses/batch', containerController.batchUpdateContainerStatuses);
 
 /**
+ * @route   POST /rebuild-gantt-derived
+ * @desc    手工重算全表或前 N 条 gantt_derived（与 logistics_status）
+ * @body    maxContainers 可选，不传则全表
+ */
+router.post('/rebuild-gantt-derived', containerController.rebuildGanttDerivedSnapshot);
+
+/**
  * @route   PATCH /:id/schedule
  * @desc    更新货柜计划（手工排柜）
  * @access  Public

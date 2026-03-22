@@ -22,6 +22,7 @@ import { AlertLevel, AlertType, ContainerAlert } from '../entities/ContainerAler
 import { ExtFeituoStatusEvent } from '../entities/ExtFeituoStatusEvent';
 import { logger } from '../utils/logger';
 import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
+import { buildGanttDerived } from '../utils/ganttDerivedBuilder';
 
 interface ContainerWithStatus {
   container: Container;
@@ -184,6 +185,14 @@ export class ContainerService {
         const resolvedAlertCount = alerts.filter(alert => alert.resolved).length;
         const hasResolvedAlerts = resolvedAlertCount > 0;
 
+        // 甘特派生：始终以流程表即时计算（与 ganttDerivedBuilder 单一真相一致），不读可能过期的 gantt_derived 列
+        const ganttDerived = buildGanttDerived(
+          portOperations,
+          truckingTransport ?? undefined,
+          warehouseOperation ?? undefined,
+          emptyReturn ?? undefined
+        );
+
         return {
           ...container,
           orderNumber: orderInfo?.orderNumber ?? null,
@@ -193,6 +202,7 @@ export class ContainerService {
           currentPortType,
           latestPortOperation: this.formatPortOperation(latestPortOperation),
           logisticsStatus: latestLogisticsStatus,
+          ganttDerived,
           // 预警信息
           alerts: alerts.map(alert => ({
             id: alert.id,

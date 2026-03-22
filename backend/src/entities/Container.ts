@@ -18,6 +18,7 @@ import { ContainerType } from './ContainerType';
 import { SeaFreight } from './SeaFreight';
 import { PortOperation } from './PortOperation';
 import { ContainerSku } from './ContainerSku';
+import type { GanttDerivedPayload } from '../utils/ganttDerivedBuilder';
 
 @Entity('biz_containers')
 export class Container {
@@ -58,6 +59,13 @@ export class Container {
     name: 'logistics_status'
   })
   logisticsStatus!: string;
+
+  /**
+   * 甘特派生快照（与 ganttDerivedBuilder 一致）。
+   * 由飞驼/导入/外部同步/updateStatus/智能排柜等写路径刷新；列表与详情 API 在已加载流程表时优先即时 buildGanttDerived，避免展示陈旧快照。
+   */
+  @Column({ type: 'jsonb', nullable: true, name: 'gantt_derived' })
+  ganttDerived?: GanttDerivedPayload | null;
 
   // 排产状态：initial(待排产) / issued(已排产) / dispatched(已派工) / adjusted(手工调整)
   @Column({

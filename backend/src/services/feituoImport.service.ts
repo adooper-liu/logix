@@ -2021,44 +2021,73 @@ export class FeituoImportService {
         wo ?? undefined,
         er ?? undefined
       );
-      if (result.status !== container.logisticsStatus) {
+
+      const { buildGanttDerived, ganttDerivedSemanticEqual } = await import('../utils/ganttDerivedBuilder');
+      const ganttDerived = buildGanttDerived(portOps, tt, wo, er);
+      const statusChanged = result.status !== container.logisticsStatus;
+      const prevGantt = container.ganttDerived;
+      const ganttChanged = !ganttDerivedSemanticEqual(prevGantt ?? null, ganttDerived);
+
+      if (statusChanged || ganttChanged) {
         const oldStatus = container.logisticsStatus;
         const newStatus = result.status;
         container.logisticsStatus = newStatus;
+        container.ganttDerived = ganttDerived;
         await AppDataSource.getRepository(Container).save(container);
 
-        // 【增强审计】记录详细的状态变更日志
-        await auditLogService.logChange({
-          sourceType: 'feituo_excel_import',
-          entityType: 'biz_containers',
-          entityId: containerNumber,
-          action: 'UPDATE',
-          changedFields: {
-            logistics_status: {
-              old: oldStatus,
-              new: newStatus
+        if (statusChanged) {
+          await auditLogService.logChange({
+            sourceType: 'feituo_excel_import',
+            entityType: 'biz_containers',
+            entityId: containerNumber,
+            action: 'UPDATE',
+            changedFields: {
+              logistics_status: {
+                old: oldStatus,
+                new: newStatus
+              },
+              _triggerFields: {
+                old: null,
+                new: result.triggerFields || null
+              },
+              _statusCalculation: {
+                old: null,
+                new: {
+                  reason: result.reason || null,
+                  hasReturnTime: !!er?.returnTime,
+                  hasWmsConfirm: !!wo?.wmsConfirmDate,
+                  hasPickupDate: !!tt?.pickupDate,
+                  hasDestAta: portOps.some(po => po.portType === 'destination' && po.ata),
+                  hasTransitAta: portOps.some(po => po.portType === 'transit' && po.ata),
+                  hasShipmentDate: !!container.seaFreight?.shipmentDate,
+                }
+              },
+              ...(ganttChanged
+                ? {
+                    gantt_derived: {
+                      old: prevGantt ?? null,
+                      new: ganttDerived
+                    }
+                  }
+                : {})
             },
-            // 添加触发字段信息
-            _triggerFields: {
-              old: null,
-              new: result.triggerFields || null
-            },
-            // 添加状态计算详情
-            _statusCalculation: {
-              old: null,
-              new: {
-                reason: result.reason || null,
-                hasReturnTime: !!er?.returnTime,
-                hasWmsConfirm: !!wo?.wmsConfirmDate,
-                hasPickupDate: !!tt?.pickupDate,
-                hasDestAta: portOps.some(po => po.portType === 'destination' && po.ata),
-                hasTransitAta: portOps.some(po => po.portType === 'transit' && po.ata),
-                hasShipmentDate: !!container.seaFreight?.shipmentDate,
+            remark: `飞驼Excel导入触发状态机重算: ${oldStatus} → ${newStatus}`
+          });
+        } else if (ganttChanged) {
+          await auditLogService.logChange({
+            sourceType: 'feituo_excel_import',
+            entityType: 'biz_containers',
+            entityId: containerNumber,
+            action: 'UPDATE',
+            changedFields: {
+              gantt_derived: {
+                old: prevGantt ?? null,
+                new: ganttDerived
               }
-            }
-          },
-          remark: `飞驼Excel导入触发状态机重算: ${oldStatus} → ${newStatus}`
-        });
+            },
+            remark: '甘特派生字段重算（飞驼 Excel 导入）'
+          });
+        }
       }
 
       // 检查并更新查验状态
