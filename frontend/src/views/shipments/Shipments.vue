@@ -1005,8 +1005,37 @@ export default {
           </div>
         </template>
         <template v-for="key in sortedVisibleColumnKeys" :key="key">
-          <!-- 集装箱号 -->
-          <el-table-column v-if="key === 'containerNumber'" prop="containerNumber" :label="t('container.containerNumber')" width="140" fixed />
+          <!-- 集装箱号、备货单号 -->
+          <el-table-column v-if="key === 'containerNumber'" :label="t('container.containerNumber')" width="180" fixed>
+            <template #default="{ row }">
+              <div class="combined-numbers">
+                <div class="number-item">
+                  <span class="number-label">柜号：</span>
+                  <span>{{ row.containerNumber || '-' }}</span>
+                </div>
+                <div class="number-item">
+                  <span class="number-label">备货单号：</span>
+                  <span>{{ row.orderNumber || '-' }}</span>
+                </div>
+              </div>
+            </template>
+          </el-table-column>
+
+          <!-- 提单号、MBL -->
+          <el-table-column v-else-if="key === 'billOfLadingNumber'" label="提单号/MBL" width="150">
+            <template #default="{ row }">
+              <div class="bbl-mbl-container">
+                <div class="number-item">
+                  <span class="number-label">提单号：</span>
+                  <span>{{ row.billOfLadingNumber || '-' }}</span>
+                </div>
+                <div class="number-item">
+                  <span class="number-label">MBL：</span>
+                  <span>{{ row.mblNumber || '-' }}</span>
+                </div>
+              </div>
+            </template>
+          </el-table-column>
 
           <!-- 出运日期 -->
           <el-table-column v-else-if="key === 'actualShipDate'" prop="actualShipDate" label="出运日期" width="120" sortable="custom">
@@ -1014,15 +1043,6 @@ export default {
               {{ formatShipmentDate(row.actualShipDate || row.createdAt) }}
             </template>
           </el-table-column>
-
-          <!-- 备货单号 -->
-          <el-table-column v-else-if="key === 'orderNumber'" prop="orderNumber" :label="t('container.orderNumber')" width="140" />
-
-          <!-- 提单号 -->
-          <el-table-column v-else-if="key === 'billOfLadingNumber'" prop="billOfLadingNumber" label="提单号" width="140" />
-
-          <!-- MBL Number -->
-          <el-table-column v-else-if="key === 'mblNumber'" prop="mblNumber" label="MBL Number" width="140" />
 
           <!-- 柜型 -->
           <el-table-column v-else-if="key === 'containerTypeCode'" prop="containerTypeCode" label="柜型" width="80">
@@ -1041,7 +1061,7 @@ export default {
           </el-table-column>
 
           <!-- 五节点状态 -->
-          <el-table-column v-else-if="key === 'fiveNodeStatus'" label="五节点状态" width="110" align="left">
+          <el-table-column v-else-if="key === 'fiveNodeStatus'" label="五节点状态" width="200" align="left">
             <template #default="{ row }">
               <div class="five-node-status">
                 <el-tag
@@ -1065,7 +1085,7 @@ export default {
           </el-table-column>
 
           <!-- 预警 -->
-          <el-table-column v-else-if="key === 'alerts'" label="预警" width="100" align="left">
+          <el-table-column v-else-if="key === 'alerts'" label="预警" width="70" align="left">
             <template #default="{ row }">
               <div v-if="row.alerts && row.alerts.length > 0" class="alerts-container">
                 <el-tooltip 
@@ -1129,21 +1149,17 @@ export default {
             </template>
           </el-table-column>
 
-          <!-- 查验 -->
-          <el-table-column v-else-if="key === 'inspectionRequired'" prop="inspectionRequired" label="查验" width="70" align="center">
+          <!-- 查验 & 开箱 -->
+          <el-table-column v-else-if="key === 'inspectionRequired'" label="查验/开箱" width="120" align="center">
             <template #default="{ row }">
-              <el-tag :type="row.inspectionRequired ? 'warning' : 'info'" size="small">
-                {{ row.inspectionRequired ? '是' : '否' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-
-          <!-- 开箱 -->
-          <el-table-column v-else-if="key === 'isUnboxing'" prop="isUnboxing" label="开箱" width="70" align="center">
-            <template #default="{ row }">
-              <el-tag :type="row.isUnboxing ? 'warning' : 'info'" size="small">
-                {{ row.isUnboxing ? '是' : '否' }}
-              </el-tag>
+              <div class="inspection-unboxing">
+                <el-tag :type="row.inspectionRequired ? 'warning' : 'info'" size="small" style="margin-right: 4px;">
+                  查验：{{ row.inspectionRequired ? '是' : '否' }}
+                </el-tag>
+                <el-tag :type="row.isUnboxing ? 'warning' : 'info'" size="small">
+                  开箱：{{ row.isUnboxing ? '是' : '否' }}
+                </el-tag>
+              </div>
             </template>
           </el-table-column>
 
@@ -1161,29 +1177,28 @@ export default {
             </template>
           </el-table-column>
 
-          <!-- 预计到港 -->
-          <el-table-column v-else-if="key === 'etaDestPort'" prop="etaDestPort" label="预计到港" width="110" sortable="custom">
+          <!-- ETA、修正ETA、ATA -->
+          <el-table-column v-else-if="key === 'etaDestPort'" label="ETA/修正ETA/ATA" width="180" sortable="custom">
             <template #default="{ row }">
-              {{ row.etaDestPort ? formatDate(row.etaDestPort) : '-' }}
-            </template>
-          </el-table-column>
-
-          <!-- 修正ETA -->
-          <el-table-column v-else-if="key === 'etaCorrection'" label="修正ETA" width="110">
-            <template #default="{ row }">
-              <template v-if="row.etaCorrection ?? getEtaCorrection(row)">
-                <el-tag type="success" size="small">
-                  {{ formatDate((row.etaCorrection ?? getEtaCorrection(row)) as string | Date) }}
-                </el-tag>
-              </template>
-              <span v-else>-</span>
-            </template>
-          </el-table-column>
-
-          <!-- 实际到港 -->
-          <el-table-column v-else-if="key === 'ataDestPort'" prop="ataDestPort" label="实际到港" width="110" sortable="custom">
-            <template #default="{ row }">
-              {{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }}
+              <div class="eta-ata-container">
+                <div class="date-item">
+                  <span class="date-label">ETA：</span>
+                  <span>{{ row.etaDestPort ? formatDate(row.etaDestPort) : '-' }}</span>
+                </div>
+                <div class="date-item">
+                  <span class="date-label">修正：</span>
+                  <span v-if="row.etaCorrection ?? getEtaCorrection(row)">
+                    <el-tag type="success" size="small" style="margin: 0;">
+                      {{ formatDate((row.etaCorrection ?? getEtaCorrection(row)) as string | Date) }}
+                    </el-tag>
+                  </span>
+                  <span v-else>-</span>
+                </div>
+                <div class="date-item">
+                  <span class="date-label">ATA：</span>
+                  <span>{{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }}</span>
+                </div>
+              </div>
             </template>
           </el-table-column>
 
@@ -1201,38 +1216,43 @@ export default {
             </template>
           </el-table-column>
 
-          <!-- 计划提柜日 -->
-          <el-table-column v-else-if="key === 'plannedPickupDate'" prop="plannedPickupDate" label="计划提柜日" width="110" sortable="custom">
+          <!-- 提柜日期 -->
+          <el-table-column v-else-if="key === 'lastFreeDate'" label="提柜日期" width="180" sortable="custom">
             <template #default="{ row }">
-              {{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }}
+              <div class="pickup-dates-container">
+                <div class="date-item">
+                  <span class="date-label">最晚：</span>
+                  <span>{{ row.lastFreeDate ? formatDate(row.lastFreeDate) : '-' }}</span>
+                </div>
+                <div class="date-item">
+                  <span class="date-label">计划：</span>
+                  <span>{{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }}</span>
+                </div>
+                <div class="date-item">
+                  <span class="date-label">实际：</span>
+                  <span>{{ row.pickupDate ? formatDate(row.pickupDate) : '-' }}</span>
+                </div>
+              </div>
             </template>
           </el-table-column>
 
-          <!-- 实际提柜日 -->
-          <el-table-column v-else-if="key === 'pickupDate'" prop="pickupDate" label="实际提柜日" width="110" sortable="custom">
+          <!-- 还箱日期 -->
+          <el-table-column v-else-if="key === 'lastReturnDate'" label="还箱日期" width="180" sortable="custom">
             <template #default="{ row }">
-              {{ row.pickupDate ? formatDate(row.pickupDate) : '-' }}
-            </template>
-          </el-table-column>
-
-          <!-- 最晚提柜日 -->
-          <el-table-column v-else-if="key === 'lastFreeDate'" prop="lastFreeDate" label="最晚提柜日" width="110" sortable="custom">
-            <template #default="{ row }">
-              {{ row.lastFreeDate ? formatDate(row.lastFreeDate) : '-' }}
-            </template>
-          </el-table-column>
-
-          <!-- 最晚还箱日 -->
-          <el-table-column v-else-if="key === 'lastReturnDate'" prop="lastReturnDate" label="最晚还箱日" width="110" sortable="custom">
-            <template #default="{ row }">
-              {{ row.lastReturnDate ? formatDate(row.lastReturnDate) : '-' }}
-            </template>
-          </el-table-column>
-
-          <!-- 实际还箱日 -->
-          <el-table-column v-else-if="key === 'returnTime'" prop="returnTime" label="实际还箱日" width="110" sortable="custom">
-            <template #default="{ row }">
-              {{ row.returnTime ? formatDate(row.returnTime) : '-' }}
+              <div class="return-dates-container">
+                <div class="date-item">
+                  <span class="date-label">最晚：</span>
+                  <span>{{ row.lastReturnDate ? formatDate(row.lastReturnDate) : '-' }}</span>
+                </div>
+                <div class="date-item">
+                  <span class="date-label">计划：</span>
+                  <span>{{ row.plannedReturnDate ? formatDate(row.plannedReturnDate) : '-' }}</span>
+                </div>
+                <div class="date-item">
+                  <span class="date-label">实际：</span>
+                  <span>{{ row.returnTime ? formatDate(row.returnTime) : '-' }}</span>
+                </div>
+              </div>
             </template>
           </el-table-column>
 
@@ -1372,6 +1392,10 @@ export default {
   padding: 20px;
 }
 
+:deep(.el-table th) {
+  text-align: center !important;
+}
+
 .search-card {
   margin-bottom: 20px;
 
@@ -1383,6 +1407,40 @@ export default {
 
     .spacer {
       flex: 1;
+    }
+  }
+}
+
+.combined-numbers {
+  .number-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+    
+    .number-label {
+      font-weight: 500;
+      margin-right: 4px;
+      color: #606266;
+      min-width: 60px;
+    }
+  }
+}
+
+.eta-ata-container {
+  .date-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+    
+    .date-label {
+      font-weight: 500;
+      margin-right: 4px;
+      color: #606266;
+      min-width: 40px;
     }
   }
 }
@@ -1511,19 +1569,19 @@ export default {
 
 .five-node-status {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: stretch;
   width: 100%;
-  gap: 4px;
+  gap: 8px;
   text-align: left;
 
   .five-node-tag.status-tag {
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    width: 100%;
+    width: calc(50% - 4px);
     box-sizing: border-box;
-    gap: 10px;
+    gap: 14px;
     font-size: 11px;
     padding: 2px 8px 2px 6px;
     margin-inline: 0;

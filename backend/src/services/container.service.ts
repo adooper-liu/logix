@@ -238,25 +238,25 @@ export class ContainerService {
           costBreakdown,
           // 扩展字段（与列表表头绑定一致）
           // 始终使用目的港的ETA/ATA，不受中转港影响
-          etaDestPort: destPortOp?.eta || container.seaFreight?.eta || null,
-          etaCorrection: destPortOp?.etaCorrection || null,
-          ataDestPort: destPortOp?.ata || null,
+          etaDestPort: this.toUtcDateString(destPortOp?.eta || container.seaFreight?.eta || null),
+          etaCorrection: this.toUtcDateString(destPortOp?.etaCorrection || null),
+          ataDestPort: this.toUtcDateString(destPortOp?.ata || null),
           customsStatus: destPortOp?.customsStatus || null,
           destinationPort: destinationPortCode,
           destinationPortName,
           billOfLadingNumber:
             container.seaFreight?.mblNumber || container.seaFreight?.billOfLadingNumber || null,
           mblNumber: container.seaFreight?.mblNumber || null,
-          actualShipDate: orderInfo?.expectedShipDate || container.seaFreight?.shipmentDate || null,
+          actualShipDate: this.toUtcDateString(orderInfo?.expectedShipDate || container.seaFreight?.shipmentDate || null),
           sellToCountry: orderInfo?.sellToCountry || null,
           countryCurrency: getCountryCurrency(),
           customerName: orderInfo?.customerName || null,
           // 计划提柜日 / 最晚提柜日 / 最晚还箱日 / 实际还箱日（列表表头用）
           // lastFreeDate 来自目的港港口操作，与 currentPortType 无关
-          plannedPickupDate: truckingTransport?.plannedPickupDate || null,
-          lastFreeDate: destPortOp?.lastFreeDate ?? latestPortOperation?.lastFreeDate ?? null,
-          lastReturnDate: emptyReturn?.lastReturnDate || null,
-          returnTime: emptyReturn?.returnTime || null,
+          plannedPickupDate: this.toUtcDateString(truckingTransport?.plannedPickupDate || null),
+          lastFreeDate: this.toUtcDateString(destPortOp?.lastFreeDate ?? latestPortOperation?.lastFreeDate ?? null),
+          lastReturnDate: this.toUtcDateString(emptyReturn?.lastReturnDate || null),
+          returnTime: this.toUtcDateString(emptyReturn?.returnTime || null),
           // 供应商名称（用于甘特图三级展示）
           supplierNames,
           // 关联数据（用于前端过滤与甘特图三级分组）
@@ -289,6 +289,17 @@ export class ContainerService {
     if (mode === 'actual' || mode === 'forecast') return mode;
     const status = String(chargeStatus || '').toUpperCase();
     return status === 'FINAL' ? 'actual' : 'forecast';
+  }
+
+  /** 统一输出 UTC 日期字符串（YYYY-MM-DD），避免前端按本地时区换日 */
+  private toUtcDateString(input?: Date | string | null): string | null {
+    if (!input) return null;
+    const d = input instanceof Date ? input : new Date(input);
+    if (Number.isNaN(d.getTime())) return null;
+    const y = d.getUTCFullYear();
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   /**

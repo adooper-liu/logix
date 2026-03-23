@@ -22,26 +22,24 @@ export function useShipmentsExport() {
     FAILED: { text: '失败', type: 'danger' },
   }
 
-  // 格式化日期
-  const formatDate = (date: string | Date): string => {
-    if (!date) return '-'
-    const d = new Date(date)
+  // 统一按 UTC 日期展示，避免本地时区导致 +1/-1 天
+  const formatUtcDate = (input: string | Date): string => {
+    if (!input) return '-'
+    const d = new Date(input)
     if (isNaN(d.getTime())) return '-'
-    return d.toLocaleDateString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    })
+    const y = d.getUTCFullYear()
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(d.getUTCDate()).padStart(2, '0')
+    return `${y}/${m}/${day}`
+  }
+
+  // 格式化日期（UTC）
+  const formatDate = (date: string | Date): string => {
+    return formatUtcDate(date)
   }
 
   const formatShipmentDate = (date: string | Date): string => {
-    if (!date) return '-'
-    const d = new Date(date)
-    return d.toLocaleDateString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    })
+    return formatUtcDate(date)
   }
 
   /**

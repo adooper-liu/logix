@@ -152,9 +152,18 @@ export class LastReturnStatisticsService {
    * 过滤目标�?   * 根据状态机方案：目标集�?logistics_status IN ('picked_up', 'unloaded')
    */
   private filterTargetSet(query: any) {
-    query.where('container.logisticsStatus IN (:...statuses)', {
-      statuses: ['picked_up', 'unloaded']
-    });
+    query.where(`EXISTS (
+      SELECT 1
+      FROM process_trucking_transport tt
+      WHERE tt.container_number = container.container_number
+      AND tt.pickup_date IS NOT NULL
+    )`);
+    query.andWhere(`NOT EXISTS (
+      SELECT 1
+      FROM process_empty_return er2
+      WHERE er2.container_number = container.container_number
+      AND er2.return_time IS NOT NULL
+    )`);
   }
 
   /**

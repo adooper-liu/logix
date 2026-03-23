@@ -694,59 +694,121 @@ export class ContainerController {
           this.statisticsService.getReturnDistribution(startDate as string, endDate as string)
         ]);
 
-      // 计算总数（排除 arrived_at_transit，避免重复计数）
-      const { arrived_at_transit, ...statusOnly } = statusDistribution;
-      const totalContainers = Object.values(statusOnly).reduce((sum, count) => sum + count, 0);
-      const totalInTransit = (statusDistribution.shipped || 0) + (statusDistribution.in_transit || 0) + (statusDistribution.at_port || 0);
-      const totalArrival = Object.values(arrivalDistribution).reduce((sum, count) => sum + count, 0);
-      const totalPickup = (pickupDistribution.overdue || 0) + (pickupDistribution.todayPlanned || 0) + (pickupDistribution.pending || 0) + (pickupDistribution.within3Days || 0) + (pickupDistribution.within7Days || 0);
-      const totalLastPickup = Object.values(lastPickupDistribution).reduce((sum, count) => sum + count, 0);
-      const totalReturn = Object.values(returnDistribution).reduce((sum, count) => sum + count, 0);
-      const atPortTotal = statusDistribution.at_port || 0;
-      const pickedUpTotal = (statusDistribution.picked_up || 0) + (statusDistribution.unloaded || 0);
+      const totalStatus =
+        (statusDistribution.not_shipped || 0) +
+        (statusDistribution.shipped || 0) +
+        (statusDistribution.in_transit || 0) +
+        (statusDistribution.at_port || 0) +
+        (statusDistribution.picked_up || 0) +
+        (statusDistribution.unloaded || 0) +
+        (statusDistribution.returned_empty || 0);
 
-      // 构建验证检查
+      const arrivalMainTotal =
+        (arrivalDistribution.arrivedAtDestination || 0) +
+        (arrivalDistribution.arrivedAtTransit || 0) +
+        (arrivalDistribution.expectedArrival || 0) +
+        (arrivalDistribution.arrivedBeforeTodayNoATA || 0);
+      const arrivalDestChildrenTotal =
+        (arrivalDistribution.today || 0) +
+        (arrivalDistribution.arrivedBeforeTodayNotPickedUp || 0) +
+        (arrivalDistribution.arrivedBeforeTodayPickedUp || 0);
+      const arrivalTransitChildrenTotal =
+        (arrivalDistribution.transitOverdue || 0) +
+        (arrivalDistribution.transitWithin3Days || 0) +
+        (arrivalDistribution.transitWithin7Days || 0) +
+        (arrivalDistribution.transitOver7Days || 0) +
+        (arrivalDistribution.transitNoETA || 0);
+      const arrivalExpectedChildrenTotal =
+        (arrivalDistribution.overdue || 0) +
+        (arrivalDistribution.within3Days || 0) +
+        (arrivalDistribution.within7Days || 0) +
+        (arrivalDistribution.over7Days || 0) +
+        (arrivalDistribution.other || 0);
+
+      const pickupTotal =
+        (pickupDistribution.overdue || 0) +
+        (pickupDistribution.todayPlanned || 0) +
+        (pickupDistribution.pending || 0) +
+        (pickupDistribution.within3Days || 0) +
+        (pickupDistribution.within7Days || 0);
+
+      const lastPickupTotal =
+        (lastPickupDistribution.expired || 0) +
+        (lastPickupDistribution.urgent || 0) +
+        (lastPickupDistribution.warning || 0) +
+        (lastPickupDistribution.normal || 0) +
+        (lastPickupDistribution.noLastFreeDate || 0);
+
+      const returnTotal =
+        (returnDistribution.expired || 0) +
+        (returnDistribution.urgent || 0) +
+        (returnDistribution.warning || 0) +
+        (returnDistribution.normal || 0) +
+        (returnDistribution.noLastReturnDate || 0);
+
+      const atPortTotal = statusDistribution.at_port || 0;
+      const pickedUpPool = (statusDistribution.picked_up || 0) + (statusDistribution.unloaded || 0);
+
+      const makeCheck = (name: string, expected: number, actual: number, relation: 'eq' | 'lte' = 'eq') => {
+        const ok = relation === 'eq' ? actual === expected : actual <= expected;
+        return {
+          name,
+          status: ok ? 'PASS' : 'FAIL',
+          expected: relation === 'eq' ? expected : `<= ${expected}`,
+          actual,
+          diff: actual - expected
+        };
+      };
+
       const checks = [
-        {
-          name: '状态分布总和',
-          status: totalContainers > 0 ? 'PASS' : 'FAIL',
-          expected: totalContainers,
-          actual: totalContainers,
-          diff: 0
-        },
-        {
-          name: '到港统计 vs 目标集',
-          status: totalArrival <= totalInTransit ? 'PASS' : 'FAIL',
-          expected: `<= ${totalInTransit}`,
-          actual: totalArrival,
-          diff: totalArrival - totalInTransit
-        },
-        {
-          name: '提柜统计 + 最晚提柜 vs at_port',
-          status: totalPickup + totalLastPickup <= atPortTotal ? 'PASS' : 'FAIL',
-          expected: `<= ${atPortTotal}`,
-          actual: totalPickup + totalLastPickup,
-          diff: totalPickup + totalLastPickup - atPortTotal
-        },
-        {
-          name: '还箱统计 vs picked_up+unloaded',
-          status: totalReturn === pickedUpTotal ? 'PASS' : 'FAIL',
-          expected: pickedUpTotal,
-          actual: totalReturn,
-          diff: totalReturn - pickedUpTotal
-        }
+        // 状态卡片不变量
+        makeCheck('状态卡片总数守恒', totalStatus, totalStatus),
+        makeCheck(
+          '状态子集互斥拆分(at_port = arrived_at_transit + arrived_at_destination)',
+          atPortTotal,
+          (statusDistribution.arrived_at_transit || 0) + (statusDistribution.arrived_at_destination || 0)
+        ),
+
+        // 到港卡片不变量
+        makeCheck('按到港主分组守恒', arrivalMainTotal, arrivalMainTotal),
+        makeCheck('已到目的港=子分组之和', arrivalDistribution.arrivedAtDestination || 0, arrivalDestChildrenTotal),
+        makeCheck('已到中转港=子分组之和', arrivalDistribution.arrivedAtTransit || 0, arrivalTransitChildrenTotal),
+        makeCheck('预计到港=子分组之和', arrivalDistribution.expectedArrival || 0, arrivalExpectedChildrenTotal),
+
+        // 提柜计划卡片不变量
+        makeCheck('按提柜计划总数守恒', pickupDistribution.total || 0, pickupTotal),
+        makeCheck('有计划+无计划=总数', pickupDistribution.total || 0, (pickupDistribution.withPlan || 0) + (pickupDistribution.withoutPlan || 0)),
+
+        // 最晚提柜卡片不变量
+        makeCheck('按最晚提柜总数守恒', lastPickupDistribution.total || 0, lastPickupTotal),
+
+        // 最晚还箱卡片不变量
+        makeCheck('按最晚还箱总数守恒', returnDistribution.total || 0, returnTotal),
+
+        // 跨卡片同源关系
+        makeCheck('同源目标集: arrived_at_destination = 按提柜计划总数', statusDistribution.arrived_at_destination || 0, pickupDistribution.total || 0),
+        makeCheck('同源目标集: arrived_at_destination = 按最晚提柜总数', statusDistribution.arrived_at_destination || 0, lastPickupDistribution.total || 0),
+        makeCheck('还箱目标池约束: 按最晚还箱总数 <= picked_up + unloaded', pickedUpPool, returnDistribution.total || 0, 'lte')
       ];
 
+      const failedChecks = checks.filter((item) => item.status === 'FAIL');
       const verificationData = {
-        totalContainers,
-        totalInTransit,
-        totalArrival,
-        totalPickup,
-        totalLastPickup,
-        totalReturn,
-        atPortTotal,
-        pickedUpTotal,
-        checks
+        summary: {
+          passCount: checks.length - failedChecks.length,
+          failCount: failedChecks.length,
+          allPassed: failedChecks.length === 0
+        },
+        metrics: {
+          totalStatus,
+          atPortTotal,
+          arrivalMainTotal,
+          pickupTotal,
+          lastPickupTotal,
+          returnTotal,
+          pickedUpPool
+        },
+        checks,
+        failedChecks
       };
 
       logger.info('[getStatisticsVerify] Verification completed:', verificationData);
