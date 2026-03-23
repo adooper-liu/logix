@@ -438,9 +438,13 @@ export class ContainerController {
         logger.info(`Container created: ${savedContainer.containerNumber}`);
       }
 
+      const ganttDerived = await this.containerService.buildGanttDerivedForContainerNumber(
+        savedContainer.containerNumber
+      );
+
       res.status(201).json({
         success: true,
-        data: savedContainer,
+        data: { ...savedContainer, ganttDerived },
         message: '货柜创建成功'
       });
     } catch (error) {
@@ -502,9 +506,13 @@ export class ContainerController {
 
       logger.info(`Container updated: ${updatedContainer.containerNumber}`);
 
+      const ganttDerived = await this.containerService.buildGanttDerivedForContainerNumber(
+        updatedContainer.containerNumber
+      );
+
       res.json({
         success: true,
-        data: updatedContainer,
+        data: { ...updatedContainer, ganttDerived },
         message: '货柜更新成功'
       });
     } catch (error) {
@@ -1240,6 +1248,12 @@ export class ContainerController {
 
       await queryRunner.commitTransaction();
 
+      try {
+        await this.containerStatusService.updateStatus(containerNumber);
+      } catch (e) {
+        logger.warn('[setManualLastFreeDate] updateStatus after LFD failed:', e);
+      }
+
       logger.info('[setManualLastFreeDate] Manual LFD set successfully:', { containerNumber, lastFreeDate: parsedDate });
 
       res.json({
@@ -1306,6 +1320,12 @@ export class ContainerController {
       });
 
       await queryRunner.commitTransaction();
+
+      try {
+        await this.containerStatusService.updateStatus(containerNumber);
+      } catch (e) {
+        logger.warn('[resetLastFreeDateToComputed] updateStatus failed:', e);
+      }
 
       logger.info('[resetLastFreeDateToComputed] LFD reset to computed:', { containerNumber });
 

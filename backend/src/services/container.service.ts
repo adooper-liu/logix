@@ -273,6 +273,37 @@ export class ContainerService {
   }
 
   /**
+   * 从流程表即时构建 gantt_derived（与 enrich / 详情 API 口径一致，不读库列）
+   */
+  async buildGanttDerivedForContainerNumber(containerNumber: string) {
+    const [portOperations, truckingTransport, warehouseOperation, emptyReturn] = await Promise.all([
+      this.portOperationRepository.find({
+        where: { containerNumber },
+        order: { portSequence: 'ASC' }
+      }),
+      this.truckingTransportRepository.findOne({ where: { containerNumber } }),
+      this.warehouseOperationRepository.findOne({ where: { containerNumber } }),
+      this.emptyReturnRepository.findOne({ where: { containerNumber } })
+    ]);
+    return buildGanttDerived(
+      portOperations,
+      truckingTransport ?? undefined,
+      warehouseOperation ?? undefined,
+      emptyReturn ?? undefined
+    );
+  }
+
+  /**
+   * 排产预览等：加载港口/海运/备货单
+   */
+  async getContainerByNumber(containerNumber: string): Promise<Container | null> {
+    return this.containerRepository.findOne({
+      where: { containerNumber },
+      relations: ['portOperations', 'seaFreight', 'replenishmentOrders']
+    });
+  }
+
+  /**
    * 为单个货柜添加扩展信息
    */
   private async enrichSingleContainer(container: Container): Promise<ContainerWithStatus> {
@@ -1200,3 +1231,24 @@ export class ContainerService {
     };
   }
 }
+
+/** 与 ContainerController 构造参数一致，供排产预览等模块复用 */
+export function createContainerService(): ContainerService {
+  return new ContainerService(
+    AppDataSource.getRepository(Container),
+    AppDataSource.getRepository(ContainerStatusEvent),
+    AppDataSource.getRepository(PortOperation),
+    AppDataSource.getRepository(SeaFreight),
+    AppDataSource.getRepository(TruckingTransport),
+    AppDataSource.getRepository(WarehouseOperation),
+    AppDataSource.getRepository(EmptyReturn),
+    AppDataSource.getRepository(ReplenishmentOrder),
+    AppDataSource.getRepository(ContainerAlert),
+    AppDataSource.getRepository(CustomsBroker),
+    AppDataSource.getRepository(TruckingCompany),
+    AppDataSource.getRepository(Warehouse),
+    AppDataSource.getRepository(Country)
+  );
+}
+
+export const containerService = createContainerService();
