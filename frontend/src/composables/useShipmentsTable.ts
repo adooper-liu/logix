@@ -63,7 +63,7 @@ export function useShipmentsTable() {
     inspectionRequired: '查验/开箱',
     totalCost: '总费用',
     actualShipDate: '出运日期',
-    etaDestPort: 'ETA/修正ETA/ATA',
+    etaDestPort: '到港日期',
     lastFreeDate: '提柜日期',
     lastReturnDate: '还箱日期',
     cargoDescription: 'container.cargoDescription',

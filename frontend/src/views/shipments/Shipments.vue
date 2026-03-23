@@ -3,33 +3,100 @@ import CountdownCard from '@/components/CountdownCard.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import { useContainerCountdown } from '@/composables/useContainerCountdown'
 import { useLogisticsStatus } from '@/composables/useLogisticsStatus'
-import { useShipmentsTable } from '@/composables/useShipmentsTable'
 import { useShipmentsExport } from '@/composables/useShipmentsExport'
 import { useShipmentsSchedule } from '@/composables/useShipmentsSchedule'
-import { getCurrentLocationText } from '@/utils/logisticsStatusMachine'
+import { useShipmentsTable } from '@/composables/useShipmentsTable'
 import { containerService } from '@/services/container'
-import { useAppStore } from '@/store/app'
 import { useGanttFilterStore } from '@/store/ganttFilters'
 import type { PortOperation } from '@/types/container'
+import { getCurrentLocationText } from '@/utils/logisticsStatusMachine'
 import {
-    ArrowDown,
-    ArrowRight,
-    Calendar,
-    CircleCheck,
-    CircleClose,
-    Download,
-    Edit,
-    Refresh,
-    Search,
-    Setting,
-    View,
-    Warning,
+  ArrowDown,
+  ArrowRight,
+  Calendar,
+  CircleCheck,
+  CircleClose,
+  Download,
+  Edit,
+  Refresh,
+  Search,
+  Setting,
+  View,
+  Warning,
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ref, onMounted, onUnmounted } from 'vue'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+
+// 获取日期状态
+const getDateStatus = (
+  date: string | Date | null | undefined,
+  isActual: boolean = false
+): 'success' | 'warning' | 'danger' | 'info' => {
+  if (!date) return 'info'
+  const dateObj = dayjs(date)
+  const today = dayjs()
+  const diffDays = dateObj.diff(today, 'day')
+
+  if (isActual) {
+    // 实际日期：如果已过期（早于今天），则为异常
+    return diffDays < 0 ? 'danger' : 'success'
+  } else {
+    // 计划/预计日期：如果已过期且没有实际日期，则为异常；如果即将过期（3天内），则为警告
+    if (diffDays < 0) return 'danger'
+    if (diffDays <= 3) return 'warning'
+    return 'success'
+  }
+}
+
+// 获取日期标签类型
+const getDateTagType = (
+  date: string | Date | null | undefined,
+  actualDate?: string | Date | null | undefined,
+  type?: 'eta' | 'pickup' | 'return' | 'shipment' | 'update',
+  lastDate?: string | Date | null | undefined
+): 'success' | 'warning' | 'danger' | 'info' => {
+  if (!date) return 'info'
+
+  // 提柜日和还箱日的特殊规则
+  if (type === 'pickup' || type === 'return') {
+    // 最晚提柜日或最晚还箱日固定为灰色
+    if ((type === 'pickup' && date === lastDate) || (type === 'return' && date === lastDate)) {
+      return 'info'
+    }
+
+    // 计划提柜日、实际提柜日、计划还箱日、实际还箱日
+    if (lastDate) {
+      const dateObj = dayjs(date)
+      const lastDateObj = dayjs(lastDate)
+      const diffDays = dateObj.diff(lastDateObj, 'day')
+
+      if (diffDays <= 0) {
+        return 'success' // 早于或等于最晚提柜日/还箱日为绿色
+      } else if (diffDays <= 3) {
+        return 'warning' // 晚于最晚提柜日/还箱日3天内为黄色
+      } else {
+        return 'danger' // 晚于最晚提柜日/还箱日>3天为红色
+      }
+    }
+  }
+
+  // 其他日期（包括ETA、修正ETA、ATA、出运日期、更新日期等）都显示为灰色
+  return 'info'
+}
+
+// 获取日期颜色类
+const getDateColorClass = (
+  date: string | Date | null | undefined,
+  actualDate?: string | Date | null | undefined,
+  type?: 'eta' | 'pickup' | 'return' | 'shipment' | 'update',
+  lastDate?: string | Date | null | undefined
+): string => {
+  const tagType = getDateTagType(date, actualDate, type, lastDate)
+  return `date-color-${tagType}`
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -37,13 +104,10 @@ const ganttFilterStore = useGanttFilterStore()
 const { t } = useI18n()
 
 // 使用物流状态 composable
-const { 
-  getLogisticsStatusText, 
-  getStatusType
-} = useLogisticsStatus()
+const { getLogisticsStatusText, getStatusType } = useLogisticsStatus()
 
 // 使用表格相关 composable
-const { 
+const {
   containers,
   loading,
   searchKeyword,
@@ -73,26 +137,26 @@ const {
   handleCountdownFilter,
   resetFilter,
   columnLabels,
-  SimplifiedStatus
+  SimplifiedStatus,
 } = useShipmentsTable()
 
 // 使用导出相关 composable
-const { 
+const {
   handleExportCurrentPage,
   handleExportAll,
   handleBatchExport,
   formatDate,
   formatShipmentDate,
-  customsStatusMap
+  customsStatusMap,
 } = useShipmentsExport()
 
 // 使用排产相关 composable
-const { 
+const {
   batchScheduleLoading,
   scheduleDialogVisible,
   demurrageWriteBackLoading,
   executeDirectSchedule,
-  handleDemurrageWriteBack
+  handleDemurrageWriteBack,
 } = useShipmentsSchedule()
 
 // 组件卸载标记，防止卸载后响应式更新
@@ -143,14 +207,11 @@ const initFiltersFromUrl = () => {
   const filterCondition = route.query.filterCondition as string
   const startDate = route.query.startDate as string
   const endDate = route.query.endDate as string
-  
+
   if (startDate && endDate) {
-    shipmentDateRange.value = [
-      dayjs(startDate).toDate(),
-      dayjs(endDate).toDate()
-    ]
+    shipmentDateRange.value = [dayjs(startDate).toDate(), dayjs(endDate).toDate()]
   }
-  
+
   if (filterCondition) {
     activeFilter.value.days = filterCondition
     // 根据过滤条件设置类型
@@ -231,7 +292,10 @@ const handleSingleFreeDateWriteBack = async (row: { containerNumber?: string }) 
 }
 
 /** 操作列：单柜 LFD 手工维护 */
-const handleManualLfdUpdate = async (row: { containerNumber?: string; lastFreeDate?: string | Date | null }) => {
+const handleManualLfdUpdate = async (row: {
+  containerNumber?: string
+  lastFreeDate?: string | Date | null
+}) => {
   const cn = row.containerNumber?.trim()
   if (!cn) {
     ElMessage.warning('缺少柜号')
@@ -249,7 +313,7 @@ const handleManualLfdUpdate = async (row: { containerNumber?: string; lastFreeDa
         confirmButtonText: '保存',
         cancelButtonText: '取消',
         inputPattern: /^\d{4}-\d{2}-\d{2}$/,
-        inputErrorMessage: '日期格式应为 YYYY-MM-DD'
+        inputErrorMessage: '日期格式应为 YYYY-MM-DD',
       }
     )
     const lfd = (value || '').trim()
@@ -385,8 +449,8 @@ const goToGantt = () => {
       filterCondition,
       startDate,
       endDate,
-      filterLabel
-    }
+      filterLabel,
+    },
   })
 }
 
@@ -446,10 +510,7 @@ const formatCostModeText = (mode?: 'actual' | 'forecast' | string): string => {
   return '预计'
 }
 
-const formatCostItemName = (item: {
-  chargeType?: string | null
-  chargeName?: string | null
-}) => {
+const formatCostItemName = (item: { chargeType?: string | null; chargeName?: string | null }) => {
   if (item.chargeName) return item.chargeName
   const type = String(item.chargeType || '').toUpperCase()
   const typeMap: Record<string, string> = {
@@ -493,17 +554,23 @@ const CURRENCY_SYMBOL_MAP: Record<string, string> = {
 }
 
 const getRowCurrencyPrefix = (row: any): string => {
-  const countryCurrency = String(row.countryCurrency || '').trim().toUpperCase()
+  const countryCurrency = String(row.countryCurrency || '')
+    .trim()
+    .toUpperCase()
   if (countryCurrency && CURRENCY_SYMBOL_MAP[countryCurrency]) {
     return CURRENCY_SYMBOL_MAP[countryCurrency]
   }
   if (countryCurrency) return `${countryCurrency} `
 
-  const countryCode = String(row.sellToCountry || '').trim().toUpperCase()
+  const countryCode = String(row.sellToCountry || '')
+    .trim()
+    .toUpperCase()
   if (countryCode && COUNTRY_CURRENCY_SYMBOL_MAP[countryCode]) {
     return COUNTRY_CURRENCY_SYMBOL_MAP[countryCode]
   }
-  const currency = String(row.costBreakdown?.currency || '').trim().toUpperCase()
+  const currency = String(row.costBreakdown?.currency || '')
+    .trim()
+    .toUpperCase()
   if (currency && CURRENCY_SYMBOL_MAP[currency]) return CURRENCY_SYMBOL_MAP[currency]
   if (currency) return `${currency} `
   return '$'
@@ -521,8 +588,9 @@ const getCostDetailsText = (row: any): string => {
   const items = row.costBreakdown?.items || []
   if (!items.length) return '暂无费用明细'
   const prefix = getRowCurrencyPrefix(row)
-  const lines = items.map((item: any) =>
-    `${escapeHtml(formatCostItemName(item))}（${formatCostModeText(item.mode)}）：${prefix}${Number(item.amount || 0).toFixed(2)}`
+  const lines = items.map(
+    (item: any) =>
+      `${escapeHtml(formatCostItemName(item))}（${formatCostModeText(item.mode)}）：${prefix}${Number(item.amount || 0).toFixed(2)}`
   )
   return lines.join('<br/>')
 }
@@ -534,7 +602,9 @@ const getDestinationPortDisplay = (row: any): string => {
 /** 五节点状态图标：完成 / 未达成 / 进行中或需关注 */
 type FiveNodeKind = 'ok' | 'bad' | 'warn'
 
-const getFiveNodeKinds = (row: any): {
+const getFiveNodeKinds = (
+  row: any
+): {
   customs: FiveNodeKind
   pickup: FiveNodeKind
   unload: FiveNodeKind
@@ -568,7 +638,9 @@ const getFiveNodeKinds = (row: any): {
 
 const getFiveNodeRows = (row: any) => {
   const k = getFiveNodeKinds(row)
-  const unloaded = ['unloaded', 'returned_empty'].includes(String(row.logisticsStatus || '').toLowerCase())
+  const unloaded = ['unloaded', 'returned_empty'].includes(
+    String(row.logisticsStatus || '').toLowerCase()
+  )
   return [
     {
       kind: k.customs,
@@ -652,20 +724,22 @@ const goToSchedulingPage = () => {
   const endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
   const filterCondition = activeFilter.value.days
   const filterLabel = getFilterLabel(filterCondition)
-  
+
   router.push({
     path: '/scheduling',
     query: {
       startDate,
       endDate,
       filterCondition,
-      filterLabel
-    }
+      filterLabel,
+    },
   })
 }
 
 // 辅助函数：根据筛选条件确定时间维度
-const getTimeDimensionFromFilter = (filterCondition: string): 'arrival' | 'pickup' | 'lastPickup' | 'return' => {
+const getTimeDimensionFromFilter = (
+  filterCondition: string
+): 'arrival' | 'pickup' | 'lastPickup' | 'return' => {
   if (!filterCondition) return 'arrival'
   if (filterCondition.includes('arrival')) return 'arrival'
   if (filterCondition.includes('pickup') && !filterCondition.includes('last')) return 'pickup'
@@ -679,12 +753,12 @@ const goGanttChart = () => {
   const ids = selectedRows.value.length
     ? selectedRows.value.map((r: any) => r.containerNumber).filter(Boolean)
     : []
-  
+
   const startDate = dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD')
   const endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
   const filterCondition = activeFilter.value.days
   const filterLabel = getFilterLabel(filterCondition)
-  
+
   // 1. 保存到全局 Store（自动持久化到 localStorage）
   ganttFilterStore.setFilters({
     startDate: startDate,
@@ -692,20 +766,20 @@ const goGanttChart = () => {
     filterCondition: filterCondition || '',
     filterLabel: filterLabel || '',
     selectedContainers: ids,
-    timeDimension: getTimeDimensionFromFilter(filterCondition)
+    timeDimension: getTimeDimensionFromFilter(filterCondition),
   })
-  
+
   // 2. 构建 query 参数（用于 URL 显示和分享）
   const query: Record<string, string> = {
     startDate,
-    endDate
+    endDate,
   }
   if (filterCondition) {
     query.filterCondition = filterCondition
     query.filterLabel = filterLabel
   }
   if (ids.length) query.containers = ids.join(',')
-  
+
   // 3. 在同窗口打开甘特图（使用 router.push）
   router.push({ path: '/gantt-chart', query })
 }
@@ -759,7 +833,7 @@ onUnmounted(() => {
 
 <script lang="ts">
 export default {
-  name: 'Shipments'
+  name: 'Shipments',
 }
 </script>
 
@@ -775,6 +849,29 @@ export default {
   width: auto !important;
   max-width: 90% !important;
   top: auto !important;
+}
+
+/* 日期颜色类 */
+.date-color-success {
+  color: #67c23a;
+}
+.date-color-warning {
+  color: #e6a23c;
+}
+.date-color-danger {
+  color: #f56c6c;
+}
+.date-color-info {
+  color: #909399;
+}
+
+/* 日期和查验文本样式 */
+.date-text {
+  font-size: 12px;
+}
+
+.inspection-text {
+  font-size: 12px;
 }
 </style>
 
@@ -825,7 +922,9 @@ export default {
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="page">{{ t('common.export') }}当前页</el-dropdown-item>
-              <el-dropdown-item command="all">{{ t('common.export') }}全部（当前条件）</el-dropdown-item>
+              <el-dropdown-item command="all"
+                >{{ t('common.export') }}全部（当前条件）</el-dropdown-item
+              >
             </el-dropdown-menu>
           </template>
         </el-dropdown>
@@ -855,7 +954,7 @@ export default {
           :data="countdownByArrival"
           :tree-layout="true"
           @filter="handleCountdownFilter"
-          description="<strong>统计范围：</strong>已出运至已还箱的全部货柜（shipped / in_transit / at_port / picked_up / unloaded / returned_empty）<br/><strong>分组结构：</strong><br/>① 已到目的港：目的港有 ATA，子项按今日到港 / 之前未提柜 / 之前已提柜<br/>② 已到中转港：有中转港到港记录且目的港无 ATA，子项按目的港 ETA 细分<br/>③ 预计到港：目的港无 ATA，按目的港 ETA 与今天比较（已逾期、3 天内、7 天内、7 天后、其他），主数=子项之和<br/>④ 到港数据缺失：目的港无 ATA 无 ETA 但状态显示已到港/已提柜等，需补全数据<br/><strong>业务用途：</strong>监控海运段到港进度，区分中转港与目的港，预警逾期；统计与点击列表同源"
+          description="<strong>统计范围：</strong>已出运至已还箱的全部货柜（shipped / in_transit / at_port / picked_up / unloaded / returned_empty）<br/><strong>分组结构：</strong><br/>① 已到目的港：目的港有 ATA，子项按今日到港 / 之前未提柜 / 之前已提柜<br/>② 已到中转港：有中转港到港记录且目的港无 ATA，子项按目的港 ETA 细分<br/>③ ETA：目的港无 ATA，按目的港 ETA 与今天比较（已逾期、3 天内、7 天内、7 天后、其他），主数=子项之和<br/>④ 到港数据缺失：目的港无 ATA 无 ETA 但状态显示已到港/已提柜等，需补全数据<br/><strong>业务用途：</strong>监控海运段到港进度，区分中转港与目的港，预警逾期；统计与点击列表同源"
         />
         <CountdownCard
           title="按提柜计划"
@@ -900,14 +999,26 @@ export default {
           size="small"
           style="width: 220px; margin-right: 12px"
         >
-          <el-option :label="t('container.status.notShipped')" :value="SimplifiedStatus.NOT_SHIPPED" />
+          <el-option
+            :label="t('container.status.notShipped')"
+            :value="SimplifiedStatus.NOT_SHIPPED"
+          />
           <el-option :label="t('container.status.shipped')" :value="SimplifiedStatus.SHIPPED" />
-          <el-option :label="t('container.status.inTransit')" :value="SimplifiedStatus.IN_TRANSIT" />
-          <el-option :label="t('container.status.arrivedAtTransit')" :value="'arrived_at_transit'" />
+          <el-option
+            :label="t('container.status.inTransit')"
+            :value="SimplifiedStatus.IN_TRANSIT"
+          />
+          <el-option
+            :label="t('container.status.arrivedAtTransit')"
+            :value="'arrived_at_transit'"
+          />
           <el-option :label="t('container.status.atPort')" :value="'arrived_at_destination'" />
           <el-option :label="t('container.status.pickedUp')" :value="SimplifiedStatus.PICKED_UP" />
           <el-option :label="t('container.status.unloaded')" :value="SimplifiedStatus.UNLOADED" />
-          <el-option :label="t('container.status.returnedEmpty')" :value="SimplifiedStatus.RETURNED_EMPTY" />
+          <el-option
+            :label="t('container.status.returnedEmpty')"
+            :value="SimplifiedStatus.RETURNED_EMPTY"
+          />
         </el-select>
         <el-checkbox v-model="alertFilter" size="small" style="margin-right: 12px">
           <el-icon><Warning /></el-icon>
@@ -967,25 +1078,36 @@ export default {
           <template #default="{ row }">
             <div class="table-expand-detail">
               <div class="expand-row">
-                <span class="expand-label">目的港</span
-                ><span>{{ getDestinationPortDisplay(row) }}</span>
-                <span class="expand-label">预计到港</span
-                ><span>{{ row.etaDestPort ? formatDate(row.etaDestPort) : '-' }}</span>
-                <span class="expand-label">实际到港</span
-                ><span>{{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }}</span>
+                <!-- <span class="expand-label">目的港</span
+                ><span>{{ getDestinationPortDisplay(row) }}</span> -->
+                <span class="expand-label">到港日期</span
+                ><span>
+                  ETA {{ row.etaDestPort ? formatDate(row.etaDestPort) : '-' }} / Rev
+                  {{
+                    (row.etaCorrection ?? getEtaCorrection(row))
+                      ? formatDate((row.etaCorrection ?? getEtaCorrection(row)) as string | Date)
+                      : '-'
+                  }}
+                  / ATA {{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }}
+                </span>
+                <!-- </div>
+              <div class="expand-row"> -->
+                <span class="expand-label">提柜日期</span
+                ><span>
+                  LFD {{ row.lastFreeDate ? formatDate(row.lastFreeDate) : '-' }} / Plan
+                  {{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }} / Act
+                  {{ row.pickupDate ? formatDate(row.pickupDate) : '-' }}
+                </span>
+                <span class="expand-label">还箱日期</span
+                ><span>
+                  LRD {{ row.lastReturnDate ? formatDate(row.lastReturnDate) : '-' }} / Plan
+                  {{ row.plannedReturnDate ? formatDate(row.plannedReturnDate) : '-' }} / Act
+                  {{ row.returnTime ? formatDate(row.returnTime) : '-' }}
+                </span>
               </div>
               <div class="expand-row">
-                <span class="expand-label">计划提柜日</span
-                ><span>{{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }}</span>
-                <span class="expand-label">最晚提柜日</span
-                ><span>{{ row.lastFreeDate ? formatDate(row.lastFreeDate) : '-' }}</span>
-                <span class="expand-label">最晚还箱日</span
-                ><span>{{ row.lastReturnDate ? formatDate(row.lastReturnDate) : '-' }}</span>
-                <span class="expand-label">实际还箱日</span
-                ><span>{{ row.returnTime ? formatDate(row.returnTime) : '-' }}</span>
-              </div>
-              <div v-if="row.cargoDescription" class="expand-row">
-                <span class="expand-label">货物描述</span><span>{{ row.cargoDescription }}</span>
+                <span class="expand-label">货物描述</span
+                ><span>{{ row.cargoDescription || '-' }}</span>
               </div>
             </div>
           </template>
@@ -1006,7 +1128,12 @@ export default {
         </template>
         <template v-for="key in sortedVisibleColumnKeys" :key="key">
           <!-- 集装箱号、备货单号 -->
-          <el-table-column v-if="key === 'containerNumber'" :label="t('container.containerNumber')" width="180" fixed>
+          <el-table-column
+            v-if="key === 'containerNumber'"
+            :label="t('container.containerNumber')"
+            width="180"
+            fixed
+          >
             <template #default="{ row }">
               <div class="combined-numbers">
                 <div class="number-item">
@@ -1038,21 +1165,42 @@ export default {
           </el-table-column>
 
           <!-- 出运日期 -->
-          <el-table-column v-else-if="key === 'actualShipDate'" prop="actualShipDate" label="出运日期" width="120" sortable="custom">
+          <el-table-column
+            v-else-if="key === 'actualShipDate'"
+            prop="actualShipDate"
+            label="出运日期"
+            width="120"
+            sortable="custom"
+          >
             <template #default="{ row }">
-              {{ formatShipmentDate(row.actualShipDate || row.createdAt) }}
+              <span
+                class="date-text"
+                :class="getDateColorClass(row.actualShipDate || row.createdAt, null, 'shipment')"
+              >
+                {{ formatShipmentDate(row.actualShipDate || row.createdAt) }}
+              </span>
             </template>
           </el-table-column>
 
           <!-- 柜型 -->
-          <el-table-column v-else-if="key === 'containerTypeCode'" prop="containerTypeCode" label="柜型" width="80">
+          <el-table-column
+            v-else-if="key === 'containerTypeCode'"
+            prop="containerTypeCode"
+            label="柜型"
+            width="80"
+          >
             <template #default="{ row }">
               <el-tag size="small">{{ row.containerTypeCode || '-' }}</el-tag>
             </template>
           </el-table-column>
 
           <!-- 物流状态 -->
-          <el-table-column v-else-if="key === 'logisticsStatus'" prop="logisticsStatus" :label="t('container.logisticsStatus')" width="120">
+          <el-table-column
+            v-else-if="key === 'logisticsStatus'"
+            prop="logisticsStatus"
+            :label="t('container.logisticsStatus')"
+            width="120"
+          >
             <template #default="{ row }">
               <el-tag :type="getStatusType(row.logisticsStatus)" size="small">
                 {{ getLogisticsStatusText(row) || '-' }}
@@ -1061,7 +1209,12 @@ export default {
           </el-table-column>
 
           <!-- 五节点状态 -->
-          <el-table-column v-else-if="key === 'fiveNodeStatus'" label="五节点状态" width="200" align="left">
+          <el-table-column
+            v-else-if="key === 'fiveNodeStatus'"
+            label="五节点状态"
+            width="200"
+            align="left"
+          >
             <template #default="{ row }">
               <div class="five-node-status">
                 <el-tag
@@ -1085,17 +1238,17 @@ export default {
           </el-table-column>
 
           <!-- 预警 -->
-          <el-table-column v-else-if="key === 'alerts'" label="预警" width="70" align="left">
+          <el-table-column v-else-if="key === 'alerts'" label="预警" width="70" align="center">
             <template #default="{ row }">
               <div v-if="row.alerts && row.alerts.length > 0" class="alerts-container">
-                <el-tooltip 
-                  v-for="(alert, index) in row.alerts" 
+                <el-tooltip
+                  v-for="(alert, index) in row.alerts"
                   :key="alert.id || index"
                   :content="alert.message"
                   placement="top"
                   effect="light"
                 >
-                  <el-badge 
+                  <el-badge
                     :value="formatAlertTypeBadge(alert.type)"
                     :type="alert.resolved ? 'info' : 'danger'"
                     class="alert-badge"
@@ -1107,8 +1260,8 @@ export default {
               </div>
               <div v-else-if="row.alertCount && row.alertCount > 0" class="alerts-container">
                 <el-tooltip content="点击查看详细预警信息" placement="top" effect="light">
-                  <el-badge 
-                    :value="row.alertCount" 
+                  <el-badge
+                    :value="row.alertCount"
                     :type="row.hasResolvedAlerts ? 'info' : 'danger'"
                     class="alert-badge"
                   >
@@ -1116,10 +1269,13 @@ export default {
                   </el-badge>
                 </el-tooltip>
               </div>
-              <div v-else-if="row.resolvedAlertCount && row.resolvedAlertCount > 0" class="alerts-container">
+              <div
+                v-else-if="row.resolvedAlertCount && row.resolvedAlertCount > 0"
+                class="alerts-container"
+              >
                 <el-tooltip content="已处理的预警" placement="top" effect="light">
-                  <el-badge 
-                    :value="row.resolvedAlertCount" 
+                  <el-badge
+                    :value="row.resolvedAlertCount"
                     type="info"
                     class="alert-badge resolved-alert"
                   >
@@ -1128,7 +1284,7 @@ export default {
                 </el-tooltip>
               </div>
               <template v-else>
-                <el-icon :size="14" style="color: #ccc;"><Warning /></el-icon>
+                <el-icon :size="14" style="color: #ccc"><Warning /></el-icon>
               </template>
             </template>
           </el-table-column>
@@ -1143,22 +1299,27 @@ export default {
                 effect="light"
                 raw-content
               >
-                <span class="cost-total-text">{{ getRowCurrencyPrefix(row) }}{{ Number(row.totalCost || 0).toFixed(2) }}</span>
+                <span class="cost-total-text"
+                  >{{ getRowCurrencyPrefix(row) }}{{ Number(row.totalCost || 0).toFixed(2) }}</span
+                >
               </el-tooltip>
               <span v-else>-</span>
             </template>
           </el-table-column>
 
           <!-- 查验 & 开箱 -->
-          <el-table-column v-else-if="key === 'inspectionRequired'" label="查验/开箱" width="120" align="center">
+          <el-table-column
+            v-else-if="key === 'inspectionRequired'"
+            label="查验/开箱"
+            width="120"
+            align="center"
+          >
             <template #default="{ row }">
               <div class="inspection-unboxing">
-                <el-tag :type="row.inspectionRequired ? 'warning' : 'info'" size="small" style="margin-right: 4px;">
+                <span class="inspection-text" style="margin-right: 8px">
                   查验：{{ row.inspectionRequired ? '是' : '否' }}
-                </el-tag>
-                <el-tag :type="row.isUnboxing ? 'warning' : 'info'" size="small">
-                  开箱：{{ row.isUnboxing ? '是' : '否' }}
-                </el-tag>
+                </span>
+                <span class="inspection-text"> 开箱：{{ row.isUnboxing ? '是' : '否' }} </span>
               </div>
             </template>
           </el-table-column>
@@ -1173,37 +1334,68 @@ export default {
           <!-- 当前位置 -->
           <el-table-column v-else-if="key === 'location'" label="当前位置" width="100">
             <template #default="{ row }">
-              {{ getCurrentLocationText(row.logisticsStatus, getDestinationPortDisplay(row), row.currentPortType || row.latestPortOperation?.portType) || '-' }}
+              {{
+                getCurrentLocationText(
+                  row.logisticsStatus,
+                  getDestinationPortDisplay(row),
+                  row.currentPortType || row.latestPortOperation?.portType
+                ) || '-'
+              }}
             </template>
           </el-table-column>
 
-          <!-- ETA、修正ETA、ATA -->
-          <el-table-column v-else-if="key === 'etaDestPort'" label="ETA/修正ETA/ATA" width="180" sortable="custom">
+          <!-- 到港日期（ETA、修正ETA、ATA） -->
+          <el-table-column
+            v-else-if="key === 'etaDestPort'"
+            label="到港日期"
+            width="180"
+            sortable="custom"
+          >
             <template #default="{ row }">
               <div class="eta-ata-container">
                 <div class="date-item">
                   <span class="date-label">ETA：</span>
-                  <span>{{ row.etaDestPort ? formatDate(row.etaDestPort) : '-' }}</span>
+                  <span
+                    class="date-text"
+                    :class="getDateColorClass(row.etaDestPort, row.ataDestPort, 'eta')"
+                  >
+                    {{ row.etaDestPort ? formatDate(row.etaDestPort) : '-' }}
+                  </span>
                 </div>
                 <div class="date-item">
-                  <span class="date-label">修正：</span>
-                  <span v-if="row.etaCorrection ?? getEtaCorrection(row)">
-                    <el-tag type="success" size="small" style="margin: 0;">
-                      {{ formatDate((row.etaCorrection ?? getEtaCorrection(row)) as string | Date) }}
-                    </el-tag>
+                  <span class="date-label">Rev：</span>
+                  <span
+                    v-if="row.etaCorrection ?? getEtaCorrection(row)"
+                    class="date-text"
+                    :class="
+                      getDateColorClass(
+                        (row.etaCorrection ?? getEtaCorrection(row)) as string | Date,
+                        null,
+                        'eta'
+                      )
+                    "
+                  >
+                    {{ formatDate((row.etaCorrection ?? getEtaCorrection(row)) as string | Date) }}
                   </span>
                   <span v-else>-</span>
                 </div>
                 <div class="date-item">
                   <span class="date-label">ATA：</span>
-                  <span>{{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }}</span>
+                  <span class="date-text" :class="getDateColorClass(row.ataDestPort, null, 'eta')">
+                    {{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }}
+                  </span>
                 </div>
               </div>
             </template>
           </el-table-column>
 
           <!-- 清关状态 -->
-          <el-table-column v-else-if="key === 'customsStatus'" prop="customsStatus" label="清关状态" width="100">
+          <el-table-column
+            v-else-if="key === 'customsStatus'"
+            prop="customsStatus"
+            label="清关状态"
+            width="100"
+          >
             <template #default="{ row }">
               <el-tag
                 :type="customsStatusMap[row.customsStatus]?.type || 'info'"
@@ -1217,60 +1409,154 @@ export default {
           </el-table-column>
 
           <!-- 提柜日期 -->
-          <el-table-column v-else-if="key === 'lastFreeDate'" label="提柜日期" width="180" sortable="custom">
+          <el-table-column
+            v-else-if="key === 'lastFreeDate'"
+            label="提柜日期"
+            width="180"
+            sortable="custom"
+          >
             <template #default="{ row }">
               <div class="pickup-dates-container">
                 <div class="date-item">
-                  <span class="date-label">最晚：</span>
-                  <span>{{ row.lastFreeDate ? formatDate(row.lastFreeDate) : '-' }}</span>
+                  <span class="date-label">LFD：</span>
+                  <span
+                    class="date-text"
+                    :class="
+                      getDateColorClass(
+                        row.lastFreeDate,
+                        row.pickupDate,
+                        'pickup',
+                        row.lastFreeDate
+                      )
+                    "
+                  >
+                    {{ row.lastFreeDate ? formatDate(row.lastFreeDate) : '-' }}
+                  </span>
                 </div>
                 <div class="date-item">
-                  <span class="date-label">计划：</span>
-                  <span>{{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }}</span>
+                  <span class="date-label">Plan：</span>
+                  <span
+                    class="date-text"
+                    :class="
+                      getDateColorClass(
+                        row.plannedPickupDate,
+                        row.pickupDate,
+                        'pickup',
+                        row.lastFreeDate
+                      )
+                    "
+                  >
+                    {{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }}
+                  </span>
                 </div>
                 <div class="date-item">
-                  <span class="date-label">实际：</span>
-                  <span>{{ row.pickupDate ? formatDate(row.pickupDate) : '-' }}</span>
+                  <span class="date-label">Act：</span>
+                  <span
+                    class="date-text"
+                    :class="getDateColorClass(row.pickupDate, null, 'pickup', row.lastFreeDate)"
+                  >
+                    {{ row.pickupDate ? formatDate(row.pickupDate) : '-' }}
+                  </span>
                 </div>
               </div>
             </template>
           </el-table-column>
 
           <!-- 还箱日期 -->
-          <el-table-column v-else-if="key === 'lastReturnDate'" label="还箱日期" width="180" sortable="custom">
+          <el-table-column
+            v-else-if="key === 'lastReturnDate'"
+            label="还箱日期"
+            width="180"
+            sortable="custom"
+          >
             <template #default="{ row }">
               <div class="return-dates-container">
                 <div class="date-item">
-                  <span class="date-label">最晚：</span>
-                  <span>{{ row.lastReturnDate ? formatDate(row.lastReturnDate) : '-' }}</span>
+                  <span class="date-label">LRD：</span>
+                  <span
+                    class="date-text"
+                    :class="
+                      getDateColorClass(
+                        row.lastReturnDate,
+                        row.returnTime,
+                        'return',
+                        row.lastReturnDate
+                      )
+                    "
+                  >
+                    {{ row.lastReturnDate ? formatDate(row.lastReturnDate) : '-' }}
+                  </span>
                 </div>
                 <div class="date-item">
-                  <span class="date-label">计划：</span>
-                  <span>{{ row.plannedReturnDate ? formatDate(row.plannedReturnDate) : '-' }}</span>
+                  <span class="date-label">Plan：</span>
+                  <span
+                    class="date-text"
+                    :class="
+                      getDateColorClass(
+                        row.plannedReturnDate,
+                        row.returnTime,
+                        'return',
+                        row.lastReturnDate
+                      )
+                    "
+                  >
+                    {{ row.plannedReturnDate ? formatDate(row.plannedReturnDate) : '-' }}
+                  </span>
                 </div>
                 <div class="date-item">
-                  <span class="date-label">实际：</span>
-                  <span>{{ row.returnTime ? formatDate(row.returnTime) : '-' }}</span>
+                  <span class="date-label">Act：</span>
+                  <span
+                    class="date-text"
+                    :class="getDateColorClass(row.returnTime, null, 'return', row.lastReturnDate)"
+                  >
+                    {{ row.returnTime ? formatDate(row.returnTime) : '-' }}
+                  </span>
                 </div>
               </div>
             </template>
           </el-table-column>
 
           <!-- 货物描述 -->
-          <el-table-column v-else-if="key === 'cargoDescription'" prop="cargoDescription" :label="t('container.cargoDescription')" min-width="150" show-overflow-tooltip />
+          <el-table-column
+            v-else-if="key === 'cargoDescription'"
+            prop="cargoDescription"
+            :label="t('container.cargoDescription')"
+            min-width="150"
+            show-overflow-tooltip
+          />
 
           <!-- 最后更新 -->
-          <el-table-column v-else-if="key === 'lastUpdated'" prop="lastUpdated" label="最后更新" width="160" sortable="custom">
+          <el-table-column
+            v-else-if="key === 'lastUpdated'"
+            prop="lastUpdated"
+            label="最后更新"
+            width="160"
+            sortable="custom"
+          >
             <template #default="{ row }">
-              {{ row.lastUpdated ? formatDate(row.lastUpdated) : '-' }}
+              <span class="date-text" :class="getDateColorClass(row.lastUpdated, null, 'update')">
+                {{ row.lastUpdated ? formatDate(row.lastUpdated) : '-' }}
+              </span>
             </template>
           </el-table-column>
 
           <!-- 操作 -->
-          <el-table-column v-else-if="key === 'actions'" :label="t('common.actions')" width="110" fixed="right" align="center">
+          <el-table-column
+            v-else-if="key === 'actions'"
+            :label="t('common.actions')"
+            width="110"
+            fixed="right"
+            align="center"
+          >
             <template #default="{ row }">
               <div class="action-icons-grid">
-                <el-button size="small" type="primary" circle @click="viewDetails(row)" title="查看">
+                <el-button
+                  size="small"
+                  type="primary"
+                  circle
+                  @click="viewDetails(row)"
+                  title="查看"
+                >
                   <el-icon><View /></el-icon>
                 </el-button>
                 <el-button size="small" circle @click="editContainer(row)" title="编辑">
@@ -1284,7 +1570,9 @@ export default {
                   :title="t('container.shipmentsList.singleFreeDateWriteBack')"
                   @click="handleSingleFreeDateWriteBack(row)"
                 >
-                  <el-icon v-if="singleFreeDateWriteBackLoading !== row.containerNumber"><Calendar /></el-icon>
+                  <el-icon v-if="singleFreeDateWriteBackLoading !== row.containerNumber"
+                    ><Calendar
+                  /></el-icon>
                 </el-button>
                 <el-button
                   size="small"
@@ -1355,8 +1643,8 @@ export default {
   >
     <div class="schedule-dialog-content">
       <div class="schedule-desc">
-        <p style="font-weight: bold; margin-bottom: 12px;">智能排产流程：</p>
-        <ol style="padding-left: 20px; line-height: 1.8;">
+        <p style="font-weight: bold; margin-bottom: 12px">智能排产流程：</p>
+        <ol style="padding-left: 20px; line-height: 1.8">
           <li>查询所有"待排产"状态的货柜（schedule_status = initial）</li>
           <li>按清关可放行日排序（先到先得）</li>
           <li>为每个货柜匹配滞港费标准，计算最晚提柜日</li>
@@ -1364,7 +1652,7 @@ export default {
           <li>计算计划提柜日、计划卸柜日、最晚还箱日</li>
           <li>更新货柜的排产状态和计划日期</li>
         </ol>
-        <p style="color: #909399; font-size: 13px; margin-top: 12px;">
+        <p style="color: #909399; font-size: 13px; margin-top: 12px">
           提示：处理"待排产"(initial)和"已排产"(issued)状态，"已派工"(dispatched)的货柜不可重复处理
         </p>
       </div>
@@ -1418,7 +1706,7 @@ export default {
     margin-bottom: 4px;
     font-size: 12px;
     line-height: 1.4;
-    
+
     .number-label {
       font-weight: 500;
       margin-right: 4px;
@@ -1435,7 +1723,7 @@ export default {
     margin-bottom: 4px;
     font-size: 12px;
     line-height: 1.4;
-    
+
     .date-label {
       font-weight: 500;
       margin-right: 4px;

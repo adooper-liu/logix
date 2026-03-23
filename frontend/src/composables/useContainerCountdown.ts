@@ -96,9 +96,9 @@ export function useContainerCountdown(statisticsData: Ref<{
           { label: '无ETA', count: transitNoETA, color: '#909399', days: 'transitNoETA', level: 1 }
         ]
       },
-      // 预计到港分组（主数=子项之和，保证一致）
+      // ETA分组（主数=子项之和，保证一致）
       {
-        label: '预计到港',
+        label: 'ETA',
         count: overdue + within3Days + within7Days + over7Days + other,
         color: '#409eff',
         days: 'expectedArrival',
