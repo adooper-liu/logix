@@ -2945,7 +2945,7 @@ export class DemurrageService {
       }
     }
 
-    // 最晚还箱日：已有实际还箱 return_time 时，若 last_return_date 仍为空则补写（历史补算）
+    // 最晚还箱日（单条更新）：允许覆盖旧值，确保人工触发可对齐到最新计算结果
     if (computedLastReturnDate) {
       let emptyReturn = await this.emptyReturnRepo.findOne({
         where: { containerNumber }
@@ -2958,13 +2958,18 @@ export class DemurrageService {
         await this.emptyReturnRepo.save(emptyReturn);
         lastReturnDateWritten = true;
         logger.info(`[Demurrage] Single free-date write: last_return_date insert ${containerNumber}`);
-      } else if (!emptyReturn.lastReturnDate) {
-        await this.emptyReturnRepo.update(
-          { containerNumber },
-          { lastReturnDate: computedLastReturnDate }
-        );
-        lastReturnDateWritten = true;
-        logger.info(`[Demurrage] Single free-date write: last_return_date update ${containerNumber}`);
+      } else {
+        const shouldUpdate =
+          !emptyReturn.lastReturnDate ||
+          toDateOnly(emptyReturn.lastReturnDate).getTime() !== toDateOnly(computedLastReturnDate).getTime();
+        if (shouldUpdate) {
+          await this.emptyReturnRepo.update(
+            { containerNumber },
+            { lastReturnDate: computedLastReturnDate }
+          );
+          lastReturnDateWritten = true;
+          logger.info(`[Demurrage] Single free-date write: last_return_date overwrite ${containerNumber}`);
+        }
       }
     }
 

@@ -30,15 +30,32 @@ import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
+const getUtcDayNumber = (input: string | Date | null | undefined): number | null => {
+  if (!input) return null
+  if (typeof input === 'string') {
+    const m = input.match(/^(\d{4})-(\d{2})-(\d{2})/)
+    if (m) {
+      const y = Number(m[1])
+      const mon = Number(m[2]) - 1
+      const d = Number(m[3])
+      return Math.floor(Date.UTC(y, mon, d) / 86400000)
+    }
+  }
+  const date = input instanceof Date ? input : new Date(input)
+  if (Number.isNaN(date.getTime())) return null
+  return Math.floor(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) / 86400000)
+}
+
 // 获取日期状态
 const getDateStatus = (
   date: string | Date | null | undefined,
   isActual: boolean = false
 ): 'success' | 'warning' | 'danger' | 'info' => {
   if (!date) return 'info'
-  const dateObj = dayjs(date)
-  const today = dayjs()
-  const diffDays = dateObj.diff(today, 'day')
+  const targetDay = getUtcDayNumber(date)
+  const todayDay = getUtcDayNumber(new Date())
+  if (targetDay == null || todayDay == null) return 'info'
+  const diffDays = targetDay - todayDay
 
   if (isActual) {
     // 实际日期：如果已过期（早于今天），则为异常
@@ -69,9 +86,10 @@ const getDateTagType = (
 
     // 计划提柜日、实际提柜日、计划还箱日、实际还箱日
     if (lastDate) {
-      const dateObj = dayjs(date)
-      const lastDateObj = dayjs(lastDate)
-      const diffDays = dateObj.diff(lastDateObj, 'day')
+      const dateDay = getUtcDayNumber(date)
+      const lastDateDay = getUtcDayNumber(lastDate)
+      if (dateDay == null || lastDateDay == null) return 'info'
+      const diffDays = dateDay - lastDateDay
 
       if (diffDays <= 0) {
         return 'success' // 早于或等于最晚提柜日/还箱日为绿色
@@ -166,6 +184,8 @@ const isUnmounted = ref(false)
 const singleFreeDateWriteBackLoading = ref<string | null>(null)
 /** 单柜「LFD手工维护」按钮 loading（按柜号） */
 const manualLfdLoading = ref<string | null>(null)
+/** 统计卡片组折叠状态 */
+const statisticsCollapsed = ref(false)
 
 // 统计数据（从后端API获取，不依赖全量数据）
 const statisticsData = ref<{
@@ -873,6 +893,13 @@ export default {
 .inspection-text {
   font-size: 12px;
 }
+
+.inspection-unboxing {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
 </style>
 
 <template>
@@ -937,7 +964,19 @@ export default {
 
     <!-- 倒计时可视化卡片 -->
     <el-card class="countdown-cards">
-      <div class="countdown-grid">
+      <template #header>
+        <div class="countdown-header">
+          <span class="countdown-header-title">统计卡片组</span>
+          <el-button size="small" text @click="statisticsCollapsed = !statisticsCollapsed">
+            <el-icon style="margin-right: 4px">
+              <ArrowRight v-if="statisticsCollapsed" />
+              <ArrowDown v-else />
+            </el-icon>
+            {{ statisticsCollapsed ? '展开' : '折叠' }}
+          </el-button>
+        </div>
+      </template>
+      <div v-show="!statisticsCollapsed" class="countdown-grid">
         <CountdownCard
           title="按状态"
           label="物流状态分布"
@@ -1082,26 +1121,26 @@ export default {
                 ><span>{{ getDestinationPortDisplay(row) }}</span> -->
                 <span class="expand-label">到港日期</span
                 ><span>
-                  ETA {{ row.etaDestPort ? formatDate(row.etaDestPort) : '-' }} / Rev
+                  eta {{ row.etaDestPort ? formatDate(row.etaDestPort) : '-' }} / rev
                   {{
                     (row.etaCorrection ?? getEtaCorrection(row))
                       ? formatDate((row.etaCorrection ?? getEtaCorrection(row)) as string | Date)
                       : '-'
                   }}
-                  / ATA {{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }}
+                  / ata {{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }}
                 </span>
                 <!-- </div>
               <div class="expand-row"> -->
                 <span class="expand-label">提柜日期</span
                 ><span>
-                  LFD {{ row.lastFreeDate ? formatDate(row.lastFreeDate) : '-' }} / Plan
-                  {{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }} / Act
+                  lfd {{ row.lastFreeDate ? formatDate(row.lastFreeDate) : '-' }} / plan
+                  {{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }} / act
                   {{ row.pickupDate ? formatDate(row.pickupDate) : '-' }}
                 </span>
                 <span class="expand-label">还箱日期</span
                 ><span>
-                  LRD {{ row.lastReturnDate ? formatDate(row.lastReturnDate) : '-' }} / Plan
-                  {{ row.plannedReturnDate ? formatDate(row.plannedReturnDate) : '-' }} / Act
+                  lrd {{ row.lastReturnDate ? formatDate(row.lastReturnDate) : '-' }} / plan
+                  {{ row.plannedReturnDate ? formatDate(row.plannedReturnDate) : '-' }} / act
                   {{ row.returnTime ? formatDate(row.returnTime) : '-' }}
                 </span>
               </div>
@@ -1316,10 +1355,10 @@ export default {
           >
             <template #default="{ row }">
               <div class="inspection-unboxing">
-                <span class="inspection-text" style="margin-right: 8px">
+                <span class="inspection-text">
                   查验：{{ row.inspectionRequired ? '是' : '否' }}
                 </span>
-                <span class="inspection-text"> 开箱：{{ row.isUnboxing ? '是' : '否' }} </span>
+                <span class="inspection-text">开箱：{{ row.isUnboxing ? '是' : '否' }}</span>
               </div>
             </template>
           </el-table-column>
@@ -1354,7 +1393,7 @@ export default {
             <template #default="{ row }">
               <div class="eta-ata-container">
                 <div class="date-item">
-                  <span class="date-label">ETA：</span>
+                  <span class="date-label">eta：</span>
                   <span
                     class="date-text"
                     :class="getDateColorClass(row.etaDestPort, row.ataDestPort, 'eta')"
@@ -1363,7 +1402,7 @@ export default {
                   </span>
                 </div>
                 <div class="date-item">
-                  <span class="date-label">Rev：</span>
+                  <span class="date-label">rev：</span>
                   <span
                     v-if="row.etaCorrection ?? getEtaCorrection(row)"
                     class="date-text"
@@ -1380,7 +1419,7 @@ export default {
                   <span v-else>-</span>
                 </div>
                 <div class="date-item">
-                  <span class="date-label">ATA：</span>
+                  <span class="date-label">ata：</span>
                   <span class="date-text" :class="getDateColorClass(row.ataDestPort, null, 'eta')">
                     {{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }}
                   </span>
@@ -1418,7 +1457,7 @@ export default {
             <template #default="{ row }">
               <div class="pickup-dates-container">
                 <div class="date-item">
-                  <span class="date-label">LFD：</span>
+                  <span class="date-label">lfd：</span>
                   <span
                     class="date-text"
                     :class="
@@ -1434,7 +1473,7 @@ export default {
                   </span>
                 </div>
                 <div class="date-item">
-                  <span class="date-label">Plan：</span>
+                  <span class="date-label">plan：</span>
                   <span
                     class="date-text"
                     :class="
@@ -1450,7 +1489,7 @@ export default {
                   </span>
                 </div>
                 <div class="date-item">
-                  <span class="date-label">Act：</span>
+                  <span class="date-label">act：</span>
                   <span
                     class="date-text"
                     :class="getDateColorClass(row.pickupDate, null, 'pickup', row.lastFreeDate)"
@@ -1472,7 +1511,7 @@ export default {
             <template #default="{ row }">
               <div class="return-dates-container">
                 <div class="date-item">
-                  <span class="date-label">LRD：</span>
+                  <span class="date-label">lrd：</span>
                   <span
                     class="date-text"
                     :class="
@@ -1488,7 +1527,7 @@ export default {
                   </span>
                 </div>
                 <div class="date-item">
-                  <span class="date-label">Plan：</span>
+                  <span class="date-label">plan：</span>
                   <span
                     class="date-text"
                     :class="
@@ -1504,7 +1543,7 @@ export default {
                   </span>
                 </div>
                 <div class="date-item">
-                  <span class="date-label">Act：</span>
+                  <span class="date-label">act：</span>
                   <span
                     class="date-text"
                     :class="getDateColorClass(row.returnTime, null, 'return', row.lastReturnDate)"
@@ -1716,7 +1755,26 @@ export default {
   }
 }
 
-.eta-ata-container {
+.bbl-mbl-container {
+  .number-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .number-label {
+    font-weight: 500;
+    margin-right: 4px;
+    color: #606266;
+    min-width: 52px;
+  }
+}
+
+.eta-ata-container,
+.pickup-dates-container,
+.return-dates-container {
   .date-item {
     display: flex;
     align-items: center;
@@ -1726,9 +1784,9 @@ export default {
 
     .date-label {
       font-weight: 500;
-      margin-right: 4px;
+      margin-right: 6px;
       color: #606266;
-      min-width: 40px;
+      min-width: 31px;
     }
   }
 }
@@ -1991,8 +2049,24 @@ export default {
 .countdown-cards {
   margin-bottom: 8px;
 
+  :deep(.el-card__header) {
+    padding: 8px 10px;
+  }
+
   :deep(.el-card__body) {
     padding: 8px 10px;
+  }
+
+  .countdown-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .countdown-header-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--el-text-color-primary);
   }
 
   /* 五组卡片：按到港占 35%，其余四列等分 65%；中屏/小屏等分 */

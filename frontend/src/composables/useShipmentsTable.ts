@@ -174,7 +174,11 @@ export function useShipmentsTable() {
   const getSortValue = (row: ContainerListItem, prop: string): number | string => {
     const val = prop === 'actualShipDate' ? row.actualShipDate || row.createdAt : row[prop]
     if (val == null || val === '') return ''
-    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val)) return new Date(val).getTime()
+    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val)) {
+      const m = val.match(/^(\d{4})-(\d{2})-(\d{2})/)
+      if (m) return Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+      return new Date(val).getTime()
+    }
     if (val instanceof Date) return val.getTime()
     return String(val)
   }

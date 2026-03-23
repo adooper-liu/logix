@@ -251,9 +251,10 @@ export class ContainerService {
           sellToCountry: orderInfo?.sellToCountry || null,
           countryCurrency: getCountryCurrency(),
           customerName: orderInfo?.customerName || null,
-          // 计划提柜日 / 最晚提柜日 / 最晚还箱日 / 实际还箱日（列表表头用）
+          // 计划提柜日 / 实际提柜日 / 最晚提柜日 / 最晚还箱日 / 实际还箱日（列表表头用）
           // lastFreeDate 来自目的港港口操作，与 currentPortType 无关
           plannedPickupDate: this.toUtcDateString(truckingTransport?.plannedPickupDate || null),
+          pickupDate: this.toUtcDateString(truckingTransport?.pickupDate || null),
           lastFreeDate: this.toUtcDateString(destPortOp?.lastFreeDate ?? latestPortOperation?.lastFreeDate ?? null),
           lastReturnDate: this.toUtcDateString(emptyReturn?.lastReturnDate || null),
           returnTime: this.toUtcDateString(emptyReturn?.returnTime || null),
@@ -291,14 +292,18 @@ export class ContainerService {
     return status === 'FINAL' ? 'actual' : 'forecast';
   }
 
-  /** 统一输出 UTC 日期字符串（YYYY-MM-DD），避免前端按本地时区换日 */
+  /** 统一输出日期字符串（YYYY-MM-DD），不做时区换算，按源数据日期展示 */
   private toUtcDateString(input?: Date | string | null): string | null {
     if (!input) return null;
+    if (typeof input === 'string') {
+      const match = input.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (match) return `${match[1]}-${match[2]}-${match[3]}`;
+    }
     const d = input instanceof Date ? input : new Date(input);
     if (Number.isNaN(d.getTime())) return null;
-    const y = d.getUTCFullYear();
-    const m = String(d.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(d.getUTCDate()).padStart(2, '0');
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${m}-${day}`;
   }
 
