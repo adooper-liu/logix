@@ -43,7 +43,9 @@ const getUtcDayNumber = (input: string | Date | null | undefined): number | null
   }
   const date = input instanceof Date ? input : new Date(input)
   if (Number.isNaN(date.getTime())) return null
-  return Math.floor(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) / 86400000)
+  return Math.floor(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()) / 86400000
+  )
 }
 
 // 获取日期状态
@@ -1121,27 +1123,27 @@ export default {
                 ><span>{{ getDestinationPortDisplay(row) }}</span> -->
                 <span class="expand-label">到港日期</span
                 ><span>
-                  eta {{ row.etaDestPort ? formatDate(row.etaDestPort) : '-' }} / rev
+                  {{ row.etaDestPort ? formatDate(row.etaDestPort) : '-' }} eta /
                   {{
                     (row.etaCorrection ?? getEtaCorrection(row))
                       ? formatDate((row.etaCorrection ?? getEtaCorrection(row)) as string | Date)
                       : '-'
                   }}
-                  / ata {{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }}
+                  rev / {{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }} ata
                 </span>
                 <!-- </div>
               <div class="expand-row"> -->
                 <span class="expand-label">提柜日期</span
                 ><span>
-                  lfd {{ row.lastFreeDate ? formatDate(row.lastFreeDate) : '-' }} / plan
-                  {{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }} / act
-                  {{ row.pickupDate ? formatDate(row.pickupDate) : '-' }}
+                  {{ row.lastFreeDate ? formatDate(row.lastFreeDate) : '-' }} lfd /
+                  {{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }} plan /
+                  {{ row.pickupDate ? formatDate(row.pickupDate) : '-' }} act
                 </span>
                 <span class="expand-label">还箱日期</span
                 ><span>
-                  lrd {{ row.lastReturnDate ? formatDate(row.lastReturnDate) : '-' }} / plan
-                  {{ row.plannedReturnDate ? formatDate(row.plannedReturnDate) : '-' }} / act
-                  {{ row.returnTime ? formatDate(row.returnTime) : '-' }}
+                  {{ row.lastReturnDate ? formatDate(row.lastReturnDate) : '-' }} lrd /
+                  {{ row.plannedReturnDate ? formatDate(row.plannedReturnDate) : '-' }} plan /
+                  {{ row.returnTime ? formatDate(row.returnTime) : '-' }} act
                 </span>
               </div>
               <div class="expand-row">
@@ -1169,18 +1171,16 @@ export default {
           <!-- 集装箱号、备货单号 -->
           <el-table-column
             v-if="key === 'containerNumber'"
-            :label="t('container.containerNumber')"
+            label="货柜号/备货单号"
             width="180"
             fixed
           >
             <template #default="{ row }">
               <div class="combined-numbers">
                 <div class="number-item">
-                  <span class="number-label">柜号：</span>
                   <span>{{ row.containerNumber || '-' }}</span>
                 </div>
                 <div class="number-item">
-                  <span class="number-label">备货单号：</span>
                   <span>{{ row.orderNumber || '-' }}</span>
                 </div>
               </div>
@@ -1192,11 +1192,9 @@ export default {
             <template #default="{ row }">
               <div class="bbl-mbl-container">
                 <div class="number-item">
-                  <span class="number-label">提单号：</span>
                   <span>{{ row.billOfLadingNumber || '-' }}</span>
                 </div>
                 <div class="number-item">
-                  <span class="number-label">MBL：</span>
                   <span>{{ row.mblNumber || '-' }}</span>
                 </div>
               </div>
@@ -1393,16 +1391,15 @@ export default {
             <template #default="{ row }">
               <div class="eta-ata-container">
                 <div class="date-item">
-                  <span class="date-label">eta：</span>
                   <span
                     class="date-text"
                     :class="getDateColorClass(row.etaDestPort, row.ataDestPort, 'eta')"
                   >
                     {{ row.etaDestPort ? formatDate(row.etaDestPort) : '-' }}
                   </span>
+                  <span class="date-label">eta</span>
                 </div>
                 <div class="date-item">
-                  <span class="date-label">rev：</span>
                   <span
                     v-if="row.etaCorrection ?? getEtaCorrection(row)"
                     class="date-text"
@@ -1417,12 +1414,13 @@ export default {
                     {{ formatDate((row.etaCorrection ?? getEtaCorrection(row)) as string | Date) }}
                   </span>
                   <span v-else>-</span>
+                  <span class="date-label">rev</span>
                 </div>
                 <div class="date-item">
-                  <span class="date-label">ata：</span>
                   <span class="date-text" :class="getDateColorClass(row.ataDestPort, null, 'eta')">
                     {{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }}
                   </span>
+                  <span class="date-label">ata</span>
                 </div>
               </div>
             </template>
@@ -1457,7 +1455,6 @@ export default {
             <template #default="{ row }">
               <div class="pickup-dates-container">
                 <div class="date-item">
-                  <span class="date-label">lfd：</span>
                   <span
                     class="date-text"
                     :class="
@@ -1471,9 +1468,9 @@ export default {
                   >
                     {{ row.lastFreeDate ? formatDate(row.lastFreeDate) : '-' }}
                   </span>
+                  <span class="date-label">lfd</span>
                 </div>
                 <div class="date-item">
-                  <span class="date-label">plan：</span>
                   <span
                     class="date-text"
                     :class="
@@ -1487,15 +1484,16 @@ export default {
                   >
                     {{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }}
                   </span>
+                  <span class="date-label">pla</span>
                 </div>
                 <div class="date-item">
-                  <span class="date-label">act：</span>
                   <span
                     class="date-text"
                     :class="getDateColorClass(row.pickupDate, null, 'pickup', row.lastFreeDate)"
                   >
                     {{ row.pickupDate ? formatDate(row.pickupDate) : '-' }}
                   </span>
+                  <span class="date-label">act</span>
                 </div>
               </div>
             </template>
@@ -1511,7 +1509,6 @@ export default {
             <template #default="{ row }">
               <div class="return-dates-container">
                 <div class="date-item">
-                  <span class="date-label">lrd：</span>
                   <span
                     class="date-text"
                     :class="
@@ -1525,9 +1522,9 @@ export default {
                   >
                     {{ row.lastReturnDate ? formatDate(row.lastReturnDate) : '-' }}
                   </span>
+                  <span class="date-label">lrd</span>
                 </div>
                 <div class="date-item">
-                  <span class="date-label">plan：</span>
                   <span
                     class="date-text"
                     :class="
@@ -1541,15 +1538,16 @@ export default {
                   >
                     {{ row.plannedReturnDate ? formatDate(row.plannedReturnDate) : '-' }}
                   </span>
+                  <span class="date-label">pla</span>
                 </div>
                 <div class="date-item">
-                  <span class="date-label">act：</span>
                   <span
                     class="date-text"
                     :class="getDateColorClass(row.returnTime, null, 'return', row.lastReturnDate)"
                   >
                     {{ row.returnTime ? formatDate(row.returnTime) : '-' }}
                   </span>
+                  <span class="date-label">act</span>
                 </div>
               </div>
             </template>
@@ -1775,18 +1773,27 @@ export default {
 .eta-ata-container,
 .pickup-dates-container,
 .return-dates-container {
+  text-align: right;
+
   .date-item {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     margin-bottom: 4px;
     font-size: 12px;
     line-height: 1.4;
 
     .date-label {
+      font-size: 10px;
       font-weight: 500;
-      margin-right: 6px;
+      font-style: italic;
+      line-height: 1;
+      vertical-align: sub;
+      position: relative;
+      top: 1px;
+      margin-left: 3px;
       color: #606266;
-      min-width: 31px;
+      min-width: auto;
     }
   }
 }
