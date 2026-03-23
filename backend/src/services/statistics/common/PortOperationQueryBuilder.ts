@@ -30,14 +30,16 @@ export class PortOperationQueryBuilder {
   }
 
   /**
-   * 获取目的港最新港口操作的子查询（不含 ATA）
-   * 用于需要目的港 ETA 的查询
+   * 获取目的港最新港口操作的子查询（ETA，且尚未到目的港）
+   * 必须 ata/available_time 均为空，否则与「已到目的港」及状态机 4/4a 互斥，避免与按 ATA 统计重复计数
    */
   static getLatestDestinationPortWithEtaAlias(): string {
     return `(
       SELECT po1.container_number, po1.eta as latest_eta
       FROM process_port_operations po1
       WHERE po1.port_type = 'destination'
+      AND po1.ata IS NULL
+      AND po1.available_time IS NULL
       AND po1.port_sequence = (
         SELECT MAX(po2.port_sequence)
         FROM process_port_operations po2

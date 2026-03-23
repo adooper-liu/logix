@@ -118,7 +118,7 @@ export class DemurrageWriteBackScheduler {
         });
         logger.info('[DemurrageWriteBackScheduler] Batch compute records completed', computeResult);
 
-        const writeBackResult = await this.demurrageService.batchWriteBackComputedDates({
+        const writeBackResult = await this.demurrageService.runScheduledFreeDateUpdate({
           limitLastFree: Math.floor(batchSize / 2),
           limitLastReturn: Math.floor(batchSize / 2)
         });
@@ -149,7 +149,7 @@ export class DemurrageWriteBackScheduler {
     lastReturnProcessed: number;
   }> {
     logger.info('[DemurrageWriteBackScheduler] Manual write-back triggered');
-    return this.demurrageService.batchWriteBackComputedDates({
+    return this.demurrageService.runManualFreeDateUpdate({
       limitLastFree: 100,
       limitLastReturn: 100
     });

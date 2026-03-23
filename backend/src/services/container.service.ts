@@ -4,13 +4,14 @@
  * 负责处理货柜相关的复杂业务逻辑
  */
 
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
 import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
 import { Country } from '../entities/Country';
 import { CustomsBroker } from '../entities/CustomsBroker';
 import { EmptyReturn } from '../entities/EmptyReturn';
+import { Port } from '../entities/Port';
 import { PortOperation } from '../entities/PortOperation';
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { SeaFreight } from '../entities/SeaFreight';
@@ -20,6 +21,7 @@ import { Warehouse } from '../entities/Warehouse';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { AlertLevel, AlertType, ContainerAlert } from '../entities/ContainerAlert';
 import { ExtFeituoStatusEvent } from '../entities/ExtFeituoStatusEvent';
+import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
 import { logger } from '../utils/logger';
 import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
 import { buildGanttDerived } from '../utils/ganttDerivedBuilder';
@@ -52,7 +54,9 @@ export class ContainerService {
     private customsBrokerRepository: Repository<CustomsBroker>,
     private truckingCompanyRepository: Repository<TruckingCompany>,
     private warehouseRepository: Repository<Warehouse>,
-    private countryRepository: Repository<Country>
+    private portRepository: Repository<Port>,
+    private countryRepository: Repository<Country>,
+    private demurrageRecordRepository: Repository<ExtDemurrageRecord>
   ) {}
 
   /**
@@ -66,7 +70,7 @@ export class ContainerService {
     const containerNumbers = containers.map((c) => c.containerNumber);
 
     // 批量查询所有相关数据
-    const [ordersMap, eventsMap, portOperationsMap, truckingMap, warehouseMap, emptyReturnsMap, alertsMap, customsBrokersMap, truckingCompaniesMap, warehousesMap, countriesMap] =
+    const [ordersMap, eventsMap, portOperationsMap, truckingMap, warehouseMap, emptyReturnsMap, alertsMap, customsBrokersMap, truckingCompaniesMap, warehousesMap, countriesMap, portNameMap, costBreakdownMap] =
       await Promise.all([
         this.batchFetchOrders(containerNumbers),
         this.batchFetchStatusEvents(containerNumbers),
@@ -78,7 +82,9 @@ export class ContainerService {
         this.batchFetchCustomsBrokers(),
         this.batchFetchTruckingCompanies(),
         this.batchFetchWarehouses(),
-        this.batchFetchCountries()
+        this.batchFetchCountries(),
+        this.batchFetchPortNames(containerNumbers),
+        this.batchFetchCostBreakdown(containerNumbers)
       ]);
 
     const enrichedContainers = containers.map((container) => {
@@ -89,6 +95,10 @@ export class ContainerService {
         const orderInfo = ordersMap.get(containerNumber);
         const latestEvent = eventsMap.get(containerNumber);
         const portOperations = portOperationsMap.get(containerNumber) || [];
+        const destinationPortCode = container.seaFreight?.portOfDischarge || null;
+        const destinationPortName = destinationPortCode
+          ? portNameMap.get(destinationPortCode) || destinationPortCode
+          : null;
         const truckingTransport = truckingMap.get(containerNumber);
         const warehouseOperation = warehouseMap.get(containerNumber);
         const emptyReturn = emptyReturnsMap.get(containerNumber);
@@ -128,6 +138,12 @@ export class ContainerService {
           if (!sellToCountry) return null;
           const country = countriesMap.get(sellToCountry);
           return country?.nameCn || null;
+        };
+
+        const getCountryCurrency = (): string | null => {
+          if (!sellToCountry) return null;
+          const country = countriesMap.get(sellToCountry);
+          return country?.currency || null;
         };
 
         // 清关行缺省约定
@@ -184,6 +200,7 @@ export class ContainerService {
         const alertCount = alerts.filter(alert => !alert.resolved).length;
         const resolvedAlertCount = alerts.filter(alert => alert.resolved).length;
         const hasResolvedAlerts = resolvedAlertCount > 0;
+        const costBreakdown = costBreakdownMap.get(containerNumber) ?? null;
 
         // 甘特派生：始终以流程表即时计算（与 ganttDerivedBuilder 单一真相一致），不读可能过期的 gantt_derived 列
         const ganttDerived = buildGanttDerived(
@@ -216,18 +233,23 @@ export class ContainerService {
           alertCount,
           resolvedAlertCount,
           hasResolvedAlerts,
+          // 费用信息（来自 ext_demurrage_records）
+          totalCost: costBreakdown?.total ?? null,
+          costBreakdown,
           // 扩展字段（与列表表头绑定一致）
           // 始终使用目的港的ETA/ATA，不受中转港影响
           etaDestPort: destPortOp?.eta || container.seaFreight?.eta || null,
           etaCorrection: destPortOp?.etaCorrection || null,
           ataDestPort: destPortOp?.ata || null,
           customsStatus: destPortOp?.customsStatus || null,
-          destinationPort: container.seaFreight?.portOfDischarge || null,
+          destinationPort: destinationPortCode,
+          destinationPortName,
           billOfLadingNumber:
             container.seaFreight?.mblNumber || container.seaFreight?.billOfLadingNumber || null,
           mblNumber: container.seaFreight?.mblNumber || null,
           actualShipDate: orderInfo?.expectedShipDate || container.seaFreight?.shipmentDate || null,
           sellToCountry: orderInfo?.sellToCountry || null,
+          countryCurrency: getCountryCurrency(),
           customerName: orderInfo?.customerName || null,
           // 计划提柜日 / 最晚提柜日 / 最晚还箱日 / 实际还箱日（列表表头用）
           // lastFreeDate 来自目的港港口操作，与 currentPortType 无关
@@ -257,6 +279,67 @@ export class ContainerService {
     );
 
     return enrichedContainers;
+  }
+
+  private normalizeChargeMode(
+    calculationMode?: string | null,
+    chargeStatus?: string | null
+  ): 'actual' | 'forecast' {
+    const mode = String(calculationMode || '').toLowerCase();
+    if (mode === 'actual' || mode === 'forecast') return mode;
+    const status = String(chargeStatus || '').toUpperCase();
+    return status === 'FINAL' ? 'actual' : 'forecast';
+  }
+
+  /**
+   * 批量读取费用明细（滞港/滞箱/堆存等），按柜聚合到列表行
+   */
+  private async batchFetchCostBreakdown(containerNumbers: string[]) {
+    const map = new Map<
+      string,
+      {
+        currency: string;
+        total: number;
+        items: Array<{
+          chargeType: string | null;
+          chargeName: string | null;
+          amount: number;
+          mode: 'actual' | 'forecast';
+        }>;
+      }
+    >();
+    if (containerNumbers.length === 0) return map;
+
+    const rows = await this.demurrageRecordRepository.find({
+      where: { containerNumber: In(containerNumbers) },
+      order: { computedAt: 'DESC', id: 'DESC' }
+    });
+
+    for (const row of rows) {
+      const cn = row.containerNumber;
+      if (!cn) continue;
+      const amount = Number(row.chargeAmount ?? 0);
+      const mode = this.normalizeChargeMode(row.calculationMode, row.chargeStatus);
+      const current = map.get(cn) ?? {
+        currency: row.currency || 'USD',
+        total: 0,
+        items: []
+      };
+      current.currency = current.currency || row.currency || 'USD';
+      current.total += amount;
+      current.items.push({
+        chargeType: row.chargeType || null,
+        chargeName: row.chargeName || null,
+        amount,
+        mode
+      });
+      map.set(cn, current);
+    }
+
+    for (const [, v] of map) {
+      v.total = Math.round(v.total * 100) / 100;
+    }
+    return map;
   }
 
   /**
@@ -1069,6 +1152,31 @@ export class ContainerService {
     }
   }
 
+  private async batchFetchPortNames(containerNumbers: string[]): Promise<Map<string, string>> {
+    try {
+      if (containerNumbers.length === 0) return new Map();
+      const containers = await this.containerRepository.find({
+        where: { containerNumber: In(containerNumbers) },
+        relations: ['seaFreight']
+      });
+      const portCodes = Array.from(
+        new Set(
+          containers
+            .map(c => c.seaFreight?.portOfDischarge)
+            .filter((code): code is string => !!code && String(code).trim().length > 0)
+        )
+      );
+      if (portCodes.length === 0) return new Map();
+      const ports = await this.portRepository.find({
+        where: { portCode: In(portCodes) }
+      });
+      return new Map(ports.map(p => [p.portCode, p.portName]));
+    } catch (error) {
+      logger.warn('[batchFetchPortNames] Failed:', error);
+      return new Map();
+    }
+  }
+
   /**
    * 批量查询预警信息
    */
@@ -1098,7 +1206,7 @@ export class ContainerService {
 
       /**
        * 列表只读 ext_container_alerts；若未跑 checkAllAlerts 则甩柜预警为空。
-       * 对 ext_feituo_status_events 中 event_code=DUMP 补充展示用预警（不落库，id 为负避免与 DB 冲突）。
+       * 对 ext_feituo_status_events 中 event_code=DUMP 补充展示用预警（不落库，id 为负；类型与库内一致为 rollover，避免与「其他」混淆）。
        */
       if (containerNumbers.length > 0) {
         const feituoRepo = AppDataSource.getRepository(ExtFeituoStatusEvent);
@@ -1116,6 +1224,8 @@ export class ContainerService {
         }
         for (const cn of containerNumbers) {
           const list = result.get(cn) || [];
+          const hasRolloverInDb = list.some((a) => a.type === AlertType.ROLLOVER);
+          if (hasRolloverInDb) continue;
           const hasUnresolvedDumpInDb = list.some(
             (a) => !a.resolved && (a.message.includes('甩柜') || a.message.toLowerCase().includes('dump'))
           );
@@ -1127,7 +1237,7 @@ export class ContainerService {
           const synthetic = {
             id: -ev.id,
             containerNumber: cn,
-            type: AlertType.OTHER,
+            type: AlertType.ROLLOVER,
             level: AlertLevel.CRITICAL,
             message: `甩柜事件: ${desc}`,
             resolved: false,
@@ -1247,7 +1357,9 @@ export function createContainerService(): ContainerService {
     AppDataSource.getRepository(CustomsBroker),
     AppDataSource.getRepository(TruckingCompany),
     AppDataSource.getRepository(Warehouse),
-    AppDataSource.getRepository(Country)
+    AppDataSource.getRepository(Port),
+    AppDataSource.getRepository(Country),
+    AppDataSource.getRepository(ExtDemurrageRecord)
   );
 }
 

@@ -432,9 +432,20 @@ export interface ContainerListItem {
   resolvedAlertCount?: number;
   hasResolvedAlerts?: boolean;
   totalCost?: number;
+  costBreakdown?: {
+    currency: string;
+    total: number;
+    items: Array<{
+      chargeType: string | null;
+      chargeName: string | null;
+      amount: number;
+      mode: 'actual' | 'forecast';
+    }>;
+  };
   inspectionRequired: boolean;
   isUnboxing: boolean;
   destinationPort?: string;
+  destinationPortName?: string;
   location?: string;
   actualShipDate?: Date;
   createdAt?: Date;
@@ -442,6 +453,7 @@ export interface ContainerListItem {
   etaCorrection?: Date;
   ataDestPort?: Date;
   customsStatus?: string;
+  countryCurrency?: string;
   plannedPickupDate?: Date;
   pickupDate?: Date;
   lastFreeDate?: Date;

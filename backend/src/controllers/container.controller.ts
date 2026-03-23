@@ -10,6 +10,7 @@ import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
 import { Country } from '../entities/Country';
 import { CustomsBroker } from '../entities/CustomsBroker';
 import { PortOperation } from '../entities/PortOperation';
+import { Port } from '../entities/Port';
 import { SeaFreight } from '../entities/SeaFreight';
 import { TruckingCompany } from '../entities/TruckingCompany';
 import { TruckingTransport } from '../entities/TruckingTransport';
@@ -20,6 +21,7 @@ import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { ContainerAlert } from '../entities/ContainerAlert';
+import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
 import { In, Repository, MoreThanOrEqual } from 'typeorm';
 import { logger } from '../utils/logger';
 import { snakeToCamel } from '../utils/snakeToCamel';
@@ -84,7 +86,9 @@ export class ContainerController {
       customsBrokerRepository,
       truckingCompanyRepository,
       warehouseRepository,
-      countryRepository
+      AppDataSource.getRepository(Port),
+      countryRepository,
+      AppDataSource.getRepository(ExtDemurrageRecord)
     );
 
     this.containerDataService = new ContainerDataService(
@@ -1313,11 +1317,18 @@ export class ContainerController {
         return;
       }
 
-      // 3. 恢复为自动计算模式（清空手工标记和备注，保留原lastFreeDate值供下次计算覆盖）
-      await queryRunner.manager.update(PortOperation, { id: destPort.id }, {
-        lastFreeDateSource: 'computed',
-        lastFreeDateRemark: null
-      });
+      // 3. 恢复为自动计算模式（清空手工备注；有原 LFD 则标为 computed；无日期则 source 置 NULL，避免「computed 却无 last_free_date」）
+      if (destPort.lastFreeDate != null) {
+        await queryRunner.manager.update(PortOperation, { id: destPort.id }, {
+          lastFreeDateSource: 'computed',
+          lastFreeDateRemark: null
+        });
+      } else {
+        await queryRunner.manager.update(PortOperation, { id: destPort.id }, {
+          lastFreeDateSource: null,
+          lastFreeDateRemark: null
+        } as any);
+      }
 
       await queryRunner.commitTransaction();
 

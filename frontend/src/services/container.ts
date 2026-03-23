@@ -264,6 +264,67 @@ class ContainerService {
   }
 
   /**
+   * 单柜写回免费日（最晚提柜日/最晚还箱日及拖卡 last_pickup_date 同步）
+   * POST /api/v1/demurrage/write-back/:containerNumber
+   */
+  async writeBackDemurrageDatesForContainer(containerNumber: string): Promise<{
+    success: boolean
+    data?: {
+      containerNumber: string
+      updated: boolean
+      hasResult: boolean
+      message: string
+    }
+    message?: string
+  }> {
+    const response = await this.api.post(
+      `/demurrage/write-back/${encodeURIComponent(containerNumber)}`
+    )
+    cacheManager.clearContainersCache()
+    cacheManager.clearStatisticsCache()
+    return response.data
+  }
+
+  /**
+   * 手工维护最晚提柜日（LFD）
+   * PATCH /api/v1/containers/:containerNumber/manual-lfd
+   */
+  async setManualLastFreeDate(containerNumber: string, lastFreeDate: string, remark?: string): Promise<{
+    success: boolean
+    message?: string
+    data?: {
+      containerNumber: string
+      lastFreeDate: string
+      source: 'manual'
+      remark?: string
+    }
+  }> {
+    const response = await this.api.patch(
+      `/containers/${encodeURIComponent(containerNumber)}/manual-lfd`,
+      { lastFreeDate, remark }
+    )
+    cacheManager.clearContainersCache()
+    cacheManager.clearStatisticsCache()
+    return response.data
+  }
+
+  /**
+   * 清除手工LFD标记，恢复自动计算
+   * DELETE /api/v1/containers/:containerNumber/manual-lfd
+   */
+  async resetManualLastFreeDate(containerNumber: string): Promise<{
+    success: boolean
+    message?: string
+  }> {
+    const response = await this.api.delete(
+      `/containers/${encodeURIComponent(containerNumber)}/manual-lfd`
+    )
+    cacheManager.clearContainersCache()
+    cacheManager.clearStatisticsCache()
+    return response.data
+  }
+
+  /**
    * 获取货柜统计数据
    * Get container statistics
    */

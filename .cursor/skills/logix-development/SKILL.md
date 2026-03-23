@@ -105,6 +105,26 @@ npm run lint  # 可配合 ESLint 规则检测未使用 SCSS 变量的代码
 | **组合式函数** | use+PascalCase        | `useContainerData`                      | `frontend/src/composables/`    |
 | **CSS 类名**   | kebab-case            | `.container-card`                       | `.vue` 文件中                  |
 
+### 前端展示规则（新增，必须遵守）
+
+```typescript
+// ✅ 统一要求：前端界面向用户展示“名称（name/text/label）”，禁止直接展示 CODE
+// 适用范围：表格单元格、筛选项、详情页字段、Tooltip、导出文案、弹窗文案
+
+// 显示优先级（必须按顺序）：
+// 1) 后端返回的名称字段（nameCn/nameEn/text/label）
+// 2) 字典映射后的名称（code -> text）
+// 3) 明确的“未知/未配置”兜底文案
+// ❌ 不允许把原始 code 直接展示给用户（例如 US、CA、DEMURRAGE、PENDING）
+
+// 示例（正确）：
+// chargeType=DEMURRAGE -> "滞港费"
+// country=US -> "美国"
+
+// 示例（错误）：
+// 页面直接显示 "DEMURRAGE"、"US"、"IN_PROGRESS"
+```
+
 ### 表前缀含义
 
 ```typescript
@@ -112,6 +132,53 @@ dict_; // 字典表：ports, countries, container_types
 biz_; // 业务表：containers, replenishment_orders
 process_; // 流程表：sea_freight, port_operations
 ext_; // 扩展表：status_events, loading_records
+```
+
+---
+
+## 🧮 免费日计算与写回规则（2026-03 新增）
+
+### 规则矩阵（单条/批量统一，必须遵守）
+
+```typescript
+// Strict 节点型
+// LFD（最晚提柜日）:
+//   标准选择 = min(Storage.free_days > 0, Demurrage.free_days > 0)
+//   若二者都不存在，再回退 Combined(D&D)
+//
+// LRD（最晚还箱日）:
+//   标准选择 = min(Combined(D&D).free_days > 0, Detention.free_days > 0)
+//
+// 起算口径：
+// - LFD: 到港侧起算（按标准 calculation_basis + actual/forecast 模式）
+// - LRD:
+//   - 命中 Combined(D&D): 到港→还箱整段起算（不按提柜拆段）
+//   - 命中 Detention: 提柜起算（actual=pickup_date, forecast=planned_pickup_date）
+```
+
+### 手工 LFD 与免费日更新（必须区分）
+
+```typescript
+// 1) 手工维护 LFD（人工录入）
+// PATCH /api/v1/containers/:containerNumber/manual-lfd
+// - 写入 process_port_operations.last_free_date
+// - 标记 last_free_date_source='manual'
+// - 自动计算写回不得覆盖 manual
+//
+// 2) 免费日更新（系统计算写回）
+// - 批量: POST /api/v1/demurrage/batch-write-back
+// - 单条: POST /api/v1/demurrage/write-back/:containerNumber
+// - 写回 computed，且必须尊重 manual 保护
+```
+
+### 防回归检查清单
+
+```markdown
+- [ ] 单条与批量使用同一套免费日计算口径（禁止分叉）
+- [ ] LFD 选型不被 Combined 直接“篡位”（仅在 Storage/Demurrage 都缺失时回退）
+- [ ] LRD 命中 Combined 时，起算日为到港侧，不是提柜侧
+- [ ] last_free_date_source='manual' 的记录不会被自动写回覆盖
+- [ ] return_time 已有时，若 last_return_date 为空可补写；已有值不覆盖
 ```
 
 ---
@@ -437,9 +504,10 @@ npm run validate
 
 ## 📅 最后更新
 
-| 版本 | 日期       | 更新内容                                                      |
-| ---- | ---------- | ------------------------------------------------------------- |
-| 1.0  | 2026-03-12 | 初始版本，基于 LogiX 开发准则和项目地图，整合项目全面解读文档 |
+| 版本 | 日期       | 更新内容                                                                 |
+| ---- | ---------- | ------------------------------------------------------------------------ |
+| 1.1  | 2026-03-23 | 新增免费日统一规则：Strict 节点型矩阵、单条/批量统一口径、手工LFD保护机制 |
+| 1.0  | 2026-03-12 | 初始版本，基于 LogiX 开发准则和项目地图，整合项目全面解读文档            |
 
 ---
 

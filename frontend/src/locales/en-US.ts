@@ -119,6 +119,13 @@ export default {
     detail: {
       logisticsPath: 'Logistics path',
       logisticsPathMap: 'Logistics map'
+    },
+    shipmentsList: {
+      singleFreeDateWriteBack: 'Update free dates',
+      singleFreeDateWriteBackSuccess: 'Free dates saved',
+      singleFreeDateWriteBackSkipped: 'Calculated but nothing written (conditions not met or manual override)',
+      singleFreeDateWriteBackFailed: 'Free date update failed',
+      singleFreeDateWriteBackNoContainer: 'Container number is missing'
     }
   },
 

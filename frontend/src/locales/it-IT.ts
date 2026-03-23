@@ -115,6 +115,13 @@ export default {
       '40OT': '40 piedi open top',
       '20FR': '20 piedi flat rack',
       '40FR': '40 piedi flat rack'
+    },
+    shipmentsList: {
+      singleFreeDateWriteBack: 'Aggiorna date franchigia (singolo)',
+      singleFreeDateWriteBackSuccess: 'Date franchigia salvate',
+      singleFreeDateWriteBackSkipped: 'Calcolato ma nulla scritto',
+      singleFreeDateWriteBackFailed: 'Aggiornamento non riuscito',
+      singleFreeDateWriteBackNoContainer: 'Numero container mancante'
     }
   },
 

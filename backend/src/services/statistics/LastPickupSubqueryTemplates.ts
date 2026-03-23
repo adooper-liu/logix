@@ -3,7 +3,7 @@
  * Last Pickup Subquery Templates
  *
  * 数据子集规则（与按状态「已到目的港」对齐，对应 arrived_at_destination 46）：
- * 1. 目标集：NOT 还箱、NOT WMS、NOT 提柜 + 有目的港 ATA（状态机优先级4），取目的港 last_free_date
+ * 1. 目标集：NOT 还箱、NOT WMS、NOT 提柜 + 目的港已到港（ATA 或 available_time，与状态机优先级 4 / 4a 一致），取目的港 last_free_date
  * 2. 时间分类（基于 last_free_date）：
  *    - 已超时: last_free_date < 今天
  *    - 即将超时(1-3天): 今天 <= last_free_date <= 3天
@@ -15,14 +15,14 @@
 export class LastPickupSubqueryTemplates {
   /**
    * 目标集子查询模板（与状态机已到目的港同源）
-   * 条件：NOT 还箱、NOT WMS、NOT 提柜 + 目的港有 ATA，并取该目的港的 last_free_date
+   * 条件：NOT 还箱、NOT WMS、NOT 提柜 + 目的港已到港（ATA 或 available_time），并取该目的港的 last_free_date
    */
   static readonly TARGET_SET_SUBQUERY = `
     SELECT c.container_number, po.last_free_date
     FROM biz_containers c
     INNER JOIN process_port_operations po ON c.container_number = po.container_number
     WHERE po.port_type = 'destination'
-    AND po.ata IS NOT NULL
+    AND (po.ata IS NOT NULL OR po.available_time IS NOT NULL)
     AND po.port_sequence = (
       SELECT MAX(po2.port_sequence)
       FROM process_port_operations po2

@@ -117,8 +117,13 @@ export function useShipmentsSchedule() {
       })
 
       if (result.success) {
+        const payload = (result as any).data || result
+        const lastFreeWritten = Number(payload.lastFreeWritten ?? 0)
+        const lastFreeProcessed = Number(payload.lastFreeProcessed ?? 0)
+        const lastReturnWritten = Number(payload.lastReturnWritten ?? 0)
+        const lastReturnProcessed = Number(payload.lastReturnProcessed ?? 0)
         ElMessage.success(
-          `计算完成：最晚提柜日 ${result.lastFreeWritten}/${result.lastFreeProcessed}，最晚还箱日 ${result.lastReturnWritten}/${result.lastReturnProcessed}`
+          `计算完成：最晚提柜日 ${lastFreeWritten}/${lastFreeProcessed}，最晚还箱日 ${lastReturnWritten}/${lastReturnProcessed}`
         )
         return true
       } else {

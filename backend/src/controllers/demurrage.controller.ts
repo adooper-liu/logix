@@ -289,7 +289,7 @@ export class DemurrageController {
       const limitLastFree = req.body?.limit_last_free ?? 100;
       const limitLastReturn = req.body?.limit_last_return ?? 100;
 
-      const result = await demurrageService.batchWriteBackComputedDates({
+      const result = await demurrageService.runManualFreeDateUpdate({
         limitLastFree: Number(limitLastFree),
         limitLastReturn: Number(limitLastReturn)
       });
@@ -304,6 +304,34 @@ export class DemurrageController {
       res.status(500).json({
         success: false,
         message: '批量写回失败',
+        error: (error as Error).message
+      });
+    }
+  };
+
+  /**
+   * POST /api/v1/demurrage/write-back/:containerNumber
+   * 单条货柜免费日更新
+   */
+  writeBackSingleContainer = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const containerNumber = decodeURIComponent(req.params.containerNumber);
+      if (!containerNumber) {
+        res.status(400).json({ success: false, message: '缺少柜号' });
+        return;
+      }
+
+      const result = await demurrageService.runSingleContainerFreeDateUpdate(containerNumber);
+      res.json({
+        success: true,
+        data: result,
+        message: result.message
+      });
+    } catch (error) {
+      logger.error('Failed to write back free dates for single container', error);
+      res.status(500).json({
+        success: false,
+        message: '单条货柜免费日更新失败',
         error: (error as Error).message
       });
     }

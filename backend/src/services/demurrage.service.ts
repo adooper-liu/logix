@@ -75,7 +75,9 @@ export interface DemurrageSkippedItem {
     | 'missing_pickup_date_actual'
     | 'missing_planned_pickup_date'
     | 'missing_eta_combined_forecast'
-    | 'missing_arrival_for_combined_actual';
+    | 'missing_arrival_for_combined_actual'
+    | 'missing_eta_storage_forecast'
+    | 'missing_arrival_storage_actual';
   reason: string;
 }
 
@@ -141,6 +143,11 @@ export interface DemurrageCalculationResult {
   };
   /** 关键日期时间线（历时/倒计时/超期）；Phase 1 占位 nodes 可为空，meta 已填充 */
   keyTimeline?: KeyTimelineResult;
+  /** 本轮免费日写回是否真正落库（供批量统计与单条接口） */
+  writeBack?: {
+    lastFreeDateWritten: boolean;
+    lastReturnDateWritten: boolean;
+  };
 }
 
 /** 提取日期部分（使用 UTC 避免时区导致 ±1 天偏移） */
@@ -373,9 +380,9 @@ function isDetentionCharge(std: { chargeTypeCode?: string | null; chargeName?: s
 }
 
 /**
- * 堆存费（Storage）：起算日=实际提柜日，截止日=实际还箱日，无还箱则用当天。
- * 计费天数语义：还箱日 − 提柜日 + 1 − 免费天数（与 calculateSingleDemurrage 一致）。
- * 区别于按到港/卸船起算的滞港费（Demurrage）。
+ * 堆存费（Storage）：港区堆存，区间为「到港侧起算日 → 提柜侧截止日」（非提柜→还箱）。
+ * - forecast 且无 ATA/实际卸船：起算=修正 ETA / ETA；截止=max(计划提柜日, 当天)。
+ * - actual，或 forecast 但已有 ATA（或按标准已有实际卸船日）：起算=「按到港」用 ATA，「按卸船」用卸船日；截止=实际提柜或当天。
  */
 function isStorageCharge(std: { chargeTypeCode?: string | null; chargeName?: string | null }): boolean {
   if (isCombinedDemurrageDetention(std)) return false;
@@ -1123,7 +1130,7 @@ export class DemurrageService {
    * 费用区间摘要（与 `isDetentionCharge` / `isCombinedDemurrageDetention` / `isStorageCharge` 一致）：
    * - **滞港费（Demurrage）**：到港/卸船 → 实际提柜日（无则当天）
    * - **滞箱费（Detention）**：实际提柜日 → 实际还箱日（无则当天）；无提柜日则跳过该项
-   * - **堆存费（Storage）**：与滞箱费**同一区间**（提柜→还箱），非滞港费区间
+   * - **堆存费（Storage）**：全局 forecast 时若已有 ATA（或按标准已有实际卸船日）则视为已到港，堆存改按 **actual 区间**（起算 ATA|卸船，截止 实际提柜|当天）；否则 forecast 起算=修正ETA/ETA，截止=max(计划提柜,当天)
    * - **合并（D&D）**：forecast 起算修正 ETA/ETA、截止与滞箱 forecast 一致；actual 起算同滞港（按到港/卸船口径）、截止实际还箱或当天；不强制依赖实际提柜
    *
    * **计算模式（必须先于具体日期）**：调用 `calculateLogisticsStatus`（`utils/logisticsStatusMachine`）判断是否已到达目的港或已进入提柜/卸柜/还箱；**是** → `actual`，**否** → `forecast`（计划/预测）。不再仅用「有无 ATA/卸船」字段切换。
@@ -1134,8 +1141,13 @@ export class DemurrageService {
    * @returns { result, message?, reason? } 当无法计算时 result 为 null
    *   - no_arrival_at_dest / missing_arrival_dates / no_matching_standards / missing_dates / missing_pickup_date_actual
    *   - missing_planned_pickup_date / missing_eta_combined_forecast / missing_arrival_for_combined_actual
+   *   - missing_eta_storage_forecast / missing_arrival_storage_actual（堆存）
+   * @param options.freeDateWriteMode batch=与定时任务相同的写回条件；none=仅计算不落库（单条免费日更新在 runSingleContainerFreeDateUpdate 中已先写库）
    */
-  async calculateForContainer(containerNumber: string): Promise<{
+  async calculateForContainer(
+    containerNumber: string,
+    options?: { freeDateWriteMode?: 'batch' | 'none' }
+  ): Promise<{
     result: DemurrageCalculationResult | null;
     message?: string;
     reason?:
@@ -1146,8 +1158,11 @@ export class DemurrageService {
       | 'missing_pickup_date_actual'
       | 'missing_planned_pickup_date'
       | 'missing_eta_combined_forecast'
-      | 'missing_arrival_for_combined_actual';
+      | 'missing_arrival_for_combined_actual'
+      | 'missing_eta_storage_forecast'
+      | 'missing_arrival_storage_actual';
   }> {
+    await this.normalizeOrphanLastFreeDateSource(containerNumber);
     const params = await this.getContainerMatchParams(containerNumber);
 
     // 第一步：状态机判定是否到达目的港（或提柜/卸柜/还箱），再决定 actual vs forecast（计划逻辑）
@@ -1227,107 +1242,128 @@ export class DemurrageService {
 
     // 说明：已通过 hasStartDate（含 ETA/修正 ETA），预测模式下仍可用 ETA 作为滞港费起算日，不得再强制要求「计划提柜日」。
 
-    // 1. 按货柜与标准自动计算最晚提柜日、最晚还箱日（Natural Days 公式：起算日 + freeDays - 1）
-    // 合并类型（Demurrage & Detention）不参与 lastPickupDate/lastReturnDate 计算，仅用于自身计费区间
+    // 1) 免费日规则矩阵（单条/批量统一）
+    // - Strict 节点型：
+    //   * LFD = min(Storage>0, Demurrage>0)，若二者均无再回退 Combined(D&D)
+    //   * LRD = min(Combined(D&D)>0, Detention>0)
+    // - 起算口径保持：
+    //   * LFD：到港侧起算（按标准 calculationBasis + 模式）
+    //   * LRD：若选中 Combined(D&D) 则到港→还箱整段起算；否则按 Detention 提柜起算
+    const firstStorageStd = standards.find((s) => isStorageCharge(s));
     const firstDemurrageStd = standards.find(
       (s) => !isDetentionCharge(s) && !isCombinedDemurrageDetention(s) && !isStorageCharge(s)
     );
     const firstDetentionStd = standards.find((s) => isDetentionCharge(s));
+    const firstCombinedStd = standards.find((s) => isCombinedDemurrageDetention(s));
 
-    // 起算日按计算模式和标准的「计算方式」：
-    // actual模式: ATA > 实际卸船日（不包含ETA）
-    // forecast模式: ATA > 实际卸船日 > 修正ETA > 原始ETA
-    const calcBasis = (firstDemurrageStd?.calculationBasis ?? '').toLowerCase();
-    const useDischargeOnly = calcBasis.includes('卸船');
-    let demurrageStartDate: Date | null;
-    let demurrageStartDateSource: string | null;
+    const pickMinPositiveFreeDaysStd = (candidates: ExtDemurrageStandard[]): ExtDemurrageStandard | null => {
+      const valids = candidates
+        .filter((s) => Number(s.freeDays ?? 0) > 0)
+        .sort((a, b) => {
+          const da = Number(a.freeDays ?? 0);
+          const db = Number(b.freeDays ?? 0);
+          if (da !== db) return da - db;
+          const sa = Number(a.sequenceNumber ?? Number.MAX_SAFE_INTEGER);
+          const sb = Number(b.sequenceNumber ?? Number.MAX_SAFE_INTEGER);
+          if (sa !== sb) return sa - sb;
+          return Number(a.id ?? Number.MAX_SAFE_INTEGER) - Number(b.id ?? Number.MAX_SAFE_INTEGER);
+        });
+      return valids[0] ?? null;
+    };
 
-    if (useDischargeOnly) {
-      // 按卸船
-      if (calculationMode === 'actual') {
-        // actual模式：只用实际卸船日
-        demurrageStartDate = params.calculationDates.dischargeDate ?? null;
-        demurrageStartDateSource = demurrageStartDate
-          ? (params.calculationDates.dischargeDateSource ?? 'discharged_time')
-          : null;
-      } else {
-        // forecast模式：实际卸船日 > 修正ETA > 原始ETA
-        demurrageStartDate =
-          params.calculationDates.dischargeDate ??
-          params.calculationDates.revisedEtaDestPort ??
-          params.calculationDates.etaDestPort ??
-          null;
-        if (params.calculationDates.dischargeDate) {
-          demurrageStartDateSource = params.calculationDates.dischargeDateSource ?? 'discharged_time';
-        } else if (params.calculationDates.revisedEtaDestPort) {
-          demurrageStartDateSource = 'revised_eta';
-        } else if (params.calculationDates.etaDestPort) {
-          demurrageStartDateSource = 'eta';
-        } else {
-          demurrageStartDateSource = null;
-        }
-      }
-      } else {
-        // 按到港
+    const lfdNodeStd = pickMinPositiveFreeDaysStd(
+      [firstStorageStd, firstDemurrageStd].filter(Boolean) as ExtDemurrageStandard[]
+    );
+    const lfdStd = lfdNodeStd ?? firstCombinedStd ?? null;
+    const lrdStd = pickMinPositiveFreeDaysStd(
+      [firstCombinedStd, firstDetentionStd].filter(Boolean) as ExtDemurrageStandard[]
+    );
+
+    // 起算日按标准计算方式（按到港/按卸船）+ 计算模式（actual/forecast）统一计算
+    const resolveArrivalStartDate = (calcBasisRaw: string | undefined | null): { date: Date | null; source: string | null } => {
+      const calcBasis = (calcBasisRaw ?? '').toLowerCase();
+      const useDischargeOnly = calcBasis.includes('卸船');
+
+      if (useDischargeOnly) {
         if (calculationMode === 'actual') {
-          // actual模式：只用实际时间
-          demurrageStartDate = params.calculationDates.ataDestPort ?? params.calculationDates.dischargeDate ?? null;
-          demurrageStartDateSource = params.calculationDates.ataDestPort
-            ? 'ata'
-            : params.calculationDates.dischargeDate
-              ? (params.calculationDates.dischargeDateSource ?? 'discharged_time')
-              : null;
-        } else {
-        // forecast模式：包含ETA
-        demurrageStartDate =
-          params.calculationDates.ataDestPort ??
+          const date = params.calculationDates.dischargeDate ?? null;
+          return {
+            date,
+            source: date ? (params.calculationDates.dischargeDateSource ?? 'discharged_time') : null
+          };
+        }
+        const date =
           params.calculationDates.dischargeDate ??
           params.calculationDates.revisedEtaDestPort ??
           params.calculationDates.etaDestPort ??
           null;
-        if (params.calculationDates.ataDestPort) {
-          demurrageStartDateSource = 'ata';
-        } else if (params.calculationDates.dischargeDate) {
-          demurrageStartDateSource = 'dest_port_unload_date';
-        } else if (params.calculationDates.revisedEtaDestPort) {
-          demurrageStartDateSource = 'revised_eta';
-        } else if (params.calculationDates.etaDestPort) {
-          demurrageStartDateSource = 'eta';
-        } else {
-          demurrageStartDateSource = null;
-        }
+        const source = params.calculationDates.dischargeDate
+          ? (params.calculationDates.dischargeDateSource ?? 'discharged_time')
+          : params.calculationDates.revisedEtaDestPort
+            ? 'revised_eta'
+            : params.calculationDates.etaDestPort
+              ? 'eta'
+              : null;
+        return { date, source };
       }
-    }
+
+      if (calculationMode === 'actual') {
+        const date = params.calculationDates.ataDestPort ?? params.calculationDates.dischargeDate ?? null;
+        const source = params.calculationDates.ataDestPort
+          ? 'ata'
+          : params.calculationDates.dischargeDate
+            ? (params.calculationDates.dischargeDateSource ?? 'discharged_time')
+            : null;
+        return { date, source };
+      }
+
+      const date =
+        params.calculationDates.ataDestPort ??
+        params.calculationDates.dischargeDate ??
+        params.calculationDates.revisedEtaDestPort ??
+        params.calculationDates.etaDestPort ??
+        null;
+      const source = params.calculationDates.ataDestPort
+        ? 'ata'
+        : params.calculationDates.dischargeDate
+          ? 'dest_port_unload_date'
+          : params.calculationDates.revisedEtaDestPort
+            ? 'revised_eta'
+            : params.calculationDates.etaDestPort
+              ? 'eta'
+              : null;
+      return { date, source };
+    };
+
+    const lfdStart = resolveArrivalStartDate(lfdStd?.calculationBasis);
+    const lrdArrivalStart = resolveArrivalStartDate(lrdStd?.calculationBasis);
 
     let computedLastFreeDate: Date | null = null;
     let lastFreeDateMode: 'actual' | 'forecast' = calculationMode;
-    if (firstDemurrageStd && demurrageStartDate) {
-      const freeDays = Math.max(0, firstDemurrageStd.freeDays ?? 0);
+    if (lfdStd && lfdStart.date) {
+      const freeDays = Math.max(0, lfdStd.freeDays ?? 0);
       const n = freeDays - 1;
-      computedLastFreeDate = freePeriodUsesWorkingDays(firstDemurrageStd.freeDaysBasis)
-        ? addWorkingDays(demurrageStartDate, n)
-        : addDays(demurrageStartDate, n);
+      computedLastFreeDate = freePeriodUsesWorkingDays(lfdStd.freeDaysBasis)
+        ? addWorkingDays(lfdStart.date, n)
+        : addDays(lfdStart.date, n);
     }
 
-    // 滞箱费最晚还箱日根据计算模式选择起算日：
-    // - actual模式：使用实际提柜日
-    // - forecast模式：使用计划提柜日
+    // LRD：Combined(D&D) 为到港→还箱整段；否则沿用 Detention 的提柜起算
     let pickupBasisForDetention: Date | null;
     let lastReturnDateMode: 'actual' | 'forecast' = calculationMode;
-
-  if (calculationMode === 'actual') {
-    // actual模式：使用实际提柜日
-    pickupBasisForDetention = params.calculationDates.pickupDateActual ?? null;
-  } else {
-    // forecast模式：使用计划提柜日
-    pickupBasisForDetention = params.calculationDates.plannedPickupDate ?? null;
-  }
+    if (lrdStd && firstCombinedStd && lrdStd.id === firstCombinedStd.id) {
+      pickupBasisForDetention = lrdArrivalStart.date;
+    } else {
+      pickupBasisForDetention = calculationMode === 'actual'
+        ? (params.calculationDates.pickupDateActual ?? null)
+        : (params.calculationDates.plannedPickupDate ?? null);
+    }
 
     let computedLastReturnDate: Date | null = null;
-    if (firstDetentionStd && pickupBasisForDetention) {
-      const freeDays = Math.max(0, firstDetentionStd.freeDays ?? 0);
+    if (lrdStd && pickupBasisForDetention) {
+      const freeDays = Math.max(0, lrdStd.freeDays ?? 0);
       const n = freeDays - 1;
-      computedLastReturnDate = freePeriodUsesWorkingDays(firstDetentionStd.freeDaysBasis)
+      computedLastReturnDate = freePeriodUsesWorkingDays(lrdStd.freeDaysBasis)
         ? addWorkingDays(pickupBasisForDetention, n)
         : addDays(pickupBasisForDetention, n);
     }
@@ -1399,13 +1435,23 @@ export class DemurrageService {
       const isDetention = isDetentionCharge(std);
       const isCombined = isCombinedDemurrageDetention(std);
       const isStorage = isStorageCharge(std);
-      // 滞箱费、堆存费：actual 需实际提柜；forecast 需计划提柜
-      // 合并(D&D)：forecast 需修正ETA或ETA；actual 需 ATA/卸船（按标准）— 不强制实际提柜
-      if (isDetention || isStorage) {
+      /** 堆存：全局 actual，或 forecast 但已有 ATA/实际卸船（按标准）→ 按实际区间计费 */
+      let storageUsesActualInterval = false;
+      if (isStorage) {
+        const basisStorage = (std.calculationBasis ?? '').toLowerCase();
+        const useDischargeStorage = basisStorage.includes('卸船');
+        const hasStorageActualStart = useDischargeStorage
+          ? !!params.calculationDates.dischargeDate
+          : !!(params.calculationDates.ataDestPort ?? params.calculationDates.dischargeDate);
+        storageUsesActualInterval =
+          calculationMode === 'actual' || (calculationMode === 'forecast' && hasStorageActualStart);
+      }
+      // 滞箱费：actual 需实际提柜；forecast 需计划提柜
+      if (isDetention) {
         if (calculationMode === 'actual' && !pickupDateActual) {
           skippedItems.push({
             standardId: std.id,
-            chargeName: std.chargeName ?? (isStorage ? 'Storage' : 'Detention'),
+            chargeName: std.chargeName ?? 'Detention',
             chargeTypeCode: std.chargeTypeCode ?? '',
             reasonCode: 'missing_pickup_date_actual',
             reason: '缺少实际提柜日（pickup_date），该费用项暂不计算'
@@ -1415,12 +1461,55 @@ export class DemurrageService {
         if (calculationMode === 'forecast' && !plannedPickupDate) {
           skippedItems.push({
             standardId: std.id,
-            chargeName: std.chargeName ?? (isStorage ? 'Storage' : 'Detention'),
+            chargeName: std.chargeName ?? 'Detention',
             chargeTypeCode: std.chargeTypeCode ?? '',
             reasonCode: 'missing_planned_pickup_date',
             reason: '缺少计划提柜日（planned_pickup_date），该费用项暂不计算'
           });
           continue;
+        }
+      }
+      // 堆存费：按实际区间时需 ATA 或卸船日；纯预测区间需计划提柜 + 修正ETA/ETA
+      if (isStorage) {
+        const basisStorage = (std.calculationBasis ?? '').toLowerCase();
+        const useDischargeStorage = basisStorage.includes('卸船');
+        const hasStorageActualStart = useDischargeStorage
+          ? !!params.calculationDates.dischargeDate
+          : !!(params.calculationDates.ataDestPort ?? params.calculationDates.dischargeDate);
+        if (storageUsesActualInterval) {
+          if (!hasStorageActualStart) {
+            skippedItems.push({
+              standardId: std.id,
+              chargeName: std.chargeName ?? 'Storage',
+              chargeTypeCode: std.chargeTypeCode ?? '',
+              reasonCode: 'missing_arrival_storage_actual',
+              reason: '堆存(实际口径)需目的港ATA或卸船日（按标准「按卸船」时仅需卸船日）'
+            });
+            continue;
+          }
+        } else {
+          if (!plannedPickupDate) {
+            skippedItems.push({
+              standardId: std.id,
+              chargeName: std.chargeName ?? 'Storage',
+              chargeTypeCode: std.chargeTypeCode ?? '',
+              reasonCode: 'missing_planned_pickup_date',
+              reason: '堆存(预测)需计划提柜日（planned_pickup_date）'
+            });
+            continue;
+          }
+          const etaStorageStart =
+            params.calculationDates.revisedEtaDestPort ?? params.calculationDates.etaDestPort;
+          if (!etaStorageStart) {
+            skippedItems.push({
+              standardId: std.id,
+              chargeName: std.chargeName ?? 'Storage',
+              chargeTypeCode: std.chargeTypeCode ?? '',
+              reasonCode: 'missing_eta_storage_forecast',
+              reason: '堆存(预测)需目的港修正ETA或ETA'
+            });
+            continue;
+          }
         }
       }
       if (isCombined) {
@@ -1456,11 +1545,11 @@ export class DemurrageService {
         }
       }
 
-      // 滞港费：起算日按 ATA/卸船与「计算方式」；滞箱/堆存：起算日见 enhancedParams.detention*
+      // 滞港费：起算日按 ATA/卸船与「计算方式」；滞箱：起算日见 enhancedParams.detention*；堆存单独在下方区间处理
       let demurrageStartForStd: Date | null = null;
       let demurrageStartSource: string | null = null;
 
-      if (isDetention || isStorage) {
+      if (isDetention) {
         demurrageStartForStd = enhancedParams.detentionStartDate;
         demurrageStartSource = enhancedParams.detentionStartDateSource;
       } else if (!isCombined) {
@@ -1507,7 +1596,7 @@ export class DemurrageService {
         }
       }
 
-      // 区间：滞箱/堆存 = 计划或实际提柜 → 计划或实际还箱；滞港 = 到港/卸船/ETA → 提柜截止；合并(D&D) forecast = 修正ETA/ETA → max(今天,计划还箱)，actual = ATA/卸船 → 实际还箱或今天
+      // 区间：滞箱 = 计划或实际提柜 → 计划或实际还箱；堆存 = 无 ATA 时 forecast(ETA→max(计划提柜,今天))，有 ATA/卸船则按 actual(ATA|卸船→提柜|今天)；滞港 = 到港/卸船/ETA → 提柜截止；合并(D&D) 见下
       let rangeStart: Date | null;
       let rangeEnd: Date | null;
       let itemStartSource: string | null = null;
@@ -1544,7 +1633,40 @@ export class DemurrageService {
           rangeEnd = enhancedParams.detentionEndDate;
           itemEndSource = enhancedParams.detentionEndDateSource ?? null;
         }
-      } else if (isDetention || isStorage) {
+      } else if (isStorage) {
+        if (storageUsesActualInterval) {
+          const basisStorage = (std.calculationBasis ?? '').toLowerCase();
+          const useDischargeStorage = basisStorage.includes('卸船');
+          if (useDischargeStorage) {
+            rangeStart = params.calculationDates.dischargeDate ?? null;
+            itemStartSource = rangeStart
+              ? (params.calculationDates.dischargeDateSource ?? 'discharged_time')
+              : null;
+          } else {
+            rangeStart =
+              params.calculationDates.ataDestPort ?? params.calculationDates.dischargeDate ?? null;
+            itemStartSource = params.calculationDates.ataDestPort
+              ? 'ata'
+              : params.calculationDates.dischargeDate
+                ? (params.calculationDates.dischargeDateSource ?? 'discharged_time')
+                : null;
+          }
+          rangeEnd = pickupDateActual ? toDateOnly(pickupDateActual) : toDateOnly(today);
+          itemEndSource = pickupDateActual
+            ? 'process_trucking_transport.pickup_date'
+            : '当前日期';
+        } else {
+          rangeStart =
+            params.calculationDates.revisedEtaDestPort ?? params.calculationDates.etaDestPort ?? null;
+          itemStartSource = params.calculationDates.revisedEtaDestPort
+            ? 'revised_eta'
+            : params.calculationDates.etaDestPort
+              ? 'eta'
+              : null;
+          rangeEnd = maxDate(toDateOnly(plannedPickupDate!), toDateOnly(today));
+          itemEndSource = 'max(计划提柜日, 当前日期)';
+        }
+      } else if (isDetention) {
         rangeStart = enhancedParams.detentionStartDate;
         rangeEnd = enhancedParams.detentionEndDate;
         itemStartSource = enhancedParams.detentionStartDateSource ?? null;
@@ -1576,31 +1698,39 @@ export class DemurrageService {
         std.freeDaysBasis
       );
 
-      // 确定起算日和截止日的模式
+      // 确定起算日和截止日的模式（堆存在全局 forecast 但已有 ATA 时用 actual 子模式）
       const startDateMode = isCombined
         ? calculationMode === 'forecast'
           ? 'forecast'
           : 'actual'
-        : isDetention || isStorage
-          ? calculationMode === 'forecast'
-            ? 'forecast'
-            : 'actual'
-          : demurrageStartSource?.includes('eta')
-            ? 'forecast'
-            : 'actual';
+        : isStorage
+          ? storageUsesActualInterval
+            ? 'actual'
+            : 'forecast'
+          : isDetention
+            ? calculationMode === 'forecast'
+              ? 'forecast'
+              : 'actual'
+            : demurrageStartSource?.includes('eta')
+              ? 'forecast'
+              : 'actual';
       const endDateMode = isCombined
         ? calculationMode === 'forecast'
           ? 'forecast'
           : 'actual'
-        : isDetention || isStorage
-          ? calculationMode === 'forecast'
-            ? 'forecast'
-            : 'actual'
-          : calculationMode === 'forecast'
-            ? 'forecast'
-            : enhancedParams.endDateSource === '当前日期'
-              ? 'actual'
-              : startDateMode;
+        : isStorage
+          ? storageUsesActualInterval
+            ? 'actual'
+            : 'forecast'
+          : isDetention
+            ? calculationMode === 'forecast'
+              ? 'forecast'
+              : 'actual'
+            : calculationMode === 'forecast'
+              ? 'forecast'
+              : enhancedParams.endDateSource === '当前日期'
+                ? 'actual'
+                : startDateMode;
 
       items.push({
         standardId: std.id,
@@ -1619,9 +1749,13 @@ export class DemurrageService {
         lastFreeDate,
         lastFreeDateMode: isCombined
           ? calculationMode
-          : isDetention || isStorage
-            ? calculationMode
-            : lastFreeDateMode,
+          : isStorage
+            ? storageUsesActualInterval
+              ? 'actual'
+              : 'forecast'
+            : isDetention
+              ? calculationMode
+              : lastFreeDateMode,
         chargeDays,
         amount,
         currency: curr,
@@ -1693,15 +1827,26 @@ export class DemurrageService {
       };
     }
 
-    // 4. 异步写回：last_free_date 支持 forecast 写回（智能排柜/预警）；last_return_date 仅 actual 写回
-    this.writeBackComputedDatesIfNeeded(
-      containerNumber,
-      params.calculationDates.pickupDateActual,
-      params.calculationDates.returnTime,
-      computedLastFreeDate,
-      computedLastReturnDate,
-      calculationMode
-    ).catch((err) => logger.warn('[Demurrage] writeBackComputedDates failed:', err));
+    // 4. 写回：须 await；freeDateWriteMode=none 时跳过（单条「免费日更新」已单独写回）
+    const freeDateWriteMode = options?.freeDateWriteMode ?? 'batch';
+    let writeBack: { lastFreeDateWritten: boolean; lastReturnDateWritten: boolean } = {
+      lastFreeDateWritten: false,
+      lastReturnDateWritten: false
+    };
+    if (freeDateWriteMode !== 'none') {
+      try {
+        writeBack = await this.writeBackComputedDatesIfNeeded(
+          containerNumber,
+          params.calculationDates.pickupDateActual,
+          params.calculationDates.returnTime,
+          computedLastFreeDate,
+          computedLastReturnDate,
+          calculationMode
+        );
+      } catch (err) {
+        logger.warn('[Demurrage] writeBackComputedDates failed:', err);
+      }
+    }
 
     const primaryStart = enhancedParams.startDate ?? enhancedParams.detentionStartDate;
     const primaryEnd = enhancedParams.endDate ?? enhancedParams.detentionEndDate;
@@ -1798,7 +1943,8 @@ export class DemurrageService {
           plannedReturnDate: cd.plannedReturnDate ?? null,
           shipmentDate: cd.shipmentDate ?? null
         }
-      })
+      }),
+      writeBack
     };
     return { result };
   }
@@ -2349,12 +2495,40 @@ export class DemurrageService {
     const noLastFreeAtaSql = LastPickupSubqueryTemplates.NO_LAST_FREE_DATE_SUBQUERY;
     const noLastFreeEtaSql = LastPickupSubqueryTemplates.NO_LAST_FREE_DATE_WITH_ETA_SUBQUERY;
     const ataForecastSql = LastPickupSubqueryTemplates.ATA_WITH_FORECAST_LAST_FREE_SUBQUERY;
+    // 兜底：目的港记录存在且 last_free_date 为空，且有到港/预计到港依据；不依赖 biz_containers.logistics_status
+    const noLastFreeFallbackSql = `
+      SELECT DISTINCT po.container_number
+      FROM process_port_operations po
+      WHERE po.port_type = 'destination'
+      AND po.last_free_date IS NULL
+      AND (po.ata IS NOT NULL OR po.available_time IS NOT NULL OR po.eta IS NOT NULL OR po.revised_eta IS NOT NULL)
+      AND po.port_sequence = (
+        SELECT MAX(po2.port_sequence)
+        FROM process_port_operations po2
+        WHERE po2.container_number = po.container_number
+        AND po2.port_type = 'destination'
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM process_empty_return er
+        WHERE er.container_number = po.container_number
+        AND er.return_time IS NOT NULL
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM process_trucking_transport tt
+        WHERE tt.container_number = po.container_number
+        AND tt.pickup_date IS NOT NULL
+      )
+    `;
     const lastFreeRows = await this.containerRepo.query(
       `(SELECT container_number FROM (${noLastFreeAtaSql}) t)
        UNION
        (${noLastFreeEtaSql})
        UNION
        (${ataForecastSql})
+       UNION
+       (${noLastFreeFallbackSql})
        LIMIT ${Math.max(1, limitLastFree)}`
     );
     const lastFreeNumbers = (lastFreeRows || []).map((r: { container_number: string }) => r.container_number).filter(Boolean);
@@ -2362,20 +2536,25 @@ export class DemurrageService {
     for (const cn of lastFreeNumbers) {
       try {
         const { result } = await this.calculateForContainer(cn);
-        if (result) lastFreeWritten++;
+        if (result?.writeBack?.lastFreeDateWritten) lastFreeWritten++;
       } catch (e) {
         logger.warn(`[Demurrage] batchWriteBack last_free failed for ${cn}:`, e);
       }
     }
 
-    // 2. 已提柜但 last_return_date 为空（与 LastReturnStatistics 目标集一致）
+    // 2. 已提柜但 last_return_date 为空（按提柜事实而非 biz_containers.logistics_status，避免状态滞后漏算）
     const lastReturnRows = await this.containerRepo.query(`
-      SELECT DISTINCT c.container_number
-      FROM biz_containers c
-      LEFT JOIN process_empty_return er ON er.container_number = c.container_number
-      WHERE c.logistics_status IN ('picked_up', 'unloaded')
+      SELECT DISTINCT tt.container_number
+      FROM process_trucking_transport tt
+      LEFT JOIN process_empty_return er ON er.container_number = tt.container_number
+      WHERE (tt.pickup_date IS NOT NULL OR tt.last_pickup_date IS NOT NULL)
       AND (er.last_return_date IS NULL OR er.container_number IS NULL)
-      AND NOT EXISTS (SELECT 1 FROM process_empty_return er2 WHERE er2.container_number = c.container_number AND er2.return_time IS NOT NULL)
+      AND NOT EXISTS (
+        SELECT 1
+        FROM process_empty_return er2
+        WHERE er2.container_number = tt.container_number
+        AND er2.return_time IS NOT NULL
+      )
       LIMIT ${Math.max(1, limitLastReturn)}
     `);
     const lastReturnNumbers = (lastReturnRows || []).map((r: { container_number: string }) => r.container_number).filter(Boolean);
@@ -2383,7 +2562,7 @@ export class DemurrageService {
     for (const cn of lastReturnNumbers) {
       try {
         const { result } = await this.calculateForContainer(cn);
-        if (result) lastReturnWritten++;
+        if (result?.writeBack?.lastReturnDateWritten) lastReturnWritten++;
       } catch (e) {
         logger.warn(`[Demurrage] batchWriteBack last_return failed for ${cn}:`, e);
       }
@@ -2394,6 +2573,96 @@ export class DemurrageService {
       lastReturnWritten,
       lastFreeProcessed: lastFreeNumbers.length,
       lastReturnProcessed: lastReturnNumbers.length
+    };
+  }
+
+  /**
+   * 免费日计算逻辑（单柜纯计算入口）
+   * 返回 calculateForContainer 的原始结果，供手工/定时/单条更新复用。
+   */
+  async calculateFreeDatesForContainer(containerNumber: string) {
+    return this.calculateForContainer(containerNumber);
+  }
+
+  /**
+   * 手工更新逻辑（批量）
+   * 供前端“免费日更新”按钮调用。
+   */
+  async runManualFreeDateUpdate(options?: {
+    limitLastFree?: number;
+    limitLastReturn?: number;
+  }): Promise<{ lastFreeWritten: number; lastReturnWritten: number; lastFreeProcessed: number; lastReturnProcessed: number }> {
+    return this.batchWriteBackComputedDates(options);
+  }
+
+  /**
+   * 定时更新逻辑（批量）
+   * 供 scheduler 调用。
+   */
+  async runScheduledFreeDateUpdate(options?: {
+    limitLastFree?: number;
+    limitLastReturn?: number;
+  }): Promise<{ lastFreeWritten: number; lastReturnWritten: number; lastFreeProcessed: number; lastReturnProcessed: number }> {
+    return this.batchWriteBackComputedDates(options);
+  }
+
+  /**
+   * 单条货柜「免费日更新」：写回规则与定时/批量不同——不限制「无提柜才写 LFD / actual 才写还箱日」，
+   * 按业务优先级单独计算后写库，再调用 calculateForContainer（不写回）刷新计算结果。
+   */
+  async runSingleContainerFreeDateUpdate(containerNumber: string): Promise<{
+    containerNumber: string;
+    updated: boolean;
+    message: string;
+    hasResult: boolean;
+  }> {
+    await this.normalizeOrphanLastFreeDateSource(containerNumber);
+    // 关键：单条免费日更新与滞港费面板使用同一套匹配与计算结果，避免口径分叉。
+    const { result, message } = await this.calculateForContainer(containerNumber, { freeDateWriteMode: 'none' });
+    if (!result) {
+      return {
+        containerNumber,
+        updated: false,
+        hasResult: false,
+        message: message || '未匹配到滞港费标准'
+      };
+    }
+
+    const toDateOnlyFromApi = (value?: string | null): Date | null => {
+      if (!value) return null;
+      const d = new Date(`${value}T00:00:00.000Z`);
+      return Number.isNaN(d.getTime()) ? null : toDateOnly(d);
+    };
+    const calcDates = result.calculationDates;
+    const computedLastFreeDate = toDateOnlyFromApi(calcDates?.lastPickupDateComputed);
+    const computedLastReturnDate = toDateOnlyFromApi(calcDates?.lastReturnDateComputed);
+
+    if (!computedLastFreeDate && !computedLastReturnDate) {
+      return {
+        containerNumber,
+        updated: false,
+        hasResult: true,
+        message: '已匹配标准，但本次未得到可写回的免费日'
+      };
+    }
+
+    const writeBack = await this.writeBackSingleContainerFreeDates(
+      containerNumber,
+      computedLastFreeDate,
+      computedLastReturnDate,
+      result.calculationMode
+    );
+
+    const updated = !!(writeBack.lastFreeDateWritten || writeBack.lastReturnDateWritten);
+    return {
+      containerNumber,
+      updated,
+      hasResult: !!(result || updated),
+      message: updated
+        ? '更新完成'
+        : result
+          ? '已计算但无需写回（可能为手工维护的最晚提柜日）'
+          : message || '缺少计算条件'
     };
   }
 
@@ -2637,10 +2906,92 @@ export class DemurrageService {
   }
 
   /**
+   * 单条免费日写回：不套用批量写回的前置条件（无提柜才写 LFD、actual 才写还箱日等）
+   */
+  private async writeBackSingleContainerFreeDates(
+    containerNumber: string,
+    computedLastFreeDate: Date | null,
+    computedLastReturnDate: Date | null,
+    lastFreeDateMode: 'actual' | 'forecast'
+  ): Promise<{ lastFreeDateWritten: boolean; lastReturnDateWritten: boolean }> {
+    let lastFreeDateWritten = false;
+    let lastReturnDateWritten = false;
+
+    const destPort = await this.portOpRepo.findOne({
+      where: { containerNumber, portType: 'destination' },
+      order: { portSequence: 'DESC' }
+    });
+
+    if (computedLastFreeDate && destPort) {
+      const canOverwrite = !destPort.lastFreeDateSource || destPort.lastFreeDateSource === 'computed';
+      if (canOverwrite) {
+        await this.portOpRepo.update(
+          { id: destPort.id },
+          {
+            lastFreeDate: computedLastFreeDate,
+            lastFreeDateMode: lastFreeDateMode,
+            lastFreeDateSource: 'computed'
+          }
+        );
+        lastFreeDateWritten = true;
+        logger.info(`[Demurrage] Single free-date write: last_free_date ${containerNumber}`);
+        const tt = await this.truckingRepo.findOne({ where: { containerNumber } });
+        if (tt) {
+          await this.truckingRepo.update({ containerNumber }, { lastPickupDate: computedLastFreeDate });
+          logger.info(`[Demurrage] Single free-date write: synced trucking last_pickup_date ${containerNumber}`);
+        }
+      } else {
+        logger.info(`[Demurrage] Single free-date write skipped LFD for ${containerNumber} (manual source preserved)`);
+      }
+    }
+
+    // 最晚还箱日：已有实际还箱 return_time 时，若 last_return_date 仍为空则补写（历史补算）
+    if (computedLastReturnDate) {
+      let emptyReturn = await this.emptyReturnRepo.findOne({
+        where: { containerNumber }
+      });
+      if (!emptyReturn) {
+        emptyReturn = this.emptyReturnRepo.create({
+          containerNumber,
+          lastReturnDate: computedLastReturnDate
+        });
+        await this.emptyReturnRepo.save(emptyReturn);
+        lastReturnDateWritten = true;
+        logger.info(`[Demurrage] Single free-date write: last_return_date insert ${containerNumber}`);
+      } else if (!emptyReturn.lastReturnDate) {
+        await this.emptyReturnRepo.update(
+          { containerNumber },
+          { lastReturnDate: computedLastReturnDate }
+        );
+        lastReturnDateWritten = true;
+        logger.info(`[Demurrage] Single free-date write: last_return_date update ${containerNumber}`);
+      }
+    }
+
+    return { lastFreeDateWritten, lastReturnDateWritten };
+  }
+
+  /**
+   * 目的港 last_free_date 为空却 last_free_date_source=computed 时，将来源置空（历史「恢复自动」等会留下无效标记）
+   */
+  private async normalizeOrphanLastFreeDateSource(containerNumber: string): Promise<void> {
+    const destPort = await this.portOpRepo.findOne({
+      where: { containerNumber, portType: 'destination' },
+      order: { portSequence: 'DESC' }
+    });
+    if (destPort && !destPort.lastFreeDate && destPort.lastFreeDateSource === 'computed') {
+      await this.portOpRepo.update({ id: destPort.id }, { lastFreeDateSource: null as any });
+      logger.info(
+        `[Demurrage] Cleared orphan last_free_date_source=computed for ${containerNumber} (no last_free_date)`
+      );
+    }
+  }
+
+  /**
    * 写回计算的最晚提柜日/最晚还箱日到 DB
    * 最晚提柜日：无实际提柜日时写回；actual/forecast 均允许覆盖，并写入 last_free_date_mode 区分来源
    * forecast 每次都重新计算（ETA 变化时更新）；actual 覆盖 forecast（ATA 到港后重算）
-   * 最晚还箱日：仅 actual 模式、有实际提柜日且无实际还箱日时写回
+   * 最晚还箱日：仅 actual、有实际提柜时起算；若已有实际还箱但 last_return_date 仍为空则补写
    */
   private async writeBackComputedDatesIfNeeded(
     containerNumber: string,
@@ -2649,34 +3000,43 @@ export class DemurrageService {
     computedLastFreeDate: Date | null,
     computedLastReturnDate: Date | null,
     calculationMode: 'actual' | 'forecast'
-  ): Promise<void> {
+  ): Promise<{ lastFreeDateWritten: boolean; lastReturnDateWritten: boolean }> {
+    let lastFreeDateWritten = false;
+    let lastReturnDateWritten = false;
+
+    const destPort = await this.portOpRepo.findOne({
+      where: { containerNumber, portType: 'destination' },
+      order: { portSequence: 'DESC' }
+    });
+
     // 最晚提柜日：无实际提柜日时才写回（滞港费免费期截止）
     if (!pickupDateActual && computedLastFreeDate) {
-      const destPort = await this.portOpRepo.findOne({
-        where: { containerNumber, portType: 'destination' },
-        order: { portSequence: 'DESC' }
-      });
       if (destPort) {
         // 只在来源为computed或空时才写回，保留手工维护的LFD
         const canOverwrite = !destPort.lastFreeDateSource || destPort.lastFreeDateSource === 'computed';
         if (canOverwrite) {
           await this.portOpRepo.update(
             { id: destPort.id },
-            { 
-              lastFreeDate: computedLastFreeDate, 
+            {
+              lastFreeDate: computedLastFreeDate,
               lastFreeDateMode: calculationMode,
               lastFreeDateSource: 'computed'
             }
           );
+          lastFreeDateWritten = true;
           logger.info(`[Demurrage] Wrote back last_free_date for ${containerNumber} (${calculationMode}, computed)`);
+          const tt = await this.truckingRepo.findOne({ where: { containerNumber } });
+          if (tt) {
+            await this.truckingRepo.update({ containerNumber }, { lastPickupDate: computedLastFreeDate });
+            logger.info(`[Demurrage] Synced process_trucking_transport.last_pickup_date for ${containerNumber}`);
+          }
         } else {
           logger.info(`[Demurrage] Skipped write back last_free_date for ${containerNumber} (manual source preserved)`);
         }
       }
     }
 
-    // 最晚还箱日：仅 actual 模式、必须有实际提柜日且无实际还箱日时写回（滞箱费最晚还箱日）
-    if (returnTime) return; // 已还箱，不再写回最晚还箱日
+    // 最晚还箱日（批量）：actual + 有提柜起算；已有 return_time 时若 last_return_date 为空仍补写
     if (calculationMode === 'actual' && computedLastReturnDate && pickupDateActual) {
       let emptyReturn = await this.emptyReturnRepo.findOne({
         where: { containerNumber }
@@ -2687,15 +3047,19 @@ export class DemurrageService {
           lastReturnDate: computedLastReturnDate
         });
         await this.emptyReturnRepo.save(emptyReturn);
+        lastReturnDateWritten = true;
         logger.info(`[Demurrage] Wrote back last_return_date for ${containerNumber} (insert)`);
       } else if (!emptyReturn.lastReturnDate) {
         await this.emptyReturnRepo.update(
           { containerNumber },
           { lastReturnDate: computedLastReturnDate }
         );
+        lastReturnDateWritten = true;
         logger.info(`[Demurrage] Wrote back last_return_date for ${containerNumber}`);
       }
     }
+
+    return { lastFreeDateWritten, lastReturnDateWritten };
   }
 }
 

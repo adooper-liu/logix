@@ -115,6 +115,13 @@ export default {
       '40OT': '40 pieds ouvert',
       '20FR': '20 pieds plateau',
       '40FR': '40 pieds plateau'
+    },
+    shipmentsList: {
+      singleFreeDateWriteBack: 'Màj dates gratuites (unité)',
+      singleFreeDateWriteBackSuccess: 'Dates gratuites enregistrées',
+      singleFreeDateWriteBackSkipped: 'Calculé mais rien n’a été écrit',
+      singleFreeDateWriteBackFailed: 'Échec de la mise à jour',
+      singleFreeDateWriteBackNoContainer: 'Numéro de conteneur manquant'
     }
   },
 

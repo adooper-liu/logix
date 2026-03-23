@@ -17,5 +17,6 @@ router.post('/batch-compute-records', demurrageController.batchComputeRecords);
 router.get('/diagnose/:containerNumber', demurrageController.diagnoseMatch);
 router.get('/calculate/:containerNumber', demurrageController.calculateForContainer);
 router.post('/batch-write-back', demurrageController.batchWriteBack);
+router.post('/write-back/:containerNumber', demurrageController.writeBackSingleContainer);
 
 export default router;

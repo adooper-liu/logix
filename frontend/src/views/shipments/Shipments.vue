@@ -15,6 +15,8 @@ import {
     ArrowDown,
     ArrowRight,
     Calendar,
+    CircleCheck,
+    CircleClose,
     Download,
     Edit,
     Refresh,
@@ -24,7 +26,7 @@ import {
     Warning,
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -95,6 +97,11 @@ const {
 
 // 组件卸载标记，防止卸载后响应式更新
 const isUnmounted = ref(false)
+
+/** 单柜「免费日更新」按钮 loading（按柜号） */
+const singleFreeDateWriteBackLoading = ref<string | null>(null)
+/** 单柜「LFD手工维护」按钮 loading（按柜号） */
+const manualLfdLoading = ref<string | null>(null)
 
 // 统计数据（从后端API获取，不依赖全量数据）
 const statisticsData = ref<{
@@ -193,6 +200,73 @@ const loadContainers = async () => {
     if (!isUnmounted.value) {
       loading.value = false
     }
+  }
+}
+
+/** 操作列：单柜免费日写回（与批量「免费日更新」同源逻辑） */
+const handleSingleFreeDateWriteBack = async (row: { containerNumber?: string }) => {
+  const cn = row.containerNumber?.trim()
+  if (!cn) {
+    ElMessage.warning(t('container.shipmentsList.singleFreeDateWriteBackNoContainer'))
+    return
+  }
+  singleFreeDateWriteBackLoading.value = cn
+  try {
+    const res = await containerService.writeBackDemurrageDatesForContainer(cn)
+    const data = res.data
+    if (res.success && data?.updated) {
+      ElMessage.success(t('container.shipmentsList.singleFreeDateWriteBackSuccess'))
+      await loadContainers()
+    } else if (res.success) {
+      ElMessage.info(data?.message || t('container.shipmentsList.singleFreeDateWriteBackSkipped'))
+    } else {
+      ElMessage.error(res.message || t('container.shipmentsList.singleFreeDateWriteBackFailed'))
+    }
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e)
+    ElMessage.error(msg || t('container.shipmentsList.singleFreeDateWriteBackFailed'))
+  } finally {
+    singleFreeDateWriteBackLoading.value = null
+  }
+}
+
+/** 操作列：单柜 LFD 手工维护 */
+const handleManualLfdUpdate = async (row: { containerNumber?: string; lastFreeDate?: string | Date | null }) => {
+  const cn = row.containerNumber?.trim()
+  if (!cn) {
+    ElMessage.warning('缺少柜号')
+    return
+  }
+
+  const defaultDate = row.lastFreeDate ? dayjs(row.lastFreeDate).format('YYYY-MM-DD') : ''
+  try {
+    const { value } = await ElMessageBox.prompt(
+      `请输入 ${cn} 的最晚提柜日（YYYY-MM-DD）`,
+      'LFD手工维护',
+      {
+        inputValue: defaultDate,
+        inputPlaceholder: '例如：2026-03-25',
+        confirmButtonText: '保存',
+        cancelButtonText: '取消',
+        inputPattern: /^\d{4}-\d{2}-\d{2}$/,
+        inputErrorMessage: '日期格式应为 YYYY-MM-DD'
+      }
+    )
+    const lfd = (value || '').trim()
+    if (!lfd) return
+
+    manualLfdLoading.value = cn
+    const res = await containerService.setManualLastFreeDate(cn, lfd, 'shipments-操作列手工维护')
+    if (res.success) {
+      ElMessage.success('LFD手工维护已保存')
+      await loadContainers()
+    } else {
+      ElMessage.error(res.message || 'LFD手工维护失败')
+    }
+  } catch {
+    // 用户取消不提示
+  } finally {
+    manualLfdLoading.value = null
   }
 }
 
@@ -340,6 +414,188 @@ const getFilterLabel = (days: string): string => {
     '1-3': '1-3天',
   }
   return labels[days] || days
+}
+
+/** 列表预警列徽章文案（与 AlertTab 类型一致，避免展示 raw 枚举名） */
+const formatAlertTypeBadge = (type: string | undefined): string => {
+  if (!type) return '—'
+  const map: Record<string, string> = {
+    customs: '清关',
+    trucking: '拖卡',
+    unloading: '卸柜',
+    emptyReturn: '还箱',
+    inspection: '查验',
+    demurrage: '滞港',
+    detention: '滞箱',
+    rollover: '甩柜',
+    shipmentChange: '船期',
+    other: '其他',
+  }
+  return map[type] || type
+}
+
+const getCustomsStatusText = (status?: string): string => {
+  if (!status) return '未清关'
+  const mapped = customsStatusMap[status]?.text
+  return mapped || '未知状态'
+}
+
+const formatCostModeText = (mode?: 'actual' | 'forecast' | string): string => {
+  if (mode === 'actual') return '实际'
+  if (mode === 'forecast') return '预计'
+  return '预计'
+}
+
+const formatCostItemName = (item: {
+  chargeType?: string | null
+  chargeName?: string | null
+}) => {
+  if (item.chargeName) return item.chargeName
+  const type = String(item.chargeType || '').toUpperCase()
+  const typeMap: Record<string, string> = {
+    DEMURRAGE: '滞港费',
+    DETENTION: '滞箱费',
+    STORAGE: '堆存费',
+    D_AND_D: 'D&D',
+    PICKUP: '提柜费',
+    DELIVERY: '送仓费',
+    INSPECTION: '查验费',
+  }
+  return typeMap[type] || '费用项'
+}
+
+const COUNTRY_CURRENCY_SYMBOL_MAP: Record<string, string> = {
+  CN: '¥',
+  US: '$',
+  GB: '£',
+  EU: '€',
+  DE: '€',
+  FR: '€',
+  ES: '€',
+  IT: '€',
+  NL: '€',
+  BE: '€',
+  JP: '¥',
+  KR: '₩',
+  CA: 'C$',
+  AU: 'A$',
+}
+
+const CURRENCY_SYMBOL_MAP: Record<string, string> = {
+  CNY: '¥',
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+  JPY: '¥',
+  KRW: '₩',
+  CAD: 'C$',
+  AUD: 'A$',
+}
+
+const getRowCurrencyPrefix = (row: any): string => {
+  const countryCurrency = String(row.countryCurrency || '').trim().toUpperCase()
+  if (countryCurrency && CURRENCY_SYMBOL_MAP[countryCurrency]) {
+    return CURRENCY_SYMBOL_MAP[countryCurrency]
+  }
+  if (countryCurrency) return `${countryCurrency} `
+
+  const countryCode = String(row.sellToCountry || '').trim().toUpperCase()
+  if (countryCode && COUNTRY_CURRENCY_SYMBOL_MAP[countryCode]) {
+    return COUNTRY_CURRENCY_SYMBOL_MAP[countryCode]
+  }
+  const currency = String(row.costBreakdown?.currency || '').trim().toUpperCase()
+  if (currency && CURRENCY_SYMBOL_MAP[currency]) return CURRENCY_SYMBOL_MAP[currency]
+  if (currency) return `${currency} `
+  return '$'
+}
+
+const escapeHtml = (s: string): string =>
+  s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
+const getCostDetailsText = (row: any): string => {
+  const items = row.costBreakdown?.items || []
+  if (!items.length) return '暂无费用明细'
+  const prefix = getRowCurrencyPrefix(row)
+  const lines = items.map((item: any) =>
+    `${escapeHtml(formatCostItemName(item))}（${formatCostModeText(item.mode)}）：${prefix}${Number(item.amount || 0).toFixed(2)}`
+  )
+  return lines.join('<br/>')
+}
+
+const getDestinationPortDisplay = (row: any): string => {
+  return row.destinationPortName || row.destinationPort || '-'
+}
+
+/** 五节点状态图标：完成 / 未达成 / 进行中或需关注 */
+type FiveNodeKind = 'ok' | 'bad' | 'warn'
+
+const getFiveNodeKinds = (row: any): {
+  customs: FiveNodeKind
+  pickup: FiveNodeKind
+  unload: FiveNodeKind
+  emptyReturn: FiveNodeKind
+  inspection: FiveNodeKind
+} => {
+  const customsStatus = row.customsStatus as string | undefined
+  let customs: FiveNodeKind = 'bad'
+  if (!customsStatus) customs = 'bad'
+  else if (customsStatus === 'COMPLETED') customs = 'ok'
+  else if (customsStatus === 'FAILED') customs = 'bad'
+  else customs = 'warn'
+
+  const pickup: FiveNodeKind = row.plannedPickupDate || row.pickupDate ? 'ok' : 'bad'
+
+  const s = String(row.logisticsStatus || '').toLowerCase()
+  let unload: FiveNodeKind = 'bad'
+  if (['unloaded', 'returned_empty'].includes(s)) unload = 'ok'
+  else if (['at_port', 'picked_up'].includes(s)) unload = 'warn'
+  else unload = 'bad'
+
+  let emptyReturn: FiveNodeKind = 'bad'
+  if (row.returnTime) emptyReturn = 'ok'
+  else if (['unloaded', 'picked_up'].includes(s)) emptyReturn = 'warn'
+  else emptyReturn = 'bad'
+
+  const inspection: FiveNodeKind = row.inspectionRequired ? 'warn' : 'ok'
+
+  return { customs, pickup, unload, emptyReturn, inspection }
+}
+
+const getFiveNodeRows = (row: any) => {
+  const k = getFiveNodeKinds(row)
+  const unloaded = ['unloaded', 'returned_empty'].includes(String(row.logisticsStatus || '').toLowerCase())
+  return [
+    {
+      kind: k.customs,
+      type: 'info' as const,
+      text: getCustomsStatusText(row.customsStatus),
+    },
+    {
+      kind: k.pickup,
+      type: 'warning' as const,
+      text: row.plannedPickupDate ? '已计划提柜' : '未计划提柜',
+    },
+    {
+      kind: k.unload,
+      type: 'primary' as const,
+      text: unloaded ? '已卸柜' : '未卸柜',
+    },
+    {
+      kind: k.emptyReturn,
+      type: 'success' as const,
+      text: row.returnTime ? '已还箱' : '未还箱',
+    },
+    {
+      kind: k.inspection,
+      type: (row.inspectionRequired ? 'warning' : 'info') as 'warning' | 'info',
+      text: row.inspectionRequired ? '需查验' : '免查验',
+    },
+  ]
 }
 
 // 计算倒计时时间
@@ -712,7 +968,7 @@ export default {
             <div class="table-expand-detail">
               <div class="expand-row">
                 <span class="expand-label">目的港</span
-                ><span>{{ row.destinationPort || '-' }}</span>
+                ><span>{{ getDestinationPortDisplay(row) }}</span>
                 <span class="expand-label">预计到港</span
                 ><span>{{ row.etaDestPort ? formatDate(row.etaDestPort) : '-' }}</span>
                 <span class="expand-label">实际到港</span
@@ -785,24 +1041,31 @@ export default {
           </el-table-column>
 
           <!-- 五节点状态 -->
-          <el-table-column v-else-if="key === 'fiveNodeStatus'" label="五节点状态" width="180">
+          <el-table-column v-else-if="key === 'fiveNodeStatus'" label="五节点状态" width="110" align="left">
             <template #default="{ row }">
               <div class="five-node-status">
-                <el-tag size="small" type="info" class="status-tag">
-                  {{ row.customsStatus ? customsStatusMap[row.customsStatus]?.text : '未清关' }}
-                </el-tag>
-                <el-tag size="small" type="warning" class="status-tag">
-                  {{ row.plannedPickupDate ? '已计划提柜' : '未计划提柜' }}
-                </el-tag>
-                <el-tag size="small" type="success" class="status-tag">
-                  {{ row.returnTime ? '已还箱' : '未还箱' }}
+                <el-tag
+                  v-for="(node, idx) in getFiveNodeRows(row)"
+                  :key="idx"
+                  size="small"
+                  :type="node.type"
+                  class="status-tag five-node-tag"
+                >
+                  <span class="five-node-icon-wrap" :class="`kind-${node.kind}`">
+                    <el-icon class="five-node-icon" :size="13">
+                      <CircleCheck v-if="node.kind === 'ok'" />
+                      <CircleClose v-else-if="node.kind === 'bad'" />
+                      <Warning v-else />
+                    </el-icon>
+                  </span>
+                  <span class="five-node-status-text">{{ node.text }}</span>
                 </el-tag>
               </div>
             </template>
           </el-table-column>
 
           <!-- 预警 -->
-          <el-table-column v-else-if="key === 'alerts'" label="预警" min-width="180" align="left">
+          <el-table-column v-else-if="key === 'alerts'" label="预警" width="100" align="left">
             <template #default="{ row }">
               <div v-if="row.alerts && row.alerts.length > 0" class="alerts-container">
                 <el-tooltip 
@@ -813,7 +1076,7 @@ export default {
                   effect="light"
                 >
                   <el-badge 
-                    :value="alert.type"
+                    :value="formatAlertTypeBadge(alert.type)"
                     :type="alert.resolved ? 'info' : 'danger'"
                     class="alert-badge"
                     :class="{ 'resolved-alert': alert.resolved }"
@@ -853,7 +1116,16 @@ export default {
           <!-- 总费用 -->
           <el-table-column v-else-if="key === 'totalCost'" label="总费用" width="100" align="right">
             <template #default="{ row }">
-              {{ row.totalCost ? `$${row.totalCost.toFixed(2)}` : '-' }}
+              <el-tooltip
+                v-if="row.totalCost != null"
+                :content="getCostDetailsText(row)"
+                placement="top-start"
+                effect="light"
+                raw-content
+              >
+                <span class="cost-total-text">{{ getRowCurrencyPrefix(row) }}{{ Number(row.totalCost || 0).toFixed(2) }}</span>
+              </el-tooltip>
+              <span v-else>-</span>
             </template>
           </el-table-column>
 
@@ -876,12 +1148,16 @@ export default {
           </el-table-column>
 
           <!-- 目的港 -->
-          <el-table-column v-else-if="key === 'destinationPort'" prop="destinationPort" label="目的港" width="100" />
+          <el-table-column v-else-if="key === 'destinationPort'" label="目的港" width="100">
+            <template #default="{ row }">
+              {{ getDestinationPortDisplay(row) }}
+            </template>
+          </el-table-column>
 
           <!-- 当前位置 -->
           <el-table-column v-else-if="key === 'location'" label="当前位置" width="100">
             <template #default="{ row }">
-              {{ getCurrentLocationText(row.logisticsStatus, row.destinationPort, row.currentPortType || row.latestPortOperation?.portType) || '-' }}
+              {{ getCurrentLocationText(row.logisticsStatus, getDestinationPortDisplay(row), row.currentPortType || row.latestPortOperation?.portType) || '-' }}
             </template>
           </el-table-column>
 
@@ -919,7 +1195,7 @@ export default {
                 size="small"
                 v-if="row.customsStatus"
               >
-                {{ customsStatusMap[row.customsStatus]?.text || row.customsStatus }}
+                {{ getCustomsStatusText(row.customsStatus) }}
               </el-tag>
               <span v-else>-</span>
             </template>
@@ -971,14 +1247,36 @@ export default {
           </el-table-column>
 
           <!-- 操作 -->
-          <el-table-column v-else-if="key === 'actions'" :label="t('common.actions')" width="100" fixed="right" align="center">
+          <el-table-column v-else-if="key === 'actions'" :label="t('common.actions')" width="110" fixed="right" align="center">
             <template #default="{ row }">
-              <el-button size="small" type="primary" circle @click="viewDetails(row)" title="查看">
-                <el-icon><View /></el-icon>
-              </el-button>
-              <el-button size="small" circle @click="editContainer(row)" title="编辑">
-                <el-icon><Edit /></el-icon>
-              </el-button>
+              <div class="action-icons-grid">
+                <el-button size="small" type="primary" circle @click="viewDetails(row)" title="查看">
+                  <el-icon><View /></el-icon>
+                </el-button>
+                <el-button size="small" circle @click="editContainer(row)" title="编辑">
+                  <el-icon><Edit /></el-icon>
+                </el-button>
+                <el-button
+                  size="small"
+                  type="success"
+                  circle
+                  :loading="singleFreeDateWriteBackLoading === row.containerNumber"
+                  :title="t('container.shipmentsList.singleFreeDateWriteBack')"
+                  @click="handleSingleFreeDateWriteBack(row)"
+                >
+                  <el-icon v-if="singleFreeDateWriteBackLoading !== row.containerNumber"><Calendar /></el-icon>
+                </el-button>
+                <el-button
+                  size="small"
+                  type="warning"
+                  circle
+                  :loading="manualLfdLoading === row.containerNumber"
+                  title="LFD手工维护"
+                  @click="handleManualLfdUpdate(row)"
+                >
+                  <el-icon v-if="manualLfdLoading !== row.containerNumber"><Edit /></el-icon>
+                </el-button>
+              </div>
             </template>
           </el-table-column>
         </template>
@@ -1122,6 +1420,23 @@ export default {
   }
 }
 
+.action-icons-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 28px);
+  gap: 6px;
+  justify-content: center;
+  justify-items: center;
+  align-items: center;
+}
+
+.action-icons-grid :deep(.el-button) {
+  margin: 0;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+}
+
 .column-setting-body {
   padding: 0 8px;
 
@@ -1197,11 +1512,56 @@ export default {
 .five-node-status {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  width: 100%;
   gap: 4px;
+  text-align: left;
 
-  .status-tag {
+  .five-node-tag.status-tag {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: 100%;
+    box-sizing: border-box;
+    gap: 10px;
     font-size: 11px;
-    padding: 2px 6px;
+    padding: 2px 8px 2px 6px;
+    margin-inline: 0;
+  }
+
+  .five-node-icon-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    flex-shrink: 0;
+
+    &.kind-ok {
+      background: var(--el-color-success-light-8);
+      color: var(--el-color-success);
+    }
+
+    &.kind-bad {
+      background: var(--el-color-danger-light-8);
+      color: var(--el-color-danger);
+    }
+
+    &.kind-warn {
+      background: var(--el-color-warning-light-8);
+      color: var(--el-color-warning);
+    }
+  }
+
+  .five-node-icon {
+    display: block;
+  }
+
+  .five-node-status-text {
+    min-width: 0;
+    line-height: 1.25;
+    text-align: left;
   }
 }
 
@@ -1252,6 +1612,12 @@ export default {
       opacity: 1;
     }
   }
+}
+
+.cost-total-text {
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
 }
 
 @media (max-width: 768px) {

@@ -19,6 +19,7 @@ description: Implement and maintain LogiX Container Intelligent Processing Syste
 | 导入路径 | `from '../database/index.js'` |
 | raw SQL | 用 `AppDataSource.query()`，不用 `repository.query()` |
 | 新实体 | 在 `database/index.ts` 的 entities 中注册 |
+| 预警与状态机 | 修改 `AlertService`、最晚提柜 SQL、预警幂等时须遵循 **container-alerts-state-machine** 技能 |
 
 ### 1.2 前端 API 路径
 

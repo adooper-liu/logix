@@ -211,6 +211,13 @@ export default {
         serviceUnavailable: '物流路径微服务不可用，请确认已启动 logistics-path-system（端口 4000）'
       }
     },
+    shipmentsList: {
+      singleFreeDateWriteBack: '单柜免费日更新',
+      singleFreeDateWriteBackSuccess: '免费日已写回',
+      singleFreeDateWriteBackSkipped: '已计算但未写回（条件不满足或已手工维护）',
+      singleFreeDateWriteBackFailed: '免费日更新失败',
+      singleFreeDateWriteBackNoContainer: '缺少柜号'
+    },
   },
 
   // ========== 备货单相关 ==========
