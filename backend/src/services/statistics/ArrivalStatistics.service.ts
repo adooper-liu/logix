@@ -432,7 +432,12 @@ export class ArrivalStatisticsService {
     ContainerQueryBuilder.joinLatestDestinationWithAta(query);
     ContainerQueryBuilder.filterTargetStatus(query);
     query.andWhere('DATE(latest_po.latest_ata) < :today', { today });
-    ContainerQueryBuilder.excludeLogisticsStatus(query, ContainerQueryBuilder.STATUSES.PICKED_UP);
+    query.andWhere(`NOT EXISTS (
+      SELECT 1
+      FROM process_trucking_transport tt
+      WHERE tt.container_number = container.container_number
+      AND tt.pickup_date IS NOT NULL
+    )`);
     ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
     ContainerQueryBuilder.addCountryFilters(query);
     return query.getMany();
@@ -446,7 +451,12 @@ export class ArrivalStatisticsService {
     ContainerQueryBuilder.joinLatestDestinationWithAta(query);
     ContainerQueryBuilder.filterTargetStatus(query);
     query.andWhere('DATE(latest_po.latest_ata) < :today', { today });
-    ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.PICKED_UP);
+    query.andWhere(`EXISTS (
+      SELECT 1
+      FROM process_trucking_transport tt
+      WHERE tt.container_number = container.container_number
+      AND tt.pickup_date IS NOT NULL
+    )`);
     ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
     ContainerQueryBuilder.addCountryFilters(query);
     return query.getMany();

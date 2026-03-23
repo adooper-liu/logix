@@ -152,10 +152,10 @@ const {
   handleSortChange,
   handlePageChange,
   handlePageSizeChange,
-  handleSearch,
-  resetSearch,
-  handleCountdownFilter,
-  resetFilter,
+  handleSearch: updateSearchState,
+  resetSearch: resetSearchState,
+  handleCountdownFilter: updateCountdownFilterState,
+  resetFilter: resetFilterState,
   columnLabels,
   SimplifiedStatus,
 } = useShipmentsTable()
@@ -429,7 +429,7 @@ const handleShipmentDateChange = async (value: [Date, Date] | null) => {
   if (value) {
     shipmentDateRange.value = value
     pagination.value.page = 1
-    await Promise.all([loadStatistics(), loadContainers()])
+    await Promise.all([loadStatistics(), reloadTableByCurrentFilter()])
   }
 }
 
@@ -440,7 +440,46 @@ const reloadStatistics = async () => {
 
 // 同时刷新列表和统计数据
 const reloadAllData = async () => {
-  await Promise.all([loadContainers(), loadStatistics()])
+  await Promise.all([reloadTableByCurrentFilter(), loadStatistics()])
+}
+
+// 统一刷新表格：有卡片过滤时走后端过滤接口，无过滤时走常规列表接口
+const reloadTableByCurrentFilter = async () => {
+  if (activeFilter.value.days) {
+    await loadContainersByFilter()
+    return
+  }
+  await loadContainers()
+}
+
+const handleSearch = async () => {
+  updateSearchState()
+  await reloadTableByCurrentFilter()
+}
+
+const resetSearch = async () => {
+  resetSearchState()
+  await reloadTableByCurrentFilter()
+}
+
+const handleCountdownFilter = async (type: string, days: string) => {
+  updateCountdownFilterState(type, days)
+  await loadContainersByFilter()
+}
+
+const resetFilter = async () => {
+  resetFilterState()
+  await loadContainers()
+}
+
+const handlePageChangeWithLoad = async (page: number) => {
+  handlePageChange(page)
+  await reloadTableByCurrentFilter()
+}
+
+const handlePageSizeChangeWithLoad = async (pageSize: number) => {
+  handlePageSizeChange(pageSize)
+  await reloadTableByCurrentFilter()
 }
 
 // 查看详情（兼容 containerNumber / container_number，并对柜号做 URL 编码）
@@ -1664,8 +1703,8 @@ export default {
           :page-sizes="[10, 20, 50, 100]"
           :total="pagination.total || 0"
           layout="total, sizes, prev, pager, next, jumper"
-          @current-change="handlePageChange"
-          @size-change="handlePageSizeChange"
+          @current-change="handlePageChangeWithLoad"
+          @size-change="handlePageSizeChangeWithLoad"
         />
       </div>
     </el-card>

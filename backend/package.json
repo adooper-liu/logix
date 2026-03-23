@@ -14,7 +14,8 @@
     "start": "node dist/server.js",
     "type-check": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
-    "format": "prettier --write \"src/**/*.ts\""
+    "format": "prettier --write \"src/**/*.ts\"",
+    "verify:stats-filter": "tsx scripts/verify-statistics-by-filter-consistency.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",

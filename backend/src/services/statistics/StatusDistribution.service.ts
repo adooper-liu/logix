@@ -198,6 +198,95 @@ export class StatusDistributionService {
   }
 
   /**
+   * 与 getDistributionByProcessFacts 使用同一套 CASE 推导，按 derived_status 取柜号列表（有日期范围时与统计同源）
+   */
+  async getContainersByDerivedStatuses(
+    startDate: string,
+    endDate: string,
+    derivedStatuses: string[]
+  ): Promise<Container[]> {
+    if (!derivedStatuses.length) return [];
+
+    const dateRange = getDateRangeSubqueryRaw(startDate, endDate);
+    const statusParamIndex = dateRange.params.length + 1;
+    const params = [...dateRange.params, derivedStatuses];
+
+    const sql = `
+      WITH base AS (
+        ${dateRange.sql}
+      ),
+      flags AS (
+        SELECT
+          b.container_number,
+          EXISTS (
+            SELECT 1 FROM process_empty_return er
+            WHERE er.container_number = b.container_number
+              AND er.return_time IS NOT NULL
+          ) AS has_returned,
+          EXISTS (
+            SELECT 1 FROM process_warehouse_operations wo
+            WHERE wo.container_number = b.container_number
+              AND (wo.wms_status = 'WMS已完成' OR wo.ebs_status = '已入库' OR wo.wms_confirm_date IS NOT NULL)
+          ) AS has_unloaded,
+          EXISTS (
+            SELECT 1 FROM process_trucking_transport tt
+            WHERE tt.container_number = b.container_number
+              AND tt.pickup_date IS NOT NULL
+          ) AS has_picked_up,
+          EXISTS (
+            SELECT 1 FROM process_port_operations po
+            WHERE po.container_number = b.container_number
+              AND po.port_type = 'destination'
+              AND (po.ata IS NOT NULL OR po.available_time IS NOT NULL)
+          ) AS has_dest_arrival,
+          EXISTS (
+            SELECT 1 FROM process_port_operations po
+            WHERE po.container_number = b.container_number
+              AND po.port_type = 'transit'
+              AND (po.ata IS NOT NULL OR po.gate_in_time IS NOT NULL OR po.transit_arrival_date IS NOT NULL)
+          ) AS has_transit_arrival,
+          EXISTS (
+            SELECT 1 FROM process_port_operations po
+            WHERE po.container_number = b.container_number
+          ) AS has_any_port_record,
+          EXISTS (
+            SELECT 1 FROM process_sea_freight sf
+            WHERE sf.bill_of_lading_number = c.bill_of_lading_number
+          ) AS has_sea_freight
+        FROM base b
+        JOIN biz_containers c ON c.container_number = b.container_number
+      ),
+      classified AS (
+        SELECT
+          container_number,
+          CASE
+            WHEN has_returned THEN 'returned_empty'
+            WHEN has_unloaded THEN 'unloaded'
+            WHEN has_picked_up THEN 'picked_up'
+            WHEN has_dest_arrival THEN 'arrived_at_destination'
+            WHEN has_transit_arrival THEN 'arrived_at_transit'
+            WHEN has_sea_freight AND has_any_port_record THEN 'in_transit'
+            WHEN has_sea_freight THEN 'shipped'
+            ELSE 'not_shipped'
+          END AS derived_status
+        FROM flags
+      )
+      SELECT DISTINCT container_number
+      FROM classified
+      WHERE derived_status = ANY($${statusParamIndex}::text[])
+    `;
+
+    const rows: Array<{ container_number: string }> = await this.containerRepository.query(sql, params);
+    if (!rows.length) return [];
+
+    const containerNumbers = rows.map(r => r.container_number).filter(Boolean);
+    return this.containerRepository
+      .createQueryBuilder('container')
+      .where('container.containerNumber IN (:...containerNumbers)', { containerNumbers })
+      .getMany();
+  }
+
+  /**
    * 获取at_port状态且current_port_type='transit'的货柜数
    * 严格按状态机优先级5的逻辑：
    * 1. 必须有还空箱记录 → NOT in (优先级1)
@@ -309,6 +398,67 @@ export class StatusDistributionService {
     });
     query.setParameter('transitType', 'transit');
     query.setParameter('destType', 'destination');
+    DateFilterBuilder.addDateFilters(query, startDate, endDate);
+    DateFilterBuilder.addCountryFilters(query);
+    return query.getMany();
+  }
+
+  /**
+   * 按流程事实获取状态列表（用于避免与统计口径漂移）
+   * 仅覆盖易漂移状态：picked_up / unloaded / returned_empty
+   */
+  async getContainersByProcessFactStatus(
+    status: 'picked_up' | 'unloaded' | 'returned_empty',
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
+    const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
+
+    if (status === 'returned_empty') {
+      query.andWhere(`EXISTS (
+        SELECT 1
+        FROM process_empty_return er
+        WHERE er.container_number = container.container_number
+          AND er.return_time IS NOT NULL
+      )`);
+    }
+
+    if (status === 'unloaded') {
+      query.andWhere(`EXISTS (
+        SELECT 1
+        FROM process_warehouse_operations wo
+        WHERE wo.container_number = container.container_number
+          AND (wo.wms_status = 'WMS已完成' OR wo.ebs_status = '已入库' OR wo.wms_confirm_date IS NOT NULL)
+      )`);
+      query.andWhere(`NOT EXISTS (
+        SELECT 1
+        FROM process_empty_return er
+        WHERE er.container_number = container.container_number
+          AND er.return_time IS NOT NULL
+      )`);
+    }
+
+    if (status === 'picked_up') {
+      query.andWhere(`EXISTS (
+        SELECT 1
+        FROM process_trucking_transport tt
+        WHERE tt.container_number = container.container_number
+          AND tt.pickup_date IS NOT NULL
+      )`);
+      query.andWhere(`NOT EXISTS (
+        SELECT 1
+        FROM process_warehouse_operations wo
+        WHERE wo.container_number = container.container_number
+          AND (wo.wms_status = 'WMS已完成' OR wo.ebs_status = '已入库' OR wo.wms_confirm_date IS NOT NULL)
+      )`);
+      query.andWhere(`NOT EXISTS (
+        SELECT 1
+        FROM process_empty_return er
+        WHERE er.container_number = container.container_number
+          AND er.return_time IS NOT NULL
+      )`);
+    }
+
     DateFilterBuilder.addDateFilters(query, startDate, endDate);
     DateFilterBuilder.addCountryFilters(query);
     return query.getMany();

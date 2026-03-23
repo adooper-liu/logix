@@ -211,6 +211,26 @@ export class ContainerStatisticsService {
     startDate?: string,
     endDate?: string
   ): Promise<Container[]> {
+    if (filterCondition === 'picked_up' || filterCondition === 'unloaded' || filterCondition === 'returned_empty') {
+      return this.statusDistribution.getContainersByProcessFactStatus(filterCondition, startDate, endDate);
+    }
+
+    // 有出运日期时，与 statistics-detailed 的 getDistributionByProcessFacts 同源（避免 logistics_status 与推导状态不一致）
+    if (startDate && endDate) {
+      const derivedByFilter: Record<string, string[]> = {
+        not_shipped: ['not_shipped'],
+        shipped: ['shipped'],
+        in_transit: ['in_transit'],
+        arrived_at_transit: ['arrived_at_transit'],
+        arrived_at_destination: ['arrived_at_destination'],
+        at_port: ['arrived_at_transit', 'arrived_at_destination']
+      };
+      const derivedGroup = derivedByFilter[filterCondition];
+      if (derivedGroup) {
+        return this.statusDistribution.getContainersByDerivedStatuses(startDate, endDate, derivedGroup);
+      }
+    }
+
     if (filterCondition === 'in_transit_transit') {
       return this.getContainersByInTransitTransit(startDate, endDate);
     }

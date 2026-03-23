@@ -22,6 +22,7 @@
     "type-check:backend": "cd backend && npm run type-check",
     "type-check:frontend": "cd frontend && npm run type-check",
     "validate": "npm run type-check && npm run lint && npm run lint:naming",
+    "verify:stats-filter": "cd backend && npm run verify:stats-filter",
     "diagnose:country-filter": "node scripts/diagnose-country-filter.js",
     "test:statistics-fix": "node scripts/test-statistics-fix.js"
   },
