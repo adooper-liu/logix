@@ -111,7 +111,8 @@ export class OperationController {
         return;
       }
 
-      const truckingTransport = this.truckingTransportRepository.create(truckingData);
+      const created = this.truckingTransportRepository.create(truckingData);
+      const truckingTransport = Array.isArray(created) ? created[0] : created;
       if (truckingData.pickupDate != null && truckingData.pickupDate !== undefined) {
         truckingTransport.pickupDateSource = PICKUP_DATE_SOURCE.MANUAL;
       }
@@ -148,7 +149,8 @@ export class OperationController {
 
       let truckingTransport = await this.truckingTransportRepository.findOne({ where: { containerNumber } });
       if (!truckingTransport) {
-        truckingTransport = this.truckingTransportRepository.create({ containerNumber, ...truckingData });
+        const created = this.truckingTransportRepository.create({ containerNumber, ...truckingData });
+        truckingTransport = Array.isArray(created) ? created[0] : created;
       } else {
         Object.assign(truckingTransport, truckingData);
       }
@@ -226,7 +228,8 @@ export class OperationController {
 
       let warehouseOperation = await this.warehouseOperationRepository.findOne({ where: { containerNumber } });
       if (!warehouseOperation) {
-        warehouseOperation = this.warehouseOperationRepository.create({ containerNumber, ...warehouseData });
+        const created = this.warehouseOperationRepository.create({ containerNumber, ...warehouseData });
+        warehouseOperation = Array.isArray(created) ? created[0] : created;
       } else {
         Object.assign(warehouseOperation, warehouseData);
       }
@@ -301,7 +304,8 @@ export class OperationController {
 
       let emptyReturn = await this.emptyReturnRepository.findOne({ where: { containerNumber } });
       if (!emptyReturn) {
-        emptyReturn = this.emptyReturnRepository.create({ containerNumber, ...returnData });
+        const created = this.emptyReturnRepository.create({ containerNumber, ...returnData });
+        emptyReturn = Array.isArray(created) ? created[0] : created;
       } else {
         Object.assign(emptyReturn, returnData);
       }

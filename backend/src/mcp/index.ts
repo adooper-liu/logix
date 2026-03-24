@@ -7,10 +7,10 @@
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { 
-  CallToolRequestSchema, 
+import {
+  CallToolRequestSchema,
   ListToolsRequestSchema,
-  ServerCapabilities 
+  ServerCapabilities
 } from '@modelcontextprotocol/sdk/types.js';
 import { fileTool } from './tools/fileTool.js';
 import { searchTool } from './tools/searchTool.js';
@@ -39,11 +39,11 @@ class LogixMCPServer {
       tools: {}
     };
 
-    this.server = new Server(SERVER_CONFIG, capabilities);
-    
+    this.server = new Server(SERVER_CONFIG as any, capabilities as any);
+
     // 注册所有工具
     this.registerTools();
-    
+
     // 设置请求处理器
     this.setupHandlers();
   }
@@ -59,7 +59,7 @@ class LogixMCPServer {
     // 数据库查询工具
     this.tools.set('query_database', databaseTool);
 
-    mcpLogger.info('MCP tools registered', { 
+    mcpLogger.info('MCP tools registered', {
       toolCount: this.tools.size,
       tools: Array.from(this.tools.keys())
     });
@@ -72,9 +72,9 @@ class LogixMCPServer {
     // 列出所有可用工具
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
       const toolDefinitions = Array.from(this.tools.values()).map(tool => tool.definition);
-      
+
       mcpLogger.info('List tools requested', { toolCount: toolDefinitions.length });
-      
+
       return {
         tools: toolDefinitions
       };
@@ -83,14 +83,14 @@ class LogixMCPServer {
     // 调用工具
     this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
-      
-      mcpLogger.info('Tool called', { 
-        toolName: name, 
+
+      mcpLogger.info('Tool called', {
+        toolName: name,
         args: JSON.stringify(args).substring(0, 200)
       });
 
       const tool = this.tools.get(name);
-      
+
       if (!tool) {
         const error = `Unknown tool: ${name}`;
         mcpLogger.error(error);
@@ -103,8 +103,8 @@ class LogixMCPServer {
       try {
         // 执行工具并记录结果
         const result = await tool.execute(args);
-        
-        mcpLogger.info('Tool executed successfully', { 
+
+        mcpLogger.info('Tool executed successfully', {
           toolName: name,
           resultLength: typeof result === 'string' ? result.length : 0
         });
@@ -113,9 +113,9 @@ class LogixMCPServer {
           content: [{ type: 'text', text: result }]
         };
       } catch (error: any) {
-        mcpLogger.error('Tool execution failed', { 
-          toolName: name, 
-          error: error.message 
+        mcpLogger.error('Tool execution failed', {
+          toolName: name,
+          error: error.message
         });
 
         return {
@@ -133,9 +133,9 @@ class LogixMCPServer {
     try {
       const transport = new StdioServerTransport();
       await this.server.connect(transport);
-      
+
       mcpLogger.info('MCP Server started', SERVER_CONFIG);
-      
+
       // 保持进程运行
       process.on('SIGINT', () => {
         mcpLogger.info('MCP Server shutting down');
@@ -151,7 +151,7 @@ class LogixMCPServer {
 // 导出用于集成的实例
 export const mcpServer = new LogixMCPServer();
 
-// 独立运行模式
-if (import.meta.url === `file://${process.argv[1]}`) {
-  mcpServer.start();
+// 独立运行：设置 MCP_STANDALONE=1 后执行 node 编译产物入口
+if (process.env.MCP_STANDALONE === '1') {
+  void mcpServer.start();
 }

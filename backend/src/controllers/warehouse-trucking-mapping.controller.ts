@@ -21,9 +21,19 @@ export class WarehouseTruckingMappingController {
       let paramIndex = 1;
 
       if (country) {
-        whereClause += ` AND country = $${paramIndex}`;
-        params.push(country);
-        paramIndex++;
+        const countryCode = String(country).trim().toUpperCase();
+        const aliases = countryCode === 'GB' ? ['GB', 'UK'] : countryCode === 'UK' ? ['UK', 'GB'] : [countryCode];
+
+        const aliasPlaceholders = aliases.map(() => `$${paramIndex++}`).join(', ');
+        const prefixPlaceholders = aliases.map(() => `$${paramIndex++}`).join(', ');
+
+        whereClause += ` AND (
+          UPPER(country) IN (${aliasPlaceholders})
+          OR UPPER(warehouse_code) LIKE ANY (ARRAY[${prefixPlaceholders}]::text[])
+        )`;
+
+        params.push(...aliases);
+        params.push(...aliases.map((code) => `${code}%`));
       }
       if (warehouseCode) {
         whereClause += ` AND warehouse_code ILIKE $${paramIndex}`;
@@ -95,13 +105,14 @@ export class WarehouseTruckingMappingController {
         mappingType,
         isDefault,
         isActive,
+        transportFee,
         remarks
       } = req.body;
 
       const result = await AppDataSource.query(
         `INSERT INTO dict_warehouse_trucking_mapping 
-         (country, warehouse_code, warehouse_name, trucking_company_id, trucking_company_name, mapping_type, is_default, is_active, remarks, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+         (country, warehouse_code, warehouse_name, trucking_company_id, trucking_company_name, mapping_type, is_default, is_active, transport_fee, remarks, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
          RETURNING *`,
         [
           country,
@@ -112,6 +123,7 @@ export class WarehouseTruckingMappingController {
           mappingType || 'DEFAULT',
           isDefault || false,
           isActive !== false,
+          transportFee || 0,
           remarks || ''
         ]
       );
@@ -138,14 +150,16 @@ export class WarehouseTruckingMappingController {
         mappingType,
         isDefault,
         isActive,
+        transportFee,
         remarks
       } = req.body;
 
       const result = await AppDataSource.query(
         `UPDATE dict_warehouse_trucking_mapping 
          SET country = $1, warehouse_code = $2, warehouse_name = $3, trucking_company_id = $4, 
-             trucking_company_name = $5, mapping_type = $6, is_default = $7, is_active = $8, remarks = $9, updated_at = NOW()
-         WHERE id = $10
+             trucking_company_name = $5, mapping_type = $6, is_default = $7, is_active = $8, 
+             transport_fee = $9, remarks = $10, updated_at = NOW()
+         WHERE id = $11
          RETURNING *`,
         [
           country,
@@ -156,6 +170,7 @@ export class WarehouseTruckingMappingController {
           mappingType,
           isDefault,
           isActive,
+          transportFee || 0,
           remarks,
           id
         ]
@@ -222,14 +237,15 @@ export class WarehouseTruckingMappingController {
               `UPDATE dict_warehouse_trucking_mapping 
                SET warehouse_name = $1, trucking_company_name = $2, 
                    mapping_type = $3, is_default = $4, 
-                   is_active = $5, remarks = $6, updated_at = NOW()
-               WHERE id = $7`,
+                   is_active = $5, transport_fee = $6, remarks = $7, updated_at = NOW()
+               WHERE id = $8`,
               [
                 record.warehouseName,
                 record.truckingCompanyName,
                 record.mappingType || 'DEFAULT',
                 record.isDefault || false,
                 record.isActive !== false,
+                record.transportFee || 0,
                 record.remarks || '',
                 existing[0].id
               ]
@@ -242,8 +258,8 @@ export class WarehouseTruckingMappingController {
             );
             const insertResult = await AppDataSource.query(
               `INSERT INTO dict_warehouse_trucking_mapping 
-               (country, warehouse_code, warehouse_name, trucking_company_id, trucking_company_name, mapping_type, is_default, is_active, remarks, created_at, updated_at)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+               (country, warehouse_code, warehouse_name, trucking_company_id, trucking_company_name, mapping_type, is_default, is_active, transport_fee, remarks, created_at, updated_at)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
                RETURNING *`,
               [
                 record.country,
@@ -254,6 +270,7 @@ export class WarehouseTruckingMappingController {
                 record.mappingType || 'DEFAULT',
                 record.isDefault || false,
                 record.isActive !== false,
+                record.transportFee || 0,
                 record.remarks || ''
               ]
             );

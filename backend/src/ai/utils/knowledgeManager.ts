@@ -1,7 +1,7 @@
 /**
  * 知识库管理器
  * Knowledge Base Manager
- * 
+ *
  * 管理知识库的自动更新、导入和导出
  */
 
@@ -113,7 +113,7 @@ export class KnowledgeManager {
   async importFromFile(filePath: string): Promise<boolean> {
     try {
       const content = fs.readFileSync(filePath, 'utf8');
-      
+
       // 提取知识库数组
       const match = content.match(/export const knowledgeBase: KnowledgeItem\[\] = \[(.*?)\];/s);
       if (!match) {
@@ -142,7 +142,7 @@ export class KnowledgeManager {
         throw new Error(`API request failed: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data = (await response.json()) as { items?: unknown };
       if (!data.items || !Array.isArray(data.items)) {
         throw new Error('Invalid API response format');
       }
@@ -283,7 +283,7 @@ export function searchKnowledge(query: string): string[] {
             const id = idMatch[1];
             const category = categoryMatch[1];
             const title = titleMatch[1];
-            
+
             // 解析关键词
             const keywordsStr = keywordsMatch[1];
             const keywords = keywordsStr

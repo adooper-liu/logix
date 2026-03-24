@@ -17,17 +17,17 @@ export enum FlowNodeType {
   // 基础节点
   START = 'start',
   END = 'end',
-  
+
   // 任务节点
   AI_TASK = 'ai_task',       // AI任务
   SQL_TASK = 'sql_task',       // SQL查询任务
   HTTP_TASK = 'http_task',     // HTTP请求任务
-  
+
   // 控制节点
   DECISION = 'decision',       // 决策节点
   PARALLEL = 'parallel',       // 并行节点
   LOOP = 'loop',               // 循环节点
-  
+
   // 特殊节点
   KNOWLEDGE_QUERY = 'knowledge_query',  // 知识库查询
   SCHEDULING_TASK = 'scheduling_task',  // 排产任务
@@ -164,18 +164,8 @@ export interface FlowDefinition {
   }[];                     // 流程变量
 }
 
-// 流程实例
-export interface FlowInstance {
-  id: string;             // 实例ID
-  flowId: string;         // 流程定义ID
-  status: 'running' | 'completed' | 'failed' | 'paused'; // 实例状态
-  variables: Record<string, any>; // 实例变量
-  currentNodeId: string;   // 当前节点ID
-  executionHistory: FlowExecutionStep[]; // 执行历史
-  createdAt: string;       // 创建时间
-  updatedAt: string;       // 更新时间
-  completedAt?: string;    // 完成时间
-}
+// 流程实例（与 entities/FlowInstance 同一类，供服务与 TypeORM 共用）
+export { FlowInstance } from '../../entities/FlowInstance';
 
 // 流程执行步骤
 export interface FlowExecutionStep {

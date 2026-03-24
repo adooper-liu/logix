@@ -110,7 +110,7 @@ export const dataSourceOptions: DataSourceOptions = {
 
     // 系统审计表 (System Audit Tables)
     SysDataChangeLog,
-    
+
     // 查验相关表 (Inspection Tables)
     InspectionRecord,
     InspectionEvent,

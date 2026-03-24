@@ -1,7 +1,7 @@
 /**
  * 流程管理服务
  * Flow Management Service
- * 
+ *
  * 负责流程的创建、管理和执行
  */
 
@@ -122,7 +122,7 @@ export class FlowService {
       // 只有当流程定义不存在时才注册
       await flowEngine.registerFlow(flow);
     }
-    
+
     // 创建并执行实例
     const instance = await this.createFlowInstance(flow.id, variables);
     return this.executeFlowInstance(instance.id);

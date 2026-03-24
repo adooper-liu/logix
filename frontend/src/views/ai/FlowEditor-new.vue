@@ -104,7 +104,7 @@
             </el-form-item>
 
             <!-- 节点特定属性 -->
-            <template v-if="selectedNode.type === FlowNodeType.AI_TASK">
+            <template v-if="selectedNode.type === FlowNodeType.AI_TASK && selectedNode.properties">
               <el-form-item label="提示词">
                 <el-input v-model="selectedNode.properties.prompt" type="textarea" :rows="4" placeholder="AI提示词" />
               </el-form-item>
@@ -116,13 +116,13 @@
               </el-form-item>
             </template>
 
-            <template v-if="selectedNode.type === FlowNodeType.SQL_TASK">
+            <template v-if="selectedNode.type === FlowNodeType.SQL_TASK && selectedNode.properties">
               <el-form-item label="SQL语句">
                 <el-input v-model="selectedNode.properties.sql" type="textarea" :rows="4" placeholder="SQL查询语句" />
               </el-form-item>
             </template>
 
-            <template v-if="selectedNode.type === FlowNodeType.HTTP_TASK">
+            <template v-if="selectedNode.type === FlowNodeType.HTTP_TASK && selectedNode.properties">
               <el-form-item label="URL">
                 <el-input v-model="selectedNode.properties.url" placeholder="请求URL" />
               </el-form-item>
@@ -139,7 +139,7 @@
               </el-form-item>
             </template>
 
-            <template v-if="selectedNode.type === FlowNodeType.DECISION">
+            <template v-if="selectedNode.type === FlowNodeType.DECISION && selectedNode.properties">
               <el-form-item label="条件表达式">
                 <el-input v-model="selectedNode.properties.condition" placeholder="如: ${count} > 10" />
               </el-form-item>
@@ -152,8 +152,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, onMounted, onUnmounted, computed, nextTick, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   ArrowLeft,
@@ -175,7 +175,7 @@ import '@logicflow/extension/lib/style/index.css'
 
 // 路由参数
 const route = useRoute()
-const router = useRouter()
+ 
 
 // 流程ID（URL参数）- 过滤无效值
 const flowId = computed(() => {

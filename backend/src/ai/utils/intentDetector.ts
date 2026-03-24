@@ -1,7 +1,7 @@
 /**
  * 意图检测器
  * Intent Detector
- * 
+ *
  * 使用高级 NLP 技术检测用户意图
  */
 
@@ -17,12 +17,12 @@ export enum IntentType {
   DATA_QUERY = 'data_query',        // 数据查询
   KNOWLEDGE_QUERY = 'knowledge_query', // 知识库查询
   REPORT_GENERATION = 'report_generation', // 报表生成
-  
+
   // 系统意图
   HELP = 'help',                    // 帮助
   INFO = 'info',                    // 信息
   ERROR = 'error',                  // 错误
-  
+
   // 其他
   UNKNOWN = 'unknown'               // 未知
 }

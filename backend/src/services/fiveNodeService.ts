@@ -50,16 +50,16 @@ export class FiveNodeService {
 
     // 清关节点信息
     const customsInfo = await this.getCustomsInfo(destPort);
-    
+
     // 拖卡节点信息
     const truckingInfo = await this.getTruckingInfo(containerNumber);
-    
+
     // 卸柜节点信息
     const unloadingInfo = await this.getUnloadingInfo(containerNumber);
-    
+
     // 还箱节点信息
     const emptyReturnInfo = await this.getEmptyReturnInfo(containerNumber);
-    
+
     // 查验节点信息
     const inspectionInfo = await this.getInspectionInfo(containerNumber);
 
@@ -234,8 +234,8 @@ export class FiveNodeService {
     }
 
     // 查验预警
-    if (nodeInfo.inspection.status === 'inspected' && 
-        nodeInfo.inspection.customsClearanceStatus && 
+    if (nodeInfo.inspection.status === 'inspected' &&
+        nodeInfo.inspection.customsClearanceStatus &&
         nodeInfo.inspection.customsClearanceStatus !== '全部放行') {
       warnings.push({
         type: 'inspection',
@@ -248,7 +248,7 @@ export class FiveNodeService {
   }
 
   // 计算费用信息
-  private async calculateCosts(containerNumber: string) {
+  private async calculateCosts(_containerNumber: string) {
     // 这里需要与现有的滞港滞箱费用计算服务对接
     // 暂时返回模拟数据
     return {

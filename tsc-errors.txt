@@ -1,0 +1,395 @@
+
+> logix-main-service@1.0.0 type-check
+> tsc --noEmit
+
+src/ai/adapters/SiliconFlowAdapter.ts(94,59): error TS7006: Parameter 'line' implicitly has an 'any' type.
+src/ai/controllers/ai.controller.ts(529,9): error TS2322: Type '{ sql: string; data: any[]; rowCount: number; truncated: boolean; } | null' is not assignable to type '{ sql: string; rowCount: number; truncated: boolean; data: any[]; } | undefined'.
+  Type 'null' is not assignable to type '{ sql: string; rowCount: number; truncated: boolean; data: any[]; } | undefined'.
+src/ai/controllers/ai.controller.ts(530,9): error TS2322: Type 'MCPToolResult | null' is not assignable to type '{ toolName: string; success: boolean; result: string; error?: string | undefined; } | undefined'.
+  Type 'null' is not assignable to type '{ toolName: string; success: boolean; result: string; error?: string | undefined; } | undefined'.
+src/ai/controllers/ai.controller.ts(531,9): error TS2322: Type '{ success: boolean; total: number; successCount: number; failedCount: number; results: ScheduleResult[]; hasMore: boolean; } | null' is not assignable to type '{ success: boolean; total: number; successCount: number; failedCount: number; results: any[]; } | undefined'.
+  Type 'null' is not assignable to type '{ success: boolean; total: number; successCount: number; failedCount: number; results: any[]; } | undefined'.
+src/ai/services/flowService.ts(104,5): error TS2322: Type 'import("D:/Gihub/logix/backend/src/entities/FlowInstance").FlowInstance | undefined' is not assignable to type 'import("D:/Gihub/logix/backend/src/ai/types/flow").FlowInstance | undefined'.
+  Type 'import("D:/Gihub/logix/backend/src/entities/FlowInstance").FlowInstance' is not assignable to type 'import("D:/Gihub/logix/backend/src/ai/types/flow").FlowInstance'.
+    Types of property 'status' are incompatible.
+      Type 'string' is not assignable to type '"failed" | "running" | "completed" | "paused"'.
+src/ai/services/textToSql.service.ts(71,9): error TS2741: Property 'rowCount' is missing in type '{ success: false; sql: string; error: string; }' but required in type 'TextToSqlResponse'.
+src/ai/services/textToSql.service.ts(90,9): error TS2741: Property 'rowCount' is missing in type '{ success: false; sql: any; error: string; }' but required in type 'TextToSqlResponse'.
+src/ai/services/textToSql.service.ts(107,7): error TS2741: Property 'rowCount' is missing in type '{ success: false; sql: string; error: any; }' but required in type 'TextToSqlResponse'.
+src/ai/services/textToSql.service.ts(130,9): error TS2741: Property 'rowCount' is missing in type '{ success: false; sql: string; error: string; }' but required in type 'TextToSqlResponse'.
+src/ai/services/textToSql.service.ts(145,28): error TS2304: Cannot find name 'cacheManager'.
+src/ai/services/textToSql.service.ts(168,7): error TS2304: Cannot find name 'cacheManager'.
+src/ai/utils/flowEngine.ts(144,51): error TS2345: Argument of type 'import("D:/Gihub/logix/backend/src/ai/types/flow").FlowInstance' is not assignable to parameter of type 'import("D:/Gihub/logix/backend/src/entities/FlowInstance").FlowInstance'.
+  Types of property 'completedAt' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/ai/utils/flowEngine.ts(172,9): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/ai/utils/flowEngine.ts(261,72): error TS2345: Argument of type 'import("D:/Gihub/logix/backend/src/entities/FlowInstance").FlowInstance' is not assignable to parameter of type 'import("D:/Gihub/logix/backend/src/ai/types/flow").FlowInstance'.
+  Types of property 'status' are incompatible.
+    Type 'string' is not assignable to type '"failed" | "running" | "completed" | "paused"'.
+src/ai/utils/flowEngine.ts(265,78): error TS2345: Argument of type 'import("D:/Gihub/logix/backend/src/entities/FlowInstance").FlowInstance' is not assignable to parameter of type 'import("D:/Gihub/logix/backend/src/ai/types/flow").FlowInstance'.
+  Types of property 'status' are incompatible.
+    Type 'string' is not assignable to type '"failed" | "running" | "completed" | "paused"'.
+src/ai/utils/flowEngine.ts(269,70): error TS2345: Argument of type 'import("D:/Gihub/logix/backend/src/entities/FlowInstance").FlowInstance' is not assignable to parameter of type 'import("D:/Gihub/logix/backend/src/ai/types/flow").FlowInstance'.
+  Types of property 'status' are incompatible.
+    Type 'string' is not assignable to type '"failed" | "running" | "completed" | "paused"'.
+src/ai/utils/flowEngine.ts(273,90): error TS2345: Argument of type 'import("D:/Gihub/logix/backend/src/entities/FlowInstance").FlowInstance' is not assignable to parameter of type 'import("D:/Gihub/logix/backend/src/ai/types/flow").FlowInstance'.
+  Types of property 'status' are incompatible.
+    Type 'string' is not assignable to type '"failed" | "running" | "completed" | "paused"'.
+src/ai/utils/flowEngine.ts(277,90): error TS2345: Argument of type 'import("D:/Gihub/logix/backend/src/entities/FlowInstance").FlowInstance' is not assignable to parameter of type 'import("D:/Gihub/logix/backend/src/ai/types/flow").FlowInstance'.
+  Types of property 'status' are incompatible.
+    Type 'string' is not assignable to type '"failed" | "running" | "completed" | "paused"'.
+src/ai/utils/flowEngine.ts(281,98): error TS2345: Argument of type 'import("D:/Gihub/logix/backend/src/entities/FlowInstance").FlowInstance' is not assignable to parameter of type 'import("D:/Gihub/logix/backend/src/ai/types/flow").FlowInstance'.
+  Types of property 'status' are incompatible.
+    Type 'string' is not assignable to type '"failed" | "running" | "completed" | "paused"'.
+src/ai/utils/flowEngine.ts(327,7): error TS2353: Object literal may only specify known properties, and 'model' does not exist in type '{ temperature?: number | undefined; maxTokens?: number | undefined; }'.
+src/ai/utils/flowEngine.ts(414,63): error TS2345: Argument of type 'import("D:/Gihub/logix/backend/src/ai/types/flow").FlowInstance' is not assignable to parameter of type 'import("D:/Gihub/logix/backend/src/entities/FlowInstance").FlowInstance'.
+  Types of property 'completedAt' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/ai/utils/flowEngine.ts(450,57): error TS2345: Argument of type 'import("D:/Gihub/logix/backend/src/ai/types/flow").FlowInstance' is not assignable to parameter of type 'import("D:/Gihub/logix/backend/src/entities/FlowInstance").FlowInstance'.
+  Types of property 'completedAt' are incompatible.
+    Type 'string | undefined' is not assignable to type 'string'.
+      Type 'undefined' is not assignable to type 'string'.
+src/ai/utils/flowEngine.ts(604,5): error TS2322: Type 'import("D:/Gihub/logix/backend/src/ai/types/flow").FlowInstance | undefined' is not assignable to type 'import("D:/Gihub/logix/backend/src/entities/FlowInstance").FlowInstance | undefined'.
+  Type 'import("D:/Gihub/logix/backend/src/ai/types/flow").FlowInstance' is not assignable to type 'import("D:/Gihub/logix/backend/src/entities/FlowInstance").FlowInstance'.
+    Types of property 'completedAt' are incompatible.
+      Type 'string | undefined' is not assignable to type 'string'.
+        Type 'undefined' is not assignable to type 'string'.
+src/ai/utils/knowledgeManager.ts(146,12): error TS18046: 'data' is of type 'unknown'.
+src/ai/utils/knowledgeManager.ts(146,41): error TS18046: 'data' is of type 'unknown'.
+src/ai/utils/knowledgeManager.ts(151,39): error TS18046: 'data' is of type 'unknown'.
+src/controllers/alertController.ts(41,44): error TS2554: Expected 2 arguments, but got 1.
+src/controllers/container.controller.ts(369,26): error TS2339: Property 'order' does not exist on type 'Container'.
+src/controllers/container.controller.ts(1085,60): error TS2353: Object literal may only specify known properties, and 'containerNumber' does not exist in type 'FindOptionsWhere<SeaFreight> | FindOptionsWhere<SeaFreight>[]'.
+src/controllers/container.controller.ts(1092,44): error TS2339: Property 'destinationPort' does not exist on type 'SeaFreight'.
+src/controllers/container.controller.ts(1096,34): error TS2339: Property 'destinationPort' does not exist on type 'SeaFreight'.
+src/controllers/container.controller.ts(1101,77): error TS2339: Property 'destinationPort' does not exist on type 'SeaFreight'.
+src/controllers/container.controller.ts(1386,11): error TS2322: Type 'null' is not assignable to type '(() => string) | _QueryDeepPartialEntity<string | undefined>'.
+src/controllers/country.controller.ts(89,52): error TS2339: Property 'nameCn' does not exist on type 'Country[]'.
+src/controllers/country.controller.ts(89,76): error TS2339: Property 'code' does not exist on type 'Country[]'.
+src/controllers/customer.controller.ts(126,54): error TS2339: Property 'customerName' does not exist on type 'Customer[]'.
+src/controllers/customer.controller.ts(126,85): error TS2339: Property 'customerCode' does not exist on type 'Customer[]'.
+src/controllers/customerType.controller.ts(89,63): error TS2339: Property 'typeName' does not exist on type 'CustomerType[]'.
+src/controllers/customerType.controller.ts(89,94): error TS2339: Property 'typeCode' does not exist on type 'CustomerType[]'.
+src/controllers/externalData.controller.ts(239,49): error TS2339: Property 'atdTransit' does not exist on type 'Partial<PortOperation>'.
+src/controllers/operation.controller.ts(116,27): error TS2339: Property 'pickupDateSource' does not exist on type 'TruckingTransport[]'.
+src/controllers/operation.controller.ts(151,9): error TS2739: Type 'TruckingTransport[]' is missing the following properties from type 'TruckingTransport': containerNumber, truckingType, createdAt, updatedAt, container
+src/controllers/operation.controller.ts(156,9): error TS18047: 'truckingTransport' is possibly 'null'.
+src/controllers/operation.controller.ts(159,51): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(entities: DeepPartial<TruckingTransport>[], options?: SaveOptions | undefined): Promise<(DeepPartial<TruckingTransport> & TruckingTransport)[]>', gave the following error.
+    Argument of type 'TruckingTransport | null' is not assignable to parameter of type 'DeepPartial<TruckingTransport>[]'.
+      Type 'null' is not assignable to type 'DeepPartial<TruckingTransport>[]'.
+  Overload 2 of 4, '(entity: DeepPartial<TruckingTransport>, options?: SaveOptions | undefined): Promise<DeepPartial<TruckingTransport> & TruckingTransport>', gave the following error.
+    Argument of type 'TruckingTransport | null' is not assignable to parameter of type 'DeepPartial<TruckingTransport>'.
+      Type 'null' is not assignable to type 'DeepPartial<TruckingTransport>'.
+src/controllers/operation.controller.ts(229,9): error TS2740: Type 'WarehouseOperation[]' is missing the following properties from type 'WarehouseOperation': containerNumber, operationType, isUnboxing, createdAt, and 3 more.
+src/controllers/operation.controller.ts(234,52): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(entities: DeepPartial<WarehouseOperation>[], options?: SaveOptions | undefined): Promise<(DeepPartial<WarehouseOperation> & WarehouseOperation)[]>', gave the following error.
+    Argument of type 'WarehouseOperation | null' is not assignable to parameter of type 'DeepPartial<WarehouseOperation>[]'.
+      Type 'null' is not assignable to type 'DeepPartial<WarehouseOperation>[]'.
+  Overload 2 of 4, '(entity: DeepPartial<WarehouseOperation>, options?: SaveOptions | undefined): Promise<DeepPartial<WarehouseOperation> & WarehouseOperation>', gave the following error.
+    Argument of type 'WarehouseOperation | null' is not assignable to parameter of type 'DeepPartial<WarehouseOperation>'.
+      Type 'null' is not assignable to type 'DeepPartial<WarehouseOperation>'.
+src/controllers/operation.controller.ts(304,9): error TS2739: Type 'EmptyReturn[]' is missing the following properties from type 'EmptyReturn': containerNumber, createdAt, updatedAt, container
+src/controllers/operation.controller.ts(309,45): error TS2769: No overload matches this call.
+  Overload 1 of 4, '(entities: DeepPartial<EmptyReturn>[], options?: SaveOptions | undefined): Promise<(DeepPartial<EmptyReturn> & EmptyReturn)[]>', gave the following error.
+    Argument of type 'EmptyReturn | null' is not assignable to parameter of type 'DeepPartial<EmptyReturn>[]'.
+      Type 'null' is not assignable to type 'DeepPartial<EmptyReturn>[]'.
+  Overload 2 of 4, '(entity: DeepPartial<EmptyReturn>, options?: SaveOptions | undefined): Promise<DeepPartial<EmptyReturn> & EmptyReturn>', gave the following error.
+    Argument of type 'EmptyReturn | null' is not assignable to parameter of type 'DeepPartial<EmptyReturn>'.
+      Type 'null' is not assignable to type 'DeepPartial<EmptyReturn>'.
+src/controllers/universal-dict-mapping.controller.ts(339,13): error TS7034: Variable 'fields' implicitly has type 'any[]' in some locations where its type cannot be determined.
+src/controllers/universal-dict-mapping.controller.ts(368,15): error TS7005: Variable 'fields' implicitly has an 'any[]' type.
+src/mcp/index.ts(42,45): error TS2559: Type '{ experimental?: { [x: string]: object; } | undefined; logging?: object | undefined; completions?: object | undefined; prompts?: { listChanged?: boolean | undefined; } | undefined; resources?: { ...; } | undefined; tools?: { ...; } | undefined; tasks?: { ...; } | undefined; }' has no properties in common with type 'ServerOptions'.
+src/mcp/index.ts(155,5): error TS1343: The 'import.meta' meta-property is only allowed when the '--module' option is 'es2020', 'es2022', 'esnext', 'system', 'node16', 'node18', 'node20', or 'nodenext'.
+src/mcp/logger.ts(10,34): error TS1343: The 'import.meta' meta-property is only allowed when the '--module' option is 'es2020', 'es2022', 'esnext', 'system', 'node16', 'node18', 'node20', or 'nodenext'.
+src/mcp/tools/fileTool.ts(10,34): error TS1343: The 'import.meta' meta-property is only allowed when the '--module' option is 'es2020', 'es2022', 'esnext', 'system', 'node16', 'node18', 'node20', or 'nodenext'.
+src/mcp/tools/searchTool.ts(10,34): error TS1343: The 'import.meta' meta-property is only allowed when the '--module' option is 'es2020', 'es2022', 'esnext', 'system', 'node16', 'node18', 'node20', or 'nodenext'.
+src/routes/alert.routes.ts(27,52): error TS2345: Argument of type '{ resolved?: boolean | undefined; type?: string | undefined; level?: string | undefined; }' is not assignable to parameter of type '{ level?: AlertLevel | undefined; type?: AlertType | undefined; resolved?: boolean | undefined; }'.
+  Types of property 'level' are incompatible.
+    Type 'string | undefined' is not assignable to type 'AlertLevel | undefined'.
+      Type 'string' is not assignable to type 'AlertLevel | undefined'.
+src/routes/inspection.routes.ts(71,7): error TS2554: Expected 0-1 arguments, but got 3.
+src/schedulers/containerStatus.scheduler.ts(117,5): error TS2322: Type 'void' is not assignable to type 'number'.
+src/server.ts(186,51): error TS2554: Expected 1-2 arguments, but got 4.
+src/services/container.service.ts(122,11): error TS2345: Argument of type 'ContainerStatusEvent | null | undefined' is not assignable to parameter of type 'ContainerStatusEvent | null'.
+  Type 'undefined' is not assignable to type 'ContainerStatusEvent | null'.
+src/services/container.service.ts(216,49): error TS2345: Argument of type 'ContainerStatusEvent | null | undefined' is not assignable to parameter of type 'ContainerStatusEvent | null'.
+  Type 'undefined' is not assignable to type 'ContainerStatusEvent | null'.
+src/services/container.service.ts(434,9): error TS2322: Type 'SeaFreight | null' is not assignable to type 'SeaFreight'.
+  Type 'null' is not assignable to type 'SeaFreight'.
+src/services/container.service.ts(453,7): error TS2345: Argument of type 'TruckingTransport | null' is not assignable to parameter of type 'TruckingTransport | undefined'.
+  Type 'null' is not assignable to type 'TruckingTransport | undefined'.
+src/services/container.service.ts(473,7): error TS2322: Type '"transit" | "destination" | "origin" | null' is not assignable to type '"transit" | "destination" | null'.
+  Type '"origin"' is not assignable to type '"transit" | "destination" | null'.
+src/services/container.service.ts(579,51): error TS2339: Property 'terminal' does not exist on type 'PortOperation'.
+src/services/container.service.ts(580,51): error TS2339: Property 'terminal' does not exist on type 'PortOperation'.
+src/services/container.service.ts(595,51): error TS2339: Property 'terminal' does not exist on type 'PortOperation'.
+src/services/container.service.ts(596,51): error TS2339: Property 'terminal' does not exist on type 'PortOperation'.
+src/services/container.service.ts(611,51): error TS2339: Property 'terminal' does not exist on type 'PortOperation'.
+src/services/container.service.ts(612,51): error TS2339: Property 'terminal' does not exist on type 'PortOperation'.
+src/services/container.service.ts(627,51): error TS2339: Property 'terminal' does not exist on type 'PortOperation'.
+src/services/container.service.ts(628,51): error TS2339: Property 'terminal' does not exist on type 'PortOperation'.
+src/services/container.service.ts(656,28): error TS2339: Property 'terminal' does not exist on type 'PortOperation'.
+src/services/container.service.ts(679,21): error TS2339: Property 'id' does not exist on type 'TruckingTransport'.
+src/services/container.service.ts(694,21): error TS2339: Property 'id' does not exist on type 'TruckingTransport'.
+src/services/container.service.ts(726,21): error TS2339: Property 'id' does not exist on type 'WarehouseOperation'.
+src/services/container.service.ts(741,21): error TS2339: Property 'id' does not exist on type 'WarehouseOperation'.
+src/services/container.service.ts(756,21): error TS2339: Property 'id' does not exist on type 'WarehouseOperation'.
+src/services/container.service.ts(973,50): error TS2352: Conversion of type '{ containerNumber: any; eventType: any; locationCode: any; locationNameCn: any; locationNameEn: any; occurredAt: any; }' to type 'ContainerStatusEvent' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Type '{ containerNumber: any; eventType: any; locationCode: any; locationNameCn: any; locationNameEn: any; occurredAt: any; }' is missing the following properties from type 'ContainerStatusEvent': id, statusCode, statusName, location, and 6 more.
+src/services/container.service.ts(1285,21): error TS2339: Property 'locationNameCn' does not exist on type 'ContainerStatusEvent'.
+src/services/container.service.ts(1285,51): error TS2339: Property 'locationNameEn' does not exist on type 'ContainerStatusEvent'.
+src/services/container.service.ts(1285,81): error TS2551: Property 'locationCode' does not exist on type 'ContainerStatusEvent'. Did you mean 'location'?
+src/services/container.service.ts(1320,25): error TS2339: Property 'locationNameCn' does not exist on type 'ContainerStatusEvent'.
+src/services/container.service.ts(1320,49): error TS2339: Property 'locationNameEn' does not exist on type 'ContainerStatusEvent'.
+src/services/container.service.ts(1320,73): error TS2551: Property 'locationCode' does not exist on type 'ContainerStatusEvent'. Did you mean 'location'?
+src/services/container.service.ts(1322,23): error TS2339: Property 'locationNameCn' does not exist on type 'ContainerStatusEvent'.
+src/services/container.service.ts(1322,47): error TS2339: Property 'locationNameEn' does not exist on type 'ContainerStatusEvent'.
+src/services/container.service.ts(1322,71): error TS2551: Property 'locationCode' does not exist on type 'ContainerStatusEvent'. Did you mean 'location'?
+src/services/container.service.ts(1351,33): error TS2339: Property 'lastReturnDate' does not exist on type 'PortOperation'.
+src/services/dataSourceService.ts(135,11): error TS2322: Type 'string' is not assignable to type 'SourceType'.
+src/services/dataSourceService.ts(184,11): error TS2322: Type 'string' is not assignable to type 'SourceType'.
+src/services/externalDataService.ts(420,19): error TS2339: Property 'isEstimated' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(423,19): error TS2551: Property 'locationCode' does not exist on type 'ContainerStatusEvent'. Did you mean 'location'?
+src/services/externalDataService.ts(424,19): error TS2339: Property 'locationNameEn' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(425,19): error TS2339: Property 'locationNameCn' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(426,19): error TS2339: Property 'locationNameOriginal' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(429,19): error TS2339: Property 'latitude' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(430,19): error TS2339: Property 'longitude' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(431,19): error TS2339: Property 'timezone' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(434,7): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/services/externalDataService.ts(435,19): error TS2339: Property 'cargoLocation' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(438,19): error TS2339: Property 'statusType' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(444,19): error TS2551: Property 'descriptionEn' does not exist on type 'ContainerStatusEvent'. Did you mean 'description'?
+src/services/externalDataService.ts(445,19): error TS2551: Property 'descriptionCn' does not exist on type 'ContainerStatusEvent'. Did you mean 'description'?
+src/services/externalDataService.ts(446,19): error TS2339: Property 'descriptionOriginal' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(581,23): error TS2339: Property 'locationNameEn' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(907,22): error TS2339: Property 'eventCode' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(908,22): error TS2339: Property 'eventName' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(910,22): error TS2339: Property 'isEstimated' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(911,22): error TS2551: Property 'locationCode' does not exist on type 'ContainerStatusEvent'. Did you mean 'location'?
+src/services/externalDataService.ts(912,22): error TS2339: Property 'locationNameEn' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(913,22): error TS2339: Property 'locationNameCn' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(924,24): error TS2339: Property 'eventCode' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(925,24): error TS2339: Property 'eventName' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(927,24): error TS2339: Property 'isEstimated' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(928,24): error TS2551: Property 'locationCode' does not exist on type 'ContainerStatusEvent'. Did you mean 'location'?
+src/services/externalDataService.ts(929,24): error TS2339: Property 'locationNameEn' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(930,24): error TS2339: Property 'locationNameCn' does not exist on type 'ContainerStatusEvent'.
+src/services/externalDataService.ts(972,53): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'boolean'.
+src/services/externalDataService.ts(984,53): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'boolean'.
+src/services/externalDataService.ts(996,53): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'boolean'.
+src/services/externalDataService.ts(1003,53): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'boolean'.
+src/services/externalDataService.ts(1092,36): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/services/externalDataService.ts(1097,48): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/services/externalDataService.ts(1126,45): error TS2339: Property 'gateInTime' does not exist on type 'TruckingTransport'.
+src/services/externalDataService.ts(1130,47): error TS2339: Property 'inboundDate' does not exist on type 'WarehouseOperation'.
+src/services/externalDataService.ts(1151,51): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/services/externalDataService.ts(1304,54): error TS2353: Object literal may only specify known properties, and 'containerNumber' does not exist in type 'FindOptionsWhere<SeaFreight> | FindOptionsWhere<SeaFreight>[]'.
+src/services/externalDataService.ts(1344,13): error TS2322: Type '"feituo_sync"' is not assignable to type 'SourceType'.
+src/services/externalDataService.ts(1383,13): error TS2322: Type '"feituo_sync"' is not assignable to type 'SourceType'.
+src/services/externalDataService.ts(1464,70): error TS2345: Argument of type 'Promise<string>[]' is not assignable to parameter of type '(() => Promise<unknown>)[]'.
+  Type 'Promise<string>' is not assignable to type '() => Promise<unknown>'.
+    Type 'Promise<string>' provides no match for the signature '(): Promise<unknown>'.
+src/services/externalDataService.ts(1465,33): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+src/services/externalDataService.ts(1552,9): error TS2345: Argument of type 'Promise<T>' is not assignable to parameter of type 'T'.
+  'T' could be instantiated with an arbitrary type which could be unrelated to 'Promise<T>'.
+src/services/externalDataService.ts(1559,44): error TS2345: Argument of type 'Promise<T>' is not assignable to parameter of type 'Promise<void>'.
+  Type 'T' is not assignable to type 'void'.
+src/services/externalDataService.ts(1562,22): error TS2345: Argument of type 'Promise<T>' is not assignable to parameter of type 'Promise<void>'.
+  Type 'T' is not assignable to type 'void'.
+src/services/externalDataService.ts(1638,34): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/services/externalDataService.ts(1642,46): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/services/externalDataService.ts(1715,40): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/services/externalDataService.ts(1789,39): error TS2538: Type 'undefined' cannot be used as an index type.
+src/services/feituo/FeituoSmartDateUpdater.ts(440,57): error TS2554: Expected 1 arguments, but got 4.
+src/services/feituo/FeituoSmartDateUpdater.ts(463,33): error TS2339: Property 'ataDestPort' does not exist on type 'PortOperation'.
+src/services/feituo/FeituoSmartDateUpdater.ts(465,33): error TS2339: Property 'ataDestPort' does not exist on type 'PortOperation'.
+src/services/feituo/FeituoSmartDateUpdater.ts(467,59): error TS2554: Expected 1 arguments, but got 4.
+src/services/feituo/FeituoSmartDateUpdater.ts(467,66): error TS2339: Property 'ataDestPort' does not exist on type 'PortOperation'.
+src/services/feituo/FeituoSmartDateUpdater.ts(670,17): error TS2339: Property 'ataDestPort' does not exist on type 'PortOperation'.
+src/services/feituo/FeituoSmartDateUpdater.ts(671,17): error TS2339: Property 'atdDestPort' does not exist on type 'PortOperation'.
+src/services/feituo/FeituoSmartDateUpdater.ts(685,27): error TS2339: Property 'atdDestPort' does not exist on type 'PortOperation'.
+src/services/feituo/FeituoSmartDateUpdater.ts(686,27): error TS2339: Property 'ataDestPort' does not exist on type 'PortOperation'.
+src/services/feituo/FeituoSmartDateUpdater.ts(712,15): error TS2322: Type '{ portSequence: number; portType: string; ata: any; atd: any; eta: Date; etd: Date; }[]' is not assignable to type '{ portSequence: number; portType: "transit" | "destination" | "origin"; ata: Date | null; atd: Date | null; eta: Date | null; etd: Date | null; }[]'.
+  Type '{ portSequence: number; portType: string; ata: any; atd: any; eta: Date; etd: Date; }' is not assignable to type '{ portSequence: number; portType: "transit" | "destination" | "origin"; ata: Date | null; atd: Date | null; eta: Date | null; etd: Date | null; }'.
+    Types of property 'portType' are incompatible.
+      Type 'string' is not assignable to type '"transit" | "destination" | "origin"'.
+src/services/feituo/FeituoSmartDateUpdater.ts(713,15): error TS2322: Type '{ portSequence: number; portType: string; atd: any; ata: any; } | null' is not assignable to type '{ portSequence: number; portType: "transit" | "destination" | "origin"; atd: Date | null; ata: Date | null; } | undefined'.
+  Type 'null' is not assignable to type '{ portSequence: number; portType: "transit" | "destination" | "origin"; atd: Date | null; ata: Date | null; } | undefined'.
+src/services/feituo/FeituoSmartDateUpdater.ts(735,65): error TS2339: Property 'ataDestPort' does not exist on type 'PortOperation'.
+src/services/feituo/FeituoSmartDateUpdater.ts(736,22): error TS2339: Property 'ataDestPort' does not exist on type 'PortOperation'.
+src/services/feituo/FeituoSmartDateUpdater.ts(750,36): error TS2339: Property 'ataDestPort' does not exist on type 'PortOperation'.
+src/services/feituo/FeituoSmartDateUpdater.ts(751,33): error TS2339: Property 'ataDestPort' does not exist on type 'PortOperation'.
+src/services/feituo/FeituoSmartDateUpdater.ts(771,15): error TS2322: Type '{ portSequence: number; portType: string; ata: any; atd: any; eta: Date; etd: Date; }[]' is not assignable to type '{ portSequence: number; portType: "transit" | "destination" | "origin"; ata: Date | null; atd: Date | null; eta: Date | null; etd: Date | null; }[]'.
+  Type '{ portSequence: number; portType: string; ata: any; atd: any; eta: Date; etd: Date; }' is not assignable to type '{ portSequence: number; portType: "transit" | "destination" | "origin"; ata: Date | null; atd: Date | null; eta: Date | null; etd: Date | null; }'.
+    Types of property 'portType' are incompatible.
+      Type 'string' is not assignable to type '"transit" | "destination" | "origin"'.
+src/services/feituo/FeituoSmartDateUpdater.ts(772,15): error TS2322: Type '{ portSequence: number; portType: string; atd: any; ata: any; } | null' is not assignable to type '{ portSequence: number; portType: "transit" | "destination" | "origin"; atd: Date | null; ata: Date | null; } | undefined'.
+  Type 'null' is not assignable to type '{ portSequence: number; portType: "transit" | "destination" | "origin"; atd: Date | null; ata: Date | null; } | undefined'.
+src/services/feituo/FeituoSmartDateUpdater.ts(792,65): error TS2339: Property 'ataDestPort' does not exist on type 'PortOperation'.
+src/services/feituo/FeituoSmartDateUpdater.ts(793,22): error TS2339: Property 'ataDestPort' does not exist on type 'PortOperation'.
+src/services/feituo/FeituoSmartDateUpdater.ts(806,36): error TS2339: Property 'ataDestPort' does not exist on type 'PortOperation'.
+src/services/feituo/FeituoSmartDateUpdater.ts(807,33): error TS2339: Property 'ataDestPort' does not exist on type 'PortOperation'.
+src/services/feituo/FeituoSmartDateUpdater.ts(830,15): error TS2322: Type '{ portSequence: number; portType: string; ata: any; atd: any; eta: Date; etd: Date; }[]' is not assignable to type '{ portSequence: number; portType: "transit" | "destination" | "origin"; ata: Date | null; atd: Date | null; eta: Date | null; etd: Date | null; }[]'.
+  Type '{ portSequence: number; portType: string; ata: any; atd: any; eta: Date; etd: Date; }' is not assignable to type '{ portSequence: number; portType: "transit" | "destination" | "origin"; ata: Date | null; atd: Date | null; eta: Date | null; etd: Date | null; }'.
+    Types of property 'portType' are incompatible.
+      Type 'string' is not assignable to type '"transit" | "destination" | "origin"'.
+src/services/feituo/FeituoSmartDateUpdater.ts(831,15): error TS2322: Type '{ portSequence: number; portType: string; atd: any; ata: any; } | null' is not assignable to type '{ portSequence: number; portType: "transit" | "destination" | "origin"; atd: Date | null; ata: Date | null; } | undefined'.
+  Type 'null' is not assignable to type '{ portSequence: number; portType: "transit" | "destination" | "origin"; atd: Date | null; ata: Date | null; } | undefined'.
+src/services/feituo/FeituoSmartDateUpdater.ts(847,35): error TS2339: Property 'ataDestPort' does not exist on type 'PortOperation'.
+src/services/feituo/FeituoSmartDateUpdater.ts(848,22): error TS2339: Property 'ataDestPort' does not exist on type 'PortOperation'.
+src/services/feituoImport.service.ts(547,5): error TS2345: Argument of type 'Repository<InspectionRecord>' is not assignable to parameter of type 'Repository<ReplenishmentOrder>'.
+  Types of property 'target' are incompatible.
+    Type 'EntityTarget<InspectionRecord>' is not assignable to type 'EntityTarget<ReplenishmentOrder>'.
+      Type '{ type: InspectionRecord; name: string; }' is not assignable to type 'EntityTarget<ReplenishmentOrder>'.
+        Type '{ type: InspectionRecord; name: string; }' is not assignable to type '{ type: ReplenishmentOrder; name: string; }'.
+          Types of property 'type' are incompatible.
+            Type 'InspectionRecord' is missing the following properties from type 'ReplenishmentOrder': orderNumber, mainOrderNumber, sellToCountry, customerCode, and 18 more.
+src/services/feituoImport.service.ts(1028,55): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/services/feituoImport.service.ts(1029,57): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/services/feituoImport.service.ts(1032,9): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(entityLikeArray: DeepPartial<SeaFreight>[]): SeaFreight[]', gave the following error.
+    Object literal may only specify known properties, and 'billOfLadingNumber' does not exist in type 'DeepPartial<SeaFreight>[]'.
+src/services/feituoImport.service.ts(1065,9): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(entityLikeArray: DeepPartial<Container>[]): Container[]', gave the following error.
+    Object literal may only specify known properties, and 'containerNumber' does not exist in type 'DeepPartial<Container>[]'.
+src/services/feituoImport.service.ts(1083,29): error TS2322: Type 'Date | null' is not assignable to type 'Date | undefined'.
+  Type 'null' is not assignable to type 'Date | undefined'.
+src/services/feituoImport.service.ts(1084,34): error TS2322: Type 'Date | null' is not assignable to type 'Date | undefined'.
+  Type 'null' is not assignable to type 'Date | undefined'.
+src/services/feituoImport.service.ts(1087,30): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/services/feituoImport.service.ts(1088,32): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/services/feituoImport.service.ts(1090,34): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/services/feituoImport.service.ts(1091,27): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/services/feituoImport.service.ts(1092,29): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/services/feituoImport.service.ts(1114,11): error TS2322: Type 'string | null' is not assignable to type '"transit" | "destination" | "origin" | null'.
+  Type 'string' is not assignable to type '"transit" | "destination" | "origin" | null'.
+src/services/feituoImport.service.ts(1132,43): error TS2339: Property 'gateInTime' does not exist on type 'TruckingTransport'.
+src/services/feituoImport.service.ts(1136,45): error TS2339: Property 'inboundDate' does not exist on type 'WarehouseOperation'.
+src/services/feituoImport.service.ts(1218,9): error TS2322: Type 'Date | null' is not assignable to type 'Date'.
+  Type 'null' is not assignable to type 'Date'.
+src/services/feituoImport.service.ts(1223,9): error TS2322: Type 'Date | null' is not assignable to type 'Date'.
+  Type 'null' is not assignable to type 'Date'.
+src/services/feituoImport.service.ts(1370,9): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(entityLikeArray: DeepPartial<SeaFreight>[]): SeaFreight[]', gave the following error.
+    Object literal may only specify known properties, and 'billOfLadingNumber' does not exist in type 'DeepPartial<SeaFreight>[]'.
+src/services/feituoImport.service.ts(1407,30): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/services/feituoImport.service.ts(1408,32): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/services/feituoImport.service.ts(1409,29): error TS2322: Type 'Date | null' is not assignable to type 'Date | undefined'.
+  Type 'null' is not assignable to type 'Date | undefined'.
+src/services/feituoImport.service.ts(1412,20): error TS2322: Type 'Date | null' is not assignable to type 'Date'.
+  Type 'null' is not assignable to type 'Date'.
+src/services/feituoImport.service.ts(1432,55): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/services/feituoImport.service.ts(1440,23): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(entityLikeArray: DeepPartial<PortOperation>[]): PortOperation[]', gave the following error.
+    Object literal may only specify known properties, and 'id' does not exist in type 'DeepPartial<PortOperation>[]'.
+  Overload 2 of 3, '(entityLike: DeepPartial<PortOperation>): PortOperation', gave the following error.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+src/services/feituoImport.service.ts(1453,33): error TS2322: Type 'Date | null' is not assignable to type 'Date'.
+  Type 'null' is not assignable to type 'Date'.
+src/services/feituoImport.service.ts(1454,25): error TS2322: Type 'Date | null' is not assignable to type 'Date'.
+  Type 'null' is not assignable to type 'Date'.
+src/services/feituoImport.service.ts(1455,27): error TS2322: Type 'Date | null' is not assignable to type 'Date'.
+  Type 'null' is not assignable to type 'Date'.
+src/services/feituoImport.service.ts(1456,28): error TS2322: Type 'Date | null' is not assignable to type 'Date'.
+  Type 'null' is not assignable to type 'Date'.
+src/services/feituoImport.service.ts(1457,26): error TS2322: Type 'Date | null' is not assignable to type 'Date'.
+  Type 'null' is not assignable to type 'Date'.
+src/services/feituoImport.service.ts(1458,29): error TS2322: Type 'string | null' is not assignable to type 'string'.
+  Type 'null' is not assignable to type 'string'.
+src/services/feituoImport.service.ts(1600,31): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(entityLikeArray: DeepPartial<ContainerStatusEvent>[]): ContainerStatusEvent[]', gave the following error.
+    Object literal may only specify known properties, and 'containerNumber' does not exist in type 'DeepPartial<ContainerStatusEvent>[]'.
+  Overload 2 of 3, '(entityLike: DeepPartial<ContainerStatusEvent>): ContainerStatusEvent', gave the following error.
+    Type 'string | null' is not assignable to type 'string | undefined'.
+      Type 'null' is not assignable to type 'string | undefined'.
+src/services/feituoImport.service.ts(1718,14): error TS2551: Property 'portNameEn' does not exist on type 'PortOperation'. Did you mean 'portName'?
+src/services/feituoImport.service.ts(1719,14): error TS2551: Property 'portNameCn' does not exist on type 'PortOperation'. Did you mean 'portName'?
+src/services/feituoImport.service.ts(1720,7): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/services/feituoImport.service.ts(1739,9): error TS2322: Type 'Date | null | undefined' is not assignable to type 'Date'.
+  Type 'undefined' is not assignable to type 'Date'.
+src/services/feituoImport.service.ts(1740,16): error TS2339: Property 'atdTransit' does not exist on type 'PortOperation'.
+src/services/feituoImport.service.ts(1743,9): error TS2322: Type 'Date | null | undefined' is not assignable to type 'Date'.
+  Type 'undefined' is not assignable to type 'Date'.
+src/services/feituoImport.service.ts(1744,9): error TS2322: Type 'Date | null | undefined' is not assignable to type 'Date'.
+  Type 'undefined' is not assignable to type 'Date'.
+src/services/feituoImport.service.ts(1745,9): error TS2322: Type 'Date | null | undefined' is not assignable to type 'Date'.
+  Type 'undefined' is not assignable to type 'Date'.
+src/services/feituoImport.service.ts(1823,9): error TS2322: Type '{ containerNumber: string; statusCode: string; occurredAt: Date | null; }' is not assignable to type 'FindOptionsWhere<ContainerStatusEvent> | FindOptionsWhere<ContainerStatusEvent>[] | undefined'.
+  Types of property 'occurredAt' are incompatible.
+    Type 'Date | null' is not assignable to type 'Date | FindOperator<Date> | undefined'.
+      Type 'null' is not assignable to type 'Date | FindOperator<Date> | undefined'.
+src/services/feituoImport.service.ts(1907,11): error TS2322: Type '"ataDestPort"' is not assignable to type 'keyof PortOperation'.
+src/services/feituoImport.service.ts(1908,11): error TS2322: Type '"etaDestPort"' is not assignable to type 'keyof PortOperation'.
+src/services/feituoImport.service.ts(1914,11): error TS2322: Type '"atdTransit"' is not assignable to type 'keyof PortOperation'.
+src/services/feituoImport.service.ts(2040,13): error TS2322: Type '"feituo_excel_import"' is not assignable to type 'SourceType'.
+src/services/feituoImport.service.ts(2078,13): error TS2322: Type '"feituo_excel_import"' is not assignable to type 'SourceType'.
+src/services/feituoImport.service.ts(2179,11): error TS2322: Type 'Date | undefined' is not assignable to type 'Date'.
+  Type 'undefined' is not assignable to type 'Date'.
+src/services/feituoImport.service.ts(2901,31): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(entityLikeArray: DeepPartial<ExtFeituoVessel>[]): ExtFeituoVessel[]', gave the following error.
+    Object literal may only specify known properties, and 'billOfLadingNumber' does not exist in type 'DeepPartial<ExtFeituoVessel>[]'.
+  Overload 2 of 3, '(entityLike: DeepPartial<ExtFeituoVessel>): ExtFeituoVessel', gave the following error.
+    Type 'Record<string, unknown> | null' is not assignable to type 'DeepPartial<Record<string, unknown>> | undefined'.
+      Type 'null' is not assignable to type 'DeepPartial<Record<string, unknown>> | undefined'.
+src/services/feituoPlaces.processor.ts(136,44): error TS18046: 'error' is of type 'unknown'.
+src/services/feituoPlaces.processor.ts(222,16): error TS18046: 'error' is of type 'unknown'.
+src/services/feituoPlaces.processor.ts(235,7): error TS2322: Type 'null' is not assignable to type 'string'.
+src/services/feituoPlaces.processor.ts(238,7): error TS2322: Type 'null' is not assignable to type 'string'.
+src/services/feituoPlaces.processor.ts(271,55): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(entityLikeArray: DeepPartial<PortOperation>[]): PortOperation[]', gave the following error.
+    Object literal may only specify known properties, and 'containerNumber' does not exist in type 'DeepPartial<PortOperation>[]'.
+  Overload 2 of 3, '(entityLike: DeepPartial<PortOperation>): PortOperation', gave the following error.
+    Object literal may only specify known properties, and 'transportMode' does not exist in type 'DeepPartial<PortOperation>'.
+src/services/feituoPlaces.processor.ts(283,5): error TS2740: Type 'PortOperation[]' is missing the following properties from type 'PortOperation': id, containerNumber, portType, portCode, and 24 more.
+src/services/feituoPlaces.processor.ts(301,51): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'boolean'.
+src/services/feituoPlaces.processor.ts(311,51): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'boolean'.
+src/services/feituoPlaces.processor.ts(321,51): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'boolean'.
+src/services/feituoPlaces.processor.ts(327,51): error TS2345: Argument of type 'Date' is not assignable to parameter of type 'boolean'.
+src/services/feituoPlaces.processor.ts(334,21): error TS2339: Property 'shippingCompany' does not exist on type 'PortOperation'.
+src/services/feituoPlaces.processor.ts(338,21): error TS2339: Property 'shippingCompanyName' does not exist on type 'PortOperation'.
+src/services/feituoPlaces.processor.ts(344,21): error TS2339: Property 'transportMode' does not exist on type 'PortOperation'.
+src/services/feituoPlaces.processor.ts(350,19): error TS2339: Property 'rawData' does not exist on type 'PortOperation'.
+src/services/feituoPlaces.processor.ts(351,25): error TS2339: Property 'rawData' does not exist on type 'PortOperation'.
+src/services/feituoPlaces.processor.ts(385,55): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(entityLikeArray: DeepPartial<ContainerStatusEvent>[]): ContainerStatusEvent[]', gave the following error.
+    Object literal may only specify known properties, and 'containerNumber' does not exist in type 'DeepPartial<ContainerStatusEvent>[]'.
+  Overload 2 of 3, '(entityLike: DeepPartial<ContainerStatusEvent>): ContainerStatusEvent', gave the following error.
+    Object literal may only specify known properties, and 'eventCode' does not exist in type 'DeepPartial<ContainerStatusEvent>'.
+src/services/feituoPlaces.processor.ts(403,57): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(entityLikeArray: DeepPartial<ContainerStatusEvent>[]): ContainerStatusEvent[]', gave the following error.
+    Object literal may only specify known properties, and 'containerNumber' does not exist in type 'DeepPartial<ContainerStatusEvent>[]'.
+  Overload 2 of 3, '(entityLike: DeepPartial<ContainerStatusEvent>): ContainerStatusEvent', gave the following error.
+    Object literal may only specify known properties, and 'eventCode' does not exist in type 'DeepPartial<ContainerStatusEvent>'.
+src/services/logisticsPath.service.ts(44,35): error TS2339: Property 'token' does not exist on type '{ url: string; timeout: number; retryAttempts: number; }'.
+src/services/logisticsPath.service.ts(45,83): error TS2339: Property 'token' does not exist on type '{ url: string; timeout: number; retryAttempts: number; }'.
+src/services/logisticsPath.service.ts(155,12): error TS18046: 'response' is of type 'unknown'.
+src/services/logisticsPath.service.ts(188,12): error TS18046: 'response' is of type 'unknown'.
+src/services/logisticsPath.service.ts(213,12): error TS18046: 'response' is of type 'unknown'.
+src/services/logisticsPath.service.ts(259,12): error TS18046: 'response' is of type 'unknown'.
+src/services/logisticsPath.service.ts(277,12): error TS18046: 'response' is of type 'unknown'.
+src/services/logisticsPath.service.ts(304,12): error TS18046: 'response' is of type 'unknown'.
+src/services/logisticsPath.service.ts(327,12): error TS18046: 'response' is of type 'unknown'.

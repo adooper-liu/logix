@@ -10,11 +10,13 @@
     "simulate:schedule": "tsx scripts/simulate-schedule-one.ts",
     "check:country-tables": "tsx scripts/check-country-tables.ts",
     "trace:schedule": "tsx scripts/trace-schedule-params.ts",
+    "execute-migration": "node -r ./scripts/load-env.cjs ./node_modules/tsx/dist/cli.mjs scripts/execute-migration.ts",
     "build": "tsc",
     "start": "node dist/server.js",
     "type-check": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
+    "test": "jest --runInBand",
     "verify:stats-filter": "tsx scripts/verify-statistics-by-filter-consistency.ts"
   },
   "dependencies": {

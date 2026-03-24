@@ -6,7 +6,7 @@
  */
 
 import type { FieldMapping } from '@/components/common/UniversalImport'
-import { parseDate, parseDecimal, parseBoolean } from '@/components/common/UniversalImport'
+import { parseDate, parseBoolean } from '@/components/common/UniversalImport'
 
 export const FEITUO_FIELD_MAPPINGS: FieldMapping[] = [
   // ===== 提单基本信息 =====

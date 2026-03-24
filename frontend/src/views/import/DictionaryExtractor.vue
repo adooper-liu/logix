@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Upload, Document, Download, Search, Check, Warning } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { Upload, Document, Download, Search, Check } from '@element-plus/icons-vue'
 import * as XLSX from 'xlsx'
 
 // ==================== 类型定义 ====================
@@ -65,7 +65,7 @@ const KNOWN_PORTS = [
   'GBFXT', 'GBSOU', 'GBLGP', 'GBLIV', 'GBLON'
 ]
 
-const KNOWN_TRANSPORT_MODES = [
+const _KNOWN_TRANSPORT_MODES = [
   '大船', '驳船', '卡车', '铁路', '海运', '陆运', '空运', '多式联运'
 ]
 
@@ -180,11 +180,12 @@ const extractData = async () => {
         WTF: false, // 设置为false以静默处理错误
         dense: false // 防止密集模式导致的解析问题
       })
-    } catch (parseError) {
+    } catch (parseError: unknown) {
       // 恢复原始console.error
       console.error = originalConsoleError
       console.error('Excel解析错误:', parseError)
-      ElMessage.error(`Excel文件解析失败: ${parseError.message}`)
+      const message = parseError instanceof Error ? parseError.message : '未知错误'
+      ElMessage.error(`Excel文件解析失败: ${message}`)
       loading.value = false
       return
     } finally {
@@ -312,7 +313,7 @@ const extractData = async () => {
     extractionResult.rowCount = dataRows.length
 
     // 提取数据
-    dataRows.forEach((row, index) => {
+    dataRows.forEach((row) => {
       // 提取船公司
       if (shippingCompanyCol !== -1 && row[shippingCompanyCol]) {
         const company = normalizeShippingCompany(String(row[shippingCompanyCol]))
@@ -483,7 +484,7 @@ const generateSQLContent = (): string => {
   // 状态码
   sql += '-- 状态码字典\n'
   sql += 'INSERT INTO dict_status_codes (status_code, status_name, category, description) VALUES\n'
-  const statusValues = Array.from(extractionResult.statusCodes).map((code, index) => 
+  const statusValues = Array.from(extractionResult.statusCodes).map((code) => 
     `('${code}', '${code}', 'logistics', 'Auto imported status code')`
   ).join(',\n')
   sql += statusValues + ';\n\n'

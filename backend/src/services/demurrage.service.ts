@@ -28,7 +28,7 @@ import {
   type LogisticsStatusResult,
   SimplifiedStatus
 } from '../utils/logisticsStatusMachine';
-import { buildKeyTimeline, type KeyTimelineResult } from './keyTimeline.js';
+import { buildKeyTimeline, type KeyTimelineResult } from './keyTimeline';
 
 /** 阶梯费率项 */
 export interface DemurrageTierDto {
@@ -181,7 +181,7 @@ function isWeekend(d: Date): boolean {
 /** 从起算日起加 N 个工作日（周六、周日不计入） */
 function addWorkingDays(start: Date, n: number): Date {
   if (n <= 0) return new Date(start.getTime());
-  let result = new Date(start.getTime());
+  const result = new Date(start.getTime());
   let count = 0;
   while (count < n) {
     if (!isWeekend(result)) count++;
@@ -616,9 +616,9 @@ export class DemurrageService {
       ? toDateOnly(destPort.lastFreeDate)
       : null;
     // 截止日：优先使用最晚提柜日，其次使用计划提柜日（用于计算滞港费截止日）
-    const pickupDate = lastPickupDate ?? plannedPickupDate;
+    const _pickupDate = lastPickupDate ?? plannedPickupDate;
     const lastPickupDateSource = lastPickupDate
-      ? (destPort.lastFreeDateSource === 'manual' 
+      ? (destPort.lastFreeDateSource === 'manual'
           ? ('process_port_operations.last_free_date (manual)' as const)
           : ('process_port_operations.last_free_date' as const))
       : plannedPickupDate
@@ -678,12 +678,12 @@ export class DemurrageService {
       revisedEtaDestPort: revisedEta,
       dischargeDate: discharge,
       dischargeDateSource,
-      lastPickupDate: lastPickupDate, // 最晚提柜日（从 process_port_operations.last_free_date）
-      plannedPickupDate: plannedPickupDate, // 计划提柜日（从 process_trucking_transport.last_pickup_date）
+      lastPickupDate, // 最晚提柜日（从 process_port_operations.last_free_date）
+      plannedPickupDate, // 计划提柜日（从 process_trucking_transport.last_pickup_date）
       lastReturnDate: lastReturnDateFromDb,
-      plannedReturnDate: plannedReturnDate, // 计划还箱日（从 process_empty_return.planned_return_date）
-      pickupDateActual: pickupDateActual,
-      returnTime: returnTime,
+      plannedReturnDate, // 计划还箱日（从 process_empty_return.planned_return_date）
+      pickupDateActual,
+      returnTime,
       shipmentDate,
       today
     };
@@ -1339,7 +1339,7 @@ export class DemurrageService {
     const lrdArrivalStart = resolveArrivalStartDate(lrdStd?.calculationBasis);
 
     let computedLastFreeDate: Date | null = null;
-    let lastFreeDateMode: 'actual' | 'forecast' = calculationMode;
+    const lastFreeDateMode: 'actual' | 'forecast' = calculationMode;
     if (lfdStd && lfdStart.date) {
       const freeDays = Math.max(0, lfdStd.freeDays ?? 0);
       const n = freeDays - 1;
@@ -1350,7 +1350,7 @@ export class DemurrageService {
 
     // LRD：Combined(D&D) 为到港→还箱整段；否则沿用 Detention 的提柜起算
     let pickupBasisForDetention: Date | null;
-    let lastReturnDateMode: 'actual' | 'forecast' = calculationMode;
+    const lastReturnDateMode: 'actual' | 'forecast' = calculationMode;
     if (lrdStd && firstCombinedStd && lrdStd.id === firstCombinedStd.id) {
       pickupBasisForDetention = lrdArrivalStart.date;
     } else {
@@ -2431,7 +2431,7 @@ export class DemurrageService {
       const statusMap =
         missingStatusCns.length > 0 ? await this.getLogisticsStatusForContainers(missingStatusCns) : new Map<string, string>();
 
-      const items = rows.map((r: Record<string, unknown>, i: number) => {
+      const items = rows.map((r: Record<string, unknown>, _i: number) => {
         const total = r.totalAmount ?? r.total_amount ?? r.totalamount ?? 0;
         const days = r.chargeDays ?? r.charge_days ?? r.chargedays ?? 0;
         const cn = String(r.containerNumber ?? r.container_number ?? '');
@@ -2685,20 +2685,20 @@ export class DemurrageService {
   }> {
     // 获取货柜信息
     const params = await this.getContainerMatchParams(containerNumber);
-    
+
     // 确定起算日（按计算模式）
     const hasAtaOrDischarge = !!(
       params.calculationDates.ataDestPort ??
       params.calculationDates.dischargeDate
     );
     const calculationMode: 'actual' | 'forecast' = hasAtaOrDischarge ? 'actual' : 'forecast';
-    
+
     // 获取滞港费标准
     const standards = await this.matchStandards(containerNumber);
     if (standards.length === 0) {
       throw new Error(`No demurrage standards found for container ${containerNumber}`);
     }
-    
+
     // 找到第一个非滞箱费的标准（用于计算最晚提柜日）
     const firstDemurrageStd = standards.find(
       (s) => !isDetentionCharge(s) && !isCombinedDemurrageDetention(s) && !isStorageCharge(s)
@@ -2706,12 +2706,12 @@ export class DemurrageService {
     if (!firstDemurrageStd) {
       throw new Error(`No demurrage standard (non-detention) found for container ${containerNumber}`);
     }
-    
+
     // 确定起算日
     const calcBasis = (firstDemurrageStd.calculationBasis ?? '').toLowerCase();
     const useDischargeOnly = calcBasis.includes('卸船');
     let demurrageStartDate: Date | null;
-    
+
     if (useDischargeOnly) {
       demurrageStartDate = params.calculationDates.dischargeDate ?? null;
     } else {
@@ -2726,22 +2726,22 @@ export class DemurrageService {
           null;
       }
     }
-    
+
     if (!demurrageStartDate) {
       throw new Error(`No start date found for demurrage calculation for container ${containerNumber}`);
     }
-    
+
     // 计算免费期截止日
     const freeDays = Math.max(0, firstDemurrageStd.freeDays ?? 0);
     const n = freeDays - 1;
     const lastFreeDate = freePeriodUsesWorkingDays(firstDemurrageStd.freeDaysBasis)
       ? addWorkingDays(demurrageStartDate, n)
       : addDays(demurrageStartDate, n);
-    
+
     // 计算计费天数（从免费期次日到拟议卸柜日）
     const chargeStart = addDays(lastFreeDate, 1);
     const proposedUnloadDateOnly = toDateOnly(proposedUnloadDate);
-    
+
     if (proposedUnloadDateOnly <= lastFreeDate) {
       // 在免费期内，无费用
       return {
@@ -2753,11 +2753,11 @@ export class DemurrageService {
         currency: firstDemurrageStd.currency ?? 'USD'
       };
     }
-    
+
     const chargeDays = chargePeriodUsesWorkingDays(firstDemurrageStd.freeDaysBasis)
       ? workingDaysBetween(chargeStart, proposedUnloadDateOnly)
       : daysBetween(chargeStart, proposedUnloadDateOnly);
-    
+
     if (chargeDays <= 0) {
       return {
         lastFreeDate,
@@ -2768,12 +2768,12 @@ export class DemurrageService {
         currency: firstDemurrageStd.currency ?? 'USD'
       };
     }
-    
+
     // 计算费用
     const ratePerDay = Number(firstDemurrageStd.ratePerDay ?? 0);
     const tiers = normalizeTiers(firstDemurrageStd.tiers) ?? (Array.isArray(firstDemurrageStd.tiers) ? (firstDemurrageStd.tiers as DemurrageTierDto[]) : null);
     const curr = firstDemurrageStd.currency ?? 'USD';
-    
+
     const { totalAmount, tierBreakdown } = calculateSingleDemurrage(
       demurrageStartDate,
       proposedUnloadDateOnly,
@@ -2783,7 +2783,7 @@ export class DemurrageService {
       curr,
       firstDemurrageStd.freeDaysBasis
     );
-    
+
     return {
       lastFreeDate,
       proposedUnloadDate,
@@ -2815,7 +2815,7 @@ export class DemurrageService {
   }> {
     // 获取货柜信息
     const params = await this.getContainerMatchParams(containerNumber);
-    
+
     // 使用传入的实际提柜日，或从数据库读取
     const actualPickup = pickupDateActual ?? params.calculationDates.pickupDateActual;
     if (!actualPickup) {
@@ -2829,30 +2829,30 @@ export class DemurrageService {
         currency: 'USD'
       };
     }
-    
+
     // 获取滞箱费标准
     const standards = await this.matchStandards(containerNumber);
     if (standards.length === 0) {
       throw new Error(`No detention standards found for container ${containerNumber}`);
     }
-    
+
     // 找到第一个滞箱费标准
     const firstDetentionStd = standards.find((s) => isDetentionCharge(s));
     if (!firstDetentionStd) {
       throw new Error(`No detention standard found for container ${containerNumber}`);
     }
-    
+
     // 计算免费期截止日（从实际提柜日起算）
     const freeDays = Math.max(0, firstDetentionStd.freeDays ?? 0);
     const n = freeDays - 1;
     const lastFreeDate = freePeriodUsesWorkingDays(firstDetentionStd.freeDaysBasis)
       ? addWorkingDays(actualPickup, n)
       : addDays(actualPickup, n);
-    
+
     // 计算计费天数（从免费期次日到拟议还箱日）
     const chargeStart = addDays(lastFreeDate, 1);
     const proposedReturnDateOnly = toDateOnly(proposedReturnDate);
-    
+
     if (proposedReturnDateOnly <= lastFreeDate) {
       // 在免费期内，无费用
       return {
@@ -2864,11 +2864,11 @@ export class DemurrageService {
         currency: firstDetentionStd.currency ?? 'USD'
       };
     }
-    
+
     const chargeDays = chargePeriodUsesWorkingDays(firstDetentionStd.freeDaysBasis)
       ? workingDaysBetween(chargeStart, proposedReturnDateOnly)
       : daysBetween(chargeStart, proposedReturnDateOnly);
-    
+
     if (chargeDays <= 0) {
       return {
         lastFreeDate,
@@ -2879,12 +2879,12 @@ export class DemurrageService {
         currency: firstDetentionStd.currency ?? 'USD'
       };
     }
-    
+
     // 计算费用
     const ratePerDay = Number(firstDetentionStd.ratePerDay ?? 0);
     const tiers = normalizeTiers(firstDetentionStd.tiers) ?? (Array.isArray(firstDetentionStd.tiers) ? (firstDetentionStd.tiers as DemurrageTierDto[]) : null);
     const curr = firstDetentionStd.currency ?? 'USD';
-    
+
     const { totalAmount, tierBreakdown } = calculateSingleDemurrage(
       actualPickup,
       proposedReturnDateOnly,
@@ -2894,7 +2894,7 @@ export class DemurrageService {
       curr,
       firstDetentionStd.freeDaysBasis
     );
-    
+
     return {
       lastFreeDate,
       proposedReturnDate,
@@ -2929,7 +2929,7 @@ export class DemurrageService {
           { id: destPort.id },
           {
             lastFreeDate: computedLastFreeDate,
-            lastFreeDateMode: lastFreeDateMode,
+            lastFreeDateMode,
             lastFreeDateSource: 'computed'
           }
         );
@@ -3074,4 +3074,4 @@ export type {
   KeyTimelineMetaDto,
   KeyTimelineResult,
   KeyTimelineBuildInput
-} from './keyTimeline.js';
+} from './keyTimeline';

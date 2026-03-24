@@ -182,9 +182,9 @@ process.on('uncaughtException', (error: Error) => {
   gracefulShutdown('uncaughtException');
 });
 
-process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
-  log.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
-  gracefulShutdown('unhandledRejection');
+process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+  log.error(`❌ Unhandled Rejection: ${String(reason)}`, { promise, reason });
+  void gracefulShutdown('unhandledRejection');
 });
 
 // 启动服务器

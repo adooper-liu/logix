@@ -41,6 +41,10 @@ export class WarehouseTruckingMapping {
   @Column({ type: 'boolean', default: true, name: 'is_active' })
   isActive: boolean;
 
+  /** 拖卡费（每次运输总费用 USD） */
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0, name: 'transport_fee' })
+  transportFee: number;
+
   @Column({ type: 'text', nullable: true })
   remarks: string;
 

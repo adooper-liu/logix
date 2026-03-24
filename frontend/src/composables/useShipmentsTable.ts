@@ -172,7 +172,10 @@ export function useShipmentsTable() {
 
   // 取可排序列的原始值
   const getSortValue = (row: ContainerListItem, prop: string): number | string => {
-    const val = prop === 'actualShipDate' ? row.actualShipDate || row.createdAt : row[prop]
+    const val =
+      prop === 'actualShipDate'
+        ? row.actualShipDate || row.createdAt
+        : (row as Record<string, unknown>)[prop]
     if (val == null || val === '') return ''
     if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val)) {
       const m = val.match(/^(\d{4})-(\d{2})-(\d{2})/)

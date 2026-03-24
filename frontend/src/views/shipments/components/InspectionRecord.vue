@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { ElMessage, ElDatePicker, ElSelect, ElOption, ElTag, ElButton, ElInput, ElTextarea, ElTable, ElTableColumn, ElPopconfirm } from 'element-plus'
-import { inspectionService, type InspectionRecord, type InspectionEvent } from '@/services/inspection'
+import { ref, onMounted } from 'vue'
+import { ElMessage, ElDatePicker, ElSelect, ElOption, ElButton, ElInput, ElTable, ElTableColumn, ElPopconfirm } from 'element-plus'
+import { inspectionService, type InspectionRecord } from '@/services/inspection'
 import { containerService } from '@/services/container'
 import dayjs from 'dayjs'
 
@@ -55,9 +55,10 @@ const customsClearanceStatusOptions = [
 const loadContainerSkus = async () => {
   try {
     const response = await containerService.getContainerById(props.containerNumber)
-    if (response.success && response.data?.replenishmentOrders) {
+    const containerData = response?.data as any
+    if (response.success && containerData?.replenishmentOrders) {
       const skus = new Set<string>()
-      response.data.replenishmentOrders.forEach((order: any) => {
+      containerData.replenishmentOrders.forEach((order: any) => {
         if (order.skus) {
           order.skus.forEach((sku: any) => {
             skus.add(sku.sku)
@@ -76,9 +77,9 @@ const loadInspectionRecord = async () => {
   loading.value = true
   try {
     const response = await inspectionService.getInspectionRecord(props.containerNumber)
-    if (response.success && response.data) {
-      inspectionRecord.value = response.data
-      formData.value = { ...response.data }
+    if (response) {
+      inspectionRecord.value = response
+      formData.value = { ...response }
     } else {
       // 创建空记录
       formData.value = {
@@ -100,13 +101,10 @@ const saveInspectionRecord = async () => {
   loading.value = true
   try {
     const response = await inspectionService.createOrUpdateInspectionRecord(formData.value)
-    if (response.success) {
-      inspectionRecord.value = response.data
-      ElMessage.success('保存成功')
-      isEditing.value = false
-    } else {
-      ElMessage.error('保存失败')
-    }
+    inspectionRecord.value = response
+    formData.value = { ...response }
+    ElMessage.success('保存成功')
+    isEditing.value = false
   } catch (error) {
     console.error('Failed to save inspection record:', error)
     ElMessage.error('保存失败')
@@ -133,20 +131,16 @@ const addEvent = async () => {
   loading.value = true
   try {
     const response = await inspectionService.addInspectionEvent(formData.value.id!, newEvent.value)
-    if (response.success) {
-      if (!formData.value.events) {
-        formData.value.events = []
-      }
-      formData.value.events.push(response.data)
-      // 清空表单
-      newEvent.value = {
-        eventDate: dayjs().format('YYYY-MM-DD'),
-        eventStatus: '',
-      }
-      ElMessage.success('事件添加成功')
-    } else {
-      ElMessage.error('事件添加失败')
+    if (!formData.value.events) {
+      formData.value.events = []
     }
+    formData.value.events.push(response)
+    // 清空表单
+    newEvent.value = {
+      eventDate: dayjs().format('YYYY-MM-DD'),
+      eventStatus: '',
+    }
+    ElMessage.success('事件添加成功')
   } catch (error) {
     console.error('Failed to add event:', error)
     ElMessage.error('事件添加失败')
@@ -159,15 +153,11 @@ const addEvent = async () => {
 const deleteEvent = async (eventId: number) => {
   loading.value = true
   try {
-    const response = await inspectionService.deleteInspectionEvent(eventId)
-    if (response.success) {
-      if (formData.value.events) {
-        formData.value.events = formData.value.events.filter(event => event.id !== eventId)
-      }
-      ElMessage.success('事件删除成功')
-    } else {
-      ElMessage.error('事件删除失败')
+    await inspectionService.deleteInspectionEvent(eventId)
+    if (formData.value.events) {
+      formData.value.events = formData.value.events.filter(event => event.id !== eventId)
     }
+    ElMessage.success('事件删除成功')
   } catch (error) {
     console.error('Failed to delete event:', error)
     ElMessage.error('事件删除失败')
@@ -175,16 +165,6 @@ const deleteEvent = async (eventId: number) => {
     loading.value = false
   }
 }
-
-// 计算属性：最新状态
-const latestEvent = computed(() => {
-  if (!formData.value.events || formData.value.events.length === 0) {
-    return null
-  }
-  return formData.value.events.sort((a, b) => {
-    return new Date(b.eventDate).getTime() - new Date(a.eventDate).getTime()
-  })[0]
-})
 
 onMounted(async () => {
   await loadContainerSkus()

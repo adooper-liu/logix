@@ -229,8 +229,8 @@ export class IntelligentSchedulingService {
       const aDestPo = a.portOperations?.find((po: any) => po.portType === 'destination');
       const bDestPo = b.portOperations?.find((po: any) => po.portType === 'destination');
 
-      const aDate = aDestPo?.ataDestPort || aDestPo?.etaDestPort || a.seaFreight?.eta;
-      const bDate = bDestPo?.ataDestPort || bDestPo?.etaDestPort || b.seaFreight?.eta;
+      const aDate = aDestPo?.ata || aDestPo?.eta || a.seaFreight?.eta;
+      const bDate = bDestPo?.ata || bDestPo?.eta || b.seaFreight?.eta;
 
       if (!aDate && !bDate) return 0;
       if (!aDate) return 1;
@@ -253,7 +253,7 @@ export class IntelligentSchedulingService {
    */
   private async scheduleSingleContainer(
     container: Container,
-    request: ScheduleRequest
+    _request: ScheduleRequest
   ): Promise<ScheduleResult> {
     try {
       // 获取目的港操作记录
@@ -354,7 +354,7 @@ export class IntelligentSchedulingService {
       // 7. 根据车队是否有堆场决定卸柜方式（见 04-五节点调度 2.3.1）
       // has_yard = true → 支持 Drop off（提<送=卸）
       // has_yard = false → 必须 Live load（提=送=卸）
-      let unloadMode = truckingCompany.hasYard ? 'Drop off' : 'Live load';
+      const unloadMode = truckingCompany.hasYard ? 'Drop off' : 'Live load';
 
       // 验证并调整：如果无堆场但提≠卸，需要调整为 Live load
       const pickupDayStr = plannedPickupDate.toISOString().split('T')[0];
@@ -686,7 +686,7 @@ export class IntelligentSchedulingService {
       date.setHours(0, 0, 0, 0); // 去除时间部分，只保留日期
 
       // 查找或创建当日占用记录
-      let occupancy = await this.warehouseOccupancyRepo.findOne({
+      const occupancy = await this.warehouseOccupancyRepo.findOne({
         where: { warehouseCode, date }
       });
 
@@ -695,7 +695,7 @@ export class IntelligentSchedulingService {
         const warehouse = await AppDataSource.getRepository(Warehouse).findOne({
           where: { warehouseCode }
         });
-        const capacity = warehouse?.dailyUnloadCapacity || 10; // 默认10
+        const _capacity = warehouse?.dailyUnloadCapacity || 10; // 默认10
         return date;
       }
 
@@ -820,7 +820,7 @@ export class IntelligentSchedulingService {
    * 2. 如果没有精确匹配，只匹配国家
    * 3. 如果都没有匹配，返回 "UNSPECIFIED"（未指定）
    */
-  private async selectCustomsBroker(countryCode?: string, portCode?: string): Promise<string> {
+  private async selectCustomsBroker(countryCode?: string, _portCode?: string): Promise<string> {
     try {
       // 优先尝试精确匹配（国家 + 港口）
       // 注意：目前 dict_customs_brokers 表没有 port_code 字段，
@@ -834,8 +834,7 @@ export class IntelligentSchedulingService {
       // 根据国家匹配清关公司
       const brokers = await this.customsBrokerRepo.find({
         where: {
-          country: countryCode,
-          status: 'ACTIVE'
+          country: countryCode
         },
         order: { brokerCode: 'ASC' },
         take: 1
@@ -1028,14 +1027,14 @@ export class IntelligentSchedulingService {
   private async decrementFleetReturnOccupancy(
     truckingCompanyId: string,
     returnDate: Date,
-    warehouseCode?: string,
-    portCode?: string
+    _warehouseCode?: string,
+    _portCode?: string
   ): Promise<void> {
     const repo = AppDataSource.getRepository(ExtTruckingReturnSlotOccupancy);
     const returnDateOnly = new Date(returnDate);
     returnDateOnly.setHours(0, 0, 0, 0);
 
-    let occupancy = await repo.findOne({
+    const occupancy = await repo.findOne({
       where: { truckingCompanyId, slotDate: returnDateOnly }
     });
 

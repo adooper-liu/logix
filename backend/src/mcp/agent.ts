@@ -61,16 +61,16 @@ const MCP_INTENT_PATTERNS = {
  */
 function parseToolArguments(message: string, intent: string): any {
   const result: any = {};
-  
+
   // 尝试提取文件路径
   // 匹配常见的路径格式：backend/src/... 或 frontend/src/... 或相对路径
   const pathPattern = /(?:在|找|查看|读取)?\s*([a-zA-Z]:[/\\])?[\w./\\-]+\.(ts|js|vue|md|sql|json)(?:\b|$|\?)/gi;
   const pathMatch = message.match(pathPattern);
-  
+
   if (pathMatch) {
     result.filePath = pathMatch[0];
   }
-  
+
   // 提取搜索关键词
   if (intent === 'search_code') {
     // 移除意图相关的词语，提取关键词
@@ -80,7 +80,7 @@ function parseToolArguments(message: string, intent: string): any {
     }
     result.pattern = keyword.trim();
   }
-  
+
   // 提取 SQL 或表名
   if (intent === 'query_database') {
     // 优先检查是否直接包含完整SQL（以SELECT开头）
@@ -113,7 +113,7 @@ function parseToolArguments(message: string, intent: string): any {
         '还箱': 'process_empty_return',
         '滞港费': 'container_charges'
       };
-      
+
       let tableName = 'biz_containers'; // 默认查货柜表
       for (const [key, table] of Object.entries(tableMapping)) {
         if (message.includes(key)) {
@@ -121,22 +121,22 @@ function parseToolArguments(message: string, intent: string): any {
           break;
         }
       }
-      
+
       // 提取数量限制
       const limitMatch = message.match(/前(\d+)条|前(\d+)条|(\d+)条/i);
       const limit = limitMatch ? (limitMatch[1] || limitMatch[2] || limitMatch[3]) : '10';
-      
+
       // 提取字段（如果有）
       const fieldMapping: Record<string, string[]> = {
         '货柜': ['container_number', 'bill_of_lading_number', 'container_type_code', 'logistics_status'],
         '备货单': ['order_number', 'customer_name', 'sell_to_country', 'total_boxes', 'total_cbm']
       };
-      
+
       const fields = fieldMapping[Object.keys(tableMapping).find(k => message.includes(k)) || '货柜'] || ['*'];
       result.sql = `SELECT ${fields.join(', ')} FROM ${tableName} LIMIT ${limit}`;
     }
   }
-  
+
   return result;
 }
 
@@ -146,13 +146,13 @@ function parseToolArguments(message: string, intent: string): any {
 function detectMCPTool(message: string): string | null {
   const lowerMessage = message.toLowerCase();
   const trimmedMessage = message.trim().toLowerCase();
-  
+
   // 调试日志
-  mcpLogger.debug('detectMCPTool input', { 
-    message: trimmedMessage, 
-    length: trimmedMessage.length 
+  mcpLogger.debug('detectMCPTool input', {
+    message: trimmedMessage,
+    length: trimmedMessage.length
   });
-  
+
   // 检测文件读取意图
   for (const pattern of MCP_INTENT_PATTERNS.read_file) {
     if (lowerMessage.includes(pattern.toLowerCase())) {
@@ -163,40 +163,40 @@ function detectMCPTool(message: string): string | null {
       }
     }
   }
-  
+
   // 检测代码搜索意图
   for (const pattern of MCP_INTENT_PATTERNS.search_code) {
     if (lowerMessage.includes(pattern.toLowerCase())) {
       return 'search_code';
     }
   }
-  
+
   // 检测数据库查询意图 - 简化逻辑
   // 直接检查关键词
   const normalizedMessage = lowerMessage;
-  
+
   // 检查是否包含"查询"相关词
   const hasQueryWord = normalizedMessage.includes('查询') || normalizedMessage.includes('select');
-  
+
   // 检查是否包含业务相关词
-  const hasBusinessWord = 
-    normalizedMessage.includes('货柜') || 
-    normalizedMessage.includes('container') || 
-    normalizedMessage.includes('备货单') || 
-    normalizedMessage.includes('订单') || 
+  const hasBusinessWord =
+    normalizedMessage.includes('货柜') ||
+    normalizedMessage.includes('container') ||
+    normalizedMessage.includes('备货单') ||
+    normalizedMessage.includes('订单') ||
     normalizedMessage.includes('海运') ||
     normalizedMessage.includes('船运') ||
     normalizedMessage.includes('仓库') ||
     normalizedMessage.includes('港口') ||
     normalizedMessage.includes('滞港费');
-  
+
   mcpLogger.debug('Keyword check', { hasQueryWord, hasBusinessWord, message: normalizedMessage });
-  
+
   if (hasQueryWord && hasBusinessWord) {
-    mcpLogger.info('MCP TRIGGERED: query_database for message: ' + normalizedMessage);
+    mcpLogger.info(`MCP TRIGGERED: query_database for message: ${  normalizedMessage}`);
     return 'query_database';
   }
-  
+
   // 原有模式匹配作为后备
   for (const pattern of MCP_INTENT_PATTERNS.query_database) {
     if (message.includes(pattern.toLowerCase())) {
@@ -220,23 +220,23 @@ function detectMCPTool(message: string): string | null {
  */
 async function callMCPTool(toolName: string, args: any): Promise<MCPToolResult> {
   mcpLogger.info('Calling MCP tool', { toolName, args });
-  
+
   try {
     let result: string;
-    
+
     switch (toolName) {
       case 'read_file':
         result = await fileTool.execute(args);
         break;
-        
+
       case 'search_code':
         result = await searchTool.execute(args);
         break;
-        
+
       case 'query_database':
         result = await databaseTool.execute(args);
         break;
-        
+
       default:
         return {
           success: false,
@@ -245,9 +245,9 @@ async function callMCPTool(toolName: string, args: any): Promise<MCPToolResult> 
           error: `Unknown tool: ${toolName}`
         };
     }
-    
+
     mcpLogger.info('MCP tool executed successfully', { toolName });
-    
+
     return {
       success: true,
       toolName,
@@ -255,7 +255,7 @@ async function callMCPTool(toolName: string, args: any): Promise<MCPToolResult> 
     };
   } catch (error: any) {
     mcpLogger.error('MCP tool execution failed', { toolName, error: error.message });
-    
+
     return {
       success: false,
       toolName,
@@ -276,23 +276,23 @@ export const mcpAgent = {
   async processMessage(message: string): Promise<MCPToolResult | null> {
     // 检测是否需要调用 MCP 工具
     const toolName = detectMCPTool(message);
-    
+
     if (!toolName) {
       mcpLogger.debug('No MCP tool needed for this message');
       return null;
     }
-    
+
     mcpLogger.info('MCP tool detected', { toolName, message });
-    
+
     // 解析工具参数
     const args = parseToolArguments(message, toolName);
-    
+
     // 调用工具
     const result = await callMCPTool(toolName, args);
-    
+
     return result;
   },
-  
+
   /**
    * 获取可用的 MCP 工具列表（供 AI 了解能力）
    */

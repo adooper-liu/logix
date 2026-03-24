@@ -66,11 +66,13 @@ router.delete('/event/:eventId', async (req: Request, res: Response) => {
 router.get('/records', async (req: Request, res: Response) => {
   try {
     const service = getInspectionService();
-    const result = await service.getAllRecords(
-      req.query.startDate as string,
-      req.query.endDate as string,
-      req.query.customsClearanceStatus as string
-    );
+    const sd = req.query.startDate as string | undefined;
+    const ed = req.query.endDate as string | undefined;
+    const result = await service.getAllRecords({
+      startDate: sd ? new Date(sd) : undefined,
+      endDate: ed ? new Date(ed) : undefined,
+      customsClearanceStatus: req.query.customsClearanceStatus as string | undefined
+    });
     res.json({ success: true, data: result });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });

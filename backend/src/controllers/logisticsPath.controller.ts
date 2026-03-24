@@ -228,7 +228,11 @@ export const batchSyncExternalData = async (
 
     log.info('Batch syncing external data:', { source, count: dataList.length });
 
-    const result = await logisticsPathService.batchSyncExternalData(source, dataList);
+    const result = (await logisticsPathService.batchSyncExternalData(source, dataList)) as {
+      successCount: number;
+      failureCount: number;
+      results?: unknown[];
+    };
 
     res.json({
       success: true,
@@ -248,7 +252,7 @@ export const batchSyncExternalData = async (
 export const healthCheck = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ) => {
   try {
     const healthData = await logisticsPathService.healthCheck();

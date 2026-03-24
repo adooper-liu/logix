@@ -3,7 +3,7 @@
  * 支持两种格式：
  * 1. 传统格式：直接字段名（如 "MBL Number"）
  * 2. 分组_字段名 格式（如 "基本信息_MBL Number"）
- * 
+ *
  * 按飞驼 Excel 实际导出结构对齐，分组与文档 20-飞驼Excel字段分组对照验证.md 一致
  * 未知分组（编码、名称、创建人、修改人、创建/修改时间等）不配置，归 group 0 不导入
  *
@@ -360,7 +360,7 @@ export function getGroupForColumn(
     const groupName = parts[0];
     const fieldName = parts.slice(1).join('_'); // 字段名可能包含下划线
     const groupId = GROUP_NAME_TO_ID[groupName];
-    
+
     if (groupId !== undefined) {
       // 查找字段名在映射表中的定义
       const fieldGroup = map[fieldName];
@@ -396,14 +396,14 @@ export function getGroupForColumn(
 export function parseGroupFieldName(headerName: string): { groupId: number; fieldName: string } | null {
   const normalized = headerName.trim();
   const parts = normalized.split('_');
-  
+
   if (parts.length < 2) return null;
-  
+
   const groupName = parts[0];
   const fieldName = parts.slice(1).join('_');
   const groupId = GROUP_NAME_TO_ID[groupName];
-  
+
   if (groupId === undefined) return null;
-  
+
   return { groupId, fieldName };
 }

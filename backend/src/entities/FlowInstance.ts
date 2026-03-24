@@ -14,7 +14,7 @@ export class FlowInstance {
   flowId: string;
 
   @Column({ type: 'varchar', length: 20 })
-  status: string;
+  status: 'running' | 'completed' | 'failed' | 'paused';
 
   @Column('jsonb')
   variables: Record<string, any>;
@@ -32,5 +32,5 @@ export class FlowInstance {
   updatedAt: string;
 
   @Column({ type: 'timestamp', nullable: true })
-  completedAt: string;
+  completedAt: string | null;
 }

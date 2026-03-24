@@ -121,7 +121,8 @@ export class CustomerController {
       const customerData = req.body;
 
       const customer = this.customerRepository.create(customerData);
-      const savedCustomer = await this.customerRepository.save(customer);
+      const saved = await this.customerRepository.save(customer);
+      const savedCustomer = (Array.isArray(saved) ? saved[0] : saved) as Customer;
 
       logger.info(`Customer created: ${savedCustomer.customerName} (${savedCustomer.customerCode})`);
 

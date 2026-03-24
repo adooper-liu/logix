@@ -18,25 +18,6 @@ import {
 } from './ExternalDataAdapter.interface.js';
 
 /**
- * Logistics Path API响应结构
- */
-interface StatusNode {
-  id: string;
-  status: string;
-  description: string;
-  timestamp: Date;
-  location?: {
-    id: string;
-    name: string;
-    code: string;
-    type: string;
-    country?: string;
-  };
-  nodeStatus: string;
-  isAlert: boolean;
-}
-
-/**
  * 物流路径微服务适配器类
  */
 export class LogisticsPathAdapter implements IExternalDataAdapter {
@@ -70,7 +51,16 @@ export class LogisticsPathAdapter implements IExternalDataAdapter {
     containerNumber: string
   ): Promise<AdapterResponse<ContainerStatusNode[]>> {
     try {
-      const path = await logisticsPathService.getStatusPathByContainer(containerNumber);
+      const path = (await logisticsPathService.getStatusPathByContainer(containerNumber)) as {
+        nodes: Array<{
+          status: string;
+          description?: string;
+          timestamp?: Date;
+          nodeStatus?: string;
+          location?: { code?: string; name?: string; type?: string };
+        }>;
+        overallStatus?: string;
+      };
 
       const events: ContainerStatusNode[] = path.nodes.map((node: any) => ({
         statusCode: node.status,
@@ -155,7 +145,10 @@ export class LogisticsPathAdapter implements IExternalDataAdapter {
   async syncContainerData(containerNumber: string): Promise<AdapterResponse<boolean>> {
     try {
       // 获取状态路径
-      const path = await logisticsPathService.getStatusPathByContainer(containerNumber);
+      const path = (await logisticsPathService.getStatusPathByContainer(containerNumber)) as {
+        nodes: unknown[];
+        overallStatus?: string;
+      };
 
       // TODO: 将数据保存到数据库
       log.info('Logistics Path Data Sync Completed:', {

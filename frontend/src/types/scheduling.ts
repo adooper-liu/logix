@@ -2,8 +2,26 @@
  * 智能排柜相关类型定义
  */
 
-import type { Warehouse } from './warehouse'
-import type { TruckingCompany } from './trucking'
+export interface Warehouse {
+  id?: string | number
+  code?: string
+  warehouseCode?: string
+  name?: string
+  warehouseName?: string
+  country?: string
+  dailyCapacity?: number
+}
+
+export interface TruckingCompany {
+  id?: string | number
+  code?: string
+  truckingCompanyId?: string
+  name?: string
+  truckingCompanyName?: string
+  country?: string
+  dailyCapacity?: number
+  dailyReturnCapacity?: number
+}
 
 /**
  * 卸柜方案选项

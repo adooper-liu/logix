@@ -60,7 +60,7 @@ export class FeituoPlaceAnalyzer {
 
   /**
    * 解析发生地信息数组
-   * 支持三种格式： 
+   * 支持三种格式：
    * 1) 接货地信息_ + 交货地信息_（飞驼 Excel 宽表）
    * 2) 发生地信息_* 后缀列
    * 3) 发生地信息 JSON 数组
@@ -198,7 +198,7 @@ export class FeituoPlaceAnalyzer {
   private parseOriginPlace(row: Record<string, any>): PlaceInfo | undefined {
     const code = getVal(row, '接货地信息_地点CODE', '接货地信息_CODE');
     if (!code) return undefined;
-    
+
     return {
       code,
       nameEn: getVal(row, '接货地信息_地点名称英文（标准）', '接货地信息_地点名称（英文）') || undefined,
@@ -221,7 +221,7 @@ export class FeituoPlaceAnalyzer {
   private parseDestPlace(row: Record<string, any>): PlaceInfo | undefined {
     const code = getVal(row, '交货地信息_地点CODE', '交货地信息_CODE');
     if (!code) return undefined;
-    
+
     return {
       code,
       nameEn: getVal(row, '交货地信息_地点名称英文（标准）', '交货地信息_地点名称（英文）') || undefined,
@@ -244,27 +244,27 @@ export class FeituoPlaceAnalyzer {
    */
   analyzePorts(places: PlaceInfo[], existingSeaFreight?: SeaFreight | null): PortAnalysisResult {
     // 优先：根据 placeType 判断港口类型
-    const originPlace = places.find(p => 
+    const originPlace = places.find(p =>
       p.placeType?.includes('起始地') || p.placeType?.includes('起运港')
     );
-    
+
     // 目的地可能有多个：海港目的港 + 火车目的地（交货地）
     const destPlaces = places.filter(p =>
       p.placeType?.includes('目的地') ||
       p.placeType?.includes('交货地') ||
       p.placeType?.includes('目的港')
     );
-    
+
     // 海港目的港：不是铁路「交货地」的目的地（用于滞港费计算）；「目的港」类型计入海港目的港
     let seaDestPlace = destPlaces.find(p => !p.placeType?.includes('交货地'));
-    
+
     // 火车目的地：交货地类型的地点（用于海铁联运跟踪）
     let railDestPlace = destPlaces.find(p => p.placeType?.includes('交货地'));
 
     // 兜底：用已存在的港口名称匹配（如果 placeType 未找到）
     if (!seaDestPlace && existingSeaFreight?.portOfDischarge) {
-      seaDestPlace = places.find(p => 
-        p.code === existingSeaFreight.portOfDischarge || 
+      seaDestPlace = places.find(p =>
+        p.code === existingSeaFreight.portOfDischarge ||
         p.nameCn === existingSeaFreight.portOfDischarge ||
         p.nameEn === existingSeaFreight.portOfDischarge ||
         (existingSeaFreight.portOfDischarge.includes(p.code))
@@ -281,8 +281,8 @@ export class FeituoPlaceAnalyzer {
 
     // 起运港兜底
     if (!originPlace && existingSeaFreight?.portOfLoading) {
-      const matchedOrigin = places.find(p => 
-        p.code === existingSeaFreight.portOfLoading || 
+      const matchedOrigin = places.find(p =>
+        p.code === existingSeaFreight.portOfLoading ||
         p.nameCn === existingSeaFreight.portOfLoading ||
         p.nameEn === existingSeaFreight.portOfLoading ||
         (existingSeaFreight.portOfLoading.includes(p.code))

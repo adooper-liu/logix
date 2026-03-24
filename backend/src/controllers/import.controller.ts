@@ -278,10 +278,10 @@ export class ImportController {
     if (code) return code;
     if (!companyName || !companyName.trim()) return null;
     const trimmedName = companyName.trim();
-    let newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : 'NEW_' + Date.now();
+    let newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : `NEW_${  Date.now()}`;
     // 确保代码长度不超过 50 字符
     if (newCode.length > 50) {
-      newCode = 'NEW_' + Date.now() + '_' + trimmedName.substring(0, 20).toUpperCase().replace(/\s+/g, '_');
+      newCode = `NEW_${  Date.now()  }_${  trimmedName.substring(0, 20).toUpperCase().replace(/\s+/g, '_')}`;
       newCode = newCode.substring(0, 50);
     }
     const newCompany = queryRunner.manager.create(ShippingCompany, {
@@ -302,10 +302,10 @@ export class ImportController {
     if (code) return code;
     if (!forwarderName || !forwarderName.trim()) return null;
     const trimmedName = forwarderName.trim();
-    let newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : 'NEW_FF_' + Date.now();
+    let newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : `NEW_FF_${  Date.now()}`;
     // 确保代码长度不超过 50 字符
     if (newCode.length > 50) {
-      newCode = 'NEW_FF_' + Date.now() + '_' + trimmedName.substring(0, 15).toUpperCase().replace(/\s+/g, '_');
+      newCode = `NEW_FF_${  Date.now()  }_${  trimmedName.substring(0, 15).toUpperCase().replace(/\s+/g, '_')}`;
       newCode = newCode.substring(0, 50);
     }
     const newForwarder = queryRunner.manager.create(FreightForwarder, {
@@ -370,10 +370,10 @@ export class ImportController {
     if (byName) return byName.brokerCode;
 
     // 不存在，自动创建
-    let newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : 'NEW_BROKER_' + Date.now();
+    let newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : `NEW_BROKER_${  Date.now()}`;
     // 确保代码长度不超过 50 字符
     if (newCode.length > 50) {
-      newCode = 'NEW_BROKER_' + Date.now() + '_' + trimmedName.substring(0, 15).toUpperCase().replace(/\s+/g, '_');
+      newCode = `NEW_BROKER_${  Date.now()  }_${  trimmedName.substring(0, 15).toUpperCase().replace(/\s+/g, '_')}`;
       newCode = newCode.substring(0, 50);
     }
 
@@ -415,10 +415,10 @@ export class ImportController {
     if (byName) return byName.companyCode;
 
     // 不存在，自动创建
-    let newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : 'NEW_TRUCK_' + Date.now();
+    let newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : `NEW_TRUCK_${  Date.now()}`;
     // 确保代码长度不超过 50 字符
     if (newCode.length > 50) {
-      newCode = 'NEW_TRUCK_' + Date.now() + '_' + trimmedName.substring(0, 15).toUpperCase().replace(/\s+/g, '_');
+      newCode = `NEW_TRUCK_${  Date.now()  }_${  trimmedName.substring(0, 15).toUpperCase().replace(/\s+/g, '_')}`;
       newCode = newCode.substring(0, 50);
     }
 
@@ -628,7 +628,7 @@ export class ImportController {
               port.portType = 'destination';
               logger.info(`[Import] 港口操作缺少portType，使用默认值 destination`);
             }
-            
+
             if (!port.containerNumber) {
               logger.warn('[Import] 跳过无效港口操作（缺少containerNumber）:', port);
               continue;
@@ -1281,7 +1281,7 @@ export class ImportController {
         // 从数据库查询各表的数据
         // 先查询货柜
         const container = await this.containerRepository.findOne({ where: { containerNumber }, relations: [] });
-        
+
         // 然后查询其他相关数据
         const [order, seaFreight, portOp, trucking, warehouse, emptyReturn] = await Promise.all([
           item.tables.replenishment_orders?.orderNumber

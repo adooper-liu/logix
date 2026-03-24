@@ -36,6 +36,9 @@ module.exports = {
     'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
     'no-debugger': 'error',
     'no-unused-vars': 'off', // 使用 TypeScript 版本
+    // TS 函数重载会触发误报，由 @typescript-eslint/no-redeclare 接管（TD-007）
+    'no-redeclare': 'off',
+    '@typescript-eslint/no-redeclare': 'error',
     'prefer-const': 'error',
     'no-var': 'error',
     'object-shorthand': 'error',

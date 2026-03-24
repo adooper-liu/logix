@@ -14,8 +14,7 @@ import { Repository } from 'typeorm';
 import { Container } from '../../entities/Container';
 import { ContainerQueryBuilder } from './common/ContainerQueryBuilder';
 import { DateFilterBuilder } from './common/DateFilterBuilder';
-import { createDateRangeSubQuery } from './common/DateRangeSubquery';
-import { getDateRangeSubqueryRaw } from './common/DateRangeSubquery';
+import { createDateRangeSubQuery, getDateRangeSubqueryRaw } from './common/DateRangeSubquery';
 
 export class StatusDistributionService {
   constructor(private containerRepository: Repository<Container>) {}

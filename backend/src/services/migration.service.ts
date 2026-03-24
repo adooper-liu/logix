@@ -50,7 +50,7 @@ const MIGRATION_DESCRIPTIONS: Record<string, string> = {
   'add_schedule_status': '货柜表添加排产状态字段',
   'add_sys_data_change_log': '创建数据变更审计日志表',
   'add_trucking_port_mapping': '创建车队-港口映射表（含费用信息）',
-  
+
   // 数据回填/修复类
   'backfill_customer_code_from_sell_to_country': '根据销往国家回填客户代码',
   'backfill_last_free_date': '【已废弃】最后免费日计算说明（历史参考）',
@@ -106,7 +106,7 @@ export class MigrationService {
       return files.map(filename => {
         const filePath = path.join(this.migrationsPath, filename);
         const executed = executedMigrations.find(m => m.filename === filename);
-        
+
         return {
           filename,
           path: filePath,
@@ -126,7 +126,7 @@ export class MigrationService {
    */
   async getMigrationContent(filename: string): Promise<string> {
     const filePath = path.join(this.migrationsPath, filename);
-    
+
     if (!fs.existsSync(filePath)) {
       throw new Error(`Migration script not found: ${filename}`);
     }
@@ -139,20 +139,20 @@ export class MigrationService {
    */
   async executeMigration(filename: string): Promise<MigrationExecutionResult> {
     const startTime = Date.now();
-    
+
     try {
       // 读取脚本内容
       const content = await this.getMigrationContent(filename);
-      
+
       // 执行 SQL
       await AppDataSource.query(content);
-      
+
       // 记录执行结果
       await this.logMigration(filename, 'success');
-      
+
       const duration = Date.now() - startTime;
       logger.info(`[MigrationService] Executed migration: ${filename} (${duration}ms)`);
-      
+
       return {
         success: true,
         filename,
@@ -161,12 +161,12 @@ export class MigrationService {
       };
     } catch (error: any) {
       const duration = Date.now() - startTime;
-      
+
       // 记录失败
       await this.logMigration(filename, 'failed', error.message);
-      
+
       logger.error(`[MigrationService] Failed to execute migration ${filename}:`, error);
-      
+
       return {
         success: false,
         filename,
@@ -182,18 +182,18 @@ export class MigrationService {
    */
   async executeMigrations(filenames: string[]): Promise<MigrationExecutionResult[]> {
     const results: MigrationExecutionResult[] = [];
-    
+
     for (const filename of filenames) {
       const result = await this.executeMigration(filename);
       results.push(result);
-      
+
       // 如果失败，停止执行后续脚本
       if (!result.success) {
         logger.warn(`[MigrationService] Migration failed, stopping batch execution: ${filename}`);
         break;
       }
     }
-    
+
     return results;
   }
 
@@ -203,7 +203,7 @@ export class MigrationService {
   async executeAllPending(): Promise<MigrationExecutionResult[]> {
     const migrations = await this.getAllMigrations();
     const pending = migrations.filter(m => m.status === 'pending');
-    
+
     return this.executeMigrations(pending.map(m => m.filename));
   }
 
@@ -213,16 +213,16 @@ export class MigrationService {
   private parseDescription(filePath: string): string {
     try {
       const filename = path.basename(filePath, '.sql');
-      
+
       // 1. 首先检查预定义描述映射表
       if (MIGRATION_DESCRIPTIONS[filename]) {
         return MIGRATION_DESCRIPTIONS[filename];
       }
-      
+
       // 2. 从文件注释中提取描述
       const content = fs.readFileSync(filePath, 'utf-8');
       const lines = content.split('\n');
-      
+
       // 查找第一行有意义的注释作为描述
       for (const line of lines) {
         const trimmed = line.trim();
@@ -238,7 +238,7 @@ export class MigrationService {
         // 遇到非注释行，停止
         if (trimmed && !trimmed.startsWith('--')) break;
       }
-      
+
       // 3. 如果都没有，使用文件名（转换为可读格式）
       return filename
         .replace(/_/g, ' ')
@@ -255,15 +255,15 @@ export class MigrationService {
     try {
       // 检查迁移记录表是否存在
       const tableExists = await this.checkMigrationLogTableExists();
-      
+
       if (!tableExists) {
         return [];
       }
-      
+
       const result = await AppDataSource.query(
         `SELECT filename, executed_at FROM ${MIGRATION_LOG_TABLE} ORDER BY executed_at DESC`
       );
-      
+
       return result || [];
     } catch {
       return [];
@@ -282,7 +282,7 @@ export class MigrationService {
           AND table_name = '${MIGRATION_LOG_TABLE}'
         ) as exists`
       );
-      
+
       return result[0]?.exists || false;
     } catch {
       return false;
@@ -294,7 +294,7 @@ export class MigrationService {
    */
   async ensureMigrationLogTable(): Promise<void> {
     const exists = await this.checkMigrationLogTableExists();
-    
+
     if (!exists) {
       await AppDataSource.query(`
         CREATE TABLE ${MIGRATION_LOG_TABLE} (
@@ -306,12 +306,12 @@ export class MigrationService {
           duration_ms INTEGER
         )
       `);
-      
+
       // 创建索引
       await AppDataSource.query(`
         CREATE INDEX idx_migration_logs_filename ON ${MIGRATION_LOG_TABLE}(filename)
       `);
-      
+
       logger.info(`[MigrationService] Created migration log table: ${MIGRATION_LOG_TABLE}`);
     }
   }
@@ -320,13 +320,13 @@ export class MigrationService {
    * 记录迁移执行结果
    */
   private async logMigration(
-    filename: string, 
-    status: 'success' | 'failed', 
+    filename: string,
+    status: 'success' | 'failed',
     error?: string
   ): Promise<void> {
     // 确保表存在
     await this.ensureMigrationLogTable();
-    
+
     try {
       // 使用 INSERT ... ON CONFLICT 实现 upsert
       await AppDataSource.query(`
@@ -352,7 +352,7 @@ export class MigrationService {
     lastExecuted?: Date;
   }> {
     const migrations = await this.getAllMigrations();
-    
+
     return {
       total: migrations.length,
       executed: migrations.filter(m => m.status === 'success').length,

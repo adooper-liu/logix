@@ -5,7 +5,7 @@
  */
 
 import { Request, Response } from 'express';
-import { feituoAdapter, FeiTuoQueryOptions } from '../adapters/FeiTuoAdapter';
+import type { FeiTuoQueryOptions } from '../adapters/FeiTuoAdapter';
 import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
 import { Container } from '../entities/Container';
 import { PortOperation } from '../entities/PortOperation';
@@ -97,7 +97,7 @@ export class ExternalDataController {
    */
   private async doSyncContainer(
     containerNumber: string,
-    dataSource: string
+    _dataSource: string
   ): Promise<{ success: true; savedEvents: ContainerStatusEvent[] } | { success: false; error: string }> {
     try {
       // 统一入口：调用 ExternalDataService 的同步方法
@@ -236,7 +236,7 @@ export class ExternalDataController {
           else if (fieldName === 'discharged_time') updates.dischargedTime = occurredAt;
           else if (fieldName === 'available_time') updates.availableTime = occurredAt;
           else if (fieldName === 'transit_arrival_date') updates.transitArrivalDate = occurredAt;
-          else if (fieldName === 'atd') updates.atdTransit = occurredAt;
+          else if (fieldName === 'atd') updates.atd = occurredAt;
           if (Object.keys(updates).length > 0) {
             Object.assign(po, updates);
             await this.portOperationRepository.save(po);

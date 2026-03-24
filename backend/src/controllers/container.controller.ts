@@ -366,7 +366,7 @@ export class ContainerController {
         updatedAt: container.updatedAt,
         type: container.type,
         portOperations: container.portOperations,
-        order: container.order,
+        order: container.replenishmentOrders?.[0] ?? null,
         allOrders: (container as any).allOrders,
         summary: (container as any).summary,
         statusEvents,
@@ -621,10 +621,10 @@ export class ContainerController {
         message: 'Filtering by shipment time; country from request context'
       });
 
-      let statusDistribution = await this.statisticsService.getStatusDistribution(startDate as string, endDate as string);
+      const statusDistribution = await this.statisticsService.getStatusDistribution(startDate as string, endDate as string);
       logger.info('[getStatisticsDetailed] Status distribution completed');
 
-      let arrivalDistribution = await this.statisticsService.getArrivalDistribution(startDate as string, endDate as string);
+      const arrivalDistribution = await this.statisticsService.getArrivalDistribution(startDate as string, endDate as string);
       logger.info('[getStatisticsDetailed] Arrival distribution completed');
 
       const pickupDistribution = await this.statisticsService.getPickupDistribution(startDate as string, endDate as string);
@@ -1082,23 +1082,25 @@ export class ContainerController {
         queryRunner.manager.findOne(PortOperation, { where: { containerNumber: id, portType: 'destination' } }),
         queryRunner.manager.findOne(TruckingTransport, { where: { containerNumber: id } }),
         queryRunner.manager.findOne(WarehouseOperation, { where: { containerNumber: id } }),
-        queryRunner.manager.findOne(SeaFreight, { where: { containerNumber: id } })
+        queryRunner.manager.findOne(SeaFreight, {
+          where: { billOfLadingNumber: container.billOfLadingNumber }
+        })
       ]);
 
       // 3. 约束校验
       const validationErrors: string[] = [];
 
       // 3.1 映射关系校验：港口→车队
-      if (truckingCompanyId && seaFreight?.destinationPort) {
+      if (truckingCompanyId && seaFreight?.portOfDischarge) {
         const portMapping = await this.truckingPortMappingRepository.findOne({
           where: {
             truckingCompanyId,
-            portCode: seaFreight.destinationPort,
+            portCode: seaFreight.portOfDischarge,
             isActive: true
           }
         });
         if (!portMapping) {
-          validationErrors.push(`车队 ${truckingCompanyId} 不支持港口 ${seaFreight.destinationPort}`);
+          validationErrors.push(`车队 ${truckingCompanyId} 不支持港口 ${seaFreight.portOfDischarge}`);
         }
       }
 
@@ -1161,7 +1163,7 @@ export class ContainerController {
       }
 
       // 3. 更新拖卡计划（process_trucking_transport）
-      if (plannedPickupDate !== undefined || plannedDeliveryDate !== undefined || 
+      if (plannedPickupDate !== undefined || plannedDeliveryDate !== undefined ||
           truckingCompanyId !== undefined || unloadModePlan !== undefined) {
         let trucking = await queryRunner.manager.findOne(TruckingTransport, {
           where: { containerNumber: id }
@@ -1381,15 +1383,23 @@ export class ContainerController {
 
       // 3. 恢复为自动计算模式（清空手工备注；有原 LFD 则标为 computed；无日期则 source 置 NULL，避免「computed 却无 last_free_date」）
       if (destPort.lastFreeDate != null) {
-        await queryRunner.manager.update(PortOperation, { id: destPort.id }, {
-          lastFreeDateSource: 'computed',
-          lastFreeDateRemark: null
-        });
+        await queryRunner.manager.update(
+          PortOperation,
+          { id: destPort.id },
+          {
+            lastFreeDateSource: 'computed',
+            lastFreeDateRemark: null
+          } as Record<string, unknown>
+        );
       } else {
-        await queryRunner.manager.update(PortOperation, { id: destPort.id }, {
-          lastFreeDateSource: null,
-          lastFreeDateRemark: null
-        } as any);
+        await queryRunner.manager.update(
+          PortOperation,
+          { id: destPort.id },
+          {
+            lastFreeDateSource: null,
+            lastFreeDateRemark: null
+          } as Record<string, unknown>
+        );
       }
 
       await queryRunner.commitTransaction();

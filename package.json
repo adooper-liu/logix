@@ -21,7 +21,13 @@
     "type-check": "npm run type-check:backend && npm run type-check:frontend",
     "type-check:backend": "cd backend && npm run type-check",
     "type-check:frontend": "cd frontend && npm run type-check",
+    "type-check:frontend:ci": "cd frontend && npx vue-tsc --noEmit -p tsconfig.ci.json",
     "validate": "npm run type-check && npm run lint && npm run lint:naming",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && npm test",
+    "test:frontend": "cd frontend && npm test",
+    "quality": "npm run validate && npm run test",
+    "quality:ci": "npm run test && npm run type-check:backend && npm run lint:backend",
     "verify:stats-filter": "cd backend && npm run verify:stats-filter",
     "diagnose:country-filter": "node scripts/diagnose-country-filter.js",
     "test:statistics-fix": "node scripts/test-statistics-fix.js"

@@ -12,7 +12,7 @@ import { TruckingTransport } from '../entities/TruckingTransport';
 import { EmptyReturn } from '../entities/EmptyReturn';
 
 describe('DemurrageService - Prediction Methods', () => {
-  let demurrageService: DemurrageService;
+  let _demurrageService: DemurrageService;
   let standardRepo: any;
   let containerRepo: any;
   let portOpRepo: any;
@@ -35,7 +35,7 @@ describe('DemurrageService - Prediction Methods', () => {
     truckingRepo = AppDataSource.getRepository(TruckingTransport);
     emptyReturnRepo = AppDataSource.getRepository(EmptyReturn);
 
-    demurrageService = new DemurrageService(
+    _demurrageService = new DemurrageService(
       standardRepo,
       containerRepo,
       portOpRepo,
@@ -80,15 +80,15 @@ describe('DemurrageService - Integration Tests', () => {
   it('should predict demurrage for TEST_CONT_001', async () => {
     // 这是一个集成测试示例，需要在数据库中创建测试数据
     // 实际使用时请取消注释并创建相应的测试数据
-    
+
     /*
     const demurrageService = AppDataSource.getCustomRepository(DemurrageService);
-    
+
     const result = await demurrageService.predictDemurrageForUnloadDate(
       'TEST_CONT_001',
       new Date('2026-03-25')
     );
-    
+
     expect(result).toBeDefined();
     expect(result.lastFreeDate).toBeDefined();
     expect(result.proposedUnloadDate).toBeDefined();
@@ -96,7 +96,7 @@ describe('DemurrageService - Integration Tests', () => {
     expect(result.demurrageCost).toBeGreaterThanOrEqual(0);
     expect(result.currency).toBe('USD');
     */
-    
+
     console.log('Integration test skipped - create test data to enable');
   });
 });

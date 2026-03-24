@@ -1,7 +1,7 @@
 /**
  * 硅基流动模型适配器
  * SiliconFlow Model Adapter
- * 
+ *
  * 支持 DeepSeek、Qwen、Yi 等国产大模型
  */
 
@@ -31,23 +31,25 @@ export class SiliconFlowAdapter {
   async chat(messages: ChatMessage[], options?: {
     temperature?: number;
     maxTokens?: number;
+    model?: string;
+    max_tokens?: number;
   }): Promise<ExecutionResult> {
     try {
       const startTime = Date.now();
-      
+
       const response = await this.client.post('/chat/completions', {
-        model: this.config.model || 'deepseek-ai/DeepSeek-V2-Chat',
+        model: (options?.model ?? this.config.model) || 'deepseek-ai/DeepSeek-V2-Chat',
         messages: messages.map(m => ({
           role: m.role,
           content: m.content
         })),
         temperature: options?.temperature ?? this.config.temperature ?? 0.7,
-        max_tokens: options?.maxTokens ?? this.config.maxTokens ?? 4096,
+        max_tokens: options?.max_tokens ?? options?.maxTokens ?? this.config.maxTokens ?? 4096,
         stream: false
       });
 
       const executionTime = Date.now() - startTime;
-      
+
       if (response.data?.choices?.[0]?.message) {
         return {
           success: true,
@@ -73,7 +75,7 @@ export class SiliconFlowAdapter {
    * 流式聊天完成
    */
   async *chatStream(
-    messages: ChatMessage[], 
+    messages: ChatMessage[],
     options?: { temperature?: number; maxTokens?: number; }
   ): AsyncGenerator<string> {
     try {
@@ -91,13 +93,13 @@ export class SiliconFlowAdapter {
       });
 
       for await (const chunk of response.data) {
-        const lines = chunk.toString().split('\n').filter(line => line.trim() !== '');
-        
+        const lines = chunk.toString().split('\n').filter((line: string) => line.trim() !== '');
+
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const data = line.slice(6);
             if (data === '[DONE]') return;
-            
+
             try {
               const parsed = JSON.parse(data);
               const content = parsed.choices?.[0]?.delta?.content;

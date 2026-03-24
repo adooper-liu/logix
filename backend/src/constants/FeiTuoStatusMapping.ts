@@ -57,7 +57,7 @@ export const FEITUO_STATUS_TO_CORE_FIELD_MAP: Record<string, string> = {
   'LOAD': 'shipment_date',
   'LOBD': 'shipment_date',             // 装船 Loaded
   'DLPT': 'shipment_date',             // 离港 Vessel Departed
-  
+
   // ===== 驳船相关（新增）=====
   'FDDP': 'shipment_date',             // 驳船离港 Feeder Departed
   'FDLB': 'shipment_date',             // 驳船装船 Feeder Loaded
@@ -160,7 +160,7 @@ export const FEITUO_STATUS_TO_PORT_TYPE_MAP: Record<string, 'origin' | 'transit'
   'LOBD': 'origin',
   'DLPT': 'origin',
   'GITM': 'origin',
-  
+
   // 驳船相关（新增）
   'FDDP': 'origin',        // 驳船离港 - 起始地操作
   'FDLB': 'origin',        // 驳船装船 - 起始地操作
@@ -304,7 +304,7 @@ export const FEITUO_STATUS_TYPE_MAP: Record<string, 'ETA' | 'ATA' | 'GATE_IN' | 
   'TRANSIT_DEPART': 'ATA',
   'TSBA': 'ATA',
   'TSDP': 'ATA',
-  
+
   // 驳船相关（新增）
   'FDDP': 'STATUS',        // 驳船离港
   'FDLB': 'STATUS',        // 驳船装船

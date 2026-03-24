@@ -44,6 +44,14 @@ const userStore = useUserStore()
 const appStore = useAppStore()
 
 const countryOptions = ref<Array<{ value: string; label: string }>>([])
+const getAllCountriesLabel = () => {
+  const label = t('common.allCountries')
+  return typeof label === 'string' && label.trim() ? label : '全部国家'
+}
+const getCountryFilterPlaceholder = () => {
+  const label = t('common.countryFilter')
+  return typeof label === 'string' && label.trim() ? label : '国家筛选'
+}
 
 onMounted(async () => {
   try {
@@ -57,22 +65,23 @@ onMounted(async () => {
         value: c.code,
         label: c.nameCn || c.nameEn || c.code
       }))
-      countryOptions.value = [
-        { value: '', label: t('common.allCountries') || '全部国家' },
-        ...fromApi
-      ]
+      countryOptions.value = [{ value: '', label: getAllCountriesLabel() }, ...fromApi]
       // GB 别名 UK，后端会规范化 UK->GB
       if (fromApi.some((o: { value: string }) => o.value === 'GB')) {
         countryOptions.value.push({ value: 'UK', label: '英国 (UK)' })
       }
+      const currentCode = appStore.scopedCountryCode ?? ''
+      if (currentCode && !countryOptions.value.some((o) => o.value === currentCode)) {
+        countryOptions.value.push({ value: currentCode, label: currentCode })
+      }
       console.log('[国家筛选] 国家选项设置完成，总数:', countryOptions.value.length)
     } else {
       console.error('[国家筛选] API返回数据格式不正确:', res)
-      countryOptions.value = [{ value: '', label: t('common.allCountries') || '全部国家' }]
+      countryOptions.value = [{ value: '', label: getAllCountriesLabel() }]
     }
   } catch (error) {
     console.error('[国家筛选] 加载国家列表失败:', error)
-    countryOptions.value = [{ value: '', label: t('common.allCountries') || '全部国家' }]
+    countryOptions.value = [{ value: '', label: getAllCountriesLabel() }]
   }
 })
 
@@ -329,7 +338,7 @@ const handleLogout = () => {
           <!-- 全局国家筛选 -->
           <el-select
             v-model="scopedCountryValue"
-            :placeholder="t('common.countryFilter') || '国家筛选'"
+            :placeholder="getCountryFilterPlaceholder()"
             clearable
             filterable
             class="country-select"

@@ -1,7 +1,7 @@
 /**
  * AI 业务统计服务
  * AI Business Statistics Service
- * 
+ *
  * 提供常见的业务统计指标查询，供 AI 对话时快速获取数据
  */
 

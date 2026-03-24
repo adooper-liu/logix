@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { AlertService } from '../services/alertService';
+import { AlertService, AlertLevel, AlertType } from '../services/alertService';
 
 const router = Router();
 const alertService = new AlertService();
@@ -19,9 +19,13 @@ router.get('/container/:containerNumber', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const { level, type, resolved } = req.query;
-    const filters = {
-      ...(level && { level: level as string }),
-      ...(type && { type: type as string }),
+    const filters: {
+      level?: AlertLevel;
+      type?: AlertType;
+      resolved?: boolean;
+    } = {
+      ...(level && { level: level as AlertLevel }),
+      ...(type && { type: type as AlertType }),
       ...(resolved !== undefined && { resolved: resolved === 'true' })
     };
     const alerts = await alertService.getAllAlerts(filters);

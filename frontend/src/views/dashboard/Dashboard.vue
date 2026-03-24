@@ -61,6 +61,33 @@ const statusData = ref<Record<string, number>>({
 })
 const yearlyData = ref<any[]>([])
 
+type DashboardCache = {
+  lastLoaded: number
+  cacheDuration: number
+  statusData: Record<string, number> | null
+  yearlyData: any[] | null
+  demurrageSummary: {
+    totalAmount: number
+    currency: string
+    containerCountWithCharge: number
+    avgPerContainer: number
+  } | null
+  stats: {
+    totalContainers: number
+    activeContainers: number
+    completedContainers: number
+    alertContainers: number
+    dumpedContainers: number
+  } | null
+  alertDetails: {
+    etaOverdue: number
+    lastPickupOverdue: number
+    lastReturnOverdue: number
+    plannedPickupOverdue: number
+  } | null
+  statusDistribution: any[] | null
+}
+
 // 与 Shipments 页一致：仅用 getStatisticsDetailed，同一出运日期范围、同一口径
 const MAIN_STATUS_KEYS = [
   'not_shipped',
@@ -73,7 +100,7 @@ const MAIN_STATUS_KEYS = [
 ] as const
 
 // 数据缓存
-const dataCache = ref({
+const dataCache = ref<DashboardCache>({
   lastLoaded: 0,
   cacheDuration: 60000, // 缓存1分钟
   statusData: null,

@@ -114,7 +114,8 @@ export class ContainerStatusScheduler {
    */
   async triggerManualUpdate(): Promise<number> {
     logger.info('[ContainerStatusScheduler] Manual update triggered');
-    return this.executeTask();
+    const batchSize = parseInt(process.env.STATUS_BATCH_SIZE || '200', 10);
+    return this.statusService.batchUpdateStatuses(batchSize);
   }
 
   /**

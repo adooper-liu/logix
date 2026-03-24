@@ -1,7 +1,7 @@
 /**
  * 飞驼Excel导入规范
  * 定义飞驼Excel导入的表结构、字段映射和验证规则
- * 
+ *
  * @规范版本 v1.0
  * @最后更新 2026-03-18
  * @作者 LogiX Team
@@ -19,40 +19,40 @@ export const FEITUO_TABLE1_SPEC = {
     { field: 'container_number', excelColumn: '集装箱号', type: 'string', required: true, primaryKey: true },
     { field: 'bill_of_lading_number', excelColumn: '提单号', type: 'string', required: true },
     { field: 'booking_number', excelColumn: '订舱号', type: 'string', required: false },
-    
+
     // 船公司信息
     { field: 'shipping_company', excelColumn: '船公司', type: 'string', required: true },
     { field: 'shipping_company_name', excelColumn: '船公司全称', type: 'string', required: false },
-    
+
     // 港口信息
     { field: 'origin_port', excelColumn: '起运港', type: 'string', required: true },
     { field: 'destination_port', excelColumn: '目的港', type: 'string', required: true },
     { field: 'transit_port', excelColumn: '中转港', type: 'string', required: false },
-    
+
     // 时间节点
     { field: 'shipment_date', excelColumn: '开船日', type: 'date', required: false },
     { field: 'eta', excelColumn: '预计到港日', type: 'date', required: false },
     { field: 'ata', excelColumn: '实际到港日', type: 'date', required: false },
-    
+
     // 集装箱信息
     { field: 'container_type', excelColumn: '箱型', type: 'string', required: true },
     { field: 'container_size', excelColumn: '箱尺寸', type: 'string', required: false },
     { field: 'seal_number', excelColumn: '封号', type: 'string', required: false },
-    
+
     // 货物信息
     { field: 'cargo_description', excelColumn: '货名', type: 'string', required: false },
     { field: 'total_packages', excelColumn: '件数', type: 'number', required: false },
     { field: 'package_type', excelColumn: '包装', type: 'string', required: false },
     { field: 'total_weight', excelColumn: '总重', type: 'decimal', required: false },
     { field: 'total_volume', excelColumn: '体积', type: 'decimal', required: false },
-    
+
     // 费用信息
     { field: 'ocean_freight', excelColumn: '海运费', type: 'decimal', required: false },
     { field: 'baf', excelColumn: 'BAF', type: 'decimal', required: false },
     { field: 'caf', excelColumn: 'CAF', type: 'decimal', required: false },
     { field: 'thc_origin', excelColumn: '起运港THC', type: 'decimal', required: false },
     { field: 'thc_destination', excelColumn: '目的港THC', type: 'decimal', required: false },
-    
+
     // 其他信息
     { field: 'remark', excelColumn: '备注', type: 'string', required: false },
     { field: 'data_source', excelColumn: '数据来源', type: 'string', required: false, default: 'Excel' }
@@ -70,21 +70,21 @@ export const FEITUO_TABLE2_SPEC = {
     // 基础信息
     { field: 'container_number', excelColumn: '集装箱号', type: 'string', required: true, primaryKey: true },
     { field: 'bill_of_lading_number', excelColumn: '提单号', type: 'string', required: true },
-    
+
     // 事件信息
     { field: 'event_code', excelColumn: '状态码', type: 'string', required: true },
     { field: 'event_name', excelColumn: '状态名称', type: 'string', required: false },
     { field: 'event_time', excelColumn: '状态时间', type: 'date', required: true },
-    
+
     // 地点信息
     { field: 'location_code', excelColumn: '地点代码', type: 'string', required: false },
     { field: 'location_name', excelColumn: '地点名称', type: 'string', required: false },
     { field: 'location_type', excelColumn: '地点类型', type: 'string', required: false },
-    
+
     // 操作信息
     { field: 'operation_type', excelColumn: '操作类型', type: 'string', required: false },
     { field: 'transport_mode', excelColumn: '运输方式', type: 'string', required: false },
-    
+
     // 其他信息
     { field: 'remark', excelColumn: '备注', type: 'string', required: false },
     { field: 'data_source', excelColumn: '数据来源', type: 'string', required: false, default: 'Excel' }
@@ -131,25 +131,25 @@ export const FIELD_VALIDATION_RULES = {
 export const FEITUO_STATUS_CODE_CONFIG = {
   // 运输事件（2个）
   transport: ['DEPA', 'ARRI'],
-  
+
   // 集装箱事件（5个）
   equipment: ['GTOT', 'GTIN', 'LOAD', 'DISC', 'AVLE'],
-  
+
   // 码头操作（5个）
   terminal: ['LOBD', 'DLPT', 'BDAR', 'POCA', 'DSCH'],
-  
+
   // 闸口操作（2个）
   gate: ['GITM', 'STCS'],
-  
+
   // 中转操作（2个）
   transit: ['TSBA', 'TSDP'],
-  
+
   // 还箱操作（1个）
   return: ['RCVE'],
-  
+
   // 驳船专用（4个）- 多式联运关键
   barge: ['FDDP', 'FDLB', 'FDBA', 'STSP'],
-  
+
   // 所有有效的状态码
   get allValidCodes(): string[] {
     return [
@@ -162,12 +162,12 @@ export const FEITUO_STATUS_CODE_CONFIG = {
       ...this.barge
     ];
   },
-  
+
   // 验证状态码是否有效
   isValidCode: (code: string): boolean => {
     return FEITUO_STATUS_CODE_CONFIG.allValidCodes.includes(code);
   },
-  
+
   // 获取状态码类型
   getCodeType: (code: string): string | null => {
     if (FEITUO_STATUS_CODE_CONFIG.transport.includes(code)) return 'transport';
@@ -188,13 +188,13 @@ export const FEITUO_STATUS_CODE_CONFIG = {
 export const PORT_TYPE_MAPPING = {
   // 中国主要港口
   china: ['CNSHA', 'CNNGB', 'CNTAO', 'CNTXG', 'CNXMN', 'CNDLC', 'CNYTN', 'CNZZH'],
-  
+
   // 欧洲主要港口
   europe: ['FRLEH', 'DEBRV', 'DEHAM', 'NLRTM', 'GBFXT', 'GBSOU', 'GBLGP', 'GBLIV'],
-  
+
   // 美国主要港口
   usa: ['USSAV', 'USLGB', 'USLAX', 'USSEA', 'USNYC', 'USCHS', 'USORF', 'USJAX'],
-  
+
   // 判断是否为标准港口代码（5位大写字母）
   isStandardPortCode: (code: string): boolean => {
     return /^[A-Z]{2}[A-Z]{3}$/.test(code);
@@ -209,20 +209,20 @@ export const IMPORT_ERROR_CODES = {
   FILE_NOT_FOUND: 'FILE_NOT_FOUND',
   FILE_FORMAT_INVALID: 'FILE_FORMAT_INVALID',
   FILE_SIZE_EXCEEDED: 'FILE_SIZE_EXCEEDED',
-  
+
   // 数据错误
   DATA_REQUIRED_FIELD_MISSING: 'DATA_REQUIRED_FIELD_MISSING',
   DATA_TYPE_INVALID: 'DATA_TYPE_INVALID',
   DATA_DUPLICATE_KEY: 'DATA_DUPLICATE_KEY',
-  
+
   // 映射错误
   MAPPING_NOT_FOUND: 'MAPPING_NOT_FOUND',
   MAPPING_INVALID: 'MAPPING_INVALID',
-  
+
   // 数据库错误
   DB_CONNECTION_ERROR: 'DB_CONNECTION_ERROR',
   DB_INSERT_ERROR: 'DB_INSERT_ERROR',
-  
+
   // 业务错误
   BUSINESS_VALIDATION_FAILED: 'BUSINESS_VALIDATION_FAILED',
   BUSINESS_STATE_INVALID: 'BUSINESS_STATE_INVALID'
@@ -253,7 +253,7 @@ export const ERROR_MESSAGES = {
 export const CONTAINER_COUNT_PARSER_RULES = {
   // 标准格式: 数量*箱型
   // 示例: "3*20GP", "2*40HQ", "1*20GP+1*40HQ"
-  
+
   /**
    * 解析箱数描述
    * @param description 箱数描述字符串
@@ -263,26 +263,26 @@ export const CONTAINER_COUNT_PARSER_RULES = {
     if (!description || typeof description !== 'string') {
       return [];
     }
-    
+
     const results: Array<{count: number; type: string; size: string}> = [];
-    
+
     // 按加号分割多个箱型
     const parts = description.split('+').map(p => p.trim());
-    
+
     for (const part of parts) {
       // 按星号分割数量和箱型
       const match = part.match(/^(\d+)\*(.+)$/);
       if (match) {
         const count = parseInt(match[1], 10);
         const containerSpec = match[2].trim();
-        
+
         // 提取尺寸和类型
         // 20GP -> size: 20, type: GP
         // 40HQ -> size: 40, type: HQ
         const sizeMatch = containerSpec.match(/^(\d{2})/);
         const size = sizeMatch ? sizeMatch[1] : '';
         const type = containerSpec.substring(size.length);
-        
+
         results.push({
           count: isNaN(count) ? 0 : count,
           type: type || 'GP', // 默认GP
@@ -290,10 +290,10 @@ export const CONTAINER_COUNT_PARSER_RULES = {
         });
       }
     }
-    
+
     return results;
   },
-  
+
   /**
    * 计算总箱数
    * @param description 箱数描述字符串
@@ -311,25 +311,25 @@ export const CONTAINER_COUNT_PARSER_RULES = {
 export const DEFAULT_IMPORT_CONFIG = {
   // 批量大小
   batchSize: 100,
-  
+
   // 跳过的行数（表头）
   skipRows: 1,
-  
+
   // 最大文件大小（MB）
   maxFileSize: 50,
-  
+
   // 是否验证必填字段
   validateRequiredFields: true,
-  
+
   // 是否验证数据类型
   validateDataTypes: true,
-  
+
   // 是否验证状态码
   validateStatusCodes: true,
-  
+
   // 出错时是否继续
   continueOnError: false,
-  
+
   // 是否记录详细日志
   enableDetailedLogging: true
 };

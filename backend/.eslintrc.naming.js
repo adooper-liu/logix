@@ -1,72 +1,46 @@
 /**
- * LogiX Backend 命名规范规则
- * 
- * 规则说明：
- * - 数据库表名: snake_case (如: port_operations, replenishment_orders)
- * - 实体类名: PascalCase + 对应表名 (如: PortOperation, ReplenishmentOrder)
- * - 字典表实体: Dict + PascalCase (如: DictPort, DictShippingCompany)
- * - 接口/类型: PascalCase + I 前缀 (如: IContainer, ICreateContainerDto)
- * - 枚举: PascalCase + Enum 后缀 (如: LogisticsStatusEnum)
- * - 常量: UPPER_SNAKE_CASE
- * - 变量/函数: camelCase
- * - 类名: PascalCase
+ * LogiX Backend 命名规范规则（与存量代码、外部 API/状态码键名兼容）
+ *
+ * 说明：不再强制 interface 以 I 开头；对象字面量键允许 UPPER_CASE/PascalCase（飞驼/状态码）。
  */
 
 module.exports = {
   rules: {
-    // TypeScript 命名约定
     '@typescript-eslint/naming-convention': [
       'error',
-      // 类名：PascalCase
-      {
-        selector: 'class',
-        format: ['PascalCase']
-      },
-      // 接口名：PascalCase，必须以I开头
+      { selector: 'class', format: ['PascalCase'] },
       {
         selector: 'interface',
-        format: ['PascalCase'],
-        prefix: ['I']
-      },
-      // 类型别名：PascalCase
-      {
-        selector: 'typeAlias',
         format: ['PascalCase']
       },
-      // 枚举：PascalCase
-      {
-        selector: 'enum',
-        format: ['PascalCase']
-      },
-      // 枚举成员：UPPER_SNAKE_CASE
+      { selector: 'typeAlias', format: ['PascalCase'] },
+      { selector: 'enum', format: ['PascalCase'] },
       {
         selector: 'enumMember',
-        format: ['UPPER_CASE']
+        format: ['UPPER_CASE', 'PascalCase']
       },
-      // 变量和函数：camelCase
       {
         selector: 'variable',
-        format: ['camelCase', 'UPPER_CASE']
-      },
-      {
-        selector: 'function',
-        format: ['camelCase']
-      },
-      // 属性：camelCase
-      {
-        selector: 'property',
-        format: ['camelCase'],
+        // 与 API/请求体 snake_case 解构对齐（TD-007）
+        format: ['camelCase', 'UPPER_CASE', 'PascalCase', 'snake_case'],
         leadingUnderscore: 'allow'
       },
-      // 方法：camelCase
       {
-        selector: 'method',
-        format: ['camelCase']
+        selector: 'property',
+        format: ['camelCase', 'UPPER_CASE', 'PascalCase', 'snake_case'],
+        leadingUnderscore: 'allow'
       },
-      // 参数：camelCase
+      // 状态映射/数组式对象等含数字键、第三方键名，不强制格式
+      {
+        selector: 'objectLiteralProperty',
+        format: null
+      },
+      { selector: 'function', format: ['camelCase', 'PascalCase'] },
+      // 统计 SQL 子查询模板类允许 UPPER_CASE 静态方法名（TD-007）
+      { selector: 'method', format: ['camelCase', 'PascalCase', 'UPPER_CASE'] },
       {
         selector: 'parameter',
-        format: ['camelCase'],
+        format: ['camelCase', 'PascalCase', 'snake_case'],
         leadingUnderscore: 'allow'
       }
     ]

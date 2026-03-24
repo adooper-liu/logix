@@ -89,7 +89,7 @@ export class CostService {
 
     if (demurrageResult.items && demurrageResult.items.length > 0) {
       demurrageResult.items.forEach((item: any) => {
-        const costType = item.chargeTypeCode?.toLowerCase().includes('detention') || 
+        const costType = item.chargeTypeCode?.toLowerCase().includes('detention') ||
                        item.chargeName?.toLowerCase().includes('detention') ||
                        item.chargeName?.toLowerCase().includes('滞箱')
           ? CostType.DETENTION
@@ -147,7 +147,7 @@ export class CostService {
   }
 
   // 计算拖卡费用
-  private async calculateTruckingCosts(containerNumber: string): Promise<CostItem[]> {
+  private async calculateTruckingCosts(_containerNumber: string): Promise<CostItem[]> {
     const items: CostItem[] = [];
 
     // 这里可以根据拖卡记录计算相关费用
@@ -163,7 +163,7 @@ export class CostService {
   }
 
   // 计算卸柜费用
-  private async calculateWarehouseCosts(containerNumber: string): Promise<CostItem[]> {
+  private async calculateWarehouseCosts(_containerNumber: string): Promise<CostItem[]> {
     const items: CostItem[] = [];
 
     // 这里可以根据仓库操作记录计算相关费用
@@ -188,7 +188,7 @@ export class CostService {
   }
 
   // 获取费用汇总统计
-  async getCostSummary(filters?: {
+  async getCostSummary(_filters?: {
     startDate?: Date;
     endDate?: Date;
     costType?: CostType;

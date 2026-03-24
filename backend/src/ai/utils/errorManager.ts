@@ -1,7 +1,7 @@
 /**
  * 错误管理器
  * Error Manager
- * 
+ *
  * 管理错误分类、处理策略和日志记录
  */
 
@@ -15,27 +15,27 @@ export enum ErrorType {
   SQL_INJECTION = 'sql_injection',
   UNAUTHORIZED = 'unauthorized',
   FORBIDDEN = 'forbidden',
-  
+
   // 输入验证错误
   VALIDATION = 'validation',
   MISSING_PARAMS = 'missing_params',
   INVALID_FORMAT = 'invalid_format',
-  
+
   // SQL相关错误
   SQL_ERROR = 'sql_error',
   DATABASE_CONNECTION = 'database_connection',
   QUERY_TIMEOUT = 'query_timeout',
-  
+
   // AI相关错误
   AI_MODEL_ERROR = 'ai_model_error',
   INTENT_DETECTION = 'intent_detection',
   PROMPT_ERROR = 'prompt_error',
-  
+
   // 系统错误
   INTERNAL = 'internal',
   SERVICE_UNAVAILABLE = 'service_unavailable',
   NETWORK_ERROR = 'network_error',
-  
+
   // 业务逻辑错误
   BUSINESS_RULE = 'business_rule',
   RESOURCE_NOT_FOUND = 'resource_not_found',
@@ -273,9 +273,9 @@ export class ErrorManager {
       errorType: error.type,
       severity: error.severity,
       timestamp: error.timestamp.toISOString(),
-      ...(process.env.NODE_ENV === 'development' && { 
+      ...(process.env.NODE_ENV === 'development' && {
         details: error.details,
-        stack: error.stack 
+        stack: error.stack
       })
     };
   }

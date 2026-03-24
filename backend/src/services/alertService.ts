@@ -646,7 +646,7 @@ export class AlertService {
     return query.orderBy('alert.createdAt', 'DESC').getMany();
   }
 
-  async acknowledgeAlert(alertId: number, userId: string): Promise<boolean> {
+  async acknowledgeAlert(alertId: number, _userId: string): Promise<boolean> {
     try {
       const alert = await this.alertRepository.findOne({ where: { id: alertId } });
       if (!alert) {

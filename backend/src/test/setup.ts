@@ -14,7 +14,7 @@ jest.mock('../database', () => ({
   AppDataSource: {
     initialize: jest.fn().mockResolvedValue(undefined),
     destroy: jest.fn().mockResolvedValue(undefined),
-    getRepository: jest.fn().mockImplementation((entity) => {
+    getRepository: jest.fn().mockImplementation((_entity) => {
       // 为不同的实体返回不同的 mock 对象
       const baseRepo = {
         find: jest.fn().mockResolvedValue([]),

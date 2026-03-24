@@ -109,7 +109,7 @@ export class ArrivalStatisticsService {
       today: arrivedToday,
       beforeTodayNotPickedUp: arrivedBeforeNotPickedUp,
       beforeTodayPickedUp: arrivedBeforePickedUp,
-      arrivedAtTransit: arrivedAtTransit,
+      arrivedAtTransit,
       arrivedBeforeTodayNoATA: arrivedBeforeNoATA,
       // 中转港按ETA细分
       transitOverdue,
@@ -187,8 +187,8 @@ export class ArrivalStatisticsService {
    * 已到中转港
    */
   async getArrivedAtTransit(startDate?: string, endDate?: string): Promise<number> {
-    let { sql, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.ARRIVED_AT_TRANSIT_SUBQUERY, startDate, endDate);
-    sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sql}) t`;
+    const { sql: sqlInner, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.ARRIVED_AT_TRANSIT_SUBQUERY, startDate, endDate);
+    const sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sqlInner}) t`;
 
     const result = await this.containerRepository.query(sql, params);
     return parseInt(result[0]?.count || '0');
@@ -198,8 +198,8 @@ export class ArrivalStatisticsService {
    * 今日之前到港无ATA
    */
   async getArrivedBeforeTodayNoATA(startDate?: string, endDate?: string): Promise<number> {
-    let { sql, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.ARRIVED_BEFORE_NO_ATA_SUBQUERY, startDate, endDate);
-    sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sql}) t`;
+    const { sql: sqlInner, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.ARRIVED_BEFORE_NO_ATA_SUBQUERY, startDate, endDate);
+    const sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sqlInner}) t`;
 
     const result = await this.containerRepository.query(sql, params);
     return parseInt(result[0]?.count || '0');
@@ -243,8 +243,8 @@ export class ArrivalStatisticsService {
    * 中转港已逾期（ETA < 今天）
    */
   async getTransitOverdue(today: Date, startDate?: string, endDate?: string): Promise<number> {
-    let { sql, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_OVERDUE_SUBQUERY(today), startDate, endDate);
-    sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sql}) t`;
+    const { sql: sqlInner, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_OVERDUE_SUBQUERY(today), startDate, endDate);
+    const sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sqlInner}) t`;
 
     const result = await this.containerRepository.query(sql, params);
     return parseInt(result[0]?.count || '0');
@@ -254,8 +254,8 @@ export class ArrivalStatisticsService {
    * 中转港3天内到港（ETA）
    */
   async getTransitWithin3Days(today: Date, threeDaysLater: Date, startDate?: string, endDate?: string): Promise<number> {
-    let { sql, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_WITHIN_3_DAYS_SUBQUERY(today, threeDaysLater), startDate, endDate);
-    sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sql}) t`;
+    const { sql: sqlInner, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_WITHIN_3_DAYS_SUBQUERY(today, threeDaysLater), startDate, endDate);
+    const sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sqlInner}) t`;
 
     const result = await this.containerRepository.query(sql, params);
     return parseInt(result[0]?.count || '0');
@@ -265,8 +265,8 @@ export class ArrivalStatisticsService {
    * 中转港7天内到港（ETA）
    */
   async getTransitWithin7Days(today: Date, threeDaysLater: Date, sevenDaysLater: Date, startDate?: string, endDate?: string): Promise<number> {
-    let { sql, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_WITHIN_7_DAYS_SUBQUERY(threeDaysLater, sevenDaysLater), startDate, endDate);
-    sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sql}) t`;
+    const { sql: sqlInner, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_WITHIN_7_DAYS_SUBQUERY(threeDaysLater, sevenDaysLater), startDate, endDate);
+    const sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sqlInner}) t`;
 
     const result = await this.containerRepository.query(sql, params);
     return parseInt(result[0]?.count || '0');
@@ -276,8 +276,8 @@ export class ArrivalStatisticsService {
    * 中转港超过7天到港（ETA）
    */
   async getTransitOver7Days(today: Date, sevenDaysLater: Date, startDate?: string, endDate?: string): Promise<number> {
-    let { sql, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_OVER_7_DAYS_SUBQUERY(sevenDaysLater), startDate, endDate);
-    sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sql}) t`;
+    const { sql: sqlInner, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_OVER_7_DAYS_SUBQUERY(sevenDaysLater), startDate, endDate);
+    const sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sqlInner}) t`;
 
     const result = await this.containerRepository.query(sql, params);
     return parseInt(result[0]?.count || '0');
@@ -287,8 +287,8 @@ export class ArrivalStatisticsService {
    * 中转港无ETA记录
    */
   async getTransitNoETA(startDate?: string, endDate?: string): Promise<number> {
-    let { sql, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_NO_ETA_SUBQUERY, startDate, endDate);
-    sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sql}) t`;
+    const { sql: sqlInner, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_NO_ETA_SUBQUERY, startDate, endDate);
+    const sql = `SELECT COUNT(DISTINCT t.container_number) as count FROM (${sqlInner}) t`;
 
     const result = await this.containerRepository.query(sql, params);
     return parseInt(result[0]?.count || '0');
@@ -358,8 +358,8 @@ export class ArrivalStatisticsService {
    * 已到中转港（主分组）
    */
   private async getContainersByArrivedAtTransit(startDate?: string, endDate?: string): Promise<Container[]> {
-    let { sql, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.ARRIVED_AT_TRANSIT_SUBQUERY, startDate, endDate);
-    sql = `SELECT DISTINCT t.container_number FROM (${sql}) t`;
+    const { sql: sqlInner, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.ARRIVED_AT_TRANSIT_SUBQUERY, startDate, endDate);
+    const sql = `SELECT DISTINCT t.container_number FROM (${sqlInner}) t`;
 
     const result = await this.containerRepository.query(sql, params);
     if (result.length === 0) return [];
@@ -466,8 +466,8 @@ export class ArrivalStatisticsService {
    * 今日之前到港无ATA（子分类）
    */
   private async getContainersByArrivedBeforeTodayNoATA(startDate?: string, endDate?: string): Promise<Container[]> {
-    let { sql, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.ARRIVED_BEFORE_NO_ATA_SUBQUERY, startDate, endDate);
-    sql = `SELECT DISTINCT c.container_number FROM biz_containers c WHERE c.container_number IN (${sql})`;
+    const { sql: sqlInner, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.ARRIVED_BEFORE_NO_ATA_SUBQUERY, startDate, endDate);
+    const sql = `SELECT DISTINCT c.container_number FROM biz_containers c WHERE c.container_number IN (${sqlInner})`;
 
     const result = await this.containerRepository.query(sql, params);
     if (result.length === 0) return [];
@@ -487,8 +487,8 @@ export class ArrivalStatisticsService {
    * 中转港已逾期（子分类）
    */
   private async getContainersByTransitOverdue(today: Date, startDate?: string, endDate?: string): Promise<Container[]> {
-    let { sql, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_OVERDUE_SUBQUERY(today), startDate, endDate);
-    sql = `SELECT DISTINCT t.container_number FROM (${sql}) t`;
+    const { sql: sqlInner, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_OVERDUE_SUBQUERY(today), startDate, endDate);
+    const sql = `SELECT DISTINCT t.container_number FROM (${sqlInner}) t`;
 
     const result = await this.containerRepository.query(sql, params);
     if (result.length === 0) return [];
@@ -504,8 +504,8 @@ export class ArrivalStatisticsService {
    * 中转港3天内到港（子分类）
    */
   private async getContainersByTransitWithin3Days(today: Date, threeDaysLater: Date, startDate?: string, endDate?: string): Promise<Container[]> {
-    let { sql, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_WITHIN_3_DAYS_SUBQUERY(today, threeDaysLater), startDate, endDate);
-    sql = `SELECT DISTINCT t.container_number FROM (${sql}) t`;
+    const { sql: sqlInner, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_WITHIN_3_DAYS_SUBQUERY(today, threeDaysLater), startDate, endDate);
+    const sql = `SELECT DISTINCT t.container_number FROM (${sqlInner}) t`;
 
     const result = await this.containerRepository.query(sql, params);
     if (result.length === 0) return [];
@@ -521,8 +521,8 @@ export class ArrivalStatisticsService {
    * 中转港7天内到港（子分类）
    */
   private async getContainersByTransitWithin7Days(today: Date, threeDaysLater: Date, sevenDaysLater: Date, startDate?: string, endDate?: string): Promise<Container[]> {
-    let { sql, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_WITHIN_7_DAYS_SUBQUERY(threeDaysLater, sevenDaysLater), startDate, endDate);
-    sql = `SELECT DISTINCT t.container_number FROM (${sql}) t`;
+    const { sql: sqlInner, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_WITHIN_7_DAYS_SUBQUERY(threeDaysLater, sevenDaysLater), startDate, endDate);
+    const sql = `SELECT DISTINCT t.container_number FROM (${sqlInner}) t`;
 
     const result = await this.containerRepository.query(sql, params);
     if (result.length === 0) return [];
@@ -538,8 +538,8 @@ export class ArrivalStatisticsService {
    * 中转港超过7天到港（子分类）
    */
   private async getContainersByTransitOver7Days(today: Date, sevenDaysLater: Date, startDate?: string, endDate?: string): Promise<Container[]> {
-    let { sql, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_OVER_7_DAYS_SUBQUERY(sevenDaysLater), startDate, endDate);
-    sql = `SELECT DISTINCT t.container_number FROM (${sql}) t`;
+    const { sql: sqlInner, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_OVER_7_DAYS_SUBQUERY(sevenDaysLater), startDate, endDate);
+    const sql = `SELECT DISTINCT t.container_number FROM (${sqlInner}) t`;
 
     const result = await this.containerRepository.query(sql, params);
     if (result.length === 0) return [];
@@ -555,8 +555,8 @@ export class ArrivalStatisticsService {
    * 中转港无ETA记录（子分类）
    */
   private async getContainersByTransitNoETA(startDate?: string, endDate?: string): Promise<Container[]> {
-    let { sql, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_NO_ETA_SUBQUERY, startDate, endDate);
-    sql = `SELECT DISTINCT t.container_number FROM (${sql}) t`;
+    const { sql: sqlInner, params } = this.addDateFilterToSubquery(ArrivalSubqueryTemplates.TRANSIT_NO_ETA_SUBQUERY, startDate, endDate);
+    const sql = `SELECT DISTINCT t.container_number FROM (${sqlInner}) t`;
 
     const result = await this.containerRepository.query(sql, params);
     if (result.length === 0) return [];

@@ -266,7 +266,7 @@ export class CostOptimizationIntegrationService {
  */
 export async function exampleSingleContainerCostEvaluation() {
   const integrationService = new CostOptimizationIntegrationService();
-  
+
   // 模拟货柜数据
   const mockContainer: Container = {
     containerNumber: 'TEST1234567',
@@ -296,7 +296,7 @@ export async function exampleSingleContainerCostEvaluation() {
  */
 export async function exampleBatchCostEvaluation() {
   const integrationService = new CostOptimizationIntegrationService();
-  
+
   // 模拟多个货柜数据
   const mockContainers: Container[] = [
     {
@@ -347,7 +347,7 @@ export async function exampleBatchCostEvaluation() {
  */
 export async function exampleIntegrationWithScheduling() {
   const integrationService = new CostOptimizationIntegrationService();
-  
+
   // 模拟货柜数据
   const mockContainer: Container = {
     containerNumber: 'TEST1234567',

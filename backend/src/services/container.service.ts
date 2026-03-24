@@ -32,7 +32,7 @@ interface ContainerWithStatus {
   orderInfo: ReplenishmentOrder | null;
   latestEvent: ContainerStatusEvent | null;
   latestPortOperation: PortOperation | null;
-  currentPortType: 'transit' | 'destination' | null;
+  currentPortType: 'transit' | 'destination' | 'origin' | null;
   seaFreight: SeaFreight | null;
   truckingTransport: TruckingTransport | null;
   warehouseOperation: WarehouseOperation | null;
@@ -119,7 +119,7 @@ export class ContainerService {
 
         // 计算当前位置
         const currentLocation = this.calculateCurrentLocation(
-          latestEvent,
+          latestEvent ?? null,
           latestLogisticsStatus,
           latestPortOperation,
           currentPortType
@@ -213,7 +213,7 @@ export class ContainerService {
         return {
           ...container,
           orderNumber: orderInfo?.orderNumber ?? null,
-          latestStatus: this.formatLatestStatus(latestEvent),
+          latestStatus: this.formatLatestStatus(latestEvent ?? null),
           location: currentLocation,
           lastUpdated: container.updatedAt,
           currentPortType,
@@ -428,7 +428,7 @@ export class ContainerService {
     const orderInfoData = orderInfo.status === 'fulfilled' ? orderInfo.value : null;
     const latestEventData = latestEvent.status === 'fulfilled' ? latestEvent.value : null;
     const portOperationsData = portOperations.status === 'fulfilled' ? portOperations.value : [];
-    let seaFreightData = container.seaFreight ?? null;
+    let seaFreightData: SeaFreight | null = container.seaFreight ?? null;
     if (!seaFreightData && (container as any).bill_of_lading_number) {
       try {
         seaFreightData =
@@ -449,10 +449,10 @@ export class ContainerService {
     const result = calculateLogisticsStatus(
       container,
       portOperationsData,
-      seaFreightData,
-      truckingTransportData,
-      warehouseOperationData,
-      emptyReturnData
+      seaFreightData ?? undefined,
+      truckingTransportData ?? undefined,
+      warehouseOperationData ?? undefined,
+      emptyReturnData ?? undefined
     );
 
     // 如果状态需要更新
@@ -576,8 +576,8 @@ export class ContainerService {
           id: `${po.id}-gatein`,
           statusCode: 'GATE_IN',
           occurredAt: po.gateInTime,
-          locationNameCn: po.locationNameCn || po.terminal || po.portName,
-          locationNameEn: po.locationNameEn || po.terminal || po.portName,
+          locationNameCn: po.locationNameCn || po.gateInTerminal || po.gateOutTerminal || po.portName,
+          locationNameEn: po.locationNameEn || po.gateInTerminal || po.gateOutTerminal || po.portName,
           locationCode: po.portCode,
           description: `入闸时间 - ${po.gateInTerminal || po.portName}`,
           statusType: 'ATA',
@@ -592,8 +592,8 @@ export class ContainerService {
           id: `${po.id}-gateout`,
           statusCode: 'GATE_OUT',
           occurredAt: po.gateOutTime,
-          locationNameCn: po.locationNameCn || po.terminal || po.portName,
-          locationNameEn: po.locationNameEn || po.terminal || po.portName,
+          locationNameCn: po.locationNameCn || po.gateInTerminal || po.gateOutTerminal || po.portName,
+          locationNameEn: po.locationNameEn || po.gateInTerminal || po.gateOutTerminal || po.portName,
           locationCode: po.portCode,
           description: `出闸时间 - ${po.gateOutTerminal || po.portName}`,
           statusType: 'ATD',
@@ -608,8 +608,8 @@ export class ContainerService {
           id: `${po.id}-available`,
           statusCode: 'AVAILABLE',
           occurredAt: po.availableTime,
-          locationNameCn: po.locationNameCn || po.terminal || po.portName,
-          locationNameEn: po.locationNameEn || po.terminal || po.portName,
+          locationNameCn: po.locationNameCn || po.gateInTerminal || po.gateOutTerminal || po.portName,
+          locationNameEn: po.locationNameEn || po.gateInTerminal || po.gateOutTerminal || po.portName,
           locationCode: po.portCode,
           description: `可提货时间 - ${po.portName}`,
           statusType: 'ATA',
@@ -624,8 +624,8 @@ export class ContainerService {
           id: `${po.id}-discharged`,
           statusCode: 'DISCHARGED',
           occurredAt: po.dischargedTime,
-          locationNameCn: po.locationNameCn || po.terminal || po.portName,
-          locationNameEn: po.locationNameEn || po.terminal || po.portName,
+          locationNameCn: po.locationNameCn || po.gateInTerminal || po.gateOutTerminal || po.portName,
+          locationNameEn: po.locationNameEn || po.gateInTerminal || po.gateOutTerminal || po.portName,
           locationCode: po.portCode,
           description: `放电时间 - ${po.portName}`,
           statusType: 'ATA',
@@ -653,7 +653,7 @@ export class ContainerService {
           latitude: po.latitude,
           longitude: po.longitude,
           timezone: po.timezone,
-          terminalName: po.terminal || po.gateInTerminal
+          terminalName: po.gateInTerminal || po.gateOutTerminal
         });
       }
     }
@@ -676,7 +676,7 @@ export class ContainerService {
     for (const tt of truckingTransports) {
       if (tt.pickupDate) {
         events.push({
-          id: `${tt.id}-pickup`,
+          id: `${tt.containerNumber}-pickup`,
           statusCode: 'PICKED_UP',
           occurredAt: tt.pickupDate,
           locationNameCn: tt.pickupLocation || '港口码头',
@@ -691,7 +691,7 @@ export class ContainerService {
 
       if (tt.deliveryDate) {
         events.push({
-          id: `${tt.id}-delivery`,
+          id: `${tt.containerNumber}-delivery`,
           statusCode: 'DELIVERED',
           occurredAt: tt.deliveryDate,
           locationNameCn: tt.deliveryLocation || '仓库',
@@ -723,7 +723,7 @@ export class ContainerService {
     for (const wo of warehouseOperations) {
       if (wo.unloadDate) {
         events.push({
-          id: `${wo.id}-unload`,
+          id: `${wo.containerNumber}-unload`,
           statusCode: 'UNLOADED',
           occurredAt: wo.unloadDate,
           locationNameCn: wo.actualWarehouse || wo.plannedWarehouse || '仓库',
@@ -738,7 +738,7 @@ export class ContainerService {
 
       if (wo.warehouseArrivalDate) {
         events.push({
-          id: `${wo.id}-arrival`,
+          id: `${wo.containerNumber}-arrival`,
           statusCode: 'WAREHOUSE_ARRIVAL',
           occurredAt: wo.warehouseArrivalDate,
           locationNameCn: wo.actualWarehouse || wo.plannedWarehouse || '仓库',
@@ -753,7 +753,7 @@ export class ContainerService {
 
       if (wo.unboxingTime) {
         events.push({
-          id: `${wo.id}-unbox`,
+          id: `${wo.containerNumber}-unbox`,
           statusCode: 'UNBOXED',
           occurredAt: wo.unboxingTime,
           locationNameCn: wo.actualWarehouse || wo.plannedWarehouse || '仓库',
@@ -977,7 +977,7 @@ export class ContainerService {
           locationNameCn: event.event_location_name_cn,
           locationNameEn: event.event_location_name_en,
           occurredAt: event.event_occurred_at
-        } as ContainerStatusEvent);
+        } as unknown as ContainerStatusEvent);
       });
     } catch (error) {
       logger.warn('[batchFetchStatusEvents] Failed:', error);
@@ -1278,7 +1278,7 @@ export class ContainerService {
     latestEvent: ContainerStatusEvent | null,
     logisticsStatus: string | null,
     latestPortOperation: PortOperation | null,
-    currentPortType: 'transit' | 'destination' | null
+    currentPortType: 'transit' | 'destination' | 'origin' | null
   ): string {
     if (latestEvent) {
       return (
@@ -1348,7 +1348,7 @@ export class ContainerService {
       isfStatus: operation.isfStatus,
       // 最后免费日
       lastFreeDate: operation.lastFreeDate,
-      lastReturnDate: operation.lastReturnDate,
+      lastReturnDate: null,
       // 物流状态时间
       gateInTime: operation.gateInTime,
       gateOutTime: operation.gateOutTime,

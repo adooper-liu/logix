@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import type { UserInfo } from '@/types/user'
+import type { UserInfo } from '@/types'
 
 export const useUserStore = defineStore('user', () => {
   // 状态
@@ -17,7 +17,7 @@ export const useUserStore = defineStore('user', () => {
     localStorage.setItem('token', newToken)
   }
 
-  const login = async (username: string, password: string) => {
+  const login = async (username: string, _password: string) => {
     try {
       // 模拟登录API调用
       const response = await new Promise<any>((resolve) => {

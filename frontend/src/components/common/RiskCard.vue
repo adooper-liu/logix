@@ -55,7 +55,7 @@
         
         <div class="risk-meta">
           <span class="update-time">
-            更新时间: {{ formatDate(riskAssessment.updatedAt) }}
+            更新时间: {{ formatDateToLocal(riskAssessment.updatedAt) }}
           </span>
         </div>
       </div>
@@ -67,7 +67,7 @@
 import { ref, watch } from 'vue';
 import { riskApi } from '@/services/risk';
 import { Refresh, Loading, InfoFilled } from '@element-plus/icons-vue';
-import { formatDate } from '@/utils/dateTimeUtils';
+import { formatDateToLocal } from '@/utils/dateTimeUtils';
 
 const props = defineProps<{
   containerNumber: string;

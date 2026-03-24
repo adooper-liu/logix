@@ -469,13 +469,4 @@ export interface ContainerListItem {
   portOperations?: PortOperation[];
 }
 
-// 导出所有类型供外部使用
-export type {
-  PortOperation,
-  SeaFreight,
-  TruckingTransport,
-  WarehouseOperation,
-  EmptyReturn,
-  StatusEvent,
-  ContainerListItem
-}
+// 类型在本文件已逐项 export，避免重复导出冲突

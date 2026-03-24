@@ -9,9 +9,16 @@
 export function buildSystemPrompt(params: {
   schemaDescription: string;
   knowledgeContext: string;
-  sqlResult?: { sql: string; rowCount: number; truncated: boolean; data: any[] };
-  mcpToolResult?: { toolName: string; success: boolean; result: string; error?: string };
-  scheduleResult?: { success: boolean; total: number; successCount: number; failedCount: number; results: any[] };
+  sqlResult?: { sql: string; rowCount: number; truncated: boolean; data: any[] } | null;
+  mcpToolResult?: { toolName: string; success: boolean; result: string; error?: string } | null;
+  scheduleResult?: {
+    success: boolean;
+    total: number;
+    successCount: number;
+    failedCount: number;
+    results: any[];
+    hasMore?: boolean;
+  } | null;
 }): string {
   const { schemaDescription, knowledgeContext, sqlResult, mcpToolResult, scheduleResult } = params;
 
@@ -53,12 +60,12 @@ ${sqlResult.truncated ? '(仅显示前5条)' : ''}
 
   // MCP工具结果
   if (mcpToolResult) {
-    const toolTitle = mcpToolResult.toolName === 'read_file' 
-      ? '文件内容' 
-      : mcpToolResult.toolName === 'search_code' 
-        ? '代码搜索结果' 
+    const toolTitle = mcpToolResult.toolName === 'read_file'
+      ? '文件内容'
+      : mcpToolResult.toolName === 'search_code'
+        ? '代码搜索结果'
         : '数据库查询';
-    
+
     prompt += `
 ## ${toolTitle}
 ${mcpToolResult.success ? mcpToolResult.result : `调用失败: ${mcpToolResult.error}`}

@@ -10,7 +10,14 @@ import {
   CreateDateColumn
 } from 'typeorm';
 
-export type SourceType = 'excel_import' | 'feituo_api' | 'feituo_excel' | 'manual' | 'status_update';
+export type SourceType =
+  | 'excel_import'
+  | 'feituo_api'
+  | 'feituo_excel'
+  | 'feituo_sync'
+  | 'feituo_excel_import'
+  | 'manual'
+  | 'status_update';
 export type ActionType = 'INSERT' | 'UPDATE' | 'DELETE';
 
 @Entity('sys_data_change_log')

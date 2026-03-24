@@ -7,7 +7,7 @@ import { logger } from '../utils/logger'
 const router = Router()
 
 // 内存使用历史记录（用于趋势分析）
-let memoryHistory: { timestamp: number; usage: number }[] = []
+const memoryHistory: { timestamp: number; usage: number }[] = []
 const MAX_HISTORY_LENGTH = 24 // 保留最近24个数据点
 
 /**

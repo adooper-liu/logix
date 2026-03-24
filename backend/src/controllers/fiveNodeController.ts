@@ -13,7 +13,7 @@ export class FiveNodeController {
     try {
       const { containerNumber } = req.params;
       const info = await this.fiveNodeService.getFiveNodeInfo(containerNumber);
-      
+
       if (!info) {
         res.status(404).json({
           success: false,
@@ -21,7 +21,7 @@ export class FiveNodeController {
         });
         return;
       }
-      
+
       res.json({
         success: true,
         data: info,
@@ -40,7 +40,7 @@ export class FiveNodeController {
   getAllFiveNodeInfo = async (req: Request, res: Response): Promise<void> => {
     try {
       const { startDate, endDate, status } = req.query;
-      
+
       const filters = {
         startDate: startDate ? new Date(startDate as string) : undefined,
         endDate: endDate ? new Date(endDate as string) : undefined,
@@ -48,7 +48,7 @@ export class FiveNodeController {
       };
 
       const infoList = await this.fiveNodeService.getAllFiveNodeInfo(filters);
-      
+
       res.json({
         success: true,
         data: infoList,

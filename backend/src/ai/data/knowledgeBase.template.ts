@@ -324,13 +324,13 @@ export const knowledgeBase = [
 - **性能优化**：减少后续查询，避免N+1问题
 
 #### 3. 正确实现
-```typescript
+\`\`\`typescript
 // 正确：使用leftJoinAndSelect加载seaFreight
 const qb = containerRepository
   .createQueryBuilder('container')
   .leftJoin('container.replenishmentOrders', 'order')
   .leftJoinAndSelect('container.seaFreight', 'sf');
-```
+\`\`\`
 
 ### 四、实施总结
 
@@ -365,7 +365,7 @@ const qb = containerRepository
 ### 一、Enrich逻辑的核心实现
 
 #### 1. 核心方法
-- **enrichContainersList**：位于 `backend/src/services/container.service.ts`
+- **enrichContainersList**：位于 \`backend/src/services/container.service.ts\`
 - **功能**：为货柜列表数据添加丰富的关联信息和计算字段
 - **输入**：Container[] 数组
 - **输出**：增强后的容器对象数组
@@ -377,7 +377,7 @@ const qb = containerRepository
 - **异常处理**：单个货柜处理失败不影响整体流程
 
 #### 3. 关联数据查询
-```typescript
+\`\`\`typescript
 // 批量查询所有相关数据
 const [ordersMap, eventsMap, portOperationsMap, truckingMap, warehouseMap, emptyReturnsMap, customsBrokersMap, truckingCompaniesMap, warehousesMap, countriesMap] = await Promise.all([
   this.batchFetchOrders(containerNumbers),
@@ -391,7 +391,7 @@ const [ordersMap, eventsMap, portOperationsMap, truckingMap, warehouseMap, empty
   this.batchFetchWarehouses(),
   this.batchFetchCountries()
 ]);
-```
+\`\`\`
 
 ### 二、Enrich数据结构
 

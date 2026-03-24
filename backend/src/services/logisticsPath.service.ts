@@ -74,13 +74,13 @@ export class LogisticsPathService {
   /**
    * 执行 GraphQL 查询
    */
-  private async executeGraphQLQuery<T>(
+  private async executeGraphQLQuery(
     query: string,
     variables?: GraphQLVariables
-  ): Promise<T> {
+  ): Promise<Record<string, unknown>> {
     try {
       const startTime = Date.now();
-      const response = await this.axiosInstance.post<GraphQLResponse<T>>(
+      const response = await this.axiosInstance.post<GraphQLResponse<Record<string, unknown>>>(
         this.graphqlEndpoint,
         { query, variables }
       );
@@ -102,7 +102,7 @@ export class LogisticsPathService {
         throw new Error('No data returned from GraphQL query');
       }
 
-      return response.data.data;
+      return response.data.data as Record<string, unknown>;
     } catch (error) {
       log.error('GraphQL Query Failed:', {
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -152,7 +152,7 @@ export class LogisticsPathService {
     `;
 
     const response = await this.executeGraphQLQuery(query, { containerNumber });
-    return response.getStatusPathByContainer;
+    return response['getStatusPathByContainer'];
   }
 
   /**
@@ -185,7 +185,7 @@ export class LogisticsPathService {
     `;
 
     const response = await this.executeGraphQLQuery(query, { billOfLadingNumber });
-    return response.getStatusPathByBL;
+    return response['getStatusPathByBL'];
   }
 
   /**
@@ -210,7 +210,7 @@ export class LogisticsPathService {
     `;
 
     const response = await this.executeGraphQLQuery(query, { bookingNumber });
-    return response.getStatusPathByBooking;
+    return response['getStatusPathByBooking'];
   }
 
   /**
@@ -256,7 +256,7 @@ export class LogisticsPathService {
     `;
 
     const response = await this.executeGraphQLQuery(query, options);
-    return response.getStatusPaths;
+    return response['getStatusPaths'];
   }
 
   /**
@@ -274,7 +274,7 @@ export class LogisticsPathService {
     `;
 
     const response = await this.executeGraphQLQuery(query, { pathId });
-    return response.validateStatusPath;
+    return response['validateStatusPath'];
   }
 
   /**
@@ -301,7 +301,7 @@ export class LogisticsPathService {
       data,
       containerNumber
     });
-    return response.syncExternalData;
+    return response['syncExternalData'];
   }
 
   /**
@@ -324,7 +324,7 @@ export class LogisticsPathService {
     `;
 
     const response = await this.executeGraphQLQuery(query, { source, dataList });
-    return response.batchSyncExternalData;
+    return response['batchSyncExternalData'];
   }
 
   /**
@@ -332,7 +332,7 @@ export class LogisticsPathService {
    */
   async healthCheck(): Promise<{ status: string; timestamp: string }> {
     try {
-      const response = await this.axiosInstance.get('/health');
+      const response = await this.axiosInstance.get<{ status: string; timestamp: string }>('/health');
       return response.data;
     } catch (error) {
       throw new Error('Logistics Path service is unhealthy');

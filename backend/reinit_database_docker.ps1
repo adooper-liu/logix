@@ -2,15 +2,15 @@
 # LogiX 数据库一键初始化脚本
 # ============================================================
 # Description: 一键执行所有数据库迁移脚本
-# Usage: .\init-database.ps1
+# Usage: .\reinit_database_docker.ps1
 # ============================================================
 
 $ErrorActionPreference = "Stop"
 
 $CONTAINER_NAME = "logix-timescaledb-prod"
-$SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path  # migrations/
-$BACKEND_DIR = Join-Path $SCRIPT_DIR "backend"
-$MIGRATIONS_DIR = $SCRIPT_DIR  # migrations/
+$SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path  # backend/
+$BACKEND_DIR = $SCRIPT_DIR                                      # backend/
+$MIGRATIONS_DIR = Join-Path (Split-Path -Parent $SCRIPT_DIR) "migrations"  # migrations/
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "LogiX Database Initialization" -ForegroundColor Cyan
@@ -29,11 +29,12 @@ Write-Host "✓ Container $CONTAINER_NAME is running" -ForegroundColor Green
 # ============================================================
 # Step 1: 基础表创建 (backend/)
 # ============================================================
-Write-Host "`n[1/5] Creating base tables..." -ForegroundColor Yellow
+Write-Host "`n[1/6] Creating base tables..." -ForegroundColor Yellow
 
 $baseScripts = @(
     "01_drop_all_tables.sql",
     "03_create_tables.sql",
+    "03_create_tables_supplement.sql",
     "02_init_dict_tables_final.sql",
     "04_fix_constraints.sql",
     "05_init_warehouses.sql"
@@ -52,7 +53,7 @@ Write-Host "✓ Base tables created" -ForegroundColor Green
 # ============================================================
 # Step 2: 核心迁移脚本 (migrations/)
 # ============================================================
-Write-Host "`n[2/5] Running core migrations..." -ForegroundColor Yellow
+Write-Host "`n[2/6] Running core migrations..." -ForegroundColor Yellow
 
 $coreMigrations = @(
     # 滞港费相关
@@ -67,6 +68,9 @@ $coreMigrations = @(
     "add_feituo_port_operation_fields.sql",
     "add_ext_feituo_places.sql",
     "add_ext_feituo_status_events.sql",
+    "add_ext_feituo_vessels.sql",
+    "fix_ext_feituo_places_nullable.sql",
+    "fix_ext_feituo_status_events_nullable.sql",
     
     # 系统表
     "add_sys_data_change_log.sql",
@@ -80,7 +84,12 @@ $coreMigrations = @(
     "add_daily_capacity_to_trucking_companies.sql",
     "add_trucking_return_and_yard_capacity.sql",
     "add_trucking_port_mapping.sql",
-    "add_scheduling_config_indexes.sql"
+    "add_scheduling_config_indexes.sql",
+    
+    # 其他重要迁移
+    "add_train_port_operation_fields.sql",
+    "add_trucking_foreign_keys.sql",
+    "add_last_free_date_source.sql"
 )
 
 foreach ($script in $coreMigrations) {
@@ -94,9 +103,36 @@ foreach ($script in $coreMigrations) {
 Write-Host "✓ Core migrations completed" -ForegroundColor Green
 
 # ============================================================
-# Step 3: 数据修复与扩展 (migrations/)
+# Step 3: 配置与索引迁移 (migrations/)
 # ============================================================
-Write-Host "`n[3/5] Running data fixes..." -ForegroundColor Yellow
+Write-Host "`n[3/6] Running configuration and index migrations..." -ForegroundColor Yellow
+
+$configMigrations = @(
+    # 成本优化配置
+    "add_cost_optimization_config.sql",
+    "add_cost_optimization_mapping_fields.sql",
+    
+    # 日历能力配置
+    "add_calendar_based_capacity.sql",
+    
+    # 排产优化配置
+    "001_add_scheduling_optimization_config.sql"
+)
+
+foreach ($script in $configMigrations) {
+    $scriptPath = Join-Path $MIGRATIONS_DIR $script
+    if (Test-Path $scriptPath) {
+        Write-Host "  - Executing $script..." -ForegroundColor Gray
+        docker cp "$scriptPath" ${CONTAINER_NAME}:/tmp/$script
+        docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/$script 2>&1 | Out-Null
+    }
+}
+Write-Host "✓ Configuration and index migrations completed" -ForegroundColor Green
+
+# ============================================================
+# Step 4: 数据修复与扩展 (migrations/)
+# ============================================================
+Write-Host "`n[4/6] Running data fixes..." -ForegroundColor Yellow
 
 $dataFixes = @(
     # 国家相关
@@ -108,10 +144,10 @@ $dataFixes = @(
     # 清关公司国家
     "006_add_customs_broker_country.sql",
     "add_country_to_customs_brokers.sql",
+    "006_add_customs_broker_country_data.sql",
     
     # 日期类型
-    "convert_date_to_timestamp.sql",
-    "unify-datetime-types.sql",
+    "convert_date_to_timestamp.sql",  # 只保留一个日期转换脚本
     "add_actual_loading_date.sql",
     "add_last_free_date_mode.sql",
     
@@ -132,9 +168,9 @@ foreach ($script in $dataFixes) {
 Write-Host "✓ Data fixes completed" -ForegroundColor Green
 
 # ============================================================
-# Step 4: 港口数据 (migrations/)
+# Step 5: 港口数据 (migrations/)
 # ============================================================
-Write-Host "`n[4/5] Adding port data..." -ForegroundColor Yellow
+Write-Host "`n[5/6] Adding port data..." -ForegroundColor Yellow
 
 $portScripts = @(
     "add_common_ports.sql",
@@ -153,9 +189,9 @@ foreach ($script in $portScripts) {
 Write-Host "✓ Port data added" -ForegroundColor Green
 
 # ============================================================
-# Step 5: 智能处理与其他 (migrations/)
+# Step 6: 智能处理与其他 (migrations/)
 # ============================================================
-Write-Host "`n[5/5] Running additional migrations..." -ForegroundColor Yellow
+Write-Host "`n[6/6] Running additional migrations..." -ForegroundColor Yellow
 
 $additionalScripts = @(
     # 智能处理
@@ -194,6 +230,7 @@ Write-Host "`n========================================" -ForegroundColor Cyan
 Write-Host "Verification Results" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
+# 基础验证
 $tableCount = docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -t -c "SELECT COUNT(*) FROM pg_tables WHERE schemaname = 'public';" | ForEach-Object { $_.Trim() }
 $portCount = docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -t -c "SELECT COUNT(*) FROM dict_ports;" | ForEach-Object { $_.Trim() }
 $warehouseCount = docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -t -c "SELECT COUNT(*) FROM dict_warehouses;" | ForEach-Object { $_.Trim() }
@@ -201,6 +238,44 @@ $warehouseCount = docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db 
 Write-Host "Total Tables: $tableCount" -ForegroundColor White
 Write-Host "Total Ports: $portCount" -ForegroundColor White
 Write-Host "Total Warehouses: $warehouseCount" -ForegroundColor White
+
+# 关键表存在性检查
+Write-Host "`n[Key Tables Check]" -ForegroundColor Yellow
+$keyTables = @(
+    "biz_containers",
+    "biz_replenishment_orders",
+    "ext_demurrage_records",
+    "dict_universal_mapping",
+    "ext_warehouse_daily_occupancy",
+    "ext_trucking_slot_occupancy",
+    "ext_yard_daily_occupancy",
+    "ext_feituo_places",
+    "ext_feituo_status_events"
+)
+
+foreach ($table in $keyTables) {
+    $exists = docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -t -c "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = '$table');" | ForEach-Object { $_.Trim() }
+    if ($exists -eq "t") {
+        Write-Host "  ✓ $table exists" -ForegroundColor Green
+    } else {
+        Write-Host "  ✗ $table missing" -ForegroundColor Red
+    }
+}
+
+# 配置项检查
+Write-Host "`n[Configuration Check]" -ForegroundColor Yellow
+$configCount = docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -t -c "SELECT COUNT(*) FROM dict_scheduling_config;" | ForEach-Object { $_.Trim() }
+Write-Host "  Scheduling config items: $configCount" -ForegroundColor White
+
+# 外键约束检查
+Write-Host "`n[Foreign Key Check]" -ForegroundColor Yellow
+$fkCount = docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -t -c "SELECT COUNT(*) FROM information_schema.table_constraints WHERE constraint_type = 'FOREIGN KEY' AND table_schema = 'public';" | ForEach-Object { $_.Trim() }
+Write-Host "  Foreign key constraints: $fkCount" -ForegroundColor White
+
+# 索引检查
+Write-Host "`n[Index Check]" -ForegroundColor Yellow
+$indexCount = docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -t -c "SELECT COUNT(*) FROM pg_indexes WHERE schemaname = 'public';" | ForEach-Object { $_.Trim() }
+Write-Host "  Indexes: $indexCount" -ForegroundColor White
 
 Write-Host "`n========================================" -ForegroundColor Green
 Write-Host "Database Initialization Completed!" -ForegroundColor Green

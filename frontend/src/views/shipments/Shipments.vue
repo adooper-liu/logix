@@ -48,32 +48,10 @@ const getUtcDayNumber = (input: string | Date | null | undefined): number | null
   )
 }
 
-// 获取日期状态
-const getDateStatus = (
-  date: string | Date | null | undefined,
-  isActual: boolean = false
-): 'success' | 'warning' | 'danger' | 'info' => {
-  if (!date) return 'info'
-  const targetDay = getUtcDayNumber(date)
-  const todayDay = getUtcDayNumber(new Date())
-  if (targetDay == null || todayDay == null) return 'info'
-  const diffDays = targetDay - todayDay
-
-  if (isActual) {
-    // 实际日期：如果已过期（早于今天），则为异常
-    return diffDays < 0 ? 'danger' : 'success'
-  } else {
-    // 计划/预计日期：如果已过期且没有实际日期，则为异常；如果即将过期（3天内），则为警告
-    if (diffDays < 0) return 'danger'
-    if (diffDays <= 3) return 'warning'
-    return 'success'
-  }
-}
-
 // 获取日期标签类型
 const getDateTagType = (
   date: string | Date | null | undefined,
-  actualDate?: string | Date | null | undefined,
+  _actualDate?: string | Date | null | undefined,
   type?: 'eta' | 'pickup' | 'return' | 'shipment' | 'update',
   lastDate?: string | Date | null | undefined
 ): 'success' | 'warning' | 'danger' | 'info' => {
@@ -141,7 +119,6 @@ const {
   quickStatusFilter,
   alertFilter,
   sortedVisibleColumnKeys,
-  paginatedContainers,
   filteredContainers,
   saveColumnVisible,
   resetColumnVisible,
@@ -326,7 +303,7 @@ const handleManualLfdUpdate = async (row: {
 
   const defaultDate = row.lastFreeDate ? dayjs(row.lastFreeDate).format('YYYY-MM-DD') : ''
   try {
-    const { value } = await ElMessageBox.prompt(
+    const promptResult = (await ElMessageBox.prompt(
       `请输入 ${cn} 的最晚提柜日（YYYY-MM-DD）`,
       'LFD手工维护',
       {
@@ -337,8 +314,8 @@ const handleManualLfdUpdate = async (row: {
         inputPattern: /^\d{4}-\d{2}-\d{2}$/,
         inputErrorMessage: '日期格式应为 YYYY-MM-DD',
       }
-    )
-    const lfd = (value || '').trim()
+    )) as { value?: string }
+    const lfd = String(promptResult.value || '').trim()
     if (!lfd) return
 
     manualLfdLoading.value = cn
@@ -433,11 +410,6 @@ const handleShipmentDateChange = async (value: [Date, Date] | null) => {
   }
 }
 
-// 重新加载统计数据（从后端获取）
-const reloadStatistics = async () => {
-  await loadStatistics()
-}
-
 // 同时刷新列表和统计数据
 const reloadAllData = async () => {
   await Promise.all([reloadTableByCurrentFilter(), loadStatistics()])
@@ -495,24 +467,6 @@ const viewDetails = (container: any) => {
 // 编辑集装箱
 const editContainer = (container: any) => {
   ElMessage.info(`编辑集装箱 ${container.containerNumber}`)
-}
-
-// 跳转到甘特图
-const goToGantt = () => {
-  const filterCondition = activeFilter.value.days
-  const filterLabel = getFilterLabel(filterCondition)
-  const startDate = dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD')
-  const endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
-
-  router.push({
-    path: '/gantt-chart',
-    query: {
-      filterCondition,
-      startDate,
-      endDate,
-      filterLabel,
-    },
-  })
 }
 
 // 获取过滤条件标签
@@ -729,23 +683,6 @@ const getFiveNodeRows = (row: any) => {
       text: row.inspectionRequired ? '需查验' : '免查验',
     },
   ]
-}
-
-// 计算倒计时时间
-const getRemainingTime = (targetDate: string | Date | null | undefined) => {
-  if (!targetDate) return null
-  const target = new Date(targetDate)
-  const now = new Date()
-  const diff = target.getTime() - now.getTime()
-
-  if (diff <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: true }
-
-  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
-  const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60))
-  const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60))
-  const seconds = Math.floor((diff % (1000 * 60)) / 1000)
-
-  return { days, hours, minutes, seconds, isExpired: false }
 }
 
 // 获取修正ETA（从港口操作记录中获取）
@@ -979,7 +916,10 @@ export default {
         <el-dropdown
           trigger="click"
           @command="
-            (cmd: string) => (cmd === 'page' ? handleExportCurrentPage() : handleExportAll())
+            (cmd: string) =>
+              cmd === 'page'
+                ? handleExportCurrentPage(filteredContainers)
+                : handleExportAll(filteredContainers, getFilterLabel(activeFilter.days || 'all'))
           "
         >
           <el-button type="primary" plain>
@@ -1675,7 +1615,6 @@ export default {
               v-for="key in columnOrder"
               :key="key"
               class="column-setting-item"
-              :class="{ 'is-dragging': draggedColumnKey === key }"
               draggable="true"
               @dragstart="e => handleDragStart(e, key)"
               @dragover="handleDragOver"

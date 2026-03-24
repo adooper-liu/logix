@@ -84,7 +84,8 @@ export class CountryController {
       const countryData = req.body;
 
       const country = this.countryRepository.create(countryData);
-      const savedCountry = await this.countryRepository.save(country);
+      const saved = await this.countryRepository.save(country);
+      const savedCountry = (Array.isArray(saved) ? saved[0] : saved) as Country;
 
       logger.info(`Country created: ${savedCountry.nameCn} (${savedCountry.code})`);
 

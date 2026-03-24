@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Container } from '../entities/Container';
 import { PortOperation } from '../entities/PortOperation';
 import { SeaFreight } from '../entities/SeaFreight';
@@ -72,9 +72,9 @@ export class ContainerStatusService {
         container,
         portOperations,
         seaFreight,
-        truckingTransport,
-        warehouseOperation,
-        emptyReturn
+        truckingTransport ?? undefined,
+        warehouseOperation ?? undefined,
+        emptyReturn ?? undefined
       );
 
       const ganttDerived = buildGanttDerived(
@@ -191,21 +191,26 @@ export class ContainerStatusService {
 
       const containerNumbers = containers.map(c => c.containerNumber);
 
+      if (containerNumbers.length === 0) {
+        logger.info('[StatusUpdate] 批量更新完成，无货柜需处理');
+        return 0;
+      }
+
       // 批量查询所有相关数据（减少数据库往返次数）
       const [allPortOperations, allTruckingTransports, allWarehouseOperations, allEmptyReturns] =
         await Promise.all([
           this.portOperationRepository.find({
-            where: { containerNumber: containerNumbers },
+            where: { containerNumber: In(containerNumbers) },
             order: { portSequence: 'ASC' }
           }),
           this.truckingTransportRepository.find({
-            where: { containerNumber: containerNumbers }
+            where: { containerNumber: In(containerNumbers) }
           }),
           this.warehouseOperationRepository.find({
-            where: { containerNumber: containerNumbers }
+            where: { containerNumber: In(containerNumbers) }
           }),
           this.emptyReturnRepository.find({
-            where: { containerNumber: containerNumbers }
+            where: { containerNumber: In(containerNumbers) }
           })
         ]);
 
@@ -248,9 +253,9 @@ export class ContainerStatusService {
           container,
           portOperations,
           seaFreight,
-          truckingTransport,
-          warehouseOperation,
-          emptyReturn
+          truckingTransport ?? undefined,
+          warehouseOperation ?? undefined,
+          emptyReturn ?? undefined
         );
 
         const ganttDerived = buildGanttDerived(

@@ -54,6 +54,7 @@ interface WarehouseTruckingRecord {
   mappingType: string
   isDefault: boolean
   isActive: boolean
+  transportFee: number
   remarks: string
   createdAt?: string
   updatedAt?: string
@@ -90,6 +91,7 @@ const formData = reactive<WarehouseTruckingRecord>({
   mappingType: 'DEFAULT',
   isDefault: false,
   isActive: true,
+  transportFee: 0,
   remarks: '',
 })
 
@@ -149,6 +151,7 @@ const handleCreate = () => {
     mappingType: 'DEFAULT',
     isDefault: false,
     isActive: true,
+    transportFee: 0,
     remarks: '',
   })
   dialogVisible.value = true
@@ -244,6 +247,11 @@ const handleFileChange = async (file: any) => {
           row['trucking_company_name'] ||
           row['trucking_company'] ||
           ''
+        const transportFee =
+          row['拖卡费'] ||
+          row['transport_fee'] ||
+          row['运输费'] ||
+          0
 
         const record = {
           country: row['国家'] || row['country'] || '',
@@ -254,6 +262,7 @@ const handleFileChange = async (file: any) => {
           mappingType: 'DEFAULT',
           isDefault: false,
           isActive: true,
+          transportFee: Number(transportFee) || 0,
           remarks: '',
         }
 
@@ -420,6 +429,7 @@ const handleExportTemplate = () => {
       '仓库.代码': 'CA-S003',
       '仓库.仓库名称': 'Oshawa',
       车队: 'S AND R TRUCKING',
+      拖卡费: 120.00,
     },
   ]
   const ws = XLSX.utils.json_to_sheet(templateData)
@@ -494,6 +504,7 @@ onMounted(() => {
         <el-table-column prop="warehouse_name" label="仓库名称" min-width="120" />
         <el-table-column prop="trucking_company_id" label="车队ID" min-width="100" />
         <el-table-column prop="trucking_company_name" label="车队名称" min-width="150" />
+        <el-table-column prop="transport_fee" label="拖卡费" width="100" />
         <el-table-column prop="mapping_type" label="映射类型" width="100" />
         <el-table-column prop="is_default" label="默认" width="60">
           <template #default="{ row }">
@@ -595,6 +606,9 @@ onMounted(() => {
         </el-form-item>
         <el-form-item label="启用状态">
           <el-switch v-model="formData.isActive" />
+        </el-form-item>
+        <el-form-item label="拖卡费">
+          <el-input-number v-model="formData.transportFee" :min="0" :step="0.01" style="width: 100%" />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="formData.remarks" type="textarea" :rows="2" />

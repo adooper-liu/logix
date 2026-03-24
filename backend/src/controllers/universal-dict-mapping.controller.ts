@@ -174,7 +174,7 @@ export class UniversalDictMappingController {
         success: true,
         data: result,
         dict_type: dictType,
-        keyword: keyword,
+        keyword,
         total: result.length
       });
     } catch (error: any) {
@@ -336,8 +336,8 @@ export class UniversalDictMappingController {
       }
 
       // 构建动态更新语句
-      const fields = [];
-      const values = [];
+      const fields: string[] = [];
+      const values: unknown[] = [];
       let paramIndex = 1;
 
       const allowedFields = [

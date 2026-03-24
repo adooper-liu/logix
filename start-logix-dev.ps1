@@ -1,3 +1,37 @@
+# ============================================================
+# LogiX 开发环境启动脚本
+# ============================================================
+# 用途：一键启动完整的开发环境（数据库 + 后端 + 前端 + 微服务）
+# 层级：应用层（Layer 3 - Application Layer）
+# 依赖：Docker Desktop、Node.js、npm
+# ============================================================
+# 使用场景：
+#   - 日常开发工作
+#   - 本地全栈测试
+#   - 功能调试
+# ============================================================
+# 启动的服务：
+#   ✅ TimescaleDB (PostgreSQL) - localhost:5432
+#   ✅ Redis                      - localhost:6379
+#   ✅ Prometheus                 - http://localhost:9090
+#   ✅ Grafana                    - http://localhost:3000
+#   ✅ Adminer                    - http://localhost:8080
+#   ✅ pgAdmin                    - http://localhost:5050
+#   ✅ Backend API                - http://localhost:3001
+#   ✅ Frontend                   - http://localhost:5173
+#   ✅ Logistics-path Microservice- http://localhost:4000
+# ============================================================
+# 配套脚本：
+#   - .\stop-logix-dev.ps1        # 停止所有服务
+#   - tsdb-start.bat              # 仅启动数据库（基础设施层）
+#   - prod-start.bat              # 生产环境部署（服务层）
+# ============================================================
+# 快速命令：
+#   .\start-logix-dev.ps1         # 启动开发环境
+#   .\stop-logix-dev.ps1          # 停止开发环境
+#   make dev-up                   # Makefile 等价命令
+# ============================================================
+
 # 检查PowerShell执行策略
 $executionPolicy = Get-ExecutionPolicy
 if ($executionPolicy -eq "Restricted") {

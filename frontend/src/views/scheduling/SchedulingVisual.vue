@@ -82,20 +82,10 @@
           
           <el-tabs v-model="activeTab">
             <el-tab-pane label="仓库" name="warehouse">
-              <el-table :data="overview.warehouses" max-height="200" size="small">
-                <el-table-column prop="code" label="编码" width="80" />
-                <el-table-column prop="name" label="名称" />
-                <el-table-column prop="country" label="国家" width="60" />
-                <el-table-column prop="dailyCapacity" label="产能" width="60" />
-              </el-table>
+              <WarehouseManagement :country="appStore.scopedCountryCode || undefined" />
             </el-tab-pane>
             <el-tab-pane label="车队" name="trucking">
-              <el-table :data="overview.truckings" max-height="200" size="small">
-                <el-table-column prop="code" label="编码" width="80" />
-                <el-table-column prop="name" label="名称" />
-                <el-table-column prop="country" label="国家" width="60" />
-                <el-table-column prop="dailyCapacity" label="产能" width="60" />
-              </el-table>
+              <TruckingManagement :country="appStore.scopedCountryCode || undefined" />
             </el-tab-pane>
             <el-tab-pane label="堆场" name="yard">
               <div class="tab-header">
@@ -107,6 +97,48 @@
                 <el-table-column prop="yardCode" label="编码" width="80" />
                 <el-table-column prop="yardName" label="名称" />
                 <el-table-column prop="portCode" label="港口" width="60" />
+              </el-table>
+            </el-tab-pane>
+            <el-tab-pane label="映射关系" name="mapping">
+              <div class="tab-header">
+                <el-button type="primary" size="small" @click="showMappingDialog()">
+                  <el-icon><Plus /></el-icon>
+                  新增映射
+                </el-button>
+                <el-button size="small" @click="loadMappingData">
+                  <el-icon><Refresh /></el-icon>
+                  刷新
+                </el-button>
+              </div>
+              <el-table :data="warehouseTruckingMappings" max-height="200" size="small" v-loading="mappingLoading">
+                <el-table-column prop="warehouse_code" label="仓库" width="100" />
+                <el-table-column prop="warehouse_name" label="仓库名称" />
+                <el-table-column prop="trucking_company_id" label="车队" width="100" />
+                <el-table-column prop="trucking_company_name" label="车队名称" />
+                <el-table-column prop="country" label="国家" width="60" />
+                <el-table-column prop="transport_fee" label="拖卡费" width="80">
+                  <template #default="{ row }">
+                    {{ row.transport_fee ? `$${Number(row.transport_fee).toFixed(2)}` : '-' }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="默认" width="50">
+                  <template #default="{ row }">
+                    <el-tag v-if="row.is_default" type="success" size="small">是</el-tag>
+                    <span v-else>-</span>
+                  </template>
+                </el-table-column>
+                <el-table-column label="状态" width="60">
+                  <template #default="{ row }">
+                    <el-tag v-if="row.is_active" type="success" size="small">启用</el-tag>
+                    <el-tag v-else type="info" size="small">禁用</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="100">
+                  <template #default="{ row }">
+                    <el-button type="primary" link size="small" @click="editMapping(row)">编辑</el-button>
+                    <el-button type="danger" link size="small" @click="deleteMapping(row)">删除</el-button>
+                  </template>
+                </el-table-column>
               </el-table>
             </el-tab-pane>
             <el-tab-pane label="资源占用" name="occupancy">
@@ -378,6 +410,45 @@
     </template>
   </el-dialog>
 
+  <!-- 映射关系对话框 -->
+  <el-dialog v-model="mappingDialogVisible" :title="mappingForm.id ? '编辑映射' : '新增映射'" width="600px">
+    <el-form :model="mappingForm" label-width="100px">
+      <el-form-item label="国家" required>
+        <el-input v-model="mappingForm.country" placeholder="如: US, CA, GB" />
+      </el-form-item>
+      <el-form-item label="仓库" required>
+        <el-input v-model="mappingForm.warehouseCode" placeholder="仓库编码" />
+      </el-form-item>
+      <el-form-item label="仓库名称">
+        <el-input v-model="mappingForm.warehouseName" placeholder="仓库名称(可选)" />
+      </el-form-item>
+      <el-form-item label="车队" required>
+        <el-input v-model="mappingForm.truckingCompanyId" placeholder="车队编码" />
+      </el-form-item>
+      <el-form-item label="车队名称">
+        <el-input v-model="mappingForm.truckingCompanyName" placeholder="车队名称(可选)" />
+      </el-form-item>
+      <el-form-item label="拖卡费(USD)">
+        <el-input-number v-model="mappingForm.transportFee" :min="0" :precision="2" />
+      </el-form-item>
+      <el-form-item label="默认映射">
+        <el-switch v-model="mappingForm.isDefault" />
+      </el-form-item>
+      <el-form-item label="启用状态">
+        <el-switch v-model="mappingForm.isActive" />
+      </el-form-item>
+      <el-form-item label="备注">
+        <el-input v-model="mappingForm.remarks" type="textarea" :rows="2" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="mappingDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveMapping">保存</el-button>
+      </span>
+    </template>
+  </el-dialog>
+
   <!-- 智能排柜逻辑说明对话框 -->
   <el-dialog
     v-model="showLogicDialog"
@@ -450,16 +521,19 @@
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Clock, DocumentAdd, Edit, House, Cpu, ArrowRight, ArrowDown, ArrowUp, CircleCheck, CircleClose, InfoFilled, View, Download, Box, Plus, ArrowLeft } from '@element-plus/icons-vue'
+import { Clock, DocumentAdd, Edit, House, Cpu, CircleCheck, CircleClose, InfoFilled, View, Download, Box, Plus, ArrowLeft } from '@element-plus/icons-vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import { containerService } from '@/services/container'
 import { useAppStore } from '@/store/app'
 import dayjs from 'dayjs'
 import CalendarCapacityView from './components/CalendarCapacityView.vue'
+import WarehouseManagement from './components/WarehouseManagement.vue'
+import TruckingManagement from './components/TruckingManagement.vue'
 
 const appStore = useAppStore()
 const router = useRouter()
 const route = useRoute()
+const resolvedCountry = computed(() => appStore.scopedCountryCode || '')
 
 // 日历能力展示
 const calendarRef = ref<InstanceType<typeof CalendarCapacityView>>()
@@ -485,7 +559,6 @@ const initDateRangeFromRoute = () => {
 
 
 // 操作说明相关
-const showLogicDetail = ref(false)
 const showLogicDialog = ref(false)
 const writeDataInfo = [
   { table: 'process_trucking_transport', fields: 'plannedPickupDate, plannedDeliveryDate, truckingCompanyId, unloadModePlan, scheduleStatus' },
@@ -516,6 +589,24 @@ const warehouseDialogVisible = ref(false)
 const truckingDialogVisible = ref(false)
 const yardDialogVisible = ref(false)
 const isEditYard = ref(false)
+
+// 映射关系数据
+const mappingLoading = ref(false)
+const warehouseTruckingMappings = ref<any[]>([])
+const mappingDialogVisible = ref(false)
+const mappingForm = ref({
+  id: undefined as number | undefined,
+  country: '',
+  warehouseCode: '',
+  warehouseName: '',
+  truckingCompanyId: '',
+  truckingCompanyName: '',
+  mappingType: 'DEFAULT',
+  isDefault: false,
+  isActive: true,
+  transportFee: 0,
+  remarks: ''
+})
 
 // 表单数据
 const warehouseForm = ref({
@@ -559,15 +650,6 @@ let utilizationChartInstance: any = null
 let bottleneckChartInstance: any = null
 
 // 计算属性
-const successRateColor = computed(() => {
-  const rate = scheduleResult.value?.total > 0 
-    ? (scheduleResult.value.successCount / scheduleResult.value.total) * 100 
-    : 0
-  if (rate >= 80) return '#67c23a'
-  if (rate >= 50) return '#e6a23c'
-  return '#f56c6c'
-})
-
 const successResults = computed(() => {
   return scheduleResult.value?.results?.filter((r: any) => r.success) || []
 })
@@ -598,7 +680,7 @@ const exportScheduleResult = () => {
   ])
   
   const csvContent = [headers, ...rows]
-    .map(row => row.map(cell => `"${cell}"`).join(','))
+    .map(row => row.map((cell: unknown) => `"${cell}"`).join(','))
     .join('\n')
   
   const BOM = '\uFEFF'
@@ -617,7 +699,7 @@ const exportScheduleResult = () => {
 const loadOverview = async () => {
   try {
     const result = await containerService.getSchedulingOverview({
-      country: appStore.scopedCountryCode,
+      country: resolvedCountry.value || undefined,
       startDate: dateRange.value?.[0] ? dayjs(dateRange.value[0]).format('YYYY-MM-DD') : undefined,
       endDate: dateRange.value?.[1] ? dayjs(dateRange.value[1]).format('YYYY-MM-DD') : undefined
     })
@@ -680,7 +762,7 @@ const handleSchedule = async () => {
       addLog(`--- 正在处理第 ${Math.floor(skip / BATCH_SIZE) + 1} 批 ---`, 'info')
 
       const result = await containerService.batchSchedule({
-        country: appStore.scopedCountryCode,
+        country: resolvedCountry.value || undefined,
         startDate: dateRange.value?.[0] ? dayjs(dateRange.value[0]).format('YYYY-MM-DD') : undefined,
         endDate: dateRange.value?.[1] ? dayjs(dateRange.value[1]).format('YYYY-MM-DD') : undefined,
         limit: BATCH_SIZE,
@@ -748,7 +830,8 @@ const handleSchedule = async () => {
 // 加载堆场列表
 const loadYards = async () => {
   try {
-    const response = await fetch(`/api/v1/scheduling/resources/yards?country=${appStore.scopedCountryCode}`)
+    const query = resolvedCountry.value ? `?country=${encodeURIComponent(resolvedCountry.value)}` : ''
+    const response = await fetch(`/api/v1/scheduling/resources/yards${query}`)
     const data = await response.json()
     if (data.success) {
       yards.value = data.data
@@ -756,16 +839,6 @@ const loadYards = async () => {
   } catch (error: any) {
     ElMessage.error('加载堆场列表失败: ' + error.message)
   }
-}
-
-// 编辑仓库
-const editWarehouse = (row: any) => {
-  warehouseForm.value = {
-    code: row.code,
-    name: row.name,
-    dailyCapacity: row.dailyCapacity
-  }
-  warehouseDialogVisible.value = true
 }
 
 // 保存仓库
@@ -791,16 +864,6 @@ const saveWarehouse = async () => {
   } catch (error: any) {
     ElMessage.error('更新失败: ' + error.message)
   }
-}
-
-// 编辑车队
-const editTrucking = (row: any) => {
-  truckingForm.value = {
-    code: row.code,
-    name: row.name,
-    dailyCapacity: row.dailyCapacity
-  }
-  truckingDialogVisible.value = true
 }
 
 // 保存车队
@@ -858,11 +921,6 @@ const showYardDialog = (row?: any) => {
   yardDialogVisible.value = true
 }
 
-// 编辑堆场
-const editYard = (row: any) => {
-  showYardDialog(row)
-}
-
 // 保存堆场
 const saveYard = async () => {
   try {
@@ -893,34 +951,125 @@ const saveYard = async () => {
   }
 }
 
-// 删除堆场
-const deleteYard = async (row: any) => {
+// 加载映射数据
+const loadMappingData = async () => {
+  mappingLoading.value = true
   try {
-    await ElMessageBox.confirm(
-      `确定要删除堆场 ${row.yardName} 吗？`,
-      '删除确认',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    
-    const response = await fetch(`/api/v1/scheduling/resources/yards/${row.yardCode}`, {
-      method: 'DELETE'
-    })
-    
+    const query = resolvedCountry.value ? `?country=${encodeURIComponent(resolvedCountry.value)}` : ''
+    const response = await fetch(`/api/v1/warehouse-trucking-mapping${query}`)
     const data = await response.json()
     if (data.success) {
-      ElMessage.success('堆场删除成功')
-      loadYards()
+      warehouseTruckingMappings.value = data.data || []
+    }
+  } catch (error: any) {
+    ElMessage.error('加载映射数据失败: ' + error.message)
+  } finally {
+    mappingLoading.value = false
+  }
+}
+
+// 显示映射对话框
+const showMappingDialog = (row?: any) => {
+  if (row) {
+    // 编辑模式 - 将snake_case转为camelCase
+    mappingForm.value = {
+      id: row.id,
+      country: row.country,
+      warehouseCode: row.warehouse_code,
+      warehouseName: row.warehouse_name || '',
+      truckingCompanyId: row.trucking_company_id,
+      truckingCompanyName: row.trucking_company_name || '',
+      mappingType: row.mapping_type || 'DEFAULT',
+      isDefault: row.is_default || false,
+      isActive: row.is_active !== false,
+      transportFee: row.transport_fee || 0,
+      remarks: row.remarks || ''
+    }
+  } else {
+    // 新增模式
+    mappingForm.value = {
+      id: undefined,
+      country: resolvedCountry.value,
+      warehouseCode: '',
+      warehouseName: '',
+      truckingCompanyId: '',
+      truckingCompanyName: '',
+      mappingType: 'DEFAULT',
+      isDefault: false,
+      isActive: true,
+      transportFee: 0,
+      remarks: ''
+    }
+  }
+  mappingDialogVisible.value = true
+}
+
+// 编辑映射
+const editMapping = (row: any) => {
+  showMappingDialog(row)
+}
+
+// 删除映射
+const deleteMapping = async (row: any) => {
+  try {
+    await ElMessageBox.confirm('确定要删除这条映射关系吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+
+    const response = await fetch(`/api/v1/warehouse-trucking-mapping/${row.id}`, {
+      method: 'DELETE'
+    })
+    const data = await response.json()
+
+    if (data.success) {
+      ElMessage.success('删除成功')
+      loadMappingData()
     } else {
       ElMessage.error(data.message)
     }
   } catch (error: any) {
-    if (error.message !== 'cancel') {
+    if (error !== 'cancel') {
       ElMessage.error('删除失败: ' + error.message)
     }
+  }
+}
+
+// 保存映射
+const saveMapping = async () => {
+  try {
+    if (!mappingForm.value.country || !mappingForm.value.warehouseCode || !mappingForm.value.truckingCompanyId) {
+      ElMessage.warning('请填写必填字段')
+      return
+    }
+
+    const url = mappingForm.value.id
+      ? `/api/v1/warehouse-trucking-mapping/${mappingForm.value.id}`
+      : '/api/v1/warehouse-trucking-mapping'
+
+    const method = mappingForm.value.id ? 'PUT' : 'POST'
+
+    const response = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(mappingForm.value)
+    })
+
+    const data = await response.json()
+    if (data.success) {
+      ElMessage.success(mappingForm.value.id ? '更新成功' : '创建成功')
+      mappingDialogVisible.value = false
+      loadMappingData()
+      // 刷新概览数据以更新费用信息
+      loadOverview()
+    } else {
+      ElMessage.error(data.message)
+    }
+  } catch (error: any) {
+    ElMessage.error('保存失败: ' + error.message)
   }
 }
 
@@ -929,8 +1078,11 @@ const loadWarehouseOccupancy = async () => {
   try {
     const startDate = dayjs(occupancyDateRange.value[0]).format('YYYY-MM-DD')
     const endDate = dayjs(occupancyDateRange.value[1]).format('YYYY-MM-DD')
-    
-    const response = await fetch(`/api/v1/scheduling/resources/occupancy/warehouse?startDate=${startDate}&endDate=${endDate}&country=${appStore.scopedCountryCode}`)
+    const query = new URLSearchParams({ startDate, endDate })
+    if (resolvedCountry.value) {
+      query.set('country', resolvedCountry.value)
+    }
+    const response = await fetch(`/api/v1/scheduling/resources/occupancy/warehouse?${query.toString()}`)
     const data = await response.json()
     
     if (data.success) {
@@ -946,8 +1098,11 @@ const loadTruckingOccupancy = async () => {
   try {
     const startDate = dayjs(occupancyDateRange.value[0]).format('YYYY-MM-DD')
     const endDate = dayjs(occupancyDateRange.value[1]).format('YYYY-MM-DD')
-    
-    const response = await fetch(`/api/v1/scheduling/resources/occupancy/trucking?startDate=${startDate}&endDate=${endDate}&country=${appStore.scopedCountryCode}`)
+    const query = new URLSearchParams({ startDate, endDate })
+    if (resolvedCountry.value) {
+      query.set('country', resolvedCountry.value)
+    }
+    const response = await fetch(`/api/v1/scheduling/resources/occupancy/trucking?${query.toString()}`)
     const data = await response.json()
     
     if (data.success) {
@@ -1178,11 +1333,15 @@ const loadAnalysisData = async () => {
   try {
     const startDate = dayjs(occupancyDateRange.value[0]).format('YYYY-MM-DD')
     const endDate = dayjs(occupancyDateRange.value[1]).format('YYYY-MM-DD')
+    const query = new URLSearchParams({ startDate, endDate })
+    if (resolvedCountry.value) {
+      query.set('country', resolvedCountry.value)
+    }
     
     // 并行加载仓库和车队占用数据
     const [warehouseResponse, truckingResponse] = await Promise.all([
-      fetch(`/api/v1/scheduling/resources/occupancy/warehouse?startDate=${startDate}&endDate=${endDate}&country=${appStore.scopedCountryCode}`),
-      fetch(`/api/v1/scheduling/resources/occupancy/trucking?startDate=${startDate}&endDate=${endDate}&country=${appStore.scopedCountryCode}`)
+      fetch(`/api/v1/scheduling/resources/occupancy/warehouse?${query.toString()}`),
+      fetch(`/api/v1/scheduling/resources/occupancy/trucking?${query.toString()}`)
     ])
     
     const warehouseData = await warehouseResponse.json()
@@ -1493,8 +1652,12 @@ const renderBottleneckChart = (warehouseData: any[], truckingData: any[]) => {
 const watchCountryChange = () => {
   loadOverview()
   loadYards()
+  loadMappingData()
   // 重新加载占用数据
   loadOccupancyData()
+  if (analysisTab.value) {
+    loadAnalysisData()
+  }
 }
 
 // 返回货柜管理页面
@@ -1518,16 +1681,15 @@ onMounted(() => {
   initDateRangeFromRoute()
   loadOverview()
   loadYards()
+  loadMappingData()
   // 延迟加载图表，确保 DOM 已渲染
   setTimeout(() => {
     loadOccupancyData()
   }, 500)
-  
+
   // 监听国家变化
-  appStore.$subscribe((mutation, state) => {
-    if (mutation.type === 'setScopedCountryCode') {
-      watchCountryChange()
-    }
+  appStore.$subscribe((_mutation) => {
+    watchCountryChange()
   })
 })
 </script>

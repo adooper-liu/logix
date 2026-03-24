@@ -31,8 +31,7 @@ export function useVirtualScroll<T = any>(
   const {
     itemHeight,
     containerHeight: fixedContainerHeight,
-    overscan = 5,
-    buffer = 3
+    overscan = 5
   } = options
 
   const containerRef = ref<HTMLElement>()

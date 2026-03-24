@@ -247,15 +247,15 @@ export class AIController {
         // 生成并执行
         const result = await textToSqlService.generateAndExecute({
           query: queryValidation.sanitized!,
-          tables: tables,
-          limit: limit
+          tables,
+          limit
         });
         res.json(result);
       } else {
         // 仅预览 SQL
         const result = await textToSqlService.preview({
           query: queryValidation.sanitized!,
-          tables: tables
+          tables
         });
         res.json(result);
       }
@@ -507,9 +507,9 @@ export class AIController {
           const mcpResult = await mcpAgent.processMessage(messageValidation.sanitized!);
           if (mcpResult && mcpResult.success) {
             mcpToolResult = mcpResult;
-            logger.info('[AI] MCP tool executed', { 
-              tool: mcpResult.toolName, 
-              success: mcpResult.success 
+            logger.info('[AI] MCP tool executed', {
+              tool: mcpResult.toolName,
+              success: mcpResult.success
             });
             // 如果MCP成功执行了数据库查询，清除Text-to-SQL的结果，避免AI使用两个数据源
             if (mcpResult.toolName === 'query_database') {

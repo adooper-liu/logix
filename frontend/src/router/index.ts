@@ -97,8 +97,8 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'scheduling',
-        name: 'SchedulingVisual',
-        component: () => import('@/views/scheduling/SchedulingVisual.vue'),
+        name: 'SchedulingConfig',
+        component: () => import('@/views/scheduling/SchedulingConfig.vue'),
         meta: {
           title: '智能排产',
           icon: 'Cpu',

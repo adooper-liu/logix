@@ -1,7 +1,7 @@
 /**
  * 日历化能力管理工具
  * Smart Calendar Capacity Utility
- * 
+ *
  * 用于根据日历规则自动计算每日能力（仓库/车队）
  * 支持周末、节假日、特殊日期等配置
  */
@@ -58,15 +58,15 @@ export class SmartCalendarCapacity {
       ]);
 
       const enabled = enabledConfig?.configValue === 'true';
-      
+
       // 解析周末定义（默认周六、周日）
       let weekendDays = [6, 0];
       if (weekendConfig?.configValue) {
         weekendDays = weekendConfig.configValue.split(',').map(d => parseInt(d.trim()));
       }
 
-      const multiplier = multiplierConfig?.configValue 
-        ? parseFloat(multiplierConfig.configValue) 
+      const multiplier = multiplierConfig?.configValue
+        ? parseFloat(multiplierConfig.configValue)
         : 1.0;
 
       return {
@@ -239,10 +239,10 @@ export class SmartCalendarCapacity {
       occupancy.capacity = calculatedCapacity;
       occupancy.remaining = Math.max(0, calculatedCapacity - occupancy.plannedCount);
       occupancy.updatedAt = new Date();
-      
+
       await this.warehouseOccupancyRepo.save(occupancy);
       log.info(`[SmartCalendar] Updated warehouse ${warehouseCode} capacity on ${dateStr} to ${calculatedCapacity}`);
-      
+
       return occupancy;
     }
 
@@ -303,10 +303,10 @@ export class SmartCalendarCapacity {
       occupancy.capacity = calculatedCapacity;
       occupancy.remaining = Math.max(0, calculatedCapacity - occupancy.plannedTrips);
       occupancy.updatedAt = new Date();
-      
+
       await this.truckingOccupancyRepo.save(occupancy);
       log.info(`[SmartCalendar] Updated trucking ${truckingCompanyId} capacity on ${dateStr} to ${calculatedCapacity}`);
-      
+
       return occupancy;
     }
 
@@ -390,13 +390,13 @@ export class SmartCalendarCapacity {
     const normalizedDate = new Date(dateStr);
 
     if (type === 'warehouse') {
-      const occupancy = await this.ensureWarehouseOccupancy(code, date);
+      const occupancy = await this.ensureWarehouseOccupancy(code, normalizedDate);
       occupancy.capacity = capacity;
       occupancy.remaining = Math.max(0, capacity - occupancy.plannedCount);
       await this.warehouseOccupancyRepo.save(occupancy);
       log.info(`[SmartCalendar] Manually set warehouse ${code} capacity on ${dateStr} to ${capacity}`);
     } else {
-      const occupancy = await this.ensureTruckingOccupancy(code, date);
+      const occupancy = await this.ensureTruckingOccupancy(code, normalizedDate);
       occupancy.capacity = capacity;
       occupancy.remaining = Math.max(0, capacity - occupancy.plannedTrips);
       await this.truckingOccupancyRepo.save(occupancy);

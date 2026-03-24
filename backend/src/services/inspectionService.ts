@@ -29,7 +29,7 @@ export class InspectionService {
   // 创建或更新查验记录
   async createOrUpdate(record: Partial<InspectionRecord>): Promise<InspectionRecord> {
     const existingRecord = await this.getByContainerNumber(record.containerNumber!);
-    
+
     if (existingRecord) {
       // 更新现有记录
       Object.assign(existingRecord, record);
@@ -67,7 +67,7 @@ export class InspectionService {
     customsClearanceStatus?: string;
   }): Promise<InspectionRecord[]> {
     const query = this.inspectionRecordRepository.createQueryBuilder('record');
-    
+
     if (filters) {
       if (filters.startDate) {
         query.andWhere('record.created_at >= :startDate', { startDate: filters.startDate });
@@ -79,7 +79,7 @@ export class InspectionService {
         query.andWhere('record.customs_clearance_status = :status', { status: filters.customsClearanceStatus });
       }
     }
-    
+
     return query
       .leftJoinAndSelect('record.events', 'events')
       .orderBy('record.created_at', 'DESC')

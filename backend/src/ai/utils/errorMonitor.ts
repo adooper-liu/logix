@@ -1,7 +1,7 @@
 /**
  * 错误监控器
  * Error Monitor
- * 
+ *
  * 监控和分析系统错误，提供错误统计和告警
  */
 
@@ -146,11 +146,6 @@ export class ErrorMonitor {
    * 获取错误统计
    */
   getErrorStats(): ErrorStats {
-    const now = Date.now();
-    const lastHour = now - 60 * 60 * 1000;
-    const lastDay = now - 24 * 60 * 60 * 1000;
-    const lastWeek = now - 7 * 24 * 60 * 60 * 1000;
-
     const byType: Record<ErrorType, number> = {} as Record<ErrorType, number>;
     const bySeverity: Record<ErrorSeverity, number> = {} as Record<ErrorSeverity, number>;
     const byStatusCode: Record<number, number> = {};
@@ -250,7 +245,7 @@ export class ErrorMonitor {
   } {
     const now = Date.now();
     const startTime = now - timeWindowMs;
-    
+
     const timestamps: string[] = [];
     const counts: number[] = [];
 

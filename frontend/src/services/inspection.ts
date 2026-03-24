@@ -1,4 +1,3 @@
-import type { AxiosRequestConfig } from 'axios'
 import { api } from './api'
 
 export interface InspectionRecord {

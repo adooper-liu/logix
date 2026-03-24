@@ -84,9 +84,10 @@ export class CustomerTypeController {
       const customerTypeData = req.body;
 
       const customerType = this.customerTypeRepository.create(customerTypeData);
-      const savedCustomerType = await this.customerTypeRepository.save(customerType);
+      const saved = await this.customerTypeRepository.save(customerType);
+      const savedCustomerType = (Array.isArray(saved) ? saved[0] : saved) as CustomerType;
 
-      logger.info(`Customer type created: ${savedCustomerType.typeName} (${savedCustomerType.typeCode})`);
+      logger.info(`Customer type created: ${savedCustomerType.typeNameCn} (${savedCustomerType.typeCode})`);
 
       res.status(201).json({
         success: true,

@@ -23,7 +23,7 @@ export function useShipmentsExport() {
   }
 
   // 统一按 UTC 日期展示，避免本地时区导致 +1/-1 天
-  const formatUtcDate = (input: string | Date): string => {
+  const formatUtcDate = (input: string | Date | null | undefined): string => {
     if (!input) return '-'
     const d = new Date(input)
     if (isNaN(d.getTime())) return '-'
@@ -34,11 +34,11 @@ export function useShipmentsExport() {
   }
 
   // 格式化日期（UTC）
-  const formatDate = (date: string | Date): string => {
+  const formatDate = (date: string | Date | null | undefined): string => {
     return formatUtcDate(date)
   }
 
-  const formatShipmentDate = (date: string | Date): string => {
+  const formatShipmentDate = (date: string | Date | null | undefined): string => {
     return formatUtcDate(date)
   }
 

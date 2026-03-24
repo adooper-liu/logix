@@ -53,4 +53,24 @@ export class ContainerStatusEvent {
   @ManyToOne(() => Container)
   @JoinColumn({ name: 'container_number' })
   container: Container;
+
+  /** 以下非持久化或来自 raw_data/飞驼映射，供服务层填充，避免与 DB 列重复时请优先用库内列 */
+  eventCode?: string;
+  eventName?: string;
+  isEstimated?: boolean;
+  locationCode?: string;
+  locationNameCn?: string;
+  locationNameEn?: string;
+  locationNameOriginal?: string;
+  latitude?: number;
+  longitude?: number;
+  timezone?: number;
+  cargoLocation?: string;
+  statusType?: string;
+  descriptionCn?: string;
+  descriptionEn?: string;
+  descriptionOriginal?: string;
+  /** 兼容旧代码字段名 */
+  locationName?: string;
+  eventType?: string;
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query } from '@nestjs/common';
 import { InspectionService } from '../services/inspectionService';
 import { InspectionRecord } from '../entities/InspectionRecord';
 

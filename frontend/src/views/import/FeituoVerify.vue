@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Refresh, Connection, DataLine, Document, Link } from '@element-plus/icons-vue'
+import { Refresh, DataLine, Link } from '@element-plus/icons-vue'
 import { feituoService } from '@/services/feituo'
 
 const router = useRouter()
@@ -22,6 +22,14 @@ const containers = ref<{
 const dataSourceFilter = ref<string>('')
 const page = ref(1)
 const pageSize = ref(20)
+
+type ContainerRow = {
+  containerNumber: string
+  dataSources?: string[]
+  eventCount?: string
+  firstEventAt?: string
+  lastEventAt?: string
+}
 
 const dataSourceLabel = (ds: string) => {
   if (ds === 'FeituoAPI') return 'API'
@@ -183,7 +191,7 @@ onMounted(refresh)
           :data="containers?.items ?? []"
           stripe
           style="width: 100%"
-          @row-click="(row) => goToContainer(row.containerNumber)"
+          @row-click="(row: ContainerRow) => goToContainer(row.containerNumber)"
         >
           <el-table-column prop="containerNumber" label="货柜号" min-width="140">
             <template #default="{ row }">

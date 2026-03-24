@@ -11,7 +11,6 @@ import type {
   ContainerResponse,
   ContainerStats
 } from '@/types/container';
-import type { PaginationParams } from '@/types';
 import { camelToSnake } from '@/utils/camelToSnake';
 import { cacheManager } from '@/utils/cacheManager';
 import { useAppStore } from '@/store/app';
@@ -228,12 +227,22 @@ class ContainerService {
         name: string
         country: string
         dailyCapacity: number
+        transportFee: number
+        defaultTrucking: string | null
       }>
       truckings: Array<{
         code: string
         name: string
         country: string
         dailyCapacity: number
+        dailyReturnCapacity: number
+        hasYard: boolean
+        yardCapacity: number
+        standardRate: number
+        unit: string
+        yardOperationFee: number
+        transportFee: number
+        defaultWarehouse: string | null
       }>
     }
   }> {

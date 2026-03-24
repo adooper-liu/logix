@@ -11,6 +11,7 @@ import { SiliconFlowAdapter } from '../adapters/SiliconFlowAdapter';
 import { TextToSqlRequest, TextToSqlResponse } from '../types';
 import { SchemaReader } from '../utils/schemaReader';
 import { SqlValidator } from '../utils/sqlValidator';
+import { cacheManager } from '../utils/cacheManager';
 
 /**
  * Text-to-SQL 服务类
@@ -71,7 +72,8 @@ ${schemaDescription}
         return {
           success: false,
           sql: '',
-          error: result.error || 'Failed to generate SQL'
+          error: result.error || 'Failed to generate SQL',
+          rowCount: 0
         };
       }
 
@@ -90,7 +92,8 @@ ${schemaDescription}
         return {
           success: false,
           sql: generatedSql,
-          error: validation.error || 'Invalid SQL'
+          error: validation.error || 'Invalid SQL',
+          rowCount: 0
         };
       }
 
@@ -107,7 +110,8 @@ ${schemaDescription}
       return {
         success: false,
         sql: '',
-        error: error.message
+        error: error.message,
+        rowCount: 0
       };
     }
   }
@@ -118,7 +122,7 @@ ${schemaDescription}
   async executeSql(sql: string, limit?: number): Promise<TextToSqlResponse> {
     try {
       // 规范化 SQL：移除末尾分号、修正 "; LIMIT" 为 " LIMIT"（AI 可能生成错误格式）
-      let normalizedSql = sql
+      const normalizedSql = sql
         .trim()
         .replace(/;\s*(?=LIMIT\s+\d+)/i, ' ')
         .replace(/;\s*$/, '');
@@ -130,7 +134,8 @@ ${schemaDescription}
         return {
           success: false,
           sql,
-          error: validation.error || 'Invalid SQL'
+          error: validation.error || 'Invalid SQL',
+          rowCount: 0
         };
       }
 

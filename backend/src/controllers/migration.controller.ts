@@ -3,7 +3,7 @@
  */
 
 import { Request, Response } from 'express';
-import { migrationService, MigrationScript, MigrationExecutionResult } from '../services/migration.service';
+import { migrationService } from '../services/migration.service';
 import { logger } from '../utils/logger';
 
 /**
@@ -13,7 +13,7 @@ export async function getMigrations(req: Request, res: Response) {
   try {
     const migrations = await migrationService.getAllMigrations();
     const stats = await migrationService.getMigrationStats();
-    
+
     res.json({
       success: true,
       data: {
@@ -36,16 +36,16 @@ export async function getMigrations(req: Request, res: Response) {
 export async function getMigrationContent(req: Request, res: Response) {
   try {
     const { filename } = req.params;
-    
+
     if (!filename) {
       return res.status(400).json({
         success: false,
         message: '缺少文件名参数'
       });
     }
-    
+
     const content = await migrationService.getMigrationContent(filename);
-    
+
     res.json({
       success: true,
       data: { filename, content }
@@ -65,18 +65,18 @@ export async function getMigrationContent(req: Request, res: Response) {
 export async function executeMigration(req: Request, res: Response) {
   try {
     const { filename } = req.body;
-    
+
     if (!filename) {
       return res.status(400).json({
         success: false,
         message: '缺少文件名参数'
       });
     }
-    
+
     logger.info(`[MigrationController] Executing migration: ${filename}`);
-    
+
     const result = await migrationService.executeMigration(filename);
-    
+
     res.json({
       success: result.success,
       data: result,
@@ -97,21 +97,21 @@ export async function executeMigration(req: Request, res: Response) {
 export async function executeMigrations(req: Request, res: Response) {
   try {
     const { filenames } = req.body;
-    
+
     if (!filenames || !Array.isArray(filenames) || filenames.length === 0) {
       return res.status(400).json({
         success: false,
         message: '缺少文件名列表参数'
       });
     }
-    
+
     logger.info(`[MigrationController] Executing batch migrations: ${filenames.join(', ')}`);
-    
+
     const results = await migrationService.executeMigrations(filenames);
-    
+
     const successCount = results.filter(r => r.success).length;
     const failCount = results.filter(r => !r.success).length;
-    
+
     res.json({
       success: failCount === 0,
       data: {
@@ -139,12 +139,12 @@ export async function executeMigrations(req: Request, res: Response) {
 export async function executeAllPending(req: Request, res: Response) {
   try {
     logger.info('[MigrationController] Executing all pending migrations');
-    
+
     const results = await migrationService.executeAllPending();
-    
+
     const successCount = results.filter(r => r.success).length;
     const failCount = results.filter(r => !r.success).length;
-    
+
     res.json({
       success: failCount === 0,
       data: {
@@ -172,7 +172,7 @@ export async function executeAllPending(req: Request, res: Response) {
 export async function getMigrationStats(req: Request, res: Response) {
   try {
     const stats = await migrationService.getMigrationStats();
-    
+
     res.json({
       success: true,
       data: stats

@@ -1,7 +1,7 @@
 /**
  * 权限管理器
  * Permission Manager
- * 
+ *
  * 管理用户权限和限制敏感操作
  */
 
@@ -94,7 +94,7 @@ export class PermissionManager {
   checkPermission(operation: OperationType) {
     return (req: Request, res: Response, next: NextFunction) => {
       const userLevel = this.getUserPermissionLevel(req);
-      
+
       if (this.hasPermission(userLevel, operation)) {
         next();
       } else {

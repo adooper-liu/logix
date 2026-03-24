@@ -37,8 +37,8 @@ export class AlertController {
 
   // 解决预警
   @Post('resolve/:alertId')
-  async resolveAlert(@Param('alertId') alertId: number) {
-    const result = await this.alertService.resolveAlert(alertId);
+  async resolveAlert(@Param('alertId') alertId: number, @Query('userId') userId?: string) {
+    const result = await this.alertService.resolveAlert(alertId, userId || 'system');
     return {
       success: result,
       message: result ? '预警已解决' : '预警解决失败',

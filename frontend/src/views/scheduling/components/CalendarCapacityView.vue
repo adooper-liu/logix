@@ -245,12 +245,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Edit } from '@element-plus/icons-vue'
-import dayjs, { Dayjs } from 'dayjs'
+import dayjs from 'dayjs'
 import ManualCapacitySetting from './ManualCapacitySetting.vue'
 import api from '@/services/api'
+import { useAppStore } from '@/store/app'
 import FullCalendar from '@fullcalendar/vue3'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
@@ -258,6 +259,8 @@ import zhLocale from '@fullcalendar/core/locales/zh-cn'
 
 // 日历引用
 const calendarRef = ref<any>(null)
+const appStore = useAppStore()
+const resolvedCountry = computed(() => appStore.scopedCountryCode || '')
 
 // 数据状态
 const capacityEvents = ref<any[]>([])
@@ -284,12 +287,12 @@ const selectedTruckingCode = ref<string>('')
 
 // 计算属性：根据国家过滤后的资源列表
 const filteredWarehouses = computed(() => {
-  if (!selectedCountry.value) return []
+  if (!selectedCountry.value) return allWarehouses.value
   return allWarehouses.value.filter((wh: any) => wh.country === selectedCountry.value)
 })
 
 const filteredTruckingCompanies = computed(() => {
-  if (!selectedCountry.value) return []
+  if (!selectedCountry.value) return allTruckingCompanies.value
   return allTruckingCompanies.value.filter((tc: any) => tc.country === selectedCountry.value)
 })
 
@@ -324,7 +327,6 @@ const defaultTruckingCapacity = ref(8)    // 车队提柜能力
 
 // 处理国家变化
 const onCountryChange = (type: 'warehouse' | 'trucking') => {
-  // 切换国家时重置选中的资源
   if (type === 'warehouse') {
     selectedWarehouseCode.value = ''
   } else {
@@ -335,8 +337,7 @@ const onCountryChange = (type: 'warehouse' | 'trucking') => {
 
 // 处理资源类型切换
 const onResourceTypeChange = () => {
-  // 切换时重置国家和选中的资源
-  selectedCountry.value = ''
+  // 切换资源类型时保留国家筛选值；未选国家即查看全部
   if (resourceType.value === 'warehouse') {
     selectedTruckingCode.value = ''
   } else {
@@ -352,7 +353,7 @@ const loadResources = async () => {
     const countrySet = new Set<string>()
     
     // 加载仓库列表
-    const warehouseResponse = await api.get('/scheduling/resources/warehouses')
+    const warehouseResponse = await api.get('/scheduling/resources/warehouse')
     if (warehouseResponse.data.success) {
       allWarehouses.value = warehouseResponse.data.data
       allWarehouses.value.forEach((wh: any) => {
@@ -363,7 +364,7 @@ const loadResources = async () => {
     }
     
     // 加载车队列表
-    const truckingResponse = await api.get('/scheduling/resources/truckings')
+    const truckingResponse = await api.get('/scheduling/resources/trucking')
     if (truckingResponse.data.success) {
       allTruckingCompanies.value = truckingResponse.data.data
       allTruckingCompanies.value.forEach((tc: any) => {
@@ -388,10 +389,15 @@ const loadResources = async () => {
       code,
       name: countryNames[code] || code
     }))
-    
-    // 默认选中第一个国家
-    if (countries.value.length > 0) {
-      selectedCountry.value = countries.value[0].code
+
+    // 有全局国家作用域时自动应用；无作用域则保持用户可选/可不选（不选=全部）
+    if (resolvedCountry.value) {
+      if (countries.value.some(c => c.code === resolvedCountry.value)) {
+        selectedCountry.value = resolvedCountry.value
+      } else {
+        countries.value.push({ code: resolvedCountry.value, name: countryNames[resolvedCountry.value] || resolvedCountry.value })
+        selectedCountry.value = resolvedCountry.value
+      }
     }
   } catch (error: any) {
     console.error('加载资源列表失败:', error)
@@ -439,7 +445,11 @@ const loadCapacityData = async () => {
     const endDate = dayjs().add(2, 'month').format('YYYY-MM-DD')
     
     // 根据资源类型和选中的资源构建查询参数
+    const countryForQuery = resolvedCountry.value || selectedCountry.value || ''
     let params: any = { start: startDate, end: endDate }
+    if (countryForQuery) {
+      params.country = countryForQuery
+    }
     
     if (resourceType.value === 'warehouse') {
       params.resourceType = 'warehouse'
@@ -458,7 +468,7 @@ const loadCapacityData = async () => {
       .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
       .join('&')
     
-    const response = await api.get(`/capacity/range?${queryString}`)
+    const response = await api.get(`/scheduling/resources/capacity/range?${queryString}`)
     
     if (response.data.success) {
       capacityEvents.value = response.data.data.map((item: any) => ({
@@ -597,14 +607,23 @@ const getDayTypeTag = (type: string) => {
 // 保存手动设置
 const saveManualCapacity = async () => {
   if (!selectedDay.value) return
-  
+
   try {
-    await api.post('/api/capacity/manual', {
+    // 根据资源类型添加对应的资源ID
+    const params: any = {
       date: selectedDay.value.date,
       capacity: manualForm.value.capacity,
       reason: manualForm.value.reason
-    })
-    
+    }
+
+    if (resourceType.value === 'warehouse') {
+      params.warehouseCode = selectedWarehouseCode.value
+    } else {
+      params.truckingCompanyId = selectedTruckingCode.value
+    }
+
+    await api.post('/scheduling/resources/capacity/manual', params)
+
     ElMessage.success('保存成功')
     detailDialogVisible.value = false
     loadCapacityData()
@@ -629,7 +648,7 @@ const resetToCalendarRule = async () => {
       }
     )
     
-    await api.delete(`/api/capacity/manual/${selectedDay.value.date}`)
+    await api.delete(`/scheduling/resources/capacity/manual/${selectedDay.value.date}`)
     
     ElMessage.success('已恢复日历规则')
     detailDialogVisible.value = false
@@ -644,9 +663,23 @@ const resetToCalendarRule = async () => {
 
 // 生命周期
 onMounted(() => {
+  if (resolvedCountry.value) {
+    selectedCountry.value = resolvedCountry.value
+  }
   loadResources()
   loadCapacityData()
 })
+
+watch(
+  () => resolvedCountry.value,
+  () => {
+    selectedCountry.value = resolvedCountry.value || ''
+    selectedWarehouseCode.value = ''
+    selectedTruckingCode.value = ''
+    loadResources()
+    loadCapacityData()
+  }
+)
 
 // 导出方法供外部调用
 defineExpose({

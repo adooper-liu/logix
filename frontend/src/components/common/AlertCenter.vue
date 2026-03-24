@@ -30,7 +30,7 @@
               <p class="alert-message">{{ alert.message }}</p>
               <div class="alert-meta">
                 <span class="alert-type">{{ getAlertTypeText(alert.type) }}</span>
-                <span class="alert-time">{{ formatDate(alert.createdAt) }}</span>
+                <span class="alert-time">{{ formatDateToLocal(alert.createdAt) }}</span>
               </div>
             </div>
             <div class="alert-item-actions">
@@ -64,7 +64,7 @@ import { ref, onMounted } from 'vue';
 import { alertApi } from '@/services/alert';
 import { useUserStore } from '@/store/user';
 import { Refresh, Loading, InfoFilled } from '@element-plus/icons-vue';
-import { formatDate } from '@/utils/dateTimeUtils';
+import { formatDateToLocal } from '@/utils/dateTimeUtils';
 
 const userStore = useUserStore();
 const alerts = ref<any[]>([]);

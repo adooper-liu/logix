@@ -21,9 +21,11 @@ export class TruckingPortMappingController {
       let paramIndex = 1;
 
       if (country) {
-        whereClause += ` AND country = $${paramIndex}`;
-        params.push(country);
-        paramIndex++;
+        const countryCode = String(country).trim().toUpperCase();
+        const aliases = countryCode === 'GB' ? ['GB', 'UK'] : countryCode === 'UK' ? ['UK', 'GB'] : [countryCode];
+        const aliasPlaceholders = aliases.map(() => `$${paramIndex++}`).join(', ');
+        whereClause += ` AND UPPER(country) IN (${aliasPlaceholders})`;
+        params.push(...aliases);
       }
       if (truckingCompanyName) {
         whereClause += ` AND trucking_company_name ILIKE $${paramIndex}`;

@@ -231,4 +231,10 @@ export class PortOperation {
   @ManyToOne(() => Container)
   @JoinColumn({ name: 'container_number', referencedColumnName: 'containerNumber' })
   container: Container;
+
+  /** 非 DB 列：飞驼/处理器临时挂载 */
+  rawData?: Record<string, unknown>;
+  transportMode?: string;
+  shippingCompany?: string;
+  shippingCompanyName?: string;
 }

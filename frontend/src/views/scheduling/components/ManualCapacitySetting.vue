@@ -202,7 +202,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { ElMessage, ElMessageBox, FormInstance } from 'element-plus'
 import { Check, Refresh, InfoFilled } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
@@ -274,7 +274,7 @@ const pagination = reactive({
 const loadManualSettings = async () => {
   listLoading.value = true
   try {
-    const response = await api.get('/capacity/manual/list', {
+    const response = await api.get('/scheduling/resources/capacity/manual/list', {
       params: {
         page: pagination.page,
         pageSize: pagination.pageSize
@@ -311,7 +311,7 @@ const applyBatchSetting = async () => {
       const endDate = batchForm.dateRange[1]
 
       // 调用批量设置 API
-      const response = await api.post('/capacity/manual/batch', {
+      const response = await api.post('/scheduling/resources/capacity/manual/batch', {
         startDate,
         endDate,
         capacity: batchForm.capacity,
@@ -386,7 +386,7 @@ const deleteSetting = async (row: any) => {
       }
     )
 
-    await api.delete(`/api/capacity/manual/${row.date}`)
+    await api.delete(`/scheduling/resources/capacity/manual/${row.date}`)
     
     ElMessage.success('删除成功')
     loadManualSettings()

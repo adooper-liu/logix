@@ -3,7 +3,7 @@
  * Scheduling Cost Optimizer Service Unit Tests
  */
 
-import { SchedulingCostOptimizerService, UnloadOption, CostBreakdown } from './schedulingCostOptimizer.service';
+import { SchedulingCostOptimizerService, UnloadOption } from './schedulingCostOptimizer.service';
 import { Container } from '../entities/Container';
 import { Warehouse } from '../entities/Warehouse';
 
@@ -254,15 +254,16 @@ describe('SchedulingCostOptimizerService Performance', () => {
 
   it('should generate options within 1 second', async () => {
     const startTime = Date.now();
-    const options = await service.generateAllFeasibleOptions(
+    const generated = await service.generateAllFeasibleOptions(
       mockContainer,
       pickupDate,
       lastFreeDate,
       5
     );
+    expect(Array.isArray(generated)).toBe(true);
     const endTime = Date.now();
     const duration = endTime - startTime;
-    
+
     console.log(`Options generation time: ${duration}ms`);
     expect(duration).toBeLessThan(1000); // 1秒
   });
@@ -277,10 +278,10 @@ describe('SchedulingCostOptimizerService Performance', () => {
     };
 
     const startTime = Date.now();
-    const breakdown = await service.evaluateTotalCost(option);
+    await service.evaluateTotalCost(option);
     const endTime = Date.now();
     const duration = endTime - startTime;
-    
+
     console.log(`Cost evaluation time: ${duration}ms`);
     expect(duration).toBeLessThan(500); // 500ms
   });
@@ -307,12 +308,10 @@ describe('SchedulingCostOptimizerService Integration', () => {
       );
 
       if (options.length > 0) {
-        // 2. 评估成本
-        const breakdowns = await Promise.all(
+        await Promise.all(
           options.map(option => service.evaluateTotalCost(option))
         );
 
-        // 3. 选择最优方案
         const bestResult = await service.selectBestOption(options);
 
         expect(bestResult).toBeDefined();

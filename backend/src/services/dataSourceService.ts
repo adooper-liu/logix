@@ -9,6 +9,7 @@ import { Container } from '../entities/Container';
 import { PortOperation } from '../entities/PortOperation';
 import { logger } from '../utils/logger';
 import { auditLogService } from './auditLog.service';
+import type { SourceType } from '../entities/SysDataChangeLog';
 
 /**
  * 数据来源类型
@@ -132,7 +133,7 @@ export class DataSourceService {
 
         // 记录数据变更日志
         await auditLogService.logChange({
-          sourceType: dataSource.toLowerCase(),
+          sourceType: dataSource.toLowerCase() as SourceType,
           entityType: 'process_port_operations',
           entityId: containerNumber,
           action: 'UPDATE',
@@ -173,7 +174,7 @@ export class DataSourceService {
       }
 
       const currentValue = (container as any)[fieldName];
-      
+
       // 货柜表没有dataSource字段，总是更新
       if (currentValue !== value) {
         (container as any)[fieldName] = value;
@@ -181,7 +182,7 @@ export class DataSourceService {
 
         // 记录数据变更日志
         await auditLogService.logChange({
-          sourceType: dataSource.toLowerCase(),
+          sourceType: dataSource.toLowerCase() as SourceType,
           entityType: 'biz_containers',
           entityId: containerNumber,
           action: 'UPDATE',
@@ -285,7 +286,7 @@ export class DataSourceService {
           dataSource: po.dataSource,
           updatedAt: po.updatedAt
         })),
-        lastUpdated: portOperations.length > 0 
+        lastUpdated: portOperations.length > 0
           ? Math.max(...portOperations.map(po => po.updatedAt.getTime()))
           : null
       };

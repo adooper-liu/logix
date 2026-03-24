@@ -1,11 +1,9 @@
 /**
  * 用户输入验证器
  * User Input Validator
- * 
+ *
  * 验证和清理用户输入，防止恶意输入和注入攻击
  */
-
-import { logger } from '../../utils/logger';
 
 /**
  * 输入验证结果
@@ -31,7 +29,7 @@ export class InputValidator {
     trim?: boolean;
   }): InputValidationResult {
     const { required = false, minLength = 0, maxLength = 1000, pattern, trim = true } = options || {};
-    
+
     // 检查是否为字符串
     if (typeof input !== 'string') {
       if (required) {
@@ -45,10 +43,10 @@ export class InputValidator {
         sanitized: null
       };
     }
-    
+
     // 清理字符串
     let sanitized = trim ? input.trim() : input;
-    
+
     // 检查是否为空
     if (required && sanitized.length === 0) {
       return {
@@ -56,7 +54,7 @@ export class InputValidator {
         error: 'Input cannot be empty'
       };
     }
-    
+
     // 检查长度
     if (sanitized.length < minLength) {
       return {
@@ -64,14 +62,14 @@ export class InputValidator {
         error: `Input must be at least ${minLength} characters long`
       };
     }
-    
+
     if (sanitized.length > maxLength) {
       return {
         isValid: false,
         error: `Input cannot exceed ${maxLength} characters`
       };
     }
-    
+
     // 检查模式
     if (pattern && !pattern.test(sanitized)) {
       return {
@@ -79,16 +77,16 @@ export class InputValidator {
         error: 'Input does not match required pattern'
       };
     }
-    
+
     // 清理危险字符
     sanitized = this.sanitizeString(sanitized);
-    
+
     return {
       isValid: true,
       sanitized
     };
   }
-  
+
   /**
    * 验证数字输入
    */
@@ -99,7 +97,7 @@ export class InputValidator {
     integer?: boolean;
   }): InputValidationResult {
     const { required = false, min, max, integer = false } = options || {};
-    
+
     // 检查是否为数字
     const num = Number(input);
     if (isNaN(num)) {
@@ -114,7 +112,7 @@ export class InputValidator {
         sanitized: null
       };
     }
-    
+
     // 检查是否为整数
     if (integer && !Number.isInteger(num)) {
       return {
@@ -122,7 +120,7 @@ export class InputValidator {
         error: 'Input must be an integer'
       };
     }
-    
+
     // 检查范围
     if (min !== undefined && num < min) {
       return {
@@ -130,20 +128,20 @@ export class InputValidator {
         error: `Input must be at least ${min}`
       };
     }
-    
+
     if (max !== undefined && num > max) {
       return {
         isValid: false,
         error: `Input cannot exceed ${max}`
       };
     }
-    
+
     return {
       isValid: true,
       sanitized: num
     };
   }
-  
+
   /**
    * 验证数组输入
    */
@@ -154,7 +152,7 @@ export class InputValidator {
     elementValidator?: (element: any) => InputValidationResult;
   }): InputValidationResult {
     const { required = false, minLength = 0, maxLength = 100, elementValidator } = options || {};
-    
+
     // 检查是否为数组
     if (!Array.isArray(input)) {
       if (required) {
@@ -168,7 +166,7 @@ export class InputValidator {
         sanitized: null
       };
     }
-    
+
     // 检查长度
     if (input.length < minLength) {
       return {
@@ -176,14 +174,14 @@ export class InputValidator {
         error: `Array must contain at least ${minLength} elements`
       };
     }
-    
+
     if (input.length > maxLength) {
       return {
         isValid: false,
         error: `Array cannot contain more than ${maxLength} elements`
       };
     }
-    
+
     // 验证每个元素
     if (elementValidator) {
       const sanitizedArray: any[] = [];
@@ -199,13 +197,13 @@ export class InputValidator {
         sanitized: sanitizedArray
       };
     }
-    
+
     return {
       isValid: true,
       sanitized: input
     };
   }
-  
+
   /**
    * 验证对象输入
    */
@@ -217,7 +215,7 @@ export class InputValidator {
         error: 'Input must be an object'
       };
     }
-    
+
     // 验证 schema
     if (schema) {
       const sanitizedObject: Record<string, any> = {};
@@ -236,13 +234,13 @@ export class InputValidator {
         sanitized: sanitizedObject
       };
     }
-    
+
     return {
       isValid: true,
       sanitized: input
     };
   }
-  
+
   /**
    * 验证日期输入
    */
@@ -252,7 +250,7 @@ export class InputValidator {
     max?: Date;
   }): InputValidationResult {
     const { required = false, min, max } = options || {};
-    
+
     // 检查是否为日期
     const date = new Date(input);
     if (isNaN(date.getTime())) {
@@ -267,7 +265,7 @@ export class InputValidator {
         sanitized: null
       };
     }
-    
+
     // 检查范围
     if (min && date < min) {
       return {
@@ -275,20 +273,20 @@ export class InputValidator {
         error: `Date must be after ${min.toISOString()}`
       };
     }
-    
+
     if (max && date > max) {
       return {
         isValid: false,
         error: `Date must be before ${max.toISOString()}`
       };
     }
-    
+
     return {
       isValid: true,
       sanitized: date
     };
   }
-  
+
   /**
    * 清理字符串
    */
@@ -300,8 +298,8 @@ export class InputValidator {
       .replace(/<object[^>]*>.*?<\/object>/gi, '') // 移除 object 标签
       .replace(/<embed[^>]*>.*?<\/embed>/gi, '') // 移除 embed 标签
       .replace(/javascript:/gi, '') // 移除 javascript: 协议
-      .replace(/on\w+\s*=\s*["\'][^"\']*["\']/gi, ''); // 移除事件处理器
-    
+      .replace(/on\w+\s*=\s*["'][^"']*["']/gi, ''); // 移除事件处理器
+
     // 转义 HTML 特殊字符
     sanitized = sanitized
       .replace(/&/g, '&amp;')
@@ -309,10 +307,10 @@ export class InputValidator {
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
-    
+
     return sanitized;
   }
-  
+
   /**
    * 验证 SQL 查询输入
    */
@@ -321,11 +319,11 @@ export class InputValidator {
       required: true,
       maxLength: 5000
     });
-    
+
     if (!validation.isValid) {
       return validation;
     }
-    
+
     // 检查危险的 SQL 模式
     const dangerousPatterns = [
       /'\s*OR\s+'1'\s*=\s*'1/i,
@@ -336,7 +334,7 @@ export class InputValidator {
       /'\s*;\s*INSERT/i,
       /UNION\s+ALL\s+SELECT/i
     ];
-    
+
     for (const pattern of dangerousPatterns) {
       if (pattern.test(validation.sanitized!)) {
         return {
@@ -345,10 +343,10 @@ export class InputValidator {
         };
       }
     }
-    
+
     return validation;
   }
-  
+
   /**
    * 验证用户消息输入
    */
@@ -358,11 +356,11 @@ export class InputValidator {
       minLength: 1,
       maxLength: 2000
     });
-    
+
     if (!validation.isValid) {
       return validation;
     }
-    
+
     // 检查是否包含危险内容
     const dangerousContent = [
       '<script',
@@ -372,7 +370,7 @@ export class InputValidator {
       'onload=',
       'onclick='
     ];
-    
+
     for (const content of dangerousContent) {
       if (validation.sanitized!.toLowerCase().includes(content)) {
         return {
@@ -381,7 +379,7 @@ export class InputValidator {
         };
       }
     }
-    
+
     return validation;
   }
 }

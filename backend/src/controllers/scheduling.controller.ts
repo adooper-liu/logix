@@ -6,7 +6,6 @@
 import { Request, Response } from 'express';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
-import { PortOperation } from '../entities/PortOperation';
 import { Warehouse } from '../entities/Warehouse';
 import { TruckingCompany } from '../entities/TruckingCompany';
 import { Yard } from '../entities/Yard';
@@ -42,8 +41,8 @@ export class SchedulingController {
       res.json(result);
     } catch (error: any) {
       logger.error('[Scheduling] batchSchedule error:', error);
-      res.status(500).json({ 
-        success: false, 
+      res.status(500).json({
+        success: false,
         message: error?.message || '排产失败',
         total: 0,
         successCount: 0,
@@ -60,7 +59,7 @@ export class SchedulingController {
   schedulePreview = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id: containerNumber } = req.params;
-      
+
       // 获取货柜信息（包含关联数据）
       const container = await containerService.getContainerByNumber(containerNumber);
       if (!container) {
@@ -131,9 +130,9 @@ export class SchedulingController {
       });
     } catch (error: any) {
       logger.error('[Scheduling] schedulePreview error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: error.message 
+      res.status(500).json({
+        success: false,
+        message: error.message
       });
     }
   };
@@ -153,18 +152,18 @@ export class SchedulingController {
 
       // 查询待排产货柜数量（与 batchSchedule 口径一致：有目的港、ATA/ETA 非空、可选日期范围、可选国家）
       const containerRepo = AppDataSource.getRepository(Container);
-      let params: any[] = hasDateRange ? [String(startDate), String(endDate)] : [];
-      let paramIndex = hasDateRange ? 3 : 1;
-      
+      const params: any[] = hasDateRange ? [String(startDate), String(endDate)] : [];
+      const paramIndex = hasDateRange ? 3 : 1;
+
       // 构建国家过滤条件
-      const countryCondition = country 
+      const countryCondition = country
         ? `AND EXISTS (
             SELECT 1 FROM biz_replenishment_orders ro
             JOIN biz_customers cu ON ro.customer_code = cu.customer_code
             WHERE ro.container_number = c.container_number AND cu.country = $${paramIndex}
           )`
         : '';
-      
+
       if (country) {
         params.push(String(country));
       }
@@ -201,82 +200,154 @@ export class SchedulingController {
       // 导入映射实体
       const { WarehouseTruckingMapping } = require('../entities/WarehouseTruckingMapping');
       const { TruckingPortMapping } = require('../entities/TruckingPortMapping');
-      
-      // 获取映射关系
+
+      // 获取映射关系（包含费用信息）
       const warehouseTruckingMappingRepo = AppDataSource.getRepository(WarehouseTruckingMapping);
       const truckingPortMappingRepo = AppDataSource.getRepository(TruckingPortMapping);
-      
-      const mappingWhere: any = {};
-      if (country) {
-        mappingWhere.country = String(country);
+
+      const countryCode = country ? String(country).trim().toUpperCase() : '';
+      const countryAliases = countryCode
+        ? (
+            countryCode === 'GB' ? ['GB', 'UK']
+            : countryCode === 'UK' ? ['UK', 'GB']
+            : countryCode === 'BE' ? ['BE', 'BEL']
+            : countryCode === 'BEL' ? ['BEL', 'BE']
+            : [countryCode]
+          )
+        : [];
+
+      // 查询有效的仓库-车队映射（包含费用）
+      const warehouseTruckingMappings = countryCode
+        ? await AppDataSource.query(
+            `SELECT
+               warehouse_code AS "warehouseCode",
+               trucking_company_id AS "truckingCompanyId",
+               transport_fee AS "transportFee",
+               is_default AS "isDefault"
+             FROM dict_warehouse_trucking_mapping
+             WHERE is_active = true
+               AND (
+                 UPPER(country) = ANY($1::text[])
+                 OR UPPER(warehouse_code) LIKE ANY($2::text[])
+               )`,
+            [countryAliases, countryAliases.map((c) => `${c}%`)]
+          )
+        : await warehouseTruckingMappingRepo.find({
+            where: { isActive: true },
+            select: ['warehouseCode', 'truckingCompanyId', 'transportFee', 'isDefault']
+          });
+
+      // 查询有效的车队-港口映射（包含堆场字段）
+      const truckingPortMappings = countryCode
+        ? await AppDataSource.query(
+            `SELECT
+               trucking_company_id AS "truckingCompanyId",
+               port_code AS "portCode",
+               yard_capacity AS "yardCapacity",
+               standard_rate AS "standardRate",
+               unit,
+               yard_operation_fee AS "yardOperationFee"
+             FROM dict_trucking_port_mapping
+             WHERE is_active = true
+               AND (
+                 UPPER(country) = ANY($1::text[])
+                 OR UPPER(port_code) LIKE ANY($2::text[])
+               )`,
+            [countryAliases, countryAliases.map((c) => `${c}%`)]
+          )
+        : await truckingPortMappingRepo.find({
+            where: { isActive: true },
+            select: ['truckingCompanyId', 'portCode', 'yardCapacity', 'standardRate', 'unit', 'yardOperationFee']
+          });
+
+      // 构建车队-堆场信息映射
+      const truckingYardInfoMap = new Map<string, {
+        yardCapacity: number;
+        standardRate: number;
+        unit: string;
+        yardOperationFee: number;
+      }>();
+      for (const m of truckingPortMappings) {
+        const existing = truckingYardInfoMap.get(m.truckingCompanyId);
+        // 取第一个有效的堆场信息（或可以按业务规则选择最优的）
+        if (!existing && (m.yardCapacity > 0 || m.standardRate > 0)) {
+          truckingYardInfoMap.set(m.truckingCompanyId, {
+            yardCapacity: Number(m.yardCapacity) || 0,
+            standardRate: Number(m.standardRate) || 0,
+            unit: m.unit || '',
+            yardOperationFee: Number(m.yardOperationFee) || 0
+          });
+        }
       }
-      
-      // 查询有效的仓库-车队映射
-      const warehouseTruckingMappings = await warehouseTruckingMappingRepo.find({
-        where: {
-          ...mappingWhere,
-          isActive: true
-        },
-        select: ['warehouseCode', 'truckingCompanyId']
-      });
-      
-      // 查询有效的车队-港口映射
-      const truckingPortMappings = await truckingPortMappingRepo.find({
-        where: {
-          ...mappingWhere,
-          isActive: true
-        },
-        select: ['truckingCompanyId', 'portCode']
-      });
-      
+
       // 提取映射中的仓库代码和车队代码
-      const mappedWarehouseCodes = new Set(warehouseTruckingMappings.map(m => m.warehouseCode));
-      
+      const mappedWarehouseCodes = new Set(
+        warehouseTruckingMappings.map((m: { warehouseCode: string }) => m.warehouseCode)
+      );
+
       // 车队必须同时在两个映射表中存在（与智能排产服务逻辑一致）
-      const warehouseTruckingIds = new Set(warehouseTruckingMappings.map(m => m.truckingCompanyId));
-      const truckingPortIds = new Set(truckingPortMappings.map(m => m.truckingCompanyId));
+      const warehouseTruckingIds = new Set(
+        warehouseTruckingMappings.map((m: { truckingCompanyId: string }) => m.truckingCompanyId)
+      );
+      const truckingPortIds = new Set(
+        truckingPortMappings.map((m: { truckingCompanyId: string }) => m.truckingCompanyId)
+      );
       // 取交集，只有同时在两个映射表中存在的车队才有效
       const mappedTruckingCompanyIds = new Set([...warehouseTruckingIds].filter(id => truckingPortIds.has(id)));
+      const countryAliasSet = new Set(countryAliases.map((c) => c.toUpperCase()));
+      const matchCountryAlias = (value?: string) => {
+        if (!countryCode) return true;
+        const normalized = String(value || '').trim().toUpperCase();
+        return normalized ? countryAliasSet.has(normalized) : false;
+      };
+      const matchCodePrefix = (value?: string) => {
+        if (!countryCode) return true;
+        const normalized = String(value || '').trim().toUpperCase();
+        return normalized ? countryAliases.some((code) => normalized.startsWith(code)) : false;
+      };
 
       // 获取仓库产能信息（只包含在映射表中的仓库）
       const warehouseRepo = AppDataSource.getRepository(Warehouse);
       let warehouses: Warehouse[] = [];
       try {
         const warehouseWhere: any = { status: 'ACTIVE' };
-        if (country) {
-          warehouseWhere.country = String(country);
-        }
-        warehouses = await warehouseRepo.find({ 
+        warehouses = await warehouseRepo.find({
           where: warehouseWhere,
           select: ['warehouseCode', 'warehouseName', 'country', 'dailyUnloadCapacity']
         });
         // 过滤出在映射表中的仓库
-        warehouses = warehouses.filter(w => mappedWarehouseCodes.has(w.warehouseCode));
-        
+        warehouses = warehouses.filter(
+          (w) =>
+            mappedWarehouseCodes.has(w.warehouseCode) &&
+            (matchCountryAlias(w.country) || matchCodePrefix(w.warehouseCode))
+        );
+
         if (warehouses.length === 0) {
           const warehouseWhereNoStatus: any = {};
-          if (country) {
-            warehouseWhereNoStatus.country = String(country);
-          }
-          warehouses = await warehouseRepo.find({ 
+          warehouses = await warehouseRepo.find({
             where: warehouseWhereNoStatus,
             select: ['warehouseCode', 'warehouseName', 'country', 'dailyUnloadCapacity']
           });
           // 过滤出在映射表中的仓库
-          warehouses = warehouses.filter(w => mappedWarehouseCodes.has(w.warehouseCode));
+          warehouses = warehouses.filter(
+            (w) =>
+              mappedWarehouseCodes.has(w.warehouseCode) &&
+              (matchCountryAlias(w.country) || matchCodePrefix(w.warehouseCode))
+          );
         }
       } catch (e) {
         logger.warn('[Scheduling] Query warehouse with status failed, retrying without filter:', e);
         const warehouseWhere: any = {};
-        if (country) {
-          warehouseWhere.country = String(country);
-        }
-        warehouses = await warehouseRepo.find({ 
+        warehouses = await warehouseRepo.find({
           where: warehouseWhere,
           select: ['warehouseCode', 'warehouseName', 'country', 'dailyUnloadCapacity']
         });
         // 过滤出在映射表中的仓库
-        warehouses = warehouses.filter(w => mappedWarehouseCodes.has(w.warehouseCode));
+        warehouses = warehouses.filter(
+          (w) =>
+            mappedWarehouseCodes.has(w.warehouseCode) &&
+            (matchCountryAlias(w.country) || matchCodePrefix(w.warehouseCode))
+        );
       }
 
       // 获取车队信息（只包含在映射表中的车队）
@@ -284,40 +355,66 @@ export class SchedulingController {
       let truckings: TruckingCompany[] = [];
       try {
         const truckingWhere: any = { status: 'ACTIVE' };
-        if (country) {
-          truckingWhere.country = String(country);
-        }
         truckings = await truckingRepo.find({
           where: truckingWhere,
           select: ['companyCode', 'companyName', 'country', 'dailyCapacity']
         });
         // 过滤出在映射表中的车队
-        truckings = truckings.filter(t => mappedTruckingCompanyIds.has(t.companyCode));
-        
+        truckings = truckings.filter(
+          (t) =>
+            mappedTruckingCompanyIds.has(t.companyCode) &&
+            (matchCountryAlias(t.country) || matchCodePrefix(t.companyCode))
+        );
+
         if (truckings.length === 0) {
           const truckingWhereNoStatus: any = {};
-          if (country) {
-            truckingWhereNoStatus.country = String(country);
-          }
           truckings = await truckingRepo.find({
             where: truckingWhereNoStatus,
             select: ['companyCode', 'companyName', 'country', 'dailyCapacity']
           });
           // 过滤出在映射表中的车队
-          truckings = truckings.filter(t => mappedTruckingCompanyIds.has(t.companyCode));
+          truckings = truckings.filter(
+            (t) =>
+              mappedTruckingCompanyIds.has(t.companyCode) &&
+              (matchCountryAlias(t.country) || matchCodePrefix(t.companyCode))
+          );
         }
       } catch (e) {
         logger.warn('[Scheduling] Query trucking with status failed, retrying without filter:', e);
         const truckingWhere: any = {};
-        if (country) {
-          truckingWhere.country = String(country);
-        }
         truckings = await truckingRepo.find({
           where: truckingWhere,
           select: ['companyCode', 'companyName', 'country']
         });
         // 过滤出在映射表中的车队
-        truckings = truckings.filter(t => mappedTruckingCompanyIds.has(t.companyCode));
+        truckings = truckings.filter(
+          (t) =>
+            mappedTruckingCompanyIds.has(t.companyCode) &&
+            (matchCountryAlias(t.country) || matchCodePrefix(t.companyCode))
+        );
+      }
+
+      // 构建仓库-费用映射（获取每个仓库默认车队的拖卡费）
+      const warehouseFeeMap = new Map<string, number>();
+      const warehouseDefaultTrucking = new Map<string, string>();
+      for (const m of warehouseTruckingMappings) {
+        const existing = warehouseFeeMap.get(m.warehouseCode);
+        // 优先使用默认仓库的费用
+        if (m.isDefault || !existing) {
+          warehouseFeeMap.set(m.warehouseCode, Number(m.transportFee) || 0);
+          warehouseDefaultTrucking.set(m.warehouseCode, m.truckingCompanyId);
+        }
+      }
+
+      // 构建车队-费用映射（获取每个车队默认仓库的拖卡费）
+      const truckingFeeMap = new Map<string, number>();
+      const truckingDefaultWarehouse = new Map<string, string>();
+      for (const m of warehouseTruckingMappings) {
+        const existing = truckingFeeMap.get(m.truckingCompanyId);
+        if (m.isDefault || !existing) {
+          truckingFeeMap.set(m.truckingCompanyId, Number(m.transportFee) || 0);
+          truckingDefaultWarehouse.set(m.truckingCompanyId, m.warehouseCode);
+        }
       }
 
       res.json({
@@ -330,21 +427,34 @@ export class SchedulingController {
             code: w.warehouseCode,
             name: w.warehouseName,
             country: w.country,
-            dailyCapacity: w.dailyUnloadCapacity ?? 10
+            dailyCapacity: w.dailyUnloadCapacity ?? 10,
+            transportFee: warehouseFeeMap.get(w.warehouseCode) ?? 0,
+            defaultTrucking: warehouseDefaultTrucking.get(w.warehouseCode) || null
           })),
-          truckings: truckings.map(t => ({
-            code: t.companyCode,
-            name: t.companyName,
-            country: t.country,
-            dailyCapacity: t.dailyCapacity ?? 10
-          }))
+          truckings: truckings.map(t => {
+            const yardInfo = truckingYardInfoMap.get(t.companyCode);
+            return {
+              code: t.companyCode,
+              name: t.companyName,
+              country: t.country,
+              dailyCapacity: t.dailyCapacity ?? 10,
+              dailyReturnCapacity: t.dailyReturnCapacity ?? t.dailyCapacity ?? 10,
+              hasYard: t.hasYard ?? (yardInfo ? yardInfo.yardCapacity > 0 : false),
+              yardCapacity: yardInfo?.yardCapacity ?? 0,
+              standardRate: yardInfo?.standardRate ?? 0,
+              unit: yardInfo?.unit ?? '',
+              yardOperationFee: yardInfo?.yardOperationFee ?? 0,
+              transportFee: truckingFeeMap.get(t.companyCode) ?? 0,
+              defaultWarehouse: truckingDefaultWarehouse.get(t.companyCode) || null
+            };
+          })
         }
       });
     } catch (error: any) {
       logger.error('[Scheduling] getSchedulingOverview error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: error.message 
+      res.status(500).json({
+        success: false,
+        message: error.message
       });
     }
   };
@@ -377,6 +487,544 @@ export class SchedulingController {
       res.json({ success: true, message: '仓库日卸柜能力更新成功', data: warehouse });
     } catch (error: any) {
       logger.error('[Scheduling] updateWarehouseCapacity error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  /**
+   * GET /api/v1/scheduling/resources/overview
+   * 获取资源概览（仓库列表和车队列表）
+   */
+  getResourcesOverview = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { country } = req.query;
+
+      const warehouseRepo = AppDataSource.getRepository(Warehouse);
+      const truckingRepo = AppDataSource.getRepository(TruckingCompany);
+
+      const warehouseWhere: any = {};
+      const truckingWhere: any = {};
+      if (country) {
+        warehouseWhere.country = String(country);
+        truckingWhere.country = String(country);
+      }
+
+      const warehouses = await warehouseRepo.find({
+        where: warehouseWhere,
+        select: ['warehouseCode', 'warehouseName', 'country', 'dailyUnloadCapacity', 'address', 'status']
+      });
+
+      const truckings = await truckingRepo.find({
+        where: truckingWhere,
+        select: ['companyCode', 'companyName', 'country', 'dailyCapacity', 'dailyReturnCapacity', 'hasYard', 'status']
+      });
+
+      res.json({
+        success: true,
+        data: {
+          warehouses: warehouses.map(w => ({
+            warehouseCode: w.warehouseCode,
+            warehouseName: w.warehouseName,
+            country: w.country,
+            dailyUnloadCapacity: w.dailyUnloadCapacity ?? 10,
+            dailyLoadCapacity: w.dailyUnloadCapacity ?? 10,
+            address: w.address,
+            status: w.status
+          })),
+          truckings: truckings.map(t => ({
+            companyCode: t.companyCode,
+            companyName: t.companyName,
+            country: t.country,
+            dailyCapacity: t.dailyCapacity ?? 10,
+            dailyReturnCapacity: t.dailyReturnCapacity ?? t.dailyCapacity ?? 10,
+            hasYard: t.hasYard ?? false,
+            status: t.status
+          }))
+        }
+      });
+    } catch (error: any) {
+      logger.error('[Scheduling] getResourcesOverview error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  /**
+   * GET /api/v1/scheduling/resources/mapped
+   * 获取映射表中的仓库和车队（排产配置页面专用）
+   * 只返回在映射表中有记录的仓库和车队
+   */
+  getMappedResources = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { country } = req.query;
+
+      // 导入映射实体
+      const { WarehouseTruckingMapping } = require('../entities/WarehouseTruckingMapping');
+      const { TruckingPortMapping } = require('../entities/TruckingPortMapping');
+
+      const warehouseTruckingMappingRepo = AppDataSource.getRepository(WarehouseTruckingMapping);
+      const truckingPortMappingRepo = AppDataSource.getRepository(TruckingPortMapping);
+
+      const countryCode = country ? String(country).trim().toUpperCase() : '';
+      const countryAliases = countryCode
+        ? (
+            countryCode === 'GB' ? ['GB', 'UK']
+            : countryCode === 'UK' ? ['UK', 'GB']
+            : countryCode === 'BE' ? ['BE', 'BEL']
+            : countryCode === 'BEL' ? ['BEL', 'BE']
+            : [countryCode]
+          )
+        : [];
+
+      // 查询有效的仓库-车队映射
+      const warehouseTruckingMappings = countryCode
+        ? await AppDataSource.query(
+            `SELECT
+               warehouse_code AS "warehouseCode",
+               trucking_company_id AS "truckingCompanyId",
+               transport_fee AS "transportFee",
+               is_default AS "isDefault"
+             FROM dict_warehouse_trucking_mapping
+             WHERE is_active = true
+               AND (
+                 UPPER(country) = ANY($1::text[])
+                 OR UPPER(warehouse_code) LIKE ANY($2::text[])
+               )`,
+            [countryAliases, countryAliases.map((c) => `${c}%`)]
+          )
+        : await warehouseTruckingMappingRepo.find({
+            where: { isActive: true },
+            select: ['warehouseCode', 'truckingCompanyId', 'transportFee', 'isDefault']
+          });
+
+      // 查询有效的车队-港口映射（包含 yardCapacity 用于判断是否有堆场）
+      const truckingPortMappings = countryCode
+        ? await AppDataSource.query(
+            `SELECT
+               trucking_company_id AS "truckingCompanyId",
+               port_code AS "portCode",
+               yard_capacity AS "yardCapacity"
+             FROM dict_trucking_port_mapping
+             WHERE is_active = true
+               AND (
+                 UPPER(country) = ANY($1::text[])
+                 OR UPPER(port_code) LIKE ANY($2::text[])
+               )`,
+            [countryAliases, countryAliases.map((c) => `${c}%`)]
+          )
+        : await truckingPortMappingRepo.find({
+            where: { isActive: true },
+            select: ['truckingCompanyId', 'portCode', 'yardCapacity']
+          });
+
+      // 构建车队-堆场容量映射（yardCapacity > 0 表示有堆场）
+      const truckingYardCapacityMap = new Map<string, number>();
+      for (const m of truckingPortMappings) {
+        const existing = truckingYardCapacityMap.get(m.truckingCompanyId);
+        // 取最大值
+        if (!existing || Number(m.yardCapacity) > existing) {
+          truckingYardCapacityMap.set(m.truckingCompanyId, Number(m.yardCapacity) || 0);
+        }
+      }
+
+      // 提取映射中的仓库代码
+      const mappedWarehouseCodes = new Set(
+        warehouseTruckingMappings.map((m: { warehouseCode: string }) => m.warehouseCode)
+      );
+
+      // 车队必须同时在两个映射表中存在
+      const warehouseTruckingIds = new Set(
+        warehouseTruckingMappings.map((m: { truckingCompanyId: string }) => m.truckingCompanyId)
+      );
+      const truckingPortIds = new Set(
+        truckingPortMappings.map((m: { truckingCompanyId: string }) => m.truckingCompanyId)
+      );
+      const mappedTruckingCompanyIds = new Set([...warehouseTruckingIds].filter(id => truckingPortIds.has(id)));
+      const countryAliasSet = new Set(countryAliases.map((c) => c.toUpperCase()));
+      const matchCountryAlias = (value?: string) => {
+        if (!countryCode) return true;
+        const normalized = String(value || '').trim().toUpperCase();
+        return normalized ? countryAliasSet.has(normalized) : false;
+      };
+      const matchCodePrefix = (value?: string) => {
+        if (!countryCode) return true;
+        const normalized = String(value || '').trim().toUpperCase();
+        return normalized ? countryAliases.some((code) => normalized.startsWith(code)) : false;
+      };
+
+      // 获取仓库信息（只包含在映射表中的仓库）
+      const warehouseRepo = AppDataSource.getRepository(Warehouse);
+      let warehouses: Warehouse[] = [];
+      try {
+        const warehouseWhere: any = { status: 'ACTIVE' };
+        warehouses = await warehouseRepo.find({
+          where: warehouseWhere,
+          select: ['warehouseCode', 'warehouseName', 'country', 'dailyUnloadCapacity']
+        });
+        warehouses = warehouses.filter(
+          (w) =>
+            mappedWarehouseCodes.has(w.warehouseCode) &&
+            (matchCountryAlias(w.country) || matchCodePrefix(w.warehouseCode))
+        );
+
+        if (warehouses.length === 0) {
+          const warehouseWhereNoStatus: any = {};
+          warehouses = await warehouseRepo.find({
+            where: warehouseWhereNoStatus,
+            select: ['warehouseCode', 'warehouseName', 'country', 'dailyUnloadCapacity']
+          });
+          warehouses = warehouses.filter(
+            (w) =>
+              mappedWarehouseCodes.has(w.warehouseCode) &&
+              (matchCountryAlias(w.country) || matchCodePrefix(w.warehouseCode))
+          );
+        }
+      } catch (e) {
+        logger.warn('[Scheduling] Query warehouse with status failed, retrying without filter:', e);
+        const warehouseWhere: any = {};
+        warehouses = await warehouseRepo.find({
+          where: warehouseWhere,
+          select: ['warehouseCode', 'warehouseName', 'country', 'dailyUnloadCapacity']
+        });
+        warehouses = warehouses.filter(
+          (w) =>
+            mappedWarehouseCodes.has(w.warehouseCode) &&
+            (matchCountryAlias(w.country) || matchCodePrefix(w.warehouseCode))
+        );
+      }
+
+      // 获取车队信息（只包含在映射表中的车队）
+      const truckingRepo = AppDataSource.getRepository(TruckingCompany);
+      let truckings: TruckingCompany[] = [];
+      try {
+        const truckingWhere: any = { status: 'ACTIVE' };
+        truckings = await truckingRepo.find({
+          where: truckingWhere,
+          select: ['companyCode', 'companyName', 'country', 'dailyCapacity', 'dailyReturnCapacity', 'hasYard']
+        });
+        truckings = truckings.filter(
+          (t) =>
+            mappedTruckingCompanyIds.has(t.companyCode) &&
+            (matchCountryAlias(t.country) || matchCodePrefix(t.companyCode))
+        );
+
+        if (truckings.length === 0) {
+          const truckingWhereNoStatus: any = {};
+          truckings = await truckingRepo.find({
+            where: truckingWhereNoStatus,
+            select: ['companyCode', 'companyName', 'country', 'dailyCapacity', 'dailyReturnCapacity', 'hasYard']
+          });
+          truckings = truckings.filter(
+            (t) =>
+              mappedTruckingCompanyIds.has(t.companyCode) &&
+              (matchCountryAlias(t.country) || matchCodePrefix(t.companyCode))
+          );
+        }
+      } catch (e) {
+        logger.warn('[Scheduling] Query trucking with status failed, retrying without filter:', e);
+        const truckingWhere: any = {};
+        truckings = await truckingRepo.find({
+          where: truckingWhere,
+          select: ['companyCode', 'companyName', 'country']
+        });
+        truckings = truckings.filter(
+          (t) =>
+            mappedTruckingCompanyIds.has(t.companyCode) &&
+            (matchCountryAlias(t.country) || matchCodePrefix(t.companyCode))
+        );
+      }
+
+      // 构建仓库-费用映射（获取每个仓库默认车队的拖卡费）
+      const warehouseFeeMap = new Map<string, number>();
+      const warehouseDefaultTrucking = new Map<string, string>();
+      for (const m of warehouseTruckingMappings) {
+        const existing = warehouseFeeMap.get(m.warehouseCode);
+        if (m.isDefault || !existing) {
+          warehouseFeeMap.set(m.warehouseCode, Number(m.transportFee) || 0);
+          warehouseDefaultTrucking.set(m.warehouseCode, m.truckingCompanyId);
+        }
+      }
+
+      // 构建车队-费用映射（获取每个车队默认仓库的拖卡费）
+      const truckingFeeMap = new Map<string, number>();
+      const truckingDefaultWarehouse = new Map<string, string>();
+      for (const m of warehouseTruckingMappings) {
+        const existing = truckingFeeMap.get(m.truckingCompanyId);
+        if (m.isDefault || !existing) {
+          truckingFeeMap.set(m.truckingCompanyId, Number(m.transportFee) || 0);
+          truckingDefaultWarehouse.set(m.truckingCompanyId, m.warehouseCode);
+        }
+      }
+
+      res.json({
+        success: true,
+        data: {
+          warehouses: warehouses.map(w => ({
+            warehouseCode: w.warehouseCode,
+            warehouseName: w.warehouseName,
+            country: w.country,
+            dailyUnloadCapacity: w.dailyUnloadCapacity ?? 10,
+            dailyLoadCapacity: w.dailyUnloadCapacity ?? 10,
+            transportFee: warehouseFeeMap.get(w.warehouseCode) ?? 0,
+            defaultTrucking: warehouseDefaultTrucking.get(w.warehouseCode) || null,
+            isMapped: true
+          })),
+          truckings: truckings.map(t => ({
+            companyCode: t.companyCode,
+            companyName: t.companyName,
+            country: t.country,
+            dailyCapacity: t.dailyCapacity ?? 10,
+            dailyReturnCapacity: t.dailyReturnCapacity ?? t.dailyCapacity ?? 10,
+            hasYard: (truckingYardCapacityMap.get(t.companyCode) ?? 0) > 0,
+            yardCapacity: truckingYardCapacityMap.get(t.companyCode) ?? 0,
+            transportFee: truckingFeeMap.get(t.companyCode) ?? 0,
+            defaultWarehouse: truckingDefaultWarehouse.get(t.companyCode) || null,
+            isMapped: true
+          }))
+        }
+      });
+    } catch (error: any) {
+      logger.error('[Scheduling] getMappedResources error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  /**
+   * GET /api/v1/scheduling/resources/warehouse/:code
+   * 获取单个仓库
+   */
+  getWarehouse = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { code } = req.params;
+
+      const warehouseRepo = AppDataSource.getRepository(Warehouse);
+      const warehouse = await warehouseRepo.findOne({ where: { warehouseCode: code } });
+
+      if (!warehouse) {
+        res.status(404).json({ success: false, message: '仓库不存在' });
+        return;
+      }
+
+      res.json({ success: true, data: warehouse });
+    } catch (error: any) {
+      logger.error('[Scheduling] getWarehouse error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  /**
+   * POST /api/v1/scheduling/resources/warehouse
+   * 创建仓库
+   */
+  createWarehouse = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { warehouseCode, warehouseName, country, dailyUnloadCapacity, address } = req.body;
+
+      if (!warehouseCode || !warehouseName) {
+        res.status(400).json({ success: false, message: '缺少必要参数：仓库编码和名称' });
+        return;
+      }
+
+      const warehouseRepo = AppDataSource.getRepository(Warehouse);
+      const existing = await warehouseRepo.findOne({ where: { warehouseCode } });
+
+      if (existing) {
+        res.status(400).json({ success: false, message: '仓库编码已存在' });
+        return;
+      }
+
+      const warehouse = warehouseRepo.create({
+        warehouseCode,
+        warehouseName,
+        country: country || 'US',
+        dailyUnloadCapacity: dailyUnloadCapacity ?? 10,
+        address,
+        status: 'ACTIVE',
+        propertyType: '普通仓库'
+      });
+
+      await warehouseRepo.save(warehouse);
+
+      res.json({ success: true, message: '仓库创建成功', data: warehouse });
+    } catch (error: any) {
+      logger.error('[Scheduling] createWarehouse error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  /**
+   * PUT /api/v1/scheduling/resources/warehouse/:code
+   * 更新仓库
+   */
+  updateWarehouse = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { code } = req.params;
+      const { warehouseName, country, dailyUnloadCapacity, address, status } = req.body;
+
+      const warehouseRepo = AppDataSource.getRepository(Warehouse);
+      const warehouse = await warehouseRepo.findOne({ where: { warehouseCode: code } });
+
+      if (!warehouse) {
+        res.status(404).json({ success: false, message: '仓库不存在' });
+        return;
+      }
+
+      if (warehouseName) warehouse.warehouseName = warehouseName;
+      if (country) warehouse.country = country;
+      if (dailyUnloadCapacity != null) warehouse.dailyUnloadCapacity = dailyUnloadCapacity;
+      if (address != null) warehouse.address = address;
+      if (status) warehouse.status = status;
+
+      await warehouseRepo.save(warehouse);
+
+      res.json({ success: true, message: '仓库更新成功', data: warehouse });
+    } catch (error: any) {
+      logger.error('[Scheduling] updateWarehouse error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  /**
+   * DELETE /api/v1/scheduling/resources/warehouse/:code
+   * 删除仓库
+   */
+  deleteWarehouse = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { code } = req.params;
+
+      const warehouseRepo = AppDataSource.getRepository(Warehouse);
+      const warehouse = await warehouseRepo.findOne({ where: { warehouseCode: code } });
+
+      if (!warehouse) {
+        res.status(404).json({ success: false, message: '仓库不存在' });
+        return;
+      }
+
+      await warehouseRepo.remove(warehouse);
+
+      res.json({ success: true, message: '仓库删除成功' });
+    } catch (error: any) {
+      logger.error('[Scheduling] deleteWarehouse error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  /**
+   * GET /api/v1/scheduling/resources/trucking/:code
+   * 获取单个车队
+   */
+  getTrucking = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { code } = req.params;
+
+      const truckingRepo = AppDataSource.getRepository(TruckingCompany);
+      const trucking = await truckingRepo.findOne({ where: { companyCode: code } });
+
+      if (!trucking) {
+        res.status(404).json({ success: false, message: '车队不存在' });
+        return;
+      }
+
+      res.json({ success: true, data: trucking });
+    } catch (error: any) {
+      logger.error('[Scheduling] getTrucking error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  /**
+   * POST /api/v1/scheduling/resources/trucking
+   * 创建车队
+   */
+  createTrucking = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { companyCode, companyName, country, dailyCapacity, dailyReturnCapacity, hasYard } = req.body;
+
+      if (!companyCode || !companyName) {
+        res.status(400).json({ success: false, message: '缺少必要参数：车队编码和名称' });
+        return;
+      }
+
+      const truckingRepo = AppDataSource.getRepository(TruckingCompany);
+      const existing = await truckingRepo.findOne({ where: { companyCode } });
+
+      if (existing) {
+        res.status(400).json({ success: false, message: '车队编码已存在' });
+        return;
+      }
+
+      const trucking = truckingRepo.create({
+        companyCode,
+        companyName,
+        country: country || 'US',
+        dailyCapacity: dailyCapacity ?? 10,
+        dailyReturnCapacity: dailyReturnCapacity ?? dailyCapacity ?? 10,
+        hasYard: hasYard ?? false,
+        status: 'ACTIVE'
+      });
+
+      await truckingRepo.save(trucking);
+
+      res.json({ success: true, message: '车队创建成功', data: trucking });
+    } catch (error: any) {
+      logger.error('[Scheduling] createTrucking error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  /**
+   * PUT /api/v1/scheduling/resources/trucking/:code
+   * 更新车队
+   */
+  updateTrucking = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { code } = req.params;
+      const { companyName, country, dailyCapacity, dailyReturnCapacity, hasYard, status } = req.body;
+
+      const truckingRepo = AppDataSource.getRepository(TruckingCompany);
+      const trucking = await truckingRepo.findOne({ where: { companyCode: code } });
+
+      if (!trucking) {
+        res.status(404).json({ success: false, message: '车队不存在' });
+        return;
+      }
+
+      if (companyName) trucking.companyName = companyName;
+      if (country) trucking.country = country;
+      if (dailyCapacity != null) trucking.dailyCapacity = dailyCapacity;
+      if (dailyReturnCapacity != null) trucking.dailyReturnCapacity = dailyReturnCapacity;
+      if (hasYard != null) trucking.hasYard = hasYard;
+      if (status) trucking.status = status;
+
+      await truckingRepo.save(trucking);
+
+      res.json({ success: true, message: '车队更新成功', data: trucking });
+    } catch (error: any) {
+      logger.error('[Scheduling] updateTrucking error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  };
+
+  /**
+   * DELETE /api/v1/scheduling/resources/trucking/:code
+   * 删除车队
+   */
+  deleteTrucking = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { code } = req.params;
+
+      const truckingRepo = AppDataSource.getRepository(TruckingCompany);
+      const trucking = await truckingRepo.findOne({ where: { companyCode: code } });
+
+      if (!trucking) {
+        res.status(404).json({ success: false, message: '车队不存在' });
+        return;
+      }
+
+      await truckingRepo.remove(trucking);
+
+      res.json({ success: true, message: '车队删除成功' });
+    } catch (error: any) {
+      logger.error('[Scheduling] deleteTrucking error:', error);
       res.status(500).json({ success: false, message: error.message });
     }
   };
@@ -665,9 +1313,9 @@ export class SchedulingController {
       const { containerNumber, option } = req.body;
 
       if (!containerNumber || !option) {
-        res.status(400).json({ 
-          success: false, 
-          message: '缺少必要参数：containerNumber 和 option' 
+        res.status(400).json({
+          success: false,
+          message: '缺少必要参数：containerNumber 和 option'
         });
         return;
       }
@@ -685,9 +1333,9 @@ export class SchedulingController {
       });
     } catch (error: any) {
       logger.error('[Scheduling] evaluateCost error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: error.message 
+      res.status(500).json({
+        success: false,
+        message: error.message
       });
     }
   };
@@ -701,9 +1349,9 @@ export class SchedulingController {
       const { containerNumber, options } = req.body;
 
       if (!containerNumber || !options || options.length === 0) {
-        res.status(400).json({ 
-          success: false, 
-          message: '缺少必要参数：containerNumber 和 options' 
+        res.status(400).json({
+          success: false,
+          message: '缺少必要参数：containerNumber 和 options'
         });
         return;
       }
@@ -721,7 +1369,7 @@ export class SchedulingController {
       );
 
       // 按总成本排序
-      comparisons.sort((a, b) => 
+      comparisons.sort((a, b) =>
         a.costBreakdown.totalCost - b.costBreakdown.totalCost
       );
 
@@ -732,8 +1380,8 @@ export class SchedulingController {
 
       // 获取推荐方案
       const recommendedOption = comparisons[0];
-      const savings = comparisons.length > 1 
-        ? comparisons[1].costBreakdown.totalCost - recommendedOption.costBreakdown.totalCost 
+      const savings = comparisons.length > 1
+        ? comparisons[1].costBreakdown.totalCost - recommendedOption.costBreakdown.totalCost
         : 0;
 
       res.json({
@@ -750,9 +1398,9 @@ export class SchedulingController {
       });
     } catch (error: any) {
       logger.error('[Scheduling] compareOptions error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: error.message 
+      res.status(500).json({
+        success: false,
+        message: error.message
       });
     }
   };
@@ -780,10 +1428,115 @@ export class SchedulingController {
       });
     } catch (error: any) {
       logger.error('[Scheduling] getRecommendOption error:', error);
-      res.status(500).json({ 
-        success: false, 
-        message: error.message 
+      res.status(500).json({
+        success: false,
+        message: error.message
       });
+    }
+  };
+
+  /**
+   * GET /api/v1/scheduling/resources/capacity/range
+   * 获取指定日期范围内的能力数据
+   */
+  getCapacityRange = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { start, end, resourceType, warehouseCode, truckingCompanyId } = req.query;
+
+      if (!start || !end || !resourceType) {
+        res.status(400).json({ success: false, message: '缺少必要参数：start、end 和 resourceType' });
+        return;
+      }
+
+      const startDate = new Date(String(start));
+      const endDate = new Date(String(end));
+
+      if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+        res.status(400).json({ success: false, message: '日期格式错误' });
+        return;
+      }
+
+      const capacityData: any[] = [];
+
+      if (resourceType === 'warehouse') {
+        // 仓库能力数据
+        if (!warehouseCode) {
+          res.status(400).json({ success: false, message: '仓库类型需要提供 warehouseCode' });
+          return;
+        }
+
+        const warehouseRepo = AppDataSource.getRepository(Warehouse);
+        const warehouse = await warehouseRepo.findOne({ where: { warehouseCode: String(warehouseCode) } });
+
+        if (!warehouse) {
+          res.status(404).json({ success: false, message: '仓库不存在' });
+          return;
+        }
+
+        // 生成日期范围内的数据
+        let currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+          const dateStr = currentDate.toISOString().split('T')[0];
+          const dayOfWeek = currentDate.getDay();
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+          capacityData.push({
+            date: dateStr,
+            type: isWeekend ? 'weekend' : 'weekday',
+            baseCapacity: isWeekend ? 0 : (warehouse.dailyUnloadCapacity || 10),
+            finalCapacity: isWeekend ? 0 : (warehouse.dailyUnloadCapacity || 10),
+            occupied: 0,
+            remaining: isWeekend ? 0 : (warehouse.dailyUnloadCapacity || 10),
+            multiplier: 1.0,
+            isManual: false
+          });
+
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+      } else if (resourceType === 'trucking') {
+        // 车队能力数据
+        if (!truckingCompanyId) {
+          res.status(400).json({ success: false, message: '车队类型需要提供 truckingCompanyId' });
+          return;
+        }
+
+        const truckingRepo = AppDataSource.getRepository(TruckingCompany);
+        const truckingCompany = await truckingRepo.findOne({ where: { companyCode: String(truckingCompanyId) } });
+
+        if (!truckingCompany) {
+          res.status(404).json({ success: false, message: '车队不存在' });
+          return;
+        }
+
+        // 生成日期范围内的数据
+        let currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+          const dateStr = currentDate.toISOString().split('T')[0];
+          const dayOfWeek = currentDate.getDay();
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+
+          capacityData.push({
+            date: dateStr,
+            type: isWeekend ? 'weekend' : 'weekday',
+            baseCapacity: isWeekend ? 0 : (truckingCompany.dailyCapacity || 10),
+            finalCapacity: isWeekend ? 0 : (truckingCompany.dailyCapacity || 10),
+            occupied: 0,
+            remaining: isWeekend ? 0 : (truckingCompany.dailyCapacity || 10),
+            multiplier: 1.0,
+            isManual: false
+          });
+
+          currentDate.setDate(currentDate.getDate() + 1);
+        }
+      } else {
+        res.status(400).json({ success: false, message: 'resourceType 必须为 warehouse 或 trucking' });
+        return;
+      }
+
+      res.json({ success: true, data: capacityData });
+    } catch (error: any) {
+      logger.error('[Scheduling] getCapacityRange error:', error);
+      res.status(500).json({ success: false, message: error.message });
     }
   };
 }

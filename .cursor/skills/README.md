@@ -26,6 +26,19 @@
   - 代码审查要点
   - 问题排查指南
 
+#### 1b. **logix-quality-gates** - 质量门禁与技术债
+
+- **文件**: `logix-quality-gates/SKILL.md`
+- **用途**: 合并前检查、`npm run quality` / `verify:stats-filter`、还债文档维护、CI 目标对齐
+- **使用场景**:
+  - ✅ 准备合并或建立 CI
+  - ✅ 修改统计、筛选、`ContainerStatisticsService`、`*Statistics.service`
+  - ✅ 更新 `docs/quality/DEVELOPMENT_DEBT.md` 时核对要点
+- **核心内容**:
+  - 根目录命令：`validate` / `test` / `quality` / `verify:stats-filter`
+  - 对账脚本必跑条件
+  - 与 `logix-development` 的关系（不降低门禁）
+
 ---
 
 ### ⭐⭐ 专用技能（按场景使用）

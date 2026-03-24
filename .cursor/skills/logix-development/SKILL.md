@@ -18,6 +18,21 @@ description: Develop features for LogiX logistics management system following pr
 > - 🔗 **container-intelligent-processing** - 货柜智能处理系统（预警、时间预测、风险评分）
 > - 🔗 **ai-collaboration-methodology** - 需求理解、错误排查、SOP 流程
 > - 🔗 **fix-verification** - 修复验证（防幻觉、数据库字段准确性）
+> - 🔗 **logix-quality-gates** - 质量门禁、测试命令、统计对账、技术债文档（合并前与改统计/筛选时优先查阅）
+
+## ✅ 质量门禁与还债（合并前必查）
+
+**详细指令与更新日志以 Skill 与文档为准**：`.cursor/skills/logix-quality-gates/SKILL.md`、`docs/quality/DEVELOPMENT_DEBT.md`、`docs/testing/TESTING_STRATEGY.md`。
+
+**仓库根目录最小集**：
+
+```bash
+npm run test              # 合并前至少执行（当前可全绿）
+npm run quality           # validate + test；validate 若因 TD-004 未绿，以 quality-gates Skill 为准
+npm run verify:stats-filter   # 改统计/筛选且后端可访问时必跑
+```
+
+**原则**：不新增技术债 —— 统计与列表同源口径、禁止临时 SQL 修数据、改 `statistics/**` 或 `filterCondition` 路径须跑对账脚本。全量 `type-check` 历史债见 `DEVELOPMENT_DEBT.md` **TD-004**。
 
 ## 🎯 核心原则（必须遵守）
 
@@ -500,6 +515,9 @@ npm run type-check
 
 # 完整验证
 npm run validate
+
+# 合并前推荐（含单元测试）
+npm run quality
 ```
 
 ---
@@ -508,6 +526,9 @@ npm run validate
 
 | 版本 | 日期       | 更新内容                                                                 |
 | ---- | ---------- | ------------------------------------------------------------------------ |
+| 1.6  | 2026-03-24 | 对齐 CI：`test` + `type-check:backend`；全仓 `validate` 见 TD-006/TD-007 与 `logix-quality-gates` |
+| 1.5  | 2026-03-24 | 门禁分层：`npm run test` 为当前可绿底线；`quality`/validate 与 TD-004 对齐 `logix-quality-gates` |
+| 1.4  | 2026-03-24 | 新增质量门禁引用：`logix-quality-gates`、`quality`/`verify:stats-filter`、还债文档索引 |
 | 1.3  | 2026-03-23 | 日期口径更新：前端按源数据日期展示，禁止任何时区换算导致的日期偏移         |
 | 1.2  | 2026-03-23 | 新增 UTC 日期显示约束：前后端统一 UTC 日期输出，禁止本地时区换日显示       |
 | 1.1  | 2026-03-23 | 新增免费日统一规则：Strict 节点型矩阵、单条/批量统一口径、手工LFD保护机制 |

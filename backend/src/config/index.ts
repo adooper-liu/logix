@@ -30,7 +30,9 @@ export const config = {
   logisticsPath: {
     url: process.env.LOGISTICS_PATH_SERVICE_URL || 'http://localhost:4000',
     timeout: 30000,
-    retryAttempts: 3
+    retryAttempts: 3,
+    /** 可选：调用物流路径微服务 GraphQL 的 Bearer Token */
+    token: process.env.LOGISTICS_PATH_SERVICE_TOKEN || ''
   },
 
   // 飞驼API配置（Token 留空时仅 Excel 导入可用，补入后即可调用飞驼）
