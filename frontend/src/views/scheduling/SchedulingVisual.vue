@@ -9,9 +9,14 @@
         <el-icon><InfoFilled /></el-icon>
         逻辑
       </el-button>
-      <el-button type="primary" :loading="scheduling" @click="handleSchedule">
+      <el-button 
+        type="primary" 
+        :loading="scheduling" 
+        @click="handlePreviewSchedule"
+        title="预览排产方案，确认后保存"
+      >
         <el-icon><Cpu /></el-icon>
-        开始排产
+        预览排产
       </el-button>
       <el-button type="default" @click="goBackToShipments">
         <el-icon><ArrowLeft /></el-icon>
@@ -306,12 +311,22 @@
       <el-button type="primary" @click="showLogicDialog = false">关闭</el-button>
     </template>
   </el-dialog>
+
+  <!-- 预览确认弹窗 -->
+  <SchedulingPreviewModal
+    v-model="showPreviewModal"
+    :preview-results="previewResults"
+    @confirm="handleConfirmSchedule"
+    @cancel="showPreviewModal = false"
+    @view-container="(cn) => router.push(`/shipments/${cn}`)"
+  />
 </template>
 
 <script setup lang="ts">
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import { containerService } from '@/services/container'
 import { useAppStore } from '@/store/app'
+import SchedulingPreviewModal from './components/SchedulingPreviewModal.vue'
 import {
   ArrowLeft,
   Box,
@@ -579,6 +594,10 @@ const addLog = (message: string, type: string = 'info') => {
 
 const BATCH_SIZE = 3
 
+// 预览确认相关
+const showPreviewModal = ref(false)
+const previewResults = ref<any[]>([])
+
 // 执行排产（分步：每批 3 个，暂停确认是否继续）
 const handleSchedule = async () => {
   if (overview.value.pendingCount === 0) {
@@ -695,6 +714,93 @@ const handleSchedule = async () => {
   } finally {
     scheduling.value = false
     currentStep.value = 0
+  }
+}
+
+// 预览排产（不保存，只显示方案）
+const handlePreviewSchedule = async () => {
+  if (overview.value.pendingCount === 0) {
+    ElMessage.warning('没有待排产的货柜')
+    return
+  }
+
+  scheduling.value = true
+  previewResults.value = []
+
+  try {
+    addLog('开始预览排产方案...', 'info')
+
+    // 调用批量排产接口，dryRun=true（只计算不保存）
+    const result = await containerService.batchSchedule({
+      country: resolvedCountry.value || undefined,
+      startDate: dateRange.value?.[0]
+        ? dayjs(dateRange.value[0]).format('YYYY-MM-DD')
+        : undefined,
+      endDate: dateRange.value?.[1] ? dayjs(dateRange.value[1]).format('YYYY-MM-DD') : undefined,
+      dryRun: true, // ← 关键：预览模式
+    })
+
+    if (!result.success) {
+      ElMessage.error('预览失败：' + (result as any).message)
+      return
+    }
+
+    // 转换数据格式以适配预览组件
+    previewResults.value = result.results.map((r: any) => ({
+      ...r,
+      plannedPickupDate: r.plannedData?.plannedPickupDate || '-',
+      plannedDeliveryDate: r.plannedData?.plannedDeliveryDate || '-',
+      plannedUnloadDate: r.plannedData?.plannedUnloadDate || '-',
+      plannedReturnDate: r.plannedData?.plannedReturnDate || '-',
+      warehouseName: r.plannedData?.warehouseName || '-',
+      truckingCompany: r.plannedData?.truckingCompany || '-',
+      unloadMode: r.plannedData?.unloadModePlan || '-',
+    }))
+
+    addLog(`预览完成：成功 ${result.successCount} 个，失败 ${result.failedCount} 个`, 'info')
+    showPreviewModal.value = true
+  } catch (error: any) {
+    ElMessage.error('预览失败：' + (error.message || '未知错误'))
+  } finally {
+    scheduling.value = false
+  }
+}
+
+// 确认保存排产结果
+const handleConfirmSchedule = async (selectedContainers: string[]) => {
+  if (selectedContainers.length === 0) {
+    ElMessage.warning('请选择要保存的货柜')
+    return
+  }
+
+  try {
+    addLog(`正在保存 ${selectedContainers.length} 个货柜的排产结果...`, 'info')
+
+    // 调用 confirm 接口（重新计算并保存）
+    const result = await containerService.confirmSchedule({
+      containerNumbers: selectedContainers,
+    })
+
+    if (result.success) {
+      ElMessage.success(`成功保存 ${result.savedCount} 个货柜`)
+      addLog(`确认保存完成：成功 ${result.savedCount} 个`, 'success')
+      
+      // 关闭弹窗
+      showPreviewModal.value = false
+      previewResults.value = []
+      
+      // 刷新概览数据
+      await loadOverview()
+      
+      // 触发完成事件
+      emit('complete', result)
+    } else {
+      ElMessage.error('保存失败：' + (result as any).message)
+      addLog('保存失败：' + (result as any).message, 'error')
+    }
+  } catch (error: any) {
+    ElMessage.error('保存失败：' + (error.message || '未知错误'))
+    addLog('保存失败：' + error.message, 'error')
   }
 }
 

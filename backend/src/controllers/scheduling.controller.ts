@@ -24,7 +24,7 @@ export class SchedulingController {
    */
   batchSchedule = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { country, startDate, endDate, forceSchedule, containerNumbers, limit, skip } =
+      const { country, startDate, endDate, forceSchedule, containerNumbers, limit, skip, dryRun } =
         req.body;
 
       logger.info(`[Scheduling] Batch schedule request:`, {
@@ -34,7 +34,8 @@ export class SchedulingController {
         forceSchedule,
         containerNumbers,
         limit,
-        skip
+        skip,
+        dryRun
       });
 
       const result = await intelligentSchedulingService.batchSchedule({
@@ -44,7 +45,8 @@ export class SchedulingController {
         forceSchedule: !!forceSchedule,
         containerNumbers: Array.isArray(containerNumbers) ? containerNumbers : undefined,
         limit: typeof limit === 'number' ? limit : undefined,
-        skip: typeof skip === 'number' ? skip : undefined
+        skip: typeof skip === 'number' ? skip : undefined,
+        dryRun: !!dryRun
       });
 
       res.json(result);
@@ -146,6 +148,53 @@ export class SchedulingController {
       res.status(500).json({
         success: false,
         message: error.message
+      });
+    }
+  };
+
+  /**
+   * POST /api/v1/scheduling/confirm
+   * 确认并保存排产结果（重新计算，不使用前端传回的数据）
+   */
+  confirmSchedule = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { containerNumbers } = req.body;
+
+      // 验证参数
+      if (!Array.isArray(containerNumbers) || containerNumbers.length === 0) {
+        res.status(400).json({
+          success: false,
+          message: 'containerNumbers 不能为空'
+        });
+        return;
+      }
+
+      logger.info(`[Scheduling] Confirm schedule request:`, { containerNumbers });
+
+      // 重新执行排产（正式模式，dryRun=false）
+      const result = await intelligentSchedulingService.batchSchedule({
+        containerNumbers,
+        dryRun: false // 正式保存
+      });
+
+      logger.info(`[Scheduling] Confirmed ${result.successCount}/${containerNumbers.length} containers`);
+
+      res.json({
+        success: result.success,
+        savedCount: result.successCount,
+        total: containerNumbers.length,
+        results: result.results.map(r => ({
+          containerNumber: r.containerNumber,
+          success: r.success,
+          message: r.message
+        }))
+      });
+    } catch (error: any) {
+      logger.error('[Scheduling] confirmSchedule error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || '确认保存失败',
+        savedCount: 0
       });
     }
   };

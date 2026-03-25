@@ -185,6 +185,8 @@ class ContainerService {
     forceSchedule?: boolean
     limit?: number
     skip?: number
+    dryRun?: boolean
+    containerNumbers?: string[]
   }): Promise<{
     success: boolean
     total: number
@@ -200,6 +202,32 @@ class ContainerService {
   }> {
     const response = await this.api.post('/scheduling/batch-schedule', params, {
       timeout: 180000 // 3 分钟，排产可能较耗时
+    })
+    // 清除相关缓存
+    cacheManager.clearContainersCache();
+    cacheManager.clearStatisticsCache();
+    cacheManager.clearSchedulingCache();
+    return response.data
+  }
+
+  /**
+   * 确认保存排产结果
+   * POST /api/scheduling/confirm
+   */
+  async confirmSchedule(params: {
+    containerNumbers: string[]
+  }): Promise<{
+    success: boolean
+    savedCount: number
+    total: number
+    results: Array<{
+      containerNumber: string
+      success: boolean
+      message: string
+    }>
+  }> {
+    const response = await this.api.post('/scheduling/confirm', params, {
+      timeout: 180000 // 3 分钟
     })
     // 清除相关缓存
     cacheManager.clearContainersCache();
@@ -247,6 +275,32 @@ class ContainerService {
     }
   }> {
     const response = await this.api.get('/scheduling/overview', { params })
+    return response.data
+  }
+
+  /**
+   * 确认并保存排产结果
+   * POST /api/scheduling/confirm
+   */
+  async confirmSchedule(params: {
+    containerNumbers: string[]
+  }): Promise<{
+    success: boolean
+    savedCount: number
+    total: number
+    results: Array<{
+      containerNumber: string
+      success: boolean
+      message: string
+    }>
+  }> {
+    const response = await this.api.post('/scheduling/confirm', params, {
+      timeout: 180000 // 3 分钟，排产可能较耗时
+    })
+    // 清除相关缓存
+    cacheManager.clearContainersCache();
+    cacheManager.clearStatisticsCache();
+    cacheManager.clearSchedulingCache();
     return response.data
   }
 

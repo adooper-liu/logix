@@ -12,6 +12,9 @@ const controller = new SchedulingController();
 // 批量排产
 router.post('/batch-schedule', controller.batchSchedule);
 
+// 确认保存排产结果（重新计算并保存）
+router.post('/confirm', controller.confirmSchedule);
+
 // 排产预览（不写库）
 router.post('/:id/schedule-preview', controller.schedulePreview);
 
