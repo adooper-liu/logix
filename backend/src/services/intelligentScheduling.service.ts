@@ -28,8 +28,8 @@ import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { normalizeCountryCode } from '../utils/countryCode';
 import { logger } from '../utils/logger';
-import { DemurrageService } from './demurrage.service';
 import { ContainerStatusService } from './containerStatus.service';
+import { DemurrageService } from './demurrage.service';
 
 /**
  * 未指定的清关公司编码
@@ -64,8 +64,20 @@ export interface ScheduleResult {
     plannedUnloadDate?: string;
     plannedReturnDate?: string;
     truckingCompanyId?: string;
+    truckingCompany?: string;
     warehouseId?: string;
+    warehouseName?: string;
+    unloadMode?: 'Drop off' | 'Live load';
     customsBrokerCode?: string;
+  };
+  // 预估费用（dryRun 模式下计算）
+  estimatedCosts?: {
+    demurrageCost?: number;
+    detentionCost?: number;
+    storageCost?: number;
+    transportationCost?: number;
+    totalCost?: number;
+    currency?: string;
   };
 }
 
@@ -264,12 +276,8 @@ export class IntelligentSchedulingService {
       const containerInfo = {
         destinationPort: destPo?.portCode || '',
         destinationPortName: destPo?.portName || '',
-        etaDestPort: destPo?.eta
-          ? new Date(destPo.eta).toISOString().split('T')[0]
-          : '',
-        ataDestPort: destPo?.ata
-          ? new Date(destPo.ata).toISOString().split('T')[0]
-          : ''
+        etaDestPort: destPo?.eta ? new Date(destPo.eta).toISOString().split('T')[0] : '',
+        ataDestPort: destPo?.ata ? new Date(destPo.ata).toISOString().split('T')[0] : ''
       };
 
       if (!destPo) {
@@ -411,7 +419,20 @@ export class IntelligentSchedulingService {
       // 9. 选择清关公司（根据国家匹配，无匹配时使用"未指定"）
       const customsBrokerCode = await this.selectCustomsBroker(countryCode, destPo.portCode);
 
-      // 10. 更新数据库（dryRun 模式下跳过）
+      // 10. 计算预估费用（dryRun 模式）
+      const estimatedCosts = _request.dryRun
+        ? await this.calculateEstimatedCosts(
+            container.containerNumber,
+            plannedPickupDate,
+            unloadDate,
+            plannedReturnDate,
+            unloadMode,
+            warehouse,
+            truckingCompany
+          )
+        : undefined;
+
+      // 11. 更新数据库（dryRun 模式下跳过）
       const plannedData = {
         plannedCustomsDate: plannedCustomsDate.toISOString().split('T')[0],
         plannedPickupDate: plannedPickupDate.toISOString().split('T')[0],
@@ -426,17 +447,7 @@ export class IntelligentSchedulingService {
         customsBrokerCode,
         // 还箱码头信息（使用仓库作为还箱地点）
         returnTerminalCode: warehouse.warehouseCode,
-        returnTerminalName: warehouse.warehouseName || warehouse.warehouseCode,
-        // 费用信息（dryRun 模式下计算但不保存）
-        estimatedCosts: _request.dryRun ? await this.calculateEstimatedCosts(
-          container.containerNumber,
-          plannedPickupDate,
-          unloadDate,
-          plannedReturnDate,
-          unloadMode,
-          warehouse,
-          truckingCompany
-        ) : undefined
+        returnTerminalName: warehouse.warehouseName || warehouse.warehouseCode
       };
 
       if (!_request.dryRun) {
@@ -479,6 +490,7 @@ export class IntelligentSchedulingService {
         success: true,
         message: '排产成功',
         plannedData,
+        estimatedCosts, // dryRun 模式下的预估费用
         ...containerInfo,
         warehouseName: warehouse.warehouseName || warehouse.warehouseCode
       };
@@ -492,12 +504,8 @@ export class IntelligentSchedulingService {
       const errorContainerInfo = {
         destinationPort: destPo?.portCode || '',
         destinationPortName: destPo?.portName || '',
-        etaDestPort: destPo?.eta
-          ? new Date(destPo.eta).toISOString().split('T')[0]
-          : '',
-        ataDestPort: destPo?.ata
-          ? new Date(destPo.ata).toISOString().split('T')[0]
-          : ''
+        etaDestPort: destPo?.eta ? new Date(destPo.eta).toISOString().split('T')[0] : '',
+        ataDestPort: destPo?.ata ? new Date(destPo.ata).toISOString().split('T')[0] : ''
       };
       return {
         containerNumber: container.containerNumber,
@@ -1112,28 +1120,25 @@ export class IntelligentSchedulingService {
         currency: 'USD'
       };
 
-      // 1. 计算滞港费（使用 demurrageService）
+      // 1. 计算滞港费和滞箱费（使用与货柜详情页面相同的逻辑）
       try {
-        const demurrageResult = await this.demurrageService.predictDemurrageForUnloadDate(
-          containerNumber,
-          plannedUnloadDate
-        );
-        costs.demurrageCost = demurrageResult.demurrageCost;
+        const demurrageResult = await this.demurrageService.calculateForContainer(containerNumber, { freeDateWriteMode: 'none' });
+        if (demurrageResult.result) {
+          // 提取滞港费和滞箱费
+          const demurrageItems = demurrageResult.result.items.filter(item => 
+            item.chargeTypeCode?.includes('DEMURRAGE') || item.chargeName?.toLowerCase().includes('滞港')
+          );
+          const detentionItems = demurrageResult.result.items.filter(item => 
+            item.chargeTypeCode?.includes('DETENTION') || item.chargeName?.toLowerCase().includes('滞箱')
+          );
+          
+          costs.demurrageCost = demurrageItems.reduce((sum, item) => sum + item.amount, 0);
+          costs.detentionCost = detentionItems.reduce((sum, item) => sum + item.amount, 0);
+          costs.currency = demurrageResult.result.currency;
+        }
       } catch (error) {
-        logger.warn(`[IntelligentScheduling] Demurrage prediction failed:`, error);
+        logger.warn(`[IntelligentScheduling] Demurrage calculation failed:`, error);
         costs.demurrageCost = 0;
-      }
-
-      // 2. 计算滞箱费（使用 demurrageService）
-      try {
-        const detentionResult = await this.demurrageService.predictDetentionForReturnDate(
-          containerNumber,
-          plannedReturnDate,
-          plannedPickupDate
-        );
-        costs.detentionCost = detentionResult.detentionCost;
-      } catch (error) {
-        logger.warn(`[IntelligentScheduling] Detention prediction failed:`, error);
         costs.detentionCost = 0;
       }
 
@@ -1143,7 +1148,9 @@ export class IntelligentSchedulingService {
           // 计算堆存天数（从卸柜日到还箱日）
           const storageDays = Math.max(
             0,
-            Math.ceil((plannedReturnDate.getTime() - plannedUnloadDate.getTime()) / (1000 * 60 * 60 * 24))
+            Math.ceil(
+              (plannedReturnDate.getTime() - plannedUnloadDate.getTime()) / (1000 * 60 * 60 * 24)
+            )
           );
 
           // 从 TruckingPortMapping 获取堆存费率
@@ -1156,7 +1163,9 @@ export class IntelligentSchedulingService {
           });
 
           if (container) {
-            const destPo = container.portOperations?.find((po: any) => po.portType === 'destination');
+            const destPo = container.portOperations?.find(
+              (po: any) => po.portType === 'destination'
+            );
             const portCode = destPo?.portCode || 'USLAX';
 
             const truckingPortMapping = await this.truckingPortMappingRepo.findOne({
@@ -1174,7 +1183,7 @@ export class IntelligentSchedulingService {
             }
           }
 
-          costs.storageCost = (dailyRate * storageDays) + operationFee;
+          costs.storageCost = dailyRate * storageDays + operationFee;
         } catch (error) {
           logger.warn(`[IntelligentScheduling] Storage cost calculation failed:`, error);
           costs.storageCost = 0;
@@ -1195,10 +1204,10 @@ export class IntelligentSchedulingService {
 
       // 5. 总费用
       costs.totalCost =
-        (costs.demurrageCost || 0) +
-        (costs.detentionCost || 0) +
-        (costs.storageCost || 0) +
-        (costs.transportationCost || 0);
+        Number(costs.demurrageCost || 0) +
+        Number(costs.detentionCost || 0) +
+        Number(costs.storageCost || 0) +
+        Number(costs.transportationCost || 0);
 
       return costs;
     } catch (error) {
@@ -1211,7 +1220,7 @@ export class IntelligentSchedulingService {
   }
 
   /**
-   * 计算运输费用（基于距离）
+   * 计算运输费用（基于 TruckingPortMapping）
    */
   private async calculateTransportationCost(
     containerNumber: string,
@@ -1219,7 +1228,7 @@ export class IntelligentSchedulingService {
     unloadMode: string
   ): Promise<number> {
     try {
-      // 获取货柜信息
+      // 1. 获取货柜的目的港
       const container = await this.containerRepo.findOne({
         where: { containerNumber },
         relations: ['portOperations']
@@ -1231,24 +1240,42 @@ export class IntelligentSchedulingService {
 
       const destPo = container.portOperations?.find((po: any) => po.portType === 'destination');
       const portCode = destPo?.portCode || 'USLAX';
+      const countryCode = warehouse.country || 'US';
 
-      // 距离矩阵（英里）- 示例数据，实际应从数据库读取
-      const distanceMatrix: Record<string, Record<string, number>> = {
-        'USLAX': { 'WH001': 25, 'WH002': 35, 'WH003': 45 },
-        'USLGB': { 'WH001': 30, 'WH002': 40, 'WH003': 50 },
-        'USOAK': { 'WH004': 20, 'WH005': 35 },
-        'USSEA': { 'WH006': 25 },
-      };
+      // 2. 获取与仓库关联的车队
+      const warehouseTruckingMappings = await this.warehouseTruckingMappingRepo.find({
+        where: {
+          warehouseCode: warehouse.warehouseCode,
+          country: countryCode,
+          isActive: true
+        }
+      });
 
-      const distance = distanceMatrix[portCode]?.[warehouse.warehouseCode] || 50; // 默认 50 英里
+      if (warehouseTruckingMappings.length === 0) {
+        logger.warn(`[IntelligentScheduling] No trucking mapping found for warehouse ${warehouse.warehouseCode}`);
+        return 0;
+      }
 
-      // 运费率：$2/英里 + 基础费 $100
-      const baseRate = 100;
-      const ratePerMile = 2;
-      const transportationCost = baseRate + (distance * ratePerMile);
+      // 3. 从 WarehouseTruckingMapping 获取运输费用
+      let transportFee = 0;
 
-      // Drop off 模式可能涉及两次运输，费用翻倍
-      return unloadMode === 'Drop off' ? transportationCost * 2 : transportationCost;
+      // 优先使用默认车队的运输费用
+      const defaultMapping = warehouseTruckingMappings.find(m => m.isDefault);
+      if (defaultMapping) {
+        transportFee = Number(defaultMapping.transportFee) || 0;
+      } else {
+        // 否则使用第一个映射的运输费用
+        transportFee = Number(warehouseTruckingMappings[0].transportFee) || 0;
+      }
+
+      // 4. 如果没有找到映射，使用默认值
+      if (transportFee === 0) {
+        logger.warn(`[IntelligentScheduling] No transport fee found for warehouse ${warehouse.warehouseCode}, using default fee`);
+        transportFee = 100; // 默认 $100
+      }
+
+      // 5. Drop off 模式可能涉及两次运输，费用翻倍
+      return Number(unloadMode === 'Drop off' ? transportFee * 2 : transportFee);
     } catch (error) {
       logger.warn(`[IntelligentScheduling] calculateTransportationCost failed:`, error);
       return 0;

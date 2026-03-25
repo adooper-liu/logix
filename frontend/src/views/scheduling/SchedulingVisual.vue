@@ -9,14 +9,23 @@
         <el-icon><InfoFilled /></el-icon>
         逻辑
       </el-button>
-      <el-button 
-        type="primary" 
-        :loading="scheduling" 
+      <el-button
+        type="primary"
+        :loading="scheduling"
         @click="handlePreviewSchedule"
         title="预览排产方案，确认后保存"
       >
         <el-icon><Cpu /></el-icon>
         预览排产
+      </el-button>
+      <el-button
+        type="success"
+        :loading="scheduling"
+        @click="handleSchedule"
+        title="直接开始排产，分批处理并实时显示结果"
+      >
+        <el-icon><VideoPlay /></el-icon>
+        执行排产
       </el-button>
       <el-button type="default" @click="goBackToShipments">
         <el-icon><ArrowLeft /></el-icon>
@@ -318,7 +327,7 @@
     :preview-results="previewResults"
     @confirm="handleConfirmSchedule"
     @cancel="showPreviewModal = false"
-    @view-container="(cn) => router.push(`/shipments/${cn}`)"
+    @view-container="cn => router.push(`/shipments/${cn}`)"
   />
 </template>
 
@@ -326,7 +335,6 @@
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import { containerService } from '@/services/container'
 import { useAppStore } from '@/store/app'
-import SchedulingPreviewModal from './components/SchedulingPreviewModal.vue'
 import {
   ArrowLeft,
   Box,
@@ -339,12 +347,14 @@ import {
   Edit,
   House,
   InfoFilled,
-  View,
+  VideoPlay,
+  View
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import SchedulingPreviewModal from './components/SchedulingPreviewModal.vue'
 
 console.log('[SchedulingVisual] 组件开始加载')
 
@@ -733,9 +743,7 @@ const handlePreviewSchedule = async () => {
     // 调用批量排产接口，dryRun=true（只计算不保存）
     const result = await containerService.batchSchedule({
       country: resolvedCountry.value || undefined,
-      startDate: dateRange.value?.[0]
-        ? dayjs(dateRange.value[0]).format('YYYY-MM-DD')
-        : undefined,
+      startDate: dateRange.value?.[0] ? dayjs(dateRange.value[0]).format('YYYY-MM-DD') : undefined,
       endDate: dateRange.value?.[1] ? dayjs(dateRange.value[1]).format('YYYY-MM-DD') : undefined,
       dryRun: true, // ← 关键：预览模式
     })
@@ -755,6 +763,7 @@ const handlePreviewSchedule = async () => {
       warehouseName: r.plannedData?.warehouseName || '-',
       truckingCompany: r.plannedData?.truckingCompany || '-',
       unloadMode: r.plannedData?.unloadModePlan || '-',
+      estimatedCosts: r.plannedData?.estimatedCosts || r.estimatedCosts || undefined,
     }))
 
     addLog(`预览完成：成功 ${result.successCount} 个，失败 ${result.failedCount} 个`, 'info')
@@ -784,14 +793,14 @@ const handleConfirmSchedule = async (selectedContainers: string[]) => {
     if (result.success) {
       ElMessage.success(`成功保存 ${result.savedCount} 个货柜`)
       addLog(`确认保存完成：成功 ${result.savedCount} 个`, 'success')
-      
+
       // 关闭弹窗
       showPreviewModal.value = false
       previewResults.value = []
-      
+
       // 刷新概览数据
       await loadOverview()
-      
+
       // 触发完成事件
       emit('complete', result)
     } else {

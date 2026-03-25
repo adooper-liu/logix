@@ -8,7 +8,7 @@
   >
     <!-- 概览信息 -->
     <div class="preview-summary">
-      <el-descriptions :column="4" border>
+      <el-descriptions :column="5" border>
         <el-descriptions-item label="总柜数">
           {{ previewResults.length }}
         </el-descriptions-item>
@@ -18,23 +18,24 @@
         <el-descriptions-item label="失败">
           <el-tag type="danger">{{ failedCount }}</el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="Drop off">
-          {{ dropOffCount }} 柜
+        <el-descriptions-item label="Drop off"> {{ dropOffCount }} 柜 </el-descriptions-item>
+        <el-descriptions-item label="预估总费用">
+          <el-tag type="warning">${{ totalEstimatedCost.toLocaleString() }}</el-tag>
         </el-descriptions-item>
       </el-descriptions>
     </div>
 
     <!-- 详细表格 -->
-    <el-table 
-      :data="previewResults" 
-      max-height="500" 
+    <el-table
+      :data="previewResults"
+      max-height="500"
       stripe
       @selection-change="handleSelectionChange"
     >
       <el-table-column type="selection" width="50" />
       <el-table-column prop="containerNumber" label="柜号" width="120" fixed>
         <template #default="{ row }">
-          <el-link type="primary" @click="$emit('view-container', row.containerNumber)">
+          <el-link type="primary" @click="$emit('viewContainer', row.containerNumber)">
             {{ row.containerNumber }}
           </el-link>
         </template>
@@ -53,6 +54,47 @@
       </el-table-column>
       <el-table-column prop="warehouseName" label="仓库" min-width="150" show-overflow-tooltip />
       <el-table-column prop="truckingCompany" label="车队" min-width="150" show-overflow-tooltip />
+      <el-table-column prop="estimatedCosts.totalCost" label="预估费用" width="100" align="right">
+        <template #default="{ row }">
+          <span v-if="row.estimatedCosts?.totalCost" style="color: #E6A23C; font-weight: bold;">
+            ${{ row.estimatedCosts.totalCost.toLocaleString() }}
+          </span>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+      <el-table-column label="费用明细" width="120" align="center">
+        <template #default="{ row }">
+          <el-popover
+            v-if="row.estimatedCosts"
+            placement="left"
+            :width="200"
+            trigger="hover"
+          >
+            <div style="font-size: 12px;">
+              <p v-if="row.estimatedCosts.demurrageCost" style="margin: 4px 0;">
+                滞港费：${{ row.estimatedCosts.demurrageCost.toLocaleString() }}
+              </p>
+              <p v-if="row.estimatedCosts.detentionCost" style="margin: 4px 0;">
+                滞箱费：${{ row.estimatedCosts.detentionCost.toLocaleString() }}
+              </p>
+              <p v-if="row.estimatedCosts.storageCost" style="margin: 4px 0;">
+                仓储费：${{ row.estimatedCosts.storageCost.toLocaleString() }}
+              </p>
+              <p v-if="row.estimatedCosts.transportationCost" style="margin: 4px 0;">
+                运输费：${{ row.estimatedCosts.transportationCost.toLocaleString() }}
+              </p>
+              <el-divider style="margin: 8px 0;" />
+              <p style="margin: 4px 0; font-weight: bold; color: #E6A23C;">
+                合计：${{ row.estimatedCosts.totalCost?.toLocaleString() }}
+              </p>
+            </div>
+            <template #reference>
+              <el-icon style="cursor: pointer; color: #409EFF;"><QuestionFilled /></el-icon>
+            </template>
+          </el-popover>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
       <el-table-column label="状态" width="80">
         <template #default="{ row }">
           <el-icon v-if="row.success" color="#67C23A"><CircleCheck /></el-icon>
@@ -65,9 +107,9 @@
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="handleCancel">取消</el-button>
-        <el-button 
-          type="primary" 
-          @click="handleConfirm" 
+        <el-button
+          type="primary"
+          @click="handleConfirm"
           :loading="saving"
           :disabled="selectedContainers.length === 0"
         >
@@ -79,8 +121,8 @@
 </template>
 
 <script setup lang="ts">
+import { CircleCheck, CircleClose, QuestionFilled } from '@element-plus/icons-vue'
 import { computed, ref, watch } from 'vue'
-import { CircleCheck, CircleClose } from '@element-plus/icons-vue'
 
 interface PreviewResult {
   containerNumber: string
@@ -96,6 +138,14 @@ interface PreviewResult {
     truckingCompanyId?: string
     truckingCompany?: string
     unloadMode?: 'Drop off' | 'Live load'
+  }
+  estimatedCosts?: {
+    demurrageCost?: number
+    detentionCost?: number
+    storageCost?: number
+    transportationCost?: number
+    totalCost?: number
+    currency?: string
   }
   destinationPort?: string
 }
@@ -114,17 +164,19 @@ const visible = ref(true)
 const selectedContainers = ref<string[]>([])
 const saving = ref(false)
 
-const successCount = computed(() => 
-  props.previewResults.filter(r => r.success).length
+const successCount = computed(() => props.previewResults.filter(r => r.success).length)
+
+const failedCount = computed(() => props.previewResults.filter(r => !r.success).length)
+
+const dropOffCount = computed(
+  () => props.previewResults.filter(r => r.plannedData?.unloadMode === 'Drop off').length
 )
 
-const failedCount = computed(() => 
-  props.previewResults.filter(r => !r.success).length
-)
-
-const dropOffCount = computed(() => 
-  props.previewResults.filter(r => r.plannedData?.unloadMode === 'Drop off').length
-)
+const totalEstimatedCost = computed(() => {
+  return props.previewResults
+    .filter(r => r.success && r.estimatedCosts?.totalCost)
+    .reduce((sum, r) => sum + (r.estimatedCosts?.totalCost || 0), 0)
+})
 
 const handleSelectionChange = (selection: any[]) => {
   selectedContainers.value = selection.map(s => s.containerNumber)
@@ -134,7 +186,7 @@ const handleConfirm = async () => {
   if (selectedContainers.value.length === 0) {
     return
   }
-  
+
   saving.value = true
   try {
     emit('confirm', selectedContainers.value)
@@ -154,14 +206,16 @@ const handleClose = () => {
 }
 
 // 监听预览结果变化，默认全选成功的
-watch(() => props.previewResults, (newResults) => {
-  if (newResults && newResults.length > 0) {
-    // 默认选中所有成功的
-    selectedContainers.value = newResults
-      .filter(r => r.success)
-      .map(r => r.containerNumber)
-  }
-}, { immediate: true })
+watch(
+  () => props.previewResults,
+  newResults => {
+    if (newResults && newResults.length > 0) {
+      // 默认选中所有成功的
+      selectedContainers.value = newResults.filter(r => r.success).map(r => r.containerNumber)
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped>

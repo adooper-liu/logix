@@ -10,12 +10,12 @@
 
 ### ✅ 已遵循的原则
 
-| 原则 | 实施情况 |
-|------|----------|
+| 原则         | 实施情况                                         |
+| ------------ | ------------------------------------------------ |
 | **组件复用** | 基于现有 SchedulingVisual.vue 扩展，无重复造轮子 |
-| **简洁即美** | 代码结构清晰，无 emoji 装饰 |
-| **真实第一** | 所有 API 调用基于后端实际接口 |
-| **类型安全** | TypeScript 完整类型定义 |
+| **简洁即美** | 代码结构清晰，无 emoji 装饰                      |
+| **真实第一** | 所有 API 调用基于后端实际接口                    |
+| **类型安全** | TypeScript 完整类型定义                          |
 
 ---
 
@@ -29,23 +29,16 @@
 #### 组件功能
 
 ```vue
-<SchedulingPreviewModal
-  :preview-results="previewResults"
-  @confirm="handleConfirmSchedule"
-  @cancel="showPreviewModal = false"
-  @view-container="router.push(`/shipments/${cn}`)"
-/>
+<SchedulingPreviewModal :preview-results="previewResults" @confirm="handleConfirmSchedule" @cancel="showPreviewModal = false" @view-container="router.push(`/shipments/${cn}`)" />
 ```
 
 #### 核心特性
 
 1. **概览统计**
    - 总柜数、成功数、失败数、Drop off 方式统计
-   
 2. **可交互表格**
    - 支持多选（默认全选成功的）
    - 点击柜号跳转到详情页
-   
 3. **状态展示**
    - 提柜日、送仓日、卸柜日、还箱日
    - 仓库、车队、卸柜方式
@@ -60,7 +53,8 @@
 ### Step 2: 修改 SchedulingVisual.vue
 
 **文件**: `frontend/src/views/scheduling/SchedulingVisual.vue`  
-**修改位置**: 
+**修改位置**:
+
 - Line 12-19: 按钮文字改为"预览排产"
 - Line 320: 导入 SchedulingPreviewModal
 - Line 588-592: 新增预览相关状态变量
@@ -73,27 +67,28 @@ const handlePreviewSchedule = async () => {
   // 1. 调用 batchSchedule({ dryRun: true })
   const result = await containerService.batchSchedule({
     country: resolvedCountry.value || undefined,
-    startDate: dateRange.value?.[0] ? dayjs(dateRange.value[0]).format('YYYY-MM-DD') : undefined,
-    endDate: dateRange.value?.[1] ? dayjs(dateRange.value[1]).format('YYYY-MM-DD') : undefined,
+    startDate: dateRange.value?.[0] ? dayjs(dateRange.value[0]).format("YYYY-MM-DD") : undefined,
+    endDate: dateRange.value?.[1] ? dayjs(dateRange.value[1]).format("YYYY-MM-DD") : undefined,
     dryRun: true, // ← 关键：预览模式
-  })
-  
+  });
+
   // 2. 转换数据格式
   previewResults.value = result.results.map((r: any) => ({
     ...r,
-    plannedPickupDate: r.plannedData?.plannedPickupDate || '-',
-    plannedDeliveryDate: r.plannedData?.plannedDeliveryDate || '-',
-    warehouseName: r.plannedData?.warehouseName || '-',
-    truckingCompany: r.plannedData?.truckingCompany || '-',
-    unloadMode: r.plannedData?.unloadModePlan || '-',
-  }))
-  
+    plannedPickupDate: r.plannedData?.plannedPickupDate || "-",
+    plannedDeliveryDate: r.plannedData?.plannedDeliveryDate || "-",
+    warehouseName: r.plannedData?.warehouseName || "-",
+    truckingCompany: r.plannedData?.truckingCompany || "-",
+    unloadMode: r.plannedData?.unloadModePlan || "-",
+  }));
+
   // 3. 显示预览弹窗
-  showPreviewModal.value = true
-}
+  showPreviewModal.value = true;
+};
 ```
 
 **关键点**:
+
 - ✅ 使用 `dryRun=true` 调用批量排产接口
 - ✅ 不写库，只计算
 - ✅ 返回预览数据供用户确认
@@ -106,33 +101,34 @@ const handlePreviewSchedule = async () => {
 const handleConfirmSchedule = async (selectedContainers: string[]) => {
   // 1. 验证选择
   if (selectedContainers.length === 0) {
-    ElMessage.warning('请选择要保存的货柜')
-    return
+    ElMessage.warning("请选择要保存的货柜");
+    return;
   }
-  
+
   // 2. 调用 confirm 接口（重新计算并保存）
   const result = await containerService.confirmSchedule({
     containerNumbers: selectedContainers,
-  })
-  
+  });
+
   // 3. 处理结果
   if (result.success) {
-    ElMessage.success(`成功保存 ${result.savedCount} 个货柜`)
-    
+    ElMessage.success(`成功保存 ${result.savedCount} 个货柜`);
+
     // 关闭弹窗
-    showPreviewModal.value = false
-    previewResults.value = []
-    
+    showPreviewModal.value = false;
+    previewResults.value = [];
+
     // 刷新概览数据
-    await loadOverview()
-    
+    await loadOverview();
+
     // 触发完成事件
-    emit('complete', result)
+    emit("complete", result);
   }
-}
+};
 ```
 
 **关键点**:
+
 - ✅ 只接收选中的 containerNumbers
 - ✅ 不传 plannedData（防止篡改）
 - ✅ 服务端重新计算保证一致性
@@ -173,6 +169,7 @@ async confirmSchedule(params: {
 ```
 
 **设计要点**:
+
 - ✅ 与后端 API 对齐
 - ✅ 自动清除缓存
 - ✅ 完整的 TypeScript 类型定义
@@ -232,15 +229,16 @@ async confirmSchedule(params: {
 
 ## ⏱️ 实际工时统计
 
-| 任务 | 预估工时 | 实际工时 | 说明 |
-|------|----------|----------|------|
-| 创建预览组件 | 3 小时 | 2.5 小时 | 包含模板 + 逻辑 |
-| 集成到主页面 | 2 小时 | 1.5 小时 | 修改 SchedulingVisual |
-| 扩展 Container 服务 | 30 分钟 | 20 分钟 | 添加 confirmSchedule |
-| 联调测试 | 1 小时 | 45 分钟 | 前后端对接 |
-| **总计** | **4 小时** | **4 小时 55 分** | 略超预估 |
+| 任务                | 预估工时   | 实际工时         | 说明                  |
+| ------------------- | ---------- | ---------------- | --------------------- |
+| 创建预览组件        | 3 小时     | 2.5 小时         | 包含模板 + 逻辑       |
+| 集成到主页面        | 2 小时     | 1.5 小时         | 修改 SchedulingVisual |
+| 扩展 Container 服务 | 30 分钟    | 20 分钟          | 添加 confirmSchedule  |
+| 联调测试            | 1 小时     | 45 分钟          | 前后端对接            |
+| **总计**            | **4 小时** | **4 小时 55 分** | 略超预估              |
 
-**超支原因**: 
+**超支原因**:
+
 - 预览组件表格列较多，调整布局耗时
 - 类型定义完善花费额外时间
 
@@ -326,12 +324,12 @@ async confirmSchedule(params: {
 
 ### 代码行数
 
-| 文件 | 新增行数 | 修改行数 |
-|------|----------|----------|
-| SchedulingPreviewModal.vue | 178 | - |
-| SchedulingVisual.vue | 96 | 11 |
-| Container.ts | 26 | - |
-| **总计** | **300** | **11** |
+| 文件                       | 新增行数 | 修改行数 |
+| -------------------------- | -------- | -------- |
+| SchedulingPreviewModal.vue | 178      | -        |
+| SchedulingVisual.vue       | 96       | 11       |
+| Container.ts               | 26       | -        |
+| **总计**                   | **300**  | **11**   |
 
 ---
 
@@ -364,6 +362,7 @@ async confirmSchedule(params: {
 **影响**: 低
 
 **改进方向**:
+
 - 虚拟滚动表格（Element Plus 已支持）
 - 分页显示
 
@@ -376,6 +375,7 @@ async confirmSchedule(params: {
 **影响**: 中
 
 **改进方向**:
+
 - 在预览弹窗中增加"失败原因"列
 - 提供解决方案建议（如：调整日期）
 
@@ -388,6 +388,7 @@ async confirmSchedule(params: {
 **影响**: 低
 
 **改进方向**:
+
 - 预览时临时锁定产能（TTL=5 分钟）
 - 提示用户："预览数据实时计算，确认时可能因产能变化导致失败"
 
@@ -436,12 +437,14 @@ async confirmSchedule(params: {
 ## 🎯 下一步计划
 
 ### 已完成 ✅
+
 - [x] 后端 dryRun 支持
 - [x] confirm 接口实现
 - [x] 前端预览组件开发
 - [x] 前后端集成
 
 ### 待实施 📋
+
 - [ ] 性能基准测试（预计 1 小时）
 - [ ] 用户手册编写（预计 30 分钟）
 - [ ] 生产环境部署（预计 30 分钟）
@@ -452,6 +455,6 @@ async confirmSchedule(params: {
 
 **实施状态**: ✅ 前后端均已完成  
 **下一步**: 性能测试与部署  
-**预计上线**: 本周内  
+**预计上线**: 本周内
 
 需要我继续协助性能测试或文档编写吗？🚀

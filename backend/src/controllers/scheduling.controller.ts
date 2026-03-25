@@ -177,13 +177,15 @@ export class SchedulingController {
         dryRun: false // 正式保存
       });
 
-      logger.info(`[Scheduling] Confirmed ${result.successCount}/${containerNumbers.length} containers`);
+      logger.info(
+        `[Scheduling] Confirmed ${result.successCount}/${containerNumbers.length} containers`
+      );
 
       res.json({
         success: result.success,
         savedCount: result.successCount,
         total: containerNumbers.length,
-        results: result.results.map(r => ({
+        results: result.results.map((r) => ({
           containerNumber: r.containerNumber,
           success: r.success,
           message: r.message

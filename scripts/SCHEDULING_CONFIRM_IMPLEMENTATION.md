@@ -10,21 +10,21 @@
 
 ### ✅ 已遵循的原则
 
-| 原则 | 实施情况 |
-|------|----------|
-| **简洁即美** | 去除 emoji 装饰，直接描述实现 |
-| **真实第一** | 所有代码基于现有架构修改，无虚构 API |
+| 原则           | 实施情况                                 |
+| -------------- | ---------------------------------------- |
+| **简洁即美**   | 去除 emoji 装饰，直接描述实现            |
+| **真实第一**   | 所有代码基于现有架构修改，无虚构 API     |
 | **数据库优先** | confirm 接口重新计算，不使用前端传回数据 |
-| **业务导向** | 解决真实痛点：预览后确认再保存 |
+| **业务导向**   | 解决真实痛点：预览后确认再保存           |
 
 ### ❌ 原文档违规项（已修正）
 
-| 违规项 | 修正方案 |
-|--------|----------|
-| Emoji 过多 | 已全部移除 |
-| 端口错误 (3000→3001) | 使用相对路径，不写死端口 |
-| 虚构 `containerApi` | 删除前端 API 调用示例 |
-| 工时过于乐观 | 标注实际工时：2-3 小时/任务 |
+| 违规项               | 修正方案                    |
+| -------------------- | --------------------------- |
+| Emoji 过多           | 已全部移除                  |
+| 端口错误 (3000→3001) | 使用相对路径，不写死端口    |
+| 虚构 `containerApi`  | 删除前端 API 调用示例       |
+| 工时过于乐观         | 标注实际工时：2-3 小时/任务 |
 
 ---
 
@@ -48,7 +48,8 @@ export interface ScheduleRequest {
 }
 ```
 
-**说明**: 
+**说明**:
+
 - `dryRun=true`: 只计算，不保存
 - `dryRun=false` 或不传：正式保存
 
@@ -60,13 +61,14 @@ export interface ScheduleRequest {
 **修改位置**: Line 428-456
 
 **关键改动**:
+
 ```typescript
 // 10. 更新数据库（dryRun 模式下跳过）
 const plannedData = { ... };
 
 if (!_request.dryRun) {
   await this.updateContainerSchedule(container.containerNumber, plannedData);
-  
+
   try {
     await this.containerStatusService.updateStatus(container.containerNumber);
   } catch (syncErr) {
@@ -78,6 +80,7 @@ if (!_request.dryRun) {
 ```
 
 **核心逻辑**:
+
 - dryRun=true: 计算 plannedData，不写库，不扣产能
 - dryRun=false: 正常写库 + 扣产能
 
@@ -89,11 +92,12 @@ if (!_request.dryRun) {
 **修改位置**: Line 160-164
 
 **修改前**:
+
 ```typescript
 for (const container of toProcess) {
   const result = await this.scheduleSingleContainer(container, request);
   results.push(result);
-  
+
   // ❌ 错误的产能扣减逻辑（已删除）
   if (!request.dryRun && result.success && result.plannedData) {
     await this.updateContainerSchedule(...);
@@ -103,6 +107,7 @@ for (const container of toProcess) {
 ```
 
 **修改后**:
+
 ```typescript
 for (const container of toProcess) {
   const result = await this.scheduleSingleContainer(container, request);
@@ -131,7 +136,7 @@ confirmSchedule = async (req: Request, res: Response): Promise<void> => {
     if (!Array.isArray(containerNumbers) || containerNumbers.length === 0) {
       res.status(400).json({
         success: false,
-        message: 'containerNumbers 不能为空'
+        message: "containerNumbers 不能为空",
       });
       return;
     }
@@ -141,7 +146,7 @@ confirmSchedule = async (req: Request, res: Response): Promise<void> => {
     // 重新执行排产（正式模式，dryRun=false）
     const result = await intelligentSchedulingService.batchSchedule({
       containerNumbers,
-      dryRun: false // 正式保存
+      dryRun: false, // 正式保存
     });
 
     logger.info(`[Scheduling] Confirmed ${result.successCount}/${containerNumbers.length} containers`);
@@ -150,24 +155,25 @@ confirmSchedule = async (req: Request, res: Response): Promise<void> => {
       success: result.success,
       savedCount: result.successCount,
       total: containerNumbers.length,
-      results: result.results.map(r => ({
+      results: result.results.map((r) => ({
         containerNumber: r.containerNumber,
         success: r.success,
-        message: r.message
-      }))
+        message: r.message,
+      })),
     });
   } catch (error: any) {
-    logger.error('[Scheduling] confirmSchedule error:', error);
+    logger.error("[Scheduling] confirmSchedule error:", error);
     res.status(500).json({
       success: false,
-      message: error.message || '确认保存失败',
-      savedCount: 0
+      message: error.message || "确认保存失败",
+      savedCount: 0,
     });
   }
 };
 ```
 
 **设计要点**:
+
 1. ✅ 只接收 `containerNumbers`，不接收 `plannedData`
 2. ✅ 重新调用 `batchSchedule({ dryRun: false })`
 3. ✅ 保证数据一致性（服务端重新计算）
@@ -182,13 +188,13 @@ confirmSchedule = async (req: Request, res: Response): Promise<void> => {
 
 ```typescript
 // 批量排产
-router.post('/batch-schedule', controller.batchSchedule);
+router.post("/batch-schedule", controller.batchSchedule);
 
 // 确认保存排产结果（重新计算并保存）← 新增
-router.post('/confirm', controller.confirmSchedule);
+router.post("/confirm", controller.confirmSchedule);
 
 // 排产预览（不写库）
-router.post('/:id/schedule-preview', controller.schedulePreview);
+router.post("/:id/schedule-preview", controller.schedulePreview);
 ```
 
 ---
@@ -200,16 +206,18 @@ router.post('/:id/schedule-preview', controller.schedulePreview);
 **端点**: `POST /api/v1/scheduling/batch-schedule`
 
 **请求体**:
+
 ```json
 {
   "country": "GB",
   "limit": 50,
   "skip": 0,
-  "dryRun": true  // ← true=预览，false=正式保存
+  "dryRun": true // ← true=预览，false=正式保存
 }
 ```
 
 **响应**:
+
 ```json
 {
   "success": true,
@@ -241,6 +249,7 @@ router.post('/:id/schedule-preview', controller.schedulePreview);
 **端点**: `POST /api/v1/scheduling/confirm`
 
 **请求体**:
+
 ```json
 {
   "containerNumbers": ["CNT001", "CNT002", "CNT003"]
@@ -248,6 +257,7 @@ router.post('/:id/schedule-preview', controller.schedulePreview);
 ```
 
 **响应**:
+
 ```json
 {
   "success": true,
@@ -283,22 +293,24 @@ router.post('/:id/schedule-preview', controller.schedulePreview);
 ### 决策 1: dryRun 参数传递到 scheduleSingleContainer
 
 **理由**:
+
 - 保持计算逻辑统一
 - 避免重复代码
 - 便于维护
 
 **实现**:
+
 ```typescript
 private async scheduleSingleContainer(
   container: Container,
   _request: ScheduleRequest // ← 包含 dryRun
 ): Promise<ScheduleResult> {
   // 计算...
-  
+
   if (!_request.dryRun) {
     // 保存 + 扣产能
   }
-  
+
   return { plannedData, ... };
 }
 ```
@@ -308,6 +320,7 @@ private async scheduleSingleContainer(
 ### 决策 2: confirm 接口重新计算而非使用前端数据
 
 **理由**:
+
 1. **安全性**: 防止前端篡改 plannedData
 2. **一致性**: 确保保存时产能仍然充足
 3. **SKILL 规范**: 数据库优先，不相信前端输入
@@ -315,20 +328,22 @@ private async scheduleSingleContainer(
 **对比**:
 
 ❌ **错误方案**（原文档）:
+
 ```typescript
 // 前端传回 previewResults，后端直接使用
 await updateContainerSchedule(
   containerNumber,
-  previewResult.plannedData // ← 可被篡改
+  previewResult.plannedData, // ← 可被篡改
 );
 ```
 
 ✅ **正确方案**（已实施）:
+
 ```typescript
 // 重新调用 batchSchedule，服务端重新计算
 const result = await batchSchedule({
   containerNumbers,
-  dryRun: false // 正式保存
+  dryRun: false, // 正式保存
 });
 ```
 
@@ -337,6 +352,7 @@ const result = await batchSchedule({
 ### 决策 3: 产能扣减在 scheduleSingleContainer 内部
 
 **理由**:
+
 - 保持事务完整性
 - 避免 batchSchedule 中重复逻辑
 - 符合单一职责原则
@@ -358,6 +374,7 @@ curl -X POST http://localhost:3001/api/v1/scheduling/batch-schedule \
 ```
 
 **预期**:
+
 - ✅ 返回预览数据
 - ✅ 数据库无变化
 - ✅ 产能表无变化
@@ -375,7 +392,8 @@ curl -X POST http://localhost:3001/api/v1/scheduling/confirm \
 ```
 
 **预期**:
-- ✅ 保存排产数据到 process_* 表
+
+- ✅ 保存排产数据到 process\_\* 表
 - ✅ schedule_status='issued'
 - ✅ 扣减相应产能
 
@@ -406,6 +424,7 @@ curl -X POST http://localhost:3001/api/v1/scheduling/confirm \
 ```
 
 **预期**:
+
 - 用户 B 的确认可能失败（产能已被用户 A 占用）
 - 返回错误信息：`"仓库产能不足"`
 
@@ -418,14 +437,14 @@ curl -X POST http://localhost:3001/api/v1/scheduling/confirm \
 ```typescript
 // SchedulingVisual.vue
 const handleBatchSchedule = async () => {
-  const response = await api.post('/scheduling/batch-schedule', {
+  const response = await api.post("/scheduling/batch-schedule", {
     country: selectedCountry.value,
     limit: 50,
-    dryRun: true // ← 预览模式
+    dryRun: true, // ← 预览模式
   });
-  
+
   showPreviewModal(response.data.results);
-}
+};
 ```
 
 ---
@@ -440,7 +459,7 @@ const handleBatchSchedule = async () => {
       <el-table-column prop="plannedPickupDate" label="提柜日" />
       <el-table-column prop="unloadMode" label="方式" />
     </el-table>
-    
+
     <template #footer>
       <el-button @click="showPreview = false">取消</el-button>
       <el-button type="primary" @click="handleConfirm">确认保存</el-button>
@@ -455,34 +474,34 @@ const handleBatchSchedule = async () => {
 
 ```typescript
 const handleConfirm = async () => {
-  const response = await api.post('/scheduling/confirm', {
-    containerNumbers: selectedContainers.value
+  const response = await api.post("/scheduling/confirm", {
+    containerNumbers: selectedContainers.value,
   });
-  
+
   if (response.data.success) {
     ElMessage.success(`成功保存 ${response.data.savedCount} 个货柜`);
     refreshContainerList();
   } else {
-    ElMessage.error('保存失败：' + response.data.message);
+    ElMessage.error("保存失败：" + response.data.message);
   }
-  
+
   showPreview = false;
-}
+};
 ```
 
 ---
 
 ## ⏱️ 实际工时统计
 
-| 任务 | 预估工时 | 实际工时 | 说明 |
-|------|----------|----------|------|
-| 扩展 ScheduleRequest | 30 分钟 | 15 分钟 | 简单字段添加 |
-| 修改 scheduleSingleContainer | 1 小时 | 45 分钟 | 条件判断逻辑 |
-| 简化 batchSchedule | 30 分钟 | 15 分钟 | 删除冗余代码 |
-| 新增 confirmSchedule | 2 小时 | 1.5 小时 | Controller 方法 |
-| 添加路由配置 | 15 分钟 | 10 分钟 | 一行路由 |
-| 编写测试脚本 | 1 小时 | 45 分钟 | curl 测试 |
-| **总计** | **4 小时 15 分** | **3 小时 40 分** | 比预估快 |
+| 任务                         | 预估工时         | 实际工时         | 说明            |
+| ---------------------------- | ---------------- | ---------------- | --------------- |
+| 扩展 ScheduleRequest         | 30 分钟          | 15 分钟          | 简单字段添加    |
+| 修改 scheduleSingleContainer | 1 小时           | 45 分钟          | 条件判断逻辑    |
+| 简化 batchSchedule           | 30 分钟          | 15 分钟          | 删除冗余代码    |
+| 新增 confirmSchedule         | 2 小时           | 1.5 小时         | Controller 方法 |
+| 添加路由配置                 | 15 分钟          | 10 分钟          | 一行路由        |
+| 编写测试脚本                 | 1 小时           | 45 分钟          | curl 测试       |
+| **总计**                     | **4 小时 15 分** | **3 小时 40 分** | 比预估快        |
 
 ---
 
@@ -523,6 +542,7 @@ const handleConfirm = async () => {
 **影响**: 中等
 
 **缓解措施**:
+
 1. confirm 时重新计算（已实施）
 2. 前端显示提示："预览数据实时计算，确认时可能因产能变化导致失败"
 3. 未来可考虑：预览时临时锁定产能（5 分钟超时）
@@ -536,6 +556,7 @@ const handleConfirm = async () => {
 **影响**: 低
 
 **缓解措施**:
+
 1. 前端防抖（300ms）
 2. 未来可考虑：服务端缓存（TTL=5 分钟）
 
@@ -548,6 +569,7 @@ const handleConfirm = async () => {
 **影响**: 低
 
 **缓解措施**:
+
 1. UI 提示："预览排产方案 → 确认后保存"
 2. 保留快速模式：Shift+ 点击直接保存（dryRun=false）
 
@@ -564,12 +586,14 @@ const handleConfirm = async () => {
 ## 🎯 下一步计划
 
 ### 已完成 ✅
+
 - [x] 后端 dryRun 支持
 - [x] confirm 接口实现
 - [x] 路由配置
 - [x] 单元测试（待补充）
 
 ### 待实施 📋
+
 - [ ] 前端预览组件开发（预计 3 小时）
 - [ ] 前端集成到排产页面（预计 2 小时）
 - [ ] 联调测试（预计 1 小时）

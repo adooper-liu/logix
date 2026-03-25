@@ -13,12 +13,12 @@
 // 前端调用示例
 const handlePreview = async () => {
   const result = await containerService.batchSchedule({
-    country: 'GB',
-    dryRun: true  // ← 关键：预览模式
+    country: "GB",
+    dryRun: true, // ← 关键：预览模式
   });
-  
-  console.log('预览成功:', result.successCount);
-}
+
+  console.log("预览成功:", result.successCount);
+};
 ```
 
 ---
@@ -29,22 +29,22 @@ const handlePreview = async () => {
 // 前端调用示例
 const handleConfirm = async (selectedContainers: string[]) => {
   const result = await containerService.confirmSchedule({
-    containerNumbers: selectedContainers
+    containerNumbers: selectedContainers,
   });
-  
-  console.log('保存成功:', result.savedCount);
-}
+
+  console.log("保存成功:", result.savedCount);
+};
 ```
 
 ---
 
 ## 📡 API 端点
 
-| 功能 | 端点 | 方法 | 参数 |
-|------|------|------|------|
-| 批量排产（预览） | `/api/v1/scheduling/batch-schedule` | POST | `dryRun: true` |
-| 确认保存 | `/api/v1/scheduling/confirm` | POST | `containerNumbers: string[]` |
-| 单柜预览 | `/api/v1/containers/:id/schedule-preview` | POST | - |
+| 功能             | 端点                                      | 方法 | 参数                         |
+| ---------------- | ----------------------------------------- | ---- | ---------------------------- |
+| 批量排产（预览） | `/api/v1/scheduling/batch-schedule`       | POST | `dryRun: true`               |
+| 确认保存         | `/api/v1/scheduling/confirm`              | POST | `containerNumbers: string[]` |
+| 单柜预览         | `/api/v1/containers/:id/schedule-preview` | POST | -                            |
 
 ---
 
@@ -54,12 +54,12 @@ const handleConfirm = async (selectedContainers: string[]) => {
 
 ```json
 {
-  "country": "GB",           // 可选：国家代码
+  "country": "GB", // 可选：国家代码
   "startDate": "2026-03-25", // 可选：开始日期
-  "endDate": "2026-04-25",   // 可选：结束日期
-  "limit": 50,               // 可选：每批数量
-  "skip": 0,                 // 可选：跳过数量
-  "dryRun": true             // ← 关键：true=预览，false=正式保存
+  "endDate": "2026-04-25", // 可选：结束日期
+  "limit": 50, // 可选：每批数量
+  "skip": 0, // 可选：跳过数量
+  "dryRun": true // ← 关键：true=预览，false=正式保存
 }
 ```
 
@@ -69,11 +69,7 @@ const handleConfirm = async (selectedContainers: string[]) => {
 
 ```json
 {
-  "containerNumbers": [
-    "CNT001",
-    "CNT002",
-    "CNT003"
-  ]
+  "containerNumbers": ["CNT001", "CNT002", "CNT003"]
 }
 ```
 
@@ -179,14 +175,14 @@ curl -X POST http://localhost:3001/api/v1/scheduling/confirm \
 </template>
 
 <script setup lang="ts">
-import SchedulingPreviewModal from './components/SchedulingPreviewModal.vue'
+import SchedulingPreviewModal from "./components/SchedulingPreviewModal.vue";
 
-const showPreviewModal = ref(false)
-const previewResults = ref<any[]>([])
+const showPreviewModal = ref(false);
+const previewResults = ref<any[]>([]);
 
 const handleConfirmSchedule = (selectedContainers: string[]) => {
   // 处理确认逻辑
-}
+};
 </script>
 ```
 
