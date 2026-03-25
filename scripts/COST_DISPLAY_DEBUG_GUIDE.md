@@ -12,8 +12,8 @@
 
 ```sql
 -- 检查是否有滞港费标准配置
-SELECT * FROM dict_demurrage_standards 
-WHERE is_active = true 
+SELECT * FROM dict_demurrage_standards
+WHERE is_active = true
 ORDER BY charge_type_code;
 ```
 
@@ -31,8 +31,8 @@ ORDER BY charge_type_code;
 
 ```sql
 -- 查看免费天数配置
-SELECT id, charge_type_code, free_days, free_days_basis 
-FROM dict_demurrage_standards 
+SELECT id, charge_type_code, free_days, free_days_basis
+FROM dict_demurrage_standards
 WHERE is_active = true;
 ```
 
@@ -46,11 +46,11 @@ WHERE is_active = true;
 
 ```sql
 -- 检查仓库 - 车队映射
-SELECT * FROM warehouse_trucking_mapping 
+SELECT * FROM warehouse_trucking_mapping
 WHERE warehouse_code = 'WH001' AND is_active = true;
 
 -- 检查车队 - 港口映射
-SELECT * FROM dict_trucking_port_mapping 
+SELECT * FROM dict_trucking_port_mapping
 WHERE port_code = 'USLAX' AND is_active = true;
 ```
 
@@ -66,6 +66,7 @@ Get-Content logs\*.log -Tail 100 | Select-String -Pattern "calculateEstimatedCos
 ```
 
 **查找以下日志**：
+
 - `[IntelligentScheduling] Demurrage prediction failed` - 滞港费计算失败
 - `[IntelligentScheduling] No trucking mapping found` - 缺少映射配置
 - `[IntelligentScheduling] No trucking-port mapping found` - 缺少港口映射
@@ -78,20 +79,20 @@ Get-Content logs\*.log -Tail 100 | Select-String -Pattern "calculateEstimatedCos
 
 ```typescript
 // test-cost-calculation.ts
-import { intelligentSchedulingService } from './src/services/intelligentScheduling.service';
+import { intelligentSchedulingService } from "./src/services/intelligentScheduling.service";
 
 async function testCostCalculation() {
   const result = await intelligentSchedulingService.calculateEstimatedCosts(
-    'ECMU5397691',  // 测试柜号
-    new Date('2026-03-25'),  // 提柜日
-    new Date('2026-03-25'),  // 卸柜日
-    new Date('2026-03-25'),  // 还箱日
-    'Live load',  // 卸柜方式
-    { warehouseCode: 'WH001', warehouseName: 'Test' } as any,
-    { companyCode: 'TRUCK001', companyName: 'Test' } as any
+    "ECMU5397691", // 测试柜号
+    new Date("2026-03-25"), // 提柜日
+    new Date("2026-03-25"), // 卸柜日
+    new Date("2026-03-25"), // 还箱日
+    "Live load", // 卸柜方式
+    { warehouseCode: "WH001", warehouseName: "Test" } as any,
+    { companyCode: "TRUCK001", companyName: "Test" } as any,
   );
-  
-  console.log('Cost calculation result:', result);
+
+  console.log("Cost calculation result:", result);
 }
 
 testCostCalculation();
@@ -103,13 +104,13 @@ testCostCalculation();
 
 ```sql
 -- 1. 检查货柜是否有目的港信息
-SELECT 
+SELECT
   c.container_number,
   po.port_code,
   po.ata,
   po.eta
 FROM containers c
-LEFT JOIN port_operations po ON c.container_number = po.container_number 
+LEFT JOIN port_operations po ON c.container_number = po.container_number
   AND po.port_type = 'destination'
 WHERE c.container_number = 'ECMU5397691';
 
@@ -129,7 +130,7 @@ SELECT * FROM trucking_companies WHERE company_code = 'TRUCK001';
 ```sql
 -- 1. 添加滞港费标准（如果不存在）
 INSERT INTO dict_demurrage_standards (
-  charge_type_code, charge_name, free_days, rate_per_day, 
+  charge_type_code, charge_name, free_days, rate_per_day,
   calculation_basis, currency, is_active
 ) VALUES (
   'DEMER', 'Demurrage', 5, 100, 'BY_ARRIVAL', 'USD', true
@@ -139,7 +140,7 @@ INSERT INTO dict_demurrage_standards (
 
 -- 2. 添加仓库 - 车队映射（如果不存在）
 INSERT INTO warehouse_trucking_mapping (
-  country, warehouse_code, trucking_company_id, 
+  country, warehouse_code, trucking_company_id,
   is_default, is_active
 ) VALUES (
   'US', 'WH001', 'TRUCK001', true, true
@@ -147,11 +148,11 @@ INSERT INTO warehouse_trucking_mapping (
 
 -- 3. 添加车队 - 港口映射（如果不存在）
 INSERT INTO dict_trucking_port_mapping (
-  country, trucking_company_id, port_code, 
+  country, trucking_company_id, port_code,
   transport_fee, standard_rate, yard_operation_fee,
   is_active
 ) VALUES (
-  'US', 'TRUCK001', 'USLAX', 
+  'US', 'TRUCK001', 'USLAX',
   150, 50, 25,
   true
 ) ON CONFLICT DO NOTHING;

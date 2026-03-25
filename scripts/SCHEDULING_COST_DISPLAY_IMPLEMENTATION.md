@@ -1,10 +1,13 @@
 # 排产预览费用显示功能实施记录
 
 ## 实施时间
+
 2026-03-21
 
 ## 需求描述
+
 在智能排产预览弹窗中增加各项费用值显示，包括：
+
 - 滞港费（Demurrage）
 - 滞箱费（Detention）
 - 仓储费（Storage）
@@ -23,21 +26,14 @@
 const plannedData = {
   // ... 其他字段
   // 费用信息（dryRun 模式下计算但不保存）
-  estimatedCosts: _request.dryRun ? await this.calculateEstimatedCosts(
-    container.containerNumber,
-    plannedPickupDate,
-    unloadDate,
-    plannedReturnDate,
-    unloadMode,
-    warehouse,
-    truckingCompany
-  ) : undefined
+  estimatedCosts: _request.dryRun ? await this.calculateEstimatedCosts(container.containerNumber, plannedPickupDate, unloadDate, plannedReturnDate, unloadMode, warehouse, truckingCompany) : undefined,
 };
 ```
 
 **修改位置 2**: Line 1104-1209 - 新增 `calculateEstimatedCosts` 方法
 
 该方法包含完整的费用计算逻辑：
+
 1. **滞港费计算**：基于 ETA 和免费期限
 2. **滞箱费计算**：基于卸货日和还箱日
 3. **仓储费计算**：基于堆存天数和费率
@@ -116,7 +112,7 @@ const plannedData = {
 **修改位置 3**: Line 121 - 导入 QuestionFilled 图标
 
 ```typescript
-import { CircleCheck, CircleClose, QuestionFilled } from '@element-plus/icons-vue'
+import { CircleCheck, CircleClose, QuestionFilled } from "@element-plus/icons-vue";
 ```
 
 **修改位置 4**: Line 139-146 - 接口定义增加费用字段
@@ -125,13 +121,13 @@ import { CircleCheck, CircleClose, QuestionFilled } from '@element-plus/icons-vu
 interface PreviewResult {
   // ... 其他字段
   estimatedCosts?: {
-    demurrageCost?: number
-    detentionCost?: number
-    storageCost?: number
-    transportationCost?: number
-    totalCost?: number
-    currency?: string
-  }
+    demurrageCost?: number;
+    detentionCost?: number;
+    storageCost?: number;
+    transportationCost?: number;
+    totalCost?: number;
+    currency?: string;
+  };
 }
 ```
 
@@ -139,10 +135,8 @@ interface PreviewResult {
 
 ```typescript
 const totalEstimatedCost = computed(() => {
-  return props.previewResults
-    .filter(r => r.success && r.estimatedCosts?.totalCost)
-    .reduce((sum, r) => sum + (r.estimatedCosts?.totalCost || 0), 0)
-})
+  return props.previewResults.filter((r) => r.success && r.estimatedCosts?.totalCost).reduce((sum, r) => sum + (r.estimatedCosts?.totalCost || 0), 0);
+});
 ```
 
 **修改位置 6**: Line 35 - 修复事件命名
@@ -162,7 +156,7 @@ previewResults.value = result.results.map((r: any) => ({
   ...r,
   // ... 其他字段
   estimatedCosts: r.plannedData?.estimatedCosts || undefined,
-}))
+}));
 ```
 
 ---
@@ -170,11 +164,13 @@ previewResults.value = result.results.map((r: any) => ({
 ## 技术要点
 
 ### 1. 费用计算架构
+
 - **dryRun 模式专用**：只在预览时计算费用，正式保存时不计算（节省性能）
 - **独立计算方法**：`calculateEstimatedCosts()` 封装完整计算逻辑
 - **错误处理**：每个费用项都有独立的 try-catch，单项失败不影响整体
 
 ### 2. 前端展示设计
+
 - **分层展示**：
   - 第一层：概览区显示总费用
   - 第二层：表格列显示单个费用
@@ -185,6 +181,7 @@ previewResults.value = result.results.map((r: any) => ({
   - Popover 使用分隔线区分总计
 
 ### 3. 性能优化
+
 - **条件计算**：只在 dryRun=true 时计算费用
 - **缓存友好**：费用计算依赖基础数据，无额外数据库查询
 - **前端聚合**：使用 computed 自动聚合总费用
@@ -194,17 +191,21 @@ previewResults.value = result.results.map((r: any) => ({
 ## 验证步骤
 
 1. **后端验证**
+
    ```bash
    cd backend
    npm run dev
    ```
+
    测试预览接口，检查返回的 `estimatedCosts` 字段
 
 2. **前端验证**
+
    ```bash
    cd frontend
    npm run dev
    ```
+
    - 打开排产可视化页面
    - 点击"预览排产"按钮
    - 查看弹窗中的费用显示
@@ -218,12 +219,12 @@ previewResults.value = result.results.map((r: any) => ({
 
 ## 代码统计
 
-| 文件 | 新增行数 | 修改行数 |
-|------|---------|---------|
-| intelligentScheduling.service.ts | ~120 | 10 |
-| SchedulingPreviewModal.vue | 50 | 10 |
-| SchedulingVisual.vue | 1 | 1 |
-| **合计** | **~171** | **21** |
+| 文件                             | 新增行数 | 修改行数 |
+| -------------------------------- | -------- | -------- |
+| intelligentScheduling.service.ts | ~120     | 10       |
+| SchedulingPreviewModal.vue       | 50       | 10       |
+| SchedulingVisual.vue             | 1        | 1        |
+| **合计**                         | **~171** | **21**   |
 
 ---
 

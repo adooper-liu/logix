@@ -348,7 +348,7 @@ import {
   House,
   InfoFilled,
   VideoPlay,
-  View
+  View,
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'

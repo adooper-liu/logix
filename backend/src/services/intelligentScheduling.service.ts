@@ -1122,16 +1122,22 @@ export class IntelligentSchedulingService {
 
       // 1. 计算滞港费和滞箱费（使用与货柜详情页面相同的逻辑）
       try {
-        const demurrageResult = await this.demurrageService.calculateForContainer(containerNumber, { freeDateWriteMode: 'none' });
+        const demurrageResult = await this.demurrageService.calculateForContainer(containerNumber, {
+          freeDateWriteMode: 'none'
+        });
         if (demurrageResult.result) {
           // 提取滞港费和滞箱费
-          const demurrageItems = demurrageResult.result.items.filter(item => 
-            item.chargeTypeCode?.includes('DEMURRAGE') || item.chargeName?.toLowerCase().includes('滞港')
+          const demurrageItems = demurrageResult.result.items.filter(
+            (item) =>
+              item.chargeTypeCode?.includes('DEMURRAGE') ||
+              item.chargeName?.toLowerCase().includes('滞港')
           );
-          const detentionItems = demurrageResult.result.items.filter(item => 
-            item.chargeTypeCode?.includes('DETENTION') || item.chargeName?.toLowerCase().includes('滞箱')
+          const detentionItems = demurrageResult.result.items.filter(
+            (item) =>
+              item.chargeTypeCode?.includes('DETENTION') ||
+              item.chargeName?.toLowerCase().includes('滞箱')
           );
-          
+
           costs.demurrageCost = demurrageItems.reduce((sum, item) => sum + item.amount, 0);
           costs.detentionCost = detentionItems.reduce((sum, item) => sum + item.amount, 0);
           costs.currency = demurrageResult.result.currency;
@@ -1252,7 +1258,9 @@ export class IntelligentSchedulingService {
       });
 
       if (warehouseTruckingMappings.length === 0) {
-        logger.warn(`[IntelligentScheduling] No trucking mapping found for warehouse ${warehouse.warehouseCode}`);
+        logger.warn(
+          `[IntelligentScheduling] No trucking mapping found for warehouse ${warehouse.warehouseCode}`
+        );
         return 0;
       }
 
@@ -1260,7 +1268,7 @@ export class IntelligentSchedulingService {
       let transportFee = 0;
 
       // 优先使用默认车队的运输费用
-      const defaultMapping = warehouseTruckingMappings.find(m => m.isDefault);
+      const defaultMapping = warehouseTruckingMappings.find((m) => m.isDefault);
       if (defaultMapping) {
         transportFee = Number(defaultMapping.transportFee) || 0;
       } else {
@@ -1270,7 +1278,9 @@ export class IntelligentSchedulingService {
 
       // 4. 如果没有找到映射，使用默认值
       if (transportFee === 0) {
-        logger.warn(`[IntelligentScheduling] No transport fee found for warehouse ${warehouse.warehouseCode}, using default fee`);
+        logger.warn(
+          `[IntelligentScheduling] No transport fee found for warehouse ${warehouse.warehouseCode}, using default fee`
+        );
         transportFee = 100; // 默认 $100
       }
 

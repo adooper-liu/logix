@@ -12,7 +12,7 @@ const distanceMatrix: Record<string, Record<string, number>> = {
   USLAX: { WH001: 25, WH002: 35, WH003: 45 },
   USLGB: { WH001: 30, WH002: 40, WH003: 50 },
   USOAK: { WH004: 20, WH005: 35 },
-  USSEA: { WH006: 25 }
+  USSEA: { WH006: 25 },
 };
 
 const distance = distanceMatrix[portCode]?.[warehouse.warehouseCode] || 50;
@@ -61,15 +61,15 @@ return unloadMode === 'Drop off' ? transportationCost * 2 : transportationCost;
 ```typescript
 // 1. 获取仓库关联的车队
 const warehouseTruckingMappings = await this.warehouseTruckingMappingRepo.find({
-  where: { warehouseCode, country, isActive: true }
+  where: { warehouseCode, country, isActive: true },
 });
 
 // 2. 查询 TruckingPortMapping 获取运输费用
 for (const mapping of warehouseTruckingMappings) {
   const truckingPortMapping = await this.truckingPortMappingRepo.findOne({
-    where: { country, portCode, truckingCompanyId, isActive: true }
+    where: { country, portCode, truckingCompanyId, isActive: true },
   });
-  
+
   if (truckingPortMapping) {
     transportFee = truckingPortMapping.transportFee || 0;
     break;
@@ -77,7 +77,7 @@ for (const mapping of warehouseTruckingMappings) {
 }
 
 // 3. Drop off 翻倍
-return unloadMode === 'Drop off' ? transportFee * 2 : transportFee;
+return unloadMode === "Drop off" ? transportFee * 2 : transportFee;
 ```
 
 ---
@@ -86,28 +86,28 @@ return unloadMode === 'Drop off' ? transportFee * 2 : transportFee;
 
 ### dict_trucking_port_mapping
 
-| 字段名 | 类型 | 说明 |
-|--------|------|------|
-| id | int | 主键 |
-| country | varchar(50) | 国家代码 |
-| trucking_company_id | varchar(100) | 车队公司代码 |
-| port_code | varchar(50) | 港口代码 |
-| yard_capacity | decimal(10,2) | 堆场容量 |
-| standard_rate | decimal(10,2) | 堆存日费率 |
-| yard_operation_fee | decimal(10,2) | 堆场操作费 |
-| **transport_fee** | decimal(10,2) | **运输费（单次）** |
-| is_active | boolean | 是否启用 |
+| 字段名              | 类型          | 说明               |
+| ------------------- | ------------- | ------------------ |
+| id                  | int           | 主键               |
+| country             | varchar(50)   | 国家代码           |
+| trucking_company_id | varchar(100)  | 车队公司代码       |
+| port_code           | varchar(50)   | 港口代码           |
+| yard_capacity       | decimal(10,2) | 堆场容量           |
+| standard_rate       | decimal(10,2) | 堆存日费率         |
+| yard_operation_fee  | decimal(10,2) | 堆场操作费         |
+| **transport_fee**   | decimal(10,2) | **运输费（单次）** |
+| is_active           | boolean       | 是否启用           |
 
 ### warehouse_trucking_mapping
 
-| 字段名 | 类型 | 说明 |
-|--------|------|------|
-| id | int | 主键 |
-| country | varchar(50) | 国家代码 |
-| warehouse_code | varchar(50) | 仓库代码 |
+| 字段名              | 类型         | 说明         |
+| ------------------- | ------------ | ------------ |
+| id                  | int          | 主键         |
+| country             | varchar(50)  | 国家代码     |
+| warehouse_code      | varchar(50)  | 仓库代码     |
 | trucking_company_id | varchar(100) | 车队公司代码 |
-| is_default | boolean | 是否默认 |
-| is_active | boolean | 是否启用 |
+| is_default          | boolean      | 是否默认     |
+| is_active           | boolean      | 是否启用     |
 
 ---
 
@@ -186,7 +186,7 @@ return unloadMode === 'Drop off' ? transportFee * 2 : transportFee;
 ### 正常情况
 
 ```
-[IntelligentScheduling] Transport cost for TEST123: 
+[IntelligentScheduling] Transport cost for TEST123:
 Port=USLAX, Warehouse=WH001, Fee=$150
 ```
 
@@ -206,7 +206,7 @@ Port=USLAX, Warehouse=WH001, Fee=$150
 ```typescript
 // Line 720-731
 const truckingPortMapping = await this.truckingPortMappingRepo.findOne({
-  where: { country, portCode, truckingCompanyId, isActive: true }
+  where: { country, portCode, truckingCompanyId, isActive: true },
 });
 
 if (truckingPortMapping) {
@@ -259,11 +259,11 @@ private transportFeeCache = new Map<string, { fee: number, timestamp: number }>(
 async getTransportFee(portCode: string, warehouseCode: string): Promise<number> {
   const cacheKey = `${portCode}:${warehouseCode}`;
   const cached = this.transportFeeCache.get(cacheKey);
-  
+
   if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) {
     return cached.fee;
   }
-  
+
   // 从数据库读取并缓存
   const fee = await this.fetchFromDatabase(portCode, warehouseCode);
   this.transportFeeCache.set(cacheKey, { fee, timestamp: Date.now() });
@@ -296,7 +296,7 @@ const mappings = await this.truckingPortMappingRepo.findBy({
 transportFee = 100;
 
 // 建议：从配置表读取
-transportFee = await this.getConfigNumber('transport_default_fee', 100);
+transportFee = await this.getConfigNumber("transport_default_fee", 100);
 ```
 
 ---
@@ -304,17 +304,19 @@ transportFee = await this.getConfigNumber('transport_default_fee', 100);
 ## 验证步骤
 
 1. **检查数据库配置**
+
    ```sql
    -- 查看 trucking_port_mapping 配置
-   SELECT * FROM dict_trucking_port_mapping 
+   SELECT * FROM dict_trucking_port_mapping
    WHERE port_code = 'USLAX' AND is_active = true;
-   
+
    -- 查看 warehouse_trucking_mapping 配置
-   SELECT * FROM warehouse_trucking_mapping 
+   SELECT * FROM warehouse_trucking_mapping
    WHERE warehouse_code = 'WH001' AND is_active = true;
    ```
 
 2. **重启后端服务**
+
    ```bash
    cd backend
    npm run dev

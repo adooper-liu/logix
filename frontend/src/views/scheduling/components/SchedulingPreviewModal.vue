@@ -56,7 +56,7 @@
       <el-table-column prop="truckingCompany" label="车队" min-width="150" show-overflow-tooltip />
       <el-table-column prop="estimatedCosts.totalCost" label="预估费用" width="100" align="right">
         <template #default="{ row }">
-          <span v-if="row.estimatedCosts?.totalCost" style="color: #E6A23C; font-weight: bold;">
+          <span v-if="row.estimatedCosts?.totalCost" style="color: #e6a23c; font-weight: bold">
             ${{ row.estimatedCosts.totalCost.toLocaleString() }}
           </span>
           <span v-else>-</span>
@@ -64,32 +64,27 @@
       </el-table-column>
       <el-table-column label="费用明细" width="120" align="center">
         <template #default="{ row }">
-          <el-popover
-            v-if="row.estimatedCosts"
-            placement="left"
-            :width="200"
-            trigger="hover"
-          >
-            <div style="font-size: 12px;">
-              <p v-if="row.estimatedCosts.demurrageCost" style="margin: 4px 0;">
+          <el-popover v-if="row.estimatedCosts" placement="left" :width="200" trigger="hover">
+            <div style="font-size: 12px">
+              <p v-if="row.estimatedCosts.demurrageCost" style="margin: 4px 0">
                 滞港费：${{ row.estimatedCosts.demurrageCost.toLocaleString() }}
               </p>
-              <p v-if="row.estimatedCosts.detentionCost" style="margin: 4px 0;">
+              <p v-if="row.estimatedCosts.detentionCost" style="margin: 4px 0">
                 滞箱费：${{ row.estimatedCosts.detentionCost.toLocaleString() }}
               </p>
-              <p v-if="row.estimatedCosts.storageCost" style="margin: 4px 0;">
+              <p v-if="row.estimatedCosts.storageCost" style="margin: 4px 0">
                 仓储费：${{ row.estimatedCosts.storageCost.toLocaleString() }}
               </p>
-              <p v-if="row.estimatedCosts.transportationCost" style="margin: 4px 0;">
+              <p v-if="row.estimatedCosts.transportationCost" style="margin: 4px 0">
                 运输费：${{ row.estimatedCosts.transportationCost.toLocaleString() }}
               </p>
-              <el-divider style="margin: 8px 0;" />
-              <p style="margin: 4px 0; font-weight: bold; color: #E6A23C;">
+              <el-divider style="margin: 8px 0" />
+              <p style="margin: 4px 0; font-weight: bold; color: #e6a23c">
                 合计：${{ row.estimatedCosts.totalCost?.toLocaleString() }}
               </p>
             </div>
             <template #reference>
-              <el-icon style="cursor: pointer; color: #409EFF;"><QuestionFilled /></el-icon>
+              <el-icon style="cursor: pointer; color: #409eff"><QuestionFilled /></el-icon>
             </template>
           </el-popover>
           <span v-else>-</span>
