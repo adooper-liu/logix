@@ -8,13 +8,13 @@
 
 ## 📊 关键指标
 
-| 指标 | 数值 | 状态 |
-|------|------|------|
-| 总港口数 | 72 | ✅ |
-| 国家覆盖 | 32 | ✅ |
-| 字段完整度 | 100% | ✅ |
-| 坐标有效率 | 100% | ✅ |
-| 时区准确率 | 100% | ✅ |
+| 指标       | 数值 | 状态 |
+| ---------- | ---- | ---- |
+| 总港口数   | 72   | ✅   |
+| 国家覆盖   | 32   | ✅   |
+| 字段完整度 | 100% | ✅   |
+| 坐标有效率 | 100% | ✅   |
+| 时区准确率 | 100% | ✅   |
 
 ---
 
@@ -39,6 +39,7 @@
 ### 修正城市信息（12 个美国港口）
 
 修复了城市名与州不匹配的问题：
+
 - USATL: New_York → Atlanta ✅
 - USHOU: Chicago → Houston ✅
 - USMIA: New_York → Miami ✅
@@ -119,7 +120,7 @@ PORT (海港): 72 (100%)
 
 ```sql
 -- 检查完整性
-SELECT 
+SELECT
     COUNT(*) as total,
     COUNT(port_name_en) as en,
     COUNT(state) as state,
@@ -131,11 +132,11 @@ FROM dict_ports;
 
 -- 检查缺失字段
 SELECT * FROM dict_ports
-WHERE port_type IS NULL 
-   OR state IS NULL 
-   OR city IS NULL 
-   OR timezone IS NULL 
-   OR latitude IS NULL 
+WHERE port_type IS NULL
+   OR state IS NULL
+   OR city IS NULL
+   OR timezone IS NULL
+   OR latitude IS NULL
    OR longitude IS NULL;
 -- 结果：0 rows ✅
 ```
@@ -221,7 +222,7 @@ type complete-ports-details.sql | docker exec -i logix-timescaledb-prod psql -U 
 
 **规范化状态**: ✅ 完成  
 **数据完整度**: 100%  
-**数据质量**: ⭐⭐⭐⭐⭐ 优秀  
+**数据质量**: ⭐⭐⭐⭐⭐ 优秀
 
 所有港口的 `port_name_en`, `port_type`, `country`, `state`, `city`, `timezone`, `latitude`, `longitude` 字段都已完全规范化和补全！
 

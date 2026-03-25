@@ -11,7 +11,7 @@
 ### 当前流程（有问题）
 
 ```
-用户点击"批量排产" 
+用户点击"批量排产"
   ↓
 后端自动计算并直接保存 ✅❌
   ↓
@@ -19,6 +19,7 @@
 ```
 
 **问题**:
+
 - ❌ 没有预览环节
 - ❌ 没有方案选择
 - ❌ 没有确认步骤
@@ -109,7 +110,7 @@
 async batchSchedule(
   request: ScheduleRequest & { dryRun?: boolean }
 ): Promise<BatchScheduleResponse> {
-  
+
   if (request.dryRun) {
     // 预览模式：不写库，只计算
     return await this.scheduleWithoutSaving(request);
@@ -132,7 +133,7 @@ private async executeSchedule(containerNumber: string, plannedData: any): Promis
 private async previewSchedule(container: Container): Promise<ScheduleResult> {
   // 只计算，不保存
   const plannedData = await this.calculatePlannedDates(container);
-  
+
   return {
     containerNumber: container.containerNumber,
     success: true,
@@ -154,30 +155,25 @@ private async previewSchedule(container: Container): Promise<ScheduleResult> {
 confirmSchedule = async (req: Request, res: Response): Promise<void> => {
   try {
     const { containerNumbers, previewResults } = req.body;
-    
+
     // 使用预览时的计算结果，正式保存
     const results = [];
     for (const containerNumber of containerNumbers) {
-      const plannedData = previewResults.find(
-        r => r.containerNumber === containerNumber
-      )?.plannedData;
-      
+      const plannedData = previewResults.find((r) => r.containerNumber === containerNumber)?.plannedData;
+
       if (!plannedData) continue;
-      
-      await intelligentSchedulingService.executeSchedule(
-        containerNumber,
-        plannedData
-      );
-      
+
+      await intelligentSchedulingService.executeSchedule(containerNumber, plannedData);
+
       results.push({ containerNumber, success: true });
     }
-    
+
     res.json({
       success: true,
-      savedCount: results.length
+      savedCount: results.length,
     });
   } catch (error) {
-    logger.error('[Scheduling] confirmSchedule error:', error);
+    logger.error("[Scheduling] confirmSchedule error:", error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -192,12 +188,7 @@ confirmSchedule = async (req: Request, res: Response): Promise<void> => {
 ```vue
 <!-- SchedulingPreviewModal.vue -->
 <template>
-  <el-dialog
-    v-model="visible"
-    title="排产预览"
-    width="90%"
-    :close-on-click-modal="false"
-  >
+  <el-dialog v-model="visible" title="排产预览" width="90%" :close-on-click-modal="false">
     <!-- 预览数据表格 -->
     <el-table :data="previewResults" max-height="500">
       <el-table-column prop="containerNumber" label="柜号" />
@@ -208,31 +199,29 @@ confirmSchedule = async (req: Request, res: Response): Promise<void> => {
       <el-table-column prop="truckingCompany" label="车队" />
       <el-table-column prop="costEstimate.totalCost" label="预估成本" />
     </el-table>
-    
+
     <!-- 底部操作按钮 -->
     <template #footer>
       <el-button @click="handleCancel">取消</el-button>
-      <el-button type="primary" @click="handleConfirm" :loading="saving">
-        确认保存
-      </el-button>
+      <el-button type="primary" @click="handleConfirm" :loading="saving"> 确认保存 </el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
 const emit = defineEmits<{
-  confirm: [containerNumbers: string[], previewResults: any[]]
-  cancel: []
-}>()
+  confirm: [containerNumbers: string[], previewResults: any[]];
+  cancel: [];
+}>();
 
 const handleConfirm = () => {
-  const containerNumbers = previewResults.value.map(r => r.containerNumber)
-  emit('confirm', containerNumbers, previewResults.value)
-}
+  const containerNumbers = previewResults.value.map((r) => r.containerNumber);
+  emit("confirm", containerNumbers, previewResults.value);
+};
 
 const handleCancel = () => {
-  emit('cancel')
-}
+  emit("cancel");
+};
 </script>
 ```
 
@@ -241,25 +230,25 @@ const handleCancel = () => {
 ```typescript
 // 原来的调用（直接保存）
 const result = await containerApi.batchSchedule({
-  country: 'GB',
-  limit: 50
-})
+  country: "GB",
+  limit: 50,
+});
 
 // 新的调用（先预览）
 const previewResult = await containerApi.batchSchedule({
-  country: 'GB',
+  country: "GB",
   limit: 50,
-  dryRun: true  // ← 预览模式
-})
+  dryRun: true, // ← 预览模式
+});
 
 // 显示预览弹窗
-showPreviewModal(previewResult.results)
+showPreviewModal(previewResult.results);
 
 // 用户确认后，再调用确认接口
 const finalResult = await containerApi.confirmSchedule({
   containerNumbers: selectedContainers,
-  previewResults: selectedResults
-})
+  previewResults: selectedResults,
+});
 ```
 
 ---
@@ -273,7 +262,7 @@ interface SchedulePreviewResult {
   containerNumber: string;
   success: boolean;
   message?: string;
-  
+
   // 计划数据（用户可查看/调整）
   plannedData: {
     plannedCustomsDate: string;
@@ -285,24 +274,24 @@ interface SchedulePreviewResult {
     truckingCompanyName: string;
     warehouseId: string;
     warehouseName: string;
-    unloadModePlan: 'Drop off' | 'Live load';
+    unloadModePlan: "Drop off" | "Live load";
     customsBrokerCode: string;
   };
-  
+
   // 成本评估（辅助决策）
   costEstimate: {
-    demurrageFee: number;      // 滞港费
-    storageFee: number;        // 堆存费
-    transportFee: number;      // 运输费
-    yardHandlingFee: number;   // 堆场操作费
-    totalCost: number;         // 总成本
+    demurrageFee: number; // 滞港费
+    storageFee: number; // 堆存费
+    transportFee: number; // 运输费
+    yardHandlingFee: number; // 堆场操作费
+    totalCost: number; // 总成本
     isWithinFreePeriod: boolean;
   };
-  
+
   // 资源占用信息
   resourceOccupancy: {
-    warehouseRemaining: number;  // 仓库剩余容量
-    truckingRemaining: number;   // 车队剩余容量
+    warehouseRemaining: number; // 仓库剩余容量
+    truckingRemaining: number; // 车队剩余容量
     returnSlotRemaining: number; // 还箱档期剩余
   };
 }
@@ -350,12 +339,14 @@ interface SchedulePreviewResult {
 ### 方案 A（完整流程）
 
 **优点**:
+
 - ✅ 用户体验最佳
 - ✅ 可避免错误排产
 - ✅ 支持方案对比
 - ✅ 提高决策质量
 
 **缺点**:
+
 - ❌ 开发工作量大（约 3-5 天）
 - ❌ 需要前后端配合
 - ❌ 增加用户操作步骤
@@ -365,12 +356,14 @@ interface SchedulePreviewResult {
 ### 方案 B（简化流程）
 
 **优点**:
+
 - ✅ 开发工作量小（约 1-2 天）
 - ✅ 快速上线
 - ✅ 保留确认环节
 - ✅ 降低风险
 
 **缺点**:
+
 - ⚠️ 无方案对比
 - ⚠️ 无成本评估
 
@@ -379,11 +372,13 @@ interface SchedulePreviewResult {
 ### 方案 C（混合模式）
 
 **优点**:
+
 - ✅ 灵活性高
 - ✅ 可根据场景切换
 - ✅ 兼顾效率和安全性
 
 **缺点**:
+
 - ⚠️ 需要配置管理
 - ⚠️ 用户可能困惑
 
@@ -520,6 +515,7 @@ interface SchedulePreviewResult {
 **场景**: 预览 50 柜，用户只想保存其中 40 柜
 
 **方案**:
+
 - ✅ 支持勾选部分保存
 - ❌ 必须全部保存或取消
 
@@ -528,6 +524,7 @@ interface SchedulePreviewResult {
 ### 2. 预览数据的有效期？
 
 **方案**:
+
 - 方案 A: 预览数据缓存 30 分钟，超时需重新计算
 - 方案 B: 预览数据不缓存，每次都是最新计算
 - 方案 C: 预览时锁定产能，确认后释放
@@ -539,6 +536,7 @@ interface SchedulePreviewResult {
 **问题**: 产能冲突如何处理？
 
 **方案**:
+
 - 先到先得：第一个确认的用户获得产能
 - 乐观锁：保存时检查产能是否变化
 - 悲观锁：预览时就锁定产能
@@ -549,11 +547,13 @@ interface SchedulePreviewResult {
 
 **核心问题**: 当前实现缺少用户确认环节，直接保存排产结果
 
-**推荐方案**: 
+**推荐方案**:
+
 - 短期：方案 B（简化确认流程）
 - 长期：方案 A（完整确认流程）
 
 **关键价值**:
+
 - ✅ 降低误操作风险
 - ✅ 提高用户掌控感
 - ✅ 支持决策优化

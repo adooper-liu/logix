@@ -13,22 +13,22 @@
 
 ### 1. 国家代码不统一
 
-| 数据源 | 字段 | 值 | 说明 |
-|--------|------|-----|------|
-| 货柜订单 | `sell_to_country` | **GB** | ISO 标准英国代码 |
-| 港口映射表 | `country` | **UK** | 非标准缩写 |
-| 仓库映射表 | `country` | **MH STAR UK LTD** | 公司全名 |
+| 数据源     | 字段              | 值                 | 说明             |
+| ---------- | ----------------- | ------------------ | ---------------- |
+| 货柜订单   | `sell_to_country` | **GB**             | ISO 标准英国代码 |
+| 港口映射表 | `country`         | **UK**             | 非标准缩写       |
+| 仓库映射表 | `country`         | **MH STAR UK LTD** | 公司全名         |
 
 ### 2. 港口代码缺失
 
 ```sql
 -- 查询 UK 的港口映射
-SELECT country, port_code, trucking_company_id 
-FROM dict_trucking_port_mapping 
+SELECT country, port_code, trucking_company_id
+FROM dict_trucking_port_mapping
 WHERE country = 'UK';
 
 -- 结果：port_code 为空！
-country | port_code |  trucking_company_id  
+country | port_code |  trucking_company_id
 --------+-----------+-----------------------
  UK     |           | YunExpress_UK_Ltd
  UK     |           | CEVA_Freight__UK__Ltd
@@ -65,15 +65,15 @@ type fix-uk-port-mapping.sql | docker exec -i logix-timescaledb-prod psql -U log
 #### 1. 更新港口映射的港口代码
 
 ```sql
-UPDATE dict_trucking_port_mapping 
+UPDATE dict_trucking_port_mapping
 SET port_code = 'GBFXT'
-WHERE country = 'UK' 
+WHERE country = 'UK'
   AND trucking_company_id = 'YunExpress_UK_Ltd'
   AND (port_code IS NULL OR port_code = '');
 
-UPDATE dict_trucking_port_mapping 
+UPDATE dict_trucking_port_mapping
 SET port_code = 'GBFXT'
-WHERE country = 'UK' 
+WHERE country = 'UK'
   AND trucking_company_id = 'CEVA_Freight__UK__Ltd'
   AND (port_code IS NULL OR port_code = '');
 ```
@@ -81,11 +81,11 @@ WHERE country = 'UK'
 #### 2. 统一仓库映射的国家代码为 GB
 
 ```sql
-UPDATE dict_warehouse_trucking_mapping 
+UPDATE dict_warehouse_trucking_mapping
 SET country = 'GB'
 WHERE country = 'MH STAR UK LTD';
 
-UPDATE dict_warehouse_trucking_mapping 
+UPDATE dict_warehouse_trucking_mapping
 SET country = 'GB'
 WHERE country = 'UK';
 ```
@@ -93,6 +93,7 @@ WHERE country = 'UK';
 ### 验证结果
 
 ✅ **港口映射验证**（2 条记录）
+
 ```
 country | port_code | port_name  | port_name_en |  trucking_company_id  | is_active
 --------+-----------+------------+--------------+-----------------------+----------
@@ -101,6 +102,7 @@ country | port_code | port_name  | port_name_en |  trucking_company_id  | is_act
 ```
 
 ✅ **仓库映射验证**（12 条记录）
+
 ```
 country | warehouse_code | warehouse_name |  trucking_company_id  | is_active
 --------+----------------+----------------+-----------------------+----------
@@ -124,11 +126,13 @@ type fix-uk-port-mapping.sql | docker exec -i logix-timescaledb-prod psql -U log
 现在可以通过以下方式重新排产：
 
 **方式 1：前端界面**
+
 - 访问智能排柜页面
 - 点击"排产"按钮
 - 选择这些货柜进行排产
 
 **方式 2：API 调用**
+
 ```bash
 POST /api/v1/trucking-schedule/create
 {

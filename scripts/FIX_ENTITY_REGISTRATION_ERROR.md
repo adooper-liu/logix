@@ -3,6 +3,7 @@
 ## 🐛 问题描述
 
 **错误信息**:
+
 ```
 ✗ ECMU5397691: No metadata for "ExtTruckingReturnSlotOccupancy" was found.
 ✗ ECMU5381817: No metadata for "ExtTruckingReturnSlotOccupancy" was found.
@@ -28,7 +29,7 @@
 在 `backend/src/database/index.ts` 中添加：
 
 ```typescript
-import { ExtTruckingReturnSlotOccupancy } from '../entities/ExtTruckingReturnSlotOccupancy';
+import { ExtTruckingReturnSlotOccupancy } from "../entities/ExtTruckingReturnSlotOccupancy";
 ```
 
 ### Step 2: 注册到 entities 数组
@@ -40,10 +41,10 @@ entities: [
   // ... 其他实体
   ExtWarehouseDailyOccupancy,
   ExtTruckingSlotOccupancy,
-  ExtTruckingReturnSlotOccupancy,  // ← 新增
+  ExtTruckingReturnSlotOccupancy, // ← 新增
   ExtYardDailyOccupancy,
   Yard,
-]
+];
 ```
 
 ---
@@ -89,6 +90,7 @@ npm run start:dev
 ### 3. 检查日志
 
 启动日志应包含：
+
 ```
 [TypeORM] Entity loaded: ExtTruckingReturnSlotOccupancy
 ```
@@ -100,7 +102,7 @@ POST http://localhost:3000/api/intelligent-scheduling/schedule
 {
   "containerNumbers": [
     "ECMU5399797",
-    "ECMU5381817", 
+    "ECMU5381817",
     "ECMU5397691",
     "ECMU5399586",
     "ECMU5400183"
@@ -116,10 +118,10 @@ POST http://localhost:3000/api/intelligent-scheduling/schedule
 
 ### 三个占用表对比
 
-| 实体 | 表名 | 用途 | 模式 |
-|------|------|------|------|
-| ExtWarehouseDailyOccupancy | ext_warehouse_daily_occupancy | 仓库日产能占用 | 卸柜约束 |
-| ExtTruckingSlotOccupancy | ext_trucking_slot_occupancy | 车队提柜档期占用 | 提柜约束 |
+| 实体                               | 表名                                   | 用途                 | 模式         |
+| ---------------------------------- | -------------------------------------- | -------------------- | ------------ |
+| ExtWarehouseDailyOccupancy         | ext_warehouse_daily_occupancy          | 仓库日产能占用       | 卸柜约束     |
+| ExtTruckingSlotOccupancy           | ext_trucking_slot_occupancy            | 车队提柜档期占用     | 提柜约束     |
 | **ExtTruckingReturnSlotOccupancy** | **ext_trucking_return_slot_occupancy** | **车队还箱档期占用** | **还柜约束** |
 
 ### Drop off vs Live load
@@ -143,6 +145,7 @@ Live load (无堆场):
 ### 还箱档期的作用
 
 在 **Drop off** 模式下：
+
 1. 货柜卸在堆场后，需要安排还箱日期
 2. 还箱日期必须 >= 卸柜日期
 3. 还箱日期不能超过车队的 `daily_return_capacity`
@@ -159,11 +162,11 @@ private async decrementFleetReturnOccupancy(
   _portCode?: string
 ): Promise<void> {
   const repo = AppDataSource.getRepository(ExtTruckingReturnSlotOccupancy);
-  
+
   const occupancy = await repo.findOne({
     where: { truckingCompanyId, slotDate: returnDate }
   });
-  
+
   if (occupancy) {
     occupancy.plannedCount += 1;
     occupancy.remaining -= 1;
@@ -174,7 +177,7 @@ private async decrementFleetReturnOccupancy(
       where: { companyCode: truckingCompanyId },
       select: ['dailyReturnCapacity', 'dailyCapacity']
     });
-    
+
     const capacity = trucking?.dailyReturnCapacity || trucking?.dailyCapacity || 0;
     const newOccupancy = repo.create({
       truckingCompanyId,
@@ -193,11 +196,13 @@ private async decrementFleetReturnOccupancy(
 ## ⚠️ 如果不修复
 
 ### 短期影响
+
 - ❌ 所有需要 Drop off 模式的货柜无法排产
 - ❌ 有堆场的车队无法使用还箱档期功能
 - ❌ 排产成功率大幅下降
 
 ### 长期影响
+
 - ❌ 系统信用下降（用户不再信任智能排产）
 - ❌ 退回人工排产，效率低下
 - ❌ 可能错过最佳的还箱日期安排
@@ -209,14 +214,15 @@ private async decrementFleetReturnOccupancy(
 ### 开发规范
 
 1. ✅ **创建新实体后立即注册**
+
    ```typescript
    // 每创建一个 @Entity()，立即添加到 database/index.ts
-   import { NewEntity } from '../entities/NewEntity';
-   
+   import { NewEntity } from "../entities/NewEntity";
+
    entities: [
      // ...
-     NewEntity,  // ← 不要忘记！
-   ]
+     NewEntity, // ← 不要忘记！
+   ];
    ```
 
 2. ✅ **使用 TypeScript 严格模式**
@@ -224,9 +230,10 @@ private async decrementFleetReturnOccupancy(
    - 但仍然需要手动注册到 TypeORM
 
 3. ✅ **编写单元测试**
+
    ```typescript
-   describe('ExtTruckingReturnSlotOccupancy', () => {
-     it('should be able to create repository', () => {
+   describe("ExtTruckingReturnSlotOccupancy", () => {
+     it("should be able to create repository", () => {
        const repo = AppDataSource.getRepository(ExtTruckingReturnSlotOccupancy);
        expect(repo).toBeDefined();
      });

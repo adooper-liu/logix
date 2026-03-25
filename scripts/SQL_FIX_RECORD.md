@@ -9,6 +9,7 @@
 ### 错误现象
 
 执行验证脚本时出现 PostgreSQL 错误：
+
 ```
 ERROR:  column "trucking_company_id" does not exist
 LINE 14:     COUNT(CASE WHEN trucking_company_id ~ '^[A-Z0-9_]+$' THE...
@@ -19,8 +20,9 @@ LINE 14:     COUNT(CASE WHEN trucking_company_id ~ '^[A-Z0-9_]+$' THE...
 在 `UNION ALL` 查询中，第二个和第三个 `SELECT` 语句**缺少字段别名**，导致 PostgreSQL 无法正确解析列名。
 
 **错误的代码**：
+
 ```sql
-SELECT 
+SELECT
     'dict_trucking_port_mapping',      -- ✗ 缺少 as table_name
     COUNT(*),                           -- ✗ 缺少 as total_records
     COUNT(CASE WHEN ...),               -- ✗ 缺少 as standard_records
@@ -37,25 +39,26 @@ SELECT
 为所有字段添加明确的别名，确保 UNION ALL 的各个 SELECT 语句结构一致。
 
 **修复后的代码**：
+
 ```sql
-SELECT 
+SELECT
     'dict_trucking_port_mapping' as table_name,
     COUNT(*) as total_records,
     COUNT(CASE WHEN trucking_company_id ~ '^[A-Z0-9_]+$' THEN 1 END) as standard_records,
-    (SELECT COUNT(*) FROM dict_trucking_port_mapping tpm 
-     LEFT JOIN dict_trucking_companies tc ON tc.company_code = tpm.trucking_company_id 
+    (SELECT COUNT(*) FROM dict_trucking_port_mapping tpm
+     LEFT JOIN dict_trucking_companies tc ON tc.company_code = tpm.trucking_company_id
      WHERE tc.company_code IS NULL) as orphan_records,
     ROUND(100.0 * COUNT(CASE WHEN trucking_company_id ~ '^[A-Z0-9_]+$' THEN 1 END) / COUNT(*), 2) as compliance_rate
 FROM dict_trucking_port_mapping
 
 UNION ALL
 
-SELECT 
+SELECT
     'dict_warehouse_trucking_mapping' as table_name,
     COUNT(*) as total_records,
     COUNT(CASE WHEN trucking_company_id ~ '^[A-Z0-9_]+$' THEN 1 END) as standard_records,
-    (SELECT COUNT(*) FROM dict_warehouse_trucking_mapping wtm 
-     LEFT JOIN dict_trucking_companies tc ON tc.company_code = wtm.trucking_company_id 
+    (SELECT COUNT(*) FROM dict_warehouse_trucking_mapping wtm
+     LEFT JOIN dict_trucking_companies tc ON tc.company_code = wtm.trucking_company_id
      WHERE tc.company_code IS NULL) as orphan_records,
     ROUND(100.0 * COUNT(CASE WHEN trucking_company_id ~ '^[A-Z0-9_]+$' THEN 1 END) / COUNT(*), 2) as compliance_rate
 FROM dict_warehouse_trucking_mapping;
@@ -63,12 +66,12 @@ FROM dict_warehouse_trucking_mapping;
 
 ### 修改对比
 
-| 修改项 | 修改前 | 修改后 |
-|--------|--------|--------|
-| 第一个 SELECT | ✓ 有别名 | ✓ 保持不变 |
-| 第二个 SELECT | ✗ 无别名 | ✓ 添加完整别名 |
-| 第三个 SELECT | ✗ 无别名 | ✓ 添加完整别名 |
-| 字段数量 | 5 个 | 5 个（增加 5个别名） |
+| 修改项        | 修改前   | 修改后               |
+| ------------- | -------- | -------------------- |
+| 第一个 SELECT | ✓ 有别名 | ✓ 保持不变           |
+| 第二个 SELECT | ✗ 无别名 | ✓ 添加完整别名       |
+| 第三个 SELECT | ✗ 无别名 | ✓ 添加完整别名       |
+| 字段数量      | 5 个     | 5 个（增加 5个别名） |
 
 ---
 
@@ -120,7 +123,7 @@ FROM dict_warehouse_trucking_mapping;
 
 ```sql
 -- 正确的 UNION ALL 写法
-SELECT 
+SELECT
     'table1' as table_name,
     COUNT(*) as total_records,
     SUM(CASE WHEN condition THEN 1 END) as valid_records,
@@ -130,7 +133,7 @@ FROM table1
 
 UNION ALL
 
-SELECT 
+SELECT
     'table2' as table_name,        -- ✓ 相同的别名
     COUNT(*) as total_records,     -- ✓ 相同的别名
     SUM(CASE WHEN condition THEN 1 END) as valid_records,
@@ -172,9 +175,11 @@ FROM table2;
 ## 🔧 相关文件
 
 ### 已修复的文件
+
 - `scripts/verify-trucking-company-integrity.sql` ✅
 
 ### 相关文档
+
 - `scripts/TRUCKING_COMPANY_CODE_STANDARDIZATION.md` - 完整报告
 - `scripts/standardize-trucking-company-codes.sql` - 规范化脚本
 
@@ -185,15 +190,18 @@ FROM table2;
 修复后的脚本成功执行，生成了清晰的验证报告：
 
 **验证统计**：
+
 - ✅ dict_trucking_companies: 21 条记录，100% 合规
 - ✅ dict_trucking_port_mapping: 28 条记录，100% 合规
 - ✅ dict_warehouse_trucking_mapping: 53 条记录，100% 合规
 
 **外键完整性**：
+
 - ✅ 孤立港口映射记录：0
 - ✅ 孤立仓库映射记录：0
 
 **格式规范性**：
+
 - ✅ 所有 company_code：全大写格式
 - ✅ 所有 trucking_company_id：有效关联
 
@@ -201,6 +209,6 @@ FROM table2;
 
 **修复状态**: ✅ 完成  
 **影响范围**: 仅验证脚本（不影响业务数据）  
-**修复质量**: ⭐⭐⭐⭐⭐ 优秀  
+**修复质量**: ⭐⭐⭐⭐⭐ 优秀
 
 这个修复确保了验证脚本可以稳定运行，为数据质量检查提供可靠的工具支持！

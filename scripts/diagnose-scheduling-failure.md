@@ -3,6 +3,7 @@
 ## 📊 问题现象
 
 **错误消息**:
+
 ```
 ✗ ECMU5397691: 无映射关系中的仓库（请配置 dict_trucking_port_mapping、dict_warehouse_trucking_mapping）
 ✗ ECMU5399797: 无映射关系中的仓库（请配置 dict_trucking_port_mapping、dict_warehouse_trucking_mapping）
@@ -18,6 +19,7 @@
 ### 1️⃣ **目的港字段缺失**
 
 查询结果显示：
+
 - ✅ **5 个货柜全部缺失目的港**（missing_rate = 100%）
 - ✅ **都是 GB（英国）的货柜**
 - ✅ **port_of_discharge 字段为空**
@@ -33,17 +35,19 @@ ECMU5399797      |                   | GB
 ### 2️⃣ **映射链断裂**
 
 智能排产的映射逻辑：
+
 ```
 港口 (portCode) → dict_trucking_port_mapping → 车队 (truckingCompanyId)
                 → dict_warehouse_trucking_mapping → 仓库 (warehouseCode)
 ```
 
 **问题**: 因为 `port_of_discharge` 为空，代码执行到：
+
 ```typescript
 const portMappings = await this.truckingPortMappingRepo.find({
-  where: { portCode, country: countryCode, isActive: true }
+  where: { portCode, country: countryCode, isActive: true },
 });
-if (portMappings.length === 0) return [];  // ← 返回空数组
+if (portMappings.length === 0) return []; // ← 返回空数组
 ```
 
 由于 `portCode` 为空或不存在，找不到任何映射，导致排产失败。
@@ -57,6 +61,7 @@ if (portMappings.length === 0) return [];  // ← 返回空数组
 #### 步骤 1: 确定正确的目的港
 
 根据业务实际情况，英国的常见目的港可能是：
+
 - **GBLHR** - London（伦敦）- ✅ 数据库中已有
 - **GBPVG** - Port of Grangemouth
 - **GBSOU** - Southampton
@@ -82,7 +87,7 @@ WHERE bill_of_lading_number IN (
 #### 步骤 3: 验证修复
 
 ```sql
-SELECT 
+SELECT
     c.container_number AS "箱号",
     sf.port_of_discharge AS "目的港",
     ro.sell_to_country AS "销往国家"
@@ -124,12 +129,13 @@ VALUES ('TRANSIT_PORT_CODE', 'GB', 'TRUCKING_COMPANY_ID', true);
 if (!portCode) {
   // 回退到按国家查找所有仓库
   return await this.warehouseRepo.find({
-    where: { country: countryCode, status: 'ACTIVE' }
+    where: { country: countryCode, status: "ACTIVE" },
   });
 }
 ```
 
 **为什么不推荐**:
+
 - ❌ 违反了"港口→车队→仓库"的映射设计原则
 - ❌ 可能导致货物被分配到不合理或不经济的仓库
 - ❌ 掩盖了数据质量问题
@@ -181,11 +187,11 @@ WHERE bill_of_lading_number IN (
 
 ```sql
 -- 检查修复后的状态
-SELECT 
+SELECT
     c.container_number,
     sf.port_of_discharge,
     ro.sell_to_country,
-    CASE 
+    CASE
         WHEN sf.port_of_discharge IS NULL OR sf.port_of_discharge = '' THEN '❌ 仍需修复'
         ELSE '✅ 已修复'
     END AS status

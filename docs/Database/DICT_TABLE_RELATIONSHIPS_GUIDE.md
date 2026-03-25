@@ -15,24 +15,24 @@
 
 ### 核心字典表（16 个）
 
-| 序号 | 表名 | 中文名 | 主键 | 用途 |
-|------|------|--------|------|------|
-| 1 | `dict_countries` | 国家表 | `code` | ISO 国家代码 |
-| 2 | `dict_customer_types` | 客户类型表 | `type_code` | 客户分类 |
-| 3 | `dict_container_types` | 箱型表 | `type_code` | 集装箱类型 |
-| 4 | `dict_overseas_companies` | 海外分公司表 | `company_code` | 海外分公司 |
-| 5 | `dict_customs_brokers` | 报关行表 | `broker_code` | 报关服务商 |
-| 6 | `dict_freight_forwarders` | 货代表 | `forwarder_code` | 货运代理 |
-| 7 | `dict_shipping_companies` | 船公司表 | `company_code` | 航运公司 |
-| 8 | `dict_ports` | 港口表 | `port_code` | UN/LOCODE 港口 |
-| 9 | `dict_warehouses` | 仓库表 | `warehouse_code` | 海外仓库 |
-| 10 | `dict_trucking_companies` | 车队表 | `company_code` | 卡车运输公司 |
-| 11 | `dict_yards` | 堆场表 | `yard_code` | 集装箱堆场 |
-| 12 | `dict_scheduling_config` | 排产配置表 | - | 智能排产参数 |
-| 13 | `dict_trucking_port_mapping` | 港口 - 车队映射 | 复合主键 | 港口与车队的关联 |
-| 14 | `dict_warehouse_trucking_mapping` | 仓库 - 车队映射 | 复合主键 | 仓库与车队的关联 |
-| 15 | `dict_port_warehouse_mapping` | 港口 - 仓库映射 | 复合主键 | 港口与仓库的关联 |
-| 16 | `dict_universal_mapping` | 通用映射表 | - | 万能映射关系 |
+| 序号 | 表名                              | 中文名          | 主键             | 用途             |
+| ---- | --------------------------------- | --------------- | ---------------- | ---------------- |
+| 1    | `dict_countries`                  | 国家表          | `code`           | ISO 国家代码     |
+| 2    | `dict_customer_types`             | 客户类型表      | `type_code`      | 客户分类         |
+| 3    | `dict_container_types`            | 箱型表          | `type_code`      | 集装箱类型       |
+| 4    | `dict_overseas_companies`         | 海外分公司表    | `company_code`   | 海外分公司       |
+| 5    | `dict_customs_brokers`            | 报关行表        | `broker_code`    | 报关服务商       |
+| 6    | `dict_freight_forwarders`         | 货代表          | `forwarder_code` | 货运代理         |
+| 7    | `dict_shipping_companies`         | 船公司表        | `company_code`   | 航运公司         |
+| 8    | `dict_ports`                      | 港口表          | `port_code`      | UN/LOCODE 港口   |
+| 9    | `dict_warehouses`                 | 仓库表          | `warehouse_code` | 海外仓库         |
+| 10   | `dict_trucking_companies`         | 车队表          | `company_code`   | 卡车运输公司     |
+| 11   | `dict_yards`                      | 堆场表          | `yard_code`      | 集装箱堆场       |
+| 12   | `dict_scheduling_config`          | 排产配置表      | -                | 智能排产参数     |
+| 13   | `dict_trucking_port_mapping`      | 港口 - 车队映射 | 复合主键         | 港口与车队的关联 |
+| 14   | `dict_warehouse_trucking_mapping` | 仓库 - 车队映射 | 复合主键         | 仓库与车队的关联 |
+| 15   | `dict_port_warehouse_mapping`     | 港口 - 仓库映射 | 复合主键         | 港口与仓库的关联 |
+| 16   | `dict_universal_mapping`          | 通用映射表      | -                | 万能映射关系     |
 
 ---
 
@@ -67,7 +67,7 @@ dict_yards                  -- 堆场 → (可选)
 
 ```sql
 -- ✅ 第 3 级：依赖 Level 1 和 Level 2
-dict_trucking_port_mapping        -- 港口 - 车队映射 
+dict_trucking_port_mapping        -- 港口 - 车队映射
                                    → dict_trucking_companies.company_code
                                    → dict_ports.port_code (可选)
                                    → dict_countries.country
@@ -125,6 +125,7 @@ process_port_operations           -- 港口操作
 ### 阶段一：基础架构表（Level 1）
 
 **执行顺序**：
+
 ```sql
 -- 1. 国家表（最基础）
 CREATE TABLE dict_countries (
@@ -153,6 +154,7 @@ CREATE TABLE dict_container_types (
 ```
 
 **关键点**：
+
 - ✅ 这 3 个表**没有任何外键依赖**
 - ✅ 可以**最先创建**
 - ✅ 被其他表**广泛引用**
@@ -162,6 +164,7 @@ CREATE TABLE dict_container_types (
 ### 阶段二：主数据表（Level 2）
 
 **执行顺序**：
+
 ```sql
 -- 4. 海外分公司表
 CREATE TABLE dict_overseas_companies (
@@ -230,6 +233,7 @@ CREATE TABLE dict_yards (
 ```
 
 **关键点**：
+
 - ✅ 依赖 **Level 1** 的表（`dict_countries`）
 - ✅ 建立公司的**核心主数据**
 - ✅ 为映射表提供**数据源**
@@ -239,6 +243,7 @@ CREATE TABLE dict_yards (
 ### 阶段三：映射关系表（Level 3）
 
 **执行顺序**：
+
 ```sql
 -- 12. 港口 - 车队映射
 CREATE TABLE dict_trucking_port_mapping (
@@ -273,6 +278,7 @@ CREATE TABLE dict_port_warehouse_mapping (
 ```
 
 **关键点**：
+
 - ✅ 依赖 **Level 1 + Level 2** 的所有表
 - ✅ 建立**多对多关系**
 - ✅ 支持**智能排产算法**
@@ -304,6 +310,7 @@ DE   | 德国    | Germany     | 欧洲
 ```
 
 **前端实现**：
+
 ```vue
 <!-- 国家选择器 - 所有涉及国家的字段都从这里获取 -->
 <a-select v-model="formData.country">
@@ -332,6 +339,7 @@ MH_STAR_UK_LTD                    | MH Star UK Ltd    | GB
 ```
 
 **前端实现**：
+
 ```vue
 <!-- 分公司选择器 -->
 <a-select v-model="formData.overseasCompanyCode">
@@ -363,6 +371,7 @@ USLAX     | 洛杉矶    | Los Angeles  | US      | CA    | Los Angeles
 ```
 
 **前端实现**：
+
 ```vue
 <!-- 港口选择器 -->
 <a-select v-model="formData.portCode">
@@ -393,6 +402,7 @@ US_LA_001      | LA Distribution Ctr| AOSOM_USA_INC      | US
 ```
 
 **前端实现**：
+
 ```vue
 <!-- 仓库选择器 -->
 <a-select v-model="formData.warehouseCode">
@@ -433,6 +443,7 @@ CEVA_FREIGHT__UK | CEVA Freight UK Ltd    | GB      | 15             | true
 ```
 
 **前端实现**：
+
 ```vue
 <!-- 车队选择器 -->
 <a-select v-model="formData.truckingCompanyId">
@@ -474,16 +485,14 @@ GB      | GBFXT     | CEVA_FREIGHT__UK    | 150
 ```
 
 **前端实现**：
+
 ```vue
 <template>
   <a-form>
     <!-- 国家选择 -->
     <a-form-item label="国家">
       <a-select v-model="formData.country" @change="onCountryChange">
-        <a-select-option 
-          v-for="c in countries" 
-          :key="c.code" 
-          :value="c.code">
+        <a-select-option v-for="c in countries" :key="c.code" :value="c.code">
           {{ c.name_cn }}
         </a-select-option>
       </a-select>
@@ -492,10 +501,7 @@ GB      | GBFXT     | CEVA_FREIGHT__UK    | 150
     <!-- 港口选择 - 根据国家过滤 -->
     <a-form-item label="港口">
       <a-select v-model="formData.portCode">
-        <a-select-option 
-          v-for="port in filteredPorts" 
-          :key="port.port_code" 
-          :value="port.port_code">
+        <a-select-option v-for="port in filteredPorts" :key="port.port_code" :value="port.port_code">
           {{ port.port_name }}
         </a-select-option>
       </a-select>
@@ -504,10 +510,7 @@ GB      | GBFXT     | CEVA_FREIGHT__UK    | 150
     <!-- 车队选择 - 根据国家过滤 -->
     <a-form-item label="车队">
       <a-select v-model="formData.truckingCompanyId">
-        <a-select-option 
-          v-for="tc in filteredTruckingCompanies" 
-          :key="tc.company_code" 
-          :value="tc.company_code">
+        <a-select-option v-for="tc in filteredTruckingCompanies" :key="tc.company_code" :value="tc.company_code">
           {{ tc.company_name }}
         </a-select-option>
       </a-select>
@@ -527,36 +530,36 @@ export default {
   data() {
     return {
       formData: {
-        country: '',
-        portCode: '',
-        truckingCompanyId: '',
-        yardCapacity: 0
-      }
+        country: "",
+        portCode: "",
+        truckingCompanyId: "",
+        yardCapacity: 0,
+      },
     };
   },
   computed: {
     // 根据选择的国家过滤港口
     filteredPorts() {
       if (!this.formData.country) return [];
-      return this.ports.filter(p => p.country === this.formData.country);
+      return this.ports.filter((p) => p.country === this.formData.country);
     },
     // 根据选择的国家过滤车队
     filteredTruckingCompanies() {
       if (!this.formData.country) return [];
-      return this.truckingCompanies.filter(tc => tc.country === this.formData.country);
-    }
+      return this.truckingCompanies.filter((tc) => tc.country === this.formData.country);
+    },
   },
   methods: {
     onCountryChange() {
       // 清空下级选择
-      this.formData.portCode = '';
-      this.formData.truckingCompanyId = '';
+      this.formData.portCode = "";
+      this.formData.truckingCompanyId = "";
     },
     async saveMapping() {
       // 验证并保存映射关系
       await this.$api.saveTruckingPortMapping(this.formData);
-    }
-  }
+    },
+  },
 };
 </script>
 ```
@@ -574,16 +577,14 @@ GB      | UK_LON_001     | CEVA_FREIGHT__UK
 ```
 
 **前端实现**：
+
 ```vue
 <template>
   <a-form>
     <!-- 国家选择 -->
     <a-form-item label="国家">
       <a-select v-model="formData.country" @change="onCountryChange">
-        <a-select-option 
-          v-for="c in countries" 
-          :key="c.code" 
-          :value="c.code">
+        <a-select-option v-for="c in countries" :key="c.code" :value="c.code">
           {{ c.name_cn }}
         </a-select-option>
       </a-select>
@@ -592,10 +593,7 @@ GB      | UK_LON_001     | CEVA_FREIGHT__UK
     <!-- 仓库选择 - 根据国家过滤 -->
     <a-form-item label="仓库">
       <a-select v-model="formData.warehouseCode">
-        <a-select-option 
-          v-for="wh in filteredWarehouses" 
-          :key="wh.warehouse_code" 
-          :value="wh.warehouse_code">
+        <a-select-option v-for="wh in filteredWarehouses" :key="wh.warehouse_code" :value="wh.warehouse_code">
           {{ wh.warehouse_name }}
         </a-select-option>
       </a-select>
@@ -604,10 +602,7 @@ GB      | UK_LON_001     | CEVA_FREIGHT__UK
     <!-- 车队选择 - 根据国家过滤 -->
     <a-form-item label="车队">
       <a-select v-model="formData.truckingCompanyId">
-        <a-select-option 
-          v-for="tc in filteredTruckingCompanies" 
-          :key="tc.company_code" 
-          :value="tc.company_code">
+        <a-select-option v-for="tc in filteredTruckingCompanies" :key="tc.company_code" :value="tc.company_code">
           {{ tc.company_name }}
         </a-select-option>
       </a-select>
@@ -623,14 +618,14 @@ export default {
     // 根据选择的国家过滤仓库
     filteredWarehouses() {
       if (!this.formData.country) return [];
-      return this.warehouses.filter(w => w.country === this.formData.country);
+      return this.warehouses.filter((w) => w.country === this.formData.country);
     },
     // 根据选择的国家过滤车队
     filteredTruckingCompanies() {
       if (!this.formData.country) return [];
-      return this.truckingCompanies.filter(tc => tc.country === this.formData.country);
-    }
-  }
+      return this.truckingCompanies.filter((tc) => tc.country === this.formData.country);
+    },
+  },
 };
 </script>
 ```
@@ -655,45 +650,25 @@ export default {
 ```
 
 **Vue 组件示例**：
+
 ```vue
 <template>
   <div class="cascading-selector">
     <!-- Level 1: 国家 -->
-    <a-select 
-      v-model="selectedCountry" 
-      placeholder="选择国家"
-      @change="onCountryChange">
-      <a-select-option 
-        v-for="c in countries" 
-        :key="c.code" 
-        :value="c.code">
-        {{ c.name_cn }} ({{ c.code }})
-      </a-select-option>
+    <a-select v-model="selectedCountry" placeholder="选择国家" @change="onCountryChange">
+      <a-select-option v-for="c in countries" :key="c.code" :value="c.code"> {{ c.name_cn }} ({{ c.code }}) </a-select-option>
     </a-select>
 
     <!-- Level 2: 港口（依赖国家） -->
-    <a-select 
-      v-model="selectedPort" 
-      placeholder="选择港口"
-      :disabled="!selectedCountry"
-      @change="onPortChange">
-      <a-select-option 
-        v-for="port in filteredPorts" 
-        :key="port.port_code" 
-        :value="port.port_code">
+    <a-select v-model="selectedPort" placeholder="选择港口" :disabled="!selectedCountry" @change="onPortChange">
+      <a-select-option v-for="port in filteredPorts" :key="port.port_code" :value="port.port_code">
         {{ port.port_name }}
       </a-select-option>
     </a-select>
 
     <!-- Level 3: 车队（依赖国家） -->
-    <a-select 
-      v-model="selectedTruckingCompany" 
-      placeholder="选择车队"
-      :disabled="!selectedCountry">
-      <a-select-option 
-        v-for="tc in filteredTruckingCompanies" 
-        :key="tc.company_code" 
-        :value="tc.company_code">
+    <a-select v-model="selectedTruckingCompany" placeholder="选择车队" :disabled="!selectedCountry">
+      <a-select-option v-for="tc in filteredTruckingCompanies" :key="tc.company_code" :value="tc.company_code">
         {{ tc.company_name }}
       </a-select-option>
     </a-select>
@@ -704,34 +679,34 @@ export default {
 export default {
   data() {
     return {
-      selectedCountry: '',
-      selectedPort: '',
-      selectedTruckingCompany: '',
+      selectedCountry: "",
+      selectedPort: "",
+      selectedTruckingCompany: "",
       countries: [],
       ports: [],
-      truckingCompanies: []
+      truckingCompanies: [],
     };
   },
   computed: {
     filteredPorts() {
       if (!this.selectedCountry) return [];
-      return this.ports.filter(p => p.country === this.selectedCountry);
+      return this.ports.filter((p) => p.country === this.selectedCountry);
     },
     filteredTruckingCompanies() {
       if (!this.selectedCountry) return [];
-      return this.truckingCompanies.filter(tc => tc.country === this.selectedCountry);
-    }
+      return this.truckingCompanies.filter((tc) => tc.country === this.selectedCountry);
+    },
   },
   methods: {
     onCountryChange() {
       // 清空下级选择
-      this.selectedPort = '';
-      this.selectedTruckingCompany = '';
+      this.selectedPort = "";
+      this.selectedTruckingCompany = "";
     },
     onPortChange() {
       // 可以在这里添加更多逻辑
-    }
-  }
+    },
+  },
 };
 </script>
 ```
@@ -769,13 +744,13 @@ export default {
   computed: {
     filteredCompanies() {
       if (!this.country) return [];
-      return this.overseasCompanies.filter(c => c.country === this.country);
+      return this.overseasCompanies.filter((c) => c.country === this.country);
     },
     filteredWarehouses() {
       if (!this.companyCode) return [];
-      return this.warehouses.filter(w => w.company_code === this.companyCode);
-    }
-  }
+      return this.warehouses.filter((w) => w.company_code === this.companyCode);
+    },
+  },
 };
 </script>
 ```
@@ -787,49 +762,56 @@ export default {
 ### 场景：英国业务初始化
 
 #### Step 1: 录入英国国家代码
+
 ```sql
 INSERT INTO dict_countries (code, name_cn, name_en, continent)
 VALUES ('GB', '英国', 'United Kingdom', '欧洲');
 ```
 
 #### Step 2: 录入英国分公司
+
 ```sql
 INSERT INTO dict_overseas_companies (company_code, company_name, country)
 VALUES ('MH_STAR_UK_LTD', 'MH Star UK Ltd', 'GB');
 ```
 
 #### Step 3: 录入英国港口
+
 ```sql
 INSERT INTO dict_ports (port_code, port_name, port_name_en, country, state, city)
 VALUES ('GBFXT', '费利克斯托', 'Felixstowe', 'GB', 'ENG', 'Felixstowe');
 ```
 
 #### Step 4: 录入英国仓库
+
 ```sql
 INSERT INTO dict_warehouses (warehouse_code, warehouse_name, company_code, country)
 VALUES ('UK_LON_001', 'London Warehouse', 'MH_STAR_UK_LTD', 'GB');
 ```
 
 #### Step 5: 录入英国车队
+
 ```sql
 INSERT INTO dict_trucking_companies (company_code, company_name, country, daily_capacity, has_yard)
-VALUES 
+VALUES
   ('YUNEXPRESS_UK_LTD', 'YunExpress UK Ltd', 'GB', 10, true),
   ('CEVA_FREIGHT__UK__LTD', 'CEVA Freight (UK) Ltd', 'GB', 15, true);
 ```
 
 #### Step 6: 配置港口 - 车队映射
+
 ```sql
 INSERT INTO dict_trucking_port_mapping (country, port_code, trucking_company_id, yard_capacity)
-VALUES 
+VALUES
   ('GB', 'GBFXT', 'YUNEXPRESS_UK_LTD', 200),
   ('GB', 'GBFXT', 'CEVA_FREIGHT__UK__LTD', 150);
 ```
 
 #### Step 7: 配置仓库 - 车队映射
+
 ```sql
 INSERT INTO dict_warehouse_trucking_mapping (country, warehouse_code, trucking_company_id)
-VALUES 
+VALUES
   ('GB', 'UK_LON_001', 'YUNEXPRESS_UK_LTD'),
   ('GB', 'UK_LON_001', 'CEVA_FREIGHT__UK__LTD');
 ```
@@ -861,6 +843,7 @@ VALUES
 ```
 
 **数据来源**：
+
 - 国家列表 ← `SELECT * FROM dict_countries`
 - 港口列表 ← `SELECT * FROM dict_ports WHERE country = 'GB'`
 - 车队列表 ← `SELECT * FROM dict_trucking_companies WHERE country = 'GB'`
@@ -960,15 +943,8 @@ CREATE TABLE dict_warehouses (
 ### 3. 前端级联选择
 
 ```vue
-// ✅ 推荐：级联过滤，用户体验好
-computed: {
-  filteredPorts() {
-    if (!this.selectedCountry) return [];
-    return this.ports.filter(p => p.country === this.selectedCountry);
-  }
-}
-
-// ❌ 不推荐：显示所有数据，让用户手动筛选
+// ✅ 推荐：级联过滤，用户体验好 computed: { filteredPorts() { if (!this.selectedCountry) return []; return this.ports.filter(p => p.country === this.selectedCountry); } } // ❌
+不推荐：显示所有数据，让用户手动筛选
 ```
 
 ### 4. 数据完整性验证

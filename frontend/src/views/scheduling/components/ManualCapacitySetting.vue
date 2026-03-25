@@ -206,7 +206,7 @@ const props = defineProps<{
   resourceType?: 'warehouse' | 'trucking'
   warehouseCode?: string
   truckingCompanyId?: string
-  selectedDate?: string  // 可选：打开对话框时选中的日期
+  selectedDate?: string // 可选：打开对话框时选中的日期
 }>()
 
 const emit = defineEmits<{
@@ -217,14 +217,16 @@ const emit = defineEmits<{
 // 对话框可见性
 const dialogVisible = computed({
   get: () => props.visible,
-  set: (value: boolean) => emit('update:visible', value)
+  set: (value: boolean) => emit('update:visible', value),
 })
 
 // 当前资源信息（基于 props）
 const currentResourceType = computed(() => props.resourceType || 'warehouse')
 const currentWarehouseCode = computed(() => props.warehouseCode || '')
 const currentTruckingCompanyId = computed(() => props.truckingCompanyId || '')
-const initialDate = computed(() => props.selectedDate ? dayjs(props.selectedDate).format('YYYY-MM-DD') : '')
+const initialDate = computed(() =>
+  props.selectedDate ? dayjs(props.selectedDate).format('YYYY-MM-DD') : ''
+)
 
 // 标题显示
 const dialogTitle = computed(() => {

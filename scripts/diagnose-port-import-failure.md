@@ -20,11 +20,12 @@ if (seaFreightData.portOfDischarge) {
 ```
 
 `validatePort` 方法（第 324-344 行）：
+
 ```typescript
 private async validatePort(queryRunner: any, portName: string): Promise<string | null> {
   const code = await this.resolvePortCode(queryRunner, portName);
   if (code) return code;
-  
+
   // 未匹配到港口，尝试自动创建
   const candidate = trimmedName.toUpperCase().replace(/\s+/g, '');
   if (!/^[A-Z0-9]{5}$/.test(candidate)) {
@@ -37,6 +38,7 @@ private async validatePort(queryRunner: any, portName: string): Promise<string |
 ```
 
 `resolvePortCode` 方法（第 222-235 行）：
+
 ```typescript
 private async resolvePortCode(queryRunner: any, nameOrCode: string): Promise<string | null> {
   const v = nameOrCode.trim();
@@ -45,7 +47,7 @@ private async resolvePortCode(queryRunner: any, nameOrCode: string): Promise<str
     .createQueryBuilder('p')
     .where('p.port_code = :v OR LOWER(TRIM(p.port_name)) = LOWER(:v) OR (p.port_name_en IS NOT NULL AND LOWER(TRIM(p.port_name_en)) = LOWER(:v))', { v })
     .getOne();
-  
+
   if (!port) {
     logger.warn(`[Import] 港口未匹配（口径统一）: ${v}`);
     return null;  // ← 未找到匹配的港口
@@ -124,7 +126,7 @@ WHERE bill_of_lading_number IN (
 #### 步骤 3: 验证
 
 ```sql
-SELECT 
+SELECT
     c.container_number AS "箱号",
     sf.port_of_discharge AS "目的港代码",
     p.port_name AS "目的港名称",
@@ -144,6 +146,7 @@ ORDER BY c.container_number;
 ### 方案 B: 使用英文港口名称导入（临时方案）
 
 在 Excel 中将"目的港"改为"Felixstowe"，这样：
+
 - ✅ 如果数据库中已有 Felixstowe 港口记录，会匹配成功
 - ❌ 如果数据库中没有，仍然会失败
 
@@ -155,12 +158,13 @@ ORDER BY c.container_number;
 
 ```typescript
 // 不推荐：这会破坏 UN/LOCODE 标准
-const candidate = trimmedName.toUpperCase().replace(/\s+/g, '');
+const candidate = trimmedName.toUpperCase().replace(/\s+/g, "");
 // 移除正则检查
 // if (!/^[A-Z0-9]{5}$/.test(candidate)) { ... }
 ```
 
 **为什么不推荐**:
+
 - ❌ 违反 UN/LOCODE 国际标准
 - ❌ 导致港口代码混乱（如"费利克斯托"、"上海洋山港"等）
 - ❌ 影响后续港口映射和查询
@@ -185,8 +189,8 @@ ON CONFLICT (port_code) DO NOTHING;
 
 # 3. 验证港口已添加
 docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db -c "
-SELECT port_code, port_name, port_name_en, country 
-FROM dict_ports 
+SELECT port_code, port_name, port_name_en, country
+FROM dict_ports
 WHERE port_code = 'GBFXT';
 "
 
@@ -207,7 +211,7 @@ WHERE bill_of_lading_number IN (
 
 # 5. 验证更新结果
 docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db -c "
-SELECT 
+SELECT
     c.container_number,
     sf.port_of_discharge,
     p.port_name,
@@ -235,8 +239,8 @@ ORDER BY c.container_number;
 
 ```sql
 -- 检查常用英国港口
-SELECT port_code, port_name, port_name_en 
-FROM dict_ports 
+SELECT port_code, port_name, port_name_en
+FROM dict_ports
 WHERE country = 'GB' OR port_code LIKE 'GB%'
 ORDER BY port_code;
 ```

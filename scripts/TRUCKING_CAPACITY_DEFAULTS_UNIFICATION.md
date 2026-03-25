@@ -9,9 +9,11 @@
 ## 📊 执行概览
 
 ### 执行时间
+
 **2026-03-24**
 
 ### 涉及范围
+
 - **1 个表**: `dict_trucking_companies`
 - **21 个车队公司**
 - **2 个容量字段**
@@ -23,12 +25,14 @@
 ### 原始状态
 
 **表结构**：
+
 ```sql
 daily_capacity        | integer | DEFAULT 10
 daily_return_capacity | integer | -- 无默认值
 ```
 
 **数据统计**：
+
 ```
 总车队数：21
 有 daily_capacity 值：21 (100%)
@@ -40,12 +44,12 @@ NULL 值：21 (100%)
 
 所有 21 个车队的 `daily_return_capacity` 都是 NULL：
 
-| company_code | daily_capacity | daily_return_capacity |
-|-------------|----------------|---------------------|
-| YUNEXPRESS_UK_LTD | 10 | NULL ✗ |
-| CEVA_FREIGHT__UK__LTD | 10 | NULL ✗ |
-| DSV_AIR___SEA_SAS | 10 | NULL ✗ |
-| ... | ... | ... |
+| company_code          | daily_capacity | daily_return_capacity |
+| --------------------- | -------------- | --------------------- |
+| YUNEXPRESS_UK_LTD     | 10             | NULL ✗                |
+| CEVA_FREIGHT**UK**LTD | 10             | NULL ✗                |
+| DSV_AIR\_\_\_SEA_SAS  | 10             | NULL ✗                |
+| ...                   | ...            | ...                   |
 
 ### 根本原因
 
@@ -62,12 +66,14 @@ NULL 值：21 (100%)
 #### `unify-trucking-capacity-defaults.sql` - 统一默认值脚本
 
 **功能**：
+
 1. 检查当前容量字段状态
 2. 批量更新 NULL 值为相同的容量值
 3. 修改表结构，设置默认值约束
 4. 验证更新结果
 
 **核心 SQL**：
+
 ```sql
 -- 步骤 1: 更新 NULL 值
 UPDATE dict_trucking_companies
@@ -94,12 +100,14 @@ ALTER COLUMN daily_return_capacity SET DEFAULT 10;
 ### 表结构变更
 
 **修改前**：
+
 ```sql
 daily_capacity        | integer | DEFAULT 10
 daily_return_capacity | integer | -- 无默认值
 ```
 
 **修改后**：
+
 ```sql
 daily_capacity        | integer | DEFAULT 10
 daily_return_capacity | integer | DEFAULT 10
@@ -108,6 +116,7 @@ daily_return_capacity | integer | DEFAULT 10
 ### 数据一致性验证
 
 **统计结果**：
+
 ```
 总车队数：21
 有 daily_capacity: 21 (100%)
@@ -120,6 +129,7 @@ NULL 值：0 (0%)
 ```
 
 **一致性检查**：
+
 ```
 daily_capacity | daily_return_capacity | company_count | consistency
 ---------------|----------------------|---------------|-------------
@@ -132,19 +142,19 @@ daily_capacity | daily_return_capacity | company_count | consistency
 
 所有 21 个车队的容量配置完全一致：
 
-| 排名 | 公司代码 | 公司名称 | daily_capacity | daily_return_capacity | 状态 |
-|------|---------|---------|----------------|----------------------|------|
-| 1 | ALPHA_CARGO_INTEMATIONAL_LOGISTICS | ALPHA CARGO INTEMATIONAL LOGISTICS | 10 | 10 | ✓ 一致 |
-| 2 | ATLANTIC_FORWARDING_SPAIN__S_L_ | Atlantic Forwarding Spain, S.L. | 10 | 10 | ✓ 一致 |
-| 3 | CEVA_FREIGHT__UK__LTD | CEVA Freight (UK) Ltd | 10 | 10 | ✓ 一致 |
-| 4 | DSV_AIR___SEA_SAS | DSV Air & Sea SAS | 10 | 10 | ✓ 一致 |
-| 5 | EV_CARGO_GLOBAL_FORWARDING | EV CARGO GLOBAL FORWARDING | 10 | 10 | ✓ 一致 |
-| 6 | GEODIS_FF_FRANCE | GEODIS FF FRANCE | 10 | 10 | ✓ 一致 |
-| 7 | INTERFRACHT_CONTAINER_OVERSEAS_SERVICE_GMBH | INTERFRACHT Container Overseas Service GmbH | 10 | 10 | ✓ 一致 |
-| 8 | JK_EXPRESS_USA_INC | JK EXPRESS USA INC | 10 | 10 | ✓ 一致 |
-| 9 | JL_MANAGEMENT_USA_INC_ | JL MANAGEMENT USA INC. | 10 | 10 | ✓ 一致 |
-| 10 | LC_LOGISTICS_SERVICES__INC | LC Logistics Services, Inc | 10 | 10 | ✓ 一致 |
-| ... | ... | ... | ... | ... | ✓ 一致 |
+| 排名 | 公司代码                                    | 公司名称                                    | daily_capacity | daily_return_capacity | 状态   |
+| ---- | ------------------------------------------- | ------------------------------------------- | -------------- | --------------------- | ------ |
+| 1    | ALPHA_CARGO_INTEMATIONAL_LOGISTICS          | ALPHA CARGO INTEMATIONAL LOGISTICS          | 10             | 10                    | ✓ 一致 |
+| 2    | ATLANTIC*FORWARDING_SPAIN\_\_S_L*           | Atlantic Forwarding Spain, S.L.             | 10             | 10                    | ✓ 一致 |
+| 3    | CEVA_FREIGHT**UK**LTD                       | CEVA Freight (UK) Ltd                       | 10             | 10                    | ✓ 一致 |
+| 4    | DSV_AIR\_\_\_SEA_SAS                        | DSV Air & Sea SAS                           | 10             | 10                    | ✓ 一致 |
+| 5    | EV_CARGO_GLOBAL_FORWARDING                  | EV CARGO GLOBAL FORWARDING                  | 10             | 10                    | ✓ 一致 |
+| 6    | GEODIS_FF_FRANCE                            | GEODIS FF FRANCE                            | 10             | 10                    | ✓ 一致 |
+| 7    | INTERFRACHT_CONTAINER_OVERSEAS_SERVICE_GMBH | INTERFRACHT Container Overseas Service GmbH | 10             | 10                    | ✓ 一致 |
+| 8    | JK_EXPRESS_USA_INC                          | JK EXPRESS USA INC                          | 10             | 10                    | ✓ 一致 |
+| 9    | JL*MANAGEMENT_USA_INC*                      | JL MANAGEMENT USA INC.                      | 10             | 10                    | ✓ 一致 |
+| 10   | LC_LOGISTICS_SERVICES\_\_INC                | LC Logistics Services, Inc                  | 10             | 10                    | ✓ 一致 |
+| ...  | ...                                         | ...                                         | ...            | ...                   | ✓ 一致 |
 
 **全部 21 个车队**: ✅ 容量一致
 
@@ -177,12 +187,14 @@ daily_capacity | daily_return_capacity | company_count | consistency
 ### 数据库约束
 
 **默认值约束**：
+
 ```sql
 ALTER TABLE dict_trucking_companies
 ALTER COLUMN daily_return_capacity SET DEFAULT 10;
 ```
 
 **效果**：
+
 - 新插入的记录自动使用默认值 10
 - 确保数据一致性
 - 减少应用程序的验证负担
@@ -190,6 +202,7 @@ ALTER COLUMN daily_return_capacity SET DEFAULT 10;
 ### 数据更新策略
 
 **批量更新**：
+
 ```sql
 UPDATE dict_trucking_companies
 SET daily_return_capacity = daily_capacity
@@ -197,6 +210,7 @@ WHERE daily_return_capacity IS NULL;
 ```
 
 **优势**：
+
 - 高效处理大量数据
 - 保持与 `daily_capacity` 的一致性
 - 事务安全，可回滚
@@ -237,11 +251,11 @@ WHERE daily_return_capacity IS NULL;
 
 ```sql
 -- 应该只返回一行：10 | 10 | 21 | ✓ 一致
-SELECT 
+SELECT
     daily_capacity,
     daily_return_capacity,
     COUNT(*) as company_count,
-    CASE 
+    CASE
         WHEN daily_capacity = daily_return_capacity THEN '✓ 一致'
         ELSE '✗ 不一致'
     END as consistency
@@ -268,7 +282,7 @@ ORDER BY daily_capacity, consistency;
 ```sql
 -- 可以基于业务需求设置不同的默认值
 UPDATE dict_trucking_companies
-SET daily_return_capacity = CASE 
+SET daily_return_capacity = CASE
     WHEN country = 'US' THEN 15
     WHEN country = 'CN' THEN 12
     ELSE 10
@@ -309,6 +323,7 @@ WHERE daily_capacity != daily_return_capacity;
 4. ✅ **车队容量字段统一** (默认值一致)
 
 这四大规范化共同确保了：
+
 - 智能排柜系统的完整数据基础
 - 容量约束的准确计算
 - 资源调度的优化决策
@@ -317,13 +332,13 @@ WHERE daily_capacity != daily_return_capacity;
 
 ## 📊 最终验证报告
 
-| 指标 | 修改前 | 修改后 | 改进 |
-|------|--------|--------|------|
-| 总车队数 | 21 | 21 | - |
-| 有 daily_capacity | 21 (100%) | 21 (100%) | ✅ 保持 |
-| 有 daily_return_capacity | 0 (0%) | 21 (100%) | ⬆️ +100% |
-| NULL 值 | 21 (100%) | 0 (0%) | ⬇️ -100% |
-| 容量一致率 | 0% | 100% | ⬆️ +100% |
+| 指标                     | 修改前    | 修改后    | 改进     |
+| ------------------------ | --------- | --------- | -------- |
+| 总车队数                 | 21        | 21        | -        |
+| 有 daily_capacity        | 21 (100%) | 21 (100%) | ✅ 保持  |
+| 有 daily_return_capacity | 0 (0%)    | 21 (100%) | ⬆️ +100% |
+| NULL 值                  | 21 (100%) | 0 (0%)    | ⬇️ -100% |
+| 容量一致率               | 0%        | 100%      | ⬆️ +100% |
 
 **综合质量评分**: ⭐⭐⭐⭐⭐ 优秀
 

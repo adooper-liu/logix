@@ -10,17 +10,17 @@
 $additionalScripts = @(
     # 智能处理
     "008_add_intelligent_processing.sql",
-    
+
     # 日期时间类型统一（重要）- 新增
     "unify-datetime-types.sql",
-    
+
     # 运输费用字段 - 已添加
     "add_transport_fee_to_warehouse_trucking_mapping.sql",
     "add_transport_fee_to_trucking_port_mapping.sql",
-    
+
     # 手动覆盖字段 - 已添加
     "add_manual_override_fields_to_occupancy_tables.sql",
-    
+
     # ... 其他脚本
 )
 ```
@@ -31,15 +31,15 @@ $additionalScripts = @(
 
 ### ✅ 已包含的脚本（共 **54** 个）
 
-| 步骤 | 类别 | 数量 |
-|------|------|------|
-| Step 1 | 基础表创建 | 6 个 |
-| Step 2 | 核心迁移 | 22 个 |
-| Step 3 | 配置与索引 | 4 个 |
-| Step 4 | 数据修复与扩展 | 13 个 |
-| Step 5 | 港口数据 | 3 个 |
-| Step 6 | 智能处理与其他 | **12 个** (新增 1 个) |
-| **总计** | - | **60 个** |
+| 步骤     | 类别           | 数量                  |
+| -------- | -------------- | --------------------- |
+| Step 1   | 基础表创建     | 6 个                  |
+| Step 2   | 核心迁移       | 22 个                 |
+| Step 3   | 配置与索引     | 4 个                  |
+| Step 4   | 数据修复与扩展 | 13 个                 |
+| Step 5   | 港口数据       | 3 个                  |
+| Step 6   | 智能处理与其他 | **12 个** (新增 1 个) |
+| **总计** | -              | **60 个**             |
 
 ---
 
@@ -69,7 +69,8 @@ $additionalScripts = @(
 - ❌ fix_port_operations_ata_manual.sql
 - ❌ fix_port_operations_ata_null.sql
 
-**排除原因**: 
+**排除原因**:
+
 - 这些都是针对 hypertable 的临时解决方案
 - 现在数据库是普通表，字段可以为 NULL
 - 后端代码已移除自动填充逻辑
@@ -100,28 +101,28 @@ $additionalScripts = @(
 
 ```sql
 -- 验证 transport_fee 字段存在
-SELECT column_name, data_type 
-FROM information_schema.columns 
-WHERE table_name = 'dict_warehouse_trucking_mapping' 
+SELECT column_name, data_type
+FROM information_schema.columns
+WHERE table_name = 'dict_warehouse_trucking_mapping'
 AND column_name = 'transport_fee';
 
 -- 验证日期时间类型已统一
-SELECT table_name, column_name, data_type 
-FROM information_schema.columns 
-WHERE table_name IN ('process_sea_freight', 'process_port_operations') 
-AND column_name LIKE '%date%' 
+SELECT table_name, column_name, data_type
+FROM information_schema.columns
+WHERE table_name IN ('process_sea_freight', 'process_port_operations')
+AND column_name LIKE '%date%'
 ORDER BY table_name, column_name;
 
 -- 验证 actual_loading_date 可以为 NULL
-SELECT column_name, is_nullable 
-FROM information_schema.columns 
-WHERE table_name = 'process_sea_freight' 
+SELECT column_name, is_nullable
+FROM information_schema.columns
+WHERE table_name = 'process_sea_freight'
 AND column_name = 'actual_loading_date';
 
 -- 验证 ata 可以为 NULL
-SELECT column_name, is_nullable 
-FROM information_schema.columns 
-WHERE table_name = 'process_port_operations' 
+SELECT column_name, is_nullable
+FROM information_schema.columns
+WHERE table_name = 'process_port_operations'
 AND column_name = 'ata';
 ```
 
@@ -142,12 +143,14 @@ SELECT COUNT(*) FROM dict_warehouse_trucking_mapping;
 ## 📝 关键修改总结
 
 ### 1. ✅ 添加了 `unify-datetime-types.sql`
+
 - **作用**: 统一所有日期时间字段为 TIMESTAMP 类型
 - **影响**: 避免类型不匹配导致的查询和计算错误
 - **优先级**: P0 - 必须添加
 
 ### 2. ✅ 添加了 `transport_fee` 字段迁移
-- **文件**: 
+
+- **文件**:
   - `add_transport_fee_to_warehouse_trucking_mapping.sql`
   - `add_transport_fee_to_trucking_port_mapping.sql`
 - **作用**: 为仓库 - 车队映射表和港口 - 车队映射表添加运输费用字段
@@ -155,6 +158,7 @@ SELECT COUNT(*) FROM dict_warehouse_trucking_mapping;
 - **优先级**: P0 - 必须添加（后端代码已依赖此字段）
 
 ### 3. ✅ 添加了 `manual_override_fields` 迁移
+
 - **文件**: `add_manual_override_fields_to_occupancy_tables.sql`
 - **作用**: 为占用表添加手动覆盖字段
 - **影响**: 支持手动调整日历能力
@@ -174,6 +178,7 @@ SELECT COUNT(*) FROM dict_warehouse_trucking_mapping;
 6. **智能处理与其他** → 高级功能和补充
 
 **注意**: `unify-datetime-types.sql` 在 Step 6 执行是正确的，因为：
+
 - 它依赖于表已经创建
 - 它修改的是已有表的字段类型
 - 不会与基础表创建冲突

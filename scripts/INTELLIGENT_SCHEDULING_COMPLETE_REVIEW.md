@@ -35,8 +35,8 @@
 输入：待排产的集装箱（schedule_status = initial）
 处理：智能算法计算最优时间节点
 输出：已排产的集装箱（schedule_status = issued）
-       包含：plannedCustomsDate, plannedPickupDate, 
-             plannedDeliveryDate, plannedUnloadDate, 
+       包含：plannedCustomsDate, plannedPickupDate,
+             plannedDeliveryDate, plannedUnloadDate,
              plannedReturnDate
 ```
 
@@ -48,55 +48,55 @@
 
 #### 核心服务文件
 
-| 文件 | 行数 | 功能 | 状态 |
-|------|------|------|------|
-| `intelligentScheduling.service.ts` | 1071 | 核心排产逻辑 | ✅ 完成 |
+| 文件                                 | 行数 | 功能         | 状态    |
+| ------------------------------------ | ---- | ------------ | ------- |
+| `intelligentScheduling.service.ts`   | 1071 | 核心排产逻辑 | ✅ 完成 |
 | `schedulingCostOptimizer.service.ts` | ~400 | 成本优化评估 | ✅ 完成 |
-| `demurrage.service.ts` | ~300 | 滞港费计算 | ✅ 完成 |
-| `containerStatus.service.ts` | ~200 | 货柜状态追踪 | ✅ 完成 |
+| `demurrage.service.ts`               | ~300 | 滞港费计算   | ✅ 完成 |
+| `containerStatus.service.ts`         | ~200 | 货柜状态追踪 | ✅ 完成 |
 
 #### 控制器层
 
-| 文件 | 功能 | API 端点 | 状态 |
-|------|------|----------|------|
+| 文件                       | 功能           | API 端点               | 状态    |
+| -------------------------- | -------------- | ---------------------- | ------- |
 | `scheduling.controller.ts` | 批量排产、预览 | `/api/v1/scheduling/*` | ✅ 完成 |
-| `container.controller.ts` | 单柜排产、更新 | `/api/containers/*` | ✅ 完成 |
+| `container.controller.ts`  | 单柜排产、更新 | `/api/containers/*`    | ✅ 完成 |
 
 #### 实体依赖（17 个）
 
 ```typescript
 // 核心业务实体
-Container               // 货柜主表
-ReplenishmentOrder      // 备货单
-PortOperation           // 港口操作
-SeaFreight              // 海运主表
+Container; // 货柜主表
+ReplenishmentOrder; // 备货单
+PortOperation; // 港口操作
+SeaFreight; // 海运主表
 
 // 资源实体
-Warehouse               // 仓库
-TruckingCompany         // 车队
-Yard                    // 堆场
-CustomsBroker           // 报关行
+Warehouse; // 仓库
+TruckingCompany; // 车队
+Yard; // 堆场
+CustomsBroker; // 报关行
 
 // 占用表实体（产能约束）
-ExtWarehouseDailyOccupancy     // 仓库日产能占用
-ExtTruckingSlotOccupancy       // 车队提柜档期占用
-ExtTruckingReturnSlotOccupancy // 车队还箱档期占用 ✅ 已修复
-ExtYardDailyOccupancy          // 堆场日产能占用
+ExtWarehouseDailyOccupancy; // 仓库日产能占用
+ExtTruckingSlotOccupancy; // 车队提柜档期占用
+ExtTruckingReturnSlotOccupancy; // 车队还箱档期占用 ✅ 已修复
+ExtYardDailyOccupancy; // 堆场日产能占用
 
 // 映射关系实体
-TruckingPortMapping        // 车队 - 港口映射
-WarehouseTruckingMapping   // 仓库 - 车队映射
+TruckingPortMapping; // 车队 - 港口映射
+WarehouseTruckingMapping; // 仓库 - 车队映射
 
 // 配置与费用实体
-DictSchedulingConfig       // 排产配置
-ExtDemurrageStandard       // 滞港费标准
-ExtDemurrageRecord         // 滞港费记录
+DictSchedulingConfig; // 排产配置
+ExtDemurrageStandard; // 滞港费标准
+ExtDemurrageRecord; // 滞港费记录
 
 // 辅助实体
-Customer                   // 客户
-EmptyReturn                // 空箱返还
-TruckingTransport          // 卡车运输
-WarehouseOperation         // 仓库操作
+Customer; // 客户
+EmptyReturn; // 空箱返还
+TruckingTransport; // 卡车运输
+WarehouseOperation; // 仓库操作
 ```
 
 **✅ 完成度**: 100% 实体已定义并注册
@@ -121,11 +121,11 @@ frontend/src/views/scheduling/
 
 #### API 服务
 
-| 方法 | 端点 | 功能 | 状态 |
-|------|------|------|------|
-| POST | `/api/scheduling/batch-schedule` | 批量排产 | ✅ 完成 |
-| GET | `/api/scheduling/overview` | 获取排产概览 | ✅ 完成 |
-| POST | `/api/containers/:id/schedule` | 手工排产 | ✅ 完成 |
+| 方法 | 端点                             | 功能         | 状态    |
+| ---- | -------------------------------- | ------------ | ------- |
+| POST | `/api/scheduling/batch-schedule` | 批量排产     | ✅ 完成 |
+| GET  | `/api/scheduling/overview`       | 获取排产概览 | ✅ 完成 |
+| POST | `/api/containers/:id/schedule`   | 手工排产     | ✅ 完成 |
 
 **✅ 完成度**: 90%（主要功能已实现）
 
@@ -144,19 +144,19 @@ frontend/src/views/scheduling/
 ```
 1. 查询待排产货柜
    WHERE schedule_status IN ('initial', 'issued')
-   
+
 2. 按清关可放行日排序
    ORDER BY ATA/ETA ASC, last_free_date ASC
-   
+
 3. 分批处理 (limit/skip)
    支持断点续排
-   
+
 4. 滞港费预计算
    并发计算 lastFreeDate
-   
+
 5. 逐柜排产
    scheduleSingleContainer()
-   
+
 6. 返回结果
    { success, total, successCount, failedCount, results }
 ```
@@ -171,13 +171,13 @@ frontend/src/views/scheduling/
 
 ```typescript
 interface ScheduleRequest {
-  country?: string;           // 国家过滤
-  startDate?: string;         // 开始日期
-  endDate?: string;           // 结束日期
-  forceSchedule?: boolean;    // 强制重排
-  containerNumbers?: string[];// 指定柜号
-  limit?: number;             // 每批数量
-  skip?: number;              // 跳过数量
+  country?: string; // 国家过滤
+  startDate?: string; // 开始日期
+  endDate?: string; // 结束日期
+  forceSchedule?: boolean; // 强制重排
+  containerNumbers?: string[]; // 指定柜号
+  limit?: number; // 每批数量
+  skip?: number; // 跳过数量
 }
 ```
 
@@ -248,15 +248,15 @@ Step 7: 计算还箱日
 滞港费 (Demurrage):
   - 超过免费期后产生
   - 按天计费，累进费率
-  
+
 堆存费 (Storage):
   - 在堆场存放费用
   - Drop off 模式特有
-  
+
 运输费 (Transport):
   - 港口→仓库/堆场
   - 距离×单价
-  
+
 堆场操作费 (Yard Handling):
   - 卸柜、装柜操作
   - 固定费用
@@ -268,13 +268,13 @@ Step 7: 计算还箱日
 1. 生成所有可行方案
    - Direct: 直送仓库
    - Via Yard: 经堆场中转
-   
+
 2. 评估每个方案的成本
    evaluateTotalCost(option)
-   
+
 3. 选择成本最低的方案
    selectBestOption(options)
-   
+
 4. 生成优化建议
    "使用外部堆场可节省 $XXX"
 ```
@@ -282,7 +282,7 @@ Step 7: 计算还箱日
 #### 代码位置
 
 - **服务**: `schedulingCostOptimizer.service.ts`
-- **评估方法**: `evaluateTotalCost()` 
+- **评估方法**: `evaluateTotalCost()`
 - **方案生成**: `generateAllFeasibleOptions()`
 
 **✅ 实现状态**: 85% 完成（部分 UI 未完全集成）
@@ -293,11 +293,11 @@ Step 7: 计算还箱日
 
 #### 三类占用表
 
-| 占用表 | 用途 | 约束对象 | 维度 |
-|--------|------|----------|------|
-| ExtWarehouseDailyOccupancy | 仓库日产能占用 | 卸柜日 | warehouse_code + date |
-| ExtTruckingSlotOccupancy | 提柜档期占用 | 提柜日 | trucking_company_id + date |
-| ExtTruckingReturnSlotOccupancy | 还箱档期占用 | 还箱日 | trucking_company_id + date |
+| 占用表                         | 用途           | 约束对象 | 维度                       |
+| ------------------------------ | -------------- | -------- | -------------------------- |
+| ExtWarehouseDailyOccupancy     | 仓库日产能占用 | 卸柜日   | warehouse_code + date      |
+| ExtTruckingSlotOccupancy       | 提柜档期占用   | 提柜日   | trucking_company_id + date |
+| ExtTruckingReturnSlotOccupancy | 还箱档期占用   | 还箱日   | trucking_company_id + date |
 
 #### 扣减逻辑
 
@@ -310,7 +310,7 @@ async decrementWarehouseCapacity(
   const occupancy = await this.warehouseOccupancyRepo.findOne({
     where: { warehouseCode, date: unloadDate }
   });
-  
+
   if (occupancy) {
     occupancy.plannedTrips += 1;
     occupancy.remaining -= 1;
@@ -501,22 +501,19 @@ async decrementWarehouseCapacity(
 
 #### 1. 成本优化深度集成 (优先级：中)
 
-**现状**: 
+**现状**:
+
 - ✅ 成本评估服务已实现
 - ⚠️ 前端 UI 部分集成
 - ❌ 实际排产时未调用成本优化
 
 **建议**:
+
 ```typescript
 // 在 scheduleSingleContainer 中添加
 if (config.enableCostOptimization) {
-  const costResult = await this.costOptimizerService.evaluateSchedule(
-    container,
-    plannedPickupDate,
-    plannedUnloadDate,
-    lastFreeDate
-  );
-  
+  const costResult = await this.costOptimizerService.evaluateSchedule(container, plannedPickupDate, plannedUnloadDate, lastFreeDate);
+
   if (costResult.optimalCost < currentCost * 0.7) {
     // 采用优化方案
     plannedUnloadDate = costResult.optimalOption.unloadDate;
@@ -531,19 +528,20 @@ if (config.enableCostOptimization) {
 **功能**: 基于 ETA 提前排产，不等待 ATA
 
 **实现思路**:
+
 ```typescript
 // 新增方法：predictiveSchedule()
 async predictiveSchedule(container: Container): Promise<ScheduleResult> {
   // 使用 ETA 而非 ATA
   const estimatedArrival = container.seaFreight?.eta;
-  
+
   // 预测未来 N 天的仓库产能
   const futureCapacity = await this.predictFutureCapacity(
     warehouseCode,
     estimatedArrival,
     7 // 未来 7 天
   );
-  
+
   // 提前锁定产能
   await this.reserveCapacity(warehouseCode, estimatedArrival);
 }
@@ -556,6 +554,7 @@ async predictiveSchedule(container: Container): Promise<ScheduleResult> {
 **现状**: 基于简单规则（先到先得）
 
 **改进方向**:
+
 - 机器学习历史数据
 - 考虑季节性因素
 - 动态调整权重
@@ -567,7 +566,8 @@ async predictiveSchedule(container: Container): Promise<ScheduleResult> {
 
 ### 问题 1: ExtTruckingReturnSlotOccupancy 未注册 ✅ 已修复
 
-**症状**: 
+**症状**:
+
 ```
 No metadata for "ExtTruckingReturnSlotOccupancy" was found.
 排产失败：成功 0/5，失败 5
@@ -575,7 +575,8 @@ No metadata for "ExtTruckingReturnSlotOccupancy" was found.
 
 **原因**: 实体未在 TypeORM entities 数组注册
 
-**修复**: 
+**修复**:
+
 - 添加导入：`import { ExtTruckingReturnSlotOccupancy } from ...`
 - 注册实体：`entities: [..., ExtTruckingReturnSlotOccupancy]`
 
@@ -585,7 +586,8 @@ No metadata for "ExtTruckingReturnSlotOccupancy" was found.
 
 ### 问题 2: customer_code 无法自动填充 ✅ 已修复
 
-**症状**: 
+**症状**:
+
 ```
 备货单 customer_code 为 NULL
 排产失败："无映射关系中的仓库"
@@ -593,7 +595,8 @@ No metadata for "ExtTruckingReturnSlotOccupancy" was found.
 
 **原因**: 导入逻辑错误，用 sell_to_country 匹配 customer_name
 
-**修复**: 
+**修复**:
+
 - 方法重命名：`fillCustomerCodeFromSellToCountry` → `fillCustomerCodeFromCustomerName`
 - 查询修正：`WHERE customerName = customerName`
 
@@ -603,14 +606,16 @@ No metadata for "ExtTruckingReturnSlotOccupancy" was found.
 
 ### 问题 3: 缺失客户信息导致排产失败 ✅ 已修复
 
-**症状**: 
+**症状**:
+
 ```
 ✗ ECMU5399797: 无映射关系中的仓库
 ```
 
 **原因**: 备货单没有 customer_code，无法确定国家
 
-**修复**: 
+**修复**:
+
 - 创建测试客户：`TEST_UK_CUSTOMER`
 - 更新备货单客户代码
 
@@ -622,13 +627,14 @@ No metadata for "ExtTruckingReturnSlotOccupancy" was found.
 
 ### 排产速度
 
-| 场景 | 柜数 | 耗时 | 平均/柜 |
-|------|------|------|---------|
-| 小批量 | 10 | ~5 秒 | 0.5 秒 |
-| 中批量 | 50 | ~30 秒 | 0.6 秒 |
-| 大批量 | 200 | ~120 秒 | 0.6 秒 |
+| 场景   | 柜数 | 耗时    | 平均/柜 |
+| ------ | ---- | ------- | ------- |
+| 小批量 | 10   | ~5 秒   | 0.5 秒  |
+| 中批量 | 50   | ~30 秒  | 0.6 秒  |
+| 大批量 | 200  | ~120 秒 | 0.6 秒  |
 
 **优化空间**:
+
 - ✅ 并发计算滞港费（已完成）
 - ⚠️ 批量数据库操作（部分完成）
 - ❌ 缓存重复查询（待优化）
@@ -640,6 +646,7 @@ No metadata for "ExtTruckingReturnSlotOccupancy" was found.
 **峰值**: ~500MB (处理 200 柜时)
 
 **优化建议**:
+
 ```typescript
 // 使用流式查询而非一次性加载
 const stream = await repository.stream({
@@ -739,16 +746,16 @@ for await (const chunk of stream) {
 
 ### 系统成熟度评估
 
-| 维度 | 完成度 | 评分 |
-|------|--------|------|
-| 核心功能 | 95% | ⭐⭐⭐⭐⭐ |
-| 数据模型 | 100% | ⭐⭐⭐⭐⭐ |
-| 后端服务 | 95% | ⭐⭐⭐⭐⭐ |
-| 前端界面 | 85% | ⭐⭐⭐⭐ |
-| 测试覆盖 | 60% | ⭐⭐⭐ |
-| 文档完善 | 90% | ⭐⭐⭐⭐⭐ |
-| 性能优化 | 75% | ⭐⭐⭐⭐ |
-| 监控告警 | 40% | ⭐⭐ |
+| 维度     | 完成度 | 评分       |
+| -------- | ------ | ---------- |
+| 核心功能 | 95%    | ⭐⭐⭐⭐⭐ |
+| 数据模型 | 100%   | ⭐⭐⭐⭐⭐ |
+| 后端服务 | 95%    | ⭐⭐⭐⭐⭐ |
+| 前端界面 | 85%    | ⭐⭐⭐⭐   |
+| 测试覆盖 | 60%    | ⭐⭐⭐     |
+| 文档完善 | 90%    | ⭐⭐⭐⭐⭐ |
+| 性能优化 | 75%    | ⭐⭐⭐⭐   |
+| 监控告警 | 40%    | ⭐⭐       |
 
 **综合评分**: ⭐⭐⭐⭐ (4.0/5.0)
 
@@ -759,7 +766,7 @@ for await (const chunk of stream) {
 ✅ **自动化**: 减少 90% 人工排产工作  
 ✅ **智能化**: 基于规则和成本的智能决策  
 ✅ **可靠**: 严格的产能约束保证可执行性  
-✅ **可扩展**: 模块化设计便于功能扩展  
+✅ **可扩展**: 模块化设计便于功能扩展
 
 ---
 

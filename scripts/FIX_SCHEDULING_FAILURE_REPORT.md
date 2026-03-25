@@ -4,7 +4,8 @@
 
 **时间**: 2026-03-25 15:30  
 **现象**: 5 个集装箱排产失败  
-**错误信息**: 
+**错误信息**:
+
 ```
 ✗ ECMU5399797: 无映射关系中的仓库（请配置 dict_trucking_port_mapping、dict_warehouse_trucking_mapping）
 ✗ ECMU5381817: 无映射关系中的仓库
@@ -36,6 +37,7 @@
 ### 详细诊断
 
 #### 1. 集装箱信息
+
 ```sql
 container_number | order_number | customer_code | customer_country
 -----------------|--------------|---------------|------------------
@@ -51,13 +53,15 @@ ECMU5400183      | 25DSE8722    | NULL          | NULL
 ---
 
 #### 2. 海运信息
+
 ```sql
 bill_of_lading_number | port_of_discharge | dest_country
 ----------------------|-------------------|-------------
 NGP3069047            | GBFXT             | GB
 ```
 
-**发现**: 
+**发现**:
+
 - 目的港：**GBFXT** (英国费利克斯托)
 - 目的地国家：**GB** (英国)
 - 所有 5 个集装箱都属于同一票提单
@@ -67,6 +71,7 @@ NGP3069047            | GBFXT             | GB
 #### 3. 映射配置检查
 
 **英国港口映射** ✅ 已配置
+
 ```sql
 country | port_code | trucking_company_id  | has_yard | yard_daily_capacity
 --------|-----------|---------------------|----------|--------------------
@@ -75,6 +80,7 @@ GB      | GBFXT     | CEVA_FREIGHT__UK__LTD | false  | NULL
 ```
 
 **英国仓库映射** ✅ 已配置 (12 条记录)
+
 ```sql
 country | warehouse_code | trucking_company_id  | warehouse_name
 --------|----------------|---------------------|----------------
@@ -108,22 +114,23 @@ const warehouses = await this.getCandidateWarehouses(countryCode, destPo.portCod
 
 ```sql
 INSERT INTO biz_customers (
-    customer_code, 
-    customer_name, 
-    customer_type_code, 
-    country, 
+    customer_code,
+    customer_name,
+    customer_type_code,
+    country,
     status
 )
 VALUES (
-    'TEST_UK_CUSTOMER', 
-    'Test UK Customer', 
-    'OTHER', 
-    'GB', 
+    'TEST_UK_CUSTOMER',
+    'Test UK Customer',
+    'OTHER',
+    'GB',
     'ACTIVE'
 );
 ```
 
 **说明**:
+
 - 客户代码：`TEST_UK_CUSTOMER`
 - 客户类型：`OTHER` (其他客户)
 - 国家：`GB` (英国，与目的港一致)
@@ -137,7 +144,7 @@ VALUES (
 UPDATE biz_replenishment_orders br
 SET customer_code = 'TEST_UK_CUSTOMER'
 WHERE br.container_number IN (
-    'ECMU5399797', 'ECMU5381817', 'ECMU5397691', 
+    'ECMU5399797', 'ECMU5381817', 'ECMU5397691',
     'ECMU5399586', 'ECMU5400183'
 )
 AND (br.customer_code IS NULL OR br.customer_code = '');
@@ -150,7 +157,7 @@ AND (br.customer_code IS NULL OR br.customer_code = '');
 #### Step 3: 验证修复
 
 ```sql
-SELECT 
+SELECT
     br.container_number,
     br.order_number,
     br.customer_code,
@@ -164,12 +171,13 @@ LEFT JOIN biz_containers bct ON bct.container_number = br.container_number
 LEFT JOIN process_sea_freight psf ON psf.bill_of_lading_number = bct.bill_of_lading_number
 LEFT JOIN dict_ports dp ON dp.port_code = psf.port_of_discharge
 WHERE br.container_number IN (
-    'ECMU5399797', 'ECMU5381817', 'ECMU5397691', 
+    'ECMU5399797', 'ECMU5381817', 'ECMU5397691',
     'ECMU5399586', 'ECMU5400183'
 );
 ```
 
 **验证结果** ✅:
+
 ```
 container_number | order_number | customer_code    | customer_country | dest_country
 -----------------|--------------|------------------|------------------|-------------
@@ -186,26 +194,29 @@ ECMU5400183      | 25DSE8722    | TEST_UK_CUSTOMER | GB               | GB
 
 ### 数据完整性
 
-| 项目 | 修复前 | 修复后 | 状态 |
-|------|--------|--------|------|
-| customer_code | NULL | TEST_UK_CUSTOMER | ✅ 已修复 |
-| customer_country | NULL | GB | ✅ 已修复 |
-| 客户关联 | 无 | 有 | ✅ 已修复 |
-| 国家代码 | 无法确定 | GB | ✅ 已修复 |
+| 项目             | 修复前   | 修复后           | 状态      |
+| ---------------- | -------- | ---------------- | --------- |
+| customer_code    | NULL     | TEST_UK_CUSTOMER | ✅ 已修复 |
+| customer_country | NULL     | GB               | ✅ 已修复 |
+| 客户关联         | 无       | 有               | ✅ 已修复 |
+| 国家代码         | 无法确定 | GB               | ✅ 已修复 |
 
 ### 映射关系验证
 
 **仓库映射** ✅ 可用
+
 - 英国：12 个仓库映射
-- 候选车队：YUNEXPRESS_UK_LTD, CEVA_FREIGHT__UK__LTD
+- 候选车队：YUNEXPRESS_UK_LTD, CEVA_FREIGHT**UK**LTD
 
 **港口映射** ✅ 可用
+
 - 英国港口：GBFXT (费利克斯托)
 - 服务车队：2 个
 
 **堆场配置** ✅ 完整
+
 - YUNEXPRESS_UK_LTD: has_yard=true, yard_daily_capacity=200
-- CEVA_FREIGHT__UK__LTD: has_yard=false
+- CEVA_FREIGHT**UK**LTD: has_yard=false
 
 ---
 
@@ -229,6 +240,7 @@ Content-Type: application/json
 ```
 
 **预期结果**:
+
 ```json
 {
   "success": true,
@@ -252,6 +264,7 @@ Content-Type: application/json
 5. 等待排产完成
 
 **预期效果**:
+
 - ✅ 成功：5 个
 - ❌ 失败：0 个
 
@@ -262,6 +275,7 @@ Content-Type: application/json
 ### 1. 数据录入规范
 
 **备货单创建时必须填写**:
+
 - ✅ `customer_code` (必填)
 - ✅ `order_number` (必填)
 - ✅ `container_number` (必填)
@@ -273,6 +287,7 @@ Content-Type: application/json
 ### 2. 外键约束优化
 
 当前约束：
+
 ```sql
 ALTER TABLE biz_replenishment_orders
 ADD CONSTRAINT biz_replenishment_orders_customer_code_fkey
@@ -335,6 +350,7 @@ WHERE country IS NULL OR country = '';
 ### 相关代码位置
 
 **智能排产核心逻辑**:
+
 - 文件：`backend/src/services/intelligentScheduling.service.ts`
 - 方法：`scheduleContainer()`
 - 关键行：
@@ -343,11 +359,13 @@ WHERE country IS NULL OR country = '';
   - Line 311-318: 无仓库时的错误处理
 
 **错误信息**:
+
 ```
 '无映射关系中的仓库（请配置 dict_trucking_port_mapping、dict_warehouse_trucking_mapping）'
 ```
 
 **调用链**:
+
 ```
 scheduleContainer()
   → resolveCountryCode(order)
@@ -361,10 +379,12 @@ scheduleContainer()
 ## 🔗 相关文档
 
 ### 内部文档
+
 - [12-国家概念统一约定.md](file://d:\Gihub\logix\docs\Phase3\12-国家概念统一约定.md) - 国家代码使用规范
 - [DICT_TABLE_RELATIONSHIPS_GUIDE.md](file://d:\Gihub\logix\docs\Database\DICT_TABLE_RELATIONSHIPS_GUIDE.md) - 字典表关系指南
 
 ### SKILL 规范
+
 - [Excel 导入列名多变体支持规范](memory://development_code_specification/Excel 导入列名多变体支持规范)
 - [字典表国家代码 ISO 标准化规范](memory://development_code_specification/字典表国家代码 ISO 标准化规范)
 
@@ -386,6 +406,6 @@ scheduleContainer()
 **修复时间**: 2026-03-25 15:35  
 **修复状态**: ✅ 完成  
 **影响范围**: 5 个集装箱  
-**修复方法**: 补充客户信息  
+**修复方法**: 补充客户信息
 
 **下一步**: 重新执行排产即可成功！

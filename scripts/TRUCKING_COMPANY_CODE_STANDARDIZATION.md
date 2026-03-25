@@ -9,20 +9,22 @@
 ## 📊 执行概览
 
 ### 执行时间
+
 **2026-03-24**
 
 ### 涉及范围
+
 - **3 个表**: `dict_trucking_companies`, `dict_trucking_port_mapping`, `dict_warehouse_trucking_mapping`
 - **21 个车队公司**
 - **81 条映射记录** (28 条港口映射 + 53 条仓库映射)
 
 ### 修复记录数
 
-| 修复项 | 数量 | 说明 |
-|--------|------|------|
-| 规范化 company_code | 8 | 转换为全大写格式 |
-| 同步 trucking_company_id | 0 | 映射表中已为大写 |
-| 外键关联验证 | 100% | 无孤立记录 |
+| 修复项                   | 数量 | 说明             |
+| ------------------------ | ---- | ---------------- |
+| 规范化 company_code      | 8    | 转换为全大写格式 |
+| 同步 trucking_company_id | 0    | 映射表中已为大写 |
+| 外键关联验证             | 100% | 无孤立记录       |
 
 ---
 
@@ -32,16 +34,16 @@
 
 在 `dict_trucking_companies` 表中发现 **8 个** 包含小写字母的 `company_code`：
 
-| 原代码 | 问题 | 规范化后 |
-|--------|------|---------|
-| Atlantic_Forwarding_Spain__S_L_ | ✗ 包含小写 | ATLANTIC_FORWARDING_SPAIN__S_L_ |
-| CEVA_Freight__UK__Ltd | ✗ 包含小写 | CEVA_FREIGHT__UK__LTD |
-| DSV_Air___Sea_SAS | ✗ 包含小写 | DSV_AIR___SEA_SAS |
+| 原代码                                      | 问题       | 规范化后                                    |
+| ------------------------------------------- | ---------- | ------------------------------------------- |
+| Atlantic*Forwarding_Spain\_\_S_L*           | ✗ 包含小写 | ATLANTIC*FORWARDING_SPAIN\_\_S_L*           |
+| CEVA_Freight**UK**Ltd                       | ✗ 包含小写 | CEVA_FREIGHT**UK**LTD                       |
+| DSV_Air\_\_\_Sea_SAS                        | ✗ 包含小写 | DSV_AIR\_\_\_SEA_SAS                        |
 | INTERFRACHT_Container_Overseas_Service_GmbH | ✗ 包含小写 | INTERFRACHT_CONTAINER_OVERSEAS_SERVICE_GMBH |
-| LC_Logistics_Services__Inc | ✗ 包含小写 | LC_LOGISTICS_SERVICES__INC |
-| Portguys_Logistics_Llc | ✗ 包含小写 | PORTGUYS_LOGISTICS_LLC |
-| RT_LOGISTICA_Srl_ | ✗ 包含小写 | RT_LOGISTICA_SRL_ |
-| YunExpress_UK_Ltd | ✗ 包含小写 | YUNEXPRESS_UK_LTD |
+| LC_Logistics_Services\_\_Inc                | ✗ 包含小写 | LC_LOGISTICS_SERVICES\_\_INC                |
+| Portguys_Logistics_Llc                      | ✗ 包含小写 | PORTGUYS_LOGISTICS_LLC                      |
+| RT*LOGISTICA_Srl*                           | ✗ 包含小写 | RT*LOGISTICA_SRL*                           |
+| YunExpress_UK_Ltd                           | ✗ 包含小写 | YUNEXPRESS_UK_LTD                           |
 
 ### 根本原因
 
@@ -57,12 +59,14 @@
 #### 1. `standardize-trucking-company-codes.sql` - 主规范化脚本
 
 **功能**:
+
 - 检查包含小写字母的 `company_code`
 - 批量转换为全大写格式
 - 同步更新映射表中的 `trucking_company_id`
 - 验证外键关联完整性
 
 **核心 SQL**:
+
 ```sql
 -- 规范化为主大写
 UPDATE dict_trucking_companies
@@ -87,6 +91,7 @@ WHERE wtm.trucking_company_id ~ '[a-z]';
 ### 格式规范性
 
 **dict_trucking_companies**:
+
 ```
 总数：21
 标准格式：21 (100%)
@@ -94,14 +99,16 @@ WHERE wtm.trucking_company_id ~ '[a-z]';
 ```
 
 **命名规范**:
+
 - ✅ 全部使用大写字母 (A-Z)
 - ✅ 允许数字 (0-9)
-- ✅ 允许下划线 (_)
+- ✅ 允许下划线 (\_)
 - ✅ 符合正则表达式：`^[A-Z0-9_]+$`
 
 ### 外键关联完整性
 
 **dict_trucking_port_mapping**:
+
 ```
 总映射数：28
 关联公司数：21
@@ -110,6 +117,7 @@ WHERE wtm.trucking_company_id ~ '[a-z]';
 ```
 
 **dict_warehouse_trucking_mapping**:
+
 ```
 总映射数：53
 关联公司数：21
@@ -119,15 +127,15 @@ WHERE wtm.trucking_company_id ~ '[a-z]';
 
 ### 国家分布
 
-| 国家 | 公司数 | 平均代码长度 | 规范率 |
-|------|--------|-------------|--------|
-| CA (加拿大) | 2 | 19.0 | 100% |
-| DE (德国) | 1 | 43.0 | 100% |
-| ES (西班牙) | 1 | 31.0 | 100% |
-| FR (法国) | 5 | 23.8 | 100% |
-| GB (英国) | 2 | 19.0 | 100% |
-| IT (意大利) | 2 | 17.0 | 100% |
-| US (美国) | 8 | 24.6 | 100% |
+| 国家        | 公司数 | 平均代码长度 | 规范率 |
+| ----------- | ------ | ------------ | ------ |
+| CA (加拿大) | 2      | 19.0         | 100%   |
+| DE (德国)   | 1      | 43.0         | 100%   |
+| ES (西班牙) | 1      | 31.0         | 100%   |
+| FR (法国)   | 5      | 23.8         | 100%   |
+| GB (英国)   | 2      | 19.0         | 100%   |
+| IT (意大利) | 2      | 17.0         | 100%   |
+| US (美国)   | 8      | 24.6         | 100%   |
 
 ---
 
@@ -136,22 +144,26 @@ WHERE wtm.trucking_company_id ~ '[a-z]';
 ### 按国家分组
 
 #### 🇨🇦 加拿大 (CA) - 2 个
+
 ```
 S_AND_R_TRUCKING                      (16 chars) ✓
 TRANS_PRO_LOGISTIC_INC                (22 chars) ✓
 ```
 
 #### 🇩🇪 德国 (DE) - 1 个
+
 ```
 INTERFRACHT_CONTAINER_OVERSEAS_SERVICE_GMBH  (43 chars) ✓
 ```
 
 #### 🇪🇸 西班牙 (ES) - 1 个
+
 ```
 ATLANTIC_FORWARDING_SPAIN__S_L_       (31 chars) ✓
 ```
 
 #### 🇫🇷 法国 (FR) - 5 个
+
 ```
 ALPHA_CARGO_INTEMATIONAL_LOGISTICS    (34 chars) ✓
 EV_CARGO_GLOBAL_FORWARDING            (26 chars) ✓
@@ -161,18 +173,21 @@ XPO_GLOBAL_FORWARDING_FRANCE          (28 chars) ✓
 ```
 
 #### 🇬🇧 英国 (GB) - 2 个
+
 ```
 CEVA_FREIGHT__UK__LTD                 (21 chars) ✓
 YUNEXPRESS_UK_LTD                     (17 chars) ✓
 ```
 
 #### 🇮🇹 意大利 (IT) - 2 个
+
 ```
 DSV_AIR___SEA_SAS                     (17 chars) ✓
 RT_LOGISTICA_SRL_                     (17 chars) ✓
 ```
 
 #### 🇺🇸 美国 (US) - 8 个
+
 ```
 JK_EXPRESS_USA_INC                    (18 chars) ✓
 JL_MANAGEMENT_USA_INC_                (22 chars) ✓
@@ -190,13 +205,13 @@ WENGER_TRUCKING_LLC                   (19 chars) ✓
 
 ### 最活跃的车队公司 TOP 5
 
-| 排名 | 公司代码 | 国家 | 港口映射 | 仓库映射 | 总计 |
-|------|---------|------|---------|---------|------|
-| 1 | YUNEXPRESS_UK_LTD | GB | 1 | 7 | 8 |
-| 2 | CEVA_FREIGHT__UK__LTD | GB | 1 | 5 | 6 |
-| 3 | INTERFRACHT_CONTAINER_OVERSEAS_SERVICE_GMBH | DE | 2 | 5 | 7 |
-| 4 | ATLANTIC_FORWARDING_SPAIN__S_L_ | ES | 1 | 4 | 5 |
-| 5 | S_AND_R_TRUCKING | CA | 1 | 3 | 4 |
+| 排名 | 公司代码                                    | 国家 | 港口映射 | 仓库映射 | 总计 |
+| ---- | ------------------------------------------- | ---- | -------- | -------- | ---- |
+| 1    | YUNEXPRESS_UK_LTD                           | GB   | 1        | 7        | 8    |
+| 2    | CEVA_FREIGHT**UK**LTD                       | GB   | 1        | 5        | 6    |
+| 3    | INTERFRACHT_CONTAINER_OVERSEAS_SERVICE_GMBH | DE   | 2        | 5        | 7    |
+| 4    | ATLANTIC*FORWARDING_SPAIN\_\_S_L*           | ES   | 1        | 4        | 5    |
+| 5    | S_AND_R_TRUCKING                            | CA   | 1        | 3        | 4    |
 
 ### 映射密度
 
@@ -212,7 +227,7 @@ WENGER_TRUCKING_LLC                   (19 chars) ✓
 
 - ✅ **全大写字母**: A-Z
 - ✅ **数字**: 0-9
-- ✅ **下划线**: _
+- ✅ **下划线**: \_
 - ✅ **最大长度**: 50 字符（符合数据库约束）
 - ✅ **唯一性**: 所有 code 均唯一
 - ✅ **外键完整性**: 100% 关联成功
@@ -224,7 +239,7 @@ WENGER_TRUCKING_LLC                   (19 chars) ✓
 company_code ~ '^[A-Z0-9_]+$'
 
 -- 外键验证
-LEFT JOIN dict_trucking_companies tc 
+LEFT JOIN dict_trucking_companies tc
 ON tc.company_code = mapping.trucking_company_id
 WHERE tc.company_code IS NULL  -- 应返回 0 行
 ```
@@ -270,13 +285,13 @@ WHERE company_code ~ '^[A-Z0-9_]+$';
 ```sql
 -- 应该返回 0 (无孤立记录)
 SELECT COUNT(*) FROM dict_trucking_port_mapping tpm
-LEFT JOIN dict_trucking_companies tc 
+LEFT JOIN dict_trucking_companies tc
 ON tc.company_code = tpm.trucking_company_id
 WHERE tc.company_code IS NULL;
 
 -- 应该返回 0
 SELECT COUNT(*) FROM dict_warehouse_trucking_mapping wtm
-LEFT JOIN dict_trucking_companies tc 
+LEFT JOIN dict_trucking_companies tc
 ON tc.company_code = wtm.trucking_company_id
 WHERE tc.company_code IS NULL;
 ```
@@ -290,18 +305,18 @@ WHERE tc.company_code IS NULL;
 ```sql
 -- 添加 CHECK 约束确保格式
 ALTER TABLE dict_trucking_companies
-ADD CONSTRAINT chk_company_code_format 
+ADD CONSTRAINT chk_company_code_format
 CHECK (company_code ~ '^[A-Z0-9_]+$');
 
 -- 添加外键约束
 ALTER TABLE dict_trucking_port_mapping
 ADD CONSTRAINT fk_trucking_company
-FOREIGN KEY (trucking_company_id) 
+FOREIGN KEY (trucking_company_id)
 REFERENCES dict_trucking_companies(company_code);
 
 ALTER TABLE dict_warehouse_trucking_mapping
 ADD CONSTRAINT fk_trucking_company
-FOREIGN KEY (trucking_company_id) 
+FOREIGN KEY (trucking_company_id)
 REFERENCES dict_trucking_companies(company_code);
 ```
 
@@ -309,18 +324,19 @@ REFERENCES dict_trucking_companies(company_code);
 
 ```sql
 -- 如果尚未创建，添加索引
-CREATE INDEX IF NOT EXISTS idx_trucking_port_mapping_company_id 
+CREATE INDEX IF NOT EXISTS idx_trucking_port_mapping_company_id
 ON dict_trucking_port_mapping(trucking_company_id);
 
-CREATE INDEX IF NOT EXISTS idx_warehouse_trucking_mapping_company_id 
+CREATE INDEX IF NOT EXISTS idx_warehouse_trucking_mapping_company_id
 ON dict_warehouse_trucking_mapping(trucking_company_id);
 ```
 
 ### 3. 导入验证
 
 在 Excel 导入功能中：
+
 - ✅ 自动转换为大写
-- ✅ 验证字符集（只允许 A-Z, 0-9, _）
+- ✅ 验证字符集（只允许 A-Z, 0-9, \_）
 - ✅ 检查长度限制（≤50）
 - ✅ 验证唯一性
 
@@ -360,6 +376,7 @@ ON dict_warehouse_trucking_mapping(trucking_company_id);
 3. ✅ **车队公司代码规范化** (全大写格式)
 
 这三大规范化共同确保了：
+
 - 智能排柜系统的数据一致性
 - 跨表关联查询的准确性
 - 地理信息计算的可靠性
@@ -368,11 +385,11 @@ ON dict_warehouse_trucking_mapping(trucking_company_id);
 
 ## 📊 最终验证报告
 
-| 表名 | 总记录 | 标准记录 | 孤立记录 | 合规率 |
-|------|--------|---------|---------|--------|
-| dict_trucking_companies | 21 | 21 | N/A | 100% |
-| dict_trucking_port_mapping | 28 | 28 | 0 | 100% |
-| dict_warehouse_trucking_mapping | 53 | 53 | 0 | 100% |
+| 表名                            | 总记录 | 标准记录 | 孤立记录 | 合规率 |
+| ------------------------------- | ------ | -------- | -------- | ------ |
+| dict_trucking_companies         | 21     | 21       | N/A      | 100%   |
+| dict_trucking_port_mapping      | 28     | 28       | 0        | 100%   |
+| dict_warehouse_trucking_mapping | 53     | 53       | 0        | 100%   |
 
 **综合合规率**: **100%** ✅
 

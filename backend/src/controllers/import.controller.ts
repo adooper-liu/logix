@@ -4,29 +4,29 @@
  */
 
 import { Request, Response } from 'express';
+import { Repository } from 'typeorm';
+import { PICKUP_DATE_SOURCE } from '../constants/pickupDateSource';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
+import { ContainerType } from '../entities/ContainerType';
+import { Customer } from '../entities/Customer';
+import { CustomsBroker } from '../entities/CustomsBroker';
+import { EmptyReturn } from '../entities/EmptyReturn';
+import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
+import { FreightForwarder } from '../entities/FreightForwarder';
+import { OverseasCompany } from '../entities/OverseasCompany';
+import { Port } from '../entities/Port';
+import { PortOperation } from '../entities/PortOperation';
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { SeaFreight } from '../entities/SeaFreight';
-import { PortOperation } from '../entities/PortOperation';
-import { TruckingTransport } from '../entities/TruckingTransport';
-import { PICKUP_DATE_SOURCE } from '../constants/pickupDateSource';
-import { WarehouseOperation } from '../entities/WarehouseOperation';
-import { EmptyReturn } from '../entities/EmptyReturn';
-import { ContainerType } from '../entities/ContainerType';
 import { ShippingCompany } from '../entities/ShippingCompany';
-import { FreightForwarder } from '../entities/FreightForwarder';
-import { Port } from '../entities/Port';
 import { TruckingCompany } from '../entities/TruckingCompany';
-import { CustomsBroker } from '../entities/CustomsBroker';
-import { Customer } from '../entities/Customer';
-import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
-import { feituoImportService } from '../services/feituoImport.service';
-import { OverseasCompany } from '../entities/OverseasCompany';
-import { Repository } from 'typeorm';
-import { logger } from '../utils/logger';
-import { resolveDemurrageFreeDays } from '../utils/demurrageTiers';
+import { TruckingTransport } from '../entities/TruckingTransport';
+import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { auditLogService } from '../services/auditLog.service';
+import { feituoImportService } from '../services/feituoImport.service';
+import { resolveDemurrageFreeDays } from '../utils/demurrageTiers';
+import { logger } from '../utils/logger';
 
 export class ImportController {
   private containerRepository: Repository<Container>;
@@ -99,7 +99,9 @@ export class ImportController {
     });
     if (cust) {
       orderData.customerCode = cust.customerCode;
-      logger.info(`[Import] 从 customer_name 补全 customer_code: ${orderData.customerName} -> ${cust.customerCode}`);
+      logger.info(
+        `[Import] 从 customer_name 补全 customer_code: ${orderData.customerName} -> ${cust.customerCode}`
+      );
     }
   }
 
@@ -114,24 +116,48 @@ export class ImportController {
     // 定义常见的柜型编码映射
     const containerTypeMap: { [key: string]: string } = {
       // 标准编码
-      '20GP': '20GP', '40GP': '40GP', '45GP': '45GP',
-      '20HC': '20HC', '40HC': '40HC', '45HC': '45HC', '53HC': '53HC',
-      '20FR': '20FR', '40FR': '40FR', '45FR': '45FR',
-      '20OT': '20OT', '40OT': '40OT', '45OT': '45OT',
-      '20TK': '20TK', '40TK': '40TK', '45TK': '45TK',
-      '20RF': '20RF', '40RF': '40RF', '45RF': '45RF',
-      '20HT': '20HT', '40HT': '40HT', '45HT': '45HT',
-      '20HQ': '20HC', '40HQ': '40HC', // 高柜变体
-      '20DV': '20HC', '40DV': '40HC', // DV = High Cube
-      '20GP1': '20GP', '40GP1': '40GP',
+      '20GP': '20GP',
+      '40GP': '40GP',
+      '45GP': '45GP',
+      '20HC': '20HC',
+      '40HC': '40HC',
+      '45HC': '45HC',
+      '53HC': '53HC',
+      '20FR': '20FR',
+      '40FR': '40FR',
+      '45FR': '45FR',
+      '20OT': '20OT',
+      '40OT': '40OT',
+      '45OT': '45OT',
+      '20TK': '20TK',
+      '40TK': '40TK',
+      '45TK': '45TK',
+      '20RF': '20RF',
+      '40RF': '40RF',
+      '45RF': '45RF',
+      '20HT': '20HT',
+      '40HT': '40HT',
+      '45HT': '45HT',
+      '20HQ': '20HC',
+      '40HQ': '40HC', // 高柜变体
+      '20DV': '20HC',
+      '40DV': '40HC', // DV = High Cube
+      '20GP1': '20GP',
+      '40GP1': '40GP',
       // 常见变体
-      '20': '20GP', '40': '40GP', '45': '45GP',
-      '20ft': '20GP', '40ft': '40GP',
-      '20FT': '20GP', '40FT': '40GP',
-      'HC20': '20HC', 'HC40': '40HC',
-      'GP20': '20GP', 'GP40': '40GP',
-      'GP45': '45GP',
-      'STANDARD': '20GP',
+      '20': '20GP',
+      '40': '40GP',
+      '45': '45GP',
+      '20ft': '20GP',
+      '40ft': '40GP',
+      '20FT': '20GP',
+      '40FT': '40GP',
+      HC20: '20HC',
+      HC40: '40HC',
+      GP20: '20GP',
+      GP40: '40GP',
+      GP45: '45GP',
+      STANDARD: '20GP'
     };
 
     // 标准化输入
@@ -159,7 +185,11 @@ export class ImportController {
     const sizeMatch = normalizedInput.match(/^(\d{2})/);
     if (sizeMatch) {
       const size = sizeMatch[1];
-      if (normalizedInput.includes('H') || normalizedInput.includes('HQ') || normalizedInput.includes('DV')) {
+      if (
+        normalizedInput.includes('H') ||
+        normalizedInput.includes('HQ') ||
+        normalizedInput.includes('DV')
+      ) {
         const hcCode = `${size}HC`;
         const hcExists = await this.containerTypeRepository.exists({
           where: { typeCode: hcCode }
@@ -187,30 +217,30 @@ export class ImportController {
 
     const statusMap: { [key: string]: string } = {
       // 英文状态
-      'not_shipped': 'not_shipped',
-      'in_transit': 'in_transit',
-      'at_port': 'at_port',
-      'picked_up': 'picked_up',
-      'unloaded': 'unloaded',
-      'returned_empty': 'returned_empty',
-      'cancelled': 'cancelled',
+      not_shipped: 'not_shipped',
+      in_transit: 'in_transit',
+      at_port: 'at_port',
+      picked_up: 'picked_up',
+      unloaded: 'unloaded',
+      returned_empty: 'returned_empty',
+      cancelled: 'cancelled',
       // 中文状态
-      '未出运': 'not_shipped',
-      '在途': 'in_transit',
-      '已到港': 'at_port',
-      '已提柜': 'picked_up',
-      '已卸柜': 'unloaded',
-      '已还箱': 'returned_empty',
-      '已取消': 'cancelled',
+      未出运: 'not_shipped',
+      在途: 'in_transit',
+      已到港: 'at_port',
+      已提柜: 'picked_up',
+      已卸柜: 'unloaded',
+      已还箱: 'returned_empty',
+      已取消: 'cancelled',
       // 常见变体
-      '未出货': 'not_shipped',
-      '未发出': 'not_shipped',
-      '运输中': 'in_transit',
-      '到达': 'at_port',
-      '提货': 'picked_up',
-      '卸货': 'unloaded',
-      '还柜': 'returned_empty',
-      '取消': 'cancelled',
+      未出货: 'not_shipped',
+      未发出: 'not_shipped',
+      运输中: 'in_transit',
+      到达: 'at_port',
+      提货: 'picked_up',
+      卸货: 'unloaded',
+      还柜: 'returned_empty',
+      取消: 'cancelled'
     };
 
     const normalizedInput = originalStatus.trim().toLowerCase();
@@ -229,7 +259,10 @@ export class ImportController {
     const port = await queryRunner.manager
       .getRepository(Port)
       .createQueryBuilder('p')
-      .where('p.port_code = :v OR LOWER(TRIM(p.port_name)) = LOWER(:v) OR (p.port_name_en IS NOT NULL AND LOWER(TRIM(p.port_name_en)) = LOWER(:v))', { v })
+      .where(
+        'p.port_code = :v OR LOWER(TRIM(p.port_name)) = LOWER(:v) OR (p.port_name_en IS NOT NULL AND LOWER(TRIM(p.port_name_en)) = LOWER(:v))',
+        { v }
+      )
       .getOne();
     if (!port) {
       logger.warn(`[Import] 港口未匹配（口径统一）: ${v}`);
@@ -241,13 +274,19 @@ export class ImportController {
   /**
    * 口径统一：从字典表解析船公司编码（仅解析，不自动创建）
    */
-  private async resolveShippingCompanyCode(queryRunner: any, nameOrCode: string): Promise<string | null> {
+  private async resolveShippingCompanyCode(
+    queryRunner: any,
+    nameOrCode: string
+  ): Promise<string | null> {
     if (!nameOrCode || !nameOrCode.trim()) return null;
     const v = nameOrCode.trim();
     const ship = await queryRunner.manager
       .getRepository(ShippingCompany)
       .createQueryBuilder('s')
-      .where('s.company_code = :v OR LOWER(TRIM(s.company_name)) = LOWER(:v) OR (s.company_name_en IS NOT NULL AND LOWER(TRIM(s.company_name_en)) = LOWER(:v))', { v })
+      .where(
+        's.company_code = :v OR LOWER(TRIM(s.company_name)) = LOWER(:v) OR (s.company_name_en IS NOT NULL AND LOWER(TRIM(s.company_name_en)) = LOWER(:v))',
+        { v }
+      )
       .getOne();
     if (!ship) {
       logger.warn(`[Import] 船公司未匹配（口径统一）: ${v}`);
@@ -259,13 +298,19 @@ export class ImportController {
   /**
    * 口径统一：从字典表解析货代编码（仅解析，不自动创建）
    */
-  private async resolveFreightForwarderCode(queryRunner: any, nameOrCode: string): Promise<string | null> {
+  private async resolveFreightForwarderCode(
+    queryRunner: any,
+    nameOrCode: string
+  ): Promise<string | null> {
     if (!nameOrCode || !nameOrCode.trim()) return null;
     const v = nameOrCode.trim();
     const ff = await queryRunner.manager
       .getRepository(FreightForwarder)
       .createQueryBuilder('f')
-      .where('f.forwarder_code = :v OR LOWER(TRIM(f.forwarder_name)) = LOWER(:v) OR (f.forwarder_name_en IS NOT NULL AND LOWER(TRIM(f.forwarder_name_en)) = LOWER(:v))', { v })
+      .where(
+        'f.forwarder_code = :v OR LOWER(TRIM(f.forwarder_name)) = LOWER(:v) OR (f.forwarder_name_en IS NOT NULL AND LOWER(TRIM(f.forwarder_name_en)) = LOWER(:v))',
+        { v }
+      )
       .getOne();
     if (!ff) {
       logger.warn(`[Import] 货代未匹配（口径统一）: ${v}`);
@@ -277,15 +322,21 @@ export class ImportController {
   /**
    * 验证并规范化船公司代码（口径统一：先解析，未匹配则自动创建字典并返回 code）
    */
-  private async validateShippingCompany(queryRunner: any, companyName: string): Promise<string | null> {
+  private async validateShippingCompany(
+    queryRunner: any,
+    companyName: string
+  ): Promise<string | null> {
     const code = await this.resolveShippingCompanyCode(queryRunner, companyName);
     if (code) return code;
     if (!companyName || !companyName.trim()) return null;
     const trimmedName = companyName.trim();
-    let newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : `NEW_${  Date.now()}`;
+    let newCode =
+      trimmedName.length <= 10
+        ? trimmedName.toUpperCase().replace(/\s+/g, '_')
+        : `NEW_${Date.now()}`;
     // 确保代码长度不超过 50 字符
     if (newCode.length > 50) {
-      newCode = `NEW_${  Date.now()  }_${  trimmedName.substring(0, 20).toUpperCase().replace(/\s+/g, '_')}`;
+      newCode = `NEW_${Date.now()}_${trimmedName.substring(0, 20).toUpperCase().replace(/\s+/g, '_')}`;
       newCode = newCode.substring(0, 50);
     }
     const newCompany = queryRunner.manager.create(ShippingCompany, {
@@ -301,15 +352,21 @@ export class ImportController {
   /**
    * 验证并规范化货代公司代码（口径统一：先解析，未匹配则自动创建字典并返回 code）
    */
-  private async validateFreightForwarder(queryRunner: any, forwarderName: string): Promise<string | null> {
+  private async validateFreightForwarder(
+    queryRunner: any,
+    forwarderName: string
+  ): Promise<string | null> {
     const code = await this.resolveFreightForwarderCode(queryRunner, forwarderName);
     if (code) return code;
     if (!forwarderName || !forwarderName.trim()) return null;
     const trimmedName = forwarderName.trim();
-    let newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : `NEW_FF_${  Date.now()}`;
+    let newCode =
+      trimmedName.length <= 10
+        ? trimmedName.toUpperCase().replace(/\s+/g, '_')
+        : `NEW_FF_${Date.now()}`;
     // 确保代码长度不超过 50 字符
     if (newCode.length > 50) {
-      newCode = `NEW_FF_${  Date.now()  }_${  trimmedName.substring(0, 15).toUpperCase().replace(/\s+/g, '_')}`;
+      newCode = `NEW_FF_${Date.now()}_${trimmedName.substring(0, 15).toUpperCase().replace(/\s+/g, '_')}`;
       newCode = newCode.substring(0, 50);
     }
     const newForwarder = queryRunner.manager.create(FreightForwarder, {
@@ -353,7 +410,10 @@ export class ImportController {
    * @param brokerName Excel 中的清关公司名称或代码
    * @returns 有效的清关公司代码
    */
-  private async validateCustomsBroker(queryRunner: any, brokerName: string): Promise<string | null> {
+  private async validateCustomsBroker(
+    queryRunner: any,
+    brokerName: string
+  ): Promise<string | null> {
     if (!brokerName || brokerName.trim() === '') return null;
 
     const trimmedName = brokerName.trim();
@@ -366,18 +426,18 @@ export class ImportController {
 
     // 按名称查找
     const byName = await queryRunner.manager.findOne(CustomsBroker, {
-      where: [
-        { brokerName: trimmedName },
-        { brokerNameEn: trimmedName }
-      ]
+      where: [{ brokerName: trimmedName }, { brokerNameEn: trimmedName }]
     });
     if (byName) return byName.brokerCode;
 
     // 不存在，自动创建
-    let newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : `NEW_BROKER_${  Date.now()}`;
+    let newCode =
+      trimmedName.length <= 10
+        ? trimmedName.toUpperCase().replace(/\s+/g, '_')
+        : `NEW_BROKER_${Date.now()}`;
     // 确保代码长度不超过 50 字符
     if (newCode.length > 50) {
-      newCode = `NEW_BROKER_${  Date.now()  }_${  trimmedName.substring(0, 15).toUpperCase().replace(/\s+/g, '_')}`;
+      newCode = `NEW_BROKER_${Date.now()}_${trimmedName.substring(0, 15).toUpperCase().replace(/\s+/g, '_')}`;
       newCode = newCode.substring(0, 50);
     }
 
@@ -398,7 +458,10 @@ export class ImportController {
    * @param companyName Excel 中的拖车公司名称或代码
    * @returns 有效的拖车公司代码
    */
-  private async validateTruckingCompany(queryRunner: any, companyName: string): Promise<string | null> {
+  private async validateTruckingCompany(
+    queryRunner: any,
+    companyName: string
+  ): Promise<string | null> {
     if (!companyName || companyName.trim() === '') return null;
 
     const trimmedName = companyName.trim();
@@ -411,18 +474,18 @@ export class ImportController {
 
     // 按名称查找
     const byName = await queryRunner.manager.findOne(TruckingCompany, {
-      where: [
-        { companyName: trimmedName },
-        { companyNameEn: trimmedName }
-      ]
+      where: [{ companyName: trimmedName }, { companyNameEn: trimmedName }]
     });
     if (byName) return byName.companyCode;
 
     // 不存在，自动创建
-    let newCode = trimmedName.length <= 10 ? trimmedName.toUpperCase().replace(/\s+/g, '_') : `NEW_TRUCK_${  Date.now()}`;
+    let newCode =
+      trimmedName.length <= 10
+        ? trimmedName.toUpperCase().replace(/\s+/g, '_')
+        : `NEW_TRUCK_${Date.now()}`;
     // 确保代码长度不超过 50 字符
     if (newCode.length > 50) {
-      newCode = `NEW_TRUCK_${  Date.now()  }_${  trimmedName.substring(0, 15).toUpperCase().replace(/\s+/g, '_')}`;
+      newCode = `NEW_TRUCK_${Date.now()}_${trimmedName.substring(0, 15).toUpperCase().replace(/\s+/g, '_')}`;
       newCode = newCode.substring(0, 50);
     }
 
@@ -484,7 +547,9 @@ export class ImportController {
     const seaFreightData = snakeToCamel(tables.process_sea_freight);
     // Excel 列名为「提单号」时可能以中文键传入，统一取出提单号
     const getBlNumber = (sf: any) =>
-      sf?.billOfLadingNumber ?? sf?.mblNumber ?? (sf && typeof sf['提单号'] !== 'undefined' && sf['提单号'] !== '' ? sf['提单号'] : null);
+      sf?.billOfLadingNumber ??
+      sf?.mblNumber ??
+      (sf && typeof sf['提单号'] !== 'undefined' && sf['提单号'] !== '' ? sf['提单号'] : null);
     const portData = tables.process_port_operations; // 数组需要单独处理
     const truckingData = snakeToCamel(tables.process_trucking_transport);
     const warehouseData = snakeToCamel(tables.process_warehouse_operations);
@@ -513,27 +578,42 @@ export class ImportController {
 
           // 转换船公司名称为代码
           if (seaFreightData.shippingCompanyId) {
-            seaFreightData.shippingCompanyId = await this.validateShippingCompany(queryRunner, seaFreightData.shippingCompanyId);
+            seaFreightData.shippingCompanyId = await this.validateShippingCompany(
+              queryRunner,
+              seaFreightData.shippingCompanyId
+            );
           }
 
           // 转换货代公司名称为代码
           if (seaFreightData.freightForwarderId) {
-            seaFreightData.freightForwarderId = await this.validateFreightForwarder(queryRunner, seaFreightData.freightForwarderId);
+            seaFreightData.freightForwarderId = await this.validateFreightForwarder(
+              queryRunner,
+              seaFreightData.freightForwarderId
+            );
           }
 
           // 转换起运港名称为代码
           if (seaFreightData.portOfLoading) {
-            seaFreightData.portOfLoading = await this.validatePort(queryRunner, seaFreightData.portOfLoading);
+            seaFreightData.portOfLoading = await this.validatePort(
+              queryRunner,
+              seaFreightData.portOfLoading
+            );
           }
 
           // 转换目的港名称为代码
           if (seaFreightData.portOfDischarge) {
-            seaFreightData.portOfDischarge = await this.validatePort(queryRunner, seaFreightData.portOfDischarge);
+            seaFreightData.portOfDischarge = await this.validatePort(
+              queryRunner,
+              seaFreightData.portOfDischarge
+            );
           }
 
           // 转换途经港名称为代码
           if (seaFreightData.transitPortCode) {
-            seaFreightData.transitPortCode = await this.validatePort(queryRunner, seaFreightData.transitPortCode);
+            seaFreightData.transitPortCode = await this.validatePort(
+              queryRunner,
+              seaFreightData.transitPortCode
+            );
           }
 
           // 重要：actual_loading_date 有 NOT NULL 约束，如果未提供则使用当前日期作为默认值
@@ -542,15 +622,18 @@ export class ImportController {
           if (!seaFreightData.actualLoadingDate) {
             // 优先级：actualLoadingDate > shipmentDate > 当前日期
             seaFreightData.actualLoadingDate = seaFreightData.shipmentDate || new Date();
-            logger.info('[Import] actual_loading_date 为空，使用默认值:', seaFreightData.actualLoadingDate);
+            logger.info(
+              '[Import] actual_loading_date 为空，使用默认值:',
+              seaFreightData.actualLoadingDate
+            );
           }
 
           let existingSeaFreight;
-      if (seaFreightData.billOfLadingNumber) {
-        existingSeaFreight = await queryRunner.manager.findOne(SeaFreight, {
-          where: { billOfLadingNumber: seaFreightData.billOfLadingNumber }
-        });
-      }
+          if (seaFreightData.billOfLadingNumber) {
+            existingSeaFreight = await queryRunner.manager.findOne(SeaFreight, {
+              where: { billOfLadingNumber: seaFreightData.billOfLadingNumber }
+            });
+          }
 
           if (existingSeaFreight) {
             Object.assign(existingSeaFreight, seaFreightData);
@@ -576,9 +659,7 @@ export class ImportController {
           const containerTypeCode = await this.validateAndNormalizeContainerType(
             containerData.containerTypeCode || '40HQ'
           );
-          const logisticsStatus = this.validateLogisticsStatus(
-            containerData.logisticsStatus || ''
-          );
+          const logisticsStatus = this.validateLogisticsStatus(containerData.logisticsStatus || '');
 
           if (existingContainer) {
             Object.assign(existingContainer, {
@@ -612,10 +693,10 @@ export class ImportController {
             orderData.containerNumber = containerData.containerNumber;
           }
           // 先根据 customer_name 自动填充 sell_to_country
-        // 先根据 customer_name 自动填充 sell_to_country
-        await this.fillSellToCountryFromCustomer(orderData);
-        // 再根据 customer_name 补全 customer_code
-        await this.fillCustomerCodeFromCustomerName(orderData);
+          // 先根据 customer_name 自动填充 sell_to_country
+          await this.fillSellToCountryFromCustomer(orderData);
+          // 再根据 customer_name 补全 customer_code
+          await this.fillCustomerCodeFromCustomerName(orderData);
           logger.info('[Import] 处理备货单:', orderData.orderNumber);
 
           const existingOrder = await queryRunner.manager.findOne(ReplenishmentOrder, {
@@ -655,7 +736,10 @@ export class ImportController {
 
             // 转换清关公司名称为代码
             if (port.customsBrokerCode) {
-              port.customsBrokerCode = await this.validateCustomsBroker(queryRunner, port.customsBrokerCode);
+              port.customsBrokerCode = await this.validateCustomsBroker(
+                queryRunner,
+                port.customsBrokerCode
+              );
             }
 
             const existingPort = await queryRunner.manager.findOne(PortOperation, {
@@ -669,7 +753,9 @@ export class ImportController {
             if (existingPort) {
               Object.assign(existingPort, port);
               await queryRunner.manager.save(existingPort);
-              logger.info(`[Import] 更新港口操作: ${port.containerNumber}-${port.portType}-${port.portSequence}`);
+              logger.info(
+                `[Import] 更新港口操作: ${port.containerNumber}-${port.portType}-${port.portSequence}`
+              );
             } else {
               const portOperation = queryRunner.manager.create(PortOperation, {
                 ...port,
@@ -678,7 +764,9 @@ export class ImportController {
                 portSequence: port.portSequence || 1
               });
               await queryRunner.manager.save(portOperation);
-              logger.info(`[Import] 新增港口操作: ${port.containerNumber}-${port.portType}-${port.portSequence}`);
+              logger.info(
+                `[Import] 新增港口操作: ${port.containerNumber}-${port.portType}-${port.portSequence}`
+              );
             }
           }
         }
@@ -689,7 +777,10 @@ export class ImportController {
 
           // 转换拖车公司名称为代码
           if (truckingData.truckingCompanyId) {
-            truckingData.truckingCompanyId = await this.validateTruckingCompany(queryRunner, truckingData.truckingCompanyId);
+            truckingData.truckingCompanyId = await this.validateTruckingCompany(
+              queryRunner,
+              truckingData.truckingCompanyId
+            );
           }
 
           const existingTrucking = await queryRunner.manager.findOne(TruckingTransport, {
@@ -763,7 +854,8 @@ export class ImportController {
             action: containerExisted ? 'UPDATE' : 'INSERT',
             changedFields: null,
             batchId,
-            remark: 'Excel导入: replenishment_orders, sea_freight, port_operations, trucking_transport, warehouse_operations, empty_return'
+            remark:
+              'Excel导入: replenishment_orders, sea_freight, port_operations, trucking_transport, warehouse_operations, empty_return'
           });
         }
 
@@ -785,14 +877,12 @@ export class ImportController {
           message: '数据导入成功',
           data: resultData
         });
-
       } catch (error) {
         await queryRunner.rollbackTransaction();
         throw error;
       } finally {
         await queryRunner.release();
       }
-
     } catch (error: any) {
       logger.error('[Import] 导入失败:', error);
 
@@ -801,7 +891,7 @@ export class ImportController {
         res.status(409).json({
           success: false,
           message: '数据已存在，唯一约束冲突',
-          error: error.detail || '未知字段',
+          error: error.detail || '未知字段'
         });
         return;
       }
@@ -811,7 +901,7 @@ export class ImportController {
         res.status(400).json({
           success: false,
           message: '外键约束失败，关联数据不存在',
-          error: error.detail || '未知字段',
+          error: error.detail || '未知字段'
         });
         return;
       }
@@ -819,7 +909,7 @@ export class ImportController {
       res.status(500).json({
         success: false,
         message: '导入失败',
-        error: error.message,
+        error: error.message
       });
     }
   }
@@ -881,7 +971,9 @@ export class ImportController {
       return result;
     };
     const getBlNumber = (sf: any) =>
-      sf?.billOfLadingNumber ?? sf?.mblNumber ?? (sf && typeof sf['提单号'] !== 'undefined' && sf['提单号'] !== '' ? sf['提单号'] : null);
+      sf?.billOfLadingNumber ??
+      sf?.mblNumber ??
+      (sf && typeof sf['提单号'] !== 'undefined' && sf['提单号'] !== '' ? sf['提单号'] : null);
 
     const results: any[] = [];
     const errors: any[] = [];
@@ -949,35 +1041,50 @@ export class ImportController {
             }
             // 转换船公司名称为代码
             if (seaFreightData.shippingCompanyId) {
-              seaFreightData.shippingCompanyId = await this.validateShippingCompany(queryRunner, seaFreightData.shippingCompanyId);
+              seaFreightData.shippingCompanyId = await this.validateShippingCompany(
+                queryRunner,
+                seaFreightData.shippingCompanyId
+              );
             }
 
             // 转换货代公司名称为代码
             if (seaFreightData.freightForwarderId) {
-              seaFreightData.freightForwarderId = await this.validateFreightForwarder(queryRunner, seaFreightData.freightForwarderId);
+              seaFreightData.freightForwarderId = await this.validateFreightForwarder(
+                queryRunner,
+                seaFreightData.freightForwarderId
+              );
             }
 
             // 转换起运港名称为代码
             if (seaFreightData.portOfLoading) {
-              seaFreightData.portOfLoading = await this.validatePort(queryRunner, seaFreightData.portOfLoading);
+              seaFreightData.portOfLoading = await this.validatePort(
+                queryRunner,
+                seaFreightData.portOfLoading
+              );
             }
 
             // 转换目的港名称为代码
             if (seaFreightData.portOfDischarge) {
-              seaFreightData.portOfDischarge = await this.validatePort(queryRunner, seaFreightData.portOfDischarge);
+              seaFreightData.portOfDischarge = await this.validatePort(
+                queryRunner,
+                seaFreightData.portOfDischarge
+              );
             }
 
             // 转换途经港名称为代码
             if (seaFreightData.transitPortCode) {
-              seaFreightData.transitPortCode = await this.validatePort(queryRunner, seaFreightData.transitPortCode);
+              seaFreightData.transitPortCode = await this.validatePort(
+                queryRunner,
+                seaFreightData.transitPortCode
+              );
             }
 
             let existingSeaFreight;
-      if (seaFreightData.billOfLadingNumber) {
-        existingSeaFreight = await queryRunner.manager.findOne(SeaFreight, {
-          where: { billOfLadingNumber: seaFreightData.billOfLadingNumber }
-        });
-      }
+            if (seaFreightData.billOfLadingNumber) {
+              existingSeaFreight = await queryRunner.manager.findOne(SeaFreight, {
+                where: { billOfLadingNumber: seaFreightData.billOfLadingNumber }
+              });
+            }
 
             if (existingSeaFreight) {
               Object.assign(existingSeaFreight, seaFreightData);
@@ -1071,7 +1178,10 @@ export class ImportController {
 
               // 转换清关公司名称为代码
               if (port.customsBrokerCode) {
-                port.customsBrokerCode = await this.validateCustomsBroker(queryRunner, port.customsBrokerCode);
+                port.customsBrokerCode = await this.validateCustomsBroker(
+                  queryRunner,
+                  port.customsBrokerCode
+                );
               }
 
               // 【已移除】不再自动填充 ata 字段
@@ -1105,7 +1215,10 @@ export class ImportController {
           if (truckingData?.containerNumber) {
             // 转换拖车公司名称为代码
             if (truckingData.truckingCompanyId) {
-              truckingData.truckingCompanyId = await this.validateTruckingCompany(queryRunner, truckingData.truckingCompanyId);
+              truckingData.truckingCompanyId = await this.validateTruckingCompany(
+                queryRunner,
+                truckingData.truckingCompanyId
+              );
             }
 
             const existingTrucking = await queryRunner.manager.findOne(TruckingTransport, {
@@ -1158,7 +1271,9 @@ export class ImportController {
           } else {
             // 还空箱数据缺失，记录警告
             if (containerData?.logisticsStatus === 'returned_empty') {
-              logger.warn(`[Import] 第${i + 1}行: 货柜${containerData.containerNumber}状态为已还箱，但缺少还空箱数据`);
+              logger.warn(
+                `[Import] 第${i + 1}行: 货柜${containerData.containerNumber}状态为已还箱，但缺少还空箱数据`
+              );
             }
           }
 
@@ -1185,7 +1300,6 @@ export class ImportController {
           if (containerData?.containerNumber) {
             containersToUpdate.push(containerData.containerNumber);
           }
-
         } catch (error: any) {
           await queryRunner.rollbackTransaction();
           logger.error(`[Import] 第 ${i + 1} 行导入失败:`, error);
@@ -1213,7 +1327,9 @@ export class ImportController {
       }
     }
 
-    logger.info(`[Import] 批量导入完成: 成功 ${results.length - errors.length} 条，失败 ${errors.length} 条`);
+    logger.info(
+      `[Import] 批量导入完成: 成功 ${results.length - errors.length} 条，失败 ${errors.length} 条`
+    );
 
     // 批量导入成功后，自动更新所有导入货柜的状态
     if (containersToUpdate.length > 0) {
@@ -1241,9 +1357,14 @@ export class ImportController {
           this.orderRepository,
           AppDataSource.getRepository(ExtDemurrageRecord)
         );
-        const wb = await demurrageService.batchWriteBackComputedDates({ limitLastFree: 30, limitLastReturn: 20 });
+        const wb = await demurrageService.batchWriteBackComputedDates({
+          limitLastFree: 30,
+          limitLastReturn: 20
+        });
         if (wb.lastFreeWritten > 0 || wb.lastReturnWritten > 0) {
-          logger.info(`[Import] 滞港费日期写回: last_free ${wb.lastFreeWritten}, last_return ${wb.lastReturnWritten}`);
+          logger.info(
+            `[Import] 滞港费日期写回: last_free ${wb.lastFreeWritten}, last_return ${wb.lastReturnWritten}`
+          );
         }
       } catch (wbError) {
         logger.warn(`[Import] 滞港费日期写回失败:`, wbError);
@@ -1251,7 +1372,7 @@ export class ImportController {
     }
 
     // 随机抽取3条数据进行验证
-    const successfulResults = results.filter(r => r.success);
+    const successfulResults = results.filter((r) => r.success);
     const verificationData = await this.verifyImportedData(successfulResults, 3);
 
     // 验证数据完整性：检查状态为已还箱的货柜是否有还空箱记录
@@ -1282,9 +1403,7 @@ export class ImportController {
     }
 
     // 随机抽取记录
-    const sampled = successfulResults
-      .sort(() => Math.random() - 0.5)
-      .slice(0, sampleSize);
+    const sampled = successfulResults.sort(() => Math.random() - 0.5).slice(0, sampleSize);
 
     const verificationResults = [];
 
@@ -1298,14 +1417,23 @@ export class ImportController {
       try {
         // 从数据库查询各表的数据
         // 先查询货柜
-        const container = await this.containerRepository.findOne({ where: { containerNumber }, relations: [] });
+        const container = await this.containerRepository.findOne({
+          where: { containerNumber },
+          relations: []
+        });
 
         // 然后查询其他相关数据
         const [order, seaFreight, portOp, trucking, warehouse, emptyReturn] = await Promise.all([
           item.tables.replenishment_orders?.orderNumber
-            ? this.orderRepository.findOne({ where: { orderNumber: item.tables.replenishment_orders.orderNumber } })
+            ? this.orderRepository.findOne({
+                where: { orderNumber: item.tables.replenishment_orders.orderNumber }
+              })
             : null,
-          container?.billOfLadingNumber ? this.seaFreightRepository.findOne({ where: { billOfLadingNumber: container.billOfLadingNumber } }) : null,
+          container?.billOfLadingNumber
+            ? this.seaFreightRepository.findOne({
+                where: { billOfLadingNumber: container.billOfLadingNumber }
+              })
+            : null,
           this.portOperationRepository.findOne({ where: { containerNumber } }),
           this.truckingRepository.findOne({ where: { containerNumber } }),
           this.warehouseRepository.findOne({ where: { containerNumber } }),
@@ -1350,13 +1478,27 @@ export class ImportController {
 
     const result: any = {};
     const fieldsToShow = [
-      'containerNumber', 'orderNumber', 'orderStatus', 'containerTypeCode',
-      'billOfLadingNumber', 'vesselName', 'voyageNumber', 'portOfLoading', 'portOfDischarge',
-      'customsStatus', 'etaDestPort', 'ataDestPort', 'pickupDate', 'deliveryDate',
-      'unloadDate', 'warehouseArrivalDate', 'returnTime', 'plannedReturnDate'
+      'containerNumber',
+      'orderNumber',
+      'orderStatus',
+      'containerTypeCode',
+      'billOfLadingNumber',
+      'vesselName',
+      'voyageNumber',
+      'portOfLoading',
+      'portOfDischarge',
+      'customsStatus',
+      'etaDestPort',
+      'ataDestPort',
+      'pickupDate',
+      'deliveryDate',
+      'unloadDate',
+      'warehouseArrivalDate',
+      'returnTime',
+      'plannedReturnDate'
     ];
 
-    fieldsToShow.forEach(field => {
+    fieldsToShow.forEach((field) => {
       if (data[field] !== undefined && data[field] !== null) {
         result[field] = data[field];
       }
@@ -1368,7 +1510,9 @@ export class ImportController {
   /**
    * 根据名称解析四项匹配编码（口径统一）
    */
-  private async resolveDemurrageCodesFromNames(row: Record<string, unknown>): Promise<Record<string, string>> {
+  private async resolveDemurrageCodesFromNames(
+    row: Record<string, unknown>
+  ): Promise<Record<string, string>> {
     const resolved: Record<string, string> = {};
     const portRepo = AppDataSource.getRepository(Port);
     const shipRepo = AppDataSource.getRepository(ShippingCompany);
@@ -1381,7 +1525,10 @@ export class ImportController {
     if (portVal) {
       const port = await portRepo
         .createQueryBuilder('p')
-        .where('p.port_code = :v OR LOWER(TRIM(p.port_name)) = LOWER(:v) OR (p.port_name_en IS NOT NULL AND LOWER(TRIM(p.port_name_en)) = LOWER(:v))', { v: portVal })
+        .where(
+          'p.port_code = :v OR LOWER(TRIM(p.port_name)) = LOWER(:v) OR (p.port_name_en IS NOT NULL AND LOWER(TRIM(p.port_name_en)) = LOWER(:v))',
+          { v: portVal }
+        )
         .getOne();
       if (port) resolved.destination_port_code = port.portCode;
     }
@@ -1402,7 +1549,10 @@ export class ImportController {
     if (ffVal) {
       const ff = await ffRepo
         .createQueryBuilder('f')
-        .where('f.forwarder_code = :v OR LOWER(TRIM(f.forwarder_name)) = LOWER(:v) OR (f.forwarder_name_en IS NOT NULL AND LOWER(TRIM(f.forwarder_name_en)) = LOWER(:v))', { v: ffVal })
+        .where(
+          'f.forwarder_code = :v OR LOWER(TRIM(f.forwarder_name)) = LOWER(:v) OR (f.forwarder_name_en IS NOT NULL AND LOWER(TRIM(f.forwarder_name_en)) = LOWER(:v))',
+          { v: ffVal }
+        )
         .getOne();
       if (ff) resolved.origin_forwarder_code = ff.forwarderCode;
     }
@@ -1411,7 +1561,10 @@ export class ImportController {
     if (ocVal) {
       const oc = await ocRepo
         .createQueryBuilder('o')
-        .where('o.company_code = :v OR LOWER(TRIM(o.company_name)) = LOWER(:v) OR (o.company_name_en IS NOT NULL AND LOWER(TRIM(o.company_name_en)) = LOWER(:v))', { v: ocVal })
+        .where(
+          'o.company_code = :v OR LOWER(TRIM(o.company_name)) = LOWER(:v) OR (o.company_name_en IS NOT NULL AND LOWER(TRIM(o.company_name_en)) = LOWER(:v))',
+          { v: ocVal }
+        )
         .getOne();
       if (oc) resolved.foreign_company_code = oc.companyCode;
     }
@@ -1446,10 +1599,14 @@ export class ImportController {
       try {
         const resolved = await this.resolveDemurrageCodesFromNames(row);
         const resolvedRow = { ...row };
-        if (resolved.destination_port_code) resolvedRow.destination_port_code = resolved.destination_port_code;
-        if (resolved.shipping_company_code) resolvedRow.shipping_company_code = resolved.shipping_company_code;
-        if (resolved.origin_forwarder_code) resolvedRow.origin_forwarder_code = resolved.origin_forwarder_code;
-        if (resolved.foreign_company_code) resolvedRow.foreign_company_code = resolved.foreign_company_code;
+        if (resolved.destination_port_code)
+          resolvedRow.destination_port_code = resolved.destination_port_code;
+        if (resolved.shipping_company_code)
+          resolvedRow.shipping_company_code = resolved.shipping_company_code;
+        if (resolved.origin_forwarder_code)
+          resolvedRow.origin_forwarder_code = resolved.origin_forwarder_code;
+        if (resolved.foreign_company_code)
+          resolvedRow.foreign_company_code = resolved.foreign_company_code;
 
         const entity = this.demurrageStandardRepository.create({
           foreignCompanyCode: String(resolvedRow.foreign_company_code ?? ''),
@@ -1527,7 +1684,7 @@ export class ImportController {
 
     if (warnings.length > 0) {
       logger.warn(`[Import] 数据完整性检查发现 ${warnings.length} 个问题：`);
-      warnings.forEach(w => logger.warn(`[Import] - ${w}`));
+      warnings.forEach((w) => logger.warn(`[Import] - ${w}`));
     }
   }
 

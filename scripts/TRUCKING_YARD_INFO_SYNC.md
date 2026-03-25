@@ -9,9 +9,11 @@
 ## 📊 执行概览
 
 ### 执行时间
+
 **2026-03-24**
 
 ### 涉及范围
+
 - **2 个表**: `dict_trucking_companies`, `dict_trucking_port_mapping`
 - **21 个车队公司**
 - **28 条港口映射记录**
@@ -35,9 +37,9 @@ END IF
 
 ### 字段映射关系
 
-| 源字段 | 目标字段 | 转换规则 |
-|--------|---------|---------|
-| `dict_trucking_port_mapping.yard_capacity` | `dict_trucking_companies.has_yard` | > 0 → true, = 0 → false |
+| 源字段                                     | 目标字段                                      | 转换规则                     |
+| ------------------------------------------ | --------------------------------------------- | ---------------------------- |
+| `dict_trucking_port_mapping.yard_capacity` | `dict_trucking_companies.has_yard`            | > 0 → true, = 0 → false      |
 | `dict_trucking_port_mapping.yard_capacity` | `dict_trucking_companies.yard_daily_capacity` | MAX(yard_capacity) → integer |
 
 ---
@@ -56,6 +58,7 @@ END IF
 ### 港口映射表中的堆场数据
 
 **统计结果**：
+
 ```
 有堆场容量的映射：14 个车队
 无堆场容量的映射：7 个车队
@@ -67,22 +70,22 @@ END IF
 
 **详细分布**：
 
-| 车队代码 | 映射数 | 有堆场映射 | 最大容量 |
-|---------|--------|-----------|---------|
-| TRANS_PRO_LOGISTIC_INC | 1 | 1 | 200 ✨ |
-| YUNEXPRESS_UK_LTD | 1 | 1 | 200 ✨ |
-| ALPHA_CARGO_INTEMATIONAL_LOGISTICS | 2 | 1 | 50 |
-| INTERFRACHT_CONTAINER_OVERSEAS_SERVICE_GMBH | 2 | 1 | 40 |
-| EV_CARGO_GLOBAL_FORWARDING | 2 | 1 | 30 |
-| GEODIS_FF_FRANCE | 2 | 1 | 30 |
-| XPO_GLOBAL_FORWARDING_FRANCE | 2 | 1 | 30 |
-| LEGENDRE_CELTIC | 2 | 1 | 25 |
-| JK_EXPRESS_USA_INC | 1 | 1 | 10 |
-| JL_MANAGEMENT_USA_INC_ | 1 | 1 | 10 |
-| LC_LOGISTICS_SERVICES__INC | 1 | 1 | 10 |
-| SHANGHAI_FLYING_FISH_SUPPLY_CHAIN_TECHNOLOGY_CO__L | 1 | 1 | 10 |
-| NB_JIAVIEW_USA_INC | 1 | 1 | 5 |
-| RT_LOGISTICA_SRL_ | 1 | 1 | 5 |
+| 车队代码                                             | 映射数 | 有堆场映射 | 最大容量 |
+| ---------------------------------------------------- | ------ | ---------- | -------- |
+| TRANS_PRO_LOGISTIC_INC                               | 1      | 1          | 200 ✨   |
+| YUNEXPRESS_UK_LTD                                    | 1      | 1          | 200 ✨   |
+| ALPHA_CARGO_INTEMATIONAL_LOGISTICS                   | 2      | 1          | 50       |
+| INTERFRACHT_CONTAINER_OVERSEAS_SERVICE_GMBH          | 2      | 1          | 40       |
+| EV_CARGO_GLOBAL_FORWARDING                           | 2      | 1          | 30       |
+| GEODIS_FF_FRANCE                                     | 2      | 1          | 30       |
+| XPO_GLOBAL_FORWARDING_FRANCE                         | 2      | 1          | 30       |
+| LEGENDRE_CELTIC                                      | 2      | 1          | 25       |
+| JK_EXPRESS_USA_INC                                   | 1      | 1          | 10       |
+| JL*MANAGEMENT_USA_INC*                               | 1      | 1          | 10       |
+| LC_LOGISTICS_SERVICES\_\_INC                         | 1      | 1          | 10       |
+| SHANGHAI_FLYING_FISH_SUPPLY_CHAIN_TECHNOLOGY_CO\_\_L | 1      | 1          | 10       |
+| NB_JIAVIEW_USA_INC                                   | 1      | 1          | 5        |
+| RT*LOGISTICA_SRL*                                    | 1      | 1          | 5        |
 
 ---
 
@@ -93,22 +96,24 @@ END IF
 #### `sync-trucking-yard-info.sql` - 堆场信息同步脚本
 
 **功能**：
+
 1. 检查当前堆场字段状态
 2. 从港口映射表聚合堆场容量数据
 3. 批量更新车队公司的 `has_yard` 和 `yard_daily_capacity`
 4. 验证更新结果
 
 **核心 SQL**：
+
 ```sql
 UPDATE dict_trucking_companies tc
-SET 
+SET
     has_yard = (pm.max_yard_capacity > 0),
-    yard_daily_capacity = CASE 
+    yard_daily_capacity = CASE
         WHEN pm.max_yard_capacity > 0 THEN pm.max_yard_capacity::integer
         ELSE NULL
     END
 FROM (
-    SELECT 
+    SELECT
         trucking_company_id,
         MAX(yard_capacity) as max_yard_capacity
     FROM dict_trucking_port_mapping
@@ -133,6 +138,7 @@ WHERE tc.company_code = pm.trucking_company_id;
 ### 最终数据统计
 
 **整体统计**：
+
 ```
 总车队数：21
 有堆场 (has_yard=true): 14 (66.67%)
@@ -148,34 +154,34 @@ WHERE tc.company_code = pm.trucking_company_id;
 
 #### ✅ 有堆场的车队（14 个）
 
-| 排名 | 公司代码 | 公司名称 | has_yard | yard_daily_capacity | 来源容量 |
-|------|---------|---------|----------|---------------------|---------|
-| 1 | TRANS_PRO_LOGISTIC_INC | TRANS PRO LOGISTIC INC | ✓ | 200 | 200 |
-| 2 | YUNEXPRESS_UK_LTD | YunExpress UK Ltd | ✓ | 200 | 200 |
-| 3 | ALPHA_CARGO_INTEMATIONAL_LOGISTICS | ALPHA CARGO INTEMATIONAL LOGISTICS | ✓ | 50 | 50 |
-| 4 | INTERFRACHT_CONTAINER_OVERSEAS_SERVICE_GMBH | INTERFRACHT Container Overseas Service GmbH | ✓ | 40 | 40 |
-| 5 | EV_CARGO_GLOBAL_FORWARDING | EV CARGO GLOBAL FORWARDING | ✓ | 30 | 30 |
-| 6 | GEODIS_FF_FRANCE | GEODIS FF FRANCE | ✓ | 30 | 30 |
-| 7 | XPO_GLOBAL_FORWARDING_FRANCE | XPO GLOBAL FORWARDING FRANCE | ✓ | 30 | 30 |
-| 8 | LEGENDRE_CELTIC | LEGENDRE CELTIC | ✓ | 25 | 25 |
-| 9 | JK_EXPRESS_USA_INC | JK EXPRESS USA INC | ✓ | 10 | 10 |
-| 10 | JL_MANAGEMENT_USA_INC_ | JL MANAGEMENT USA INC. | ✓ | 10 | 10 |
-| 11 | LC_LOGISTICS_SERVICES__INC | LC Logistics Services, Inc | ✓ | 10 | 10 |
-| 12 | SHANGHAI_FLYING_FISH_SUPPLY_CHAIN_TECHNOLOGY_CO__L | SHANGHAI FLYING FISH SUPPLY CHAIN TECHNOLOGY CO.,L | ✓ | 10 | 10 |
-| 13 | NB_JIAVIEW_USA_INC | NB JIAVIEW USA INC | ✓ | 5 | 5 |
-| 14 | RT_LOGISTICA_SRL_ | RT LOGISTICA Srl, | ✓ | 5 | 5 |
+| 排名 | 公司代码                                             | 公司名称                                           | has_yard | yard_daily_capacity | 来源容量 |
+| ---- | ---------------------------------------------------- | -------------------------------------------------- | -------- | ------------------- | -------- |
+| 1    | TRANS_PRO_LOGISTIC_INC                               | TRANS PRO LOGISTIC INC                             | ✓        | 200                 | 200      |
+| 2    | YUNEXPRESS_UK_LTD                                    | YunExpress UK Ltd                                  | ✓        | 200                 | 200      |
+| 3    | ALPHA_CARGO_INTEMATIONAL_LOGISTICS                   | ALPHA CARGO INTEMATIONAL LOGISTICS                 | ✓        | 50                  | 50       |
+| 4    | INTERFRACHT_CONTAINER_OVERSEAS_SERVICE_GMBH          | INTERFRACHT Container Overseas Service GmbH        | ✓        | 40                  | 40       |
+| 5    | EV_CARGO_GLOBAL_FORWARDING                           | EV CARGO GLOBAL FORWARDING                         | ✓        | 30                  | 30       |
+| 6    | GEODIS_FF_FRANCE                                     | GEODIS FF FRANCE                                   | ✓        | 30                  | 30       |
+| 7    | XPO_GLOBAL_FORWARDING_FRANCE                         | XPO GLOBAL FORWARDING FRANCE                       | ✓        | 30                  | 30       |
+| 8    | LEGENDRE_CELTIC                                      | LEGENDRE CELTIC                                    | ✓        | 25                  | 25       |
+| 9    | JK_EXPRESS_USA_INC                                   | JK EXPRESS USA INC                                 | ✓        | 10                  | 10       |
+| 10   | JL*MANAGEMENT_USA_INC*                               | JL MANAGEMENT USA INC.                             | ✓        | 10                  | 10       |
+| 11   | LC_LOGISTICS_SERVICES\_\_INC                         | LC Logistics Services, Inc                         | ✓        | 10                  | 10       |
+| 12   | SHANGHAI_FLYING_FISH_SUPPLY_CHAIN_TECHNOLOGY_CO\_\_L | SHANGHAI FLYING FISH SUPPLY CHAIN TECHNOLOGY CO.,L | ✓        | 10                  | 10       |
+| 13   | NB_JIAVIEW_USA_INC                                   | NB JIAVIEW USA INC                                 | ✓        | 5                   | 5        |
+| 14   | RT*LOGISTICA_SRL*                                    | RT LOGISTICA Srl,                                  | ✓        | 5                   | 5        |
 
 #### ✓ 无堆场的车队（7 个）
 
-| 排名 | 公司代码 | 公司名称 | has_yard | yard_daily_capacity |
-|------|---------|---------|----------|---------------------|
-| 1 | ATLANTIC_FORWARDING_SPAIN__S_L_ | Atlantic Forwarding Spain, S.L. | ✗ | NULL |
-| 2 | CEVA_FREIGHT__UK__LTD | CEVA Freight (UK) Ltd | ✗ | NULL |
-| 3 | DSV_AIR___SEA_SAS | DSV Air & Sea SAS | ✗ | NULL |
-| 4 | LFT_TRANSPORTATION_INC | LFT TRANSPORTATION INC | ✗ | NULL |
-| 5 | PORTGUYS_LOGISTICS_LLC | Portguys Logistics Llc | ✗ | NULL |
-| 6 | S_AND_R_TRUCKING | S AND R TRUCKING | ✗ | NULL |
-| 7 | WENGER_TRUCKING_LLC | WENGER TRUCKING LLC | ✗ | NULL |
+| 排名 | 公司代码                          | 公司名称                        | has_yard | yard_daily_capacity |
+| ---- | --------------------------------- | ------------------------------- | -------- | ------------------- |
+| 1    | ATLANTIC*FORWARDING_SPAIN\_\_S_L* | Atlantic Forwarding Spain, S.L. | ✗        | NULL                |
+| 2    | CEVA_FREIGHT**UK**LTD             | CEVA Freight (UK) Ltd           | ✗        | NULL                |
+| 3    | DSV_AIR\_\_\_SEA_SAS              | DSV Air & Sea SAS               | ✗        | NULL                |
+| 4    | LFT_TRANSPORTATION_INC            | LFT TRANSPORTATION INC          | ✗        | NULL                |
+| 5    | PORTGUYS_LOGISTICS_LLC            | Portguys Logistics Llc          | ✗        | NULL                |
+| 6    | S_AND_R_TRUCKING                  | S AND R TRUCKING                | ✗        | NULL                |
+| 7    | WENGER_TRUCKING_LLC               | WENGER TRUCKING LLC             | ✗        | NULL                |
 
 ---
 
@@ -196,6 +202,7 @@ WHERE tc.company_code = pm.trucking_company_id;
 ### 验证结果
 
 **一致性检查**：
+
 ```
 has_yard=true, capacity>0: 14 个车队 ✓
 has_yard=false, capacity=NULL: 7 个车队 ✓
@@ -212,8 +219,9 @@ has_yard=false, capacity=NULL: 7 个车队 ✓
 ### 数据聚合策略
 
 **使用子查询聚合**：
+
 ```sql
-SELECT 
+SELECT
     trucking_company_id,
     MAX(yard_capacity) as max_yard_capacity
 FROM dict_trucking_port_mapping
@@ -221,6 +229,7 @@ GROUP BY trucking_company_id
 ```
 
 **优势**：
+
 - 高效处理一对多关系
 - 自动去重
 - 支持后续扩展（如 AVG、SUM 等）
@@ -228,6 +237,7 @@ GROUP BY trucking_company_id
 ### 批量更新优化
 
 **使用 JOIN 更新**：
+
 ```sql
 UPDATE target_table tc
 SET field1 = source.field1, field2 = source.field2
@@ -236,6 +246,7 @@ WHERE tc.id = source.id;
 ```
 
 **性能特点**：
+
 - 单次操作完成所有更新
 - 避免多次扫描表
 - 事务安全
@@ -277,11 +288,11 @@ SELECT COUNT(*) FROM dict_trucking_companies WHERE has_yard = false;
 
 ```sql
 -- 应该只返回有效配置
-SELECT 
+SELECT
     has_yard,
     yard_daily_capacity,
     COUNT(*) as count,
-    CASE 
+    CASE
         WHEN has_yard = true AND yard_daily_capacity > 0 THEN '✓ 有效'
         WHEN has_yard = false AND yard_daily_capacity IS NULL THEN '✓ 有效'
         ELSE '✗ 无效'
@@ -295,7 +306,7 @@ ORDER BY has_yard DESC, yard_daily_capacity DESC NULLS LAST;
 
 ```sql
 -- 验证每个车队的堆场容量来源
-SELECT 
+SELECT
     tc.company_code,
     tc.company_name,
     tc.has_yard,
@@ -304,7 +315,7 @@ SELECT
     pm.max_source_capacity
 FROM dict_trucking_companies tc
 LEFT JOIN (
-    SELECT 
+    SELECT
         trucking_company_id,
         COUNT(*) as mapping_count,
         MAX(yard_capacity) as max_source_capacity
@@ -327,7 +338,7 @@ ORDER BY tc.has_yard DESC, tc.yard_daily_capacity DESC NULLS LAST;
 async function importPortMapping(data) {
   // 步骤 1: 导入映射数据
   await insertPortMapping(data);
-  
+
   // 步骤 2: 自动同步堆场信息
   await syncYardInfo(data.truckingCompanyId);
 }
@@ -343,20 +354,20 @@ RETURNS TRIGGER AS $$
 BEGIN
   -- 更新车队公司的堆场信息
   UPDATE dict_trucking_companies tc
-  SET 
+  SET
     has_yard = (
-      SELECT MAX(yard_capacity) > 0 
-      FROM dict_trucking_port_mapping 
+      SELECT MAX(yard_capacity) > 0
+      FROM dict_trucking_port_mapping
       WHERE trucking_company_id = tc.company_code
     ),
     yard_daily_capacity = (
-      SELECT MAX(yard_capacity)::integer 
-      FROM dict_trucking_port_mapping 
+      SELECT MAX(yard_capacity)::integer
+      FROM dict_trucking_port_mapping
       WHERE trucking_company_id = tc.company_code
       HAVING MAX(yard_capacity) > 0
     )
   WHERE tc.company_code = NEW.trucking_company_id;
-  
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
@@ -376,7 +387,7 @@ EXECUTE FUNCTION sync_trucking_yard_info();
 -- 检查数据不一致的车队
 SELECT company_code, company_name, has_yard, yard_daily_capacity
 FROM dict_trucking_companies
-WHERE 
+WHERE
   (has_yard = true AND yard_daily_capacity IS NULL)
   OR (has_yard = false AND yard_daily_capacity IS NOT NULL)
   OR (has_yard = true AND yard_daily_capacity <= 0);
@@ -442,13 +453,13 @@ WHERE
 
 ## 📊 最终验证报告
 
-| 指标 | 数值 | 状态 |
-|------|------|------|
-| 总车队数 | 21 | ✅ |
-| 有堆场车队 | 14 (66.67%) | ✅ |
-| 无堆场车队 | 7 (33.33%) | ✅ |
-| 数据一致率 | 100% | ✅ |
-| 有效配置率 | 100% | ✅ |
+| 指标       | 数值        | 状态 |
+| ---------- | ----------- | ---- |
+| 总车队数   | 21          | ✅   |
+| 有堆场车队 | 14 (66.67%) | ✅   |
+| 无堆场车队 | 7 (33.33%)  | ✅   |
+| 数据一致率 | 100%        | ✅   |
+| 有效配置率 | 100%        | ✅   |
 
 **综合质量评分**: ⭐⭐⭐⭐⭐ 优秀
 

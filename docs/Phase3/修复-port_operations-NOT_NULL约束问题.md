@@ -15,8 +15,9 @@ NULL value in column "ata" violates not-null constraint
 **TimescaleDB 要求**：hypertable 的时间分区键必须是 NOT NULL。
 
 但业务场景中：
+
 - `ata`（实际到港日期）在货物未到达前为空
-- `gate_in_time`（进场时间）在货物未进场前为空  
+- `gate_in_time`（进场时间）在货物未进场前为空
 - 这些字段在导入时经常为空值
 
 ## ✅ 解决方案
@@ -64,7 +65,7 @@ docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db -c "SELECT 
 
 ```sql
 -- 1. 备份数据
-CREATE TABLE process_port_operations_backup AS 
+CREATE TABLE process_port_operations_backup AS
 SELECT * FROM process_port_operations;
 
 -- 2. 删除 hypertable（保留表和数据）
@@ -89,17 +90,20 @@ CREATE INDEX IF NOT EXISTS idx_port_operations_port_sequence_time
 **移除 hypertable 后的性能变化**：
 
 ✅ **优点**：
+
 - 支持 NULL 值，符合业务需求
 - 简化表结构，降低维护成本
 - 避免 TimescaleDB 的复杂性
 
 ⚠️ **可能的性能影响**：
+
 - 失去自动时间分区功能
 - 大数据量查询可能稍慢（但影响有限，因为港口操作数据量通常不大）
 
 ### 数据量评估
 
 根据实际业务：
+
 - 单个货柜的港口操作记录：3-5 条（起运港、中转港、目的港）
 - 预计年数据量：< 100 万条
 - **结论**：普通表完全能够胜任，不需要 hypertable 的分区功能

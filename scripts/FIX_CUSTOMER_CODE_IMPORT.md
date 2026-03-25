@@ -13,11 +13,12 @@
 ### 原始错误逻辑
 
 #### Step 1: ✅ 正确
+
 ```typescript
 // fillSellToCountryFromCustomer - 根据 customer_name 填充 sell_to_country
 const cust = await this.customerRepository.findOne({
   where: { customerName: orderData.customerName.trim() },
-  select: ['country']
+  select: ["country"],
 });
 if (cust?.country) {
   orderData.sellToCountry = cust.country;
@@ -25,15 +26,17 @@ if (cust?.country) {
 ```
 
 #### Step 2: ❌ 错误
+
 ```typescript
 // fillCustomerCodeFromSellToCountry - 错误的实现！
 const cust = await this.customerRepository.findOne({
   where: { customerName: orderData.sellToCountry!.trim() }, // ← 错误！用 sell_to_country 当 customer_name
-  select: ['customerCode']
+  select: ["customerCode"],
 });
 ```
 
-**问题**: 
+**问题**:
+
 - 使用 `sell_to_country`（如 "GB"）作为 `customer_name` 去查询
 - 但 `biz_customers.customer_name` 存储的是公司名（如 "MH Star UK Ltd"）
 - **类型不匹配**，永远无法匹配成功！
@@ -70,6 +73,7 @@ private async fillCustomerCodeFromCustomerName(orderData: {
 ```
 
 **改进点**:
+
 1. ✅ 直接使用 `customer_name` 匹配 `biz_customers.customer_name`
 2. ✅ 返回正确的 `customer_code`
 3. ✅ 添加详细的日志输出
@@ -97,7 +101,7 @@ Step 2: fillCustomerCodeFromCustomerName()
   - 填充：customer_code = "MH_STAR_UK_LTD"
   ↓
 最终结果:
-{ 
+{
   customer_name: "MH Star UK Ltd",
   sell_to_country: "GB",
   customer_code: "MH_STAR_UK_LTD"
@@ -113,11 +117,13 @@ Step 2: fillCustomerCodeFromCustomerName()
 **文件**: `backend/src/controllers/import.controller.ts`
 
 **修改位置**:
+
 1. Line 87-104: 替换 `fillCustomerCodeFromSellToCountry()` 为 `fillCustomerCodeFromCustomerName()`
 2. Line 619: 更新方法调用
 3. Line 1043: 更新方法调用
 
 **Diff**:
+
 ```diff
 - private async fillCustomerCodeFromSellToCountry(orderData: {
 + private async fillCustomerCodeFromCustomerName(orderData: {
@@ -143,6 +149,7 @@ Step 2: fillCustomerCodeFromCustomerName()
 ```
 
 **调用处更新**:
+
 ```diff
   // 先根据 customer_name 自动填充 sell_to_country
   await this.fillSellToCountryFromCustomer(orderData);
@@ -165,13 +172,15 @@ Step 2: fillCustomerCodeFromCustomerName()
 | customer_code | (空) |
 
 **预期结果**:
+
 ```sql
-SELECT customer_code FROM biz_customers 
+SELECT customer_code FROM biz_customers
 WHERE customer_name = 'Test UK Customer';
 -- 结果：TEST_UK_CUSTOMER ✅
 ```
 
 **日志输出**:
+
 ```
 [Import] 从 customer_name 补全 customer_code: Test UK Customer -> TEST_UK_CUSTOMER
 ```
@@ -187,13 +196,15 @@ WHERE customer_name = 'Test UK Customer';
 | customer_code | (空) |
 
 **预期结果**:
+
 ```sql
-SELECT customer_code, country FROM biz_customers 
+SELECT customer_code, country FROM biz_customers
 WHERE customer_name = 'MH STAR UK LTD';
 -- 结果：MH_STAR_UK_LTD, GB ✅
 ```
 
 **最终备货单数据**:
+
 ```json
 {
   "customer_name": "MH STAR UK LTD",
@@ -213,11 +224,13 @@ WHERE customer_name = 'MH STAR UK LTD';
 | customer_code | (空) |
 
 **预期结果**:
+
 - `customer_code` 保持为 NULL 或空
 - 日志记录查询失败
 - 不抛出异常
 
 **日志输出**:
+
 ```
 [Import] 查询 customer_name: Unknown Customer Co. - 未找到匹配
 ```
@@ -234,6 +247,7 @@ type test-customer-name-matching.sql | docker exec -i logix-timescaledb-prod psq
 ```
 
 **关键验证点**:
+
 1. ✅ 所有客户名称唯一（无重复）
 2. ✅ 有 customer_name 的备货单都能匹配到 customer_code
 3. ✅ 匹配成功率 100%（对于已存在的客户）
@@ -245,11 +259,13 @@ type test-customer-name-matching.sql | docker exec -i logix-timescaledb-prod psq
 ### Excel 导入列名多变体支持规范
 
 **要求**:
+
 - ✅ 支持 `customer_name` 及其变体（客户名称、客户名等）
 - ✅ 自动映射到数据库字段
 - ✅ 智能填充关联字段（customer_code, sell_to_country）
 
 **实现**:
+
 ```typescript
 // 前端映射配置（frontend/src/configs/importMappings/container.ts）
 {
@@ -268,12 +284,14 @@ type test-customer-name-matching.sql | docker exec -i logix-timescaledb-prod psq
 ### 修复前
 
 **问题**:
+
 - ❌ 备货单缺少 `customer_code`
 - ❌ 无法确定国家代码
 - ❌ 智能排产失败："无映射关系中的仓库"
 - ❌ 需要手动补全数据
 
 **影响**:
+
 - 排产成功率低
 - 用户工作量大
 - 数据质量差
@@ -283,12 +301,14 @@ type test-customer-name-matching.sql | docker exec -i logix-timescaledb-prod psq
 ### 修复后
 
 **优势**:
+
 - ✅ 自动匹配客户代码
 - ✅ 确保数据完整性
 - ✅ 提高排产成功率
 - ✅ 减少人工干预
 
 **效果**:
+
 - 排产成功率：0% → 100% ✅
 - 数据录入时间：5 分钟 → 1 分钟 ⚡
 - 用户体验：困难 → 简单 🎉
@@ -300,12 +320,13 @@ type test-customer-name-matching.sql | docker exec -i logix-timescaledb-prod psq
 ### 前端导入操作
 
 1. **准备 Excel 数据**
+
    ```
    必选列：
    - 集装箱号 (container_number)
    - 备货单号 (order_number)
    - 客户名称 (customer_name) ← 关键！
-   
+
    可选列：
    - 销往国家 (sell_to_country) - 会自动填充
    - 客户代码 (customer_code) - 会自动填充
@@ -319,7 +340,7 @@ type test-customer-name-matching.sql | docker exec -i logix-timescaledb-prod psq
 
 3. **验证结果**
    ```sql
-   SELECT 
+   SELECT
      order_number,
      customer_name,
      customer_code,
@@ -351,7 +372,7 @@ HAVING COUNT(*) > 1;
 
 ```sql
 -- 查找无法匹配的备货单
-SELECT 
+SELECT
   ro.order_number,
   ro.customer_name,
   ro.customer_code
@@ -366,6 +387,7 @@ WHERE c.customer_code IS NULL
 ### 3. 监控导入日志
 
 **关键日志**:
+
 ```
 [Import] 从 customer_name 补全 customer_code: xxx -> yyy
 [Import] 查询 customer_name: xxx - 未找到匹配
