@@ -6,24 +6,20 @@
 
 ```vue
 <template>
-  <UniversalImport 
-    title="我的导入"
-    :field-mappings="MY_MAPPINGS"
-    api-endpoint="/api/import/my-endpoint"
-  />
+  <UniversalImport title="我的导入" :field-mappings="MY_MAPPINGS" api-endpoint="/api/import/my-endpoint" />
 </template>
 
 <script setup lang="ts">
-import { UniversalImport } from '@/components/common/UniversalImport'
+import { UniversalImport } from "@/components/common/UniversalImport";
 
 const MY_MAPPINGS = [
-  { 
-    excelField: '名称', 
-    table: 'my_table', 
-    field: 'name', 
-    required: true 
-  }
-]
+  {
+    excelField: "名称",
+    table: "my_table",
+    field: "name",
+    required: true,
+  },
+];
 </script>
 ```
 
@@ -31,31 +27,31 @@ const MY_MAPPINGS = [
 
 ### Props
 
-| 参数 | 类型 | 默认值 | 必填 |
-|------|------|--------|------|
-| title | string | - | ✅ |
-| fieldMappings | FieldMapping[] | - | ✅ |
-| apiEndpoint | string | - | ✅ |
-| showPreview | boolean | true | ❌ |
-| enableBatchImport | boolean | false | ❌ |
-| batchSize | number | 100 | ❌ |
+| 参数              | 类型           | 默认值 | 必填 |
+| ----------------- | -------------- | ------ | ---- |
+| title             | string         | -      | ✅   |
+| fieldMappings     | FieldMapping[] | -      | ✅   |
+| apiEndpoint       | string         | -      | ✅   |
+| showPreview       | boolean        | true   | ❌   |
+| enableBatchImport | boolean        | false  | ❌   |
+| batchSize         | number         | 100    | ❌   |
 
 ### Events
 
-| 事件 | 参数 | 触发时机 |
-|------|------|---------|
+| 事件    | 参数         | 触发时机 |
+| ------- | ------------ | -------- |
 | success | ImportResult | 导入成功 |
-| error | string | 导入失败 |
+| error   | string       | 导入失败 |
 
 ## 🔧 工具函数
 
 ```typescript
-import { 
-  parseDate,       // 解析日期
-  parseDecimal,    // 解析小数  
-  parseInteger,    // 解析整数
-  parseBoolean     // 解析布尔值
-} from '@/components/common/UniversalImport'
+import {
+  parseDate, // 解析日期
+  parseDecimal, // 解析小数
+  parseInteger, // 解析整数
+  parseBoolean, // 解析布尔值
+} from "@/components/common/UniversalImport";
 ```
 
 ## 📝 配置模板
@@ -63,21 +59,21 @@ import {
 ### 简单字段
 
 ```typescript
-{ 
-  excelField: '列名', 
-  table: 'table_name', 
-  field: 'field_name', 
-  required: true 
+{
+  excelField: '列名',
+  table: 'table_name',
+  field: 'field_name',
+  required: true
 }
 ```
 
 ### 带别名
 
 ```typescript
-{ 
-  excelField: '主要列名', 
-  table: 'table_name', 
-  field: 'field_name', 
+{
+  excelField: '主要列名',
+  table: 'table_name',
+  field: 'field_name',
   required: false,
   aliases: ['别名 1', '别名 2']
 }
@@ -86,10 +82,10 @@ import {
 ### 带转换
 
 ```typescript
-{ 
-  excelField: '日期列', 
-  table: 'table_name', 
-  field: 'date_field', 
+{
+  excelField: '日期列',
+  table: 'table_name',
+  field: 'date_field',
   required: true,
   transform: parseDate
 }
@@ -99,32 +95,32 @@ import {
 
 ```typescript
 // configs/importMappings/example.ts
-import type { FieldMapping } from '@/components/common/UniversalImport'
-import { parseDate, parseDecimal } from '@/components/common/UniversalImport'
+import type { FieldMapping } from "@/components/common/UniversalImport";
+import { parseDate, parseDecimal } from "@/components/common/UniversalImport";
 
 export const EXAMPLE_MAPPINGS: FieldMapping[] = [
   {
-    excelField: '订单号',
-    table: 'biz_orders',
-    field: 'order_number',
+    excelField: "订单号",
+    table: "biz_orders",
+    field: "order_number",
     required: true,
-    aliases: ['订单编号', '单号']
+    aliases: ["订单编号", "单号"],
   },
   {
-    excelField: '下单日期',
-    table: 'biz_orders',
-    field: 'order_date',
+    excelField: "下单日期",
+    table: "biz_orders",
+    field: "order_date",
     required: false,
-    transform: parseDate
+    transform: parseDate,
   },
   {
-    excelField: '金额',
-    table: 'biz_orders',
-    field: 'amount',
+    excelField: "金额",
+    table: "biz_orders",
+    field: "amount",
     required: false,
-    transform: parseDecimal
-  }
-]
+    transform: parseDecimal,
+  },
+];
 ```
 
 ## 🐛 调试技巧
@@ -132,19 +128,19 @@ export const EXAMPLE_MAPPINGS: FieldMapping[] = [
 ### 1. 检查配置
 
 ```typescript
-console.log('字段映射:', FIELD_MAPPINGS)
-console.log('预览数据:', previewData.value)
+console.log("字段映射:", FIELD_MAPPINGS);
+console.log("预览数据:", previewData.value);
 ```
 
 ### 2. 验证错误
 
 ```typescript
 // 查看无效行的错误信息
-previewData.value.forEach(row => {
+previewData.value.forEach((row) => {
   if (row.errors) {
-    console.log('行错误:', row.errors)
+    console.log("行错误:", row.errors);
   }
-})
+});
 ```
 
 ### 3. 网络请求

@@ -67,18 +67,26 @@ export const CONTAINER_FIELD_MAPPINGS: FieldMapping[] = [
     transform: (value: any, row?: Record<string, any>) => {
       // 如果 Excel 中有值，直接使用
       if (value) return value
-        
+
       // 如果 Excel 中无值，尝试从客户名称自动填充
       if (row?.customer_name) {
         const customerName = String(row.customer_name)
         const countryKeywords: Record<string, string> = {
-          '美国': '美国', 'US': '美国', 'USA': '美国',
-          '英国': '英国', 'UK': '英国',
-          '德国': '德国', 'DE': '德国',
-          '法国': '法国', 'FR': '法国',
-          '日本': '日本', 'JP': '日本',
-          '澳大利亚': '澳大利亚', 'AU': '澳大利亚',
-          '加拿大': '加拿大', 'CA': '加拿大',
+          美国: '美国',
+          US: '美国',
+          USA: '美国',
+          英国: '英国',
+          UK: '英国',
+          德国: '德国',
+          DE: '德国',
+          法国: '法国',
+          FR: '法国',
+          日本: '日本',
+          JP: '日本',
+          澳大利亚: '澳大利亚',
+          AU: '澳大利亚',
+          加拿大: '加拿大',
+          CA: '加拿大',
         }
         for (const [keyword, country] of Object.entries(countryKeywords)) {
           if (customerName.includes(keyword)) {
@@ -87,9 +95,9 @@ export const CONTAINER_FIELD_MAPPINGS: FieldMapping[] = [
           }
         }
       }
-        
+
       return null
-    }
+    },
   },
   {
     excelField: '客户名称',
@@ -149,10 +157,10 @@ export const CONTAINER_FIELD_MAPPINGS: FieldMapping[] = [
     field: 'container_number',
     required: true,
     aliases: [
-      '箱号(集装箱号)',  // 半角括号无空格 - Excel实际列名
-      '箱号 (集装箱号)',  // 半角括号有空格
-      '箱号（集装箱号）',  // 全角括号
-      '箱号',             // 简化版本
+      '箱号(集装箱号)', // 半角括号无空格 - Excel实际列名
+      '箱号 (集装箱号)', // 半角括号有空格
+      '箱号（集装箱号）', // 全角括号
+      '箱号', // 简化版本
     ],
   },
   {
@@ -269,6 +277,22 @@ export const CONTAINER_FIELD_MAPPINGS: FieldMapping[] = [
     transform: parseDate,
   },
   {
+    excelField: '出运日期',
+    table: 'process_sea_freight',
+    field: 'shipment_date',
+    required: false,
+    transform: parseDate,
+    aliases: ['装船日期', '实际装船时间'],
+  },
+  {
+    excelField: '实际装船时间',
+    table: 'process_sea_freight',
+    field: 'actual_loading_date',
+    required: false,
+    transform: parseDate,
+    aliases: ['装船日期', '出运日期'],
+  },
+  {
     excelField: '预计到港日期',
     table: 'process_sea_freight',
     field: 'eta',
@@ -301,15 +325,15 @@ export const CONTAINER_FIELD_MAPPINGS: FieldMapping[] = [
 
   // ===== 港口操作表 (process_port_operations) =====
   {
-    excelField: '集装箱号',  // 外键关联
+    excelField: '集装箱号', // 外键关联
     table: 'process_port_operations',
     field: 'container_number',
     required: false,
     aliases: [
-      '箱号 (集装箱号)',  // 半角括号无空格 - Excel 实际格式
-      '箱号 (集装箱号)',  // 半角括号有空格
-      '箱号（集装箱号）',  // 全角括号
-      '箱号',             // 简化版本
+      '箱号 (集装箱号)', // 半角括号无空格 - Excel 实际格式
+      '箱号 (集装箱号)', // 半角括号有空格
+      '箱号（集装箱号）', // 全角括号
+      '箱号', // 简化版本
     ],
   },
   {
@@ -317,29 +341,34 @@ export const CONTAINER_FIELD_MAPPINGS: FieldMapping[] = [
     table: 'process_port_operations',
     field: 'port_type',
     required: false,
-    aliases: ['港口类型(起运港/中转港/目的港)', '港口类型(起运港/中转港/目的港)', '港口类型(起运港/中转/目的)', 'port_type'],
+    aliases: [
+      '港口类型(起运港/中转港/目的港)',
+      '港口类型(起运港/中转港/目的港)',
+      '港口类型(起运港/中转/目的)',
+      'port_type',
+    ],
     transform: (value: any, row: any) => {
       // 如果Excel明确填写了港口类型，使用填写的值
       if (value) {
-        const v = String(value).toLowerCase().trim();
-        if (v.includes('起运') || v.includes('origin') || v === 'o') return 'origin';
-        if (v.includes('中转') || v.includes('transit') || v === 't') return 'transit';
-        if (v.includes('目的') || v.includes('destination') || v === 'd') return 'destination';
+        const v = String(value).toLowerCase().trim()
+        if (v.includes('起运') || v.includes('origin') || v === 'o') return 'origin'
+        if (v.includes('中转') || v.includes('transit') || v === 't') return 'transit'
+        if (v.includes('目的') || v.includes('destination') || v === 'd') return 'destination'
       }
-      
+
       // 智能推断：根据Excel中其他字段判断
       // 有"目的港"字段值 → destination
-      // 有"起运港"字段值 → origin  
+      // 有"起运港"字段值 → origin
       // 有"途径港"字段值 → transit
-      const destPort = row?.['目的港'] || row?.['目的港名称'];
-      const originPort = row?.['起运港'];
-      const transitPort = row?.['途径港'] || row?.['中转港'];
-      
-      if (destPort) return 'destination';
-      if (originPort) return 'origin';
-      if (transitPort) return 'transit';
-      
-      return 'destination'; // 默认目的港
+      const destPort = row?.['目的港'] || row?.['目的港名称']
+      const originPort = row?.['起运港']
+      const transitPort = row?.['途径港'] || row?.['中转港']
+
+      if (destPort) return 'destination'
+      if (originPort) return 'origin'
+      if (transitPort) return 'transit'
+
+      return 'destination' // 默认目的港
     },
   },
   {
@@ -350,7 +379,7 @@ export const CONTAINER_FIELD_MAPPINGS: FieldMapping[] = [
     transform: (value: any, row: any) => {
       // 如果有"目的港"字段，直接使用其值作为 port_code
       // 后端会将其转换为标准港口代码
-      return value || row?.['目的港'];
+      return value || row?.['目的港']
     },
   },
   {
@@ -365,9 +394,9 @@ export const CONTAINER_FIELD_MAPPINGS: FieldMapping[] = [
     field: 'port_sequence',
     required: false,
     transform: (value: any) => {
-      if (!value) return 1;
-      const num = parseInt(value, 10);
-      return isNaN(num) ? 1 : num;
+      if (!value) return 1
+      const num = parseInt(value, 10)
+      return isNaN(num) ? 1 : num
     },
     aliases: ['港口序号', '港口次序'],
   },
@@ -377,7 +406,12 @@ export const CONTAINER_FIELD_MAPPINGS: FieldMapping[] = [
     field: 'eta',
     required: false,
     transform: parseDate,
-    aliases: ['预计到港日期(ETA)', '预计到港日期 (ETA)', '预计到港日期（ETA）', '预计到港日期（目的港）'],
+    aliases: [
+      '预计到港日期(ETA)',
+      '预计到港日期 (ETA)',
+      '预计到港日期（ETA）',
+      '预计到港日期（目的港）',
+    ],
   },
   {
     excelField: '实际到港日期 (目的港)',
@@ -385,7 +419,12 @@ export const CONTAINER_FIELD_MAPPINGS: FieldMapping[] = [
     field: 'ata',
     required: false,
     transform: parseDate,
-    aliases: ['实际到港日期(目的港)', '实际到港日期（目的港）', 'ATA(目的港)', '目的港实际到港日期'],
+    aliases: [
+      '实际到港日期(目的港)',
+      '实际到港日期（目的港）',
+      'ATA(目的港)',
+      '目的港实际到港日期',
+    ],
   },
   {
     excelField: '免堆期 (天)',
@@ -422,15 +461,15 @@ export const CONTAINER_FIELD_MAPPINGS: FieldMapping[] = [
 
   // ===== 拖卡运输表 (process_trucking_transport) =====
   {
-    excelField: '集装箱号',  // 外键关联
+    excelField: '集装箱号', // 外键关联
     table: 'process_trucking_transport',
     field: 'container_number',
     required: false,
     aliases: [
-      '箱号 (集装箱号)',  // 半角括号无空格 - Excel 实际格式
-      '箱号 (集装箱号)',  // 半角括号有空格
-      '箱号（集装箱号）',  // 全角括号
-      '箱号',             // 简化版本
+      '箱号 (集装箱号)', // 半角括号无空格 - Excel 实际格式
+      '箱号 (集装箱号)', // 半角括号有空格
+      '箱号（集装箱号）', // 全角括号
+      '箱号', // 简化版本
     ],
   },
   {
@@ -468,15 +507,15 @@ export const CONTAINER_FIELD_MAPPINGS: FieldMapping[] = [
 
   // ===== 仓库操作表 (process_warehouse_operations) =====
   {
-    excelField: '集装箱号',  // 外键关联
+    excelField: '集装箱号', // 外键关联
     table: 'process_warehouse_operations',
     field: 'container_number',
     required: false,
     aliases: [
-      '箱号 (集装箱号)',  // 半角括号无空格 - Excel 实际格式
-      '箱号 (集装箱号)',  // 半角括号有空格
-      '箱号（集装箱号）',  // 全角括号
-      '箱号',             // 简化版本
+      '箱号 (集装箱号)', // 半角括号无空格 - Excel 实际格式
+      '箱号 (集装箱号)', // 半角括号有空格
+      '箱号（集装箱号）', // 全角括号
+      '箱号', // 简化版本
     ],
   },
   {
@@ -511,15 +550,15 @@ export const CONTAINER_FIELD_MAPPINGS: FieldMapping[] = [
 
   // ===== 还空箱表 (process_empty_return) =====
   {
-    excelField: '集装箱号',  // 外键关联
+    excelField: '集装箱号', // 外键关联
     table: 'process_empty_return',
     field: 'container_number',
     required: false,
     aliases: [
-      '箱号 (集装箱号)',  // 半角括号无空格 - Excel 实际格式
-      '箱号 (集装箱号)',  // 半角括号有空格
-      '箱号（集装箱号）',  // 全角括号
-      '箱号',             // 简化版本
+      '箱号 (集装箱号)', // 半角括号无空格 - Excel 实际格式
+      '箱号 (集装箱号)', // 半角括号有空格
+      '箱号（集装箱号）', // 全角括号
+      '箱号', // 简化版本
     ],
   },
   {

@@ -6,12 +6,12 @@
 
 ## 🎯 迁移收益
 
-| 指标 | 迁移前 | 迁移后 | 改进 |
-|------|--------|--------|------|
-| 代码行数 | ~600 行/组件 | ~50 行/组件 | ↓ 92% |
-| 开发时间 | 4-8 小时/个 | 0.5-2 小时/个 | ↓ 75% |
-| 维护成本 | 高 | 低 | ↓ 80% |
-| 代码重复 | 80%+ | 0% | ↓ 100% |
+| 指标     | 迁移前       | 迁移后        | 改进   |
+| -------- | ------------ | ------------- | ------ |
+| 代码行数 | ~600 行/组件 | ~50 行/组件   | ↓ 92%  |
+| 开发时间 | 4-8 小时/个  | 0.5-2 小时/个 | ↓ 75%  |
+| 维护成本 | 高           | 低            | ↓ 80%  |
+| 代码重复 | 80%+         | 0%            | ↓ 100% |
 
 ## 🚀 迁移步骤
 
@@ -47,8 +47,8 @@ import { parseDate, parseDecimal, parseBoolean } from '@/components/common/Unive
 // 从原组件复制转换函数
 function transformLogisticsStatus(value: unknown): string | null {
   const map: Record<string, string> = {
-    '未出运': 'not_shipped',
-    '已装船': 'shipped',
+    未出运: 'not_shipped',
+    已装船: 'shipped',
     // ... 其他映射
   }
   return map[String(value)] || null
@@ -56,8 +56,8 @@ function transformLogisticsStatus(value: unknown): string | null {
 
 function transformOrderStatus(value: unknown): string | null {
   const map: Record<string, string> = {
-    '草稿': 'DRAFT',
-    '已确认': 'CONFIRMED',
+    草稿: 'DRAFT',
+    已确认: 'CONFIRMED',
     // ... 其他映射
   }
   return map[String(value)] || null
@@ -66,11 +66,11 @@ function transformOrderStatus(value: unknown): string | null {
 // 导出字段映射配置
 export const CONTAINER_FIELD_MAPPINGS: FieldMapping[] = [
   // 从原 FIELD_MAPPINGS 复制过来
-  { 
-    excelField: '备货单号', 
-    table: 'biz_replenishment_orders', 
-    field: 'order_number', 
-    required: true 
+  {
+    excelField: '备货单号',
+    table: 'biz_replenishment_orders',
+    field: 'order_number',
+    required: true,
   },
   // ... 其他字段
 ]
@@ -90,7 +90,7 @@ export const CONTAINER_FIELD_MAPPINGS: FieldMapping[] = [
 
 <!-- 替换为： -->
 <template>
-  <UniversalImport 
+  <UniversalImport
     title="货柜数据导入"
     :field-mappings="CONTAINER_FIELD_MAPPINGS"
     api-endpoint="/api/import/container"
@@ -136,7 +136,7 @@ const previewData = ref<any[]>([])
 
 ```vue
 <template>
-  <UniversalImport 
+  <UniversalImport
     title="货柜数据导入"
     :field-mappings="CONTAINER_FIELD_MAPPINGS"
     api-endpoint="/api/import/container"
@@ -185,7 +185,7 @@ function parseTiersFromRow(row: Record<string, unknown>) {...}
 
 ```vue
 <template>
-  <UniversalImport 
+  <UniversalImport
     title="滞港费标准导入"
     :field-mappings="DEMURRAGE_FIELD_MAPPINGS"
     api-endpoint="/api/import/demurrage-standards"
@@ -232,7 +232,7 @@ export const TIER_COLUMNS: Record<string, string[]> = {...}
 
 ```vue
 <template>
-  <UniversalImport 
+  <UniversalImport
     title="飞驼数据导入"
     :field-mappings="FEITUO_FIELD_MAPPINGS"
     api-endpoint="/api/import/feituo"
@@ -256,10 +256,10 @@ import { FEITUO_FIELD_MAPPINGS } from '@/configs/importMappings/feituo'
 // configs/importMappings/custom.ts
 function transformSpecialValue(value: unknown): string | null {
   if (!value) return null
-  
+
   // 复杂转换逻辑
   const result = doComplexTransformation(value)
-  
+
   return result
 }
 
@@ -267,8 +267,8 @@ export const CUSTOM_MAPPINGS: FieldMapping[] = [
   {
     excelField: '特殊字段',
     field: 'special_field',
-    transform: transformSpecialValue
-  }
+    transform: transformSpecialValue,
+  },
 ]
 ```
 
@@ -281,7 +281,7 @@ export const CUSTOM_MAPPINGS: FieldMapping[] = [
 export const TIER_COLUMNS: Record<string, string[]> = {
   '1': ['1', '1.0'],
   '2': ['2', '2.0'],
-  '60+': ['60+', '60+']
+  '60+': ['60+', '60+'],
 }
 
 // 在通用组件中通过扩展点处理
@@ -307,9 +307,7 @@ export function adaptContainerImport(data: any[]) {
 **A**: 通过事件监听实现：
 
 ```vue
-<UniversalImport 
-  @download-template="handleDownloadTemplate"
-/>
+<UniversalImport @download-template="handleDownloadTemplate" />
 
 <script setup>
 function handleDownloadTemplate() {
@@ -366,11 +364,11 @@ function handleDownloadTemplate() {
 
 ## 📈 迁移进度追踪
 
-| 组件 | 原始行数 | 迁移后行数 | 状态 | 完成度 |
-|------|---------|-----------|------|--------|
-| ExcelImport.vue | 1091 | 20 | 🔄 进行中 | 80% |
-| DemurrageStandardsImport.vue | 570 | 20 | 🔄 进行中 | 80% |
-| FeituoDataImport.vue | ~800 | 20 | 🔄 进行中 | 80% |
+| 组件                         | 原始行数 | 迁移后行数 | 状态      | 完成度 |
+| ---------------------------- | -------- | ---------- | --------- | ------ |
+| ExcelImport.vue              | 1091     | 20         | 🔄 进行中 | 80%    |
+| DemurrageStandardsImport.vue | 570      | 20         | 🔄 进行中 | 80%    |
+| FeituoDataImport.vue         | ~800     | 20         | 🔄 进行中 | 80%    |
 
 **总计减少代码**: ~2461 行 → ~60 行 (↓ 97.6%)
 

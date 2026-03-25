@@ -27,16 +27,12 @@
 
 ```vue
 <template>
-  <UniversalImport 
-    title="货柜数据导入"
-    :field-mappings="CONTAINER_FIELD_MAPPINGS"
-    api-endpoint="/api/import/container"
-  />
+  <UniversalImport title="货柜数据导入" :field-mappings="CONTAINER_FIELD_MAPPINGS" api-endpoint="/api/import/container" />
 </template>
 
 <script setup lang="ts">
-import { UniversalImport } from '@/components/common/UniversalImport'
-import { CONTAINER_FIELD_MAPPINGS } from '@/configs/importMappings/container'
+import { UniversalImport } from "@/components/common/UniversalImport";
+import { CONTAINER_FIELD_MAPPINGS } from "@/configs/importMappings/container";
 </script>
 ```
 
@@ -44,24 +40,24 @@ import { CONTAINER_FIELD_MAPPINGS } from '@/configs/importMappings/container'
 
 ```typescript
 // configs/importMappings/my-config.ts
-import type { FieldMapping } from '@/components/common/UniversalImport'
-import { parseDate, parseDecimal } from '@/components/common/UniversalImport'
+import type { FieldMapping } from "@/components/common/UniversalImport";
+import { parseDate, parseDecimal } from "@/components/common/UniversalImport";
 
 export const MY_MAPPINGS: FieldMapping[] = [
   {
-    excelField: '订单号',
-    table: 'biz_orders',
-    field: 'order_number',
-    required: true
+    excelField: "订单号",
+    table: "biz_orders",
+    field: "order_number",
+    required: true,
   },
   {
-    excelField: '下单日期',
-    table: 'biz_orders',
-    field: 'order_date',
+    excelField: "下单日期",
+    table: "biz_orders",
+    field: "order_date",
     required: false,
-    transform: parseDate
-  }
-]
+    transform: parseDate,
+  },
+];
 ```
 
 ---
@@ -103,12 +99,12 @@ logix/
 
 ```typescript
 interface FieldMapping {
-  excelField: string        // Excel 列名
-  table: string            // 数据库表名
-  field: string            // 数据库字段名
-  required: boolean        // 是否必填
-  transform?: (value: any) => any  // 转换函数
-  aliases?: string[]       // 列名别名
+  excelField: string; // Excel 列名
+  table: string; // 数据库表名
+  field: string; // 数据库字段名
+  required: boolean; // 是否必填
+  transform?: (value: any) => any; // 转换函数
+  aliases?: string[]; // 列名别名
 }
 ```
 
@@ -117,8 +113,8 @@ interface FieldMapping {
 可复用的逻辑单元，提高代码复用率。
 
 ```typescript
-const { previewData, parseExcelFile } = useExcelParser()
-const { uploading, uploadFile } = useFileUpload()
+const { previewData, parseExcelFile } = useExcelParser();
+const { uploading, uploadFile } = useFileUpload();
 ```
 
 ### 3. 完整类型安全
@@ -156,12 +152,12 @@ const { uploading, uploadFile } = useFileUpload()
 内置常用的数据类型转换函数：
 
 ```typescript
-import { 
-  parseDate,       // 解析日期
-  parseDecimal,    // 解析小数  
-  parseInteger,    // 解析整数
-  parseBoolean     // 解析布尔值
-} from '@/components/common/UniversalImport'
+import {
+  parseDate, // 解析日期
+  parseDecimal, // 解析小数
+  parseInteger, // 解析整数
+  parseBoolean, // 解析布尔值
+} from "@/components/common/UniversalImport";
 ```
 
 ---
@@ -170,11 +166,11 @@ import {
 
 ### 开发效率对比
 
-| 指标 | 传统方式 | 通用组件 | 改进 |
-|------|---------|---------|------|
-| 新增导入场景 | 4-8 小时 | 0.5-2 小时 | **↓ 75%** |
-| 维护成本 | 6 小时/月 | 2 小时/月 | **↓ 67%** |
-| Bug 修复 | 2 小时/月 | 0.5 小时/月 | **↓ 75%** |
+| 指标         | 传统方式  | 通用组件    | 改进      |
+| ------------ | --------- | ----------- | --------- |
+| 新增导入场景 | 4-8 小时  | 0.5-2 小时  | **↓ 75%** |
+| 维护成本     | 6 小时/月 | 2 小时/月   | **↓ 67%** |
+| Bug 修复     | 2 小时/月 | 0.5 小时/月 | **↓ 75%** |
 
 ### 年度节约（假设每年新增 5 个场景）
 
@@ -192,6 +188,7 @@ import {
 **配置文件**: `configs/importMappings/container.ts` (372 行)
 
 **包含字段**:
+
 - 备货单表（10 个字段）
 - 货柜表（12 个字段）
 - 海运表（11 个字段）
@@ -272,16 +269,16 @@ import {
 ```typescript
 function transformSpecialValue(value: unknown): string | null {
   // 复杂转换逻辑
-  return result
+  return result;
 }
 
 export const MAPPINGS: FieldMapping[] = [
   {
-    excelField: '特殊字段',
-    field: 'special_field',
-    transform: transformSpecialValue
-  }
-]
+    excelField: "特殊字段",
+    field: "special_field",
+    transform: transformSpecialValue,
+  },
+];
 ```
 
 ### Q: 如何下载 Excel 模板？
@@ -293,7 +290,7 @@ export const MAPPINGS: FieldMapping[] = [
 
 <script setup>
 function handleDownload() {
-  window.location.href = '/templates/my-template.xlsx'
+  window.location.href = "/templates/my-template.xlsx";
 }
 </script>
 ```
@@ -303,10 +300,7 @@ function handleDownload() {
 **A**: 设置 `enableBatchImport` 和 `batchSize`:
 
 ```vue
-<UniversalImport 
-  :enable-batch-import="true"
-  :batch-size="200"
-/>
+<UniversalImport :enable-batch-import="true" :batch-size="200" />
 ```
 
 ---
@@ -324,7 +318,7 @@ function handleDownload() {
 **实施日期**: 2026-03-21  
 **实施人**: AI Assistant  
 **审核状态**: 待人工审核  
-**项目状态**: ✅ 第一、二、三阶段完成  
+**项目状态**: ✅ 第一、二、三阶段完成
 
 ---
 

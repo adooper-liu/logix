@@ -1,9 +1,9 @@
 # TimescaleDB 迁移执行清单
 
 **版本**: v2.0  
-**执行日期**: _______________  
-**执行人**: _______________  
-**监督人**: _______________  
+**执行日期**: ******\_\_\_******  
+**执行人**: ******\_\_\_******  
+**监督人**: ******\_\_\_******
 
 ---
 
@@ -23,11 +23,13 @@
 ### 1.2 环境检查
 
 - [ ] 数据库运行正常
+
   ```bash
   docker ps | grep logix-timescaledb-prod
   ```
 
 - [ ] 检查磁盘空间
+
   ```bash
   docker exec logix-timescaledb-prod df -h
   ```
@@ -43,12 +45,14 @@
 ### 1.3 备份策略
 
 - [ ] 准备备份存储位置（确保有足够空间）
+
   ```bash
   mkdir D:\backups\timescaledb_migration
   cd D:\backups\timescaledb_migration
   ```
 
 - [ ] 测试备份命令
+
   ```bash
   docker exec logix-timescaledb-prod pg_dump -U logix_user logix_db > test_backup.sql
   ```
@@ -65,19 +69,21 @@
 ### 2.1 最终确认
 
 - [ ] 确认所有应用已停止
+
   ```bash
   # 检查后端进程
   Get-Process -Name node -ErrorAction SilentlyContinue
-  
+
   # 检查 Docker 容器
   docker ps --filter "name=logix-backend"
   ```
 
 - [ ] 确认没有活跃连接
+
   ```bash
   docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db -c "
-  SELECT count(*) as active_connections 
-  FROM pg_stat_activity 
+  SELECT count(*) as active_connections
+  FROM pg_stat_activity
   WHERE datname = 'logix_db' AND pid <> pg_backend_pid();
   "
   ```
@@ -87,6 +93,7 @@
 ### 2.2 完整备份
 
 - [ ] 执行完整备份
+
   ```bash
   $TIMESTAMP = Get-Date -Format "yyyyMMdd_HHmmss"
   $BACKUP_FILE = "D:\backups\timescaledb_migration\backup_full_$TIMESTAMP.sql"
@@ -94,22 +101,25 @@
   ```
 
 - [ ] 备份 schema
+
   ```bash
   $SCHEMA_FILE = "D:\backups\timescaledb_migration\backup_schema_$TIMESTAMP.sql"
   docker exec logix-timescaledb-prod pg_dump -U logix_user logix_db --schema-only > $SCHEMA_FILE
   ```
 
 - [ ] 导出外键定义
+
   ```bash
   $FK_FILE = "D:\backups\timescaledb_migration\backup_fk_$TIMESTAMP.txt"
   docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db -c "
-  SELECT conname, pg_get_constraintdef(oid) 
-  FROM pg_constraint 
+  SELECT conname, pg_get_constraintdef(oid)
+  FROM pg_constraint
   WHERE contype = 'f';
   " > $FK_FILE
   ```
 
 - [ ] 验证备份文件完整性
+
   ```bash
   Get-ChildItem D:\backups\timescaledb_migration\backup_*_$TIMESTAMP.* | Format-Table Name, Length, LastWriteTime
   ```
@@ -123,27 +133,30 @@
 ### 3.1 执行主迁移脚本
 
 - [ ] 方式 1: 使用 PowerShell 管道（推荐）
+
   ```powershell
   Get-Content migrations\execute-hypertable-migration.sql | docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db
   ```
 
 - [ ] 方式 2: 复制到容器执行
+
   ```powershell
   docker cp migrations\execute-hypertable-migration.sql logix-timescaledb-prod:/tmp/migrate.sql
   docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db -f /tmp/migrate.sql
   ```
 
-- [ ] 记录执行开始时间：___________
-- [ ] 记录执行完成时间：___________
+- [ ] 记录执行开始时间：****\_\_\_****
+- [ ] 记录执行完成时间：****\_\_\_****
 - [ ] 记录任何错误或警告
 
 ### 3.2 验证执行结果
 
 - [ ] 检查 hypertables 列表
+
   ```bash
   docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db -c "
-  SELECT hypertable_name, num_dimensions 
-  FROM timescaledb_information.hypertables 
+  SELECT hypertable_name, num_dimensions
+  FROM timescaledb_information.hypertables
   ORDER BY hypertable_name;
   "
   ```
@@ -155,6 +168,7 @@
   - sys_data_change_log
 
 - [ ] 检查数据量（应该与迁移前一致）
+
   ```bash
   docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db -c "
   SELECT 'ext_container_status_events' AS t, COUNT(*) FROM ext_container_status_events
@@ -177,18 +191,20 @@
 ### 4.1 基本功能测试
 
 - [ ] 启动后端服务
+
   ```powershell
   .\start-logix-dev.ps1
   ```
 
 - [ ] 测试 API 端点
+
   ```bash
   # 测试货柜查询
   curl http://localhost:3001/api/containers
-  
+
   # 测试状态事件查询
   curl http://localhost:3001/api/container-status-events
-  
+
   # 测试港口操作查询
   curl http://localhost:3001/api/port-operations
   ```
@@ -201,6 +217,7 @@
 ### 4.2 数据库操作测试
 
 - [ ] INSERT 操作测试
+
   ```sql
   -- 测试插入新记录
   INSERT INTO ext_container_status_events (container_number, status_code, occurred_at)
@@ -209,27 +226,30 @@
   ```
 
 - [ ] UPDATE 操作测试
+
   ```sql
-  UPDATE ext_container_status_events 
-  SET status_code = 'UPDATED' 
+  UPDATE ext_container_status_events
+  SET status_code = 'UPDATED'
   WHERE container_number = 'TEST123';
   ```
 
 - [ ] DELETE 操作测试
+
   ```sql
-  DELETE FROM ext_container_status_events 
+  DELETE FROM ext_container_status_events
   WHERE container_number = 'TEST123';
   ```
 
 - [ ] 复杂查询测试
+
   ```sql
   -- 测试时间范围查询
-  SELECT COUNT(*) 
-  FROM ext_container_status_events 
+  SELECT COUNT(*)
+  FROM ext_container_status_events
   WHERE occurred_at >= NOW() - INTERVAL '7 days';
-  
+
   -- 测试聚合查询
-  SELECT 
+  SELECT
       date_trunc('day', occurred_at) AS day,
       COUNT(*) AS event_count
   FROM ext_container_status_events
@@ -244,7 +264,7 @@
   ```sql
   INSERT INTO ext_container_status_events (id, container_number, status_code, occurred_at)
   VALUES (99999, 'TEST456', 'TEST', NOW())
-  ON CONFLICT ON CONSTRAINT idx_ext_container_status_events_id 
+  ON CONFLICT ON CONSTRAINT idx_ext_container_status_events_id
   DO UPDATE SET status_code = EXCLUDED.status_code;
   ```
 
@@ -255,6 +275,7 @@
 ### 5.1 查询性能对比
 
 - [ ] 执行性能测试查询
+
   ```sql
   -- 测试 1: 时间范围查询（应该有显著提升）
   EXPLAIN ANALYZE
@@ -262,19 +283,19 @@
   WHERE occurred_at >= NOW() - INTERVAL '30 days'
   ORDER BY occurred_at DESC
   LIMIT 100;
-  
+
   -- 记录执行时间：_______ ms
-  
+
   -- 测试 2: 聚合查询（应该有显著提升）
   EXPLAIN ANALYZE
-  SELECT 
+  SELECT
       date_trunc('hour', occurred_at) AS hour,
       COUNT(*) AS cnt
   FROM ext_container_status_events
   WHERE occurred_at >= NOW() - INTERVAL '7 days'
   GROUP BY 1
   ORDER BY 1;
-  
+
   -- 记录执行时间：_______ ms
   ```
 
@@ -284,7 +305,7 @@
 
 - [ ] 检查表大小
   ```sql
-  SELECT 
+  SELECT
       relname AS table_name,
       pg_size_pretty(pg_total_relation_size(relid)) AS total_size
   FROM pg_catalog.pg_statio_user_tables
@@ -348,12 +369,12 @@
 
 ## 📞 **紧急联系人**
 
-| 角色 | 姓名 | 联系方式 |
-|------|------|---------|
-| 执行负责人 | _______ | _______ |
-| 技术负责人 | _______ | _______ |
-| DBA 支持 | _______ | _______ |
-| 业务负责人 | _______ | _______ |
+| 角色       | 姓名       | 联系方式   |
+| ---------- | ---------- | ---------- |
+| 执行负责人 | **\_\_\_** | **\_\_\_** |
+| 技术负责人 | **\_\_\_** | **\_\_\_** |
+| DBA 支持   | **\_\_\_** | **\_\_\_** |
+| 业务负责人 | **\_\_\_** | **\_\_\_** |
 
 ---
 
@@ -362,6 +383,7 @@
 如果迁移后出现严重问题：
 
 1. **立即停止所有应用**
+
    ```powershell
    .\stop-logix-dev.ps1
    ```
@@ -371,6 +393,7 @@
    - 严重问题 → 执行回滚
 
 3. **执行回滚（最后手段）**
+
    ```bash
    # 最安全的回滚方式：从备份恢复
    $BACKUP_FILE = "D:\backups\timescaledb_migration\backup_full_YYYYMMDD_HHMMSS.sql"
@@ -385,47 +408,47 @@
 
 ### 执行情况
 
-- 执行开始时间：_______________
-- 执行完成时间：_______________
-- 总耗时：_______________
-- 参与人员：_______________
+- 执行开始时间：******\_\_\_******
+- 执行完成时间：******\_\_\_******
+- 总耗时：******\_\_\_******
+- 参与人员：******\_\_\_******
 
 ### 遇到的问题
 
-1. _______________
-   - 解决方案：_______________
+1. ***
+   - 解决方案：******\_\_\_******
 
-2. _______________
-   - 解决方案：_______________
+2. ***
+   - 解决方案：******\_\_\_******
 
 ### 性能提升
 
-| 查询类型 | 迁移前 (ms) | 迁移后 (ms) | 提升 |
-|---------|-----------|-----------|------|
-| 时间范围查询 | _____ | _____ | ___% |
-| 聚合统计 | _____ | _____ | ___% |
-| 最新 N 条 | _____ | _____ | ___% |
+| 查询类型     | 迁移前 (ms) | 迁移后 (ms) | 提升    |
+| ------------ | ----------- | ----------- | ------- |
+| 时间范围查询 | **\_**      | **\_**      | \_\_\_% |
+| 聚合统计     | **\_**      | **\_**      | \_\_\_% |
+| 最新 N 条    | **\_**      | **\_**      | \_\_\_% |
 
 ### 存储优化
 
-| 表 | 迁移前 | 迁移后 | 压缩率 |
-|----|--------|--------|--------|
-| ext_container_status_events | _____ | _____ | ___% |
-| process_port_operations | _____ | _____ | ___% |
-| process_sea_freight | _____ | _____ | ___% |
-| sys_data_change_log | _____ | _____ | ___% |
+| 表                          | 迁移前 | 迁移后 | 压缩率  |
+| --------------------------- | ------ | ------ | ------- |
+| ext_container_status_events | **\_** | **\_** | \_\_\_% |
+| process_port_operations     | **\_** | **\_** | \_\_\_% |
+| process_sea_freight         | **\_** | **\_** | \_\_\_% |
+| sys_data_change_log         | **\_** | **\_** | \_\_\_% |
 
 ### 经验教训
 
-- 做得好的地方：_______________
-- 需要改进的地方：_______________
-- 下次建议：_______________
+- 做得好的地方：******\_\_\_******
+- 需要改进的地方：******\_\_\_******
+- 下次建议：******\_\_\_******
 
 ---
 
-**执行人签名**: _______________  
-**日期**: _______________  
-**监督人签名**: _______________  
+**执行人签名**: ******\_\_\_******  
+**日期**: ******\_\_\_******  
+**监督人签名**: ******\_\_\_******
 
 ---
 

@@ -2,7 +2,7 @@
 
 **归档日期**: 2026-03-21  
 **归档原则**: 去除重复、过期、错误，保留唯一有用准确的  
-**归档位置**: `docs/_archive_temp/`  
+**归档位置**: `docs/_archive_temp/`
 
 ---
 
@@ -10,24 +10,24 @@
 
 ### 归档文档数量
 
-| 来源目录 | 归档文件数 | 归档原因 |
-|---------|-----------|---------|
-| frontend/public/docs/根目录 | ~35 篇 | 临时性/已完成使命 |
-| frontend/public/docs/09-misc/ | 20 篇 | 内容杂乱已整合 |
-| frontend/public/docs/11-project/ | 33 篇 | 被第一阶段总结替代 |
-| frontend/public/docs/demurrage/ | 22 篇 | 已整合到预警系统文档 |
-| frontend/public/docs/07-performance/ | 3 篇 | 已整合到甘特图模块 |
-| frontend/public/docs/08-deployment/ | 4 篇 | 已整合到其他文档 |
-| frontend/public/docs/analysis/ | ~5 篇 | 临时分析文档 |
-| frontend/public/docs/proposals/ | ~3 篇 | 提案文档已完成 |
-| frontend/public/docs/technical/ | ~2 篇 | 技术文档已整合 |
-| frontend/public/docs/vision/ | ~5 篇 | 愿景文档已实现 |
-| frontend/public/docs/implementation/ | 4 篇 | 实施报告已过时 |
-| frontend/public/docs/logistics/ | 2 篇 | 物流文档已整合 |
-| frontend/public/docs/help/ | 1 篇 | 帮助文档已更新 |
-| frontend/docs/ | 3 篇 | 临时分析文档 |
-| backend/docs/TypeORM-*.md | 2 篇 | 已整合到数据库文档 |
-| **总计** | **~141 篇** | **不删除但不主动维护** |
+| 来源目录                             | 归档文件数  | 归档原因               |
+| ------------------------------------ | ----------- | ---------------------- |
+| frontend/public/docs/根目录          | ~35 篇      | 临时性/已完成使命      |
+| frontend/public/docs/09-misc/        | 20 篇       | 内容杂乱已整合         |
+| frontend/public/docs/11-project/     | 33 篇       | 被第一阶段总结替代     |
+| frontend/public/docs/demurrage/      | 22 篇       | 已整合到预警系统文档   |
+| frontend/public/docs/07-performance/ | 3 篇        | 已整合到甘特图模块     |
+| frontend/public/docs/08-deployment/  | 4 篇        | 已整合到其他文档       |
+| frontend/public/docs/analysis/       | ~5 篇       | 临时分析文档           |
+| frontend/public/docs/proposals/      | ~3 篇       | 提案文档已完成         |
+| frontend/public/docs/technical/      | ~2 篇       | 技术文档已整合         |
+| frontend/public/docs/vision/         | ~5 篇       | 愿景文档已实现         |
+| frontend/public/docs/implementation/ | 4 篇        | 实施报告已过时         |
+| frontend/public/docs/logistics/      | 2 篇        | 物流文档已整合         |
+| frontend/public/docs/help/           | 1 篇        | 帮助文档已更新         |
+| frontend/docs/                       | 3 篇        | 临时分析文档           |
+| backend/docs/TypeORM-\*.md           | 2 篇        | 已整合到数据库文档     |
+| **总计**                             | **~141 篇** | **不删除但不主动维护** |
 
 ---
 
@@ -134,6 +134,7 @@ docs/_archive_temp/
 ```
 
 **替代文档**:
+
 - Phase 报告 → `docs/Phase3/第一阶段总结/`（10 章）
 - 智能排柜文档 → `docs/Phase3/智能排柜系统完整文档.md`
 - 滞港费文档 → `docs/Phase3/智能预警系统完整文档.md` + `.codebuddy/skills/logix-demurrage/SKILL.md`
@@ -146,7 +147,8 @@ docs/_archive_temp/
 □ (20 篇杂乱文档，无统一主题)
 ```
 
-**替代文档**: 
+**替代文档**:
+
 - 相关内容已整合到各综合文档
 
 ### 3. project-old/（33 篇）
@@ -157,7 +159,8 @@ docs/_archive_temp/
 □ (33 篇项目相关文档)
 ```
 
-**替代文档**: 
+**替代文档**:
+
 - `docs/Phase3/第一阶段总结/`（10 章完整总结）
 
 ### 4. demurrage-old/（22 篇）
@@ -168,7 +171,8 @@ docs/_archive_temp/
 □ (22 篇滞港费专项文档)
 ```
 
-**替代文档**: 
+**替代文档**:
+
 - `docs/Phase3/智能预警系统完整文档.md`（876 行，包含滞港费完整内容）
 - `.codebuddy/skills/logix-demurrage/SKILL.md`（滞港费计算技能）
 
@@ -183,7 +187,8 @@ docs/_archive_temp/
 □ vision/* (~5 篇)
 ```
 
-**替代文档**: 
+**替代文档**:
+
 - 分析内容 → 各综合文档
 - 提案 → 已实现的功能文档
 - 技术文档 → `backend/docs/` 或 `frontend/public/docs/01-standards/`
@@ -199,7 +204,8 @@ docs/_archive_temp/
 □ help/* (1 篇)
 ```
 
-**替代文档**: 
+**替代文档**:
+
 - 实施报告 → `docs/Phase3/第一阶段总结/09-开发进度与里程碑.md`（待编写）
 - 物流文档 → `docs/Phase3/数据导入系统完整文档.md`
 - 帮助文档 → `docs/README-文档使用说明.md`
@@ -214,11 +220,12 @@ docs/_archive_temp/
 □ 预警系统诊断指南.md
 ```
 
-**替代文档**: 
+**替代文档**:
+
 - 甘特图分析 → `docs/Phase3/甘特图模块完整文档.md`
 - 预警系统排查 → `docs/Phase3/智能预警系统完整文档.md`
 
-### 8. backend/docs/TypeORM-*.md（2 篇）
+### 8. backend/docs/TypeORM-\*.md（2 篇）
 
 **归档原因**: TypeORM 问题已解决并整合到数据库文档
 
@@ -227,7 +234,8 @@ docs/_archive_temp/
 □ TypeORM-SnakeNamingStrategy-Investigation.md
 ```
 
-**替代文档**: 
+**替代文档**:
+
 - `docs/Phase3/数据库与 API 完整文档.md`（TypeORM 命名策略章节）
 
 ---
@@ -299,13 +307,13 @@ explorer docs\_archive_temp\
 
 ### 质量提升
 
-| 维度 | 整理前 | 整理后 | 改进 |
-|------|-------|-------|------|
-| 重复率 | ~23% | 0% | ✅ 消除重复 |
-| 准确性 | 参差不齐 | 基于代码 | ✅ 准确可靠 |
-| 完整性 | 碎片化 | 系统化 | ✅ 完整体系 |
-| 可查找性 | 困难 | 快速 | ✅ 清晰索引 |
-| 可维护性 | 低 | 高 | ✅ 易于维护 |
+| 维度     | 整理前   | 整理后   | 改进        |
+| -------- | -------- | -------- | ----------- |
+| 重复率   | ~23%     | 0%       | ✅ 消除重复 |
+| 准确性   | 参差不齐 | 基于代码 | ✅ 准确可靠 |
+| 完整性   | 碎片化   | 系统化   | ✅ 完整体系 |
+| 可查找性 | 困难     | 快速     | ✅ 清晰索引 |
+| 可维护性 | 低       | 高       | ✅ 易于维护 |
 
 ---
 
@@ -364,13 +372,13 @@ explorer docs\_archive_temp\
 ✅ **消除重复**: 整合了所有重复内容  
 ✅ **建立体系**: 清晰的三级文档架构  
 ✅ **保留精华**: 只保留唯一、有用、准确的文档  
-✅ **基于实际**: 所有内容都基于代码和 SKILL  
+✅ **基于实际**: 所有内容都基于代码和 SKILL
 
 ### 下一步
 
 📝 **完善核心文档**: 完成第一阶段总结所有章节  
 📝 **团队培训**: 介绍新文档体系和使用方法  
-📝 **持续改进**: 收集反馈，定期审查和更新  
+📝 **持续改进**: 收集反馈，定期审查和更新
 
 ---
 

@@ -43,6 +43,7 @@ import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { PortWarehouseMapping } from '../entities/PortWarehouseMapping';
 import { ExtWarehouseDailyOccupancy } from '../entities/ExtWarehouseDailyOccupancy';
 import { ExtTruckingSlotOccupancy } from '../entities/ExtTruckingSlotOccupancy';
+import { ExtTruckingReturnSlotOccupancy } from '../entities/ExtTruckingReturnSlotOccupancy';
 import { ExtYardDailyOccupancy } from '../entities/ExtYardDailyOccupancy';
 import { Yard } from '../entities/Yard';
 import { InspectionRecord } from '../entities/InspectionRecord';
@@ -118,6 +119,7 @@ export const dataSourceOptions: DataSourceOptions = {
     // 智能排柜资源占用表 (Intelligent Scheduling Resource Tables)
     ExtWarehouseDailyOccupancy,
     ExtTruckingSlotOccupancy,
+    ExtTruckingReturnSlotOccupancy,
     ExtYardDailyOccupancy,
     Yard,
 

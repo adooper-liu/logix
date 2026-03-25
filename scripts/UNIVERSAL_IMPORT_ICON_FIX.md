@@ -1,7 +1,7 @@
 # UniversalImport 图标错误修复报告
 
 **创建日期**: 2026-03-21  
-**问题类型**: 运行时错误 - 图标导出不存在  
+**问题类型**: 运行时错误 - 图标导出不存在
 
 ---
 
@@ -10,7 +10,7 @@
 ### 错误信息
 
 ```
-SyntaxError: The requested module '/node_modules/.vite/deps/@element-plus_icons-vue.js?v=4726d4de' 
+SyntaxError: The requested module '/node_modules/.vite/deps/@element-plus_icons-vue.js?v=4726d4de'
 does not provide an export named 'DownloadFilled' (at UniversalImport.vue:135:24)
 ```
 
@@ -25,7 +25,7 @@ does not provide an export named 'DownloadFilled' (at UniversalImport.vue:135:24
 
 ```typescript
 // ❌ 错误：这些图标不存在
-import { UploadFilled, DownloadFilled } from '@element-plus/icons-vue'
+import { UploadFilled, DownloadFilled } from "@element-plus/icons-vue";
 ```
 
 ---
@@ -38,10 +38,10 @@ import { UploadFilled, DownloadFilled } from '@element-plus/icons-vue'
 
 ```typescript
 // 修复前 ❌
-import { UploadFilled, DownloadFilled } from '@element-plus/icons-vue'
+import { UploadFilled, DownloadFilled } from "@element-plus/icons-vue";
 
 // 修复后 ✅
-import { Upload, Download } from '@element-plus/icons-vue'
+import { Upload, Download } from "@element-plus/icons-vue";
 ```
 
 #### 2. 修改模板中的图标使用
@@ -78,9 +78,9 @@ import { Upload, Download } from '@element-plus/icons-vue'
 
 Element Plus Icons 库中的图标命名规则：
 
-| 图标类型 | 命名方式 | 示例 |
-|---------|---------|------|
-| **线性图标** | 基础名称 | `Upload`, `Download`, `Refresh` |
+| 图标类型     | 命名方式      | 示例                                |
+| ------------ | ------------- | ----------------------------------- |
+| **线性图标** | 基础名称      | `Upload`, `Download`, `Refresh`     |
 | **填充图标** | 名称 + Filled | `UploadFilled`, `DownloadFilled` ⚠️ |
 
 ⚠️ **注意**: 并非所有图标都有 Filled 版本！
@@ -92,18 +92,18 @@ Element Plus Icons 库中的图标命名规则：
 ```typescript
 // ✅ 这些图标存在且被广泛使用
 import {
-  Upload,        // 上传图标
-  Download,      // 下载图标
-  Refresh,       // 刷新图标
-  Plus,          // 加号图标
-  Search,        // 搜索图标
-  Edit,          // 编辑图标
-  Delete,        // 删除图标
-  Warning,       // 警告图标
-  Success,       // 成功图标
-  InfoFilled,    // 信息图标（有 Filled 版本）
-  QuestionFilled // 问题图标（有 Filled 版本）
-} from '@element-plus/icons-vue'
+  Upload, // 上传图标
+  Download, // 下载图标
+  Refresh, // 刷新图标
+  Plus, // 加号图标
+  Search, // 搜索图标
+  Edit, // 编辑图标
+  Delete, // 删除图标
+  Warning, // 警告图标
+  Success, // 成功图标
+  InfoFilled, // 信息图标（有 Filled 版本）
+  QuestionFilled, // 问题图标（有 Filled 版本）
+} from "@element-plus/icons-vue";
 ```
 
 ### 项目中其他文件的正确用法参考
@@ -112,13 +112,13 @@ import {
 
 ```typescript
 // frontend/src/views/system/DictManage.vue ✅
-import { Plus, Edit, Delete, Search, Refresh, Upload, Download } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete, Search, Refresh, Upload, Download } from "@element-plus/icons-vue";
 
 // frontend/src/views/import/FeituoDataImport.vue ✅
-import { Refresh, Connection } from '@element-plus/icons-vue'
+import { Refresh, Connection } from "@element-plus/icons-vue";
 
 // frontend/src/views/dashboard/Dashboard.vue ✅
-import { Clock, Money, Refresh, TrendCharts } from '@element-plus/icons-vue'
+import { Clock, Money, Refresh, TrendCharts } from "@element-plus/icons-vue";
 ```
 
 ---
@@ -179,18 +179,21 @@ import { Clock, Money, Refresh, TrendCharts } from '@element-plus/icons-vue'
 在使用 Element Plus 图标前，先确认图标是否存在：
 
 **方法 A: 查看官方文档**
+
 - 访问：https://element-plus.org/en-US/component/icon.html
 - 搜索需要的图标名称
 
 **方法 B: 查看项目中的使用**
+
 ```bash
 # 搜索项目中已有的图标使用
 grep -r "from '@element-plus/icons-vue'" frontend/src
 ```
 
 **方法 C: 在 IDE 中智能提示**
+
 ```typescript
-import { /* 在这里输入，看 IDE 是否自动提示 */ } from '@element-plus/icons-vue'
+import {} from /* 在这里输入，看 IDE 是否自动提示 */ "@element-plus/icons-vue";
 ```
 
 ### 2. 统一图标使用规范

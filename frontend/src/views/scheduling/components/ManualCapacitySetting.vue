@@ -1,7 +1,7 @@
 <template>
   <el-dialog
     v-model="dialogVisible"
-    title="📝 手动设置每日能力"
+    :title="dialogTitle"
     width="800px"
     :close-on-click-modal="false"
     @opened="onDialogOpened"
@@ -15,12 +15,26 @@
         </div>
       </template>
 
-      <el-form
-        ref="batchFormRef"
-        :model="batchForm"
-        label-width="140px"
-        :rules="batchFormRules"
-      >
+      <el-form ref="batchFormRef" :model="batchForm" label-width="140px" :rules="batchFormRules">
+        <!-- 资源信息显示 -->
+        <el-alert
+          v-if="currentWarehouseCode || currentTruckingCompanyId"
+          type="info"
+          show-icon
+          :closable="false"
+          style="margin-bottom: 16px"
+        >
+          <template #title>
+            <div style="display: flex; align-items: center; gap: 8px">
+              <el-icon><InfoFilled /></el-icon>
+              <span>
+                {{ currentResourceType === 'warehouse' ? '仓库' : '车队' }}:
+                <strong>{{ currentWarehouseCode || currentTruckingCompanyId }}</strong>
+              </span>
+            </div>
+          </template>
+        </el-alert>
+
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="日期范围" prop="dateRange">
@@ -54,11 +68,7 @@
           <el-col :span="24">
             <el-form-item label="应用星期" prop="applyDays">
               <el-checkbox-group v-model="batchForm.applyDays">
-                <el-checkbox-button
-                  v-for="day in weekDays"
-                  :key="day.value"
-                  :label="day.value"
-                >
+                <el-checkbox-button v-for="day in weekDays" :key="day.value" :value="day.value">
                   {{ day.label }}
                 </el-checkbox-button>
               </el-checkbox-group>
@@ -86,11 +96,7 @@
         <el-row :gutter="20">
           <el-col :span="24">
             <el-form-item>
-              <el-button
-                type="primary"
-                :loading="batchLoading"
-                @click="applyBatchSetting"
-              >
+              <el-button type="primary" :loading="batchLoading" @click="applyBatchSetting">
                 <el-icon><Check /></el-icon>
                 应用批量设置
               </el-button>
@@ -154,20 +160,8 @@
 
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
-            <el-button
-              size="small"
-              type="primary"
-              @click="editSetting(row)"
-            >
-              编辑
-            </el-button>
-            <el-button
-              size="small"
-              type="danger"
-              @click="deleteSetting(row)"
-            >
-              删除
-            </el-button>
+            <el-button size="small" type="primary" @click="editSetting(row)"> 编辑 </el-button>
+            <el-button size="small" type="danger" @click="deleteSetting(row)"> 删除 </el-button>
           </template>
         </el-table-column>
 
@@ -193,24 +187,26 @@
     <template #footer>
       <div class="dialog-footer">
         <el-button @click="dialogVisible = false">关闭</el-button>
-        <el-button type="primary" @click="dialogVisible = false">
-          完成
-        </el-button>
+        <el-button type="primary" @click="dialogVisible = false"> 完成 </el-button>
       </div>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch } from 'vue'
-import { ElMessage, ElMessageBox, FormInstance } from 'element-plus'
-import { Check, Refresh, InfoFilled } from '@element-plus/icons-vue'
-import dayjs from 'dayjs'
 import api from '@/services/api'
+import { Check, InfoFilled, Refresh } from '@element-plus/icons-vue'
+import dayjs from 'dayjs'
+import { ElMessage, ElMessageBox, FormInstance } from 'element-plus'
+import { computed, reactive, ref, watch } from 'vue'
 
 // Props & Emits
 const props = defineProps<{
   visible: boolean
+  resourceType?: 'warehouse' | 'trucking'
+  warehouseCode?: string
+  truckingCompanyId?: string
+  selectedDate?: string  // 可选：打开对话框时选中的日期
 }>()
 
 const emit = defineEmits<{
@@ -224,6 +220,19 @@ const dialogVisible = computed({
   set: (value: boolean) => emit('update:visible', value)
 })
 
+// 当前资源信息（基于 props）
+const currentResourceType = computed(() => props.resourceType || 'warehouse')
+const currentWarehouseCode = computed(() => props.warehouseCode || '')
+const currentTruckingCompanyId = computed(() => props.truckingCompanyId || '')
+const initialDate = computed(() => props.selectedDate ? dayjs(props.selectedDate).format('YYYY-MM-DD') : '')
+
+// 标题显示
+const dialogTitle = computed(() => {
+  const typeText = currentResourceType.value === 'warehouse' ? '仓库' : '车队'
+  const codeText = currentWarehouseCode.value || currentTruckingCompanyId.value || ''
+  return `📝 手动设置${typeText}能力 - ${codeText}`
+})
+
 // 表单引用
 const batchFormRef = ref<FormInstance>()
 
@@ -235,7 +244,7 @@ const weekDays = [
   { value: 'thursday', label: '周四' },
   { value: 'friday', label: '周五' },
   { value: 'saturday', label: '周六' },
-  { value: 'sunday', label: '周日' }
+  { value: 'sunday', label: '周日' },
 ]
 
 // 批量设置表单
@@ -243,17 +252,13 @@ const batchForm = reactive({
   dateRange: [] as string[],
   capacity: 0,
   applyDays: ['saturday', 'sunday'] as string[],
-  reason: ''
+  reason: '',
 })
 
 // 表单验证规则
 const batchFormRules = {
-  dateRange: [
-    { required: true, message: '请选择日期范围', trigger: 'change' }
-  ],
-  capacity: [
-    { required: true, message: '请设置能力值', trigger: 'change' }
-  ]
+  dateRange: [{ required: true, message: '请选择日期范围', trigger: 'change' }],
+  capacity: [{ required: true, message: '请设置能力值', trigger: 'change' }],
 }
 
 // 加载状态
@@ -267,27 +272,32 @@ const manualSettings = ref<any[]>([])
 const pagination = reactive({
   page: 1,
   pageSize: 20,
-  total: 0
+  total: 0,
 })
 
 // 加载手动设置列表
 const loadManualSettings = async () => {
   listLoading.value = true
   try {
-    const response = await api.get('/scheduling/resources/capacity/manual/list', {
-      params: {
-        page: pagination.page,
-        pageSize: pagination.pageSize
-      }
-    })
+    // TODO: 等待后端实现手动能力设置 API
+    // 暂时返回空列表
+    manualSettings.value = []
+    pagination.total = 0
 
-    if (response.data.success) {
-      manualSettings.value = response.data.data.items
-      pagination.total = response.data.data.total
-    }
+    // const response = await api.get('/scheduling/resources/capacity/manual/list', {
+    //   params: {
+    //     page: pagination.page,
+    //     pageSize: pagination.pageSize
+    //   }
+    // })
+    //
+    // if (response.data.success) {
+    //   manualSettings.value = response.data.data.items
+    //   pagination.total = response.data.data.total
+    // }
   } catch (error: any) {
     console.error('加载手动设置列表失败:', error)
-    ElMessage.error('加载失败：' + error.message)
+    // ElMessage.error('加载失败：' + error.message)
   } finally {
     listLoading.value = false
   }
@@ -312,22 +322,25 @@ const applyBatchSetting = async () => {
 
       // 调用批量设置 API
       const response = await api.post('/scheduling/resources/capacity/manual/batch', {
+        resourceType: currentResourceType.value,
+        warehouseCode: currentWarehouseCode.value || undefined,
+        truckingCompanyId: currentTruckingCompanyId.value || undefined,
         startDate,
         endDate,
         capacity: batchForm.capacity,
         applyDays: batchForm.applyDays,
-        reason: batchForm.reason
+        reason: batchForm.reason,
       })
 
       if (response.data.success) {
         ElMessage.success(`成功设置 ${response.data.data.count} 个日期`)
-        
+
         // 重置表单
         resetBatchForm()
-        
+
         // 刷新列表
         loadManualSettings()
-        
+
         // 通知父组件
         emit('applied')
       }
@@ -355,20 +368,20 @@ const editSetting = (row: any) => {
   batchForm.dateRange = [row.date, row.date]
   batchForm.capacity = row.capacity
   batchForm.reason = row.reason
-  
+
   // 计算星期
   const weekday = getWeekday(row.date).toLowerCase()
   const weekdayMap: Record<string, string> = {
-    '周一': 'monday',
-    '周二': 'tuesday',
-    '周三': 'wednesday',
-    '周四': 'thursday',
-    '周五': 'friday',
-    '周六': 'saturday',
-    '周日': 'sunday'
+    周一: 'monday',
+    周二: 'tuesday',
+    周三: 'wednesday',
+    周四: 'thursday',
+    周五: 'friday',
+    周六: 'saturday',
+    周日: 'sunday',
   }
   batchForm.applyDays = [weekdayMap[weekday]]
-  
+
   // 滚动到顶部
   document.querySelector('.batch-setting-card')?.scrollIntoView({ behavior: 'smooth' })
 }
@@ -376,18 +389,14 @@ const editSetting = (row: any) => {
 // 删除设置
 const deleteSetting = async (row: any) => {
   try {
-    await ElMessageBox.confirm(
-      `确定要删除 ${formatDate(row.date)} 的手动设置吗？`,
-      '提示',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
+    await ElMessageBox.confirm(`确定要删除 ${formatDate(row.date)} 的手动设置吗？`, '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
 
     await api.delete(`/scheduling/resources/capacity/manual/${row.date}`)
-    
+
     ElMessage.success('删除成功')
     loadManualSettings()
     emit('applied')
@@ -421,11 +430,14 @@ const onDialogOpened = () => {
 }
 
 // 监听可见性变化
-watch(() => props.visible, (newVal: boolean) => {
-  if (newVal) {
-    loadManualSettings()
+watch(
+  () => props.visible,
+  (newVal: boolean) => {
+    if (newVal) {
+      loadManualSettings()
+    }
   }
-})
+)
 </script>
 
 <style scoped lang="scss">

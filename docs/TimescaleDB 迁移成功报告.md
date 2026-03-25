@@ -10,12 +10,12 @@
 
 ### 成功转换的表（4/4）
 
-| 表名 | 分区列 | 行数 | 状态 |
-|------|--------|------|------|
-| **ext_container_status_events** | `occurred_at` | 49 | ✅ 成功 |
-| **process_port_operations** | `ata` | 10 | ✅ 成功 |
-| **process_sea_freight** | `actual_loading_date` | 1 | ✅ 成功 |
-| **sys_data_change_log** | `created_at` | 50 | ✅ 成功 |
+| 表名                            | 分区列                | 行数 | 状态    |
+| ------------------------------- | --------------------- | ---- | ------- |
+| **ext_container_status_events** | `occurred_at`         | 49   | ✅ 成功 |
+| **process_port_operations**     | `ata`                 | 10   | ✅ 成功 |
+| **process_sea_freight**         | `actual_loading_date` | 1    | ✅ 成功 |
+| **sys_data_change_log**         | `created_at`          | 50   | ✅ 成功 |
 
 ### 数据完整性
 
@@ -31,6 +31,7 @@
 ### Phase 1: 初始尝试（失败） ❌
 
 **问题**:
+
 1. ❌ 使用了不存在的字段 `port_arrival_date`
 2. ❌ 唯一索引与分区列冲突
 3. ❌ NULL 值未完全填充
@@ -43,6 +44,7 @@
 ### Phase 2: 修正后重试（部分成功） ⚠️
 
 **修正内容**:
+
 - ✅ 使用正确字段名（revised_eta, dest_port_unload_date）
 - ✅ 删除所有唯一索引（不只是主键）
 - ✅ 转换后添加普通索引而非唯一索引
@@ -50,6 +52,7 @@
 **结果**: 2 个表成功（ext_container_status_events, sys_data_change_log）
 
 **剩余问题**:
+
 - ❌ process_port_operations 主键未删除
 - ❌ process_sea_freight 唯一索引冲突
 - ❌ hypertables 不支持 CONCURRENTLY 创建索引
@@ -59,6 +62,7 @@
 ### Phase 3: 最终修复补丁（完全成功） ✅
 
 **修复内容**:
+
 - ✅ 删除 process_port_operations 的主键约束
 - ✅ 删除 process_sea_freight 的唯一索引
 - ✅ 使用普通索引创建（不使用 CONCURRENTLY）
@@ -70,15 +74,19 @@
 ## 🔧 **执行的脚本序列**
 
 ### 1. 主迁移脚本（修正版）
+
 ```bash
 Get-Content migrations\execute-hypertable-migration-fixed.sql | docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db
 ```
+
 **结果**: 2 个表成功，2 个表失败
 
 ### 2. 最终修复补丁
+
 ```bash
 Get-Content migrations\fix-remaining-hypertables.sql | docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db
 ```
+
 **结果**: 剩余 2 个表成功
 
 ---
@@ -87,14 +95,14 @@ Get-Content migrations\fix-remaining-hypertables.sql | docker exec -i logix-time
 
 基于 TimescaleDB 的特性，预期性能提升：
 
-| 查询类型 | 当前（ms） | 预期（ms） | 提升倍数 |
-|---------|-----------|-----------|---------|
-| 时间范围查询（7 天） | ~500 | ~5 | **100x** |
-| 聚合统计（按小时） | ~2000 | ~50 | **40x** |
-| 最新 N 条记录 | ~100 | ~2 | **50x** |
-| 按箱号 + 时间查询 | ~300 | ~3 | **100x** |
+| 查询类型             | 当前（ms） | 预期（ms） | 提升倍数 |
+| -------------------- | ---------- | ---------- | -------- |
+| 时间范围查询（7 天） | ~500       | ~5         | **100x** |
+| 聚合统计（按小时）   | ~2000      | ~50        | **40x**  |
+| 最新 N 条记录        | ~100       | ~2         | **50x**  |
+| 按箱号 + 时间查询    | ~300       | ~3         | **100x** |
 
-*注：实际性能需要通过测试验证*
+_注：实际性能需要通过测试验证_
 
 ---
 
@@ -103,15 +111,18 @@ Get-Content migrations\fix-remaining-hypertables.sql | docker exec -i logix-time
 ### 1. 压缩策略配置失败
 
 **现象**:
+
 ```
 ERROR: unrecognized parameter namespace "timescaledb"
 ```
 
-**影响**: 
+**影响**:
+
 - 存储空间无法自动压缩（可能占用更多磁盘）
 - 不影响查询性能
 
 **后续解决方案**:
+
 ```sql
 -- 手动尝试配置
 ALTER TABLE ext_container_status_events SET (compress = true);
@@ -125,10 +136,11 @@ SELECT add_compression_policy('ext_container_status_events', INTERVAL '30 days')
 需要调整的地方：
 
 #### INSERT ... ON CONFLICT 语法
+
 ```typescript
 // ❌ 原代码（假设 id 是唯一约束）
-INSERT INTO table (id, ...) 
-VALUES (...) 
+INSERT INTO table (id, ...)
+VALUES (...)
 ON CONFLICT (id) DO UPDATE ...
 
 // ✅ 新代码（id 现在是普通索引）
@@ -136,12 +148,13 @@ ON CONFLICT (id) DO UPDATE ...
 INSERT INTO table (id, ...) VALUES (...)
 
 // 方式 2: 使用 ON CONFLICT ON CONSTRAINT（如果有其他唯一约束）
-INSERT INTO table (id, ...) 
-VALUES (...) 
+INSERT INTO table (id, ...)
+VALUES (...)
 ON CONFLICT ON CONSTRAINT <constraint_name> DO UPDATE ...
 ```
 
 #### 外键约束
+
 ```typescript
 // ❌ 依赖数据库外键约束
 // biz_containers.bill_of_lading_number -> process_sea_freight.bill_of_lading_number
@@ -149,17 +162,14 @@ ON CONFLICT ON CONSTRAINT <constraint_name> DO UPDATE ...
 // ✅ 应用层验证
 async function createContainer(data) {
   // 先验证提单号是否存在
-  const freight = await db.query(
-    'SELECT 1 FROM process_sea_freight WHERE bill_of_lading_number = $1',
-    [data.bill_of_lading_number]
-  );
-  
+  const freight = await db.query("SELECT 1 FROM process_sea_freight WHERE bill_of_lading_number = $1", [data.bill_of_lading_number]);
+
   if (!freight) {
-    throw new Error('提单号不存在');
+    throw new Error("提单号不存在");
   }
-  
+
   // 然后插入集装箱数据
-  return db.insert('biz_containers', data);
+  return db.insert("biz_containers", data);
 }
 ```
 
@@ -198,6 +208,7 @@ async function createContainer(data) {
 ### 本周内完成
 
 4. **⏳ 待执行**: 性能基准测试
+
    ```sql
    -- 对比迁移前后的查询性能
    EXPLAIN ANALYZE
@@ -217,7 +228,7 @@ async function createContainer(data) {
 
 ### 长期优化
 
-7. **⏳ 持续监控**: 
+7. **⏳ 持续监控**:
    - 查询性能指标
    - 存储空间增长
    - 压缩任务执行情况
@@ -235,7 +246,7 @@ async function createContainer(data) {
 
 ### 需要改进的地方 ⚠️
 
-1. **预验证不足**: 
+1. **预验证不足**:
    - 应该先检查所有字段名称
    - 应该先测试唯一索引的影响
 
@@ -250,6 +261,7 @@ async function createContainer(data) {
 ### 下次建议 📝
 
 1. **更严格的预检查清单**:
+
    ```markdown
    - [ ] 验证所有字段名称存在
    - [ ] 检查所有唯一索引
@@ -259,6 +271,7 @@ async function createContainer(data) {
    ```
 
 2. **分阶段执行**:
+
    ```
    Stage 1: 单个表试点 → 验证 → 推广到所有表
    Stage 2: 压缩策略单独测试
@@ -297,8 +310,8 @@ SELECT 'table_name', COUNT(*) FROM table_name;
 
 # 检查索引
 docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db -c "
-SELECT tablename, indexname, indexdef FROM pg_indexes 
-WHERE tablename IN ('ext_container_status_events', 'process_port_operations', 
+SELECT tablename, indexname, indexdef FROM pg_indexes
+WHERE tablename IN ('ext_container_status_events', 'process_port_operations',
                     'process_sea_freight', 'sys_data_change_log')
 ORDER BY tablename;
 "
@@ -311,6 +324,7 @@ ORDER BY tablename;
 经过三次不懈努力，我们终于成功完成了 TimescaleDB 迁移！
 
 **关键数据**:
+
 - ✅ 4 个表，110 行数据全部成功转换
 - ✅ 零数据丢失
 - ✅ 零停机时间（业务低峰期执行）
@@ -319,6 +333,7 @@ ORDER BY tablename;
 **感谢团队的支持和耐心！** 🙏
 
 这次迁移让我们深刻理解了：
+
 1. 充分预验证的重要性
 2. 分步执行的必要性
 3. 完整备份的价值

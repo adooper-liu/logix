@@ -27,23 +27,23 @@ Measure-Command { curl "http://localhost:3001/api/v1/containers?limit=5" }
 
 ### 环境检查
 
-| 目的 | 命令 | 期望结果 |
-|------|------|---------|
-| **Docker 状态** | `docker ps` | 看到 logix-timescaledb-prod |
-| **后端健康** | `curl localhost:3001/health` | status: healthy |
-| **数据库连接** | `docker exec logix-timescaledb-prod psql -U logix_user -d logix_db -c "\dt"` | 列出所有表 |
-| **hypertable** | `docker exec ... -c "SELECT * FROM timescaledb_information.hypertables;"` | 4 个 hypertable |
+| 目的            | 命令                                                                         | 期望结果                    |
+| --------------- | ---------------------------------------------------------------------------- | --------------------------- |
+| **Docker 状态** | `docker ps`                                                                  | 看到 logix-timescaledb-prod |
+| **后端健康**    | `curl localhost:3001/health`                                                 | status: healthy             |
+| **数据库连接**  | `docker exec logix-timescaledb-prod psql -U logix_user -d logix_db -c "\dt"` | 列出所有表                  |
+| **hypertable**  | `docker exec ... -c "SELECT * FROM timescaledb_information.hypertables;"`    | 4 个 hypertable             |
 
 ---
 
 ### API 测试
 
-| 测试类型 | 命令 | 关键检查点 |
-|---------|------|-----------|
-| **单箱查询** | `GET /api/v1/containers/{箱号}` | containerNumber 字段 |
-| **批量查询** | `GET /api/v1/containers?limit=10` | items 数组长度 |
-| **性能测试** | `Measure-Command { curl ... }` | TotalMilliseconds < 200 |
-| **错误处理** | `GET /api/v1/containers/INVALID` | message: "Container not found" |
+| 测试类型     | 命令                              | 关键检查点                     |
+| ------------ | --------------------------------- | ------------------------------ |
+| **单箱查询** | `GET /api/v1/containers/{箱号}`   | containerNumber 字段           |
+| **批量查询** | `GET /api/v1/containers?limit=10` | items 数组长度                 |
+| **性能测试** | `Measure-Command { curl ... }`    | TotalMilliseconds < 200        |
+| **错误处理** | `GET /api/v1/containers/INVALID`  | message: "Container not found" |
 
 ---
 
@@ -54,17 +54,17 @@ Measure-Command { curl "http://localhost:3001/api/v1/containers?limit=5" }
 SELECT COUNT(*) FROM biz_containers;
 
 -- 查询状态事件（最新 5 条）
-SELECT container_number, status_code, occurred_at 
-FROM ext_container_status_events 
-ORDER BY occurred_at DESC 
+SELECT container_number, status_code, occurred_at
+FROM ext_container_status_events
+ORDER BY occurred_at DESC
 LIMIT 5;
 
 -- 验证 hypertable
 SELECT hypertable_name FROM timescaledb_information.hypertables;
 
 -- 查询性能分析
-EXPLAIN ANALYZE 
-SELECT COUNT(*) FROM ext_container_status_events 
+EXPLAIN ANALYZE
+SELECT COUNT(*) FROM ext_container_status_events
 WHERE occurred_at >= NOW() - INTERVAL '7 days';
 ```
 
@@ -72,24 +72,24 @@ WHERE occurred_at >= NOW() - INTERVAL '7 days';
 
 ## 🎯 **性能指标参考**
 
-| 指标 | 优秀 🟢 | 正常 🟡 | 需优化 🔴 |
-|------|--------|--------|----------|
-| **API 响应时间** | < 100ms | 100-300ms | > 500ms |
-| **数据库查询** | < 5ms | 5-20ms | > 50ms |
-| ** hypertable 转换** | 4 个表 | 2-3 个表 | 0-1 个表 |
-| **数据完整性** | 100% | 95-99% | < 95% |
+| 指标                 | 优秀 🟢 | 正常 🟡   | 需优化 🔴 |
+| -------------------- | ------- | --------- | --------- |
+| **API 响应时间**     | < 100ms | 100-300ms | > 500ms   |
+| **数据库查询**       | < 5ms   | 5-20ms    | > 50ms    |
+| ** hypertable 转换** | 4 个表  | 2-3 个表  | 0-1 个表  |
+| **数据完整性**       | 100%    | 95-99%    | < 95%     |
 
 ---
 
 ## 🐛 **常见错误速查**
 
-| 错误信息 | 可能原因 | 解决方案 |
-|---------|---------|---------|
-| **"Container not found"** | 箱号错误 / 数据库无数据 | 核对箱号 → 查数据库 |
-| **"Connection refused"** | 后端未启动 | `.\start-logix-dev.ps1` |
-| **"relation does not exist"** | 表不存在 / 迁移失败 | 检查 hypertable 状态 |
-| **超时 (>5 秒)** | 数据量大 / 索引缺失 | 添加 LIMIT / 检查索引 |
-| **Docker 启动失败** | 端口占用 / 空间不足 | `netstat -ano` / `docker system df` |
+| 错误信息                      | 可能原因                | 解决方案                            |
+| ----------------------------- | ----------------------- | ----------------------------------- |
+| **"Container not found"**     | 箱号错误 / 数据库无数据 | 核对箱号 → 查数据库                 |
+| **"Connection refused"**      | 后端未启动              | `.\start-logix-dev.ps1`             |
+| **"relation does not exist"** | 表不存在 / 迁移失败     | 检查 hypertable 状态                |
+| **超时 (>5 秒)**              | 数据量大 / 索引缺失     | 添加 LIMIT / 检查索引               |
+| **Docker 启动失败**           | 端口占用 / 空间不足     | `netstat -ano` / `docker system df` |
 
 ---
 
@@ -119,27 +119,32 @@ WHERE occurred_at >= NOW() - INTERVAL '7 days';
 ## 测试结果
 
 **日期**: 2026-MM-DD  
-**测试人**: XXX  
+**测试人**: XXX
 
 ### 功能测试
+
 - 单箱查询：✅ 通过
 - 批量查询：✅ 通过
 - 错误处理：✅ 通过
 
 ### 性能测试
+
 - API 响应：156ms 🟢
 - 数据库查询：2.3ms 🟢
 - 10 次平均：189ms 🟢
 
 ### TimescaleDB
+
 - hypertable: 4 个 ✅
 - 数据量：110 行 ✅
 - 压缩策略：待配置 ⏳
 
 ### 问题记录
+
 无
 
 ### 总体评价
+
 ✅ 全部通过
 ```
 
@@ -147,11 +152,11 @@ WHERE occurred_at >= NOW() - INTERVAL '7 days';
 
 ## 🆘 **紧急联系**
 
-| 角色 | 联系方式 | 职责 |
-|------|---------|------|
-| **值班开发** | Slack #logix-dev | API 问题 |
-| **DBA** | Slack #database | 数据库问题 |
-| **运维** | Slack #ops | Docker/环境问题 |
+| 角色         | 联系方式         | 职责            |
+| ------------ | ---------------- | --------------- |
+| **值班开发** | Slack #logix-dev | API 问题        |
+| **DBA**      | Slack #database  | 数据库问题      |
+| **运维**     | Slack #ops       | Docker/环境问题 |
 
 ---
 
@@ -171,6 +176,7 @@ WHERE occurred_at >= NOW() - INTERVAL '7 days';
 ### 提速技巧
 
 1. **创建 PowerShell 别名**:
+
    ```powershell
    Set-Alias tc Test-Container  # 自定义函数
    ```
@@ -187,19 +193,21 @@ WHERE occurred_at >= NOW() - INTERVAL '7 days';
 ### 调试技巧
 
 1. **查看详细日志**:
+
    ```powershell
    Get-Content backend\logs\*.log -Tail 100 -Wait
    ```
 
 2. **实时监控**:
+
    ```powershell
    docker logs logix-timescaledb-prod -f
    ```
 
 3. **慢查询分析**:
    ```sql
-   SELECT * FROM pg_stat_statements 
-   ORDER BY total_time DESC 
+   SELECT * FROM pg_stat_statements
+   ORDER BY total_time DESC
    LIMIT 10;
    ```
 

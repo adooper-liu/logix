@@ -81,21 +81,25 @@ export class ImportController {
   }
 
   /**
-   * 当 customer_code 为空且 sell_to_country 有值时，从 biz_customers 补全 customer_code
-   * 见 15-排柜数据补全与缺省方案.md
+   * 当 customer_code 为空时，根据 customer_name 从 biz_customers 自动补全 customer_code
+   * 遵循 SKILL: Excel 导入列名多变体支持规范
    */
-  private async fillCustomerCodeFromSellToCountry(orderData: {
+  private async fillCustomerCodeFromCustomerName(orderData: {
     customerCode?: string;
-    sellToCountry?: string;
+    customerName?: string;
   }): Promise<void> {
-    if (orderData.customerCode || !orderData.sellToCountry?.trim()) return;
+    // 如果 customer_code 已有值，不覆盖
+    if (orderData.customerCode?.trim()) return;
+    // 如果 customer_name 为空，无法查询
+    if (!orderData.customerName?.trim()) return;
+
     const cust = await this.customerRepository.findOne({
-      where: { customerName: orderData.sellToCountry!.trim() },
+      where: { customerName: orderData.customerName.trim() },
       select: ['customerCode']
     });
     if (cust) {
       orderData.customerCode = cust.customerCode;
-      logger.info(`[Import] 从 sell_to_country 补全 customer_code: ${cust.customerCode}`);
+      logger.info(`[Import] 从 customer_name 补全 customer_code: ${orderData.customerName} -> ${cust.customerCode}`);
     }
   }
 
@@ -532,6 +536,15 @@ export class ImportController {
             seaFreightData.transitPortCode = await this.validatePort(queryRunner, seaFreightData.transitPortCode);
           }
 
+          // 重要：actual_loading_date 有 NOT NULL 约束，如果未提供则使用当前日期作为默认值
+          // 原因：该字段是 hypertable 的分区键，必须有值
+          // 场景：虽然实际装船时间可能还不知道，但需要一个占位值
+          if (!seaFreightData.actualLoadingDate) {
+            // 优先级：actualLoadingDate > shipmentDate > 当前日期
+            seaFreightData.actualLoadingDate = seaFreightData.shipmentDate || new Date();
+            logger.info('[Import] actual_loading_date 为空，使用默认值:', seaFreightData.actualLoadingDate);
+          }
+
           let existingSeaFreight;
       if (seaFreightData.billOfLadingNumber) {
         existingSeaFreight = await queryRunner.manager.findOne(SeaFreight, {
@@ -599,9 +612,10 @@ export class ImportController {
             orderData.containerNumber = containerData.containerNumber;
           }
           // 先根据 customer_name 自动填充 sell_to_country
-          await this.fillSellToCountryFromCustomer(orderData);
-          // 再从 sell_to_country 补全 customer_code
-          await this.fillCustomerCodeFromSellToCountry(orderData);
+        // 先根据 customer_name 自动填充 sell_to_country
+        await this.fillSellToCountryFromCustomer(orderData);
+        // 再根据 customer_name 补全 customer_code
+        await this.fillCustomerCodeFromCustomerName(orderData);
           logger.info('[Import] 处理备货单:', orderData.orderNumber);
 
           const existingOrder = await queryRunner.manager.findOne(ReplenishmentOrder, {
@@ -1024,8 +1038,8 @@ export class ImportController {
             }
             // 先根据 customer_name 自动填充 sell_to_country
             await this.fillSellToCountryFromCustomer(orderData);
-            // 再从 sell_to_country 补全 customer_code
-            await this.fillCustomerCodeFromSellToCountry(orderData);
+            // 再根据 customer_name 补全 customer_code
+            await this.fillCustomerCodeFromCustomerName(orderData);
             logger.info(`[Import] 第${i + 1}行: 创建备货单 - ${orderData.orderNumber}`);
             const existingOrder = await queryRunner.manager.findOne(ReplenishmentOrder, {
               where: { orderNumber: orderData.orderNumber }
@@ -1059,6 +1073,10 @@ export class ImportController {
               if (port.customsBrokerCode) {
                 port.customsBrokerCode = await this.validateCustomsBroker(queryRunner, port.customsBrokerCode);
               }
+
+              // 【已移除】不再自动填充 ata 字段
+              // 原因：数据库已改为普通表，ata 字段可以为 NULL
+              // 业务场景：货物未到达前，ata 应该为空
 
               const existingPort = await queryRunner.manager.findOne(PortOperation, {
                 where: {

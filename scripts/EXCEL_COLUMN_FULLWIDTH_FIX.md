@@ -1,7 +1,7 @@
 # Excel 列名全角/半角字符匹配问题修复
 
 **创建日期**: 2026-03-21  
-**问题类型**: 列名不匹配 - 全角/半角括号混用  
+**问题类型**: 列名不匹配 - 全角/半角括号混用
 
 ---
 
@@ -10,13 +10,14 @@
 ### 现象
 
 Excel 文件中包含列名：`箱号 (集装箱号)`  
-配置中别名：`箱号 (集装箱号)`  
+配置中别名：`箱号 (集装箱号)`
 
 **结果**：❌ 验证失败，提示"缺少必填字段：集装箱号"
 
 ### 根本原因
 
 **字符不匹配**：
+
 - Excel 列名可能使用：**全角括号** `（）` 或 **半角括号** `()`
 - 配置别名只包含一种形式
 - 字符串比较时：`"箱号 (集装箱号)" !== "箱号（集装箱号）"`
@@ -27,20 +28,20 @@ Excel 文件中包含列名：`箱号 (集装箱号)`
 
 ### 字符编码对比
 
-| 字符 | 半角 | 全角 | Unicode |
-|------|------|------|---------|
-| 左括号 | `(` | `（` | U+0028 vs U+FF08 |
-| 右括号 | `)` | `）` | U+0029 vs U+FF09 |
-| 空格 | ` ` | ` ` | U+0020 vs U+3000 |
+| 字符   | 半角 | 全角 | Unicode          |
+| ------ | ---- | ---- | ---------------- |
+| 左括号 | `(`  | `（` | U+0028 vs U+FF08 |
+| 右括号 | `)`  | `）` | U+0029 vs U+FF09 |
+| 空格   | ` `  | ` `  | U+0020 vs U+3000 |
 
 ### JavaScript 字符串比较
 
 ```javascript
 // ❌ 不相等
-"箱号 (集装箱号)" === "箱号（集装箱号）"  // false
+"箱号 (集装箱号)" === "箱号（集装箱号）"; // false
 
 // ❌ 不相等（包含空格）
-"体积合计 (m3)" === "体积合计（m3）"      // false
+"体积合计 (m3)" === "体积合计（m3）"; // false
 ```
 
 ---
@@ -85,31 +86,22 @@ Excel 文件中包含列名：`箱号 (集装箱号)`
 ```typescript
 function normalizeColumnName(name: string): string {
   // 全角转半角
-  return name
-    .replace(/（/g, '(')
-    .replace(/）/g, ')')
-    .replace(/：/g, ':')
-    .replace(/；/g, ';')
-    .replace(/，/g, ',')
-    .replace(/。/g, '.')
-    .replace(/？/g, '?')
-    .replace(/！/g, '!')
-    .replace(/　/g, ' ')  // 全角空格转半角
+  return name.replace(/（/g, "(").replace(/）/g, ")").replace(/：/g, ":").replace(/；/g, ";").replace(/，/g, ",").replace(/。/g, ".").replace(/？/g, "?").replace(/！/g, "!").replace(/　/g, " "); // 全角空格转半角
 }
 
 function matchColumnName(row: Record<string, any>, targetName: string): any {
   // 精确匹配
-  if (row[targetName]) return row[targetName]
-  
+  if (row[targetName]) return row[targetName];
+
   // 归一化后匹配
-  const normalizedTarget = normalizeColumnName(targetName)
+  const normalizedTarget = normalizeColumnName(targetName);
   for (const [key, value] of Object.entries(row)) {
     if (normalizeColumnName(key) === normalizedTarget) {
-      return value
+      return value;
     }
   }
-  
-  return null
+
+  return null;
 }
 ```
 
@@ -153,41 +145,33 @@ aliases: [
 
 ```typescript
 // 修复前
-aliases: ['箱号 (集装箱号)']
+aliases: ["箱号 (集装箱号)"];
 
 // 修复后
-aliases: [
-  '箱号 (集装箱号)',
-  '箱号（集装箱号）',
-  '箱号',
-]
+aliases: ["箱号 (集装箱号)", "箱号（集装箱号）", "箱号"];
 ```
 
 ### 2. 备货单表字段
 
 ```typescript
 // 体积合计
-aliases: ['体积合计（m3）', '体积合计']
+aliases: ["体积合计（m3）", "体积合计"];
 
 // 毛重合计
-aliases: ['毛重合计（KG）', '毛重合计']
+aliases: ["毛重合计（KG）", "毛重合计"];
 ```
 
 ### 3. 港口操作表字段
 
 ```typescript
 // 预计到港日期
-aliases: [
-  '预计到港日期 (ETA)',
-  '预计到港日期（ETA）',
-  '预计到港日期（目的港）'
-]
+aliases: ["预计到港日期 (ETA)", "预计到港日期（ETA）", "预计到港日期（目的港）"];
 
 // 免堆期
-aliases: ['免堆期（天）', '免堆期']
+aliases: ["免堆期（天）", "免堆期"];
 
 // 场内免箱期
-aliases: ['场内免箱期（天）', '场内免箱期']
+aliases: ["场内免箱期（天）", "场内免箱期"];
 ```
 
 ---
@@ -287,16 +271,16 @@ aliases: ['场内免箱期（天）', '场内免箱期']
 
 ### 全角/半角字符对照表
 
-| 类型 | 半角 | 全角 | 说明 |
-|------|------|------|------|
-| 括号 | `()` | `（）` | 最常用 |
-| 冒号 | `:` | `：` | 时间、说明 |
-| 逗号 | `,` | `，` | 分隔符 |
-| 句号 | `.` | `。` | 结束符 |
-| 问号 | `?` | `？` | 疑问符 |
-| 感叹号 | `!` | `！` | 强调符 |
-| 分号 | `;` | `；` | 分句符 |
-| 空格 | ` ` | ` ` | 全角空格 |
+| 类型   | 半角 | 全角   | 说明       |
+| ------ | ---- | ------ | ---------- |
+| 括号   | `()` | `（）` | 最常用     |
+| 冒号   | `:`  | `：`   | 时间、说明 |
+| 逗号   | `,`  | `，`   | 分隔符     |
+| 句号   | `.`  | `。`   | 结束符     |
+| 问号   | `?`  | `？`   | 疑问符     |
+| 感叹号 | `!`  | `！`   | 强调符     |
+| 分号   | `;`  | `；`   | 分句符     |
+| 空格   | ` `  | ` `    | 全角空格   |
 
 ### Unicode 转换
 

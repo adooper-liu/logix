@@ -2,7 +2,7 @@
 
 **创建日期**: 2026-03-21  
 **整合范围**: 数据库迁移、API 文档、TypeORM 问题解决方案  
-**状态**: ✅ 已完成  
+**状态**: ✅ 已完成
 
 ---
 
@@ -28,47 +28,47 @@
 
 ### 数据库表分类
 
-#### 1. 字典表 (dict_*)
+#### 1. 字典表 (dict\_\*)
 
 存储系统配置和字典数据
 
-| 表名 | 用途 | 关键字段 |
-|------|------|---------|
-| `dict_countries` | 国家字典 | country_code, country_name |
-| `dict_ports` | 港口字典 | port_code, port_name |
-| `dict_warehouses` | 仓库字典 | warehouse_code, warehouse_name |
-| `dict_trucking_companies` | 车队字典 | company_code, company_name |
-| `dict_scheduling_config` | 排柜配置 | config_key, config_value |
+| 表名                      | 用途     | 关键字段                       |
+| ------------------------- | -------- | ------------------------------ |
+| `dict_countries`          | 国家字典 | country_code, country_name     |
+| `dict_ports`              | 港口字典 | port_code, port_name           |
+| `dict_warehouses`         | 仓库字典 | warehouse_code, warehouse_name |
+| `dict_trucking_companies` | 车队字典 | company_code, company_name     |
+| `dict_scheduling_config`  | 排柜配置 | config_key, config_value       |
 
-#### 2. 业务表 (biz_*)
+#### 2. 业务表 (biz\_\*)
 
 核心业务数据
 
-| 表名 | 用途 | 关键字段 |
-|------|------|---------|
-| `biz_replenishment_orders` | 备货单 | order_number, customer_name |
-| `biz_containers` | 货柜 | container_number, logistics_status |
+| 表名                       | 用途   | 关键字段                           |
+| -------------------------- | ------ | ---------------------------------- |
+| `biz_replenishment_orders` | 备货单 | order_number, customer_name        |
+| `biz_containers`           | 货柜   | container_number, logistics_status |
 
-#### 3. 过程表 (process_*)
+#### 3. 过程表 (process\_\*)
 
 业务流程数据
 
-| 表名 | 用途 | 关键字段 |
-|------|------|---------|
-| `process_sea_freight` | 海运信息 | bill_of_lading_number, vessel_name |
-| `process_port_operations` | 港口操作 | port_type, port_sequence |
-| `process_trucking_transport` | 拖卡运输 | trucking_company_id, transport_date |
-| `process_warehouse_operations` | 仓库操作 | warehouse_id, operation_date |
-| `process_empty_return` | 还空箱 | return_time, return_location |
+| 表名                           | 用途     | 关键字段                            |
+| ------------------------------ | -------- | ----------------------------------- |
+| `process_sea_freight`          | 海运信息 | bill_of_lading_number, vessel_name  |
+| `process_port_operations`      | 港口操作 | port_type, port_sequence            |
+| `process_trucking_transport`   | 拖卡运输 | trucking_company_id, transport_date |
+| `process_warehouse_operations` | 仓库操作 | warehouse_id, operation_date        |
+| `process_empty_return`         | 还空箱   | return_time, return_location        |
 
-#### 4. 外部数据表 (ext_*)
+#### 4. 外部数据表 (ext\_\*)
 
 外部系统数据
 
-| 表名 | 用途 | 关键字段 |
-|------|------|---------|
-| `ext_feituo_raw_data` | 飞驼原始数据 | batch_number, data_json |
-| `ext_feituo_status_events` | 飞驼状态事件 | event_code, event_time |
+| 表名                       | 用途         | 关键字段                |
+| -------------------------- | ------------ | ----------------------- |
+| `ext_feituo_raw_data`      | 飞驼原始数据 | batch_number, data_json |
+| `ext_feituo_status_events` | 飞驼状态事件 | event_code, event_time  |
 
 ---
 
@@ -77,6 +77,7 @@
 ### biz_containers (货柜表)
 
 **结构**:
+
 ```sql
 CREATE TABLE biz_containers (
     id SERIAL PRIMARY KEY,
@@ -100,47 +101,48 @@ CREATE INDEX idx_last_free_date ON biz_containers(last_free_date);
 ```
 
 **实体类**:
+
 ```typescript
-@Entity('biz_containers')
+@Entity("biz_containers")
 export class Container {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'container_number', length: 20, unique: true })
+  @Column({ name: "container_number", length: 20, unique: true })
   container_number: string;
 
-  @Column({ name: 'order_number', length: 50, nullable: true })
+  @Column({ name: "order_number", length: 50, nullable: true })
   order_number: string;
 
-  @Column({ name: 'bill_of_lading_number', length: 50, nullable: true })
+  @Column({ name: "bill_of_lading_number", length: 50, nullable: true })
   bill_of_lading_number: string;
 
-  @Column({ name: 'logistics_status', length: 50, nullable: true })
+  @Column({ name: "logistics_status", length: 50, nullable: true })
   logistics_status: string;
 
-  @Column({ name: 'container_type', length: 10, nullable: true })
+  @Column({ name: "container_type", length: 10, nullable: true })
   container_type: string;
 
-  @Column({ name: 'total_packages', nullable: true })
+  @Column({ name: "total_packages", nullable: true })
   total_packages: number;
 
-  @Column({ name: 'total_cbm', type: 'decimal', precision: 10, scale: 3, nullable: true })
+  @Column({ name: "total_cbm", type: "decimal", precision: 10, scale: 3, nullable: true })
   total_cbm: number;
 
-  @Column({ name: 'total_gross_weight', type: 'decimal', precision: 10, scale: 3, nullable: true })
+  @Column({ name: "total_gross_weight", type: "decimal", precision: 10, scale: 3, nullable: true })
   total_gross_weight: number;
 
-  @Column({ name: 'last_free_date', type: 'date', nullable: true })
+  @Column({ name: "last_free_date", type: "date", nullable: true })
   last_free_date: Date;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: "created_at" })
   created_at: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: "updated_at" })
   updated_at: Date;
 
   // 关联关系
-  @OneToMany(() => PortOperation, op => op.container)
+  @OneToMany(() => PortOperation, (op) => op.container)
   portOperations: PortOperation[];
 }
 ```
@@ -148,6 +150,7 @@ export class Container {
 ### process_port_operations (港口操作表)
 
 **结构**:
+
 ```sql
 CREATE TABLE process_port_operations (
     id SERIAL PRIMARY KEY,
@@ -172,9 +175,9 @@ CREATE TABLE process_port_operations (
     atd DATE,                                      // 中转离港
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    
-    CONSTRAINT fk_container 
-        FOREIGN KEY (container_number) 
+
+    CONSTRAINT fk_container
+        FOREIGN KEY (container_number)
         REFERENCES biz_containers(container_number)
 );
 
@@ -182,71 +185,72 @@ CREATE TABLE process_port_operations (
 CREATE INDEX idx_port_container ON process_port_operations(container_number);
 CREATE INDEX idx_port_type ON process_port_operations(port_type);
 CREATE INDEX idx_port_sequence ON process_port_operations(port_sequence);
-CREATE UNIQUE INDEX idx_unique_container_port_seq 
+CREATE UNIQUE INDEX idx_unique_container_port_seq
     ON process_port_operations(container_number, port_sequence);
 ```
 
 **实体类**:
+
 ```typescript
-@Entity('process_port_operations')
+@Entity("process_port_operations")
 export class PortOperation {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'container_number', length: 20 })
+  @Column({ name: "container_number", length: 20 })
   container_number: string;
 
-  @Column({ name: 'port_type', length: 20 })
-  port_type: 'origin' | 'transit' | 'destination';
+  @Column({ name: "port_type", length: 20 })
+  port_type: "origin" | "transit" | "destination";
 
-  @Column({ name: 'port_code', length: 10 })
+  @Column({ name: "port_code", length: 10 })
   port_code: string;
 
-  @Column({ name: 'port_name', length: 100, nullable: true })
+  @Column({ name: "port_name", length: 100, nullable: true })
   port_name: string;
 
-  @Column({ name: 'port_sequence' })
+  @Column({ name: "port_sequence" })
   port_sequence: number;
 
-  @Column({ name: 'eta', type: 'date', nullable: true })
+  @Column({ name: "eta", type: "date", nullable: true })
   eta: Date;
 
-  @Column({ name: 'ata', type: 'date', nullable: true })
+  @Column({ name: "ata", type: "date", nullable: true })
   ata: Date;
 
-  @Column({ name: 'gate_in_time', type: 'date', nullable: true })
+  @Column({ name: "gate_in_time", type: "date", nullable: true })
   gate_in_time: Date;
 
-  @Column({ name: 'gate_out_time', type: 'date', nullable: true })
+  @Column({ name: "gate_out_time", type: "date", nullable: true })
   gate_out_time: Date;
 
-  @Column({ name: 'shipment_date', type: 'date', nullable: true })
+  @Column({ name: "shipment_date", type: "date", nullable: true })
   shipment_date: Date;
 
-  @Column({ name: 'dest_port_unload_date', type: 'date', nullable: true })
+  @Column({ name: "dest_port_unload_date", type: "date", nullable: true })
   dest_port_unload_date: Date;
 
-  @Column({ name: 'available_time', type: 'date', nullable: true })
+  @Column({ name: "available_time", type: "date", nullable: true })
   available_time: Date;
 
-  @Column({ name: 'free_storage_days', nullable: true })
+  @Column({ name: "free_storage_days", nullable: true })
   free_storage_days: number;
 
-  @Column({ name: 'free_detention_days', nullable: true })
+  @Column({ name: "free_detention_days", nullable: true })
   free_detention_days: number;
 
-  @Column({ name: 'last_free_date', type: 'date', nullable: true })
+  @Column({ name: "last_free_date", type: "date", nullable: true })
   last_free_date: Date;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: "created_at" })
   created_at: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: "updated_at" })
   updated_at: Date;
 
   // 关联关系
-  @ManyToOne(() => Container, container => container.portOperations)
-  @JoinColumn({ name: 'container_number' })
+  @ManyToOne(() => Container, (container) => container.portOperations)
+  @JoinColumn({ name: "container_number" })
   container: Container;
 }
 ```
@@ -271,11 +275,13 @@ migrations/
 ### 迁移执行顺序
 
 **原则**:
+
 1. 按文件名数字前缀排序执行
 2. 先创建基础表，再添加字段
 3. 先创建主表，再添加外键约束
 
 **示例**:
+
 ```bash
 # 执行所有迁移
 for file in migrations/*.sql; do
@@ -294,6 +300,7 @@ psql -U logix_user -d logix_db -c "\dt"
 **文件**: `add_cost_optimization_config.sql`
 
 **内容**:
+
 ```sql
 -- 添加成本优化相关配置项
 INSERT INTO dict_scheduling_config (config_key, config_value, description) VALUES
@@ -306,6 +313,7 @@ ON CONFLICT (config_key) DO NOTHING;
 ```
 
 **验证**:
+
 ```sql
 SELECT config_key, config_value, description
 FROM dict_scheduling_config
@@ -318,6 +326,7 @@ WHERE config_key LIKE 'transport_%'
 **文件**: `create_flow_definitions_table.sql`
 
 **内容**:
+
 ```sql
 CREATE TABLE flow_definitions (
     id SERIAL PRIMARY KEY,
@@ -352,6 +361,7 @@ CREATE INDEX idx_flow_type ON flow_definitions(flow_type);
 **端点**: `POST /api/v1/scheduling/evaluate-cost`
 
 **请求体**:
+
 ```json
 {
   "optionType": "Direct",
@@ -362,6 +372,7 @@ CREATE INDEX idx_flow_type ON flow_definitions(flow_type);
 ```
 
 **响应**:
+
 ```json
 {
   "success": true,
@@ -369,18 +380,19 @@ CREATE INDEX idx_flow_type ON flow_definitions(flow_type);
     "optionType": "Direct",
     "warehouse": "WH001",
     "truckingCompany": "TC001",
-    "estimatedCost": 1500.00,
+    "estimatedCost": 1500.0,
     "costBreakdown": {
-      "transportCost": 1200.00,
-      "storageCost": 200.00,
-      "laborCost": 100.00,
-      "totalCost": 1500.00
+      "transportCost": 1200.0,
+      "storageCost": 200.0,
+      "laborCost": 100.0,
+      "totalCost": 1500.0
     }
   }
 }
 ```
 
 **控制器实现**:
+
 ```typescript
 @Post('/evaluate-cost')
 async evaluateCost(@Body() request: EvaluateCostRequest) {
@@ -390,7 +402,7 @@ async evaluateCost(@Body() request: EvaluateCostRequest) {
     truckingCompanyId: request.truckingCompanyId,
     date: request.date
   });
-  
+
   return {
     success: true,
     data: result
@@ -403,6 +415,7 @@ async evaluateCost(@Body() request: EvaluateCostRequest) {
 **端点**: `POST /api/v1/scheduling/compare-options`
 
 **请求体**:
+
 ```json
 {
   "options": [
@@ -419,6 +432,7 @@ async evaluateCost(@Body() request: EvaluateCostRequest) {
 ```
 
 **响应**:
+
 ```json
 {
   "success": true,
@@ -427,13 +441,13 @@ async evaluateCost(@Body() request: EvaluateCostRequest) {
       {
         "optionType": "Direct",
         "warehouse": "WH001",
-        "estimatedCost": 1500.00,
+        "estimatedCost": 1500.0,
         "rank": 1
       },
       {
         "optionType": "Drop off",
         "warehouse": "WH002",
-        "estimatedCost": 1800.00,
+        "estimatedCost": 1800.0,
         "rank": 2
       }
     ],
@@ -450,6 +464,7 @@ async evaluateCost(@Body() request: EvaluateCostRequest) {
 **端点**: `GET /api/v1/scheduling/recommend-option?containerId=CNT001`
 
 **响应**:
+
 ```json
 {
   "success": true,
@@ -457,14 +472,10 @@ async evaluateCost(@Body() request: EvaluateCostRequest) {
     "optionType": "Direct",
     "warehouse": "WH001",
     "truckingCompany": "TC001",
-    "estimatedCost": 1500.00,
-    "savings": 300.00,
+    "estimatedCost": 1500.0,
+    "savings": 300.0,
     "confidence": 0.95,
-    "reasons": [
-      "成本比平均水平低 20%",
-      "仓库容量充足",
-      "车队评分 4.8/5.0"
-    ]
+    "reasons": ["成本比平均水平低 20%", "仓库容量充足", "车队评分 4.8/5.0"]
   }
 }
 ```
@@ -476,6 +487,7 @@ async evaluateCost(@Body() request: EvaluateCostRequest) {
 **端点**: `POST /api/v1/import/excel/batch`
 
 **请求体**:
+
 ```json
 {
   "batch": [
@@ -493,6 +505,7 @@ async evaluateCost(@Body() request: EvaluateCostRequest) {
 ```
 
 **响应**:
+
 ```json
 {
   "success": true,
@@ -508,18 +521,19 @@ async evaluateCost(@Body() request: EvaluateCostRequest) {
 ```
 
 **服务层实现**:
+
 ```typescript
 async batchImport(batchData: ImportBatch[]) {
   const results: ImportResult[] = [];
   const errors: ImportError[] = [];
-  
+
   for (const item of batchData) {
     try {
       await this.dataSource.transaction(async (manager) => {
         // 按顺序插入各表数据
         for (const tableName in item.tables) {
           const data = item.tables[tableName];
-          
+
           if (Array.isArray(data)) {
             // 数组格式（如多港经停）
             for (const row of data) {
@@ -531,7 +545,7 @@ async batchImport(batchData: ImportBatch[]) {
           }
         }
       });
-      
+
       results.push({ success: true });
     } catch (error) {
       errors.push({
@@ -540,7 +554,7 @@ async batchImport(batchData: ImportBatch[]) {
       });
     }
   }
-  
+
   return {
     total: batchData.length,
     success: results.length,
@@ -559,7 +573,8 @@ async batchImport(batchData: ImportBatch[]) {
 
 **现象**: 数据库字段使用 snake_case，但 TypeORM 默认使用 camelCase
 
-**症状**: 
+**症状**:
+
 - 查询时字段名不匹配
 - 保存数据时报错
 - 元数据警告
@@ -571,9 +586,10 @@ async batchImport(batchData: ImportBatch[]) {
 **创建文件**: `backend/src/config/SnakeNamingStrategy.ts`
 
 **代码**:
+
 ```typescript
-import { DefaultNamingStrategy, NamingStrategyInterface } from 'typeorm';
-import { snakeCase } from 'typeorm/util/StringUtils';
+import { DefaultNamingStrategy, NamingStrategyInterface } from "typeorm";
+import { snakeCase } from "typeorm/util/StringUtils";
 
 export class SnakeNamingStrategy extends DefaultNamingStrategy implements NamingStrategyInterface {
   tableName(className: string, customName: string): string {
@@ -581,7 +597,7 @@ export class SnakeNamingStrategy extends DefaultNamingStrategy implements Naming
   }
 
   columnName(propertyName: string, customName: string, embeddedPrefixes: string[]): string {
-    return customName ? customName : snakeCase(embeddedPrefixes.concat([propertyName]).join('_'));
+    return customName ? customName : snakeCase(embeddedPrefixes.concat([propertyName]).join("_"));
   }
 
   relationName(propertyName: string): string {
@@ -599,20 +615,21 @@ export class SnakeNamingStrategy extends DefaultNamingStrategy implements Naming
 ```
 
 **配置使用**:
+
 ```typescript
 // backend/src/config/database.config.ts
-import { SnakeNamingStrategy } from './SnakeNamingStrategy';
+import { SnakeNamingStrategy } from "./SnakeNamingStrategy";
 
 @Module({
   imports: [
     TypeOrmModule.forRoot({
-      type: 'postgres',
+      type: "postgres",
       host: process.env.DB_HOST,
-      port: parseInt(process.env.DB_PORT || '5432'),
+      port: parseInt(process.env.DB_PORT || "5432"),
       username: process.env.DB_USER,
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
-      entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+      entities: [__dirname + "/../**/*.entity{.ts,.js}"],
       namingStrategy: new SnakeNamingStrategy(),
       synchronize: false,
     }),
@@ -626,19 +643,20 @@ export class DatabaseModule {}
 **适用场景**: 少量字段或临时解决方案
 
 **代码**:
+
 ```typescript
-@Entity('biz_containers')
+@Entity("biz_containers")
 export class Container {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @Column({ name: 'container_number' })  // 手动指定数据库字段名
+  @Column({ name: "container_number" }) // 手动指定数据库字段名
   container_number: string;
 
-  @Column({ name: 'logistics_status' })
+  @Column({ name: "logistics_status" })
   logistics_status: string;
 
-  @Column({ name: 'last_free_date', type: 'date' })
+  @Column({ name: "last_free_date", type: "date" })
   last_free_date: Date;
 }
 ```
@@ -648,6 +666,7 @@ export class Container {
 **推荐方案**: 使用自定义 NamingStrategy + 手动指定相结合
 
 **原则**:
+
 1. 全局配置 SnakeNamingStrategy
 2. 对于特殊字段，手动指定 `name` 属性
 3. 实体类属性使用 camelCase（符合 TypeScript 规范）
@@ -668,28 +687,30 @@ CREATE INDEX idx_containers_last_free ON biz_containers(last_free_date);
 CREATE INDEX idx_port_ops_container ON process_port_operations(container_number);
 
 -- 复合索引（针对组合查询）
-CREATE INDEX idx_containers_status_last_free 
+CREATE INDEX idx_containers_status_last_free
     ON biz_containers(logistics_status, last_free_date);
 ```
 
 #### 避免 N+1 查询
 
 **错误示例**:
+
 ```typescript
 // ❌ 会导致 N+1 查询问题
 const containers = await containerRepo.find();
 for (const container of containers) {
   const portOps = await portOpRepo.find({
-    where: { container_number: container.container_number }
+    where: { container_number: container.container_number },
   });
 }
 ```
 
 **正确示例**:
+
 ```typescript
 // ✅ 使用 JOIN 一次性加载
 const containers = await containerRepo.find({
-  relations: ['portOperations']
+  relations: ["portOperations"],
 });
 ```
 
@@ -698,27 +719,28 @@ const containers = await containerRepo.find({
 **场景**: 批量导入数据时保证一致性
 
 **代码**:
+
 ```typescript
 async importContainerData(data: ImportData) {
   return await this.dataSource.transaction(async (manager) => {
     // 1. 插入备货单
     await manager.insert('biz_replenishment_orders', data.order);
-    
+
     // 2. 插入货柜
     await manager.insert('biz_containers', data.container);
-    
+
     // 3. 插入海运信息
     await manager.insert('process_sea_freight', data.seaFreight);
-    
+
     // 4. 插入港口操作（可能有多条）
     if (Array.isArray(data.portOperations)) {
       for (const portOp of data.portOperations) {
         await manager.insert('process_port_operations', portOp);
       }
     }
-    
+
     // 5. 插入其他过程表...
-    
+
     return { success: true };
   });
 }
@@ -727,28 +749,29 @@ async importContainerData(data: ImportData) {
 ### 3. 错误处理
 
 **统一错误响应格式**:
+
 ```typescript
 @Catch(TypeORMError)
 export class TypeOrmExceptionFilter implements ExceptionFilter {
   catch(exception: TypeORMError, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
-    
+
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
-    let message = '数据库操作失败';
-    
+    let message = "数据库操作失败";
+
     if (exception instanceof QueryFailedError) {
       status = HttpStatus.BAD_REQUEST;
-      message = '数据验证失败';
+      message = "数据验证失败";
     }
-    
+
     response.status(status).json({
       success: false,
       error: {
         code: exception.name,
         message: message,
-        details: exception.message
-      }
+        details: exception.message,
+      },
     });
   }
 }
@@ -757,18 +780,20 @@ export class TypeOrmExceptionFilter implements ExceptionFilter {
 ### 4. 性能监控
 
 **慢查询日志**:
+
 ```sql
 -- PostgreSQL 配置
 ALTER SYSTEM SET log_min_duration_statement = 1000;  -- 记录超过 1 秒的查询
 ```
 
 **TypeORM 日志**:
+
 ```typescript
 TypeOrmModule.forRoot({
   // ... 其他配置
-  logging: ['error', 'warn', 'query', 'slow-query'],
-  maxQueryExecutionTime: 1000,  // 慢查询阈值 (ms)
-})
+  logging: ["error", "warn", "query", "slow-query"],
+  maxQueryExecutionTime: 1000, // 慢查询阈值 (ms)
+});
 ```
 
 ---
@@ -778,6 +803,7 @@ TypeOrmModule.forRoot({
 ### A. 相关文档索引
 
 **必读文档**:
+
 1. [DATABASE_SCRIPTS_INDEX.md](../../backend/docs/DATABASE_SCRIPTS_INDEX.md)
 2. [MIGRATION_ORDER_VERIFICATION.md](../../backend/docs/MIGRATION_ORDER_VERIFICATION.md)
 3. [TypeORM-NamingStrategy-Issue.md](../../backend/docs/TypeORM-NamingStrategy-Issue.md)
@@ -785,6 +811,7 @@ TypeOrmModule.forRoot({
 5. [API_DOCS_UPDATE.md](../../backend/docs/API_DOCS_UPDATE.md)
 
 **参考资料**:
+
 1. [TypeORM 官方文档](https://typeorm.io/)
 2. [PostgreSQL 官方文档](https://www.postgresql.org/docs/)
 
@@ -792,7 +819,7 @@ TypeOrmModule.forRoot({
 
 ```sql
 -- 查询所有表及其行数
-SELECT 
+SELECT
     schemaname,
     relname AS table_name,
     n_live_tup AS row_count
@@ -800,7 +827,7 @@ FROM pg_stat_user_tables
 ORDER BY n_live_tup DESC;
 
 -- 查询表结构
-SELECT 
+SELECT
     column_name,
     data_type,
     is_nullable,
@@ -810,7 +837,7 @@ WHERE table_name = 'biz_containers'
 ORDER BY ordinal_position;
 
 -- 查询索引
-SELECT 
+SELECT
     indexname,
     indexdef
 FROM pg_indexes
@@ -818,12 +845,12 @@ WHERE tablename = 'biz_containers';
 
 -- 查询外键约束
 SELECT
-    tc.table_name, 
-    kcu.column_name, 
+    tc.table_name,
+    kcu.column_name,
     ccu.table_name AS foreign_table_name,
-    ccu.column_name AS foreign_column_name 
-FROM 
-    information_schema.table_constraints AS tc 
+    ccu.column_name AS foreign_column_name
+FROM
+    information_schema.table_constraints AS tc
     JOIN information_schema.key_column_usage AS kcu
       ON tc.constraint_name = kcu.constraint_name
     JOIN information_schema.constraint_column_usage AS ccu
@@ -834,11 +861,13 @@ WHERE tc.constraint_type = 'FOREIGN KEY';
 ### C. 下一步行动
 
 **立即可做**:
+
 - [ ] 添加更多数据库索引
 - [ ] 优化慢查询
 - [ ] 完善 API 文档
 
 **长期规划**:
+
 - [ ] 实施数据库读写分离
 - [ ] 添加数据归档机制
 - [ ] 实施分库分表策略

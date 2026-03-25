@@ -4,14 +4,14 @@
  */
 
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
-  ManyToOne,
+  Entity,
   JoinColumn,
-  Unique
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  Unique,
+  UpdateDateColumn
 } from 'typeorm';
 import { Warehouse } from './Warehouse';
 
@@ -39,6 +39,12 @@ export class ExtWarehouseDailyOccupancy {
 
   @Column({ type: 'int', default: 0, name: 'remaining' })
   remaining: number;
+
+  @Column({ type: 'boolean', default: false, name: 'manual_override' })
+  manualOverride: boolean;
+
+  @Column({ type: 'text', nullable: true })
+  reason?: string;
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;

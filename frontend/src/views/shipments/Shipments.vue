@@ -718,18 +718,37 @@ const handleDemurrageWriteBackWrapper = async () => {
 // 跳转到排产页面
 const goToSchedulingPage = () => {
   scheduleDialogVisible.value = false
+
+  // 获取当前选中的货柜
+  const selectedContainerNumbers = selectedRows.value.length
+    ? selectedRows.value.map((r: any) => r.containerNumber).filter(Boolean)
+    : []
+
+  // 从选中的货柜中提取国家信息（销往国家）
+  const countryFromSelection =
+    selectedRows.value.length > 0 ? (selectedRows.value[0] as any)?.sellToCountry : undefined
+
+  // 如果没有选中货柜，使用当前筛选条件的默认国家
+  const country = countryFromSelection || appStore.scopedCountryCode || ''
+
   const startDate = dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD')
   const endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
   const filterCondition = activeFilter.value.days
   const filterLabel = getFilterLabel(filterCondition)
 
+  // 跳转到排产配置页面，并默认打开 visual 标签页
   router.push({
     path: '/scheduling',
     query: {
+      tab: 'visual', // 指定打开 visual 标签页
+      country,
       startDate,
       endDate,
       filterCondition,
       filterLabel,
+      containers: selectedContainerNumbers.join(','),
+      from: 'shipments',
+      timestamp: Date.now(),
     },
   })
 }

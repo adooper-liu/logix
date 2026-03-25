@@ -1030,9 +1030,19 @@ export class FeituoImportService {
         vesselName: getVal(row, '船名', '船名/车牌号', '船名（海运）'),
         voyageNumber: getVal(row, '航次', '航次（海运）'),
         routeCode: getVal(row, '航线代码', '航线'),
-        // 优先从数组获取出运日期，fallback到直接列名
+        // 优先从数组获取出运日期，fallback 到直接列名
+        // shipmentDate 和 actualLoadingDate 都使用相同的来源，确保两个字段都有值
         shipmentDate: parseDate(originPlace?.atd || originPlace?.etd || getVal(row, '接货地实际离开时间') || getVal(row, '实际装船时间', '装船日期', '出运日期')),
-        actualLoadingDate: parseDate(originPlace?.actualLoading || getVal(row, '实际装船时间')),
+        // actualLoadingDate 优先级：1) 实际装船时间 2) 出运日期 (shipmentDate)
+        // 重要：必须提供默认值，避免 NULL 违反 NOT NULL 约束
+        actualLoadingDate: parseDate(
+          originPlace?.actualLoading || 
+          getVal(row, '实际装船时间') || 
+          originPlace?.atd || 
+          originPlace?.etd || 
+          getVal(row, '接货地实际离开时间') || 
+          getVal(row, '装船日期', '出运日期')
+        ) || new Date(), // 如果所有来源都为空，使用当前日期作为默认值
         portOpenDate: parseDate(getVal(row, '开港时间', '开港日期')),
         portCloseDate: parseDate(getVal(row, '截港时间', '截港日期')),
         // 优先从数组获取ETA/ATA，fallback到直接列名
@@ -1070,9 +1080,20 @@ export class FeituoImportService {
       });
       await containerRepo.save(container);
     } else {
-      // 更新逻辑：优先从数组更新，fallback到直接列名
+      // 更新逻辑：优先从数组更新，fallback 到直接列名
+      // shipmentDate 和 actualLoadingDate 都应该有值，避免 NULL 违反约束
       if (!sf.shipmentDate) sf.shipmentDate = parseDate(originPlace?.atd || originPlace?.etd || getVal(row, '接货地实际离开时间') || getVal(row, '实际装船时间', '装船日期', '出运日期'));
-      if (!sf.actualLoadingDate) sf.actualLoadingDate = parseDate(originPlace?.actualLoading || getVal(row, '实际装船时间'));
+      // actualLoadingDate 更新策略：优先使用实际装船时间，如果没有则使用出运日期作为 fallback
+      if (!sf.actualLoadingDate) {
+        sf.actualLoadingDate = parseDate(
+          originPlace?.actualLoading || 
+          getVal(row, '实际装船时间') || 
+          originPlace?.atd || 
+          originPlace?.etd || 
+          getVal(row, '接货地实际离开时间') || 
+          getVal(row, '装船日期', '出运日期')
+        );
+      }
       if (!sf.mblNumber && mbl) sf.mblNumber = mbl;  // 更新 mbl_number
       // 优先使用 port_code（外键要求），fallback 到名称，再fallback到直接列名
       if (!sf.portOfLoading) sf.portOfLoading = portOfLoadingCode || originPlace?.nameCn || originPlace?.nameEn || getVal(row, '接货地名称（标准）', '接货地名称(标准)', '起运港');
@@ -1147,19 +1168,7 @@ export class FeituoImportService {
       await seaFreightRepo.save(sf);
     }
 
-    // 更新备货单的预计出运日期 expectedShipDate
-    const expectedShipDate = parseDate(getVal(row, '接货地实际离开时间') || getVal(row, '实际装船时间', '装船日期', '出运日期'));
-    if (expectedShipDate) {
-      const replenishmentRepo = AppDataSource.getRepository(ReplenishmentOrder);
-      // 查找该货柜关联的备货单
-      const orders = await replenishmentRepo.find({ where: { containerNumber } });
-      for (const order of orders) {
-        if (!order.expectedShipDate) {
-          order.expectedShipDate = expectedShipDate;
-          await replenishmentRepo.save(order);
-        }
-      }
-    }
+    // 注意：飞驼导入不再更新备货单的 expectedShipDate，仅由原始导入逻辑处理
 
     if (!container.billOfLadingNumber) {
       container.billOfLadingNumber = bl;
@@ -1366,9 +1375,19 @@ export class FeituoImportService {
         // 优先使用 port_code（外键要求），fallback 到名称，再fallback到直接列名
         portOfLoading: portOfLoadingCode2 || originPlace?.nameCn || originPlace?.nameEn || getVal(row, '接货地名称（标准）', '接货地名称(标准)'),
         portOfDischarge: portOfDischargeCode2 || destPlace?.nameCn || destPlace?.nameEn || getVal(row, '交货地名称（标准）', '交货地名称(标准)'),
-        // 优先从 places 数组获取，fallback到直接列名
+        // 优先从 places 数组获取，fallback 到直接列名
+        // shipmentDate 和 actualLoadingDate 都使用相同的来源，确保两个字段都有值
         shipmentDate: parseDate(originPlace?.atd || originPlace?.etd || getVal(row, '接货地实际离开时间') || getVal(row, '实际装船时间') || getVal(row, '装船日期') || getVal(row, '出运日期')),
-        actualLoadingDate: parseDate(originPlace?.actualLoading || getVal(row, '实际装船时间')),
+        // actualLoadingDate 优先级：1) 实际装船时间 2) 出运日期 (shipmentDate)
+        // 重要：必须提供默认值，避免 NULL 违反 NOT NULL 约束
+        actualLoadingDate: parseDate(
+          originPlace?.actualLoading || 
+          getVal(row, '实际装船时间') || 
+          originPlace?.atd || 
+          originPlace?.etd || 
+          getVal(row, '接货地实际离开时间') || 
+          getVal(row, '装船日期', '出运日期')
+        ) || new Date(), // 如果所有来源都为空，使用当前日期作为默认值
         eta: parseDate(destPlace?.eta || getVal(row, '交货地预计到达时间') || getVal(row, '目的地预计到达时间') || getVal(row, 5, '预计到达时间') || getVal(row, '预计到港日期')),
         ata: parseDate(destPlace?.ata || getVal(row, '交货地实际到达时间') || getVal(row, '目的地实际到达时间') || getVal(row, 5, '实际到达时间') || getVal(row, '目的港到达日期'))
       });

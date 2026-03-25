@@ -197,6 +197,16 @@ $additionalScripts = @(
     # 智能处理
     "008_add_intelligent_processing.sql",
     
+    # 日期时间类型统一（重要）
+    "unify-datetime-types.sql",
+    
+    # 运输费用字段
+    "add_transport_fee_to_warehouse_trucking_mapping.sql",
+    "add_transport_fee_to_trucking_port_mapping.sql",
+    
+    # 手动覆盖字段
+    "add_manual_override_fields_to_occupancy_tables.sql",
+    
     # 流程表
     "create_flow_definitions_table.sql",
     "create_flow_instances_table.sql",

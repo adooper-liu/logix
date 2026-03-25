@@ -1,7 +1,7 @@
 # 关联实体自动填充功能实施报告
 
 **实施日期**: 2026-03-21  
-**需求来源**: 用户反馈 - "销往国家"字段需要根据"客户名称"自动填充  
+**需求来源**: 用户反馈 - "销往国家"字段需要根据"客户名称"自动填充
 
 ---
 
@@ -26,12 +26,12 @@
   transform: (value, row) => {
     // 1. 优先使用 Excel 中的值
     if (value) return value
-    
+
     // 2. 尝试从客户名称自动填充
     if (row?.customer_name) {
       return autoFillCountry(row.customer_name)
     }
-    
+
     // 3. 无法填充时返回 null（留空）
     return null
   }
@@ -48,17 +48,18 @@
 
 ```typescript
 export interface FieldMapping {
-  excelField: string
-  table: string
-  field: string
-  required: boolean
+  excelField: string;
+  table: string;
+  field: string;
+  required: boolean;
   // ✅ 支持接收完整的行数据作为第二个参数
-  transform?: (value: any, row?: Record<string, any>) => any
-  aliases?: string[]
+  transform?: (value: any, row?: Record<string, any>) => any;
+  aliases?: string[];
 }
 ```
 
-**改进**: 
+**改进**:
+
 - ✅ Transform 函数现在可以访问整行数据
 - ✅ 支持更复杂的业务逻辑判断
 
@@ -70,24 +71,25 @@ export interface FieldMapping {
 
 ```typescript
 function transformRow(row: Record<string, any>, fieldMappings: FieldMapping[]): Record<string, any> {
-  const result: Record<string, any> = {}
-  
+  const result: Record<string, any> = {};
+
   for (const mapping of fieldMappings) {
-    const value = getCellValue(row, mapping)
-    
+    const value = getCellValue(row, mapping);
+
     // ✅ 传递 row 作为第二个参数
     if (mapping.transform) {
-      result[mapping.field] = mapping.transform(value, row)
+      result[mapping.field] = mapping.transform(value, row);
     } else {
-      result[mapping.field] = value
+      result[mapping.field] = value;
     }
   }
-  
-  return result
+
+  return result;
 }
 ```
 
 **改进**:
+
 - ✅ Transform 函数现在可以访问同一条记录的其他字段
 - ✅ 支持跨字段的业务逻辑
 
@@ -103,37 +105,42 @@ export function useEntityFiller() {
    * 根据客户名称自动填充国家
    */
   async function autoFillCountryFromCustomer(customerName: string): Promise<string | null> {
-    if (!customerName) return null
+    if (!customerName) return null;
 
     try {
       // 临时方案：关键词匹配
       const countryKeywords: Record<string, string> = {
-        '美国': '美国', 'US': '美国', 'USA': '美国',
-        '英国': '英国', 'UK': '英国',
-        '德国': '德国', 'DE': '德国',
+        美国: "美国",
+        US: "美国",
+        USA: "美国",
+        英国: "英国",
+        UK: "英国",
+        德国: "德国",
+        DE: "德国",
         // ... 更多国家
-      }
+      };
 
       for (const [keyword, country] of Object.entries(countryKeywords)) {
         if (customerName.includes(keyword)) {
-          return country
+          return country;
         }
       }
 
-      return null
+      return null;
     } catch (error) {
-      console.error('[EntityFiller] 自动填充失败:', error)
-      return null
+      console.error("[EntityFiller] 自动填充失败:", error);
+      return null;
     }
   }
 
   return {
-    autoFillCountryFromCustomer
-  }
+    autoFillCountryFromCustomer,
+  };
 }
 ```
 
 **功能**:
+
 - ✅ 提供统一的自动填充逻辑
 - ✅ 支持关键词匹配
 - ✅ 预留 API 查询接口
@@ -154,11 +161,11 @@ export function useEntityFiller() {
   transform: (value: any, row?: Record<string, any>) => {
     // 优先级 1: Excel 中的值
     if (value) return value
-    
+
     // 优先级 2: 根据客户名称自动填充
     if (row?.customer_name) {
       const customerName = String(row.customer_name)
-      
+
       // 关键词匹配规则
       const countryKeywords: Record<string, string> = {
         '美国': '美国', 'US': '美国', 'USA': '美国',
@@ -169,7 +176,7 @@ export function useEntityFiller() {
         '澳大利亚': '澳大利亚', 'AU': '澳大利亚',
         '加拿大': '加拿大', 'CA': '加拿大',
       }
-      
+
       for (const [keyword, country] of Object.entries(countryKeywords)) {
         if (customerName.includes(keyword)) {
           console.log(`[ContainerImport] 根据客户名称自动填充国家：${customerName} -> ${country}`)
@@ -177,7 +184,7 @@ export function useEntityFiller() {
         }
       }
     }
-    
+
     // 优先级 3: 返回 null（留空）
     return null
   }
@@ -185,6 +192,7 @@ export function useEntityFiller() {
 ```
 
 **工作流程**:
+
 ```
 Excel 值存在？
   ↓ 是 → 使用 Excel 值
@@ -203,14 +211,14 @@ Excel 值存在？
 
 ### 方案对比
 
-| 特性 | Transform 函数方案 | EntityFiller Composable |
-|------|------------------|------------------------|
-| **实现难度** | ⭐ 简单 | ⭐⭐⭐ 中等 |
-| **灵活性** | ⭐⭐⭐ 高 | ⭐⭐⭐ 高 |
-| **可复用性** | ⭐⭐ 中 | ⭐⭐⭐ 高 |
-| **性能** | ⭐⭐⭐ 优 | ⭐⭐⭐ 优 |
-| **维护成本** | ⭐⭐ 低 | ⭐⭐⭐ 低 |
-| **当前选择** | ✅ **已采用** | ⏳ 备选方案 |
+| 特性         | Transform 函数方案 | EntityFiller Composable |
+| ------------ | ------------------ | ----------------------- |
+| **实现难度** | ⭐ 简单            | ⭐⭐⭐ 中等             |
+| **灵活性**   | ⭐⭐⭐ 高          | ⭐⭐⭐ 高               |
+| **可复用性** | ⭐⭐ 中            | ⭐⭐⭐ 高               |
+| **性能**     | ⭐⭐⭐ 优          | ⭐⭐⭐ 优               |
+| **维护成本** | ⭐⭐ 低            | ⭐⭐⭐ 低               |
+| **当前选择** | ✅ **已采用**      | ⏳ 备选方案             |
 
 ### 决策理由
 
@@ -291,45 +299,62 @@ Excel 值存在？
 ```typescript
 const countryKeywords = {
   // 北美
-  '美国': '美国', 'US': '美国', 'USA': '美国', 'United States': '美国',
-  '加拿大': '加拿大', 'CA': '加拿大', 'Canada': '加拿大',
-  
+  美国: "美国",
+  US: "美国",
+  USA: "美国",
+  "United States": "美国",
+  加拿大: "加拿大",
+  CA: "加拿大",
+  Canada: "加拿大",
+
   // 欧洲
-  '英国': '英国', 'UK': '英国', 'United Kingdom': '英国',
-  '德国': '德国', 'DE': '德国', 'Germany': '德国',
-  '法国': '法国', 'FR': '法国', 'France': '法国',
-  
+  英国: "英国",
+  UK: "英国",
+  "United Kingdom": "英国",
+  德国: "德国",
+  DE: "德国",
+  Germany: "德国",
+  法国: "法国",
+  FR: "法国",
+  France: "法国",
+
   // 亚太
-  '日本': '日本', 'JP': '日本', 'Japan': '日本',
-  '澳大利亚': '澳大利亚', 'AU': '澳大利亚', 'Australia': '澳大利亚',
-  
+  日本: "日本",
+  JP: "日本",
+  Japan: "日本",
+  澳大利亚: "澳大利亚",
+  AU: "澳大利亚",
+  Australia: "澳大利亚",
+
   // ... 可根据需要扩展
-}
+};
 ```
 
 ### 未来可扩展
 
 1. **API 查询集成**:
+
    ```typescript
    // TODO: 调用后端 API 查询
-   const response = await axios.get(`/api/customers/${customerName}/country`)
-   return response.data.country
+   const response = await axios.get(`/api/customers/${customerName}/country`);
+   return response.data.country;
    ```
 
 2. **正则表达式匹配**:
+
    ```typescript
    const patterns = [
-     /US[A-Z]?/i,      // 匹配 US, USA, USAINC 等
+     /US[A-Z]?/i, // 匹配 US, USA, USAINC 等
      /UNITED\s?STATES/i,
      // ...
-   ]
+   ];
    ```
 
 3. **模糊匹配**:
    ```typescript
    // 使用字符串相似度算法
-   if (levenshteinDistance(input, 'AOSOM') < 2) {
-     return '美国'
+   if (levenshteinDistance(input, "AOSOM") < 2) {
+     return "美国";
    }
    ```
 
@@ -342,8 +367,8 @@ const countryKeywords = {
 ```typescript
 // 开发环境启用详细日志
 if (import.meta.env.DEV) {
-  console.log('[AutoFill] 输入:', { value, row })
-  console.log('[AutoFill] 输出:', result)
+  console.log("[AutoFill] 输入:", { value, row });
+  console.log("[AutoFill] 输出:", result);
 }
 ```
 
@@ -352,12 +377,12 @@ if (import.meta.env.DEV) {
 ```typescript
 transform: (value, row) => {
   try {
-    return doAutoFill(value, row)
+    return doAutoFill(value, row);
   } catch (error) {
-    console.error('[AutoFill] 异常:', error)
-    return value || null  // 失败时返回原始值或 null
+    console.error("[AutoFill] 异常:", error);
+    return value || null; // 失败时返回原始值或 null
   }
-}
+};
 ```
 
 ---
@@ -365,6 +390,7 @@ transform: (value, row) => {
 ## ✅ 验收标准
 
 ### 功能性 ✓
+
 - [x] Excel 中有值时优先使用
 - [x] Excel 中无值时尝试自动填充
 - [x] 无法填充时留空
@@ -372,6 +398,7 @@ transform: (value, row) => {
 - [x] 日志输出清晰
 
 ### 非功能性 ✓
+
 - [x] 不影响现有功能
 - [x] 性能开销可控
 - [x] 代码可维护性好
@@ -392,6 +419,7 @@ transform: (value, row) => {
 ### 实施成果
 
 ✅ **完成的工作**:
+
 1. ✅ 扩展 FieldMapping 类型，支持接收 row 参数
 2. ✅ 更新 useExcelParser 解析逻辑
 3. ✅ 创建 useEntityFiller Composable（备选方案）
@@ -399,6 +427,7 @@ transform: (value, row) => {
 5. ✅ 编写完整的开发和测试文档
 
 ✅ **带来的价值**:
+
 - 📊 **用户体验提升**: 减少手动填写，提高导入效率
 - 💰 **成本节约**: 预计减少 30% 的数据录入时间
 - ✨ **质量提升**: 自动填充标准化数据，减少人为错误
@@ -425,7 +454,7 @@ transform: (value, row) => {
 
 **项目状态**: ✅ **已完成并集成**  
 **下一步**: 功能测试与优化  
-**预计验收**: 2026-03-28  
+**预计验收**: 2026-03-28
 
 ---
 

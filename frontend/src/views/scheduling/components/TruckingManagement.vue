@@ -344,4 +344,10 @@ watch(
   display: flex;
   justify-content: flex-end;
 }
+
+.unit-text {
+  color: #909399;
+  font-size: 12px;
+  margin-left: 4px;
+}
 </style>

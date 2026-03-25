@@ -5,12 +5,14 @@
 根据用户提出的需求，飞驼 EXCEL 导入数据需要分批次解读：
 
 ### ① 基础信息子集（去重）
+
 - **字段**: MBL Number + 集装箱号
 - **目标表**: `ext_feituo_import_table1` / `ext_feituo_import_table2`
 
 ### ② 发生地信息子集（去重）
+
 - **字段**: MBL Number + 28 个 place 字段
-  - 发生地信息_地点CODE、地点名称英文（标准）、地点名称中文（标准）、地点名称（原始）、地点类型、纬度、经度、时区
+  - 发生地信息\_地点CODE、地点名称英文（标准）、地点名称中文（标准）、地点名称（原始）、地点类型、纬度、经度、时区
   - 预计离开时间、预计到达时间、实际到达时间、实际离开时间、首次获取到的 etd、首次获取到的 eta
   - 实际装船时间、实际卸船时间、AIS 实际到港时间、AIS 实际靠泊时间、AIS 实际离港时间
   - 码头名称、船名、航次、货物存储位置、铁路预计离开时间
@@ -18,21 +20,24 @@
 - **目标表**: `ext_feituo_places` ❌
 
 ### ③ 集装箱物流信息子集（去重）
+
 - **字段**: MBL Number + 30 个 status 字段
   - 集装箱号、箱型、箱尺寸、箱型（飞驼标准）、铅封号
   - 当前状态代码、当前状态中文描述、当前状态英文描述、是否甩柜
-  - 状态_船名/车牌号、航次、运输方式、状态代码、发生时间、是否预计、发生地、时区
+  - 状态\_船名/车牌号、航次、运输方式、状态代码、发生时间、是否预计、发生地、时区
   - 状态描述中文（标准）、状态描述英文（标准）、发生地（原始）、状态描述（原始）
   - 地点 CODE、码头名称、货物存储位置、分单号、报关单号、异常节点、数据来源
 - **目标表**: `ext_feituo_status_events` ✅
 
 ### ④ 船舶信息子集（去重）
+
 - **字段**: MBL Number + 船名/IMO/MMSI/船舶建造日/船籍/箱尺寸/运营方
 - **目标表**: `ext_feituo_vessels` ✅
 
 ### ⑤ 其它字段不需要导入了
 
 ### ⑥ 写入目标表
+
 - `ext_feituo_import_table1` / `ext_feituo_import_table2`
 - `ext_feituo_places`
 - `ext_feituo_status_events`
@@ -49,7 +54,7 @@
 docker exec logix-timescaledb-prod psql -U logix_user -d logix_db -c \
 "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name LIKE 'ext_feituo%'"
 
-table_name        
+table_name
 --------------------------
  ext_feituo_import_batch
  ext_feituo_import_table1
@@ -71,19 +76,20 @@ table_name
 
 ```typescript
 // 表一
-const mbl = getVal(row, 'MBL Number', 'MBL Number（一）', 'MBLNumber', 'mbl_number');
-const containerNumber = getVal(row, '集装箱物流信息_集装箱号', '集装箱号', '集装箱号（一）', 'container_number');
+const mbl = getVal(row, "MBL Number", "MBL Number（一）", "MBLNumber", "mbl_number");
+const containerNumber = getVal(row, "集装箱物流信息_集装箱号", "集装箱号", "集装箱号（一）", "container_number");
 
 const rec = repo.create({
   batchId,
   mblNumber: mbl,
   containerNumber,
-  rawData,              // ✅ 存储完整 raw_data
-  rawDataByGroup        // ✅ 存储分组 raw_data_by_group
+  rawData, // ✅ 存储完整 raw_data
+  rawDataByGroup, // ✅ 存储分组 raw_data_by_group
 });
 ```
 
-**验证结果**: 
+**验证结果**:
+
 - ✅ MBL Number + 集装箱号正确提取
 - ✅ `rawData` 和 `rawDataByGroup` JSON 都已存储
 - ✅ 写入 `ext_feituo_import_table1` / `ext_feituo_import_table2`
@@ -96,40 +102,41 @@ const rec = repo.create({
 
 #### 问题 1: 字段名不匹配实体定义
 
-| 代码中使用的字段 | 实体中实际字段 | 状态 |
-|-----------------|---------------|------|
-| `portNameEn` | ✅ `portNameEn` | 正确 |
-| `portNameCn` | ✅ `portNameCn` | 正确 |
-| `portNameOriginal` | ❌ **不存在** | **幽灵字段** |
-| `placeType` (string) | `placeType` (int) | **类型错误** |
-| `latitude` | ✅ `latitude` | 正确 |
-| `longitude` | ✅ `longitude` | 正确 |
-| `timezone` | ❌ **应为** `portTimezone` | **名称错误** |
-| `etd` | ✅ `etd` | 正确 |
-| `eta` | ✅ `eta` | 正确 |
-| `ata` | ✅ `ata` | 正确 |
-| `atd` | ✅ `atd` | 正确 |
-| `firstEtd` | ❌ **不存在** | **幽灵字段** |
-| `firstEta` | ❌ **不存在** | **幽灵字段** |
-| `loadedOnBoardDate` | ❌ **应为** `load` | **名称错误** |
-| `unloadDate` | ❌ **应为** `disc` | **名称错误** |
-| `aisAta` | ❌ **应为** `ataAis` | **名称错误** |
-| `aisBerthing` | ❌ **应为** `atbAis` | **名称错误** |
-| `aisAtd` | ❌ **应为** `atdAis` | **名称错误** |
-| `terminalName` | ✅ `terminalName` | 正确 |
-| `vesselName` | ✅ `vesselName` | 正确 |
-| `voyageNumber` | ✅ `voyageNumber` | 正确 |
-| `cargoLocation` | ❌ **不存在** | **幽灵字段** |
-| `railEtd` | ❌ **不存在** | **幽灵字段** |
-| `freeStorageDays` | ❌ **不存在** | **幽灵字段** |
-| `freeDetentionDays` | ❌ **不存在** | **幽灵字段** |
-| `freeStorageTime` | ❌ **不存在** | **幽灵字段** |
-| `freeDetentionTime` | ❌ **不存在** | **幽灵字段** |
-| `batchId` | ❌ **不存在** | **幽灵字段** |
+| 代码中使用的字段     | 实体中实际字段             | 状态         |
+| -------------------- | -------------------------- | ------------ |
+| `portNameEn`         | ✅ `portNameEn`            | 正确         |
+| `portNameCn`         | ✅ `portNameCn`            | 正确         |
+| `portNameOriginal`   | ❌ **不存在**              | **幽灵字段** |
+| `placeType` (string) | `placeType` (int)          | **类型错误** |
+| `latitude`           | ✅ `latitude`              | 正确         |
+| `longitude`          | ✅ `longitude`             | 正确         |
+| `timezone`           | ❌ **应为** `portTimezone` | **名称错误** |
+| `etd`                | ✅ `etd`                   | 正确         |
+| `eta`                | ✅ `eta`                   | 正确         |
+| `ata`                | ✅ `ata`                   | 正确         |
+| `atd`                | ✅ `atd`                   | 正确         |
+| `firstEtd`           | ❌ **不存在**              | **幽灵字段** |
+| `firstEta`           | ❌ **不存在**              | **幽灵字段** |
+| `loadedOnBoardDate`  | ❌ **应为** `load`         | **名称错误** |
+| `unloadDate`         | ❌ **应为** `disc`         | **名称错误** |
+| `aisAta`             | ❌ **应为** `ataAis`       | **名称错误** |
+| `aisBerthing`        | ❌ **应为** `atbAis`       | **名称错误** |
+| `aisAtd`             | ❌ **应为** `atdAis`       | **名称错误** |
+| `terminalName`       | ✅ `terminalName`          | 正确         |
+| `vesselName`         | ✅ `vesselName`            | 正确         |
+| `voyageNumber`       | ✅ `voyageNumber`          | 正确         |
+| `cargoLocation`      | ❌ **不存在**              | **幽灵字段** |
+| `railEtd`            | ❌ **不存在**              | **幽灵字段** |
+| `freeStorageDays`    | ❌ **不存在**              | **幽灵字段** |
+| `freeDetentionDays`  | ❌ **不存在**              | **幽灵字段** |
+| `freeStorageTime`    | ❌ **不存在**              | **幽灵字段** |
+| `freeDetentionTime`  | ❌ **不存在**              | **幽灵字段** |
+| `batchId`            | ❌ **不存在**              | **幽灵字段** |
 
 #### 问题 2: 缺少必需字段
 
 实体要求：
+
 ```typescript
 @Column({ type: 'int', name: 'place_index' })
 placeIndex: number;  // ❗ NOT NULL
@@ -159,12 +166,13 @@ const existing = await placesRepo.findOne({
     billOfLadingNumber: mblNumber,
     portCode: portCode,
     placeType: placeType || undefined,
-    placeIndex: i  // ❗ 使用循环索引作为去重条件
-  }
+    placeIndex: i, // ❗ 使用循环索引作为去重条件
+  },
 });
 ```
 
-**问题**: 
+**问题**:
+
 - `placeIndex` 是人为分配的（0-9），不是数据本身的唯一标识
 - 同一 MBL + portCode 可能有多条记录（不同 placeType），但 `placeIndex` 会重复
 - **正确的去重逻辑应该是**: `(mblNumber, portCode, placeType)` 或 `(mblNumber, portCode, placeIndex)`
@@ -226,6 +234,7 @@ const rec = eventsRepo.create({
 #### 遗漏的字段 ⚠️
 
 实体中存在的字段，但代码未设置：
+
 ```typescript
 @Column({ type: 'int', nullable: true, name: 'related_place_index' })
 relatedPlaceIndex: number | null;  // ❗ 未设置
@@ -251,13 +260,13 @@ firmsCode: string | null;  // ❗ 未设置
 const rec = vesselsRepo.create({
   billOfLadingNumber: mblNumber,
   vesselName: vesselName,
-  imoNumber: getVal(row, 13, 'IMO') || getVal(row, '船泊信息_imo') as string,
-  mmsiNumber: getVal(row, 13, 'MMSI') || getVal(row, '船泊信息_mmsi') as string,
-  buildDate: parseDate(getVal(row, 13, '船舶建造日') || getVal(row, '船泊信息_船舶建造日')),
-  flag: getVal(row, 13, '船籍') || getVal(row, '船泊信息_船籍') as string,
-  containerSize: getVal(row, 13, '箱尺寸') || getVal(row, '船泊信息_箱尺寸') as string,
-  operator: getVal(row, 13, '运营方') || getVal(row, '船泊信息_运营方') as string,
-  batchId  // ❌ 幽灵字段
+  imoNumber: getVal(row, 13, "IMO") || (getVal(row, "船泊信息_imo") as string),
+  mmsiNumber: getVal(row, 13, "MMSI") || (getVal(row, "船泊信息_mmsi") as string),
+  buildDate: parseDate(getVal(row, 13, "船舶建造日") || getVal(row, "船泊信息_船舶建造日")),
+  flag: getVal(row, 13, "船籍") || (getVal(row, "船泊信息_船籍") as string),
+  containerSize: getVal(row, 13, "箱尺寸") || (getVal(row, "船泊信息_箱尺寸") as string),
+  operator: getVal(row, 13, "运营方") || (getVal(row, "船泊信息_运营方") as string),
+  batchId, // ❌ 幽灵字段
 });
 ```
 
@@ -267,16 +276,18 @@ const rec = vesselsRepo.create({
 #### 问题 ⚠️
 
 1. **batchId 字段不存在**
+
    ```typescript
    // ExtFeituoVessel 实体中没有 batchId 字段
-   batchId  // ❌ 幽灵字段
+   batchId; // ❌ 幽灵字段
    ```
 
 2. **缺少必需字段**
+
    ```typescript
    @Column({ type: 'varchar', length: 50, default: 'Excel', name: 'data_source' })
    dataSource: string;  // ✅ 实体有默认值，可不设置
-   
+
    @Column({ type: 'jsonb' })
    rawJson: Record<string, unknown>;  // ❗ 建议保存原始数据
    ```
@@ -327,7 +338,7 @@ private async savePlacesSubset(
   mblNumber: string
 ): Promise<void> {
   const placesRepo = AppDataSource.getRepository(ExtFeituoPlace);
-  
+
   for (let i = 0; i < 10; i++) {
     const suffix = i === 0 ? '' : `_${i + 1}`;
     const portCode = getVal(row, `发生地信息_地点 CODE${suffix}`, '发生地信息_地点 CODE') as string;
@@ -335,7 +346,7 @@ private async savePlacesSubset(
 
     const placeTypeStr = getVal(row, `发生地信息_地点类型${suffix}`, '发生地信息_地点类型') as string;
     // ✅ 将字符串转换为数字（根据实际业务规则）
-    const placeType = this.parsePlaceType(placeTypeStr); 
+    const placeType = this.parsePlaceType(placeTypeStr);
 
     // ✅ 正确的去重逻辑
     const existing = await placesRepo.findOne({
@@ -414,16 +425,16 @@ private parsePlaceType(val: string | null): number {
 const rec = vesselsRepo.create({
   billOfLadingNumber: mblNumber,
   vesselName: vesselName,
-  imoNumber: getVal(row, 13, 'IMO') || getVal(row, '船泊信息_imo') as string,
-  mmsiNumber: getVal(row, 13, 'MMSI') || getVal(row, '船泊信息_mmsi') as string,
-  buildDate: parseDate(getVal(row, 13, '船舶建造日') || getVal(row, '船泊信息_船舶建造日')),
-  flag: getVal(row, 13, '船籍') || getVal(row, '船泊信息_船籍') as string,
-  containerSize: getVal(row, 13, '箱尺寸') || getVal(row, '船泊信息_箱尺寸') as string,
-  operator: getVal(row, 13, '运营方') || getVal(row, '船泊信息_运营方') as string,
-  vesselNameEn: getVal(row, 13, '船名') || getVal(row, '船泊信息_船名') as string, // ✅ 补充
-  vesselNameCn: getVal(row, 13, '船名') || getVal(row, '船泊信息_船名') as string, // ✅ 补充
-  dataSource: 'Excel',  // ✅ 显式设置（实体有默认值）
-  rawJson: row._rawDataByGroup?.['13'] || null  // ✅ 保存原始数据
+  imoNumber: getVal(row, 13, "IMO") || (getVal(row, "船泊信息_imo") as string),
+  mmsiNumber: getVal(row, 13, "MMSI") || (getVal(row, "船泊信息_mmsi") as string),
+  buildDate: parseDate(getVal(row, 13, "船舶建造日") || getVal(row, "船泊信息_船舶建造日")),
+  flag: getVal(row, 13, "船籍") || (getVal(row, "船泊信息_船籍") as string),
+  containerSize: getVal(row, 13, "箱尺寸") || (getVal(row, "船泊信息_箱尺寸") as string),
+  operator: getVal(row, 13, "运营方") || (getVal(row, "船泊信息_运营方") as string),
+  vesselNameEn: getVal(row, 13, "船名") || (getVal(row, "船泊信息_船名") as string), // ✅ 补充
+  vesselNameCn: getVal(row, 13, "船名") || (getVal(row, "船泊信息_船名") as string), // ✅ 补充
+  dataSource: "Excel", // ✅ 显式设置（实体有默认值）
+  rawJson: row._rawDataByGroup?.["13"] || null, // ✅ 保存原始数据
   // ❌ 删除 batchId（幽灵字段）
 });
 ```
@@ -433,11 +444,11 @@ const rec = vesselsRepo.create({
 ```typescript
 const fieldValues = {
   // ... 现有字段 ...
-  
+
   // ✅ 补充缺失的可选字段
-  firmsCode: getVal(row, 12, 'FIRMS 代码') || getVal(row, '集装箱物流信息 - 状态_FIRMS 代码') || null,
-  source: parseInt(getVal(row, 12, 'source') || '0'),
-  relatedPlaceIndex: parseInt(getVal(row, 12, 'relatedPlaceIndex') || '0'),
+  firmsCode: getVal(row, 12, "FIRMS 代码") || getVal(row, "集装箱物流信息 - 状态_FIRMS 代码") || null,
+  source: parseInt(getVal(row, 12, "source") || "0"),
+  relatedPlaceIndex: parseInt(getVal(row, 12, "relatedPlaceIndex") || "0"),
 };
 ```
 
@@ -479,12 +490,12 @@ const fieldValues = {
 
 ### 实现评分
 
-| 子集 | 完成度 | 评分 |
-|-----|--------|------|
-| ① 基础信息子集 | 100% | ✅ 完全符合 |
-| ② 发生地信息子集 | 30% | ❌ 严重问题 |
-| ③ 集装箱物流信息子集 | 85% | ⚠️ 基本正确，少量遗漏 |
-| ④ 船舶信息子集 | 80% | ⚠️ 基本正确，少量问题 |
+| 子集                 | 完成度 | 评分                  |
+| -------------------- | ------ | --------------------- |
+| ① 基础信息子集       | 100%   | ✅ 完全符合           |
+| ② 发生地信息子集     | 30%    | ❌ 严重问题           |
+| ③ 集装箱物流信息子集 | 85%    | ⚠️ 基本正确，少量遗漏 |
+| ④ 船舶信息子集       | 80%    | ⚠️ 基本正确，少量问题 |
 
 ### 核心问题
 
@@ -504,7 +515,8 @@ const fieldValues = {
 
 **报告生成时间**: 2026-03-21  
 **验证人**: AI Assistant  
-**参考文档**: 
+**参考文档**:
+
 - `backend/src/entities/ExtFeituoPlace.ts`
 - `backend/src/entities/ExtFeituoStatusEvent.ts`
 - `backend/src/entities/ExtFeituoVessel.ts`

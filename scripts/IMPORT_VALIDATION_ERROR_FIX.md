@@ -59,6 +59,7 @@
    - 确保包含"集装箱号"列（或"箱号 (集装箱号)"）
 
 3. **填写数据**
+
    ```
    示例:
    ┌─────────────┬──────────────┬────────────┐
@@ -72,6 +73,7 @@
 4. **保存并重新上传**
 
 **优点**:
+
 - ✅ 符合业务规范
 - ✅ 数据完整性好
 - ✅ 无需修改代码
@@ -132,11 +134,13 @@
 打开您的 Excel 文件，检查是否包含以下列名之一：
 
 **备货单号的列名变体**:
+
 - ✅ 备货单号
 - ⚠️ 订单号（需要添加别名）
 - ⚠️ PO 号（需要添加别名）
 
 **集装箱号的列名变体**:
+
 - ✅ 集装箱号
 - ✅ 箱号 (集装箱号)
 - ⚠️ 箱号（需要添加别名）
@@ -185,6 +189,7 @@
 ### 场景 1: 列名不匹配
 
 **Excel 内容**:
+
 ```excel
 ┌─────────────┬──────────────┐
 │ Order No.   │ Container    │
@@ -193,11 +198,13 @@
 └─────────────┴──────────────┘
 ```
 
-**错误提示**: 
+**错误提示**:
+
 - 缺少必填字段：备货单号
 - 缺少必填字段：集装箱号
 
-**解决方案**: 
+**解决方案**:
+
 ```typescript
 // 添加别名支持
 {
@@ -216,6 +223,7 @@
 ### 场景 2: 部分行为空
 
 **Excel 内容**:
+
 ```excel
 ┌─────────────┬──────────────┐
 │ 备货单号    │ 集装箱号     │
@@ -227,11 +235,13 @@
 └─────────────┴──────────────┘
 ```
 
-**结果**: 
+**结果**:
+
 - 有效数据：1 条
 - 无效数据：3 条
 
-**解决方案**: 
+**解决方案**:
+
 - ✅ 补全所有必填字段
 - 或将 `required: false`（不推荐）
 
@@ -240,6 +250,7 @@
 ### 场景 3: 空格导致的验证失败
 
 **Excel 内容**:
+
 ```excel
 ┌─────────────┬──────────────┐
 │ 备货单号    │ 集装箱号     │
@@ -248,10 +259,10 @@
 └─────────────┴──────────────┘
 ```
 
-**问题**: 
+**问题**:
 虽然有空格，但不为空字符串，所以会通过验证。但可能导致后续处理问题。
 
-**建议**: 
+**建议**:
 在 transform 函数中添加 trim 处理：
 
 ```typescript
@@ -278,22 +289,22 @@
 // frontend/src/components/common/UniversalImport/useExcelParser.ts
 
 function validateRow(row: Record<string, any>, fieldMappings: FieldMapping[]): string[] {
-  const errors: string[] = []
-  
+  const errors: string[] = [];
+
   for (const mapping of fieldMappings) {
-    if (mapping.required && (row[mapping.field] === null || row[mapping.field] === undefined || row[mapping.field] === '')) {
-      const errorMsg = `缺少必填字段：${mapping.excelField}`
-      console.warn('[Validation]', errorMsg, {
+    if (mapping.required && (row[mapping.field] === null || row[mapping.field] === undefined || row[mapping.field] === "")) {
+      const errorMsg = `缺少必填字段：${mapping.excelField}`;
+      console.warn("[Validation]", errorMsg, {
         fieldName: mapping.field,
         excelField: mapping.excelField,
         actualValue: row[mapping.field],
-        fullRow: row
-      })
-      errors.push(errorMsg)
+        fullRow: row,
+      });
+      errors.push(errorMsg);
     }
   }
-  
-  return errors
+
+  return errors;
 }
 ```
 
@@ -315,7 +326,7 @@ function validateRow(row: Record<string, any>, fieldMappings: FieldMapping[]): s
   aliases: [
     '主备货单号',
     '订单号',
-    'PO 号', 
+    'PO 号',
     'Purchase Order',
     'Order No.',
     'Order Number'
@@ -341,18 +352,16 @@ function validateRow(row: Record<string, any>, fieldMappings: FieldMapping[]): s
 
 ```typescript
 function validateRow(row: Record<string, any>, fieldMappings: FieldMapping[]): string[] {
-  const errors: string[] = []
-  
+  const errors: string[] = [];
+
   for (const mapping of fieldMappings) {
     if (mapping.required && !row[mapping.field]) {
       // 提供更友好的错误提示
-      errors.push(
-        `第 ${errors.length + 1} 项：请确保 Excel 中包含 "${mapping.excelField}" 列，且不为空`
-      )
+      errors.push(`第 ${errors.length + 1} 项：请确保 Excel 中包含 "${mapping.excelField}" 列，且不为空`);
     }
   }
-  
-  return errors
+
+  return errors;
 }
 ```
 
@@ -361,19 +370,19 @@ function validateRow(row: Record<string, any>, fieldMappings: FieldMapping[]): s
 ```typescript
 // 在转换前预处理原始数据
 function preprocessRawData(jsonData: Record<string, any>[]): Record<string, any>[] {
-  return jsonData.map(row => {
-    const processed: Record<string, any> = {}
-    
+  return jsonData.map((row) => {
+    const processed: Record<string, any> = {};
+
     for (const [key, value] of Object.entries(row)) {
       // 去除键名的前后空格
-      const trimmedKey = key.trim()
-      
+      const trimmedKey = key.trim();
+
       // 去除字符串值的空格
-      processed[trimmedKey] = typeof value === 'string' ? value.trim() : value
+      processed[trimmedKey] = typeof value === "string" ? value.trim() : value;
     }
-    
-    return processed
-  })
+
+    return processed;
+  });
 }
 ```
 
@@ -385,7 +394,7 @@ function preprocessRawData(jsonData: Record<string, any>[]): Record<string, any>
 
 1. ✅ **使用标准列名**: 直接使用配置中的 `excelField` 名称
 2. ✅ **避免空格**: 列名和数据都不要包含多余空格
-3. ✅ **必填字段标识**: 在模板中用颜色或*标记必填字段
+3. ✅ **必填字段标识**: 在模板中用颜色或\*标记必填字段
 4. ✅ **提供示例**: 附带示例 Excel 文件
 
 ### 代码配置
@@ -420,6 +429,7 @@ function preprocessRawData(jsonData: Record<string, any>[]): Record<string, any>
 4. ✅ 重新上传测试
 
 如需帮助，请提供：
+
 - Excel 文件的列名截图
 - 控制台中的具体错误信息
 - 您期望的导入效果
@@ -428,6 +438,6 @@ function preprocessRawData(jsonData: Record<string, any>[]): Record<string, any>
 
 **文档状态**: ✅ 已完成  
 **适用版本**: v1.0+  
-**最后更新**: 2026-03-21  
+**最后更新**: 2026-03-21
 
 **维护者**: Logix Team

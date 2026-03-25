@@ -100,6 +100,16 @@ const routes: RouteRecordRaw[] = [
         name: 'SchedulingConfig',
         component: () => import('@/views/scheduling/SchedulingConfig.vue'),
         meta: {
+          title: '排产配置',
+          icon: 'Setting',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'scheduling/visual',
+        name: 'SchedulingVisual',
+        component: () => import('@/views/scheduling/SchedulingVisual.vue'),
+        meta: {
           title: '智能排产',
           icon: 'Cpu',
           requiresAuth: true,

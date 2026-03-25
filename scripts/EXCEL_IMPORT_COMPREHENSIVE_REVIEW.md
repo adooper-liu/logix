@@ -4,24 +4,24 @@
 
 ### 1.1 前端导入界面组件
 
-| 组件文件 | 功能描述 | 后端 API | 状态 |
-|---------|---------|---------|------|
-| `ExcelImport.vue` | **通用货柜导入** (主流程) | `/api/v1/import/excel/batch` | ✅ 使用中 |
-| `FeituoDataImport.vue` | **飞驼数据导入** (API+Excel) | `/api/v1/import/feituo-excel` | ✅ 使用中 |
-| `DemurrageStandardsImport.vue` | **滞港费标准导入** | `/api/v1/import/demurrage-standards` | ✅ 使用中 |
-| `DictionaryExtractor.vue` | 字典提取工具 | - | ⚠️ 辅助工具 |
-| `FeituoVerify.vue` | 飞驼数据验证 | - | ⚠️ 辅助工具 |
-| `DemurrageStandardEntry.vue` | 滞港费标准录入 | - | ⚠️ 辅助工具 |
+| 组件文件                       | 功能描述                     | 后端 API                             | 状态        |
+| ------------------------------ | ---------------------------- | ------------------------------------ | ----------- |
+| `ExcelImport.vue`              | **通用货柜导入** (主流程)    | `/api/v1/import/excel/batch`         | ✅ 使用中   |
+| `FeituoDataImport.vue`         | **飞驼数据导入** (API+Excel) | `/api/v1/import/feituo-excel`        | ✅ 使用中   |
+| `DemurrageStandardsImport.vue` | **滞港费标准导入**           | `/api/v1/import/demurrage-standards` | ✅ 使用中   |
+| `DictionaryExtractor.vue`      | 字典提取工具                 | -                                    | ⚠️ 辅助工具 |
+| `FeituoVerify.vue`             | 飞驼数据验证                 | -                                    | ⚠️ 辅助工具 |
+| `DemurrageStandardEntry.vue`   | 滞港费标准录入               | -                                    | ⚠️ 辅助工具 |
 
 ### 1.2 后端导入服务
 
-| 服务类 | 方法 | 功能 | 问题 |
-|-------|------|------|------|
-| `ImportController` | `importExcelData()` | 单条货柜数据导入 | ✅ 正常 |
-| `ImportController` | `importBatchExcelData()` | 批量货柜数据导入 | ✅ 正常 |
-| `ImportController` | `importDemurrageStandards()` | 滞港费标准导入 | ✅ 正常 |
-| `ImportController` | `importFeituoExcel()` | 飞驼 Excel 导入 | ❌ **严重问题** |
-| `FeituoImportService` | `import()` | 飞驼数据解析与导入 | ❌ **严重问题** |
+| 服务类                | 方法                         | 功能               | 问题            |
+| --------------------- | ---------------------------- | ------------------ | --------------- |
+| `ImportController`    | `importExcelData()`          | 单条货柜数据导入   | ✅ 正常         |
+| `ImportController`    | `importBatchExcelData()`     | 批量货柜数据导入   | ✅ 正常         |
+| `ImportController`    | `importDemurrageStandards()` | 滞港费标准导入     | ✅ 正常         |
+| `ImportController`    | `importFeituoExcel()`        | 飞驼 Excel 导入    | ❌ **严重问题** |
+| `FeituoImportService` | `import()`                   | 飞驼数据解析与导入 | ❌ **严重问题** |
 
 ---
 
@@ -33,27 +33,28 @@
 
 **位置**: `backend/src/services/feituoImport.service.ts:1489-1516, 1521-1554`
 
-| 代码中使用的字段 | 实体 `ExtFeituoPlace` 中实际字段 | 问题类型 | 是否违反 SKILL |
-|-----------------|--------------------------------|---------|--------------|
-| `portNameOriginal` | ❌ 不存在（应为 `nameOrigin`） | 幽灵字段 | ✅ 是 |
-| `placeType` (string) | `placeType` (**INT**) | **类型错误** | ✅ 是 |
-| `timezone` | `portTimezone` | 名称错误 | ✅ 是 |
-| `firstEtd` | ❌ 不存在 | 幽灵字段 | ✅ 是 |
-| `firstEta` | ❌ 不存在 | 幽灵字段 | ✅ 是 |
-| `loadedOnBoardDate` | `load` | 名称错误 | ✅ 是 |
-| `unloadDate` | `disc` | 名称错误 | ✅ 是 |
-| `aisAta` | `ataAis` | 名称错误 | ✅ 是 |
-| `aisBerthing` | `atbAis` | 名称错误 | ✅ 是 |
-| `aisAtd` | `atdAis` | 名称错误 | ✅ 是 |
-| `cargoLocation` | ❌ 不存在 | 幽灵字段 | ✅ 是 |
-| `railEtd` | ❌ 不存在 | 幽灵字段 | ✅ 是 |
-| `freeStorageDays` | ❌ 不存在 | 幽灵字段 | ✅ 是 |
-| `freeDetentionDays` | ❌ 不存在 | 幽灵字段 | ✅ 是 |
-| `freeStorageTime` | ❌ 不存在 | 幽灵字段 | ✅ 是 |
-| `freeDetentionTime` | ❌ 不存在 | 幽灵字段 | ✅ 是 |
-| `batchId` | ❌ 不存在 | 幽灵字段 | ✅ 是 |
+| 代码中使用的字段     | 实体 `ExtFeituoPlace` 中实际字段 | 问题类型     | 是否违反 SKILL |
+| -------------------- | -------------------------------- | ------------ | -------------- |
+| `portNameOriginal`   | ❌ 不存在（应为 `nameOrigin`）   | 幽灵字段     | ✅ 是          |
+| `placeType` (string) | `placeType` (**INT**)            | **类型错误** | ✅ 是          |
+| `timezone`           | `portTimezone`                   | 名称错误     | ✅ 是          |
+| `firstEtd`           | ❌ 不存在                        | 幽灵字段     | ✅ 是          |
+| `firstEta`           | ❌ 不存在                        | 幽灵字段     | ✅ 是          |
+| `loadedOnBoardDate`  | `load`                           | 名称错误     | ✅ 是          |
+| `unloadDate`         | `disc`                           | 名称错误     | ✅ 是          |
+| `aisAta`             | `ataAis`                         | 名称错误     | ✅ 是          |
+| `aisBerthing`        | `atbAis`                         | 名称错误     | ✅ 是          |
+| `aisAtd`             | `atdAis`                         | 名称错误     | ✅ 是          |
+| `cargoLocation`      | ❌ 不存在                        | 幽灵字段     | ✅ 是          |
+| `railEtd`            | ❌ 不存在                        | 幽灵字段     | ✅ 是          |
+| `freeStorageDays`    | ❌ 不存在                        | 幽灵字段     | ✅ 是          |
+| `freeDetentionDays`  | ❌ 不存在                        | 幽灵字段     | ✅ 是          |
+| `freeStorageTime`    | ❌ 不存在                        | 幽灵字段     | ✅ 是          |
+| `freeDetentionTime`  | ❌ 不存在                        | 幽灵字段     | ✅ 是          |
+| `batchId`            | ❌ 不存在                        | 幽灵字段     | ✅ 是          |
 
 **违反 SKILL**:
+
 - ❌ **fix-verification**: 未先验证实体定义就编写代码
 - ❌ **database-query**: 未核对数据库表结构
 - ❌ **common_pitfalls_experience**: 开发前未验证数据模型字段
@@ -75,8 +76,9 @@ const fieldValues = {
 ```
 
 **遗漏的可选字段**（不紧急但建议补充）:
+
 - `relatedPlaceIndex`: number | null
-- `source`: number | null  
+- `source`: number | null
 - `firmsCode`: string | null
 
 #### ❌ 问题 3：`saveVesselsSubset` 中的幽灵字段
@@ -86,16 +88,17 @@ const fieldValues = {
 ```typescript
 const rec = vesselsRepo.create({
   // ... 正确字段
-  batchId  // ❌ 幽灵字段：ExtFeituoVessel 实体中不存在
+  batchId, // ❌ 幽灵字段：ExtFeituoVessel 实体中不存在
 });
 ```
 
 **正确做法**:
+
 ```typescript
 const rec = vesselsRepo.create({
   // ... 正确字段
-  dataSource: 'Excel',  // ✅ 实体有默认值
-  rawJson: row._rawDataByGroup?.['13'] || null  // ✅ 保存原始数据
+  dataSource: "Excel", // ✅ 实体有默认值
+  rawJson: row._rawDataByGroup?.["13"] || null, // ✅ 保存原始数据
   // ❌ 删除 batchId
 });
 ```
@@ -109,19 +112,21 @@ const rec = vesselsRepo.create({
 ```typescript
 const FIELD_MAPPINGS: FieldMapping[] = [
   // ✅ 所有字段都基于 03_create_tables.sql
-  { excelField: '备货单号', table: 'biz_replenishment_orders', field: 'order_number', required: true },
-  { excelField: '集装箱号', table: 'biz_containers', field: 'container_number', required: true },
+  { excelField: "备货单号", table: "biz_replenishment_orders", field: "order_number", required: true },
+  { excelField: "集装箱号", table: "biz_containers", field: "container_number", required: true },
   // ... 其他字段
 ];
 ```
 
 **优点**:
+
 - ✅ 遵循 fix-verification SKILL
 - ✅ 字段名与数据库表结构一致
 - ✅ 支持列名变体（aliases）
 - ✅ 有数据类型转换（transform）
 
 **不足**:
+
 - ⚠️ 缺少详细的字段映射文档
 - ⚠️ 每次新增字段需要修改代码
 
@@ -133,17 +138,18 @@ const FIELD_MAPPINGS: FieldMapping[] = [
 
 #### ❌ 问题 1：重复造轮子
 
-| 组件 | 文件上传逻辑 | Excel 解析 | 数据预览 | 导入提交 | 结果展示 |
-|-----|------------|----------|---------|---------|---------|
-| `ExcelImport.vue` | ✅ 独立实现 | ✅ 独立实现 | ✅ 独立实现 | ✅ 独立实现 | ✅ 独立实现 |
-| `FeituoDataImport.vue` | ✅ 独立实现 | ✅ 独立实现 | ✅ 独立实现 | ✅ 独立实现 | ✅ 独立实现 |
-| `DemurrageStandardsImport.vue` | ✅ 独立实现 | ✅ 独立实现 | ✅ 独立实现 | ✅ 独立实现 | ✅ 独立实现 |
+| 组件                           | 文件上传逻辑 | Excel 解析  | 数据预览    | 导入提交    | 结果展示    |
+| ------------------------------ | ------------ | ----------- | ----------- | ----------- | ----------- |
+| `ExcelImport.vue`              | ✅ 独立实现  | ✅ 独立实现 | ✅ 独立实现 | ✅ 独立实现 | ✅ 独立实现 |
+| `FeituoDataImport.vue`         | ✅ 独立实现  | ✅ 独立实现 | ✅ 独立实现 | ✅ 独立实现 | ✅ 独立实现 |
+| `DemurrageStandardsImport.vue` | ✅ 独立实现  | ✅ 独立实现 | ✅ 独立实现 | ✅ 独立实现 | ✅ 独立实现 |
 
 **代码重复率**: **约 80%**
 
 #### ❌ 问题 2：缺乏统一配置
 
 每个组件都有自己的：
+
 - 字段映射配置（`FIELD_MAPPINGS`, `COLUMN_ALIASES`）
 - 数据转换函数（`parseDate`, `parseDecimal`, `transformBoolean`）
 - 验证逻辑
@@ -180,133 +186,113 @@ frontend/src/views/import/
 <template>
   <div class="universal-import">
     <!-- 1. 文件选择与上传 -->
-    <FileUploader 
-      :accept="config.accept"
-      @change="handleFileChange"
-    />
-    
+    <FileUploader :accept="config.accept" @change="handleFileChange" />
+
     <!-- 2. 数据预览 -->
-    <DataPreview 
-      v-if="previewData.length > 0"
-      :columns="previewColumns"
-      :data="previewData"
-    />
-    
+    <DataPreview v-if="previewData.length > 0" :columns="previewColumns" :data="previewData" />
+
     <!-- 3. 导入选项配置 -->
-    <ImportOptions 
-      v-if="config.options"
-      :options="config.options"
-      v-model="importOptions"
-    />
-    
+    <ImportOptions v-if="config.options" :options="config.options" v-model="importOptions" />
+
     <!-- 4. 导入执行 -->
-    <ImportAction
-      :loading="importing"
-      :progress="importProgress"
-      @submit="handleImport"
-    />
-    
+    <ImportAction :loading="importing" :progress="importProgress" @submit="handleImport" />
+
     <!-- 5. 结果展示 -->
-    <ImportResult
-      v-if="importResult"
-      :result="importResult"
-    />
+    <ImportResult v-if="importResult" :result="importResult" />
   </div>
 </template>
 
 <script setup lang="ts">
 // 通用逻辑（所有导入共享）
-const { parseExcel } = useExcelParser()
-const { uploadFile } = useFileUpload()
-const { previewData, previewColumns } = useDataPreview()
-const { importResult, importProgress } = useImportResult()
+const { parseExcel } = useExcelParser();
+const { uploadFile } = useFileUpload();
+const { previewData, previewColumns } = useDataPreview();
+const { importResult, importProgress } = useImportResult();
 
 // 配置驱动（每个导入场景不同）
 const config = defineProps<{
-  mappingConfig: FieldMapping[]  // 字段映射配置
-  apiEndpoint: string            // API 端点
-  accept?: string                // 接受的文件类型
-  options?: ImportOption[]       // 导入选项
-}>()
+  mappingConfig: FieldMapping[]; // 字段映射配置
+  apiEndpoint: string; // API 端点
+  accept?: string; // 接受的文件类型
+  options?: ImportOption[]; // 导入选项
+}>();
 
 // 文件处理
 const handleFileChange = async (file: File) => {
-  const { headers, rows } = await parseExcel(file)
-  previewData.value = transformRows(rows, config.mappingConfig)
-}
+  const { headers, rows } = await parseExcel(file);
+  previewData.value = transformRows(rows, config.mappingConfig);
+};
 
 // 导入执行
 const handleImport = async () => {
-  const payload = buildPayload(previewData.value, importOptions.value)
-  importResult.value = await uploadFile(config.apiEndpoint, payload)
-}
+  const payload = buildPayload(previewData.value, importOptions.value);
+  importResult.value = await uploadFile(config.apiEndpoint, payload);
+};
 </script>
 ```
 
 #### 配置示例：container.mapping.ts
 
 ```typescript
-import type { FieldMapping } from '@/components/import/types'
+import type { FieldMapping } from "@/components/import/types";
 
 export const CONTAINER_FIELD_MAPPINGS: FieldMapping[] = [
   // ===== 备货单表 (biz_replenishment_orders) =====
-  { 
-    excelField: '备货单号', 
-    table: 'biz_replenishment_orders', 
-    field: 'order_number', 
-    required: true 
+  {
+    excelField: "备货单号",
+    table: "biz_replenishment_orders",
+    field: "order_number",
+    required: true,
   },
-  { 
-    excelField: '销往国家', 
-    table: 'biz_replenishment_orders', 
-    field: 'sell_to_country', 
-    required: false, 
-    aliases: ['进口国'],
-    transform: (val) => String(val).trim()
-  },
-  
-  // ===== 货柜表 (biz_containers) =====
-  { 
-    excelField: '集装箱号', 
-    table: 'biz_containers', 
-    field: 'container_number', 
-    required: true, 
-    aliases: ['箱号 (集装箱号)'] 
-  },
-  { 
-    excelField: '柜型', 
-    table: 'biz_containers', 
-    field: 'container_type_code', 
+  {
+    excelField: "销往国家",
+    table: "biz_replenishment_orders",
+    field: "sell_to_country",
     required: false,
-    transform: normalizeContainerType
+    aliases: ["进口国"],
+    transform: (val) => String(val).trim(),
   },
-  
+
+  // ===== 货柜表 (biz_containers) =====
+  {
+    excelField: "集装箱号",
+    table: "biz_containers",
+    field: "container_number",
+    required: true,
+    aliases: ["箱号 (集装箱号)"],
+  },
+  {
+    excelField: "柜型",
+    table: "biz_containers",
+    field: "container_type_code",
+    required: false,
+    transform: normalizeContainerType,
+  },
+
   // ... 更多字段映射
-]
+];
 
 export const CONTAINER_IMPORT_CONFIG = {
-  accept: '.xlsx,.xls',
-  apiEndpoint: '/api/v1/import/excel/batch',
+  accept: ".xlsx,.xls",
+  apiEndpoint: "/api/v1/import/excel/batch",
   mappingConfig: CONTAINER_FIELD_MAPPINGS,
   options: [
-    { key: 'dryRun', label: '仅预览，不导入', default: false },
-    { key: 'skipDuplicates', label: '跳过重复数据', default: true }
-  ]
-}
+    { key: "dryRun", label: "仅预览，不导入", default: false },
+    { key: "skipDuplicates", label: "跳过重复数据", default: true },
+  ],
+};
 ```
 
 #### 使用示例：ContainerImport.vue
 
 ```vue
 <template>
-  <UniversalImport 
-    v-bind="CONTAINER_IMPORT_CONFIG"
-  />
+  <UniversalImport v-bind="CONTAINER_IMPORT_CONFIG" />
 </template>
 
 <script setup lang="ts">
-import UniversalImport from '@/components/import/UniversalImport.vue'
-import { CONTAINER_IMPORT_CONFIG } from '@/components/import/configs/container.mapping'
+import UniversalImport from "@/components/import/UniversalImport.vue";
+import { CONTAINER_IMPORT_CONFIG } from "@/components/import/configs/container.mapping";
 </script>
 ```
 
@@ -344,7 +330,8 @@ import { CONTAINER_IMPORT_CONFIG } from '@/components/import/configs/container.m
 
 #### 任务 2.1：提取 Composables
 
-**文件**: 
+**文件**:
+
 - `frontend/src/components/import/composables/useExcelParser.ts`
 - `frontend/src/components/import/composables/useFileUpload.ts`
 - `frontend/src/components/import/composables/useDataPreview.ts`
@@ -360,7 +347,8 @@ import { CONTAINER_IMPORT_CONFIG } from '@/components/import/configs/container.m
 
 #### 任务 2.3：迁移配置
 
-**文件**: 
+**文件**:
+
 - `frontend/src/components/import/configs/container.mapping.ts`
 - `frontend/src/components/import/configs/feituo.mapping.ts`
 - `frontend/src/components/import/configs/demurrage.mapping.ts`
@@ -369,7 +357,8 @@ import { CONTAINER_IMPORT_CONFIG } from '@/components/import/configs/container.m
 
 #### 任务 2.4：重构现有导入页面
 
-**文件**: 
+**文件**:
+
 - `frontend/src/views/import/ExcelImport.vue` → 简化为配置引用
 - `frontend/src/views/import/FeituoDataImport.vue` → 简化为配置引用
 - `frontend/src/views/import/DemurrageStandardsImport.vue` → 简化为配置引用
@@ -383,6 +372,7 @@ import { CONTAINER_IMPORT_CONFIG } from '@/components/import/configs/container.m
 **文件**: `docs/Excel 导入字段映射表.md`
 
 **内容**:
+
 - 每个导入场景的字段映射关系
 - Excel 列名与数据库字段的对照表
 - 数据类型转换规则
@@ -391,7 +381,8 @@ import { CONTAINER_IMPORT_CONFIG } from '@/components/import/configs/container.m
 
 #### 任务 3.2：添加单元测试
 
-**文件**: 
+**文件**:
+
 - `frontend/src/components/import/__tests__/UniversalImport.test.ts`
 - `frontend/src/components/import/__tests__/useExcelParser.test.ts`
 
@@ -403,21 +394,21 @@ import { CONTAINER_IMPORT_CONFIG } from '@/components/import/configs/container.m
 
 ### 5.1 当前成本（重复造轮子）
 
-| 活动 | 次数 | 单次成本 | 总成本 |
-|-----|------|---------|--------|
-| 创建新导入界面 | 3 次 | 8 小时 | 24 小时 |
-| 维护导入逻辑 | 3 个组件 | 2 小时/月 | 6 小时/月 |
-| 修复导入 Bug | 平均 2 次/月 | 1 小时 | 2 小时/月 |
-| **总计（年）** | - | - | **≈ 120 小时** |
+| 活动           | 次数         | 单次成本  | 总成本         |
+| -------------- | ------------ | --------- | -------------- |
+| 创建新导入界面 | 3 次         | 8 小时    | 24 小时        |
+| 维护导入逻辑   | 3 个组件     | 2 小时/月 | 6 小时/月      |
+| 修复导入 Bug   | 平均 2 次/月 | 1 小时    | 2 小时/月      |
+| **总计（年）** | -            | -         | **≈ 120 小时** |
 
 ### 5.2 复用架构收益
 
-| 项目 | 成本节约 |
-|-----|---------|
-| 新增导入场景 | 从 8 小时 → 2 小时（**节约 75%**） |
-| 维护成本 | 从 6 小时/月 → 2 小时/月（**节约 67%**） |
-| Bug 修复 | 从 2 小时/月 → 0.5 小时/月（**节约 75%**） |
-| **总计（年）** | **≈ 90 小时（节约 75%）** |
+| 项目           | 成本节约                                   |
+| -------------- | ------------------------------------------ |
+| 新增导入场景   | 从 8 小时 → 2 小时（**节约 75%**）         |
+| 维护成本       | 从 6 小时/月 → 2 小时/月（**节约 67%**）   |
+| Bug 修复       | 从 2 小时/月 → 0.5 小时/月（**节约 75%**） |
+| **总计（年）** | **≈ 90 小时（节约 75%）**                  |
 
 ### 5.3 质量提升
 
@@ -486,7 +477,8 @@ import { CONTAINER_IMPORT_CONFIG } from '@/components/import/configs/container.m
 
 **报告生成时间**: 2026-03-21  
 **作者**: AI Assistant  
-**参考文档**: 
+**参考文档**:
+
 - `.cursor/skills/fix-verification/SKILL.md`
 - `backend/src/entities/*.ts`
 - `frontend/src/views/import/*.vue`

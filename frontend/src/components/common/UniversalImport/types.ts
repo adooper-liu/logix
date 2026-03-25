@@ -37,7 +37,14 @@ export interface ImportResult {
 /**
  * 文件上传状态
  */
-export type UploadStatus = 'idle' | 'selecting' | 'parsing' | 'previewing' | 'uploading' | 'completed' | 'error'
+export type UploadStatus =
+  | 'idle'
+  | 'selecting'
+  | 'parsing'
+  | 'previewing'
+  | 'uploading'
+  | 'completed'
+  | 'error'
 
 /**
  * 预览数据行
@@ -85,7 +92,7 @@ export interface UseExcelImportReturn {
   previewData: Ref<PreviewRow[]>
   previewColumns: Ref<string[]>
   importResult: Ref<ImportResult>
-  
+
   // 方法
   handleFileSelect: (file: File) => Promise<void>
   handleFileUpload: () => Promise<void>

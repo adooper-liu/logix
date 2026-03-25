@@ -10,12 +10,12 @@
 
 ### 执行过程中发现的致命错误
 
-| 问题 | 现象 | 根本原因 | 解决方案 |
-|------|------|---------|---------|
-| **1. 字段不存在** | `ERROR: column "port_arrival_date" does not exist` | COALESCE 使用了不存在的字段 | ✅ 已修正为使用实际存在的字段 |
-| **2. 唯一索引冲突** | `ERROR: cannot create a unique index without the column` | TimescaleDB 不允许不包含分区列的唯一索引 | ✅ 已删除所有唯一索引 |
-| **3. NULL 值未填充** | `ERROR: column "ata" contains null values` | COALESCE 逻辑没有成功更新 NULL 值 | ⚠️ 需要手动检查和填充 |
-| **4. 压缩策略失败** | `ERROR: unrecognized parameter namespace "timescaledb"` | TimescaleDB 配置参数问题或版本不兼容 | ❌ 待解决 |
+| 问题                 | 现象                                                     | 根本原因                                 | 解决方案                      |
+| -------------------- | -------------------------------------------------------- | ---------------------------------------- | ----------------------------- |
+| **1. 字段不存在**    | `ERROR: column "port_arrival_date" does not exist`       | COALESCE 使用了不存在的字段              | ✅ 已修正为使用实际存在的字段 |
+| **2. 唯一索引冲突**  | `ERROR: cannot create a unique index without the column` | TimescaleDB 不允许不包含分区列的唯一索引 | ✅ 已删除所有唯一索引         |
+| **3. NULL 值未填充** | `ERROR: column "ata" contains null values`               | COALESCE 逻辑没有成功更新 NULL 值        | ⚠️ 需要手动检查和填充         |
+| **4. 压缩策略失败**  | `ERROR: unrecognized parameter namespace "timescaledb"`  | TimescaleDB 配置参数问题或版本不兼容     | ❌ 待解决                     |
 
 ---
 
@@ -54,6 +54,7 @@ Get-Content $BACKUP_FILE | docker exec -i logix-timescaledb-prod psql -U logix_u
 使用修正后的脚本：`migrations/execute-hypertable-migration-fixed.sql`
 
 主要修正：
+
 1. ✅ 删除所有唯一索引（不只是主键）
 2. ✅ 使用正确的字段名填充 NULL 值
 3. ✅ 转换后添加普通索引而非唯一索引
@@ -66,13 +67,15 @@ Get-Content $BACKUP_FILE | docker exec -i logix-timescaledb-prod psql -U logix_u
 ### 问题 1: COALESCE 字段不存在
 
 **错误 SQL**:
+
 ```sql
-UPDATE process_port_operations 
-SET ata = COALESCE(ata, eta, etd, port_arrival_date, NOW()) 
+UPDATE process_port_operations
+SET ata = COALESCE(ata, eta, etd, port_arrival_date, NOW())
 WHERE ata IS NULL;
 ```
 
 **实际表结构**（通过 `\d process_port_operations` 验证）:
+
 ```sql
 eta                    | timestamp with time zone
 ata                    | timestamp with time zone
@@ -83,9 +86,10 @@ etd                    | timestamp with time zone
 ```
 
 **修正**:
+
 ```sql
-UPDATE process_port_operations 
-SET ata = COALESCE(ata, eta, etd, revised_eta, dest_port_unload_date, NOW()) 
+UPDATE process_port_operations
+SET ata = COALESCE(ata, eta, etd, revised_eta, dest_port_unload_date, NOW())
 WHERE ata IS NULL;
 ```
 
@@ -94,15 +98,18 @@ WHERE ata IS NULL;
 ### 问题 2: 唯一索引与分区列冲突
 
 **TimescaleDB 规则**:
+
 > Hypertable 上的所有唯一索引必须包含时间分区列
 
 **当前索引**（ext_container_status_events）:
+
 ```sql
 idx_ext_container_status_events_id UNIQUE, btree (id)
 -- ❌ 不包含 occurred_at，违反 TimescaleDB 规则
 ```
 
 **解决方案**:
+
 ```sql
 -- 1. 删除唯一索引
 DROP INDEX IF EXISTS idx_ext_container_status_events_id;
@@ -111,7 +118,7 @@ DROP INDEX IF EXISTS idx_ext_container_status_events_id;
 SELECT create_hypertable('ext_container_status_events', 'occurred_at');
 
 -- 3. 添加普通索引（非唯一）
-CREATE INDEX idx_ext_container_status_events_id 
+CREATE INDEX idx_ext_container_status_events_id
 ON ext_container_status_events(id);
 ```
 
@@ -120,21 +127,23 @@ ON ext_container_status_events(id);
 ### 问题 3: NULL 值未正确填充
 
 **检查剩余 NULL 值**:
+
 ```sql
 SELECT COUNT(*) FROM process_port_operations WHERE ata IS NULL;
 -- 结果：5 条记录仍然为 NULL
 ```
 
 **手动填充这些记录**:
+
 ```sql
 -- 查看具体是哪些记录
-SELECT id, container_number, port_code, eta, etd, ata 
-FROM process_port_operations 
+SELECT id, container_number, port_code, eta, etd, ata
+FROM process_port_operations
 WHERE ata IS NULL;
 
 -- 手动填充（根据业务逻辑选择合适的值）
-UPDATE process_port_operations 
-SET ata = COALESCE(eta, etd, revised_eta, NOW()) 
+UPDATE process_port_operations
+SET ata = COALESCE(eta, etd, revised_eta, NOW())
 WHERE ata IS NULL;
 
 -- 再次验证
@@ -147,21 +156,25 @@ SELECT COUNT(*) FROM process_port_operations WHERE ata IS NULL;
 ### 问题 4: 压缩策略语法错误
 
 **原脚本**:
+
 ```sql
 ALTER TABLE ext_container_status_events SET (timescaledb.compress = true);
 ```
 
 **错误**:
+
 ```
 ERROR: unrecognized parameter namespace "timescaledb"
 ```
 
 **可能的原因**:
+
 1. TimescaleDB 版本变更导致语法变化
 2. 需要先启用扩展的某些功能
 3. 配置参数名称已更改
 
 **待调查**:
+
 ```sql
 -- 检查 TimescaleDB 配置
 SHOW timescaledb.enable_telemetry;

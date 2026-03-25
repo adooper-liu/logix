@@ -1,5 +1,5 @@
 <template>
-  <UniversalImport 
+  <UniversalImport
     title="货柜数据导入"
     :field-mappings="CONTAINER_FIELD_MAPPINGS"
     api-endpoint="/api/v1/import/excel/batch"
@@ -17,7 +17,12 @@ import { CONTAINER_FIELD_MAPPINGS } from '@/configs/importMappings/container'
 /**
  * 处理导入成功
  */
-function handleSuccess(result: { total: number; success: number; failed: number; errors: string[] }) {
+function handleSuccess(result: {
+  total: number
+  success: number
+  failed: number
+  errors: string[]
+}) {
   console.log('[ExcelImport] 导入成功:', result)
   // 可以在这里添加额外的成功处理逻辑，如刷新列表、发送通知等
 }

@@ -12,9 +12,7 @@
         :disabled="loading || uploading"
       >
         <el-icon class="el-icon--upload"><upload /></el-icon>
-        <div class="el-upload__text">
-          将文件拖到此处，或<em>点击上传</em>
-        </div>
+        <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
         <template #tip>
           <div class="el-upload__tip">
             支持 {{ acceptedFileTypes }} 格式，最大 {{ maxFileSize }}MB
@@ -24,8 +22,8 @@
 
       <!-- 加载状态 -->
       <div v-if="loading || uploading" class="loading-section">
-        <el-progress 
-          :percentage="uploadProgress" 
+        <el-progress
+          :percentage="uploadProgress"
           :status="uploading ? undefined : 'success'"
           :stroke-width="20"
         />
@@ -47,17 +45,13 @@
           </div>
         </div>
 
-        <el-table 
-          :data="previewData.slice(0, 10)" 
-          border 
+        <el-table
+          :data="previewData.slice(0, 10)"
+          border
           max-height="400"
           :row-class-name="getRowClassName"
         >
-          <el-table-column 
-            v-for="col in visibleColumns" 
-            :key="col" 
-            min-width="120"
-          >
+          <el-table-column v-for="col in visibleColumns" :key="col" min-width="120">
             <template #header>
               {{ col }}
             </template>
@@ -65,12 +59,7 @@
               {{ (row as any).transformed[col] }}
             </template>
           </el-table-column>
-          <el-table-column 
-            prop="errors" 
-            label="验证" 
-            width="100"
-            fixed="right"
-          >
+          <el-table-column prop="errors" label="验证" width="100" fixed="right">
             <template #default="{ row }">
               <el-tag v-if="!row.errors" type="success" size="small">✓</el-tag>
               <el-tooltip v-else placement="top">
@@ -90,28 +79,24 @@
 
       <!-- 操作按钮 -->
       <div class="action-buttons">
-        <el-button 
-          type="primary" 
-          :loading="uploading" 
+        <el-button
+          type="primary"
+          :loading="uploading"
           @click="handleUpload"
           :disabled="!selectedFile || previewData.length === 0"
         >
           {{ uploading ? '上传中...' : '开始导入' }}
         </el-button>
-        
-        <el-button @click="handleDownloadTemplate">
-          <download /> 下载模板
-        </el-button>
-        
-        <el-button @click="handleReset" :disabled="loading || uploading">
-          重置
-        </el-button>
+
+        <el-button @click="handleDownloadTemplate"> <download /> 下载模板 </el-button>
+
+        <el-button @click="handleReset" :disabled="loading || uploading"> 重置 </el-button>
       </div>
 
       <!-- 导入结果 -->
       <div v-if="importResult.total > 0" class="result-section">
         <el-divider>导入结果</el-divider>
-        
+
         <el-descriptions :column="3" border>
           <el-descriptions-item label="总记录数">{{ importResult.total }}</el-descriptions-item>
           <el-descriptions-item label="成功">
@@ -135,13 +120,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { Download, Upload } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Upload, Download } from '@element-plus/icons-vue'
-import axios from 'axios'
+import { computed, ref, watch } from 'vue'
+import type { FieldMapping, ImportResult, PreviewRow } from './types'
 import { useExcelParser } from './useExcelParser'
 import { useFileUpload } from './useFileUpload'
-import type { FieldMapping, ImportResult, PreviewRow } from './types'
 
 // ==================== Props ====================
 
@@ -163,7 +147,7 @@ const props = withDefaults(defineProps<Props>(), {
   enableBatchImport: false,
   batchSize: 100,
   acceptedFileTypes: '.xlsx,.xls',
-  maxFileSize: 10
+  maxFileSize: 10,
 })
 
 // ==================== Emits ====================
@@ -175,22 +159,10 @@ const emit = defineEmits<{
 
 // ==================== Composables ====================
 
-const { 
-  previewData, 
-  previewColumns, 
-  parsingError, 
-  parseExcelFile,
-  clearPreview 
-} = useExcelParser()
+const { previewData, previewColumns, parsingError, parseExcelFile, clearPreview } = useExcelParser()
 
-const { 
-  uploading, 
-  uploadProgress, 
-  uploadError, 
-  uploadFile,
-  uploadBatchData,
-  resetUpload 
-} = useFileUpload()
+const { uploading, uploadProgress, uploadError, uploadFile, uploadBatchData, resetUpload } =
+  useFileUpload()
 
 // ==================== State ====================
 
@@ -200,22 +172,18 @@ const importResult = ref<ImportResult>({
   total: 0,
   success: 0,
   failed: 0,
-  errors: []
+  errors: [],
 })
 
 // ==================== Computed ====================
 
-const validCount = computed(() => 
-  previewData.value.filter(row => !row.errors).length
+const validCount = computed(() => previewData.value.filter(row => !row.errors).length)
+
+const invalidCount = computed(
+  () => previewData.value.filter(row => row.errors && row.errors.length > 0).length
 )
 
-const invalidCount = computed(() => 
-  previewData.value.filter(row => row.errors && row.errors.length > 0).length
-)
-
-const visibleColumns = computed(() => 
-  previewColumns.value.slice(0, 10)
-)
+const visibleColumns = computed(() => previewColumns.value.slice(0, 10))
 
 // ==================== Methods ====================
 
@@ -226,12 +194,12 @@ async function handleFileChange(file: any) {
   // Element Plus Upload 的 on-change 回调传递的是 UploadFile 对象，不是原生 File
   // 需要获取 raw 属性才是真正的 File 对象
   const rawFile = file.raw as File
-  
+
   if (!rawFile) {
     ElMessage.error('无法读取文件')
     return
   }
-  
+
   // 验证文件大小
   const fileSizeMB = rawFile.size / 1024 / 1024
   if (fileSizeMB > props.maxFileSize!) {
@@ -244,13 +212,12 @@ async function handleFileChange(file: any) {
 
   try {
     await parseExcelFile(rawFile, props.fieldMappings, props.tierColumnAliases)
-    
+
     if (parsingError.value) {
       throw new Error(parsingError.value)
     }
 
     ElMessage.success(`成功解析 ${previewData.value.length} 条数据`)
-    
   } catch (error) {
     ElMessage.error('文件解析失败')
     emit('error', error instanceof Error ? error.message : '文件解析失败')
@@ -271,11 +238,11 @@ async function handleUpload() {
   // 检查是否有无效数据
   if (invalidCount.value > 0) {
     try {
-      await ElMessageBox.confirm(
-        `发现 ${invalidCount.value} 条无效数据，是否继续上传？`,
-        '警告',
-        { confirmButtonText: '继续', cancelButtonText: '取消', type: 'warning' }
-      )
+      await ElMessageBox.confirm(`发现 ${invalidCount.value} 条无效数据，是否继续上传？`, '警告', {
+        confirmButtonText: '继续',
+        cancelButtonText: '取消',
+        type: 'warning',
+      })
     } catch {
       return
     }
@@ -296,7 +263,6 @@ async function handleUpload() {
     importResult.value = result
     ElMessage.success(`导入完成！成功：${result.success}, 失败：${result.failed}`)
     emit('success', result)
-
   } catch (error) {
     ElMessage.error('上传失败')
     emit('error', error instanceof Error ? error.message : '上传失败')
@@ -326,7 +292,7 @@ function handleReset() {
  */
 function copyErrors() {
   if (!importResult.value.errors || importResult.value.errors.length === 0) return
-  
+
   const errorText = importResult.value.errors.join('\n')
   navigator.clipboard.writeText(errorText).then(() => {
     ElMessage.success('错误列表已复制到剪贴板')
@@ -342,13 +308,13 @@ function getRowClassName({ row }: { row: PreviewRow }) {
 
 // ==================== Watch ====================
 
-watch(parsingError, (err) => {
+watch(parsingError, err => {
   if (err) {
     ElMessage.error(err)
   }
 })
 
-watch(uploadError, (err) => {
+watch(uploadError, err => {
   if (err) {
     ElMessage.error(err)
   }

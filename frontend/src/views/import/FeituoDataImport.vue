@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Connection } from '@element-plus/icons-vue'
-import dayjs from 'dayjs'
+import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import { containerService } from '@/services/container'
 import { feituoService } from '@/services/feituo'
-import DateRangePicker from '@/components/common/DateRangePicker.vue'
+import { Connection, Refresh } from '@element-plus/icons-vue'
+import dayjs from 'dayjs'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { computed, ref } from 'vue'
 
 const activeTab = ref<'api' | 'excel'>('api')
 
@@ -14,7 +14,7 @@ const activeTab = ref<'api' | 'excel'>('api')
 // 日期范围（出运日期口径）
 const shipmentDateRange = ref<[Date, Date]>([
   dayjs().startOf('year').toDate(),
-  dayjs().endOf('day').toDate()
+  dayjs().endOf('day').toDate(),
 ])
 
 const loading = ref(false)
@@ -30,9 +30,7 @@ const syncResult = ref<{
 } | null>(null)
 
 const hasSelection = computed(() => selectedRows.value.length > 0)
-const selectedContainerNumbers = computed(() =>
-  selectedRows.value.map((r) => r.containerNumber)
-)
+const selectedContainerNumbers = computed(() => selectedRows.value.map(r => r.containerNumber))
 
 // 加载货柜列表
 const loadContainers = async () => {
@@ -44,7 +42,7 @@ const loadContainers = async () => {
       page: 1,
       pageSize: 500,
       startDate: dayjs(start).format('YYYY-MM-DD'),
-      endDate: dayjs(end).format('YYYY-MM-DD')
+      endDate: dayjs(end).format('YYYY-MM-DD'),
     })
     containers.value = res.items ?? []
     if (containers.value.length === 0) {
@@ -59,7 +57,9 @@ const loadContainers = async () => {
 
 // 同步选中 / 全部
 const doSync = async (useSelected: boolean) => {
-  const numbers = useSelected ? selectedContainerNumbers.value : containers.value.map((c) => c.containerNumber)
+  const numbers = useSelected
+    ? selectedContainerNumbers.value
+    : containers.value.map(c => c.containerNumber)
   if (numbers.length === 0) {
     ElMessage.warning(useSelected ? '请先勾选要同步的货柜' : '请先加载货柜列表')
     return
@@ -69,15 +69,11 @@ const doSync = async (useSelected: boolean) => {
     return
   }
 
-  await ElMessageBox.confirm(
-    `将同步 ${numbers.length} 个货柜的飞驼数据，是否继续？`,
-    '确认同步',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'info'
-    }
-  )
+  await ElMessageBox.confirm(`将同步 ${numbers.length} 个货柜的飞驼数据，是否继续？`, '确认同步', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'info',
+  })
 
   syncing.value = true
   syncResult.value = null
@@ -88,13 +84,17 @@ const doSync = async (useSelected: boolean) => {
       syncResult.value = {
         success: success.length,
         failed: failed.length,
-        errors: failed.map((f) => `${f.containerNumber}: ${f.error}`)
+        errors: failed.map(f => `${f.containerNumber}: ${f.error}`),
       }
       if (success.length > 0) {
-        ElMessage.success(`同步完成：成功 ${success.length} 个${failed.length > 0 ? `，失败 ${failed.length} 个` : ''}`)
+        ElMessage.success(
+          `同步完成：成功 ${success.length} 个${failed.length > 0 ? `，失败 ${failed.length} 个` : ''}`
+        )
       }
-      if (failed.length > 0 && failed.some((f) => f.error?.includes('Token 未配置'))) {
-        ElMessage.warning('飞驼 Token 未配置，请在 .env 中配置 FEITUO_CLIENT_ID、FEITUO_CLIENT_SECRET 或 FEITUO_ACCESS_TOKEN')
+      if (failed.length > 0 && failed.some(f => f.error?.includes('Token 未配置'))) {
+        ElMessage.warning(
+          '飞驼 Token 未配置，请在 .env 中配置 FEITUO_CLIENT_ID、FEITUO_CLIENT_SECRET 或 FEITUO_ACCESS_TOKEN'
+        )
       }
       if (success.length > 0) {
         loadContainers()
@@ -109,7 +109,7 @@ const doSync = async (useSelected: boolean) => {
       syncResult.value = {
         success: 0,
         failed: numbers.length,
-        errors: [`飞驼 Token 未配置。前期可继续使用 Excel 导入。`]
+        errors: [`飞驼 Token 未配置。前期可继续使用 Excel 导入。`],
       }
     }
   } finally {
@@ -154,14 +154,14 @@ async function onFileSelected(event: Event) {
     // 读取 Excel 文件
     const data = await file.arrayBuffer()
     const workbook = XLSX.read(data)
-    
+
     // 获取第一个sheet
     const firstSheetName = workbook.SheetNames[0]
     const worksheet = workbook.Sheets[firstSheetName]
-    
+
     // 转换为 JSON
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as unknown[][]
-    
+
     if (jsonData.length < 2) {
       ElMessage.error('Excel 文件内容为空或格式不正确')
       return
@@ -170,9 +170,9 @@ async function onFileSelected(event: Event) {
     // 第一行是表头
     const headers = jsonData[0] as string[]
     const rows = jsonData.slice(1) as unknown[][]
-    
+
     console.log('[FeituoDataImport] 解析 Excel:', { headers: headers.length, rows: rows.length })
-    
+
     // 调用后端导入
     const result = await feituoService.importFeituoExcel(
       1, // 表一类型
@@ -180,10 +180,12 @@ async function onFileSelected(event: Event) {
       file.name,
       headers
     )
-    
+
     if (result.success) {
       importResult.value = result.data || { success: 0, failed: 0, errors: [] }
-      ElMessage.success(`导入完成：成功 ${importResult.value.success} 条，失败 ${importResult.value.failed} 条`)
+      ElMessage.success(
+        `导入完成：成功 ${importResult.value.success} 条，失败 ${importResult.value.failed} 条`
+      )
       loadContainers()
     } else {
       ElMessage.error(result.message || '导入失败')
@@ -218,18 +220,14 @@ async function onFileSelected(event: Event) {
           <el-alert type="info" :closable="false" show-icon class="info-alert">
             <template #title>飞驼数据接入说明</template>
             <p>
-              <strong>API 同步</strong>：从飞驼拉取实时状态事件。需配置 FEITUO_CLIENT_ID、FEITUO_CLIENT_SECRET 或 FEITUO_ACCESS_TOKEN。
+              <strong>API 同步</strong>：从飞驼拉取实时状态事件。需配置
+              FEITUO_CLIENT_ID、FEITUO_CLIENT_SECRET 或 FEITUO_ACCESS_TOKEN。
             </p>
           </el-alert>
 
           <div class="filter-section">
             <DateRangePicker v-model="shipmentDateRange" label="按出运时间筛选" />
-            <el-button
-              type="primary"
-              :icon="Refresh"
-              :loading="loading"
-              @click="loadContainers"
-            >
+            <el-button type="primary" :icon="Refresh" :loading="loading" @click="loadContainers">
               {{ loading ? '加载中...' : '加载货柜' }}
             </el-button>
           </div>
@@ -298,7 +296,11 @@ async function onFileSelected(event: Event) {
                 <el-collapse>
                   <el-collapse-item title="错误详情" name="errors">
                     <ul>
-                      <li v-for="(error, index) in syncResult.errors" :key="index" class="error-item">
+                      <li
+                        v-for="(error, index) in syncResult.errors"
+                        :key="index"
+                        class="error-item"
+                      >
                         {{ error }}
                       </li>
                     </ul>
@@ -318,19 +320,19 @@ async function onFileSelected(event: Event) {
                 <el-button type="primary" @click="handleImportExcel" :loading="importing">
                   选择文件导入
                 </el-button>
-                <input 
-                  ref="fileInputRef" 
-                  type="file" 
-                  accept=".xlsx,.xls" 
+                <input
+                  ref="fileInputRef"
+                  type="file"
+                  accept=".xlsx,.xls"
                   style="display: none"
                   @change="onFileSelected"
-                >
+                />
               </div>
             </template>
-            
+
             <div v-if="importResult" class="result-summary">
-              <el-alert 
-                :type="importResult.failed > 0 ? 'warning' : 'success'" 
+              <el-alert
+                :type="importResult.failed > 0 ? 'warning' : 'success'"
                 :title="`导入完成：成功 ${importResult.success} 条，失败 ${importResult.failed} 条`"
                 :closable="false"
                 show-icon
@@ -338,7 +340,11 @@ async function onFileSelected(event: Event) {
               <div v-if="importResult.errors?.length" class="error-list">
                 <el-divider>错误详情</el-divider>
                 <el-scrollbar max-height="300px">
-                  <div v-for="(err, idx) in importResult.errors.slice(0, 20)" :key="idx" class="error-item">
+                  <div
+                    v-for="(err, idx) in importResult.errors.slice(0, 20)"
+                    :key="idx"
+                    class="error-item"
+                  >
                     行 {{ err.row }}: {{ err.error }}
                   </div>
                   <div v-if="importResult.errors.length > 20" class="more-errors">

@@ -8,15 +8,15 @@
 
 ## 📊 **测试概览**
 
-| 测试项 | 状态 | 详情 |
-|--------|------|------|
-| **应用启动** | ✅ 通过 | 所有服务正常启动 |
-| **健康检查** | ✅ 通过 | `/health` 端点返回 healthy |
-| **数据库连接** | ✅ 通过 | 成功连接 TimescaleDB |
-| **hypertable 验证** | ✅ 通过 | 4 个表均为 hypertable |
-| **API 查询测试** | ✅ 通过 | 集装箱查询返回正常 |
-| **数据完整性** | ✅ 通过 | 110 行数据零丢失 |
-| **调度器运行** | ✅ 通过 | 后台任务正常执行 |
+| 测试项              | 状态    | 详情                       |
+| ------------------- | ------- | -------------------------- |
+| **应用启动**        | ✅ 通过 | 所有服务正常启动           |
+| **健康检查**        | ✅ 通过 | `/health` 端点返回 healthy |
+| **数据库连接**      | ✅ 通过 | 成功连接 TimescaleDB       |
+| **hypertable 验证** | ✅ 通过 | 4 个表均为 hypertable      |
+| **API 查询测试**    | ✅ 通过 | 集装箱查询返回正常         |
+| **数据完整性**      | ✅ 通过 | 110 行数据零丢失           |
+| **调度器运行**      | ✅ 通过 | 后台任务正常执行           |
 
 ---
 
@@ -25,11 +25,13 @@
 ### 1. 应用启动测试 ✅
 
 **测试命令**:
+
 ```powershell
 .\start-logix-dev.ps1
 ```
 
 **启动日志**:
+
 ```
 ✅ Database connected successfully (348ms)
 ✅ FlowEngine initialized (15ms)
@@ -40,7 +42,8 @@
 🚀 Total startup time: 380ms
 ```
 
-**结论**: 
+**结论**:
+
 - ✅ 后端服务启动时间 380ms（优秀）
 - ✅ 所有调度器正常启动
 - ✅ 微服务健康检查通过
@@ -52,6 +55,7 @@
 **测试端点**: `http://localhost:3001/health`
 
 **响应结果**:
+
 ```json
 {
   "status": "healthy",
@@ -71,13 +75,15 @@
 ### 3. 数据库连接验证 ✅
 
 **检查 hypertable 状态**:
+
 ```sql
-SELECT hypertable_name, num_dimensions 
-FROM timescaledb_information.hypertables 
+SELECT hypertable_name, num_dimensions
+FROM timescaledb_information.hypertables
 ORDER BY hypertable_name;
 ```
 
 **结果**:
+
 ```
 ext_container_status_events | 1
 process_port_operations     | 1
@@ -92,12 +98,13 @@ sys_data_change_log         | 1
 ### 4. 数据完整性验证 ✅
 
 **各表数据量**:
+
 ```sql
 -- ext_container_status_events
 SELECT COUNT(*) FROM ext_container_status_events;
 -- 结果：49 行
 
--- process_port_operations  
+-- process_port_operations
 SELECT COUNT(*) FROM process_port_operations;
 -- 结果：10 行
 
@@ -121,6 +128,7 @@ SELECT COUNT(*) FROM sys_data_change_log;
 **测试端点**: `GET /api/v1/containers?limit=3`
 
 **测试结果**:
+
 - ✅ 成功返回 3 条集装箱数据
 - ✅ 包含完整的海运信息（seaFreight）
 - ✅ 包含港口操作记录（portOperations）
@@ -130,6 +138,7 @@ SELECT COUNT(*) FROM sys_data_change_log;
 - ✅ 预警信息正常（alerts）
 
 **数据示例**:
+
 ```json
 {
   "containerNumber": "ECMU5400183",
@@ -154,6 +163,7 @@ SELECT COUNT(*) FROM sys_data_change_log;
 ### 6. 后台调度器验证 ✅
 
 **容器状态调度器**:
+
 ```
 [ContainerStatusScheduler] Starting batch status update
 [StatusUpdate] 开始批量更新状态（优化版本），限制 200 条
@@ -164,6 +174,7 @@ SELECT COUNT(*) FROM sys_data_change_log;
 ```
 
 **滞港费计算调度器**:
+
 ```
 [DemurrageWriteBackScheduler] Starting batch tasks
 [DemurrageWriteBackScheduler] Batch compute records completed
@@ -178,11 +189,13 @@ SELECT COUNT(*) FROM sys_data_change_log;
 ### 7. 日志检查 ✅
 
 **检查命令**:
+
 ```powershell
 Get-Content backend\logs\*.log -Tail 50
 ```
 
 **检查结果**:
+
 - ✅ 无 ERROR 级别错误
 - ✅ 启动过程正常
 - ✅ 数据库连接成功
@@ -190,9 +203,11 @@ Get-Content backend\logs\*.log -Tail 50
 - ✅ 微服务健康检查通过
 
 **唯一警告**:
+
 ```
 Found orphan containers ([logix-pgadmin logix-adminer])
 ```
+
 这是 Docker Compose 的提示，不影响功能。
 
 **结论**: ✅ 应用运行日志正常
@@ -203,12 +218,12 @@ Found orphan containers ([logix-pgadmin logix-adminer])
 
 ### 启动性能
 
-| 指标 | 数值 | 评价 |
-|------|------|------|
-| 总启动时间 | 380ms | ⭐⭐⭐⭐⭐ 优秀 |
-| 数据库初始化 | 348ms | ⭐⭐⭐⭐⭐ 优秀 |
-| FlowEngine 初始化 | 15ms | ⭐⭐⭐⭐⭐ 优秀 |
-| 微服务健康检查 | 11ms | ⭐⭐⭐⭐⭐ 优秀 |
+| 指标              | 数值  | 评价            |
+| ----------------- | ----- | --------------- |
+| 总启动时间        | 380ms | ⭐⭐⭐⭐⭐ 优秀 |
+| 数据库初始化      | 348ms | ⭐⭐⭐⭐⭐ 优秀 |
+| FlowEngine 初始化 | 15ms  | ⭐⭐⭐⭐⭐ 优秀 |
+| 微服务健康检查    | 11ms  | ⭐⭐⭐⭐⭐ 优秀 |
 
 ### 查询性能
 
@@ -225,9 +240,11 @@ Found orphan containers ([logix-pgadmin logix-adminer])
 ### 轻微问题（不影响功能）
 
 1. **Docker Compose 警告**
+
    ```
    Found orphan containers ([logix-pgadmin logix-adminer])
    ```
+
    **影响**: 无  
    **建议**: 使用 `--remove-orphans` 清理
 
@@ -248,6 +265,7 @@ Found orphan containers ([logix-pgadmin logix-adminer])
 ### 冒烟测试：**完全通过**
 
 所有关键功能验证通过：
+
 - ✅ 应用启动正常
 - ✅ 数据库连接稳定
 - ✅ hypertable 转换成功
@@ -259,6 +277,7 @@ Found orphan containers ([logix-pgadmin logix-adminer])
 ### 可以进入下一阶段
 
 基于本次测试结果，确认：
+
 1. ✅ TimescaleDB 迁移成功
 2. ✅ 应用层代码兼容良好
 3. ✅ 可以进行性能基准测试
@@ -316,20 +335,20 @@ Found orphan containers ([logix-pgadmin logix-adminer])
 
 ### 访问地址
 
-| 服务 | 地址 | 备注 |
-|------|------|------|
-| Frontend | http://localhost:5173 | 前端界面 |
-| Backend API | http://localhost:3001/api/v1 | REST API |
-| Health Check | http://localhost:3001/health | 健康检查 |
-| Grafana | http://localhost:3000 | admin/admin |
-| Prometheus | http://localhost:9090 | 监控面板 |
+| 服务         | 地址                         | 备注        |
+| ------------ | ---------------------------- | ----------- |
+| Frontend     | http://localhost:5173        | 前端界面    |
+| Backend API  | http://localhost:3001/api/v1 | REST API    |
+| Health Check | http://localhost:3001/health | 健康检查    |
+| Grafana      | http://localhost:3000        | admin/admin |
+| Prometheus   | http://localhost:9090        | 监控面板    |
 
 ---
 
 **测试人**: AI Development Team  
-**审核人**: _______________  
+**审核人**: ******\_\_\_******  
 **批准日期**: 2026-03-24  
-**版本**: v1.0  
+**版本**: v1.0
 
 ---
 

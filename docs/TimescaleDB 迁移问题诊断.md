@@ -9,18 +9,19 @@
 ## 📊 **当前状态**
 
 ### ✅ 已完成
+
 - TimescaleDB 扩展已安装（版本 2.15.1）
 - 迁移脚本已创建并更新
 - 文档已编写
 
 ### ❌ 遇到的阻碍
 
-| 表名 | 问题 | 影响 | 解决方案 |
-|------|------|------|---------|
+| 表名                            | 问题                                 | 影响                                                   | 解决方案                             |
+| ------------------------------- | ------------------------------------ | ------------------------------------------------------ | ------------------------------------ |
 | **ext_container_status_events** | 有唯一索引不包含分区列 `occurred_at` | ERROR: cannot create a unique index without the column | 删除索引或修改主键包含 `occurred_at` |
-| **process_port_operations** | `ata` 字段有 5 条 NULL 记录 | ERROR: column contains null values | 填充 NULL 值或使用其他字段 |
-| **process_sea_freight** | 被 `biz_containers` 外键引用 | ERROR: foreign key constraints are not supported | 先删除外键，改用逻辑外键 |
-| **sys_data_change_log** | 可能有唯一索引 | ERROR: cannot create unique index | 删除唯一索引 |
+| **process_port_operations**     | `ata` 字段有 5 条 NULL 记录          | ERROR: column contains null values                     | 填充 NULL 值或使用其他字段           |
+| **process_sea_freight**         | 被 `biz_containers` 外键引用         | ERROR: foreign key constraints are not supported       | 先删除外键，改用逻辑外键             |
+| **sys_data_change_log**         | 可能有唯一索引                       | ERROR: cannot create unique index                      | 删除唯一索引                         |
 
 ---
 
@@ -29,6 +30,7 @@
 ### 问题 1: ext_container_status_events - 唯一索引冲突
 
 **现状**:
+
 ```sql
 -- 当前索引
 ext_container_status_events_pkey | CREATE UNIQUE INDEX ... USING btree (id)
@@ -39,13 +41,14 @@ idx_status_events_time           | CREATE INDEX ... USING btree (occurred_at DES
 **问题**: 主键 `id` 不包含分区列 `occurred_at`
 
 **解决方案**:
+
 ```sql
 -- 方案 A: 删除唯一索引（推荐）
 DROP INDEX IF EXISTS ext_container_status_events_pkey;
 CREATE UNIQUE INDEX idx_ext_container_status_events_id ON ext_container_status_events(id);
 
 -- 方案 B: 修改主键为复合主键（备选，影响较大）
-ALTER TABLE ext_container_status_events 
+ALTER TABLE ext_container_status_events
   DROP CONSTRAINT ext_container_status_events_pkey,
   ADD PRIMARY KEY (id, occurred_at);
 
@@ -61,16 +64,18 @@ CREATE UNIQUE INDEX idx_unique_id ON ext_container_status_events(id);
 ### 问题 2: process_port_operations - ata 字段有 NULL
 
 **检查结果**:
+
 ```sql
 SELECT COUNT(*) FROM process_port_operations WHERE ata IS NULL;
 -- 结果：5 条 NULL 记录
 ```
 
 **解决方案**:
+
 ```sql
 -- 方案 A: 填充 NULL 值（推荐）
-UPDATE process_port_operations 
-SET ata = COALESCE(eta, etd, NOW()) 
+UPDATE process_port_operations
+SET ata = COALESCE(eta, etd, NOW())
 WHERE ata IS NULL;
 
 -- 方案 B: 使用其他非空字段作为分区键
@@ -85,24 +90,26 @@ SELECT create_hypertable('process_port_operations', 'etd', migrate_data => true)
 ### 问题 3: process_sea_freight - 外键依赖
 
 **现状**:
+
 ```sql
 -- 外键约束
 biz_containers_bill_of_lading_number_fkey
-  FOREIGN KEY (bill_of_lading_number) 
+  FOREIGN KEY (bill_of_lading_number)
   REFERENCES process_sea_freight(bill_of_lading_number)
 ```
 
 **解决方案**:
+
 ```sql
 -- Step 1: 删除外键约束
-ALTER TABLE biz_containers 
+ALTER TABLE biz_containers
   DROP CONSTRAINT biz_containers_bill_of_lading_number_fkey;
 
 -- Step 2: 转换为 hypertable
 SELECT create_hypertable('process_sea_freight', 'actual_departure_date', migrate_data => true);
 
 -- Step 3: 添加注释说明（逻辑外键）
-COMMENT ON COLUMN biz_containers.bill_of_lading_number IS 
+COMMENT ON COLUMN biz_containers.bill_of_lading_number IS
   '关联到 process_sea_freight.bill_of_lading_number (逻辑外键，应用层保证完整性)';
 
 -- Step 4: （可选）创建触发器模拟外键
@@ -116,9 +123,10 @@ COMMENT ON COLUMN biz_containers.bill_of_lading_number IS
 **预期问题**: 与 ext_container_status_events 类似
 
 **解决方案**:
+
 ```sql
 -- 检查索引
-SELECT indexname, indexdef FROM pg_indexes 
+SELECT indexname, indexdef FROM pg_indexes
 WHERE tablename = 'sys_data_change_log';
 
 -- 删除唯一索引
@@ -148,8 +156,8 @@ docker exec logix-timescaledb-prod pg_dump -U logix_user logix_db --schema-only 
 
 # 3. 导出外键定义
 docker exec logix-timescaledb-prod psql -U logix_user -d logix_db -c "
-SELECT conname, pg_get_constraintdef(oid) 
-FROM pg_constraint 
+SELECT conname, pg_get_constraintdef(oid)
+FROM pg_constraint
 WHERE contype = 'f';
 " > backup_fk_definitions.txt
 ```
@@ -164,8 +172,8 @@ ALTER TABLE ext_container_status_events DROP CONSTRAINT ext_container_status_eve
 CREATE UNIQUE INDEX idx_unique_id ON ext_container_status_events(id);
 
 -- 2. process_port_operations: 填充 NULL 值
-UPDATE process_port_operations 
-SET ata = COALESCE(ata, eta, etd, port_arrival_date, NOW()) 
+UPDATE process_port_operations
+SET ata = COALESCE(ata, eta, etd, port_arrival_date, NOW())
 WHERE ata IS NULL;
 
 -- 3. process_sea_freight: 删除外键
@@ -195,11 +203,11 @@ EOF
 
 ```sql
 -- 1. 验证 hypertables
-SELECT hypertable_schema, hypertable_name 
+SELECT hypertable_schema, hypertable_name
 FROM timescaledb_information.hypertables;
 
 -- 2. 重建索引（如需要）
-CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_status_events_time 
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_status_events_time
 ON ext_container_status_events(occurred_at DESC);
 
 -- 3. 添加压缩策略
@@ -280,13 +288,14 @@ SELECT drop_chunks('ext_container_status_events', interval '1 day');
 
 **诊断人**: AI Development Team  
 **诊断依据**: 实际数据库结构和错误信息  
-**下一步**: 等待决策后执行手动处理  
+**下一步**: 等待决策后执行手动处理
 
 ---
 
 ## 📞 **联系与支持**
 
 如有疑问，请提供：
+
 1. 此诊断报告
 2. 业务影响评估
 3. 希望的执行时间窗口

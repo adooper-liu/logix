@@ -79,7 +79,7 @@ WHERE destination_port IN ('USLAX', 'USLGB', 'USNYC');
 ### 获取货柜列表（含关联数据）
 
 ```sql
-SELECT 
+SELECT
     c.container_number,
     c.logistics_status,
     c.destination_port,
@@ -99,7 +99,7 @@ ORDER BY c.eta_dest_port ASC;
 ### 按状态统计货柜数量
 
 ```sql
-SELECT 
+SELECT
     logistics_status,
     COUNT(*) as count
 FROM biz_containers
@@ -110,7 +110,7 @@ ORDER BY count DESC;
 ### 按目的港统计
 
 ```sql
-SELECT 
+SELECT
     destination_port,
     COUNT(*) as total,
     SUM(CASE WHEN logistics_status = 'in_transit' THEN 1 ELSE 0 END) as in_transit_count,
@@ -123,7 +123,7 @@ ORDER BY total DESC;
 ### 查询即将到港的货柜
 
 ```sql
-SELECT 
+SELECT
     c.container_number,
     c.destination_port,
     c.eta_dest_port,
@@ -141,7 +141,7 @@ ORDER BY c.eta_dest_port ASC;
 ### 备货单及货柜列表
 
 ```sql
-SELECT 
+SELECT
     o.order_number,
     o.customer_name,
     o.sell_to_country,
@@ -161,7 +161,7 @@ ORDER BY o.created_at DESC;
 ### 每日货柜统计
 
 ```sql
-SELECT 
+SELECT
     DATE(created_at) as date,
     COUNT(*) as total_containers,
     COUNT(DISTINCT destination_port) as unique_ports
@@ -178,7 +178,7 @@ ORDER BY date DESC;
 ### 完整供应链查询
 
 ```sql
-SELECT 
+SELECT
     c.container_number,
     c.logistics_status,
     o.order_number,

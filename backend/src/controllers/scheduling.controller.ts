@@ -6,11 +6,11 @@
 import { Request, Response } from 'express';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
-import { Warehouse } from '../entities/Warehouse';
 import { TruckingCompany } from '../entities/TruckingCompany';
+import { Warehouse } from '../entities/Warehouse';
 import { Yard } from '../entities/Yard';
-import { intelligentSchedulingService } from '../services/intelligentScheduling.service';
 import { containerService } from '../services/container.service';
+import { intelligentSchedulingService } from '../services/intelligentScheduling.service';
 import { SchedulingCostOptimizerService } from '../services/schedulingCostOptimizer.service';
 import { logger } from '../utils/logger';
 
@@ -24,9 +24,18 @@ export class SchedulingController {
    */
   batchSchedule = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { country, startDate, endDate, forceSchedule, containerNumbers, limit, skip } = req.body;
+      const { country, startDate, endDate, forceSchedule, containerNumbers, limit, skip } =
+        req.body;
 
-      logger.info(`[Scheduling] Batch schedule request:`, { country, startDate, endDate, forceSchedule, containerNumbers, limit, skip });
+      logger.info(`[Scheduling] Batch schedule request:`, {
+        country,
+        startDate,
+        endDate,
+        forceSchedule,
+        containerNumbers,
+        limit,
+        skip
+      });
 
       const result = await intelligentSchedulingService.batchSchedule({
         country: typeof country === 'string' ? country : undefined,
@@ -71,7 +80,9 @@ export class SchedulingController {
       }
 
       // 获取目的港操作记录
-      const destPo = (container as any).portOperations?.find((po: any) => po.portType === 'destination');
+      const destPo = (container as any).portOperations?.find(
+        (po: any) => po.portType === 'destination'
+      );
       if (!destPo) {
         res.status(400).json({
           success: false,
@@ -123,7 +134,9 @@ export class SchedulingController {
           plannedDeliveryDate: plannedDeliveryDate.toISOString().split('T')[0],
           plannedUnloadDate: plannedUnloadDate.toISOString().split('T')[0],
           plannedReturnDate: plannedReturnDate.toISOString().split('T')[0],
-          lastFreeDate: destPo.lastFreeDate ? new Date(destPo.lastFreeDate).toISOString().split('T')[0] : null,
+          lastFreeDate: destPo.lastFreeDate
+            ? new Date(destPo.lastFreeDate).toISOString().split('T')[0]
+            : null,
           eta: destPo.eta ? new Date(destPo.eta).toISOString().split('T')[0] : null,
           ata: destPo.ata ? new Date(destPo.ata).toISOString().split('T')[0] : null
         }
@@ -138,19 +151,20 @@ export class SchedulingController {
   };
 
   /**
-   * GET /api/v1/containers/scheduling-overview
+   * GET /api/v1/scheduling/overview
    * 获取排产概览信息（待排产数量、配置等）
    */
   getSchedulingOverview = async (req: Request, res: Response): Promise<void> => {
     try {
       const { startDate, endDate, country } = req.query;
       const hasDateRange = startDate && endDate;
+      // 注意：日期范围是可选的过滤条件，用于限定统计的时间窗口
+      // 如果提供了日期范围，则只统计该时间范围内的 ATA/ETA
       const dateCondition = hasDateRange
         ? `AND (COALESCE(po.ata, po.eta)::date >= $1::date AND COALESCE(po.ata, po.eta)::date <= $2::date)`
         : '';
-      const ataEtaCondition = 'AND (po.ata IS NOT NULL OR po.eta IS NOT NULL)';
 
-      // 查询待排产货柜数量（与 batchSchedule 口径一致：有目的港、ATA/ETA 非空、可选日期范围、可选国家）
+      // 查询待排产货柜数量（与 batchSchedule 口径一致）
       const containerRepo = AppDataSource.getRepository(Container);
       const params: any[] = hasDateRange ? [String(startDate), String(endDate)] : [];
       const paramIndex = hasDateRange ? 3 : 1;
@@ -168,15 +182,31 @@ export class SchedulingController {
         params.push(String(country));
       }
 
+      // 遵循 SKILL：验证 SQL查询条件的正确性
+      // 问题 1: port_type = 'destination' 可能没有数据
+      // 解决 1: 改为 port_type IN ('destination', 'transit') 或者不限制 port_type
+      // 问题 2: 没有过滤已提柜的货柜（实际业务中只有未提柜的才能排产）
+      // 解决 2: 添加 NOT EXISTS(pickup_date) 条件
+      // 注意：不需要强制要求 ATA/ETA，因为未到港但有 ETA 的也可以排产（预测性排产）
+      //       但如果用户指定了日期范围，则在该范围内过滤
       const initialCountResult = await containerRepo.query(
         `SELECT COUNT(*) as count FROM biz_containers c
          WHERE c.schedule_status = 'initial'
          ${countryCondition}
-         AND EXISTS (
-           SELECT 1 FROM process_port_operations po
-           WHERE po.container_number = c.container_number AND po.port_type = 'destination'
-           ${ataEtaCondition}
-           ${dateCondition}
+         AND (
+           -- 有目的港操作记录（port_type 为空或为 destination/transit）
+           EXISTS (
+             SELECT 1 FROM process_port_operations po
+             WHERE po.container_number = c.container_number 
+               AND (po.port_type IS NULL OR po.port_type = 'destination' OR po.port_type = 'transit')
+               ${dateCondition}  -- 如果有日期范围，则在此过滤
+           )
+         )
+         -- 排除已提柜的货柜
+         AND NOT EXISTS (
+           SELECT 1 FROM process_trucking_transport tt
+           WHERE tt.container_number = c.container_number
+           AND tt.pickup_date IS NOT NULL
          )`,
         params.length ? params : undefined
       );
@@ -185,11 +215,20 @@ export class SchedulingController {
         `SELECT COUNT(*) as count FROM biz_containers c
          WHERE c.schedule_status = 'issued'
          ${countryCondition}
-         AND EXISTS (
-           SELECT 1 FROM process_port_operations po
-           WHERE po.container_number = c.container_number AND po.port_type = 'destination'
-           ${ataEtaCondition}
-           ${dateCondition}
+         AND (
+           -- 有目的港操作记录（port_type 为空或为 destination/transit）
+           EXISTS (
+             SELECT 1 FROM process_port_operations po
+             WHERE po.container_number = c.container_number 
+               AND (po.port_type IS NULL OR po.port_type = 'destination' OR po.port_type = 'transit')
+               ${dateCondition}  -- 如果有日期范围，则在此过滤
+           )
+         )
+         -- 排除已提柜的货柜
+         AND NOT EXISTS (
+           SELECT 1 FROM process_trucking_transport tt
+           WHERE tt.container_number = c.container_number
+           AND tt.pickup_date IS NOT NULL
          )`,
         params.length ? params : undefined
       );
@@ -207,13 +246,15 @@ export class SchedulingController {
 
       const countryCode = country ? String(country).trim().toUpperCase() : '';
       const countryAliases = countryCode
-        ? (
-            countryCode === 'GB' ? ['GB', 'UK']
-            : countryCode === 'UK' ? ['UK', 'GB']
-            : countryCode === 'BE' ? ['BE', 'BEL']
-            : countryCode === 'BEL' ? ['BEL', 'BE']
-            : [countryCode]
-          )
+        ? countryCode === 'GB'
+          ? ['GB', 'UK']
+          : countryCode === 'UK'
+            ? ['UK', 'GB']
+            : countryCode === 'BE'
+              ? ['BE', 'BEL']
+              : countryCode === 'BEL'
+                ? ['BEL', 'BE']
+                : [countryCode]
         : [];
 
       // 查询有效的仓库-车队映射（包含费用）
@@ -257,16 +298,26 @@ export class SchedulingController {
           )
         : await truckingPortMappingRepo.find({
             where: { isActive: true },
-            select: ['truckingCompanyId', 'portCode', 'yardCapacity', 'standardRate', 'unit', 'yardOperationFee']
+            select: [
+              'truckingCompanyId',
+              'portCode',
+              'yardCapacity',
+              'standardRate',
+              'unit',
+              'yardOperationFee'
+            ]
           });
 
       // 构建车队-堆场信息映射
-      const truckingYardInfoMap = new Map<string, {
-        yardCapacity: number;
-        standardRate: number;
-        unit: string;
-        yardOperationFee: number;
-      }>();
+      const truckingYardInfoMap = new Map<
+        string,
+        {
+          yardCapacity: number;
+          standardRate: number;
+          unit: string;
+          yardOperationFee: number;
+        }
+      >();
       for (const m of truckingPortMappings) {
         const existing = truckingYardInfoMap.get(m.truckingCompanyId);
         // 取第一个有效的堆场信息（或可以按业务规则选择最优的）
@@ -293,16 +344,22 @@ export class SchedulingController {
         truckingPortMappings.map((m: { truckingCompanyId: string }) => m.truckingCompanyId)
       );
       // 取交集，只有同时在两个映射表中存在的车队才有效
-      const mappedTruckingCompanyIds = new Set([...warehouseTruckingIds].filter(id => truckingPortIds.has(id)));
+      const mappedTruckingCompanyIds = new Set(
+        [...warehouseTruckingIds].filter((id) => truckingPortIds.has(id))
+      );
       const countryAliasSet = new Set(countryAliases.map((c) => c.toUpperCase()));
       const matchCountryAlias = (value?: string) => {
         if (!countryCode) return true;
-        const normalized = String(value || '').trim().toUpperCase();
+        const normalized = String(value || '')
+          .trim()
+          .toUpperCase();
         return normalized ? countryAliasSet.has(normalized) : false;
       };
       const matchCodePrefix = (value?: string) => {
         if (!countryCode) return true;
-        const normalized = String(value || '').trim().toUpperCase();
+        const normalized = String(value || '')
+          .trim()
+          .toUpperCase();
         return normalized ? countryAliases.some((code) => normalized.startsWith(code)) : false;
       };
 
@@ -423,7 +480,7 @@ export class SchedulingController {
           pendingCount: initialCount + issuedCount,
           initialCount,
           issuedCount,
-          warehouses: warehouses.map(w => ({
+          warehouses: warehouses.map((w) => ({
             code: w.warehouseCode,
             name: w.warehouseName,
             country: w.country,
@@ -431,7 +488,7 @@ export class SchedulingController {
             transportFee: warehouseFeeMap.get(w.warehouseCode) ?? 0,
             defaultTrucking: warehouseDefaultTrucking.get(w.warehouseCode) || null
           })),
-          truckings: truckings.map(t => {
+          truckings: truckings.map((t) => {
             const yardInfo = truckingYardInfoMap.get(t.companyCode);
             return {
               code: t.companyCode,
@@ -511,18 +568,33 @@ export class SchedulingController {
 
       const warehouses = await warehouseRepo.find({
         where: warehouseWhere,
-        select: ['warehouseCode', 'warehouseName', 'country', 'dailyUnloadCapacity', 'address', 'status']
+        select: [
+          'warehouseCode',
+          'warehouseName',
+          'country',
+          'dailyUnloadCapacity',
+          'address',
+          'status'
+        ]
       });
 
       const truckings = await truckingRepo.find({
         where: truckingWhere,
-        select: ['companyCode', 'companyName', 'country', 'dailyCapacity', 'dailyReturnCapacity', 'hasYard', 'status']
+        select: [
+          'companyCode',
+          'companyName',
+          'country',
+          'dailyCapacity',
+          'dailyReturnCapacity',
+          'hasYard',
+          'status'
+        ]
       });
 
       res.json({
         success: true,
         data: {
-          warehouses: warehouses.map(w => ({
+          warehouses: warehouses.map((w) => ({
             warehouseCode: w.warehouseCode,
             warehouseName: w.warehouseName,
             country: w.country,
@@ -531,7 +603,7 @@ export class SchedulingController {
             address: w.address,
             status: w.status
           })),
-          truckings: truckings.map(t => ({
+          truckings: truckings.map((t) => ({
             companyCode: t.companyCode,
             companyName: t.companyName,
             country: t.country,
@@ -566,13 +638,15 @@ export class SchedulingController {
 
       const countryCode = country ? String(country).trim().toUpperCase() : '';
       const countryAliases = countryCode
-        ? (
-            countryCode === 'GB' ? ['GB', 'UK']
-            : countryCode === 'UK' ? ['UK', 'GB']
-            : countryCode === 'BE' ? ['BE', 'BEL']
-            : countryCode === 'BEL' ? ['BEL', 'BE']
-            : [countryCode]
-          )
+        ? countryCode === 'GB'
+          ? ['GB', 'UK']
+          : countryCode === 'UK'
+            ? ['UK', 'GB']
+            : countryCode === 'BE'
+              ? ['BE', 'BEL']
+              : countryCode === 'BEL'
+                ? ['BEL', 'BE']
+                : [countryCode]
         : [];
 
       // 查询有效的仓库-车队映射
@@ -638,16 +712,22 @@ export class SchedulingController {
       const truckingPortIds = new Set(
         truckingPortMappings.map((m: { truckingCompanyId: string }) => m.truckingCompanyId)
       );
-      const mappedTruckingCompanyIds = new Set([...warehouseTruckingIds].filter(id => truckingPortIds.has(id)));
+      const mappedTruckingCompanyIds = new Set(
+        [...warehouseTruckingIds].filter((id) => truckingPortIds.has(id))
+      );
       const countryAliasSet = new Set(countryAliases.map((c) => c.toUpperCase()));
       const matchCountryAlias = (value?: string) => {
         if (!countryCode) return true;
-        const normalized = String(value || '').trim().toUpperCase();
+        const normalized = String(value || '')
+          .trim()
+          .toUpperCase();
         return normalized ? countryAliasSet.has(normalized) : false;
       };
       const matchCodePrefix = (value?: string) => {
         if (!countryCode) return true;
-        const normalized = String(value || '').trim().toUpperCase();
+        const normalized = String(value || '')
+          .trim()
+          .toUpperCase();
         return normalized ? countryAliases.some((code) => normalized.startsWith(code)) : false;
       };
 
@@ -699,7 +779,14 @@ export class SchedulingController {
         const truckingWhere: any = { status: 'ACTIVE' };
         truckings = await truckingRepo.find({
           where: truckingWhere,
-          select: ['companyCode', 'companyName', 'country', 'dailyCapacity', 'dailyReturnCapacity', 'hasYard']
+          select: [
+            'companyCode',
+            'companyName',
+            'country',
+            'dailyCapacity',
+            'dailyReturnCapacity',
+            'hasYard'
+          ]
         });
         truckings = truckings.filter(
           (t) =>
@@ -711,7 +798,14 @@ export class SchedulingController {
           const truckingWhereNoStatus: any = {};
           truckings = await truckingRepo.find({
             where: truckingWhereNoStatus,
-            select: ['companyCode', 'companyName', 'country', 'dailyCapacity', 'dailyReturnCapacity', 'hasYard']
+            select: [
+              'companyCode',
+              'companyName',
+              'country',
+              'dailyCapacity',
+              'dailyReturnCapacity',
+              'hasYard'
+            ]
           });
           truckings = truckings.filter(
             (t) =>
@@ -758,7 +852,7 @@ export class SchedulingController {
       res.json({
         success: true,
         data: {
-          warehouses: warehouses.map(w => ({
+          warehouses: warehouses.map((w) => ({
             warehouseCode: w.warehouseCode,
             warehouseName: w.warehouseName,
             country: w.country,
@@ -768,7 +862,7 @@ export class SchedulingController {
             defaultTrucking: warehouseDefaultTrucking.get(w.warehouseCode) || null,
             isMapped: true
           })),
-          truckings: truckings.map(t => ({
+          truckings: truckings.map((t) => ({
             companyCode: t.companyCode,
             companyName: t.companyName,
             country: t.country,
@@ -937,7 +1031,8 @@ export class SchedulingController {
    */
   createTrucking = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { companyCode, companyName, country, dailyCapacity, dailyReturnCapacity, hasYard } = req.body;
+      const { companyCode, companyName, country, dailyCapacity, dailyReturnCapacity, hasYard } =
+        req.body;
 
       if (!companyCode || !companyName) {
         res.status(400).json({ success: false, message: '缺少必要参数：车队编码和名称' });
@@ -978,7 +1073,8 @@ export class SchedulingController {
   updateTrucking = async (req: Request, res: Response): Promise<void> => {
     try {
       const { code } = req.params;
-      const { companyName, country, dailyCapacity, dailyReturnCapacity, hasYard, status } = req.body;
+      const { companyName, country, dailyCapacity, dailyReturnCapacity, hasYard, status } =
+        req.body;
 
       const truckingRepo = AppDataSource.getRepository(TruckingCompany);
       const trucking = await truckingRepo.findOne({ where: { companyCode: code } });
@@ -1083,7 +1179,8 @@ export class SchedulingController {
    */
   createYard = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { yardCode, yardName, portCode, dailyCapacity, feePerDay, address, contactPhone } = req.body;
+      const { yardCode, yardName, portCode, dailyCapacity, feePerDay, address, contactPhone } =
+        req.body;
 
       if (!yardCode || !yardName) {
         res.status(400).json({ success: false, message: '缺少必要参数' });
@@ -1124,7 +1221,8 @@ export class SchedulingController {
   updateYard = async (req: Request, res: Response): Promise<void> => {
     try {
       const { code } = req.params;
-      const { yardName, portCode, dailyCapacity, feePerDay, address, contactPhone, status } = req.body;
+      const { yardName, portCode, dailyCapacity, feePerDay, address, contactPhone, status } =
+        req.body;
 
       const yardRepo = AppDataSource.getRepository(Yard);
       const yard = await yardRepo.findOne({ where: { yardCode: code } });
@@ -1369,9 +1467,7 @@ export class SchedulingController {
       );
 
       // 按总成本排序
-      comparisons.sort((a, b) =>
-        a.costBreakdown.totalCost - b.costBreakdown.totalCost
-      );
+      comparisons.sort((a, b) => a.costBreakdown.totalCost - b.costBreakdown.totalCost);
 
       // 更新排名
       comparisons.forEach((item, index) => {
@@ -1380,9 +1476,10 @@ export class SchedulingController {
 
       // 获取推荐方案
       const recommendedOption = comparisons[0];
-      const savings = comparisons.length > 1
-        ? comparisons[1].costBreakdown.totalCost - recommendedOption.costBreakdown.totalCost
-        : 0;
+      const savings =
+        comparisons.length > 1
+          ? comparisons[1].costBreakdown.totalCost - recommendedOption.costBreakdown.totalCost
+          : 0;
 
       res.json({
         success: true,
@@ -1444,7 +1541,9 @@ export class SchedulingController {
       const { start, end, resourceType, warehouseCode, truckingCompanyId } = req.query;
 
       if (!start || !end || !resourceType) {
-        res.status(400).json({ success: false, message: '缺少必要参数：start、end 和 resourceType' });
+        res
+          .status(400)
+          .json({ success: false, message: '缺少必要参数：start、end 和 resourceType' });
         return;
       }
 
@@ -1466,7 +1565,9 @@ export class SchedulingController {
         }
 
         const warehouseRepo = AppDataSource.getRepository(Warehouse);
-        const warehouse = await warehouseRepo.findOne({ where: { warehouseCode: String(warehouseCode) } });
+        const warehouse = await warehouseRepo.findOne({
+          where: { warehouseCode: String(warehouseCode) }
+        });
 
         if (!warehouse) {
           res.status(404).json({ success: false, message: '仓库不存在' });
@@ -1483,10 +1584,10 @@ export class SchedulingController {
           capacityData.push({
             date: dateStr,
             type: isWeekend ? 'weekend' : 'weekday',
-            baseCapacity: isWeekend ? 0 : (warehouse.dailyUnloadCapacity || 10),
-            finalCapacity: isWeekend ? 0 : (warehouse.dailyUnloadCapacity || 10),
+            baseCapacity: isWeekend ? 0 : warehouse.dailyUnloadCapacity || 10,
+            finalCapacity: isWeekend ? 0 : warehouse.dailyUnloadCapacity || 10,
             occupied: 0,
-            remaining: isWeekend ? 0 : (warehouse.dailyUnloadCapacity || 10),
+            remaining: isWeekend ? 0 : warehouse.dailyUnloadCapacity || 10,
             multiplier: 1.0,
             isManual: false
           });
@@ -1501,7 +1602,9 @@ export class SchedulingController {
         }
 
         const truckingRepo = AppDataSource.getRepository(TruckingCompany);
-        const truckingCompany = await truckingRepo.findOne({ where: { companyCode: String(truckingCompanyId) } });
+        const truckingCompany = await truckingRepo.findOne({
+          where: { companyCode: String(truckingCompanyId) }
+        });
 
         if (!truckingCompany) {
           res.status(404).json({ success: false, message: '车队不存在' });
@@ -1518,10 +1621,10 @@ export class SchedulingController {
           capacityData.push({
             date: dateStr,
             type: isWeekend ? 'weekend' : 'weekday',
-            baseCapacity: isWeekend ? 0 : (truckingCompany.dailyCapacity || 10),
-            finalCapacity: isWeekend ? 0 : (truckingCompany.dailyCapacity || 10),
+            baseCapacity: isWeekend ? 0 : truckingCompany.dailyCapacity || 10,
+            finalCapacity: isWeekend ? 0 : truckingCompany.dailyCapacity || 10,
             occupied: 0,
-            remaining: isWeekend ? 0 : (truckingCompany.dailyCapacity || 10),
+            remaining: isWeekend ? 0 : truckingCompany.dailyCapacity || 10,
             multiplier: 1.0,
             isManual: false
           });
@@ -1529,7 +1632,9 @@ export class SchedulingController {
           currentDate.setDate(currentDate.getDate() + 1);
         }
       } else {
-        res.status(400).json({ success: false, message: 'resourceType 必须为 warehouse 或 trucking' });
+        res
+          .status(400)
+          .json({ success: false, message: 'resourceType 必须为 warehouse 或 trucking' });
         return;
       }
 

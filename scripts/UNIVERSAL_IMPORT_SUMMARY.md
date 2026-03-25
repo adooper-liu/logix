@@ -4,7 +4,7 @@
 
 **实施日期**: 2026-03-21  
 **实施目标**: 统一 Excel 导入功能，消除重复代码，提高开发效率  
-**实施范围**: 前端所有 Excel 导入场景  
+**实施范围**: 前端所有 Excel 导入场景
 
 ---
 
@@ -13,7 +13,7 @@
 ### 完成情况
 
 **状态**: ✅ 已完成  
-**验证方法**: 严格遵循 fix-verification SKILL，对照实体定义逐行验证  
+**验证方法**: 严格遵循 fix-verification SKILL，对照实体定义逐行验证
 
 ### 验证实体
 
@@ -23,17 +23,18 @@
 
 ### 修复结果
 
-| 方法 | 问题字段数量 | 修复状态 | 验证状态 |
-|------|-------------|---------|---------|
-| savePlacesSubset | 15+ 个幽灵字段 | ✅ 已修复 | ✅ 已验证 |
+| 方法                   | 问题字段数量       | 修复状态  | 验证状态  |
+| ---------------------- | ------------------ | --------- | --------- |
+| savePlacesSubset       | 15+ 个幽灵字段     | ✅ 已修复 | ✅ 已验证 |
 | saveStatusEventsSubset | statusIndex 未设置 | ✅ 已修复 | ✅ 已验证 |
-| saveVesselsSubset | batchId 幽灵字段 | ✅ 已修复 | ✅ 已验证 |
+| saveVesselsSubset      | batchId 幽灵字段   | ✅ 已修复 | ✅ 已验证 |
 
 ### 关键修复
 
 #### 1. savePlacesSubset (1460-1542 行)
 
 **修复前**:
+
 ```typescript
 // ❌ 使用不存在的字段
 portNameOriginal: getVal(row, ...)      // ExtFeituoPlace 中不存在
@@ -45,6 +46,7 @@ placeType: getVal(row, ...) as string   // 应为 int
 ```
 
 **修复后**:
+
 ```typescript
 // ✅ 使用正确的字段名
 nameOrigin: getVal(row, ...)
@@ -56,28 +58,31 @@ placeType: parseInt(placeTypeStr) || 0
 ```
 
 **补充必需字段**:
+
 ```typescript
-placeIndex: i                           // 地点序号
-dataSource: 'Excel'                     // 数据来源
-rawJson: row._rawDataByGroup?.['10']    // 原始数据
+placeIndex: i; // 地点序号
+dataSource: "Excel"; // 数据来源
+rawJson: row._rawDataByGroup?.["10"]; // 原始数据
 ```
 
 #### 2. saveStatusEventsSubset (1549-1611 行)
 
 **关键修复**:
+
 ```typescript
-statusIndex: null  // Excel 导入设为 NULL（API 同步时才有数组索引）
+statusIndex: null; // Excel 导入设为 NULL（API 同步时才有数组索引）
 ```
 
 #### 3. saveVesselsSubset (1621-1663 行)
 
 **删除幽灵字段**:
+
 ```typescript
 // ❌ 删除
-batchId  // ExtFeituoVessel 中不存在
+batchId; // ExtFeituoVessel 中不存在
 
 // ✅ 补充
-rawJson: row._rawDataByGroup?.['13']  // 保存原始数据
+rawJson: row._rawDataByGroup?.["13"]; // 保存原始数据
 ```
 
 ### 验证报告
@@ -109,24 +114,26 @@ UniversalImport/
 
 ```typescript
 interface FieldMapping {
-  excelField: string        // Excel 列名
-  table: string            // 数据库表名
-  field: string            // 数据库字段名
-  required: boolean        // 是否必填
-  transform?: (value: any) => any  // 转换函数
-  aliases?: string[]       // 列名别名
+  excelField: string; // Excel 列名
+  table: string; // 数据库表名
+  field: string; // 数据库字段名
+  required: boolean; // 是否必填
+  transform?: (value: any) => any; // 转换函数
+  aliases?: string[]; // 列名别名
 }
 ```
 
 #### 2. Composables 复用
 
 **useExcelParser**:
+
 - ✅ 文件解析
 - ✅ 数据转换
 - ✅ 数据验证
 - ✅ 错误处理
 
 **useFileUpload**:
+
 - ✅ 单文件上传
 - ✅ 批量上传
 - ✅ 进度追踪
@@ -140,12 +147,12 @@ interface FieldMapping {
 
 ```typescript
 // utils.ts
-export function parseDate(value: unknown): string | null
-export function parseDecimal(value: unknown): number | null
-export function parseInteger(value: unknown): number | null
-export function parseBoolean(value: unknown): boolean | null
-export function getCellValue(row: Record<string, any>, mapping: FieldMapping): any
-export function validateRequired(value: any, fieldName: string): string | null
+export function parseDate(value: unknown): string | null;
+export function parseDecimal(value: unknown): number | null;
+export function parseInteger(value: unknown): number | null;
+export function parseBoolean(value: unknown): boolean | null;
+export function getCellValue(row: Record<string, any>, mapping: FieldMapping): any;
+export function validateRequired(value: any, fieldName: string): string | null;
 ```
 
 ### 配置文件结构
@@ -161,7 +168,7 @@ configs/importMappings/
 
 ```vue
 <template>
-  <UniversalImport 
+  <UniversalImport
     title="货柜数据导入"
     :field-mappings="CONTAINER_FIELD_MAPPINGS"
     api-endpoint="/api/import/container"
@@ -173,8 +180,8 @@ configs/importMappings/
 </template>
 
 <script setup lang="ts">
-import { UniversalImport } from '@/components/common/UniversalImport'
-import { CONTAINER_FIELD_MAPPINGS } from '@/configs/importMappings/container'
+import { UniversalImport } from "@/components/common/UniversalImport";
+import { CONTAINER_FIELD_MAPPINGS } from "@/configs/importMappings/container";
 </script>
 ```
 
@@ -198,18 +205,19 @@ import { CONTAINER_FIELD_MAPPINGS } from '@/configs/importMappings/container'
 
 ### 迁移对比
 
-| 组件 | 原始 | 迁移后 | 减少 |
-|------|------|--------|------|
-| ExcelImport.vue | 1091 行 | 20 行 | ↓ 98% |
-| DemurrageStandardsImport.vue | 570 行 | 20 行 | ↓ 96% |
-| FeituoDataImport.vue | ~800 行 | 20 行 | ↓ 97% |
-| **总计** | **~2461 行** | **~60 行** | **↓ 97.6%** |
+| 组件                         | 原始         | 迁移后     | 减少        |
+| ---------------------------- | ------------ | ---------- | ----------- |
+| ExcelImport.vue              | 1091 行      | 20 行      | ↓ 98%       |
+| DemurrageStandardsImport.vue | 570 行       | 20 行      | ↓ 96%       |
+| FeituoDataImport.vue         | ~800 行      | 20 行      | ↓ 97%       |
+| **总计**                     | **~2461 行** | **~60 行** | **↓ 97.6%** |
 
 ### 配置文件
 
 #### 1. container.ts (372 行)
 
 **包含内容**:
+
 - 备货单表映射（10 个字段）
 - 货柜表映射（12 个字段）
 - 海运表映射（11 个字段）
@@ -219,30 +227,34 @@ import { CONTAINER_FIELD_MAPPINGS } from '@/configs/importMappings/container'
 - 还空箱表映射（4 个字段）
 
 **转换函数**:
+
 ```typescript
-transformOrderStatus
-transformLogisticsStatus
+transformOrderStatus;
+transformLogisticsStatus;
 ```
 
 #### 2. demurrage.ts (187 行)
 
 **包含内容**:
+
 - 海外公司、目的港、船公司、起运港货代映射
 - 运输方式、费用类型映射
 - 免费天数、计算方式、费率映射
 
 **特殊处理**:
+
 ```typescript
 export const TIER_COLUMNS: Record<string, string[]> = {
-  '1': ['1', '1.0'],
-  '2': ['2', '2.0'],
-  '60+': ['60+', '60+']
-}
+  "1": ["1", "1.0"],
+  "2": ["2", "2.0"],
+  "60+": ["60+", "60+"],
+};
 ```
 
 #### 3. feituo.ts (251 行)
 
 **包含内容**:
+
 - 提单基本信息
 - 集装箱信息
 - 发生地信息（分组 10）
@@ -257,21 +269,21 @@ export const TIER_COLUMNS: Record<string, string[]> = {
 
 ### 开发效率提升
 
-| 指标 | 传统方式 | 通用组件 | 提升 |
-|------|---------|---------|------|
-| **新增导入场景** | 4-8 小时 | 0.5-2 小时 | **↓ 75%** |
-| **维护成本** | 6 小时/月 | 2 小时/月 | **↓ 67%** |
-| **Bug 修复** | 2 小时/月 | 0.5 小时/月 | **↓ 75%** |
+| 指标             | 传统方式  | 通用组件    | 提升      |
+| ---------------- | --------- | ----------- | --------- |
+| **新增导入场景** | 4-8 小时  | 0.5-2 小时  | **↓ 75%** |
+| **维护成本**     | 6 小时/月 | 2 小时/月   | **↓ 67%** |
+| **Bug 修复**     | 2 小时/月 | 0.5 小时/月 | **↓ 75%** |
 
 ### 年度工时对比
 
 **假设每年新增 5 个导入场景**:
 
-| 项目 | 传统方式 | 通用组件 | 节约 |
-|------|---------|---------|------|
-| 新开发 | 20-40 小时 | 2.5-10 小时 | 17.5-30 小时 |
-| 维护 | 72 小时 | 24 小时 | 48 小时 |
-| Bug 修复 | 24 小时 | 6 小时 | 18 小时 |
+| 项目     | 传统方式         | 通用组件         | 节约                 |
+| -------- | ---------------- | ---------------- | -------------------- |
+| 新开发   | 20-40 小时       | 2.5-10 小时      | 17.5-30 小时         |
+| 维护     | 72 小时          | 24 小时          | 48 小时              |
+| Bug 修复 | 24 小时          | 6 小时           | 18 小时              |
 | **总计** | **116-136 小时** | **32.5-40 小时** | **~90 小时 (↓ 70%)** |
 
 ### 质量改进
@@ -289,8 +301,8 @@ export const TIER_COLUMNS: Record<string, string[]> = {
 
 ```typescript
 // 可复用的逻辑单元
-const { previewData, parseExcelFile } = useExcelParser()
-const { uploading, uploadFile } = useFileUpload()
+const { previewData, parseExcelFile } = useExcelParser();
+const { uploading, uploadFile } = useFileUpload();
 ```
 
 ### 2. 配置驱动架构
@@ -298,9 +310,9 @@ const { uploading, uploadFile } = useFileUpload()
 ```typescript
 // 纯配置，无业务逻辑
 export const FIELD_MAPPINGS: FieldMapping[] = [
-  { excelField: '订单号', field: 'order_number', required: true },
-  { excelField: '日期', field: 'order_date', transform: parseDate }
-]
+  { excelField: "订单号", field: "order_number", required: true },
+  { excelField: "日期", field: "order_date", transform: parseDate },
+];
 ```
 
 ### 3. 类型安全
@@ -317,10 +329,10 @@ interface PreviewRow { ... }
 ```typescript
 // 多层错误处理
 try {
-  await parseExcelFile(file, mappings)
+  await parseExcelFile(file, mappings);
 } catch (error) {
-  parsingError.value = error.message
-  emit('error', error)
+  parsingError.value = error.message;
+  emit("error", error);
 }
 ```
 
@@ -373,13 +385,13 @@ try {
 
 ## 👥 团队分工
 
-| 阶段 | 任务 | 负责人 | 状态 |
-|------|------|--------|------|
-| 一 | 飞驼导入幽灵字段修复 | AI Assistant | ✅ 完成 |
-| 二 | 通用组件框架设计 | AI Assistant | ✅ 完成 |
-| 三 | 配置文件迁移 | AI Assistant | ✅ 完成 |
-| 四 | 单元测试 | 待分配 | ⏳ 待开始 |
-| 五 | 集成测试 | 待分配 | ⏳ 待开始 |
+| 阶段 | 任务                 | 负责人       | 状态      |
+| ---- | -------------------- | ------------ | --------- |
+| 一   | 飞驼导入幽灵字段修复 | AI Assistant | ✅ 完成   |
+| 二   | 通用组件框架设计     | AI Assistant | ✅ 完成   |
+| 三   | 配置文件迁移         | AI Assistant | ✅ 完成   |
+| 四   | 单元测试             | 待分配       | ⏳ 待开始 |
+| 五   | 集成测试             | 待分配       | ⏳ 待开始 |
 
 ---
 
@@ -412,21 +424,21 @@ try {
 
 ### 代码统计
 
-| 类别 | 文件数 | 代码行数 |
-|------|--------|---------|
-| **组件核心** | 6 | ~950 行 |
-| **配置文件** | 3 | ~810 行 |
-| **文档** | 3 | ~1200 行 |
-| **总计** | 12 | **~2960 行** |
+| 类别         | 文件数 | 代码行数     |
+| ------------ | ------ | ------------ |
+| **组件核心** | 6      | ~950 行      |
+| **配置文件** | 3      | ~810 行      |
+| **文档**     | 3      | ~1200 行     |
+| **总计**     | 12     | **~2960 行** |
 
 ### 影响范围
 
-| 项目 | 数量 |
-|------|------|
+| 项目           | 数量                       |
+| -------------- | -------------------------- |
 | 受益的导入场景 | 3 个（货柜、滞港费、飞驼） |
-| 减少的重复代码 | ~2400 行 |
-| 新增的工具函数 | 10+ 个 |
-| 配置的字段映射 | 80+ 个 |
+| 减少的重复代码 | ~2400 行                   |
+| 新增的工具函数 | 10+ 个                     |
+| 配置的字段映射 | 80+ 个                     |
 
 ---
 
@@ -444,7 +456,7 @@ try {
 
 **项目状态**: ✅ 第一、二、三阶段完成  
 **下一步**: 单元测试 + 集成测试 + 团队培训  
-**预计完成时间**: 2026-03-28  
+**预计完成时间**: 2026-03-28
 
 ---
 

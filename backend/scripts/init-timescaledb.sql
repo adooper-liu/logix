@@ -51,12 +51,14 @@ CREATE INDEX IF NOT EXISTS idx_container_status_events_source_time
 
 -- 2.2 港口操作表 - 多港经停场景
 -- 2.2 Port Operations table - Multi-port transit scenarios
-SELECT create_hypertable(
-    'process_port_operations',
-    'gate_in_time',
-    chunk_time_interval => INTERVAL '1 month',
-    if_not_exists => TRUE
-);
+-- 【已禁用】不再将 process_port_operations 设为 hypertable
+-- 原因：ata/gate_in_time 等时间字段在导入时可能为空，不适合作为分区键
+-- SELECT create_hypertable(
+--     'process_port_operations',
+--     'gate_in_time',
+--     chunk_time_interval => INTERVAL '1 month',
+--     if_not_exists => TRUE
+-- );
 
 -- 创建港口操作相关索引
 -- Create port operation related indexes

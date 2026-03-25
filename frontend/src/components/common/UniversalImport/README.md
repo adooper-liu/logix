@@ -37,7 +37,7 @@ frontend/src/configs/importMappings/
 
 ```vue
 <template>
-  <UniversalImport 
+  <UniversalImport
     title="货柜数据导入"
     :field-mappings="CONTAINER_FIELD_MAPPINGS"
     api-endpoint="/api/import/container"
@@ -68,60 +68,60 @@ import { parseDate, parseDecimal, parseBoolean } from '@/components/common/Unive
 
 export const MY_CUSTOM_MAPPINGS: FieldMapping[] = [
   {
-    excelField: '订单号',           // Excel 列名
-    table: 'biz_orders',          // 数据库表
-    field: 'order_number',        // 数据库字段
-    required: true,               // 是否必填
-    aliases: ['订单编号', '单号'],   // 列名别名
-    transform: (val) => val.trim() // 值转换函数
+    excelField: '订单号', // Excel 列名
+    table: 'biz_orders', // 数据库表
+    field: 'order_number', // 数据库字段
+    required: true, // 是否必填
+    aliases: ['订单编号', '单号'], // 列名别名
+    transform: val => val.trim(), // 值转换函数
   },
   {
     excelField: '下单日期',
     table: 'biz_orders',
     field: 'order_date',
     required: false,
-    transform: parseDate
+    transform: parseDate,
   },
   {
     excelField: '金额',
     table: 'biz_orders',
     field: 'amount',
     required: false,
-    transform: parseDecimal
-  }
+    transform: parseDecimal,
+  },
 ]
 ```
 
 ## 📖 Props 配置
 
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| title | string | - | 组件标题 |
-| fieldMappings | FieldMapping[] | - | 字段映射配置数组 |
-| apiEndpoint | string | - | 后端 API 端点 |
-| showPreview | boolean | true | 是否显示数据预览 |
-| enableBatchImport | boolean | false | 是否启用批量导入 |
-| batchSize | number | 100 | 每批导入数量 |
-| acceptedFileTypes | string | '.xlsx,.xls' | 支持的文件格式 |
-| maxFileSize | number | 10 | 最大文件大小 (MB) |
+| 参数              | 类型           | 默认值       | 说明              |
+| ----------------- | -------------- | ------------ | ----------------- |
+| title             | string         | -            | 组件标题          |
+| fieldMappings     | FieldMapping[] | -            | 字段映射配置数组  |
+| apiEndpoint       | string         | -            | 后端 API 端点     |
+| showPreview       | boolean        | true         | 是否显示数据预览  |
+| enableBatchImport | boolean        | false        | 是否启用批量导入  |
+| batchSize         | number         | 100          | 每批导入数量      |
+| acceptedFileTypes | string         | '.xlsx,.xls' | 支持的文件格式    |
+| maxFileSize       | number         | 10           | 最大文件大小 (MB) |
 
 ## 🎲 Events
 
-| 事件名 | 参数 | 说明 |
-|--------|------|------|
+| 事件名  | 参数                 | 说明           |
+| ------- | -------------------- | -------------- |
 | success | result: ImportResult | 导入成功时触发 |
-| error | error: string | 导入失败时触发 |
+| error   | error: string        | 导入失败时触发 |
 
 ## 🔧 内置工具函数
 
 ### 数据类型转换
 
 ```typescript
-import { 
-  parseDate,       // 解析日期
-  parseDecimal,    // 解析小数
-  parseInteger,    // 解析整数
-  parseBoolean     // 解析布尔值
+import {
+  parseDate, // 解析日期
+  parseDecimal, // 解析小数
+  parseInteger, // 解析整数
+  parseBoolean, // 解析布尔值
 } from '@/components/common/UniversalImport'
 ```
 
@@ -130,13 +130,13 @@ import {
 ```typescript
 function transformStatus(value: unknown): string | null {
   if (!value) return null
-  
+
   const statusMap: Record<string, string> = {
     '待审核': 'PENDING',
     '已审核': 'APPROVED',
     '已完成': 'COMPLETED'
   }
-  
+
   return statusMap[String(value).trim()] || String(value)
 }
 
@@ -155,7 +155,7 @@ function transformStatus(value: unknown): string | null {
 
 ```vue
 <template>
-  <UniversalImport 
+  <UniversalImport
     title="客户信息导入"
     :field-mappings="CUSTOMER_MAPPINGS"
     api-endpoint="/api/import/customers"
@@ -166,24 +166,24 @@ function transformStatus(value: unknown): string | null {
 import { UniversalImport } from '@/components/common/UniversalImport'
 
 const CUSTOMER_MAPPINGS = [
-  { 
-    excelField: '客户名称', 
-    table: 'dict_customers', 
-    field: 'customer_name', 
-    required: true 
+  {
+    excelField: '客户名称',
+    table: 'dict_customers',
+    field: 'customer_name',
+    required: true,
   },
-  { 
-    excelField: '客户编码', 
-    table: 'dict_customers', 
-    field: 'customer_code', 
-    required: true 
+  {
+    excelField: '客户编码',
+    table: 'dict_customers',
+    field: 'customer_code',
+    required: true,
   },
-  { 
-    excelField: '联系人', 
-    table: 'dict_customers', 
-    field: 'contact_person', 
-    required: false 
-  }
+  {
+    excelField: '联系人',
+    table: 'dict_customers',
+    field: 'contact_person',
+    required: false,
+  },
 ]
 </script>
 ```
@@ -192,7 +192,7 @@ const CUSTOMER_MAPPINGS = [
 
 ```vue
 <template>
-  <UniversalImport 
+  <UniversalImport
     title="大批量数据导入"
     :field-mappings="BULK_MAPPINGS"
     api-endpoint="/api/import/bulk"
@@ -207,7 +207,7 @@ const CUSTOMER_MAPPINGS = [
 
 ```vue
 <template>
-  <UniversalImport 
+  <UniversalImport
     title="产品导入"
     :field-mappings="PRODUCT_MAPPINGS"
     api-endpoint="/api/import/products"
@@ -224,31 +224,31 @@ const PRODUCT_MAPPINGS = [
     excelField: '产品编码',
     table: 'dict_products',
     field: 'product_code',
-    required: true
+    required: true,
   },
   {
     excelField: '产品名称',
     table: 'dict_products',
     field: 'product_name',
-    required: true
+    required: true,
   },
   {
     excelField: '单价',
     table: 'dict_products',
     field: 'unit_price',
     required: false,
-    transform: parseDecimal
+    transform: parseDecimal,
   },
   {
     excelField: '库存数量',
     table: 'dict_products',
     field: 'stock_quantity',
     required: false,
-    transform: (val) => {
+    transform: val => {
       const num = parseInt(String(val))
       return isNaN(num) ? null : num
-    }
-  }
+    },
+  },
 ]
 </script>
 ```
@@ -281,12 +281,14 @@ const PRODUCT_MAPPINGS = [
 ### 1. 字段映射配置
 
 ✅ **推荐**: 使用常量导出配置
+
 ```typescript
 // configs/importMappings/my-config.ts
 export const MY_MAPPINGS: FieldMapping[] = [...]
 ```
 
 ❌ **不推荐**: 在组件内直接定义
+
 ```typescript
 // 难以复用和维护
 const mappings = [...]
@@ -295,6 +297,7 @@ const mappings = [...]
 ### 2. 别名使用
 
 ✅ **推荐**: 为易变字段提供别名
+
 ```typescript
 {
   excelField: '销往国家',
@@ -305,6 +308,7 @@ const mappings = [...]
 ### 3. 值转换
 
 ✅ **推荐**: 使用内置工具函数
+
 ```typescript
 import { parseDate, parseDecimal } from '@/components/common/UniversalImport'
 
@@ -317,8 +321,9 @@ import { parseDate, parseDecimal } from '@/components/common/UniversalImport'
 ### 4. 错误提示
 
 ✅ **推荐**: 提供友好的错误信息
+
 ```typescript
-transform: (val) => {
+transform: val => {
   if (!isValid(val)) {
     throw new Error('日期格式不正确')
   }
@@ -341,13 +346,13 @@ transform: (val) => {
 
 ## 🆚 对比传统方式
 
-| 特性 | 传统方式 | 通用组件 |
-|------|---------|---------|
+| 特性     | 传统方式 | 通用组件   |
+| -------- | -------- | ---------- |
 | 开发时间 | 4-8 小时 | 0.5-2 小时 |
-| 代码重复 | 高 | 无 |
-| 维护成本 | 高 | 低 |
-| 一致性 | 低 | 高 |
-| 可扩展性 | 低 | 高 |
+| 代码重复 | 高       | 无         |
+| 维护成本 | 高       | 低         |
+| 一致性   | 低       | 高         |
+| 可扩展性 | 低       | 高         |
 
 ## 📚 相关资源
 

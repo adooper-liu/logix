@@ -11,15 +11,15 @@
 ```
 第 1 步：阅读总索引
   → docs/DOCUMENT_INDEX.md
-  
+
 第 2 步：第一阶段总结前 2 章
   → docs/Phase3/第一阶段总结/README.md
   → docs/Phase3/第一阶段总结/01-项目愿景与战略定位.md
   → docs/Phase3/第一阶段总结/02-项目结构与布局.md
-  
+
 第 3 步：学习 SKILL 规范
   → .codebuddy/skills/logix-development/SKILL.md
-  
+
 第 4 步：根据岗位选择专项文档
 ```
 
@@ -57,16 +57,16 @@
 
 ### 按功能模块查找
 
-| 功能模块 | 文档位置 |
-|---------|---------|
-| 智能排柜 | `docs/Phase3/智能排柜系统完整文档.md` |
-| 数据导入 | `docs/Phase3/数据导入系统完整文档.md` |
-| 甘特图 | `docs/Phase3/甘特图模块完整文档.md` |
-| 预警系统 | `docs/Phase3/智能预警系统完整文档.md` |
-| 数据库 | `docs/Phase3/数据库与 API 完整文档.md` + `backend/docs/DATABASE_SCRIPTS_INDEX.md` |
-| API | `backend/docs/API_DOCS_UPDATE.md` |
+| 功能模块 | 文档位置                                                                                       |
+| -------- | ---------------------------------------------------------------------------------------------- |
+| 智能排柜 | `docs/Phase3/智能排柜系统完整文档.md`                                                          |
+| 数据导入 | `docs/Phase3/数据导入系统完整文档.md`                                                          |
+| 甘特图   | `docs/Phase3/甘特图模块完整文档.md`                                                            |
+| 预警系统 | `docs/Phase3/智能预警系统完整文档.md`                                                          |
+| 数据库   | `docs/Phase3/数据库与 API 完整文档.md` + `backend/docs/DATABASE_SCRIPTS_INDEX.md`              |
+| API      | `backend/docs/API_DOCS_UPDATE.md`                                                              |
 | 飞驼系统 | `docs/Phase3/数据导入系统完整文档.md` + `.codebuddy/skills/feituo-eta-ata-validation/SKILL.md` |
-| 滞港费 | `docs/Phase3/智能预警系统完整文档.md` + `.codebuddy/skills/logix-demurrage/SKILL.md` |
+| 滞港费   | `docs/Phase3/智能预警系统完整文档.md` + `.codebuddy/skills/logix-demurrage/SKILL.md`           |
 
 ---
 
@@ -127,6 +127,7 @@ backend/docs/                   # 后端文档（保留精华）
 ### Q1: 文档太多，从哪里开始？
 
 **A**: 按这个顺序：
+
 ```
 1. docs/DOCUMENT_INDEX.md（了解文档架构）
 2. docs/Phase3/第一阶段总结/README.md（阅读指南）
@@ -137,7 +138,8 @@ backend/docs/                   # 后端文档（保留精华）
 
 ### Q2: 如何快速找到需要的文档？
 
-**A**: 
+**A**:
+
 ```
 方法 1: 查看 docs/DOCUMENT_INDEX.md 的"快速查找"表格
 方法 2: 使用 VS Code 全局搜索（Ctrl+Shift+F）
@@ -147,6 +149,7 @@ backend/docs/                   # 后端文档（保留精华）
 ### Q3: 发现文档有错误或过时怎么办？
 
 **A**:
+
 ```
 1. 检查是否是最新文档（看最后更新日期）
 2. 如果是旧文档（已归档），查看对应的新文档
@@ -157,6 +160,7 @@ backend/docs/                   # 后端文档（保留精华）
 ### Q4: 想贡献文档，如何提交？
 
 **A**:
+
 ```
 1. 确认内容确实有价值（不是重复的）
 2. 确定所属分类（ standards/architecture/database等）
@@ -169,6 +173,7 @@ backend/docs/                   # 后端文档（保留精华）
 ### Q5: 旧的文档去哪里了？
 
 **A**:
+
 ```
 旧文档已移至 docs/_archive_temp/ 目录，不再主动维护。
 如果确实需要查阅，可以查看该目录。
@@ -213,13 +218,13 @@ backend/docs/                   # 后端文档（保留精华）
 
 ### 整理前 vs 整理后
 
-| 指标 | 整理前 | 整理后 | 改进 |
-|------|-------|-------|------|
-| 文档总数 | ~172 篇 | ~72 篇 | **-58%** |
-| 重复文档 | ~40 篇 | 0 篇 | **消除重复** |
-| 临时文档 | ~30 篇 | 0 篇 | **已整合或归档** |
-| 索引清晰度 | 低 | 高 | **三级索引体系** |
-| 查找效率 | 慢 | 快 | **快速查找表格** |
+| 指标       | 整理前  | 整理后 | 改进             |
+| ---------- | ------- | ------ | ---------------- |
+| 文档总数   | ~172 篇 | ~72 篇 | **-58%**         |
+| 重复文档   | ~40 篇  | 0 篇   | **消除重复**     |
+| 临时文档   | ~30 篇  | 0 篇   | **已整合或归档** |
+| 索引清晰度 | 低      | 高     | **三级索引体系** |
+| 查找效率   | 慢      | 快     | **快速查找表格** |
 
 ### 核心价值
 

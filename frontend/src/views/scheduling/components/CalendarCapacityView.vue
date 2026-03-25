@@ -10,7 +10,7 @@
               <el-radio-button value="warehouse">🏭 仓库</el-radio-button>
               <el-radio-button value="trucking">🚛 车队</el-radio-button>
             </el-radio-group>
-            
+
             <el-button size="small" @click="loadCapacityData">
               <el-icon><Refresh /></el-icon>
               刷新
@@ -26,8 +26,8 @@
       <!-- 资源选择器（仅仓库模式显示） -->
       <el-row :gutter="16" class="resource-selector" v-if="resourceType === 'warehouse'">
         <el-col :span="8">
-          <el-select 
-            v-model="selectedCountry" 
+          <el-select
+            v-model="selectedCountry"
             placeholder="选择国家"
             filterable
             @change="onCountryChange('warehouse')"
@@ -42,8 +42,8 @@
           </el-select>
         </el-col>
         <el-col :span="12">
-          <el-select 
-            v-model="selectedWarehouseCode" 
+          <el-select
+            v-model="selectedWarehouseCode"
             placeholder="选择仓库"
             filterable
             @change="loadCapacityData"
@@ -67,12 +67,12 @@
           />
         </el-col>
       </el-row>
-      
+
       <!-- 资源选择器（仅车队模式显示） -->
       <el-row :gutter="16" class="resource-selector" v-else>
         <el-col :span="8">
-          <el-select 
-            v-model="selectedCountry" 
+          <el-select
+            v-model="selectedCountry"
             placeholder="选择国家"
             filterable
             @change="onCountryChange('trucking')"
@@ -87,8 +87,8 @@
           </el-select>
         </el-col>
         <el-col :span="12">
-          <el-select 
-            v-model="selectedTruckingCode" 
+          <el-select
+            v-model="selectedTruckingCode"
             placeholder="选择车队"
             filterable
             @change="loadCapacityData"
@@ -114,17 +114,16 @@
       </el-row>
 
       <!-- 日历容器 -->
-      <FullCalendar
-        ref="calendarRef"
-        :options="calendarOptions"
-      />
+      <FullCalendar ref="calendarRef" :options="calendarOptions" />
 
       <!-- 图例 -->
       <div class="legend">
         <div class="legend-item">
           <span class="legend-color weekday"></span>
           <span class="legend-text">
-            工作日：{{ resourceType === 'warehouse' ? defaultWarehouseCapacity : defaultTruckingCapacity }}
+            工作日：{{
+              resourceType === 'warehouse' ? defaultWarehouseCapacity : defaultTruckingCapacity
+            }}
           </span>
         </div>
         <div class="legend-item">
@@ -153,20 +152,16 @@
           <el-statistic title="周末" :value="weekendCount" />
         </el-col>
         <el-col :span="6">
-          <el-statistic 
-            :title="resourceType === 'warehouse' ? '平均卸柜能力' : '平均提柜能力'" 
-            :value="averageCapacity" 
+          <el-statistic
+            :title="resourceType === 'warehouse' ? '平均卸柜能力' : '平均提柜能力'"
+            :value="averageCapacity"
           />
         </el-col>
       </el-row>
     </el-card>
 
     <!-- 详情对话框 -->
-    <el-dialog
-      v-model="detailDialogVisible"
-      title="每日能力详情"
-      width="600px"
-    >
+    <el-dialog v-model="detailDialogVisible" title="每日能力详情" width="600px">
       <el-descriptions :column="2" border v-if="selectedDay">
         <el-descriptions-item label="日期">
           {{ selectedDay.date }}
@@ -207,12 +202,7 @@
       <el-divider content-position="left">手动设置</el-divider>
       <el-form :model="manualForm" label-width="100px">
         <el-form-item label="设置能力">
-          <el-input-number
-            v-model="manualForm.capacity"
-            :min="0"
-            :max="100"
-            :step="1"
-          />
+          <el-input-number v-model="manualForm.capacity" :min="0" :max="100" :step="1" />
         </el-form-item>
         <el-form-item label="原因">
           <el-input
@@ -224,11 +214,7 @@
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="saveManualCapacity">保存设置</el-button>
-          <el-button 
-            v-if="selectedDay?.isManual" 
-            type="warning" 
-            @click="resetToCalendarRule"
-          >
+          <el-button v-if="selectedDay?.isManual" type="warning" @click="resetToCalendarRule">
             恢复日历规则
           </el-button>
           <el-button @click="detailDialogVisible = false">取消</el-button>
@@ -239,23 +225,26 @@
     <!-- 手动设置对话框（批量） -->
     <ManualCapacitySetting
       v-model:visible="showManualSetting"
+      :resource-type="resourceType"
+      :warehouse-code="resourceType === 'warehouse' ? selectedWarehouseCode : undefined"
+      :trucking-company-id="resourceType === 'trucking' ? selectedTruckingCode : undefined"
       @applied="loadCapacityData"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Refresh, Edit } from '@element-plus/icons-vue'
-import dayjs from 'dayjs'
-import ManualCapacitySetting from './ManualCapacitySetting.vue'
 import api from '@/services/api'
 import { useAppStore } from '@/store/app'
-import FullCalendar from '@fullcalendar/vue3'
+import { Edit, Refresh } from '@element-plus/icons-vue'
+import zhLocale from '@fullcalendar/core/locales/zh-cn'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
-import zhLocale from '@fullcalendar/core/locales/zh-cn'
+import FullCalendar from '@fullcalendar/vue3'
+import dayjs from 'dayjs'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { computed, onMounted, ref, watch } from 'vue'
+import ManualCapacitySetting from './ManualCapacitySetting.vue'
 
 // 日历引用
 const calendarRef = ref<any>(null)
@@ -269,7 +258,7 @@ const detailDialogVisible = ref(false)
 const showManualSetting = ref(false)
 const manualForm = ref({
   capacity: 0,
-  reason: ''
+  reason: '',
 })
 
 // 资源类型切换
@@ -277,8 +266,8 @@ const resourceType = ref<'warehouse' | 'trucking'>('warehouse')
 
 // 国家和资源列表
 const countries = ref<any[]>([])
-const allWarehouses = ref<any[]>([])  // 所有仓库
-const allTruckingCompanies = ref<any[]>([])  // 所有车队
+const allWarehouses = ref<any[]>([]) // 所有仓库
+const allTruckingCompanies = ref<any[]>([]) // 所有车队
 
 // 选中的国家和资源
 const selectedCountry = ref<string>('')
@@ -303,17 +292,19 @@ const selectedWarehouseName = computed(() => {
 })
 
 const selectedTruckingName = computed(() => {
-  const tc = allTruckingCompanies.value.find((t: any) => t.truckingCompanyId === selectedTruckingCode.value)
+  const tc = allTruckingCompanies.value.find(
+    (t: any) => t.truckingCompanyId === selectedTruckingCode.value
+  )
   return tc ? `${tc.country}-${tc.truckingCompanyName}` : ''
 })
 
 // 统计信息
 const totalDays = computed(() => capacityEvents.value.length)
-const weekdayCount = computed(() => 
-  capacityEvents.value.filter((d: any) => d.type === 'weekday').length
+const weekdayCount = computed(
+  () => capacityEvents.value.filter((d: any) => d.type === 'weekday').length
 )
-const weekendCount = computed(() => 
-  capacityEvents.value.filter((d: any) => d.type === 'weekend').length
+const weekendCount = computed(
+  () => capacityEvents.value.filter((d: any) => d.type === 'weekend').length
 )
 const averageCapacity = computed(() => {
   if (capacityEvents.value.length === 0) return 0
@@ -322,8 +313,8 @@ const averageCapacity = computed(() => {
 })
 
 // 默认能力（从配置读取）
-const defaultWarehouseCapacity = ref(10)  // 仓库卸柜能力
-const defaultTruckingCapacity = ref(8)    // 车队提柜能力
+const defaultWarehouseCapacity = ref(10) // 仓库卸柜能力
+const defaultTruckingCapacity = ref(8) // 车队提柜能力
 
 // 处理国家变化
 const onCountryChange = (type: 'warehouse' | 'trucking') => {
@@ -351,51 +342,60 @@ const loadResources = async () => {
   try {
     // 加载国家列表（从仓库和车队中提取）
     const countrySet = new Set<string>()
-    
-    // 加载仓库列表
-    const warehouseResponse = await api.get('/scheduling/resources/warehouse')
-    if (warehouseResponse.data.success) {
-      allWarehouses.value = warehouseResponse.data.data
+
+    // 使用 /resources/mapped 接口获取有映射关系的仓库和车队列表
+    const params: any = {}
+    if (resolvedCountry.value) {
+      params.country = resolvedCountry.value
+    }
+
+    const response: any = await api.get('/scheduling/resources/mapped', { params })
+
+    if (response.success) {
+      const { warehouses, truckings } = response.data
+
+      // 加载仓库列表（已映射的）
+      allWarehouses.value = warehouses || []
       allWarehouses.value.forEach((wh: any) => {
         if (wh.country && !countrySet.has(wh.country)) {
           countrySet.add(wh.country)
         }
       })
-    }
-    
-    // 加载车队列表
-    const truckingResponse = await api.get('/scheduling/resources/trucking')
-    if (truckingResponse.data.success) {
-      allTruckingCompanies.value = truckingResponse.data.data
+
+      // 加载车队列表（已映射的）
+      allTruckingCompanies.value = truckings || []
       allTruckingCompanies.value.forEach((tc: any) => {
         if (tc.country && !countrySet.has(tc.country)) {
           countrySet.add(tc.country)
         }
       })
     }
-    
+
     // 构建国家列表（带名称）
     const countryNames: Record<string, string> = {
-      'US': '美国',
-      'CA': '加拿大',
-      'GB': '英国',
-      'DE': '德国',
-      'FR': '法国',
-      'JP': '日本',
-      'CN': '中国'
+      US: '美国',
+      CA: '加拿大',
+      GB: '英国',
+      DE: '德国',
+      FR: '法国',
+      JP: '日本',
+      CN: '中国',
     }
-    
+
     countries.value = Array.from(countrySet).map(code => ({
       code,
-      name: countryNames[code] || code
+      name: countryNames[code] || code,
     }))
 
-    // 有全局国家作用域时自动应用；无作用域则保持用户可选/可不选（不选=全部）
+    // 有全局国家作用域时自动应用；无作用域则保持用户可选/可不选（不选=查看全部）
     if (resolvedCountry.value) {
       if (countries.value.some(c => c.code === resolvedCountry.value)) {
         selectedCountry.value = resolvedCountry.value
       } else {
-        countries.value.push({ code: resolvedCountry.value, name: countryNames[resolvedCountry.value] || resolvedCountry.value })
+        countries.value.push({
+          code: resolvedCountry.value,
+          name: countryNames[resolvedCountry.value] || resolvedCountry.value,
+        })
         selectedCountry.value = resolvedCountry.value
       }
     }
@@ -413,28 +413,28 @@ const calendarOptions = computed(() => ({
   headerToolbar: {
     left: 'prev,next today',
     center: 'title',
-    right: 'dayGridMonth,dayGridWeek'
+    right: 'dayGridMonth,dayGridWeek',
   },
   events: capacityEvents.value,
   dateClick: handleDateClick,
   eventClick: handleEventClick,
   height: 'auto',
   eventDisplay: 'block',
-  eventContent: renderEventContent
+  eventContent: renderEventContent,
 }))
 
 // 渲染事件内容
 const renderEventContent = (arg: any) => {
   const { event } = arg
   const { remaining, capacity } = event.extendedProps
-  
+
   return {
     html: `
       <div style="text-align: center; font-size: 12px;">
         <div style="font-weight: bold;">${remaining}/${capacity}</div>
         <div style="font-size: 10px;">${event.title}</div>
       </div>
-    `
+    `,
   }
 }
 
@@ -443,33 +443,39 @@ const loadCapacityData = async () => {
   try {
     const startDate = dayjs().format('YYYY-MM-DD')
     const endDate = dayjs().add(2, 'month').format('YYYY-MM-DD')
-    
+
     // 根据资源类型和选中的资源构建查询参数
     const countryForQuery = resolvedCountry.value || selectedCountry.value || ''
     let params: any = { start: startDate, end: endDate }
     if (countryForQuery) {
       params.country = countryForQuery
     }
-    
+
     if (resourceType.value === 'warehouse') {
       params.resourceType = 'warehouse'
-      if (selectedWarehouseCode.value) {
-        params.warehouseCode = selectedWarehouseCode.value
+      if (!selectedWarehouseCode.value) {
+        // 没有选择具体仓库，不加载数据
+        capacityEvents.value = []
+        return
       }
+      params.warehouseCode = selectedWarehouseCode.value
     } else {
       params.resourceType = 'trucking'
-      if (selectedTruckingCode.value) {
-        params.truckingCompanyId = selectedTruckingCode.value
+      if (!selectedTruckingCode.value) {
+        // 没有选择具体车队，不加载数据
+        capacityEvents.value = []
+        return
       }
+      params.truckingCompanyId = selectedTruckingCode.value
     }
-    
+
     // 构建查询字符串
     const queryString = Object.entries(params)
       .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
       .join('&')
-    
+
     const response = await api.get(`/scheduling/resources/capacity/range?${queryString}`)
-    
+
     if (response.data.success) {
       capacityEvents.value = response.data.data.map((item: any) => ({
         id: item.id,
@@ -480,8 +486,8 @@ const loadCapacityData = async () => {
         extendedProps: {
           ...item,
           remaining: item.remaining || item.capacity,
-          capacity: item.capacity
-        }
+          capacity: item.capacity,
+        },
       }))
     }
   } catch (error: any) {
@@ -494,7 +500,7 @@ const loadCapacityData = async () => {
 const getEventTitle = (item: any) => {
   const date = dayjs(item.date)
   const weekday = date.format('ddd')
-  
+
   if (item.type === 'weekend') {
     return '休息日'
   } else if (item.type === 'holiday') {
@@ -527,7 +533,7 @@ const getColorByCapacity = (item: any) => {
 const handleDateClick = (info: any) => {
   const dateStr = info.dateStr
   const dayData = capacityEvents.value.find(e => e.start === dateStr)
-  
+
   if (dayData) {
     showDayDetail(dayData.extendedProps)
   } else {
@@ -545,7 +551,7 @@ const handleEventClick = (info: any) => {
 // 显示详情
 const showDayDetail = (dayData: any) => {
   const date = dayjs(dayData.date)
-  
+
   selectedDay.value = {
     ...dayData,
     date: dayData.date,
@@ -554,13 +560,13 @@ const showDayDetail = (dayData: any) => {
     multiplier: dayData.multiplier || 1.0,
     isManual: dayData.isManual || false,
     manualValue: dayData.manualValue,
-    manualReason: dayData.manualReason
+    manualReason: dayData.manualReason,
   }
-  
+
   // 填充表单
   manualForm.value.capacity = dayData.finalCapacity || dayData.capacity || 0
   manualForm.value.reason = dayData.manualReason || ''
-  
+
   detailDialogVisible.value = true
 }
 
@@ -569,16 +575,28 @@ const createDefaultDay = (dateStr: string) => {
   const date = dayjs(dateStr)
   const dayOfWeek = date.day()
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
-  
+
   return {
     date: dateStr,
     type: isWeekend ? 'weekend' : 'weekday',
-    baseCapacity: isWeekend ? 0 : (resourceType.value === 'warehouse' ? defaultWarehouseCapacity.value : defaultTruckingCapacity.value),
-    finalCapacity: isWeekend ? 0 : (resourceType.value === 'warehouse' ? defaultWarehouseCapacity.value : defaultTruckingCapacity.value),
+    baseCapacity: isWeekend
+      ? 0
+      : resourceType.value === 'warehouse'
+        ? defaultWarehouseCapacity.value
+        : defaultTruckingCapacity.value,
+    finalCapacity: isWeekend
+      ? 0
+      : resourceType.value === 'warehouse'
+        ? defaultWarehouseCapacity.value
+        : defaultTruckingCapacity.value,
     occupied: 0,
-    remaining: isWeekend ? 0 : (resourceType.value === 'warehouse' ? defaultWarehouseCapacity.value : defaultTruckingCapacity.value),
+    remaining: isWeekend
+      ? 0
+      : resourceType.value === 'warehouse'
+        ? defaultWarehouseCapacity.value
+        : defaultTruckingCapacity.value,
     multiplier: 1.0,
-    isManual: false
+    isManual: false,
   }
 }
 
@@ -588,7 +606,7 @@ const getTypeText = (type: string) => {
     weekday: '工作日',
     weekend: '周末',
     holiday: '节假日',
-    manual: '手动设置'
+    manual: '手动设置',
   }
   return typeMap[type] || type
 }
@@ -599,7 +617,7 @@ const getDayTypeTag = (type: string) => {
     weekday: 'success',
     weekend: 'danger',
     holiday: 'warning',
-    manual: 'primary'
+    manual: 'primary',
   }
   return tagMap[type] || 'info'
 }
@@ -613,7 +631,7 @@ const saveManualCapacity = async () => {
     const params: any = {
       date: selectedDay.value.date,
       capacity: manualForm.value.capacity,
-      reason: manualForm.value.reason
+      reason: manualForm.value.reason,
     }
 
     if (resourceType.value === 'warehouse') {
@@ -636,20 +654,16 @@ const saveManualCapacity = async () => {
 // 恢复日历规则
 const resetToCalendarRule = async () => {
   if (!selectedDay.value) return
-  
+
   try {
-    await ElMessageBox.confirm(
-      '确定要恢复日历规则吗？这将清除手动设置。',
-      '提示',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
-    
+    await ElMessageBox.confirm('确定要恢复日历规则吗？这将清除手动设置。', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+
     await api.delete(`/scheduling/resources/capacity/manual/${selectedDay.value.date}`)
-    
+
     ElMessage.success('已恢复日历规则')
     detailDialogVisible.value = false
     loadCapacityData()
@@ -683,7 +697,7 @@ watch(
 
 // 导出方法供外部调用
 defineExpose({
-  refresh: loadCapacityData
+  refresh: loadCapacityData,
 })
 </script>
 
@@ -770,7 +784,7 @@ defineExpose({
 // FullCalendar 样式覆盖
 :deep(.fc) {
   font-family: inherit;
-  
+
   .fc-toolbar {
     margin-bottom: 16px;
   }

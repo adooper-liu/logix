@@ -16,6 +16,7 @@
 **修正**: ✅ 已修改为 `actual_loading_date`
 
 **验证**:
+
 ```sql
 \d process_sea_freight
 -- 确认字段：actual_loading_date | timestamp with time zone
@@ -27,13 +28,15 @@
 
 **TimescaleDB 规则**: hypertable 的主键必须包含时间分区列  
 **当前状态**: 所有表的主键都是 `(id)`，不包含时间字段  
-**影响**: 
+**影响**:
+
 - 无法创建不包含分区列的唯一索引
 - 某些查询可能性能下降
 
 **解决方案**: ✅ 已创建补充脚本
 
 **方案 A - 删除主键，改用唯一索引**（推荐）:
+
 ```sql
 ALTER TABLE ext_container_status_events DROP CONSTRAINT ext_container_status_events_pkey;
 CREATE UNIQUE INDEX idx_ext_container_status_events_id ON ext_container_status_events(id);
@@ -41,8 +44,9 @@ CREATE UNIQUE INDEX idx_ext_container_status_events_id ON ext_container_status_e
 ```
 
 **方案 B - 复合主键**（备选，影响较大）:
+
 ```sql
-ALTER TABLE ext_container_status_events 
+ALTER TABLE ext_container_status_events
   DROP CONSTRAINT ext_container_status_events_pkey,
   ADD PRIMARY KEY (id, occurred_at);
 ```
@@ -58,9 +62,10 @@ ALTER TABLE ext_container_status_events
 **影响**: 阻止 process_sea_freight 转换为 hypertable
 
 **解决方案**:
+
 ```sql
 -- Step 1: 删除外键约束
-ALTER TABLE biz_containers 
+ALTER TABLE biz_containers
   DROP CONSTRAINT biz_containers_bill_of_lading_number_fkey;
 
 -- Step 2: 转换为 hypertable
@@ -87,8 +92,8 @@ docker exec logix-timescaledb-prod pg_dump -U logix_user logix_db --schema-only 
 
 # 3. 导出外键定义
 docker exec logix-timescaledb-prod psql -U logix_user -d logix_db -c "
-SELECT conname, pg_get_constraintdef(oid) 
-FROM pg_constraint 
+SELECT conname, pg_get_constraintdef(oid)
+FROM pg_constraint
 WHERE contype = 'f';
 " > backup_fk_definitions.txt
 ```
@@ -99,24 +104,24 @@ WHERE contype = 'f';
 -- 在 psql 中执行：
 
 -- 1. ext_container_status_events: 删除主键
-ALTER TABLE ext_container_status_events 
+ALTER TABLE ext_container_status_events
   DROP CONSTRAINT ext_container_status_events_pkey;
-CREATE UNIQUE INDEX idx_ext_container_status_events_id 
+CREATE UNIQUE INDEX idx_ext_container_status_events_id
 ON ext_container_status_events(id);
 
 -- 2. process_port_operations: 填充 NULL 值
-UPDATE process_port_operations 
-SET ata = COALESCE(eta, etd, port_arrival_date, NOW()) 
+UPDATE process_port_operations
+SET ata = COALESCE(eta, etd, port_arrival_date, NOW())
 WHERE ata IS NULL;
 
 -- 3. process_sea_freight: 删除外键
-ALTER TABLE biz_containers 
+ALTER TABLE biz_containers
   DROP CONSTRAINT biz_containers_bill_of_lading_number_fkey;
 
 -- 4. sys_data_change_log: 删除主键
-ALTER TABLE sys_data_change_log 
+ALTER TABLE sys_data_change_log
   DROP CONSTRAINT sys_data_change_log_pkey;
-CREATE UNIQUE INDEX idx_sys_data_change_log_id 
+CREATE UNIQUE INDEX idx_sys_data_change_log_id
 ON sys_data_change_log(id);
 ```
 
@@ -158,20 +163,20 @@ SELECT add_retention_policy('sys_data_change_log', INTERVAL '1 year');
 
 ```sql
 -- 1. 检查 hypertables
-SELECT hypertable_schema, hypertable_name 
+SELECT hypertable_schema, hypertable_name
 FROM timescaledb_information.hypertables
 ORDER BY hypertable_name;
 
 -- 2. 检查主键/索引
-SELECT 
+SELECT
     schemaname,
     tablename,
     indexname,
     indexdef
-FROM pg_indexes 
+FROM pg_indexes
 WHERE tablename IN (
     'ext_container_status_events',
-    'process_port_operations', 
+    'process_port_operations',
     'process_sea_freight',
     'sys_data_change_log'
 )
@@ -179,7 +184,7 @@ AND indexdef LIKE '%UNIQUE%'
 ORDER BY tablename, indexname;
 
 -- 3. 检查数据量
-SELECT 
+SELECT
     'ext_container_status_events' AS table_name, COUNT(*) AS row_count
 FROM ext_container_status_events
 UNION ALL
@@ -196,21 +201,21 @@ SELECT 'sys_data_change_log', COUNT(*) FROM sys_data_change_log;
 
 ### 性能提升
 
-| 查询类型 | 转换前 | 转换后 | 提升倍数 |
-|---------|--------|--------|---------|
-| 时间范围查询（单表） | 500ms | 5ms | **100x** |
-| 聚合统计（按小时） | 2s | 50ms | **40x** |
-| 最新 N 条记录 | 100ms | 2ms | **50x** |
-| 跨表关联查询 | 1s | 800ms | 1.25x |
+| 查询类型             | 转换前 | 转换后 | 提升倍数 |
+| -------------------- | ------ | ------ | -------- |
+| 时间范围查询（单表） | 500ms  | 5ms    | **100x** |
+| 聚合统计（按小时）   | 2s     | 50ms   | **40x**  |
+| 最新 N 条记录        | 100ms  | 2ms    | **50x**  |
+| 跨表关联查询         | 1s     | 800ms  | 1.25x    |
 
 ### 存储优化
 
-| 表 | 原始大小 | 压缩后（预估） | 压缩率 |
-|----|---------|--------------|--------|
-| ext_container_status_events | 1GB | 100MB | **90%** |
-| process_port_operations | 2GB | 200MB | **90%** |
-| process_sea_freight | 500MB | 50MB | **90%** |
-| sys_data_change_log | 300MB | 30MB | **90%** |
+| 表                          | 原始大小 | 压缩后（预估） | 压缩率  |
+| --------------------------- | -------- | -------------- | ------- |
+| ext_container_status_events | 1GB      | 100MB          | **90%** |
+| process_port_operations     | 2GB      | 200MB          | **90%** |
+| process_sea_freight         | 500MB    | 50MB           | **90%** |
+| sys_data_change_log         | 300MB    | 30MB           | **90%** |
 
 ---
 
@@ -285,13 +290,13 @@ psql -U logix_user -d logix_db < backup_full_YYYYMMDD_HHMMSS.sql
 
 ## 📚 **相关文档**
 
-| 文档 | 路径 | 用途 |
-|------|------|------|
-| **主迁移脚本** | `migrations/convert-to-hypertables.sql` | 转换 hypertable |
-| **主键优化脚本** | `migrations/add-hypertable-primary-keys.sql` | 处理主键问题 |
-| **诊断报告** | `docs/TimescaleDB 迁移问题诊断.md` | 详细问题分析 |
-| **迁移指南** | `docs/TimescaleDB 迁移指南.md` | 完整操作指南 |
-| **快速参考** | `docs/脚本速查表.md` | 常用命令速查 |
+| 文档             | 路径                                         | 用途            |
+| ---------------- | -------------------------------------------- | --------------- |
+| **主迁移脚本**   | `migrations/convert-to-hypertables.sql`      | 转换 hypertable |
+| **主键优化脚本** | `migrations/add-hypertable-primary-keys.sql` | 处理主键问题    |
+| **诊断报告**     | `docs/TimescaleDB 迁移问题诊断.md`           | 详细问题分析    |
+| **迁移指南**     | `docs/TimescaleDB 迁移指南.md`               | 完整操作指南    |
+| **快速参考**     | `docs/脚本速查表.md`                         | 常用命令速查    |
 
 ---
 
@@ -320,6 +325,7 @@ psql -U logix_user -d logix_db < backup_full_YYYYMMDD_HHMMSS.sql
 ## 📞 **后续支持**
 
 如有问题，请提供：
+
 1. 此最终方案文档
 2. 实际执行的 SQL 输出
 3. 错误信息（完整）
@@ -330,6 +336,7 @@ psql -U logix_user -d logix_db < backup_full_YYYYMMDD_HHMMSS.sql
 ---
 
 **版本历史**:
+
 - v1.0: 初始版本（过于理想化）
 - v2.0: 根据实际审查修正 ✅
 

@@ -11,11 +11,7 @@
     <div class="config-content">
       <!-- 左侧导航菜单 -->
       <div class="config-sidebar">
-        <el-menu
-          :default-active="activeMenu"
-          class="config-menu"
-          @select="handleMenuSelect"
-        >
+        <el-menu :default-active="activeMenu" class="config-menu" @select="handleMenuSelect">
           <el-menu-item index="overview">
             <el-icon><House /></el-icon>
             <span>排产概览</span>
@@ -40,8 +36,7 @@
             <el-icon><Calendar /></el-icon>
             <span>产能日历</span>
           </el-menu-item>
-          <el-divider />
-          <el-menu-item index="schedule">
+          <el-menu-item index="visual">
             <el-icon><Cpu /></el-icon>
             <span>开始排产</span>
           </el-menu-item>
@@ -86,21 +81,14 @@
           <CalendarCapacityView ref="calendarRef" />
         </div>
 
-        <!-- 开始排产 -->
-        <div v-if="activeMenu === 'schedule'" class="config-section">
-          <h3>智能排产</h3>
-          <div class="schedule-entry">
-            <el-card>
-              <template #header>
-                <span>开始智能排产</span>
-              </template>
-              <p>点击下方按钮跳转到排产页面开始智能排产</p>
-              <el-button type="primary" @click="goToScheduling">
-                <el-icon><Cpu /></el-icon>
-                进入排产页面
-              </el-button>
-            </el-card>
-          </div>
+        <!-- 排产执行 -->
+        <div v-if="activeMenu === 'visual'" class="config-section">
+          <h3>排产执行</h3>
+          <SchedulingVisual
+            :country="route.query.country as string"
+            :initial-date-range="dateRangeFromQuery"
+            :containers="route.query.containers as string"
+          />
         </div>
       </div>
     </div>
@@ -108,20 +96,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { House, Box, Van, OfficeBuilding, Connection, Calendar, Cpu } from '@element-plus/icons-vue'
 import { useAppStore } from '@/store/app'
+import { Box, Calendar, Connection, Cpu, House, OfficeBuilding, Van } from '@element-plus/icons-vue'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import CalendarCapacityView from './components/CalendarCapacityView.vue'
+import SchedulingVisual from './SchedulingVisual.vue'
 
 // 导入子组件
-import OverviewPanel from './components/OverviewPanel.vue'
-import WarehouseManagement from './components/WarehouseManagement.vue'
-import TruckingManagement from './components/TruckingManagement.vue'
-import YardManagement from './components/YardManagement.vue'
 import MappingManagement from './components/MappingManagement.vue'
+import OverviewPanel from './components/OverviewPanel.vue'
+import TruckingManagement from './components/TruckingManagement.vue'
+import WarehouseManagement from './components/WarehouseManagement.vue'
+import YardManagement from './components/YardManagement.vue'
 
 const router = useRouter()
+const route = useRoute()
 const appStore = useAppStore()
 
 // 状态
@@ -131,9 +121,20 @@ const calendarRef = ref<InstanceType<typeof CalendarCapacityView>>()
 // 计算属性
 const currentCountry = computed(() => appStore.scopedCountryCode || '')
 
+// 从 URL 参数解析日期范围
+const dateRangeFromQuery = computed<[Date, Date] | undefined>(() => {
+  const startDate = route.query.startDate as string
+  const endDate = route.query.endDate as string
+
+  if (startDate && endDate) {
+    return [new Date(startDate), new Date(endDate)]
+  }
+  return undefined
+})
+
 const breadcrumbs = computed(() => [
   { name: '首页', path: '/' },
-  { name: '排产配置', path: '/scheduling-config' }
+  { name: '排产配置', path: '/scheduling-config' },
 ])
 
 // 方法
@@ -145,12 +146,26 @@ const handleNavigate = (target: string) => {
   activeMenu.value = target
 }
 
-const goToScheduling = () => {
-  router.push('/scheduling')
-}
+// 监听路由参数变化，根据 tab 参数设置默认激活的菜单
+watch(
+  () => route.query.tab,
+  tab => {
+    if (tab && typeof tab === 'string') {
+      activeMenu.value = tab
+    }
+  },
+  { immediate: true }
+)
 
 onMounted(() => {
-  // 初始化
+  // 初始化：检查是否有 tab 参数
+  const tab = route.query.tab as string
+  if (
+    tab &&
+    ['visual', 'capacity', 'overview', 'warehouse', 'trucking', 'yard', 'mapping'].includes(tab)
+  ) {
+    activeMenu.value = tab
+  }
 })
 </script>
 

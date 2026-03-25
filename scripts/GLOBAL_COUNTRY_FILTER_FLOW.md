@@ -1,7 +1,7 @@
 # 全局国家过滤条件获取流程详解
 
 **创建日期**: 2026-03-21  
-**最后更新**: 2026-03-21  
+**最后更新**: 2026-03-21
 
 ---
 
@@ -38,48 +38,46 @@ graph TB
 
 ```typescript
 // 第 46-77 行
-const countryOptions = ref<Array<{ value: string; label: string }>>([])
+const countryOptions = ref<Array<{ value: string; label: string }>>([]);
 
 onMounted(async () => {
   try {
-    console.log('[国家筛选] 开始加载国家列表...')
-    
+    console.log("[国家筛选] 开始加载国家列表...");
+
     // 调用容器服务的 getCountries 方法
-    const res = await containerService.getCountries()
-    console.log('[国家筛选] API 响应:', res)
-    
+    const res = await containerService.getCountries();
+    console.log("[国家筛选] API 响应:", res);
+
     if (res?.success && Array.isArray(res.data)) {
-      console.log('[国家筛选] 成功获取国家数据，数量:', res.data.length)
-      
+      console.log("[国家筛选] 成功获取国家数据，数量:", res.data.length);
+
       // 映射为国家选项
       const fromApi = res.data.map((c: { code: string; nameCn: string; nameEn: string }) => ({
         value: c.code,
-        label: c.nameCn || c.nameEn || c.code
-      }))
-      
-      countryOptions.value = [
-        { value: '', label: t('common.allCountries') || '全部国家' },
-        ...fromApi
-      ]
-      
+        label: c.nameCn || c.nameEn || c.code,
+      }));
+
+      countryOptions.value = [{ value: "", label: t("common.allCountries") || "全部国家" }, ...fromApi];
+
       // GB 别名 UK，后端会规范化 UK->GB
-      if (fromApi.some((o: { value: string }) => o.value === 'GB')) {
-        countryOptions.value.push({ value: 'UK', label: '英国 (UK)' })
+      if (fromApi.some((o: { value: string }) => o.value === "GB")) {
+        countryOptions.value.push({ value: "UK", label: "英国 (UK)" });
       }
-      
-      console.log('[国家筛选] 国家选项设置完成，总数:', countryOptions.value.length)
+
+      console.log("[国家筛选] 国家选项设置完成，总数:", countryOptions.value.length);
     } else {
-      console.error('[国家筛选] API 返回数据格式不正确:', res)
-      countryOptions.value = [{ value: '', label: t('common.allCountries') || '全部国家' }]
+      console.error("[国家筛选] API 返回数据格式不正确:", res);
+      countryOptions.value = [{ value: "", label: t("common.allCountries") || "全部国家" }];
     }
   } catch (error) {
-    console.error('[国家筛选] 加载国家列表失败:', error)
-    countryOptions.value = [{ value: '', label: t('common.allCountries') || '全部国家' }]
+    console.error("[国家筛选] 加载国家列表失败:", error);
+    countryOptions.value = [{ value: "", label: t("common.allCountries") || "全部国家" }];
   }
-})
+});
 ```
 
 **关键点**:
+
 - ✅ 在组件挂载时自动加载
 - ✅ 支持国际化（中文优先，英文备选）
 - ✅ 添加"全部国家"选项
@@ -97,9 +95,9 @@ onMounted(async () => {
  * 获取国别字典列表（用于全局国家选择器等）
  * Get country list from dict_countries
  */
-async getCountries(): Promise<{ 
-  success: boolean; 
-  data: Array<{ code: string; nameCn: string; nameEn: string }> 
+async getCountries(): Promise<{
+  success: boolean;
+  data: Array<{ code: string; nameCn: string; nameEn: string }>
 }> {
   const response = await this.api.get('/countries');
   return response.data;
@@ -107,6 +105,7 @@ async getCountries(): Promise<{
 ```
 
 **关键点**:
+
 - ✅ 使用封装的 API 客户端
 - ✅ 返回强类型定义
 - ✅ 自动处理 baseURL 和认证
@@ -119,31 +118,32 @@ async getCountries(): Promise<{
 
 ```typescript
 // 第 1-27 行
-import { Router } from 'express';
-import { CountryController } from '../controllers/country.controller';
+import { Router } from "express";
+import { CountryController } from "../controllers/country.controller";
 
 const router = Router();
 const countryController = new CountryController();
 
 // 获取所有国家
-router.get('/', countryController.getAllCountries);
+router.get("/", countryController.getAllCountries);
 
 // 根据代码获取国家
-router.get('/:code', countryController.getCountryByCode);
+router.get("/:code", countryController.getCountryByCode);
 
 // 创建国家
-router.post('/', countryController.createCountry);
+router.post("/", countryController.createCountry);
 
 // 更新国家
-router.put('/:code', countryController.updateCountry);
+router.put("/:code", countryController.updateCountry);
 
 // 删除国家
-router.delete('/:code', countryController.deleteCountry);
+router.delete("/:code", countryController.deleteCountry);
 
 export default router;
 ```
 
 **关键点**:
+
 - ✅ RESTful 路由设计
 - ✅ 支持 CRUD 操作
 - ✅ 控制器注入
@@ -164,27 +164,28 @@ getAllCountries = async (req: Request, res: Response): Promise<void> => {
   try {
     // 查询启用的国家，按排序和代码升序
     const countries = await this.countryRepository.find({
-      order: { sortOrder: 'ASC', code: 'ASC' },
-      where: { isActive: true }
+      order: { sortOrder: "ASC", code: "ASC" },
+      where: { isActive: true },
     });
 
     res.json({
       success: true,
-      data: countries
+      data: countries,
     });
 
     logger.info(`Retrieved ${countries.length} countries`);
   } catch (error) {
-    logger.error('Failed to get countries', error);
+    logger.error("Failed to get countries", error);
     res.status(500).json({
       success: false,
-      message: '获取国家列表失败'
+      message: "获取国家列表失败",
     });
   }
 };
 ```
 
 **关键点**:
+
 - ✅ 只返回启用的国家 (`isActive: true`)
 - ✅ 按排序号和代码升序排列
 - ✅ 统一的响应格式
@@ -197,44 +198,45 @@ getAllCountries = async (req: Request, res: Response): Promise<void> => {
 **文件**: `backend/src/entities/Country.ts`
 
 ```typescript
-@Entity('dict_countries')
+@Entity("dict_countries")
 export class Country {
-  @PrimaryColumn({ type: 'varchar', length: 10, name: 'code' })
+  @PrimaryColumn({ type: "varchar", length: 10, name: "code" })
   code!: string; // ISO 国家代码 (US, CA, GB, CN 等)
 
-  @Column({ type: 'varchar', length: 50, name: 'name_cn' })
+  @Column({ type: "varchar", length: 50, name: "name_cn" })
   nameCn!: string; // 中文名称 (美国，加拿大，英国，中国)
 
-  @Column({ type: 'varchar', length: 50, name: 'name_en' })
+  @Column({ type: "varchar", length: 50, name: "name_en" })
   nameEn!: string; // 英文名称 (United States, Canada, United Kingdom, China)
 
-  @Column({ type: 'varchar', length: 10, nullable: true, name: 'region' })
+  @Column({ type: "varchar", length: 10, nullable: true, name: "region" })
   region!: string; // 区域 (NA-北美，EU-欧洲，ASIA-亚洲等)
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'continent' })
+  @Column({ type: "varchar", length: 20, nullable: true, name: "continent" })
   continent!: string; // 洲 (Asia, Europe, North America 等)
 
-  @Column({ type: 'varchar', length: 10, nullable: true, name: 'currency' })
+  @Column({ type: "varchar", length: 10, nullable: true, name: "currency" })
   currency!: string; // 货币代码 (USD, CAD, GBP, CNY 等)
 
-  @Column({ type: 'varchar', length: 20, nullable: true, name: 'phone_code' })
+  @Column({ type: "varchar", length: 20, nullable: true, name: "phone_code" })
   phoneCode!: string; // 电话区号 (+1, +44, +86 等)
 
-  @Column({ type: 'int', default: 0, name: 'sort_order' })
+  @Column({ type: "int", default: 0, name: "sort_order" })
   sortOrder!: number; // 排序
 
-  @Column({ type: 'boolean', default: true, name: 'is_active' })
+  @Column({ type: "boolean", default: true, name: "is_active" })
   isActive!: boolean; // 是否启用
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: "created_at" })
   createdAt!: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: "updated_at" })
   updatedAt!: Date;
 }
 ```
 
 **关键点**:
+
 - ✅ 使用 ISO 国家代码作为主键
 - ✅ 支持中英文双语
 - ✅ 包含丰富的附加信息（货币、电话区号等）
@@ -248,63 +250,64 @@ export class Country {
 
 ```typescript
 // 第 38-60 行
-console.log('🌍 Seeding countries...');
+console.log("🌍 Seeding countries...");
 const countries = [
-  { 
-    code: 'US', 
-    nameCn: '美国', 
-    nameEn: 'United States', 
-    region: 'NA', 
-    continent: 'North America', 
-    currency: 'USD', 
-    phoneCode: '+1', 
-    sortOrder: 1 
+  {
+    code: "US",
+    nameCn: "美国",
+    nameEn: "United States",
+    region: "NA",
+    continent: "North America",
+    currency: "USD",
+    phoneCode: "+1",
+    sortOrder: 1,
   },
-  { 
-    code: 'CA', 
-    nameCn: '加拿大', 
-    nameEn: 'Canada', 
-    region: 'NA', 
-    continent: 'North America', 
-    currency: 'CAD', 
-    phoneCode: '+1', 
-    sortOrder: 2 
+  {
+    code: "CA",
+    nameCn: "加拿大",
+    nameEn: "Canada",
+    region: "NA",
+    continent: "North America",
+    currency: "CAD",
+    phoneCode: "+1",
+    sortOrder: 2,
   },
-  { 
-    code: 'GB', 
-    nameCn: '英国', 
-    nameEn: 'United Kingdom', 
-    region: 'EU', 
-    continent: 'Europe', 
-    currency: 'GBP', 
-    phoneCode: '+44', 
-    sortOrder: 3 
+  {
+    code: "GB",
+    nameCn: "英国",
+    nameEn: "United Kingdom",
+    region: "EU",
+    continent: "Europe",
+    currency: "GBP",
+    phoneCode: "+44",
+    sortOrder: 3,
   },
-  { 
-    code: 'FR', 
-    nameCn: '法国', 
-    nameEn: 'France', 
-    region: 'EU', 
-    continent: 'Europe', 
-    currency: 'EUR', 
-    phoneCode: '+33', 
-    sortOrder: 4 
+  {
+    code: "FR",
+    nameCn: "法国",
+    nameEn: "France",
+    region: "EU",
+    continent: "Europe",
+    currency: "EUR",
+    phoneCode: "+33",
+    sortOrder: 4,
   },
-  { 
-    code: 'DE', 
-    nameCn: '德国', 
-    nameEn: 'Germany', 
-    region: 'EU', 
-    continent: 'Europe', 
-    currency: 'EUR', 
-    phoneCode: '+49', 
-    sortOrder: 5 
+  {
+    code: "DE",
+    nameCn: "德国",
+    nameEn: "Germany",
+    region: "EU",
+    continent: "Europe",
+    currency: "EUR",
+    phoneCode: "+49",
+    sortOrder: 5,
   },
   // ... 更多国家
 ];
 ```
 
 **关键点**:
+
 - ✅ 预置常用国家数据
 - ✅ 包含完整的元数据
 - ✅ 按业务重要性排序
@@ -319,15 +322,13 @@ const countries = [
 
 ```typescript
 // 第 45-50 行
-const rawCountry =
-  (params.countryCode !== undefined && params.countryCode !== null
-    ? String(params.countryCode).trim()
-    : getScopedCountryCode()) || '';
+const rawCountry = (params.countryCode !== undefined && params.countryCode !== null ? String(params.countryCode).trim() : getScopedCountryCode()) || "";
 const code = normalizeCountryCode(rawCountry);
 const hasCountry = !!code;
 ```
 
 **工作原理**:
+
 1. 从参数或全局 Store 获取国家代码
 2. 规范化国家代码（如 UK → GB）
 3. 如果有国家代码，添加 EXISTS 子查询过滤
@@ -341,13 +342,14 @@ const hasCountry = !!code;
 ```typescript
 // 第 1527-1531 行
 appStore.$subscribe((mutation, state) => {
-  if (mutation.type === 'setScopedCountryCode') {
-    watchCountryChange()
+  if (mutation.type === "setScopedCountryCode") {
+    watchCountryChange();
   }
-})
+});
 ```
 
 **工作原理**:
+
 1. 订阅 AppStore 的变化
 2. 当 `scopedCountryCode` 改变时触发
 3. 重新加载占用数据、场地信息等
@@ -373,6 +375,7 @@ appStore.$subscribe((mutation, state) => {
 ```
 
 **工作原理**:
+
 1. 使用相同的 `countryOptions` 数据源
 2. 在新增/编辑时选择国家
 3. 根据国家过滤仓库和车队选项
@@ -386,18 +389,20 @@ appStore.$subscribe((mutation, state) => {
 **问题**: UK 和 GB 表示同一个国家
 
 **解决方案**:
+
 ```typescript
 // Layout.vue 第 64-67 行
 // GB 别名 UK，后端会规范化 UK->GB
-if (fromApi.some((o: { value: string }) => o.value === 'GB')) {
-  countryOptions.value.push({ value: 'UK', label: '英国 (UK)' })
+if (fromApi.some((o: { value: string }) => o.value === "GB")) {
+  countryOptions.value.push({ value: "UK", label: "英国 (UK)" });
 }
 ```
 
 **后端规范化**:
+
 ```typescript
 function normalizeCountryCode(code: string): string {
-  if (code.toUpperCase() === 'UK') return 'GB';
+  if (code.toUpperCase() === "UK") return "GB";
   return code;
 }
 ```
@@ -414,12 +419,13 @@ function normalizeCountryCode(code: string): string {
 ```
 
 **存储逻辑**:
+
 ```typescript
 // Layout.vue 第 79-82 行
 const scopedCountryValue = computed({
-  get: () => appStore.scopedCountryCode ?? '',
-  set: (v: string) => appStore.setScopedCountryCode(v || null)
-})
+  get: () => appStore.scopedCountryCode ?? "",
+  set: (v: string) => appStore.setScopedCountryCode(v || null),
+});
 ```
 
 ---
@@ -427,6 +433,7 @@ const scopedCountryValue = computed({
 ### 3. 缓存机制
 
 **LocalStorage 持久化**:
+
 ```typescript
 // AppStore 中保存
 setScopedCountryCode(code: string | null) {
@@ -436,9 +443,10 @@ setScopedCountryCode(code: string | null) {
 ```
 
 **页面刷新后恢复**:
+
 ```typescript
 // 初始化时从 localStorage 读取
-const saved = localStorage.getItem('scopedCountryCode');
+const saved = localStorage.getItem("scopedCountryCode");
 if (saved) {
   this.scopedCountryCode = saved;
 }
@@ -451,11 +459,13 @@ if (saved) {
 ### 问题 1: 国家列表为空
 
 **可能原因**:
+
 1. `dict_countries` 表数据为空
 2. API 调用失败
 3. 网络问题
 
 **诊断步骤**:
+
 ```bash
 # 1. 检查数据库
 psql -c "SELECT COUNT(*) FROM dict_countries WHERE is_active = true;"
@@ -468,6 +478,7 @@ curl http://localhost:3001/api/v1/countries
 ```
 
 **解决方案**:
+
 ```sql
 -- 执行初始化脚本
 \i backend/02_init_dict_tables_final.sql
@@ -478,17 +489,20 @@ curl http://localhost:3001/api/v1/countries
 ### 问题 2: 选择国家后数据无变化
 
 **可能原因**:
+
 1. 数据表缺少 `country` 字段
 2. 查询未添加国家过滤条件
 3. 数据中的 `country` 值不规范
 
 **诊断步骤**:
+
 ```bash
 # 运行诊断脚本
 node backend/scripts/check-country-tables.ts
 ```
 
 **检查清单**:
+
 - [ ] 确认相关表包含 `country` 字段
 - [ ] 确认 `country` 值在 `dict_countries` 中存在
 - [ ] 确认查询使用了 `DateFilterBuilder.addCountryFilters()`
@@ -502,10 +516,11 @@ node backend/scripts/check-country-tables.ts
 **原因**: 数据库中存的是 `GB`，但选择器值是`UK`
 
 **解决方案**:
+
 ```typescript
 // 确保后端规范化
 function normalizeCountryCode(code: string): string {
-  return code.toUpperCase() === 'UK' ? 'GB' : code;
+  return code.toUpperCase() === "UK" ? "GB" : code;
 }
 ```
 
@@ -517,7 +532,8 @@ function normalizeCountryCode(code: string): string {
 
 **现状**: 每个页面都调用 `getCountries()`
 
-**优化**: 
+**优化**:
+
 - ✅ 改为在 App 初始化时加载一次
 - ✅ 保存到全局 Store
 - ✅ 其他页面直接使用
@@ -527,15 +543,13 @@ function normalizeCountryCode(code: string): string {
 ### 2. 缓存策略
 
 **建议**:
+
 ```typescript
 // 使用 Vue Query 或 SWR 等库
-const { data: countries } = useQuery(['countries'], () => 
-  containerService.getCountries(),
-  {
-    staleTime: 1000 * 60 * 60, // 1 小时过期
-    cacheTime: 1000 * 60 * 60 * 24 // 缓存 24 小时
-  }
-);
+const { data: countries } = useQuery(["countries"], () => containerService.getCountries(), {
+  staleTime: 1000 * 60 * 60, // 1 小时过期
+  cacheTime: 1000 * 60 * 60 * 24, // 缓存 24 小时
+});
 ```
 
 ---
@@ -587,21 +601,25 @@ const loadCountriesOnce = async () => {
 ## 🔗 相关文件索引
 
 ### 前端文件
+
 - `frontend/src/components/layout/Layout.vue` - 国家选择器 UI
 - `frontend/src/services/container.ts` - API 服务层
 - `frontend/src/stores/app.ts` - 全局状态管理
 
 ### 后端文件
+
 - `backend/src/routes/country.routes.ts` - 路由定义
 - `backend/src/controllers/country.controller.ts` - 控制器
 - `backend/src/entities/Country.ts` - 实体定义
 - `backend/src/services/statistics/common/DateFilterBuilder.ts` - 过滤逻辑
 
 ### 数据文件
+
 - `backend/scripts/seed-dictionaries.ts` - 数据初始化
 - `backend/02_init_dict_tables_final.sql` - SQL 脚本
 
 ### 测试文件
+
 - `scripts/diagnose-country-filter.js` - 诊断脚本
 - `test-country-api.html` - API 测试页面
 
@@ -609,6 +627,6 @@ const loadCountriesOnce = async () => {
 
 **文档状态**: ✅ 已完成  
 **适用版本**: v1.0+  
-**最后更新**: 2026-03-21  
+**最后更新**: 2026-03-21
 
 **维护者**: Logix Team

@@ -2,10 +2,10 @@
  * Excel 文件解析 Composable
  */
 
+import { applyDemurrageDerivedFreeDays } from '@/utils/demurrageTiers'
 import { ref } from 'vue'
 import * as XLSX from 'xlsx'
-import { applyDemurrageDerivedFreeDays } from '@/utils/demurrageTiers'
-import type { PreviewRow, FieldMapping } from './types'
+import type { FieldMapping, PreviewRow } from './types'
 
 export function useExcelParser() {
   function normalizeHeaderName(name: string): string {
@@ -23,7 +23,7 @@ export function useExcelParser() {
 
   function buildHeaderIndex(row: Record<string, any>): Map<string, string> {
     const idx = new Map<string, string>()
-    Object.keys(row).forEach((k) => {
+    Object.keys(row).forEach(k => {
       const nk = normalizeHeaderName(k)
       if (!idx.has(nk)) idx.set(nk, k)
       // 同时保留去点版本，兼容“运输方式.运输方式编码” vs “运输方式运输方式编码”
@@ -103,46 +103,52 @@ export function useExcelParser() {
     tierColumnAliases?: Record<string, string[]>
   ): Promise<void> {
     parsingError.value = null
-    
+
     try {
       const data = await readFileAsArrayBuffer(file)
       const workbook = XLSX.read(data, { type: 'array', cellDates: true })
-      
+
       // 读取第一个工作表
       const sheetName = workbook.SheetNames[0]
       const worksheet = workbook.Sheets[sheetName]
-      
+
       // 转换为 JSON，保留原始列名
       const jsonData = XLSX.utils.sheet_to_json<any>(worksheet, { defval: '' })
-      
+
       console.log('[ExcelParser] 原始 Excel 列名:', Object.keys(jsonData[0]))
       console.log('[ExcelParser] 第一行数据:', jsonData[0])
       console.log('[ExcelParser] 数据行数:', jsonData.length)
-      
+
       // 详细调试：打印每个列名的字符编码
       console.log('[ExcelParser] 🔍 所有列名详细字符编码:')
       Object.keys(jsonData[0]).forEach((key, index) => {
-        const charInfo = Array.from(key).map((c, i) => {
-          const code = c.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')
-          return `${i}:'${c}':U+${code}`
-        }).join(' ')
+        const charInfo = Array.from(key)
+          .map((c, i) => {
+            const code = c.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')
+            return `${i}:'${c}':U+${code}`
+          })
+          .join(' ')
         console.log(`  [${index}] "${key}" (长度:${key.length}) -> ${charInfo}`)
       })
-      
-      const containerKey = Object.keys(jsonData[0]).find(k => k.includes('箱号') || k.includes('集装箱'))
+
+      const containerKey = Object.keys(jsonData[0]).find(
+        k => k.includes('箱号') || k.includes('集装箱')
+      )
       if (containerKey) {
         console.log('[ExcelParser] 🎯 集装箱号列名详细信息:', {
           key: containerKey,
           length: containerKey.length,
-          charCodes: Array.from(containerKey).map((c, i) => `${i}:${c}:${c.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}`),
-          bytes: new TextEncoder().encode(containerKey)
+          charCodes: Array.from(containerKey).map(
+            (c, i) => `${i}:${c}:${c.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}`
+          ),
+          bytes: new TextEncoder().encode(containerKey),
         })
       }
-      
+
       if (jsonData.length === 0) {
         throw new Error('Excel 文件中没有数据')
       }
-      
+
       const enrichDemurrageRow = (row: Record<string, any>) => {
         const transformed = transformRow(row, fieldMappings)
         if (tierColumnAliases && Object.keys(tierColumnAliases).length > 0) {
@@ -158,25 +164,30 @@ export function useExcelParser() {
       previewColumns.value = Object.keys(firstTransformed)
       console.log('[ExcelParser] 设置 previewColumns (基于 transformed):', previewColumns.value)
       console.log('[ExcelParser] 设置 previewData, 行数:', jsonData.length)
-      
+
       // 转换数据
       previewData.value = jsonData.map((row, index) => {
         const transformed = enrichDemurrageRow(row)
         // 传递原始行给验证函数，用于检查列是否存在
         const errors = validateRow(transformed, fieldMappings, row)
-        
+
         return {
           raw: row,
           transformed,
-          errors: errors.length > 0 ? errors : undefined
+          errors: errors.length > 0 ? errors : undefined,
         }
       })
-      
+
       console.log('[ExcelParser] 完成，previewData 长度:', previewData.value.length)
       console.log('[ExcelParser] 完成，previewColumns 长度:', previewColumns.value.length)
-      console.log('[ExcelParser] previewData 第一条:', JSON.stringify(previewData.value[0], null, 2))
-      console.log('[ExcelParser] previewData 第一条 transformed:', previewData.value[0]?.transformed)
-      
+      console.log(
+        '[ExcelParser] previewData 第一条:',
+        JSON.stringify(previewData.value[0], null, 2)
+      )
+      console.log(
+        '[ExcelParser] previewData 第一条 transformed:',
+        previewData.value[0]?.transformed
+      )
     } catch (error) {
       console.error('[ExcelParser] 解析错误:', error)
       parsingError.value = error instanceof Error ? error.message : '解析失败'
@@ -207,12 +218,15 @@ export function useExcelParser() {
    * 多表映射共用同一 field（如 container_number）时，按顺序多次写入；
    * 若某条映射的 excel 列名与当前文件不一致会读到 null，不得覆盖此前已解析出的非空值。
    */
-  function transformRow(row: Record<string, any>, fieldMappings: FieldMapping[]): Record<string, any> {
+  function transformRow(
+    row: Record<string, any>,
+    fieldMappings: FieldMapping[]
+  ): Record<string, any> {
     const result: Record<string, any> = {}
-    
+
     for (const mapping of fieldMappings) {
       const value = getCellValue(row, mapping)
-      
+
       // 支持 transform 函数接收完整的 row 作为第二个参数
       const next = mapping.transform ? mapping.transform(value, row) : value
       const key = mapping.field
@@ -223,24 +237,33 @@ export function useExcelParser() {
         result[key] = next
       }
     }
-    
+
     // 自动为所有子表复制 container_number 字段
     // 这样 process_trucking_transport、process_empty_return 等表才能有外键关联
     // 注意：只有当 result.container_number 已有值时，才复制给子表（避免覆盖）
     const containerNumber = result.container_number
     if (containerNumber) {
-      const subTables = ['process_trucking_transport', 'process_warehouse_operations', 'process_empty_return', 'process_port_operations']
-      
+      const subTables = [
+        'process_trucking_transport',
+        'process_warehouse_operations',
+        'process_empty_return',
+        'process_port_operations',
+      ]
+
       for (const mapping of fieldMappings) {
         if (subTables.includes(mapping.table) && mapping.field === 'container_number') {
           // 只有当子表的 container_number 为空时，才从主表复制
-          if (result[mapping.field] === null || result[mapping.field] === undefined || result[mapping.field] === '') {
+          if (
+            result[mapping.field] === null ||
+            result[mapping.field] === undefined ||
+            result[mapping.field] === ''
+          ) {
             result[mapping.field] = containerNumber
           }
         }
       }
     }
-    
+
     return result
   }
 
@@ -271,7 +294,7 @@ export function useExcelParser() {
   function hasOriginalColumn(row: Record<string, any>, mapping: FieldMapping): boolean {
     const headerIndex = buildHeaderIndex(row)
     const candidates = [mapping.excelField, ...(mapping.aliases || [])]
-    return candidates.some((c) => {
+    return candidates.some(c => {
       if (Object.prototype.hasOwnProperty.call(row, c)) return true
       const nc = normalizeHeaderName(c)
       return headerIndex.has(nc) || headerIndex.has(nc.replace(/[.]/g, ''))
@@ -286,38 +309,45 @@ export function useExcelParser() {
    * @param fieldMappings 字段映射配置
    * @param originalRow 原始Excel行数据（用于检查列是否存在）
    */
-  function validateRow(transformedRow: Record<string, any>, fieldMappings: FieldMapping[], originalRow?: Record<string, any>): string[] {
+  function validateRow(
+    transformedRow: Record<string, any>,
+    fieldMappings: FieldMapping[],
+    originalRow?: Record<string, any>
+  ): string[] {
     const errors: string[] = []
-      
+
     console.log('[Validation] 开始验证行数据:', transformedRow)
-    console.log('[Validation] 必填字段映射:', fieldMappings.filter(m => m.required))
-      
+    console.log(
+      '[Validation] 必填字段映射:',
+      fieldMappings.filter(m => m.required)
+    )
+
     for (const mapping of fieldMappings) {
       if (mapping.required) {
         const value = transformedRow[mapping.field]
-        const isEmpty = (value === null || value === undefined || value === '')
-          
+        const isEmpty = value === null || value === undefined || value === ''
+
         // 检查原始 Excel 行中是否存在该列（包括主列名和所有别名）
         const columnExists = originalRow ? hasOriginalColumn(originalRow, mapping) : true
-          
+
         console.log(`[Validation] 检查字段 "${mapping.excelField}" (${mapping.field}):`, {
           field: mapping.field,
           excelField: mapping.excelField,
           value: value,
           isEmpty: isEmpty,
           columnExists: columnExists,
-          valid: !isEmpty && columnExists
+          valid: !isEmpty && columnExists,
         })
-          
+
         // 如果必填字段为空且 Excel 中存在该列（或它的别名），则报错
         if (isEmpty && columnExists) {
           errors.push(`缺少必填字段：${mapping.excelField}`)
         }
       }
     }
-    
+
     console.log('[Validation] 验证结果:', errors.length > 0 ? '❌ 失败' : '✅ 成功', errors)
-    
+
     return errors
   }
 
@@ -335,6 +365,6 @@ export function useExcelParser() {
     previewColumns,
     parsingError,
     parseExcelFile,
-    clearPreview
+    clearPreview,
   }
 }
