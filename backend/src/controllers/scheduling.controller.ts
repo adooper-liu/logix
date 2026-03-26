@@ -207,19 +207,19 @@ export class SchedulingController {
    */
   getSchedulingOverview = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { startDate, endDate, country } = req.query;
+      const { startDate, endDate, country, portCode } = req.query;
       const hasDateRange = startDate && endDate;
       // 注意：日期范围是可选的过滤条件，用于限定统计的时间窗口
       // 如果提供了日期范围，则只统计该时间范围内的 ATA/ETA
       const dateCondition = hasDateRange
         ? `AND (COALESCE(po.ata, po.eta)::date >= $1::date AND COALESCE(po.ata, po.eta)::date <= $2::date)`
         : '';
-
+  
       // 查询待排产货柜数量（与 batchSchedule 口径一致）
       const containerRepo = AppDataSource.getRepository(Container);
-      const params: any[] = hasDateRange ? [String(startDate), String(endDate)] : [];
-      const paramIndex = hasDateRange ? 3 : 1;
-
+      let params: any[] = hasDateRange ? [String(startDate), String(endDate)] : [];
+      let paramIndex = hasDateRange ? 3 : 1;
+  
       // 构建国家过滤条件
       const countryCondition = country
         ? `AND EXISTS (
@@ -228,12 +228,27 @@ export class SchedulingController {
             WHERE ro.container_number = c.container_number AND cu.country = $${paramIndex}
           )`
         : '';
-
+  
       if (country) {
         params.push(String(country));
+        paramIndex++;
       }
-
-      // 遵循 SKILL：验证 SQL查询条件的正确性
+  
+      // ✅ 新增：构建港口过滤条件
+      const portCondition = portCode
+        ? `AND EXISTS (
+            SELECT 1 FROM process_port_operations po
+            WHERE po.container_number = c.container_number 
+              AND po.port_code = $${paramIndex}
+          )`
+        : '';
+  
+      if (portCode) {
+        params.push(String(portCode));
+        paramIndex++;
+      }
+  
+      // 遵循 SKILL：验证 SQL 查询条件的正确性
       // 问题 1: port_type = 'destination' 可能没有数据
       // 解决 1: 改为 port_type IN ('destination', 'transit') 或者不限制 port_type
       // 问题 2: 没有过滤已提柜的货柜（实际业务中只有未提柜的才能排产）
@@ -244,6 +259,7 @@ export class SchedulingController {
         `SELECT COUNT(*) as count FROM biz_containers c
          WHERE c.schedule_status = 'initial'
          ${countryCondition}
+         ${portCondition}  -- ✅ 应用港口过滤
          AND (
            -- 有目的港操作记录（port_type 为空或为 destination/transit）
            EXISTS (
@@ -266,6 +282,7 @@ export class SchedulingController {
         `SELECT COUNT(*) as count FROM biz_containers c
          WHERE c.schedule_status = 'issued'
          ${countryCondition}
+         ${portCondition}  -- ✅ 应用港口过滤
          AND (
            -- 有目的港操作记录（port_type 为空或为 destination/transit）
            EXISTS (
@@ -514,7 +531,7 @@ export class SchedulingController {
         }
       }
 
-      // 构建车队-费用映射（获取每个车队默认仓库的拖卡费）
+      // 构建车队 - 费用映射（获取每个车队默认仓库的拖卡费）
       const truckingFeeMap = new Map<string, number>();
       const truckingDefaultWarehouse = new Map<string, string>();
       for (const m of warehouseTruckingMappings) {
@@ -524,7 +541,30 @@ export class SchedulingController {
           truckingDefaultWarehouse.set(m.truckingCompanyId, m.warehouseCode);
         }
       }
-
+      
+      // ✅ 新增：获取港口分布统计（用于前端下拉选择器）
+      const portStatsQuery = `
+        SELECT po.port_code, po.port_name, COUNT(DISTINCT c.container_number) as count
+        FROM biz_containers c
+        JOIN process_port_operations po ON c.container_number = po.container_number
+        WHERE c.schedule_status IN ('initial', 'issued')
+          ${country ? `AND EXISTS (
+            SELECT 1 FROM biz_replenishment_orders ro
+            JOIN biz_customers cu ON ro.customer_code = cu.customer_code
+            WHERE ro.container_number = c.container_number AND cu.country = $1
+          )` : ''}
+          AND (po.port_type IS NULL OR po.port_type = 'destination' OR po.port_type = 'transit')
+          AND NOT EXISTS (
+            SELECT 1 FROM process_trucking_transport tt
+            WHERE tt.container_number = c.container_number AND tt.pickup_date IS NOT NULL
+          )
+        GROUP BY po.port_code, po.port_name
+        ORDER BY count DESC
+      `;
+            
+      const portStatsParams = country ? [String(country)] : [];
+      const portsByCount = await containerRepo.query(portStatsQuery, portStatsParams);
+      
       res.json({
         success: true,
         data: {
@@ -555,7 +595,8 @@ export class SchedulingController {
               transportFee: truckingFeeMap.get(t.companyCode) ?? 0,
               defaultWarehouse: truckingDefaultWarehouse.get(t.companyCode) || null
             };
-          })
+          }),
+          ports: portsByCount // ✅ 新增：港口列表（带数量统计）
         }
       });
     } catch (error: any) {

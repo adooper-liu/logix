@@ -242,6 +242,26 @@ foreach ($script in $additionalScripts) {
 Write-Host "✓ Additional migrations completed" -ForegroundColor Green
 
 # ============================================================
+# Step 7: 其他脚本目录的迁移 (scripts/)
+# ============================================================
+Write-Host "`n[7/7] Running scripts directory migrations..." -ForegroundColor Yellow
+
+$scriptsMigrations = @(
+    # 车队合作关系级别
+    "scripts/add-trucking-partnership-level.sql"
+)
+
+foreach ($script in $scriptsMigrations) {
+    $scriptPath = Join-Path $BACKEND_DIR $script
+    if (Test-Path $scriptPath) {
+        Write-Host "  - Executing $script..." -ForegroundColor Gray
+        docker cp "$scriptPath" ${CONTAINER_NAME}:/tmp/$(Split-Path $script -Leaf)
+        docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/$(Split-Path $script -Leaf) 2>&1 | Out-Null
+    }
+}
+Write-Host "✓ Scripts directory migrations completed" -ForegroundColor Green
+
+# ============================================================
 # Verification
 # ============================================================
 Write-Host "`n========================================" -ForegroundColor Cyan
@@ -277,6 +297,21 @@ foreach ($table in $keyTables) {
         Write-Host "  ✓ $table exists" -ForegroundColor Green
     } else {
         Write-Host "  ✗ $table missing" -ForegroundColor Red
+    }
+}
+
+# 关键字段检查
+Write-Host "`n[Key Fields Check]" -ForegroundColor Yellow
+$keyFields = @(
+    @{Table="dict_trucking_companies"; Field="partnership_level"; Description="Trucking partnership level"}
+)
+
+foreach ($check in $keyFields) {
+    $exists = docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -t -c "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = '$($check.Table)' AND column_name = '$($check.Field)');" | ForEach-Object { $_.Trim() }
+    if ($exists -eq "t") {
+        Write-Host "  ✓ $($check.Description) field exists" -ForegroundColor Green
+    } else {
+        Write-Host "  ✗ $($check.Description) field missing" -ForegroundColor Red
     }
 }
 

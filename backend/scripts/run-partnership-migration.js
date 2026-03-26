@@ -1,6 +1,6 @@
 /**
  * 执行车队 partnership_level 字段迁移
- * 
+ *
  * 使用方式：node scripts/run-partnership-migration.js
  */
 
@@ -25,11 +25,11 @@ async function runMigration() {
 
     // 读取 SQL 文件
     const sqlPath = path.join(__dirname, 'add-trucking-partnership-level.sql');
-    
+
     if (!fs.existsSync(sqlPath)) {
       throw new Error(`SQL 文件不存在：${sqlPath}`);
     }
-    
+
     const sqlContent = fs.readFileSync(sqlPath, 'utf-8');
 
     // 执行 SQL
@@ -88,7 +88,6 @@ async function runMigration() {
     console.log('1. 重启后端服务：npm run dev');
     console.log('2. 测试排产功能');
     console.log('3. 查看日志中的关系评分\n');
-
   } catch (error) {
     console.error('❌ 迁移失败:', error.message);
     if (error.detail) {
@@ -102,7 +101,7 @@ async function runMigration() {
 }
 
 // 执行迁移
-runMigration().catch(err => {
+runMigration().catch((err) => {
   console.error('未捕获的错误:', err);
   process.exit(1);
 });

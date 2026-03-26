@@ -1,48 +1,94 @@
 <template>
   <div class="scheduling-page" v-loading="loading">
-    <!-- 紧凑顶部栏 -->
-    <div class="top-bar">
-      <span class="filter-label">日期：</span>
-      <DateRangePicker v-model="dateRange" />
-      <el-button type="primary" link @click="loadOverview">刷新</el-button>
-      <el-button type="info" size="small" @click="showLogicDialog = true">
-        <el-icon><InfoFilled /></el-icon>
-        逻辑
-      </el-button>
-      <span class="filter-label">ETA 顺延：</span>
-      <el-input-number
-        v-model="etaBufferDays"
-        :min="0"
-        :max="7"
-        :step="1"
-        placeholder="0-7 天"
-        controls-position="right"
-        size="small"
-        style="width: 120px"
-      />
-      <el-button
-        type="primary"
-        :loading="scheduling"
-        @click="handlePreviewSchedule"
-        title="预览排产方案，确认后保存"
-      >
-        <el-icon><Cpu /></el-icon>
-        预览排产
-      </el-button>
-      <el-button
-        type="warning"
-        plain
-        @click="openDesignatedWarehouseDialog"
-        :disabled="overview.pendingCount === 0"
-        title="手工指定仓库进行排产"
-      >
-        <el-icon><Setting /></el-icon>
-        手工指定
-      </el-button>
-      <el-button type="default" @click="goBackToShipments">
-        <el-icon><ArrowLeft /></el-icon>
-        返回货柜管理
-      </el-button>
+    <!-- ✅ 优化：顶部操作区 - 按注意力路线分组 -->
+    <div class="top-action-bar">
+      <!-- ① 左侧：核心过滤条件 -->
+      <div class="filter-group">
+        <div class="filter-item">
+          <span class="filter-label">日期范围：</span>
+          <DateRangePicker v-model="dateRange" />
+        </div>
+        <div class="filter-item">
+          <span class="filter-label">目的港：</span>
+          <el-select
+            v-model="selectedPortCode"
+            placeholder="所有港口"
+            clearable
+            filterable
+            class="port-select"
+            @change="handlePortChange"
+          >
+            <el-option
+              v-for="port in overview.ports"
+              :key="port.port_code"
+              :label="`${port.port_code} - ${port.port_name} (${port.count})`"
+              :value="port.port_code"
+            />
+          </el-select>
+        </div>
+      </div>
+
+      <!-- ② 中间：高级设置 -->
+      <div class="advanced-group">
+        <el-tooltip content="排产时自动在 ETA 基础上顺延的天数" placement="bottom">
+          <div class="advanced-setting">
+            <span class="filter-label">ETA 顺延：</span>
+            <el-input-number
+              v-model="etaBufferDays"
+              :min="0"
+              :max="7"
+              :step="1"
+              placeholder="0-7 天"
+              controls-position="right"
+              size="small"
+              style="width: 100px"
+            />
+            <span class="unit-label">天</span>
+          </div>
+        </el-tooltip>
+        <el-button
+          type="info"
+          size="small"
+          @click="showLogicDialog = true"
+          title="查看智能排产逻辑"
+        >
+          <el-icon><InfoFilled /></el-icon>
+          逻辑
+        </el-button>
+      </div>
+
+      <!-- ③ 右侧：操作按钮组 -->
+      <div class="action-group">
+        <el-button
+          type="primary"
+          :loading="scheduling"
+          @click="handlePreviewSchedule"
+          size="default"
+          title="预览排产方案，确认后保存"
+        >
+          <el-icon><Cpu /></el-icon>
+          预览排产
+        </el-button>
+        <el-button
+          type="warning"
+          plain
+          @click="openDesignatedWarehouseDialog"
+          :disabled="overview.pendingCount === 0"
+          title="手工指定仓库进行排产"
+          size="default"
+        >
+          <el-icon><Setting /></el-icon>
+          手工指定
+        </el-button>
+        <el-button type="default" @click="goBackToShipments" size="default">
+          <el-icon><ArrowLeft /></el-icon>
+          返回
+        </el-button>
+        <el-button type="success" plain @click="loadOverview" size="default" title="刷新统计数据">
+          <el-icon><Refresh /></el-icon>
+          刷新
+        </el-button>
+      </div>
     </div>
 
     <!-- 紧凑统计栏 -->
@@ -97,14 +143,23 @@
       </div>
     </div>
 
-    <!-- 执行日志 -->
+    <!-- ✅ 优化：将执行日志移到下方，与排产结果并列 -->
     <el-row :gutter="12">
       <el-col :span="24">
-        <el-card>
+        <el-card class="log-card" v-if="logs.length > 0">
           <template #header>
             <div class="card-header">
-              <span>执行日志</span>
-              <el-button text @click="logs = []">清空</el-button>
+              <span
+                ><el-icon><Document /></el-icon> 执行日志</span
+              >
+              <div class="header-actions">
+                <el-tag size="small" :type="logs.length > 0 ? 'success' : 'info'">
+                  {{ logs.length }} 条记录
+                </el-tag>
+                <el-button text size="small" @click="logs = []">
+                  <el-icon><Delete /></el-icon> 清空
+                </el-button>
+              </div>
             </div>
           </template>
 
@@ -122,7 +177,7 @@
               <span class="log-time">{{ log.time }}</span>
               <span class="log-message">{{ log.message }}</span>
             </div>
-            <div v-if="logs.length === 0" class="log-empty">点击"开始排产"执行排产流程</div>
+            <div v-if="logs.length === 0" class="log-empty">点击"预览排产"执行排产流程</div>
           </div>
         </el-card>
       </el-col>
@@ -135,221 +190,284 @@
       </el-empty>
     </div>
 
-    <!-- 排产结果 -->
-    <el-card v-if="scheduleResult" class="mt-4 compact-card">
+    <!-- ✅ 优化：排产结果卡片 - 按注意力路线重新布局 -->
+    <el-card v-if="scheduleResult || !loading" class="result-card">
+      <!-- ① 卡片头部：标题 + 核心操作（第一眼关注） -->
       <template #header>
-        <div class="card-header">
-          <span>排产结果</span>
-          <div class="result-actions">
-            <el-button type="primary" link @click="exportScheduleResult">
-              <el-icon><Download /></el-icon>
+        <div class="card-header-optimized">
+          <div class="header-left">
+            <el-icon class="header-icon"><DataLine /></el-icon>
+            <span class="header-title">排产结果</span>
+            <el-tag v-if="scheduleResult?.total > 0" :type="getResultTagType()" size="small">
+              {{ scheduleResult.total }} 个货柜
+            </el-tag>
+          </div>
+          <div class="header-right">
+            <!-- 主要操作：导出 -->
+            <el-button
+              type="primary"
+              size="small"
+              @click="exportScheduleResult"
+              :disabled="!scheduleResult"
+            >
+              <el-icon><Download /></el-icon> 导出
             </el-button>
-            <el-button type="primary" link @click="router.push('/gantt-chart')">
-              <el-icon><View /></el-icon>
+            <!-- 次要操作：查看甘特图 -->
+            <el-button
+              type="success"
+              size="small"
+              plain
+              @click="router.push('/gantt-chart')"
+              :disabled="!scheduleResult"
+            >
+              <el-icon><View /></el-icon> 甘特图
             </el-button>
           </div>
         </div>
       </template>
 
-      <!-- 紧凑统计 -->
-      <div class="result-stats">
-        <span class="result-stat">
-          <el-icon><Box /></el-icon>
-          {{ scheduleResult.total }} 总计
-        </span>
-        <span class="result-stat success">
-          <el-icon><CircleCheck /></el-icon>
-          {{ scheduleResult.successCount }} 成功
-        </span>
-        <span class="result-stat failed">
-          <el-icon><CircleClose /></el-icon>
-          {{ scheduleResult.failedCount }} 失败
-        </span>
-        <span class="result-stat">
-          成功率:
-          {{
-            scheduleResult.total > 0
-              ? ((scheduleResult.successCount / scheduleResult.total) * 100).toFixed(1)
-              : 0
-          }}%
-        </span>
-      </div>
+      <!-- 有数据时显示统计徽章和 TAB -->
+      <template v-if="scheduleResult">
+        <!-- ② 统计徽章区：4 个关键指标（视觉焦点） -->
+        <div class="result-stats-enhanced">
+          <div class="stat-badge total">
+            <div class="stat-badge-icon">
+              <el-icon><Box /></el-icon>
+            </div>
+            <div class="stat-badge-content">
+              <div class="stat-value">{{ scheduleResult.total }}</div>
+              <div class="stat-label">总计</div>
+            </div>
+          </div>
 
-      <!-- 分组显示 -->
-      <el-tabs v-model="resultTab" class="result-tabs">
-        <el-tab-pane label="全部" name="all">
-          <el-table :data="scheduleResult.results" max-height="250" size="small" stripe>
-            <el-table-column label="柜号" width="130" fixed>
-              <template #default="{ row }">
-                <el-link type="primary" @click="router.push(`/shipments/${row.containerNumber}`)">
-                  {{ row.containerNumber }}
-                </el-link>
-              </template>
-            </el-table-column>
-            <el-table-column label="状态" width="70">
-              <template #default="{ row }">
-                <el-tag :type="row.success ? 'success' : 'danger'" size="small">
-                  {{ row.success ? '成功' : '失败' }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="destinationPort" label="目的港" width="90" />
-            <el-table-column prop="warehouseName" label="仓库" width="120" show-overflow-tooltip />
-            <el-table-column prop="etaDestPort" label="ETA" width="100" />
-            <el-table-column prop="ataDestPort" label="ATA" width="100" />
-            <el-table-column label="计划日期" min-width="200">
-              <template #default="{ row }">
-                <span v-if="row.plannedData">
-                  <span class="date-item"
-                    >提柜: {{ row.plannedData.plannedPickupDate || '-' }}</span
-                  >
-                  <span class="date-item"
-                    >送仓: {{ row.plannedData.plannedDeliveryDate || '-' }}</span
-                  >
-                  <span class="date-item"
-                    >还箱: {{ row.plannedData.plannedReturnDate || '-' }}</span
-                  >
-                </span>
-                <span v-else>-</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="message" label="消息" show-overflow-tooltip />
-          </el-table>
-        </el-tab-pane>
+          <div class="stat-badge success">
+            <div class="stat-badge-icon">
+              <el-icon><CircleCheck /></el-icon>
+            </div>
+            <div class="stat-badge-content">
+              <div class="stat-value">{{ scheduleResult.successCount }}</div>
+              <div class="stat-label">成功</div>
+            </div>
+          </div>
 
-        <el-tab-pane label="成功" name="success">
-          <el-table :data="successResults" max-height="300" size="small" stripe>
-            <el-table-column label="柜号" width="150" fixed>
-              <template #default="{ row }">
-                <el-link type="primary" @click="router.push(`/shipments/${row.containerNumber}`)">
-                  {{ row.containerNumber }}
-                </el-link>
-              </template>
-            </el-table-column>
-            <el-table-column prop="destinationPort" label="目的港" width="90" />
-            <el-table-column prop="warehouseName" label="仓库" width="120" show-overflow-tooltip />
-            <el-table-column label="计划日期" min-width="200">
-              <template #default="{ row }">
-                <span v-if="row.plannedData">
-                  <span class="date-item"
-                    >提柜: {{ row.plannedData.plannedPickupDate || '-' }}</span
-                  >
-                  <span class="date-item"
-                    >送仓: {{ row.plannedData.plannedDeliveryDate || '-' }}</span
-                  >
-                  <span class="date-item"
-                    >还箱: {{ row.plannedData.plannedReturnDate || '-' }}</span
-                  >
-                </span>
-                <span v-else>-</span>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-tab-pane>
+          <div class="stat-badge failed">
+            <div class="stat-badge-icon">
+              <el-icon><CircleClose /></el-icon>
+            </div>
+            <div class="stat-badge-content">
+              <div class="stat-value">{{ scheduleResult.failedCount }}</div>
+              <div class="stat-label">失败</div>
+            </div>
+          </div>
 
-        <el-tab-pane label="失败" name="failed">
-          <el-table :data="failedResults" max-height="300" size="small" stripe>
-            <el-table-column label="柜号" width="150" fixed>
-              <template #default="{ row }">
-                <el-link type="primary" @click="router.push(`/shipments/${row.containerNumber}`)">
-                  {{ row.containerNumber }}
-                </el-link>
-              </template>
-            </el-table-column>
-            <el-table-column prop="destinationPort" label="目的港" width="90" />
-            <el-table-column prop="etaDestPort" label="ETA" width="100" />
-            <el-table-column prop="message" label="失败原因" show-overflow-tooltip />
-          </el-table>
-        </el-tab-pane>
-      </el-tabs>
+          <div class="stat-badge rate">
+            <div class="stat-badge-content">
+              <div class="stat-value">
+                {{
+                  scheduleResult.total > 0
+                    ? ((scheduleResult.successCount / scheduleResult.total) * 100).toFixed(1)
+                    : 0
+                }}%
+              </div>
+              <div class="stat-label">成功率</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ③ TAB 过滤区：带计数的标签页（快速筛选） -->
+        <div class="tabs-filter-section">
+          <el-tabs v-model="resultTab" class="result-tabs" type="border-card">
+            <el-tab-pane :label="`全部 ${scheduleResult.total}`" name="all">
+              <div class="tab-toolbar">
+                <span class="tab-desc"
+                  ><el-icon><Document /></el-icon> 所有排产结果</span
+                >
+                <el-input
+                  v-if="resultTab === 'all'"
+                  v-model="searchText"
+                  placeholder="搜索柜号..."
+                  prefix-icon="Search"
+                  size="small"
+                  clearable
+                  style="width: 200px"
+                />
+              </div>
+              <el-table
+                :data="scheduleResult.results"
+                max-height="300"
+                size="small"
+                stripe
+                highlight-current-row
+              >
+                <el-table-column label="柜号" width="130" fixed>
+                  <template #default="{ row }">
+                    <el-link
+                      type="primary"
+                      @click="router.push(`/shipments/${row.containerNumber}`)"
+                    >
+                      {{ row.containerNumber }}
+                    </el-link>
+                  </template>
+                </el-table-column>
+                <el-table-column label="状态" width="70">
+                  <template #default="{ row }">
+                    <el-tag :type="row.success ? 'success' : 'danger'" size="small">
+                      {{ row.success ? '成功' : '失败' }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="destinationPort" label="目的港" width="90" />
+                <el-table-column
+                  prop="warehouseName"
+                  label="仓库"
+                  width="120"
+                  show-overflow-tooltip
+                />
+                <el-table-column prop="etaDestPort" label="ETA" width="100" />
+                <el-table-column prop="ataDestPort" label="ATA" width="100" />
+                <el-table-column label="计划日期" min-width="200">
+                  <template #default="{ row }">
+                    <span v-if="row.plannedData">
+                      <span class="date-item"
+                        >提柜: {{ row.plannedData.plannedPickupDate || '-' }}</span
+                      >
+                      <span class="date-item"
+                        >送仓: {{ row.plannedData.plannedDeliveryDate || '-' }}</span
+                      >
+                      <span class="date-item"
+                        >还箱: {{ row.plannedData.plannedReturnDate || '-' }}</span
+                      >
+                    </span>
+                    <span v-else>-</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="message" label="消息" show-overflow-tooltip />
+              </el-table>
+            </el-tab-pane>
+
+            <el-tab-pane :label="`成功 ${scheduleResult.successCount}`" name="success">
+              <div class="tab-toolbar">
+                <span class="tab-desc success"
+                  ><el-icon><CircleCheck /></el-icon> ✓ 排产成功的货柜</span
+                >
+                <el-input
+                  v-if="resultTab === 'success'"
+                  v-model="searchText"
+                  placeholder="搜索成功柜号..."
+                  prefix-icon="Search"
+                  size="small"
+                  clearable
+                  style="width: 200px"
+                />
+              </div>
+              <el-table
+                :data="successResults"
+                max-height="300"
+                size="small"
+                stripe
+                highlight-current-row
+              >
+                <el-table-column label="柜号" width="150" fixed>
+                  <template #default="{ row }">
+                    <el-link
+                      type="primary"
+                      @click="router.push(`/shipments/${row.containerNumber}`)"
+                    >
+                      {{ row.containerNumber }}
+                    </el-link>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="destinationPort" label="目的港" width="90" />
+                <el-table-column
+                  prop="warehouseName"
+                  label="仓库"
+                  width="120"
+                  show-overflow-tooltip
+                />
+                <el-table-column label="计划日期" min-width="200">
+                  <template #default="{ row }">
+                    <span v-if="row.plannedData">
+                      <span class="date-item"
+                        >提柜: {{ row.plannedData.plannedPickupDate || '-' }}</span
+                      >
+                      <span class="date-item"
+                        >送仓: {{ row.plannedData.plannedDeliveryDate || '-' }}</span
+                      >
+                      <span class="date-item"
+                        >还箱: {{ row.plannedData.plannedReturnDate || '-' }}</span
+                      >
+                    </span>
+                    <span v-else>-</span>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </el-tab-pane>
+
+            <el-tab-pane :label="`失败 ${scheduleResult.failedCount}`" name="failed">
+              <div class="tab-toolbar">
+                <span class="tab-desc danger"
+                  ><el-icon><CircleClose /></el-icon> ✗ 排产失败的货柜</span
+                >
+                <el-input
+                  v-if="resultTab === 'failed'"
+                  v-model="searchText"
+                  placeholder="搜索失败原因..."
+                  prefix-icon="Search"
+                  size="small"
+                  clearable
+                  style="width: 200px"
+                />
+              </div>
+              <el-table
+                :data="failedResults"
+                max-height="300"
+                size="small"
+                stripe
+                highlight-current-row
+              >
+                <el-table-column label="柜号" width="150" fixed>
+                  <template #default="{ row }">
+                    <el-link
+                      type="primary"
+                      @click="router.push(`/shipments/${row.containerNumber}`)"
+                    >
+                      {{ row.containerNumber }}
+                    </el-link>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="destinationPort" label="目的港" width="90" />
+                <el-table-column prop="etaDestPort" label="ETA" width="100" />
+                <el-table-column prop="message" label="失败原因" show-overflow-tooltip />
+              </el-table>
+            </el-tab-pane>
+          </el-tabs>
+        </div>
+      </template>
+
+      <!-- 无数据时显示提示 -->
+      <template v-else>
+        <el-empty description="暂无排产结果，请点击“预览排产”执行排产流程" />
+      </template>
     </el-card>
+
+    <!-- 预览确认弹窗 -->
+    <SchedulingPreviewModal
+      v-model="showPreviewModal"
+      :preview-results="previewResults"
+      @confirm="handleConfirmSchedule"
+      @cancel="showPreviewModal = false"
+      @view-container="cn => router.push(`/shipments/${cn}`)"
+    />
+
+    <!-- 手工指定仓库对话框 -->
+    <DesignatedWarehouseDialog
+      v-model:visible="showDesignatedWarehouseDialog"
+      :container-numbers="[]"
+      :port-code="currentPortCode"
+      :country-code="resolvedCountry"
+      @confirm="handleDesignatedWarehouseConfirm"
+    />
   </div>
-
-  <!-- 智能排柜逻辑说明对话框 -->
-  <el-dialog
-    v-model="showLogicDialog"
-    title="智能排柜逻辑说明"
-    width="700px"
-    :close-on-click-modal="true"
-  >
-    <div class="logic-dialog-content">
-      <el-descriptions :column="1" border>
-        <el-descriptions-item label="待排产条件">
-          scheduleStatus = 'initial' | 'issued'，且有 ATA 或 ETA（目的港）
-        </el-descriptions-item>
-        <el-descriptions-item label="排产排序">
-          按 ATA/ETA 升序，同日内按 lastFreeDate 升序（先到先得）
-        </el-descriptions-item>
-        <el-descriptions-item label="计划清关日"> = ETA（无则用 ATA） </el-descriptions-item>
-        <el-descriptions-item label="计划提柜日">
-          = 清关日 + 1天，且 ≤ lastFreeDate
-        </el-descriptions-item>
-        <el-descriptions-item label="候选仓库">
-          港口→车队→仓库 映射链，无则返回 []
-        </el-descriptions-item>
-        <el-descriptions-item label="选择仓库">
-          从候选仓库中找最早有产能的仓库和卸柜日
-        </el-descriptions-item>
-        <el-descriptions-item label="卸柜方式">
-          提柜日=卸柜日 ? "Live load" : "Drop off"
-        </el-descriptions-item>
-        <el-descriptions-item label="计划还箱日">
-          从 EmptyReturn 取 lastReturnDate，或 fallback lastFreeDate+7
-        </el-descriptions-item>
-        <el-descriptions-item label="选择车队">
-          仓库→车队映射 + 港口→车队映射，取有剩余档期的
-        </el-descriptions-item>
-        <el-descriptions-item label="选择清关公司">
-          根据国家匹配，无则用 "UNSPECIFIED"
-        </el-descriptions-item>
-        <el-descriptions-item label="数据写入">
-          拖卡运输、仓库操作、港口操作、还箱记录
-        </el-descriptions-item>
-      </el-descriptions>
-
-      <el-divider>数据写入详情</el-divider>
-
-      <el-table :data="writeDataInfo" size="small" border>
-        <el-table-column prop="table" label="表" width="220" />
-        <el-table-column prop="fields" label="写入字段" />
-      </el-table>
-
-      <el-divider>关键约束</el-divider>
-
-      <ul class="constraint-list">
-        <li><strong>仓库选择</strong>：严格按映射链（港口→车队→仓库），无回退</li>
-        <li>
-          <strong>车队选择</strong>：必须在 warehouse_trucking_mapping + trucking_port_mapping
-          中同时存在
-        </li>
-        <li><strong>产能扣减</strong>：排产后立即扣减仓库日产能和车队档期</li>
-        <li><strong>还箱码头</strong>：使用仓库信息（warehouseCode/warehouseName）</li>
-        <li><strong>提柜日回退</strong>：如果计划提柜日 &lt; 今天，则提柜日=今天，清关日=昨天</li>
-        <li><strong>还箱日约束</strong>：还箱日 ≥ 卸柜日（Live load: 还=卸；Drop off: 还=卸+1）</li>
-      </ul>
-    </div>
-    <template #footer>
-      <el-button type="primary" @click="showLogicDialog = false">关闭</el-button>
-    </template>
-  </el-dialog>
-
-  <!-- 预览确认弹窗 -->
-  <SchedulingPreviewModal
-    v-model="showPreviewModal"
-    :preview-results="previewResults"
-    @confirm="handleConfirmSchedule"
-    @cancel="showPreviewModal = false"
-    @view-container="cn => router.push(`/shipments/${cn}`)"
-  />
-
-  <!-- 手工指定仓库对话框 -->
-  <DesignatedWarehouseDialog
-    v-model:visible="showDesignatedWarehouseDialog"
-    :container-numbers="[]"
-    :port-code="currentPortCode"
-    :country-code="resolvedCountry"
-    @confirm="handleDesignatedWarehouseConfirm"
-  />
 </template>
 
 <script setup lang="ts">
@@ -443,14 +561,21 @@ const overview = ref<any>({
   issuedCount: 0,
   warehouses: [],
   truckings: [],
+  ports: [], // ✅ 新增：港口列表
 })
 const scheduling = ref(false)
 const loading = ref(true) // 添加 loading 状态
 const currentStep = ref(0)
 const logs = ref<Array<{ time: string; message: string; type: string }>>([])
 const logContainer = ref<HTMLElement>()
+
+// ✅ 新增：港口选择
+const selectedPortCode = ref<string>('')
 const scheduleResult = ref<any>(null)
 const resultTab = ref('all')
+
+// ✅ 新增：搜索文本
+const searchText = ref('')
 
 // 计算属性
 const successResults = computed(() => {
@@ -517,6 +642,7 @@ const loadOverview = async () => {
 
     const params: any = {
       country: resolvedCountry.value || undefined,
+      portCode: selectedPortCode.value || undefined, // ✅ 新增：传递港口参数
     }
 
     if (dateRange.value?.[0]) {
@@ -540,6 +666,7 @@ const loadOverview = async () => {
         issuedCount: result.data.issuedCount || 0,
         warehouses: result.data.warehouses || [],
         truckings: result.data.truckings || [],
+        ports: result.data.ports || [], // ✅ 新增：港口数据
       }
       console.log('[SchedulingVisual] ✓ 数据加载成功:', {
         pendingCount: overview.value.pendingCount,
@@ -558,6 +685,22 @@ const loadOverview = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// ✅ 新增：处理港口选择变化
+const handlePortChange = (portCode: string | null) => {
+  console.log('[SchedulingVisual] 港口选择变化:', portCode)
+  // 重新加载概览数据（带港口过滤）
+  loadOverview()
+}
+
+// ✅ 新增：获取结果标签类型
+const getResultTagType = (): 'success' | 'warning' | 'danger' | 'info' => {
+  if (scheduleResult.value?.total === 0) return 'info'
+  const successRate = scheduleResult.value.successCount / scheduleResult.value.total
+  if (successRate >= 0.9) return 'success'
+  if (successRate >= 0.7) return 'warning'
+  return 'danger'
 }
 
 // 高亮选中的货柜（可选功能）
@@ -779,6 +922,7 @@ const handleDesignatedWarehouseConfirm = async (data: {
     const result = await containerService.batchSchedule({
       designatedWarehouseMode: true,
       designatedWarehouseCode: data.warehouseCode,
+      portCode: selectedPortCode.value || undefined, // ✅ 新增：传递港口参数
       containerNumbers: data.containerNumbers, // 如果用户选择了特定柜号则使用，否则为 undefined（全部）
       dryRun: false, // 直接保存
       etaBufferDays: etaBufferDays.value,
@@ -816,6 +960,7 @@ const handlePreviewSchedule = async () => {
     // 调用批量排产接口，dryRun=true（只计算不保存）
     const result = await containerService.batchSchedule({
       country: resolvedCountry.value || undefined,
+      portCode: selectedPortCode.value || undefined, // ✅ 新增：传递港口参数
       startDate: dateRange.value?.[0] ? dayjs(dateRange.value[0]).format('YYYY-MM-DD') : undefined,
       endDate: dateRange.value?.[1] ? dayjs(dateRange.value[1]).format('YYYY-MM-DD') : undefined,
       dryRun: true, // ← 关键：预览模式
@@ -930,6 +1075,111 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ✅ 优化：顶部操作区样式 */
+.top-action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px 20px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+  border-radius: 8px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+/* ① 左侧过滤条件组 */
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 400px;
+}
+
+.filter-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-label {
+  font-size: 13px;
+  color: #606266;
+  font-weight: 500;
+  white-space: nowrap;
+  min-width: 60px;
+}
+
+.port-select {
+  width: 220px;
+}
+
+/* ② 中间高级设置组 */
+.advanced-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  border-left: 1px solid #e4e7ed;
+  border-right: 1px solid #e4e7ed;
+}
+
+.advanced-setting {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.unit-label {
+  font-size: 13px;
+  color: #909399;
+  margin-left: 4px;
+}
+
+/* ③ 右侧操作按钮组 */
+.action-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* 响应式支持 */
+@media (max-width: 1400px) {
+  .top-action-bar {
+    flex-wrap: wrap;
+  }
+
+  .filter-group {
+    min-width: 100%;
+  }
+
+  .advanced-group {
+    width: 100%;
+    justify-content: center;
+    padding: 12px 0;
+    border: none;
+    border-top: 1px solid #e4e7ed;
+  }
+
+  .action-group {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .top-action-bar {
+    padding: 12px 16px;
+  }
+
+  .filter-item {
+    flex-wrap: wrap;
+  }
+
+  .filter-label {
+    min-width: 100%;
+  }
+}
 .scheduling-page {
   padding: 12px;
   min-height: 100vh;
@@ -1067,31 +1317,223 @@ onMounted(() => {
   padding: 10px;
 }
 
-/* 结果统计 */
-.result-stats {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 10px;
+/* ✅ 优化：执行日志卡片样式 */
+.log-card {
+  margin-top: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
-.result-stat {
+.header-actions {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
+}
+
+/* ✅ 优化：结果卡片样式 */
+.result-card {
+  margin-top: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* ① 卡片头部优化 */
+.card-header-optimized {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-icon {
+  font-size: 20px;
+  color: #409eff;
+  margin-right: 8px;
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #303133;
+}
+
+.header-right {
+  display: flex;
+  gap: 8px;
+}
+
+/* ② TAB 过滤区优化 */
+.tabs-filter-section {
+  margin-top: 16px;
+}
+
+/* ✅ 优化：增强统计信息展示 */
+.result-stats-enhanced {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%);
+  border-radius: 8px;
+}
+
+.stat-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.stat-badge:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.stat-badge-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  color: white;
+}
+
+.stat-badge.total .stat-badge-icon {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.stat-badge.success .stat-badge-icon {
+  background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
+}
+
+.stat-badge.failed .stat-badge-icon {
+  background: linear-gradient(135deg, #f56c6c 0%, #f78989 100%);
+}
+
+.stat-badge.rate .stat-badge-icon {
+  background: linear-gradient(135deg, #409eff 0%, #66b1ff 100%);
+}
+
+.stat-badge-content {
+  flex: 1;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #303133;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: #909399;
+  margin-top: 2px;
+}
+
+/* ✅ 优化：TAB 工具栏 */
+.tab-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.tab-desc {
   font-size: 13px;
   color: #606266;
 }
 
-.result-stat.success {
+.tab-desc.success {
   color: #67c23a;
+  font-weight: 500;
 }
 
-.result-stat.failed {
+.tab-desc.danger {
   color: #f56c6c;
+  font-weight: 500;
 }
 
-.result-tabs :deep(.el-tabs__content) {
-  padding: 0;
+/* ✅ 优化：结果卡片样式 */
+.result-card {
+  margin-top: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* ① 卡片头部优化 */
+.card-header-optimized {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-icon {
+  font-size: 20px;
+  color: #409eff;
+  margin-right: 8px;
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: bold;
+  color: #303133;
+}
+
+.header-right {
+  display: flex;
+  gap: 8px;
+}
+
+/* ② TAB 过滤区优化 */
+.tabs-filter-section {
+  margin-top: 16px;
+}
+
+/* ✅ 响应式支持 */
+@media (max-width: 1400px) {
+  .result-stats-enhanced {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .result-stats-enhanced {
+    grid-template-columns: 1fr;
+  }
+
+  .stat-badge {
+    padding: 12px;
+  }
+
+  .stat-value {
+    font-size: 20px;
+  }
+
+  .stat-badge-icon {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
 }
 
 .mb-4 {

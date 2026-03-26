@@ -197,6 +197,7 @@ class ContainerService {
     dryRun?: boolean
     containerNumbers?: string[]
     etaBufferDays?: number // ✅ 新增：ETA 顺延天数
+    portCode?: string // ✅ 新增：港口过滤
 
     // ✅ 新增：手工指定仓库模式（可选）
     designatedWarehouseMode?: boolean
@@ -256,6 +257,7 @@ class ContainerService {
     startDate?: string
     endDate?: string
     country?: string
+    portCode?: string // ✅ 新增：港口过滤
   }): Promise<{
     success: boolean
     data: {
@@ -284,6 +286,11 @@ class ContainerService {
         transportFee: number
         defaultWarehouse: string | null
       }>
+      ports?: Array<{
+        port_code: string
+        port_name: string
+        count: number
+      }> // ✅ 新增：港口列表（带数量统计）
     }
   }> {
     const response = await this.api.get('/scheduling/overview', { params })

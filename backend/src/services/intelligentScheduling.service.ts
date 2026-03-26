@@ -48,6 +48,9 @@ export interface ScheduleRequest {
   dryRun?: boolean; // 是否为预览模式（true=只计算不保存）
   etaBufferDays?: number; // ETA 顺延天数（可选，前端传入，默认 0）
 
+  // ✅ 新增：港口过滤
+  portCode?: string; // 目的港代码（如 USLAX, USLGB）
+
   // ✅ 新增：手工指定仓库（可选）
   designatedWarehouseMode?: boolean; // 是否为手工指定模式
   designatedWarehouseCode?: string; // 手工指定的仓库代码
@@ -236,6 +239,11 @@ export class IntelligentSchedulingService {
     }
     if (request.country?.trim()) {
       query.andWhere('cust.country = :country', { country: request.country.trim() });
+    }
+    
+    // ✅ 新增：港口过滤
+    if (request.portCode?.trim()) {
+      query.andWhere('po.portCode = :portCode', { portCode: request.portCode.trim() });
     }
 
     return query.getMany();
@@ -1169,7 +1177,7 @@ export class IntelligentSchedulingService {
    * 选择车队（严格匹配映射关系）
    * 仅从 dict_warehouse_trucking_mapping 中选择，且车队须在 dict_trucking_port_mapping 中服务该港口
    * 不再回退到仅港口映射的车队，确保 (仓库，车队) 在 warehouse_trucking_mapping 中存在
-   * 
+   *
    * ✅ 新增：综合考虑成本、能力、关系维护的多目标优化
    */
   private async selectTruckingCompany(
@@ -1181,7 +1189,7 @@ export class IntelligentSchedulingService {
     const checkDate = plannedPickupDate || new Date();
     const dateOnly = new Date(checkDate);
     dateOnly.setHours(0, 0, 0, 0);
-  
+
     // ========== 阶段 1: 筛选候选车队 ==========
     const candidateFilters = await this.filterCandidateTruckingCompanies({
       warehouseCode,
@@ -1189,31 +1197,35 @@ export class IntelligentSchedulingService {
       countryCode,
       plannedDate: dateOnly
     });
-      
+
     if (candidateFilters.length === 0) {
       return null;
     }
-      
+
     // ========== 阶段 2: 综合评分 ==========
     // 对每个候选车队进行评分
-    const scoredCandidates = await this.scoreTruckingCompanies(candidateFilters, warehouseCode, portCode);
-      
+    const scoredCandidates = await this.scoreTruckingCompanies(
+      candidateFilters,
+      warehouseCode,
+      portCode
+    );
+
     // ========== 阶段 3: 决策优化 ==========
     // 按综合得分排序，选择最优车队
     const sortedCandidates = scoredCandidates.sort((a, b) => b.totalScore - a.totalScore);
-      
+
     if (sortedCandidates.length > 0) {
       const bestCandidate = sortedCandidates[0];
       logger.debug(
         `[IntelligentScheduling] Selected trucking company: ${bestCandidate.truckingCompanyId}, ` +
-        `score=${bestCandidate.totalScore.toFixed(2)}, cost=${bestCandidate.transportCost}`
+          `score=${bestCandidate.totalScore.toFixed(2)}, cost=${bestCandidate.transportCost}`
       );
-        
+
       return AppDataSource.getRepository(TruckingCompany).findOne({
         where: { companyCode: bestCandidate.truckingCompanyId }
       });
     }
-      
+
     return null;
   }
 
@@ -1627,18 +1639,18 @@ export class IntelligentSchedulingService {
     plannedDate: Date;
   }): Promise<Array<{ truckingCompanyId: string; hasCapacity: boolean }>> {
     const candidates: Array<{ truckingCompanyId: string; hasCapacity: boolean }> = [];
-    
+
     // 1. 从 warehouse_trucking_mapping 获取仓库映射的车队
     const mappingWhere: any = { warehouseCode: filter.warehouseCode, isActive: true };
     if (filter.countryCode) mappingWhere.country = filter.countryCode;
-    
+
     const mappings = await this.warehouseTruckingMappingRepo.find({
       where: mappingWhere,
       take: 20
     });
-    
+
     let candidateIds = mappings.map((m) => m.truckingCompanyId);
-    
+
     // 2. 如果指定了港口，进一步过滤（trucking_port_mapping）
     if (filter.portCode && filter.countryCode) {
       const portMappings = await this.truckingPortMappingRepo.find({
@@ -1647,7 +1659,7 @@ export class IntelligentSchedulingService {
       const portTruckingIds = new Set(portMappings.map((pm) => pm.truckingCompanyId));
       candidateIds = candidateIds.filter((id) => portTruckingIds.has(id));
     }
-    
+
     // 3. 检查每个车队的可用性（能力约束）
     for (const truckingId of candidateIds) {
       const occupancy = await this.truckingOccupancyRepo.findOne({
@@ -1658,9 +1670,9 @@ export class IntelligentSchedulingService {
           warehouseCode: filter.warehouseCode
         }
       });
-      
+
       const hasCapacity = !occupancy || occupancy.plannedTrips < occupancy.capacity;
-      
+
       if (hasCapacity) {
         candidates.push({
           truckingCompanyId: truckingId,
@@ -1668,7 +1680,7 @@ export class IntelligentSchedulingService {
         });
       }
     }
-    
+
     return candidates;
   }
 
@@ -1680,14 +1692,16 @@ export class IntelligentSchedulingService {
     candidates: Array<{ truckingCompanyId: string; hasCapacity: boolean }>,
     warehouseCode: string,
     portCode?: string
-  ): Promise<Array<{
-    truckingCompanyId: string;
-    costScore: number;
-    capacityScore: number;
-    relationshipScore: number;
-    totalScore: number;
-    transportCost: number;
-  }>> {
+  ): Promise<
+    Array<{
+      truckingCompanyId: string;
+      costScore: number;
+      capacityScore: number;
+      relationshipScore: number;
+      totalScore: number;
+      transportCost: number;
+    }>
+  > {
     const scoredCandidates: Array<{
       truckingCompanyId: string;
       costScore: number;
@@ -1696,7 +1710,7 @@ export class IntelligentSchedulingService {
       totalScore: number;
       transportCost: number;
     }> = [];
-      
+
     // 1. 计算每个车队的运输成本
     const costMap = new Map<string, number>();
     for (const candidate of candidates) {
@@ -1707,29 +1721,29 @@ export class IntelligentSchedulingService {
       );
       costMap.set(candidate.truckingCompanyId, cost);
     }
-      
+
     // 2. 归一化成本评分（最低成本=100 分）
     const costs = Array.from(costMap.values());
     const minCost = Math.min(...costs);
     const maxCost = Math.max(...costs);
     const costRange = maxCost - minCost || 1;
-      
+
     // 3. 对每个车队评分
     for (const candidate of candidates) {
       const cost = costMap.get(candidate.truckingCompanyId) || 100;
-        
+
       // 成本评分（40% 权重）- 成本越低分数越高
       const costScore = ((maxCost - cost) / costRange) * 100;
-        
+
       // 能力评分（30% 权重）- 有剩余能力=100 分
       const capacityScore = candidate.hasCapacity ? 100 : 0;
-        
+
       // 关系评分（30% 权重）- ✅ Phase 2: 增强关系评分逻辑
       const relationshipScore = await this.calculateRelationshipScore(candidate.truckingCompanyId);
-        
+
       // 综合得分
       const totalScore = costScore * 0.4 + capacityScore * 0.3 + relationshipScore * 0.3;
-        
+
       scoredCandidates.push({
         truckingCompanyId: candidate.truckingCompanyId,
         costScore,
@@ -1739,7 +1753,7 @@ export class IntelligentSchedulingService {
         transportCost: cost
       });
     }
-      
+
     return scoredCandidates;
   }
 
@@ -1760,16 +1774,16 @@ export class IntelligentSchedulingService {
           isActive: true
         }
       });
-      
+
       let transportFee = Number(mapping?.transportFee || 100);
-      
+
       // 如果车队有堆场且需要 Drop off，考虑堆场费
       if (portCode) {
         const trucking = await AppDataSource.getRepository(TruckingCompany).findOne({
           where: { companyCode: truckingCompanyId },
           select: ['hasYard']
         });
-        
+
         if (trucking?.hasYard) {
           const tpMapping = await this.truckingPortMappingRepo.findOne({
             where: {
@@ -1778,19 +1792,19 @@ export class IntelligentSchedulingService {
               isActive: true
             }
           });
-          
+
           // 堆场操作费（一次性）
           const yardOperationFee = Number(tpMapping?.yardOperationFee || 0);
-          
+
           // 堆场堆存费（按 2 天估算）
           const dailyYardRate = Number(tpMapping?.standardRate || 0);
           const estimatedYardDays = 2;
           const yardStorageCost = dailyYardRate * estimatedYardDays;
-          
+
           transportFee += yardOperationFee + yardStorageCost;
         }
       }
-      
+
       return transportFee;
     } catch (error) {
       logger.warn(`[IntelligentScheduling] calculateTruckingCost error:`, error);
@@ -1805,52 +1819,52 @@ export class IntelligentSchedulingService {
   private async calculateRelationshipScore(truckingCompanyId: string): Promise<number> {
     try {
       let score = 50; // 基础分
-      
+
       // 1. 历史合作频次（过去 30 天合作的货柜数）
       const recentCollaboration = await this.countRecentCollaborations(truckingCompanyId, 30);
       // 合作越多分数越高（上限 +20 分）
       const collaborationBonus = Math.min(recentCollaboration * 2, 20);
       score += collaborationBonus;
-      
+
       // 2. 车队合作关系级别 ✅ Phase 2: 新增
       const trucking = await AppDataSource.getRepository(TruckingCompany).findOne({
         where: { companyCode: truckingCompanyId },
         select: ['dailyCapacity', 'partnershipLevel']
       });
-      
+
       // 关系级别加分映射表
       const levelBonusMap: Record<string, number> = {
-        'STRATEGIC': 30, // 战略合作伙伴 +30 分
-        'CORE': 20,      // 核心合作伙伴 +20 分
-        'NORMAL': 10,    // 普通合作伙伴 +10 分
-        'TEMPORARY': 0   // 临时合作伙伴 +0 分
+        STRATEGIC: 30, // 战略合作伙伴 +30 分
+        CORE: 20, // 核心合作伙伴 +20 分
+        NORMAL: 10, // 普通合作伙伴 +10 分
+        TEMPORARY: 0 // 临时合作伙伴 +0 分
       };
-      
+
       const levelBonus = levelBonusMap[trucking?.partnershipLevel || 'NORMAL'] || 10;
       score += levelBonus;
-      
+
       logger.debug(
         `[IntelligentScheduling] Partnership level for ${truckingCompanyId}: ${trucking?.partnershipLevel} (+${levelBonus})`
       );
-      
+
       // 3. 运力规模加分（保留原有逻辑）
       if ((trucking?.dailyCapacity || 0) >= 50) {
         score += 15; // 大运力车队加分
       }
-      
+
       // 4. 服务质量评分（简化为固定值，后续可扩展）
       // TODO: 可以基于准点率、投诉率等计算
       const serviceQualityBonus = 5; // 基础服务质量分
       score += serviceQualityBonus;
-      
+
       // 确保分数在 0-100 范围内
       score = Math.max(0, Math.min(100, score));
-      
+
       logger.debug(
         `[IntelligentScheduling] Relationship score for ${truckingCompanyId}: ${score.toFixed(2)} ` +
-        `(collaboration: ${recentCollaboration}, level: ${levelBonus}, base: 50)`
+          `(collaboration: ${recentCollaboration}, level: ${levelBonus}, base: 50)`
       );
-      
+
       return score;
     } catch (error) {
       logger.warn(`[IntelligentScheduling] calculateRelationshipScore error:`, error);
@@ -1868,14 +1882,14 @@ export class IntelligentSchedulingService {
     try {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - days);
-      
+
       // 查询 Container 表中最近使用该队队的货柜数
       const containerCount = await AppDataSource.getRepository(Container)
         .createQueryBuilder('container')
         .where('container.trucking_company_id = :truckingId', { truckingId: truckingCompanyId })
         .andWhere('container.created_at >= :cutoffDate', { cutoffDate: cutoffDate.toISOString() })
         .getCount();
-      
+
       return containerCount;
     } catch (error) {
       logger.warn(`[IntelligentScheduling] countRecentCollaborations error:`, error);

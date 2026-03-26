@@ -11,14 +11,14 @@
 
 ### **1. 基本统计**
 
-| 指标 | 数值 | 评价 |
-|------|------|------|
-| **总行数** | 2,000 行 | ⚠️ 偏大 |
-| **方法数** | 15 个 | ✅ 合理 |
-| **平均方法长度** | ~133 行 | ⚠️ 偏长 |
-| **最大方法** | `scheduleWithDesignatedWarehouse` (184 行) | ✅ 可接受 |
-| **依赖服务** | 2 个 (ContainerStatusService, DemurrageService) | ✅ 简洁 |
-| **Repository 数量** | 13 个 | ⚠️ 偏多 |
+| 指标                | 数值                                            | 评价      |
+| ------------------- | ----------------------------------------------- | --------- |
+| **总行数**          | 2,000 行                                        | ⚠️ 偏大   |
+| **方法数**          | 15 个                                           | ✅ 合理   |
+| **平均方法长度**    | ~133 行                                         | ⚠️ 偏长   |
+| **最大方法**        | `scheduleWithDesignatedWarehouse` (184 行)      | ✅ 可接受 |
+| **依赖服务**        | 2 个 (ContainerStatusService, DemurrageService) | ✅ 简洁   |
+| **Repository 数量** | 13 个                                           | ⚠️ 偏多   |
 
 ---
 
@@ -26,46 +26,46 @@
 
 #### **核心业务流程方法** (5 个)
 
-| 方法名 | 行数 | 复杂度 | 说明 |
-|--------|------|--------|------|
-| `batchSchedule` | ~80 行 | 🟡 中 | 批量排产入口 |
-| `scheduleSingleContainer` | ~470 行 | 🔴 高 | 单个货柜排产（核心） |
-| `scheduleWithDesignatedWarehouse` | ~184 行 | 🟡 中 | 手工指定仓库排产 |
-| `getContainersToSchedule` | ~68 行 | 🟢 低 | 查询待排产货柜 |
-| `updateContainerSchedule` | ~108 行 | 🟡 中 | 更新排产结果 |
+| 方法名                            | 行数    | 复杂度 | 说明                 |
+| --------------------------------- | ------- | ------ | -------------------- |
+| `batchSchedule`                   | ~80 行  | 🟡 中  | 批量排产入口         |
+| `scheduleSingleContainer`         | ~470 行 | 🔴 高  | 单个货柜排产（核心） |
+| `scheduleWithDesignatedWarehouse` | ~184 行 | 🟡 中  | 手工指定仓库排产     |
+| `getContainersToSchedule`         | ~68 行  | 🟢 低  | 查询待排产货柜       |
+| `updateContainerSchedule`         | ~108 行 | 🟡 中  | 更新排产结果         |
 
 #### **日期计算方法** (5 个)
 
-| 方法名 | 行数 | 复杂度 | 说明 |
-|--------|------|--------|------|
-| `calculatePlannedPickupDate` | ~26 行 | 🟢 低 | 计算提柜日 |
-| `skipWeekendsIfNeeded` | ~34 行 | 🟢 低 | 周末跳过逻辑 |
-| `calculatePlannedReturnDate` | ~107 行 | 🟡 中 | 计算还箱日 |
-| `findEarliestAvailableDay` | ~81 行 | 🟡 中 | 找最早可用日 |
-| `findEarliestAvailableReturnDate` | ~143 行 | 🟡 中 | 找最早还箱日 |
+| 方法名                            | 行数    | 复杂度 | 说明         |
+| --------------------------------- | ------- | ------ | ------------ |
+| `calculatePlannedPickupDate`      | ~26 行  | 🟢 低  | 计算提柜日   |
+| `skipWeekendsIfNeeded`            | ~34 行  | 🟢 低  | 周末跳过逻辑 |
+| `calculatePlannedReturnDate`      | ~107 行 | 🟡 中  | 计算还箱日   |
+| `findEarliestAvailableDay`        | ~81 行  | 🟡 中  | 找最早可用日 |
+| `findEarliestAvailableReturnDate` | ~143 行 | 🟡 中  | 找最早还箱日 |
 
 #### **资源选择方法** (3 个)
 
-| 方法名 | 行数 | 复杂度 | 说明 |
-|--------|------|--------|------|
-| `getCandidateWarehouses` | ~62 行 | 🟢 低 | 候选仓库列表 |
-| `selectTruckingCompany` | ~52 行 | 🟢 低 | 选择车队（新优化） |
-| `selectCustomsBroker` | ~38 行 | 🟢 低 | 选择清关公司 |
+| 方法名                   | 行数   | 复杂度 | 说明               |
+| ------------------------ | ------ | ------ | ------------------ |
+| `getCandidateWarehouses` | ~62 行 | 🟢 低  | 候选仓库列表       |
+| `selectTruckingCompany`  | ~52 行 | 🟢 低  | 选择车队（新优化） |
+| `selectCustomsBroker`    | ~38 行 | 🟢 低  | 选择清关公司       |
 
 #### **辅助方法** (2 个)
 
-| 方法名 | 行数 | 复杂度 | 说明 |
-|--------|------|--------|------|
-| `resolveCountryCode` | ~38 行 | 🟢 低 | 解析国家代码 |
-| `decrementWarehouseOccupancy` | ~77 行 | 🟢 低 | 扣减仓库产能 |
+| 方法名                        | 行数   | 复杂度 | 说明         |
+| ----------------------------- | ------ | ------ | ------------ |
+| `resolveCountryCode`          | ~38 行 | 🟢 低  | 解析国家代码 |
+| `decrementWarehouseOccupancy` | ~77 行 | 🟢 低  | 扣减仓库产能 |
 
 #### **新增方法** (3 个 - 车队优化)
 
-| 方法名 | 行数 | 复杂度 | 说明 |
-|--------|------|--------|------|
-| `filterCandidateTruckingCompanies` | ~57 行 | 🟢 低 | 筛选候选车队 |
-| `scoreTruckingCompanies` | ~82 行 | 🟡 中 | 综合评分 |
-| `calculateTruckingCost` | ~43 行 | 🟢 低 | 计算运输成本 |
+| 方法名                             | 行数   | 复杂度 | 说明         |
+| ---------------------------------- | ------ | ------ | ------------ |
+| `filterCandidateTruckingCompanies` | ~57 行 | 🟢 低  | 筛选候选车队 |
+| `scoreTruckingCompanies`           | ~82 行 | 🟡 中  | 综合评分     |
+| `calculateTruckingCost`            | ~43 行 | 🟢 低  | 计算运输成本 |
 
 ---
 
@@ -129,6 +129,7 @@ graph TB
 **策略**: 不做大的重构，保持现有结构
 
 **理由**:
+
 1. ✅ **功能稳定** - 现有代码运行良好
 2. ✅ **逻辑清晰** - 方法分类明确
 3. ✅ **依赖简单** - 只有 2 个外部服务
@@ -136,6 +137,7 @@ graph TB
 5. ✅ **维护方便** - 单文件易查找
 
 **改进建议**:
+
 - 添加更多单元测试
 - 完善方法注释
 - 考虑将日期计算方法提取为工具类
@@ -160,11 +162,13 @@ intelligentScheduling.service.ts (主协调器)
 ```
 
 **优点**:
+
 - ✅ 职责更清晰
 - ✅ 每个文件更小（~500 行）
 - ✅ 便于单独测试
 
 **缺点**:
+
 - ❌ 增加文件数量
 - ❌ 需要调整依赖注入
 - ❌ 可能引入新的 Bug
@@ -198,11 +202,13 @@ scheduling/
 ```
 
 **优点**:
+
 - ✅ 架构更优雅
 - ✅ 符合 DDD 原则
 - ✅ 易于扩展
 
 **缺点**:
+
 - ❌ 工作量巨大（预计 40-60 小时）
 - ❌ 破坏现有结构
 - ❌ 测试成本高
@@ -218,6 +224,7 @@ scheduling/
 ### **Phase 1: 保持不变（当前）** ✅
 
 **理由**:
+
 - 现有代码质量良好
 - 功能稳定运行
 - 遵循 SKILL 原则（杜绝过度设计）
@@ -229,13 +236,10 @@ scheduling/
 #### **优化 1: 提取日期计算工具**
 
 创建 `SchedulingDateUtils.ts`:
+
 ```typescript
 // 提取以下方法：
-- calculatePlannedPickupDate
-- skipWeekendsIfNeeded
-- calculatePlannedReturnDate
-- findEarliestAvailableDay
-- findEarliestAvailableReturnDate
+-calculatePlannedPickupDate - skipWeekendsIfNeeded - calculatePlannedReturnDate - findEarliestAvailableDay - findEarliestAvailableReturnDate;
 ```
 
 **收益**: 减少 ~280 行
@@ -243,6 +247,7 @@ scheduling/
 #### **优化 2: 简化 Repository 注入**
 
 使用 Repository Pattern:
+
 ```typescript
 class SchedulingRepositories {
   containerRepo = AppDataSource.getRepository(Container);
@@ -259,6 +264,7 @@ private repos = new SchedulingRepositories();
 #### **优化 3: 拆分核心方法**
 
 将 `scheduleSingleContainer` 拆分为:
+
 ```typescript
 private async scheduleSingleContainer(...) {
   const dates = this.calculateDates(...);
@@ -277,12 +283,12 @@ private buildResult(...) { ... }
 
 ## 📊 **工作量评估**
 
-| 方案 | 工作量 | 风险 | 收益 | 推荐度 |
-|------|--------|------|------|--------|
-| **方案 A: 保持现状** | 0 小时 | 🟢 低 | 🟢 稳定 | ⭐⭐⭐⭐⭐ |
-| **方案 A+: 渐进优化** | 4-6 小时 | 🟢 低 | 🟡 中 | ⭐⭐⭐⭐ |
-| **方案 B: 职责拆分** | 8-12 小时 | 🟡 中 | 🟡 中 | ⭐⭐⭐ |
-| **方案 C: 完全重构** | 40-60 小时 | 🔴 高 | 🟢 高 | ⭐ |
+| 方案                  | 工作量     | 风险  | 收益    | 推荐度     |
+| --------------------- | ---------- | ----- | ------- | ---------- |
+| **方案 A: 保持现状**  | 0 小时     | 🟢 低 | 🟢 稳定 | ⭐⭐⭐⭐⭐ |
+| **方案 A+: 渐进优化** | 4-6 小时   | 🟢 低 | 🟡 中   | ⭐⭐⭐⭐   |
+| **方案 B: 职责拆分**  | 8-12 小时  | 🟡 中 | 🟡 中   | ⭐⭐⭐     |
+| **方案 C: 完全重构**  | 40-60 小时 | 🔴 高 | 🟢 高   | ⭐         |
 
 ---
 
@@ -357,6 +363,7 @@ private buildResult(...) { ... }
 ### **强烈推荐：保持现状（方案 A）**
 
 **理由**:
+
 1. ✅ 代码质量良好
 2. ✅ 功能稳定运行
 3. ✅ 遵循 SKILL 原则
@@ -366,6 +373,7 @@ private buildResult(...) { ... }
 ### **如果要优化：渐进式（方案 A+）**
 
 **原则**:
+
 - 小步快跑，每次只改一点
 - 保证测试覆盖
 - 不影响现有功能
@@ -374,6 +382,7 @@ private buildResult(...) { ... }
 ### **绝对避免：完全重构（方案 C）**
 
 **原因**:
+
 - 工作量太大
 - 风险太高
 - 没有实际价值
@@ -381,4 +390,4 @@ private buildResult(...) { ... }
 
 ---
 
-*本分析报告遵循 SKILL 原则，基于实际代码和业务需求分析*
+_本分析报告遵循 SKILL 原则，基于实际代码和业务需求分析_

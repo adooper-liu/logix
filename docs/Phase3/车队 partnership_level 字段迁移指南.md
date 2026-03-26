@@ -24,6 +24,7 @@ psql -h localhost -p 5432 -U logix_user -d logix_db -f scripts/add-trucking-part
 ```
 
 **如果 psql 不在 PATH 中，找到它的位置**:
+
 ```bash
 # 查找 PostgreSQL 安装目录
 where psql
@@ -34,6 +35,7 @@ where psql
 ```
 
 **使用完整路径执行**:
+
 ```bash
 "C:\Program Files\PostgreSQL\15\bin\psql.exe" -h localhost -p 5432 -U logix_user -d logix_db -f scripts/add-trucking-partnership-level.sql
 ```
@@ -68,36 +70,36 @@ where psql
 创建文件 `backend/scripts/run-partnership-migration.js`:
 
 ```javascript
-const { Client } = require('pg');
-const fs = require('fs');
-const path = require('path');
+const { Client } = require("pg");
+const fs = require("fs");
+const path = require("path");
 
 async function runMigration() {
-  console.log('🚀 开始执行数据库迁移：添加 partnership_level 字段\n');
+  console.log("🚀 开始执行数据库迁移：添加 partnership_level 字段\n");
 
   const client = new Client({
-    host: 'localhost',
+    host: "localhost",
     port: 5432,
-    user: 'logix_user',
-    password: 'LogiX@2024!Secure',
-    database: 'logix_db'
+    user: "logix_user",
+    password: "LogiX@2024!Secure",
+    database: "logix_db",
   });
 
   try {
     await client.connect();
-    console.log('✅ 数据库连接成功\n');
+    console.log("✅ 数据库连接成功\n");
 
     // 读取 SQL 文件
-    const sqlPath = path.join(__dirname, 'add-trucking-partnership-level.sql');
-    const sqlContent = fs.readFileSync(sqlPath, 'utf-8');
+    const sqlPath = path.join(__dirname, "add-trucking-partnership-level.sql");
+    const sqlContent = fs.readFileSync(sqlPath, "utf-8");
 
     // 执行 SQL
-    console.log('正在执行 SQL 脚本...');
+    console.log("正在执行 SQL 脚本...");
     await client.query(sqlContent);
-    console.log('✅ SQL 执行成功\n');
+    console.log("✅ SQL 执行成功\n");
 
     // 验证结果
-    console.log('验证结果...');
+    console.log("验证结果...");
     const result = await client.query(`
       SELECT 
         company_code,
@@ -110,7 +112,7 @@ async function runMigration() {
       LIMIT 10
     `);
 
-    console.log('\n前 10 个车队数据:');
+    console.log("\n前 10 个车队数据:");
     console.table(result.rows);
 
     // 统计分布
@@ -123,16 +125,15 @@ async function runMigration() {
       ORDER BY count DESC
     `);
 
-    console.log('\n车队等级分布统计:');
+    console.log("\n车队等级分布统计:");
     console.table(stats.rows);
 
     await client.end();
-    console.log('\n✅ 数据库迁移执行完成！\n');
-
+    console.log("\n✅ 数据库迁移执行完成！\n");
   } catch (error) {
-    console.error('❌ 迁移失败:', error.message);
+    console.error("❌ 迁移失败:", error.message);
     if (error.detail) {
-      console.error('详情:', error.detail);
+      console.error("详情:", error.detail);
     }
     process.exit(1);
   }
@@ -155,6 +156,7 @@ WHERE table_name = 'dict_trucking_companies'
 ```
 
 **预期结果**:
+
 ```
 column_name       | data_type          | column_default
 ------------------+--------------------+---------------
@@ -164,7 +166,7 @@ partnership_level | character varying  | 'NORMAL'
 ### **2. 查看示例数据**
 
 ```sql
-SELECT 
+SELECT
   company_code,
   company_name,
   daily_capacity,
@@ -177,7 +179,7 @@ LIMIT 10;
 ### **3. 统计各等级数量**
 
 ```sql
-SELECT 
+SELECT
   partnership_level,
   COUNT(*) as count
 FROM dict_trucking_companies
@@ -186,6 +188,7 @@ ORDER BY count DESC;
 ```
 
 **预期结果**:
+
 ```
 partnership_level | count
 ------------------+-------
@@ -200,13 +203,13 @@ NORMAL            | XX    (所有现有车队)
 
 ```sql
 -- 示例：将某些车队设置为 CORE 级别
-UPDATE dict_trucking_companies 
-SET partnership_level = 'CORE' 
+UPDATE dict_trucking_companies
+SET partnership_level = 'CORE'
 WHERE company_code IN ('TRUCK_001', 'TRUCK_002');
 
 -- 示例：将战略合作伙伴设置为 STRATEGIC
-UPDATE dict_trucking_companies 
-SET partnership_level = 'STRATEGIC' 
+UPDATE dict_trucking_companies
+SET partnership_level = 'STRATEGIC'
 WHERE company_code = 'TRUCK_VIP_001';
 ```
 
@@ -255,13 +258,13 @@ GRANT ALTER ON dict_trucking_companies TO logix_user;
 
 ## 📚 **相关文件**
 
-| 文件 | 路径 | 说明 |
-|------|------|------|
-| **SQL 脚本** | `backend/scripts/add-trucking-partnership-level.sql` | 迁移脚本 |
-| **Node 脚本** | `backend/scripts/run-partnership-migration.js` | 执行脚本 |
-| **Entity** | `backend/src/entities/TruckingCompany.ts` | 已更新 |
-| **Service** | `backend/src/services/intelligentScheduling.service.ts` | 已更新 |
+| 文件          | 路径                                                    | 说明     |
+| ------------- | ------------------------------------------------------- | -------- |
+| **SQL 脚本**  | `backend/scripts/add-trucking-partnership-level.sql`    | 迁移脚本 |
+| **Node 脚本** | `backend/scripts/run-partnership-migration.js`          | 执行脚本 |
+| **Entity**    | `backend/src/entities/TruckingCompany.ts`               | 已更新   |
+| **Service**   | `backend/src/services/intelligentScheduling.service.ts` | 已更新   |
 
 ---
 
-*本指南遵循 SKILL 原则，所有步骤基于实际环境设计*
+_本指南遵循 SKILL 原则，所有步骤基于实际环境设计_
