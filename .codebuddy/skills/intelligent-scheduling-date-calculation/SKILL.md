@@ -6,34 +6,38 @@
 
 ## 五个计划日期
 
-| 日期字段 | 方向 | 计算逻辑 | 说明 |
-|---------|------|---------|------|
-| `plannedCustomsDate` | 向前 | ETA + buffer 天数 | 清关需要预留时间 |
-| `plannedPickupDate` | 向前 | 清关日 + 1 天 | 清关完成后提柜 |
-| `plannedDeliveryDate` | 向前 | 提柜日 + 运输天数 | 运输到仓库 |
-| `plannedUnloadDate` | 锚点 | 基于仓库可用性 | 核心锚点 |
-| `plannedReturnDate` | 向后 | 卸柜日 + 在仓天数 | 完成还箱 |
+| 日期字段              | 方向 | 计算逻辑          | 说明             |
+| --------------------- | ---- | ----------------- | ---------------- |
+| `plannedCustomsDate`  | 向前 | ETA + buffer 天数 | 清关需要预留时间 |
+| `plannedPickupDate`   | 向前 | 清关日 + 1 天     | 清关完成后提柜   |
+| `plannedDeliveryDate` | 向前 | 提柜日 + 运输天数 | 运输到仓库       |
+| `plannedUnloadDate`   | 锚点 | 基于仓库可用性    | 核心锚点         |
+| `plannedReturnDate`   | 向后 | 卸柜日 + 在仓天数 | 完成还箱         |
 
 ## 日期计算详细逻辑
 
 ### 1. 计划清关日 (plannedCustomsDate)
 
 **计算公式**：
+
 ```
 plannedCustomsDate = ETA + eta_buffer_days
 ```
 
 **业务说明**：
+
 - ETA：预计到港日期（Expected Time of Arrival）
 - buffer：清关预留时间（默认 2 天）
 - 目的：给清关流程留出足够时间
 
 **配置项**：
+
 - `eta_buffer_days`：ETA 顺延天数（从 `dict_scheduling_config` 读取）
 - 默认值：`2` 天
 - 可配置范围：`0-7` 天
 
 **代码位置**：
+
 ```typescript
 // backend/src/services/intelligentScheduling.service.ts L306-323
 const clearanceDate = destPo.eta || destPo.ata;
@@ -49,16 +53,19 @@ if (etaBufferDays > 0) {
 ### 2. 计划提柜日 (plannedPickupDate)
 
 **计算公式**：
+
 ```
 plannedPickupDate = plannedCustomsDate + 1 天
 ```
 
 **约束条件**：
+
 1. ≤ last_free_date（最后免费提柜日）
 2. ≥ today（今天）
 3. 跳过周末（如果 `skip_weekends = true`）
 
 **代码位置**：
+
 ```typescript
 // backend/src/services/intelligentScheduling.service.ts L528-544
 private async calculatePlannedPickupDate(
@@ -84,6 +91,7 @@ private async calculatePlannedPickupDate(
 ```
 
 **兜底逻辑**：
+
 ```typescript
 // backend/src/services/intelligentScheduling.service.ts L314-318
 const today = new Date();
@@ -98,15 +106,18 @@ if (plannedPickupDate < today) {
 ### 3. 计划送仓日 (plannedDeliveryDate)
 
 **计算公式**：
+
 ```
 plannedDeliveryDate = plannedPickupDate + 运输天数
 ```
 
 **运输天数**：
+
 - Live load：1 天（提柜当天送仓）
 - Drop off：1 天（提柜当天送仓）
 
 **代码位置**：
+
 ```typescript
 // backend/src/services/intelligentScheduling.service.ts L574-586
 private async calculatePlannedDeliveryDate(
@@ -115,7 +126,7 @@ private async calculatePlannedDeliveryDate(
   unloadDate: Date
 ): Promise<Date> {
   const deliveryDate = new Date(pickupDate);
-  
+
   if (unloadMode === 'Live load') {
     // Live load：提柜当天送仓
     deliveryDate.setTime(pickupDate.getTime());
@@ -131,11 +142,13 @@ private async calculatePlannedDeliveryDate(
 ### 4. 计划卸柜日 (plannedUnloadDate) - **核心锚点**
 
 **计算逻辑**：
+
 1. 从提柜日开始，查找仓库最早可用日期
 2. 考虑仓库日产能限制
 3. 考虑周末配置（`skip_weekends`）
 
 **代码位置**：
+
 ```typescript
 // backend/src/services/intelligentScheduling.service.ts L360-395
 // 7. 计算卸柜日（提柜日 + 1 天，且仓库有产能）
@@ -143,19 +156,13 @@ let unloadDate = new Date(plannedPickupDate);
 unloadDate.setDate(unloadDate.getDate() + 1);
 
 // 检查仓库产能
-const availableDate = await this.findEarliestAvailableDay(
-  warehouse.warehouseCode,
-  unloadDate
-);
+const availableDate = await this.findEarliestAvailableDay(warehouse.warehouseCode, unloadDate);
 
 if (availableDate) {
   unloadDate = availableDate;
 } else {
   // 如果提柜日当天仓库已满，尝试往后找最近可用日
-  const futureDate = await this.findEarliestAvailableDay(
-    warehouse.warehouseCode,
-    new Date(plannedPickupDate)
-  );
+  const futureDate = await this.findEarliestAvailableDay(warehouse.warehouseCode, new Date(plannedPickupDate));
   if (futureDate) {
     unloadDate = futureDate;
     // 同时调整提柜日以匹配卸柜日（保持 Live load）
@@ -167,20 +174,23 @@ if (availableDate) {
 ### 5. 计划还箱日 (plannedReturnDate)
 
 **计算公式**：
+
 ```
 plannedReturnDate = plannedUnloadDate + 在仓天数
 ```
 
 **在仓天数**：
+
 - Live load：1 天（卸柜当天还箱）
 - Drop off：2 天（卸柜后 1 天还箱）
 
 **兜底逻辑**：
+
 ```typescript
 // backend/src/services/intelligentScheduling.service.ts L403-420
 let lastReturnDate: Date | undefined;
 const emptyReturn = await this.emptyReturnRepo.findOne({
-  where: { containerNumber: container.containerNumber }
+  where: { containerNumber: container.containerNumber },
 });
 if (emptyReturn?.lastReturnDate) {
   lastReturnDate = new Date(emptyReturn.lastReturnDate);
@@ -189,11 +199,7 @@ if (emptyReturn?.lastReturnDate) {
   lastReturnDate = new Date(destPo.lastFreeDate);
   lastReturnDate.setDate(lastReturnDate.getDate() + 7);
 }
-const plannedReturnDate = this.calculatePlannedReturnDate(
-  unloadDate,
-  unloadMode,
-  lastReturnDate
-);
+const plannedReturnDate = this.calculatePlannedReturnDate(unloadDate, unloadMode, lastReturnDate);
 ```
 
 ## 配置项管理
@@ -203,6 +209,7 @@ const plannedReturnDate = this.calculatePlannedReturnDate(
 **表名**：`dict_scheduling_config`
 
 **结构**：
+
 ```sql
 CREATE TABLE dict_scheduling_config (
   id SERIAL PRIMARY KEY,
@@ -216,12 +223,12 @@ CREATE TABLE dict_scheduling_config (
 
 ### 配置项列表
 
-| config_key | 默认值 | 说明 | 取值范围 |
-|-----------|-------|------|---------|
-| `eta_buffer_days` | 2 | ETA 顺延天数 | 0-7 |
-| `skip_weekends` | true | 是否跳过周末 | true/false |
-| `expedited_handling_fee` | 50 | 加急操作费（USD） | 0-9999 |
-| `transport_dropoff_multiplier` | 2.0 | Drop off 运输费倍数 | 1.0-5.0 |
+| config_key                     | 默认值 | 说明                | 取值范围   |
+| ------------------------------ | ------ | ------------------- | ---------- |
+| `eta_buffer_days`              | 2      | ETA 顺延天数        | 0-7        |
+| `skip_weekends`                | true   | 是否跳过周末        | true/false |
+| `expedited_handling_fee`       | 50     | 加急操作费（USD）   | 0-9999     |
+| `transport_dropoff_multiplier` | 2.0    | Drop off 运输费倍数 | 1.0-5.0    |
 
 ## 日期计算流程图
 
@@ -269,6 +276,7 @@ plannedCustomsDate < plannedPickupDate ≤ plannedDeliveryDate ≤ plannedUnload
 ### 4. 周末处理
 
 如果 `skip_weekends = true`：
+
 - 提柜日、送仓日、卸柜日不能是周六/周日
 - 如果计算结果是周末，顺延到下周一
 
@@ -283,7 +291,7 @@ const clearanceDate = destPo.eta || destPo.ata;
 if (!clearanceDate) {
   return {
     success: false,
-    message: '无到港日期（ATA/ETA），无法排产'
+    message: "无到港日期（ATA/ETA），无法排产",
   };
 }
 ```
@@ -296,12 +304,12 @@ if (!clearanceDate) {
 for (let i = 0; i < 30; i++) {
   const date = new Date(earliestDate);
   date.setDate(date.getDate() + i);
-  
+
   // 检查当日产能
   const occupancy = await this.warehouseOccupancyRepo.findOne({
-    where: { warehouseCode, date }
+    where: { warehouseCode, date },
   });
-  
+
   if (!occupancy || occupancy.remaining > 0) {
     return date; // 找到可用日期
   }
@@ -339,7 +347,7 @@ logger.info(`[IntelligentScheduling] Cost breakdown for ${containerNumber}:`, {
   ddCombinedCost: totalCostResult.ddCombinedCost,
   transportationCost: totalCostResult.transportationCost,
   totalCost: totalCostResult.totalCost,
-  currency: totalCostResult.currency
+  currency: totalCostResult.currency,
 });
 
 // 3. 仓库产能扣减
@@ -358,27 +366,27 @@ logger.info(`[IntelligentScheduling] Decremented warehouse occupancy: ${warehous
 
 ```sql
 -- 修改 ETA buffer 天数
-UPDATE dict_scheduling_config 
-SET config_value = '3', updated_at = NOW() 
+UPDATE dict_scheduling_config
+SET config_value = '3', updated_at = NOW()
 WHERE config_key = 'eta_buffer_days';
 
 -- 修改周末跳过配置
-UPDATE dict_scheduling_config 
-SET config_value = 'false', updated_at = NOW() 
+UPDATE dict_scheduling_config
+SET config_value = 'false', updated_at = NOW()
 WHERE config_key = 'skip_weekends';
 ```
 
 ### 查看配置历史
 
 ```sql
-SELECT config_key, config_value, description, created_at, updated_at 
-FROM dict_scheduling_config 
+SELECT config_key, config_value, description, created_at, updated_at
+FROM dict_scheduling_config
 ORDER BY updated_at DESC;
 ```
 
 ## 版本历史
 
-| 版本 | 日期 | 变更说明 |
-|-----|------|---------|
-| v1.0 | 2026-03-25 | 初始版本，定义五个计划日期计算逻辑 |
+| 版本 | 日期       | 变更说明                                 |
+| ---- | ---------- | ---------------------------------------- |
+| v1.0 | 2026-03-25 | 初始版本，定义五个计划日期计算逻辑       |
 | v1.1 | 2026-03-25 | 新增 eta_buffer_days 配置，支持 ETA 顺延 |

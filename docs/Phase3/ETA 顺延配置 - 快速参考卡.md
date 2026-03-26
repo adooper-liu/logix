@@ -11,6 +11,7 @@
 **位置**：排产预览模态框顶部
 
 **输入框**：
+
 ```
 智能排产参数设置
 ├─ ETA 顺延天数：[ 2 ] 天
@@ -22,16 +23,17 @@
 ### 调用 API
 
 **代码**：
+
 ```typescript
 const scheduleParams = {
   country: selectedCountry,
   startDate: startDate,
   endDate: endDate,
   dryRun: true,
-  etaBufferDays: etaBufferDays.value // 传入用户输入的值
+  etaBufferDays: etaBufferDays.value, // 传入用户输入的值
 };
 
-await api.post('/scheduling/schedule', scheduleParams);
+await api.post("/scheduling/schedule", scheduleParams);
 ```
 
 ## 效果对比
@@ -59,13 +61,13 @@ ETA: 3-24
 
 ## 推荐配置
 
-| 场景 | buffer 天数 | 说明 |
-|-----|-----------|------|
-| 普通货物 | 2 天 | 标准流程 |
-| 清关旺季 | 3-5 天 | 海关处理慢 |
-| 紧急货物 | 1 天 | 快速清关 |
-| 英国货物 | 2-3 天 | 脱欧后清关慢 |
-| 美国货物 | 2 天 | 清关较快 |
+| 场景     | buffer 天数 | 说明         |
+| -------- | ----------- | ------------ |
+| 普通货物 | 2 天        | 标准流程     |
+| 清关旺季 | 3-5 天      | 海关处理慢   |
+| 紧急货物 | 1 天        | 快速清关     |
+| 英国货物 | 2-3 天      | 脱欧后清关慢 |
+| 美国货物 | 2 天        | 清关较快     |
 
 ## 参数位置
 
@@ -82,11 +84,11 @@ ETA: 3-24
 
 ## 相关配置
 
-| 配置项 | 默认值 | 说明 |
-|-------|-------|------|
-| `etaBufferDays` | 0 | ETA 顺延天数（前端输入） |
-| `skip_weekends` | true | 跳过周末 |
-| `expedited_handling_fee` | 50 | 加急费 |
+| 配置项                   | 默认值 | 说明                     |
+| ------------------------ | ------ | ------------------------ |
+| `etaBufferDays`          | 0      | ETA 顺延天数（前端输入） |
+| `skip_weekends`          | true   | 跳过周末                 |
+| `expedited_handling_fee` | 50     | 加急费                   |
 
 ## 验证方法
 
@@ -95,6 +97,7 @@ ETA: 3-24
 **文件**：`frontend/src/views/scheduling/components/SchedulingPreviewModal.vue`
 
 **添加**：
+
 ```vue
 <el-form-item label="ETA 顺延天数">
   <el-input-number 

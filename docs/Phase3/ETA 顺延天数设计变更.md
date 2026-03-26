@@ -7,6 +7,7 @@
 ## 变更原因
 
 用户反馈：
+
 > "eta_buffer_days 是根据需要，在前端界面排产时选择或录入的，不能固定为数据库字典表参数，不要保存。"
 
 ## 变更内容
@@ -22,6 +23,7 @@ VALUES ('eta_buffer_days', '2', 'ETA 顺延天数');
 ```
 
 **问题**：
+
 - ❌ 固定配置，不够灵活
 - ❌ 全局统一，无法针对不同排产任务设置不同 buffer
 - ❌ 需要数据库操作才能修改
@@ -31,12 +33,14 @@ VALUES ('eta_buffer_days', '2', 'ETA 顺延天数');
 **方案**：前端界面输入，临时参数
 
 **实现**：
+
 1. 前端排产界面添加输入框
 2. 用户每次排产时自行输入 0-7 天
 3. 后端从请求参数读取，仅当次排产使用
 4. 不保存到数据库
 
 **优点**：
+
 - ✅ 灵活：每次排产可设置不同的 buffer 天数
 - ✅ 临时：不持久化，不影响其他排产任务
 - ✅ 用户友好：用户根据实际需要自行决定
@@ -50,6 +54,7 @@ VALUES ('eta_buffer_days', '2', 'ETA 顺延天数');
 **修改**：
 
 1. **添加接口字段**（L41-50）：
+
    ```typescript
    export interface ScheduleRequest {
      // ... 其他字段
@@ -58,6 +63,7 @@ VALUES ('eta_buffer_days', '2', 'ETA 顺延天数');
    ```
 
 2. **修改计算逻辑**（L306-323）：
+
    ```typescript
    // 从请求参数读取
    const etaBufferDays = _request.etaBufferDays || 0;
@@ -81,17 +87,12 @@ VALUES ('eta_buffer_days', '2', 'ETA 顺延天数');
 **文件**：`frontend/src/views/scheduling/components/SchedulingPreviewModal.vue`
 
 **待添加**：
+
 ```vue
 <template>
   <div class="scheduling-params">
     <el-form-item label="ETA 顺延天数">
-      <el-input-number 
-        v-model="etaBufferDays" 
-        :min="0" 
-        :max="7" 
-        :step="1"
-        placeholder="请输入 0-7 天"
-      />
+      <el-input-number v-model="etaBufferDays" :min="0" :max="7" :step="1" placeholder="请输入 0-7 天" />
       <span class="form-tip">0-7 天，可选，默认 0</span>
     </el-form-item>
   </div>
@@ -105,7 +106,7 @@ const scheduleParams = computed(() => ({
   startDate: startDate.value,
   endDate: endDate.value,
   dryRun: true,
-  etaBufferDays: etaBufferDays.value
+  etaBufferDays: etaBufferDays.value,
 }));
 </script>
 ```
@@ -180,16 +181,18 @@ ETA: 2026-03-24
 如果需要记住用户偏好，可以考虑：
 
 1. **本地存储**（localStorage）：
+
    ```typescript
    // 保存用户上次输入
-   localStorage.setItem('etaBufferDays', '2');
-   
+   localStorage.setItem("etaBufferDays", "2");
+
    // 下次自动填充
-   const saved = localStorage.getItem('etaBufferDays');
+   const saved = localStorage.getItem("etaBufferDays");
    etaBufferDays.value = saved ? parseInt(saved) : 0;
    ```
 
 2. **用户配置表**（可选）：
+
    ```sql
    CREATE TABLE user_preferences (
      user_id VARCHAR(50),
@@ -197,7 +200,7 @@ ETA: 2026-03-24
      preference_value TEXT,
      PRIMARY KEY (user_id, preference_key)
    );
-   
+
    INSERT INTO user_preferences (user_id, preference_key, preference_value)
    VALUES ('user123', 'eta_buffer_days', '2');
    ```
@@ -211,6 +214,7 @@ ETA: 2026-03-24
 ## 完成状态
 
 ✅ **已完成**
+
 - [x] 修改后端接口定义
 - [x] 修改清关日计算逻辑
 - [x] 删除数据库配置依赖

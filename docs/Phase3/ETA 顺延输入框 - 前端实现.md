@@ -16,21 +16,13 @@
 
 ```vue
 <span class="filter-label">ETA 顺延：</span>
-<el-input-number
-  v-model="etaBufferDays"
-  :min="0"
-  :max="7"
-  :step="1"
-  placeholder="0-7 天"
-  controls-position="right"
-  size="small"
-  style="width: 120px"
-/>
+<el-input-number v-model="etaBufferDays" :min="0" :max="7" :step="1" placeholder="0-7 天" controls-position="right" size="small" style="width: 120px" />
 ```
 
 **变量定义**：
+
 ```typescript
-const etaBufferDays = ref<number>(0) // 默认 0 天
+const etaBufferDays = ref<number>(0); // 默认 0 天
 ```
 
 #### 调用排产 API 时传入参数
@@ -39,17 +31,17 @@ const etaBufferDays = ref<number>(0) // 默认 0 天
 // 预览排产
 const result = await containerService.batchSchedule({
   country: resolvedCountry.value || undefined,
-  startDate: dateRange.value?.[0] ? dayjs(dateRange.value[0]).format('YYYY-MM-DD') : undefined,
-  endDate: dateRange.value?.[1] ? dayjs(dateRange.value[1]).format('YYYY-MM-DD') : undefined,
+  startDate: dateRange.value?.[0] ? dayjs(dateRange.value[0]).format("YYYY-MM-DD") : undefined,
+  endDate: dateRange.value?.[1] ? dayjs(dateRange.value[1]).format("YYYY-MM-DD") : undefined,
   dryRun: true,
   etaBufferDays: etaBufferDays.value, // ✅ 新增
-})
+});
 
 // 执行排产（同样需要添加）
 const result = await containerService.batchSchedule({
   // ... 其他参数
   etaBufferDays: etaBufferDays.value,
-})
+});
 ```
 
 ---
@@ -129,16 +121,19 @@ intelligentScheduling.service.ts
 ## ✅ 使用场景
 
 ### 场景 1：正常排产（无缓冲）
+
 - **设置**：`etaBufferDays = 0`
 - **效果**：清关日 = ETA
 - **适用**：清关能力强，无需额外缓冲
 
 ### 场景 2：预留清关时间
+
 - **设置**：`etaBufferDays = 2`
 - **效果**：清关日 = ETA + 2 天
 - **适用**：需要 2 天清关准备时间
 
 ### 场景 3：假期后处理
+
 - **设置**：`etaBufferDays = 3`
 - **效果**：清关日 = ETA + 3 天
 - **适用**：周末或假期后恢复工作
@@ -148,17 +143,20 @@ intelligentScheduling.service.ts
 ## 🔧 技术要点
 
 ### 1. 输入范围限制
+
 - **最小值**：0 天
 - **最大值**：7 天
 - **步长**：1 天
 - **默认值**：0 天
 
 ### 2. 参数传递
+
 - ✅ 在父组件 (`SchedulingVisual.vue`) 中定义
 - ✅ 预览和保存都使用同一个参数
 - ✅ 实时调整，立即生效
 
 ### 3. 后端配合
+
 - ✅ 后端从请求参数读取 `_request.etaBufferDays`
 - ✅ 仅当次排产使用，不持久化
 - ✅ 灵活应对不同场景需求
@@ -169,17 +167,18 @@ intelligentScheduling.service.ts
 
 ### 测试用例
 
-| 序号 | Buffer 天数 | 预期效果 | 验证点 |
-|------|------------|----------|--------|
-| 1 | 0 | 清关日 = ETA | 基准测试 |
-| 2 | 1 | 清关日 = ETA + 1 | 基础缓冲 |
-| 3 | 2 | 清关日 = ETA + 2 | 常用场景 |
-| 4 | 3 | 清关日 = ETA + 3 | 假期后 |
-| 5 | 7 | 清关日 = ETA + 7 | 最大缓冲 |
+| 序号 | Buffer 天数 | 预期效果         | 验证点   |
+| ---- | ----------- | ---------------- | -------- |
+| 1    | 0           | 清关日 = ETA     | 基准测试 |
+| 2    | 1           | 清关日 = ETA + 1 | 基础缓冲 |
+| 3    | 2           | 清关日 = ETA + 2 | 常用场景 |
+| 4    | 3           | 清关日 = ETA + 3 | 假期后   |
+| 5    | 7           | 清关日 = ETA + 7 | 最大缓冲 |
 
 ### 测试步骤
 
 1. **打开排产页面**
+
    ```
    访问：/scheduling/visual?from=shipments&country=GB
    ```
@@ -201,16 +200,19 @@ intelligentScheduling.service.ts
 ## 📝 注意事项
 
 ### 1. 输入提示
+
 - 占位符："0-7 天"
 - 控件右侧显示 +/- 按钮
 - 超出范围自动修正
 
 ### 2. 用户体验
+
 - 输入框宽度：120px（紧凑布局）
 - 大小：small（与工具栏一致）
 - 标签："ETA 顺延："（简洁明了）
 
 ### 3. 边界情况
+
 - **负数**：自动修正为 0
 - **超过 7**：自动修正为 7
 - **非数字**：输入框自动过滤
@@ -220,14 +222,16 @@ intelligentScheduling.service.ts
 ## 🎯 业务价值
 
 ### 解决的问题
+
 ✅ 避免计划从一开始就过期  
 ✅ 给清关预留充足时间  
-✅ 提高排产计划的实际可执行性  
+✅ 提高排产计划的实际可执行性
 
 ### 带来的好处
+
 ✅ 灵活应对不同清关能力  
 ✅ 减少因清关延误导致的滞港费  
-✅ 提升仓库作业效率  
+✅ 提升仓库作业效率
 
 ---
 
