@@ -3,6 +3,7 @@
 ## 🐛 问题现象
 
 **错误日志**：
+
 ```
 2026-03-26 13:18:06 [error]: [IntelligentScheduling] Failed to parse clearanceDate to valid Date for ECMU5399586
 2026-03-26 13:18:06 [error]: [IntelligentScheduling] Failed to parse clearanceDate to valid Date for ECMU5381817
@@ -22,9 +23,10 @@
 **核心问题**：`destPo.eta` 和 `destPo.ata` 的类型是 **Date 对象**，而不是字符串！
 
 **错误链路**：
+
 ```typescript
 const clearanceDate = destPo.eta; // Date 对象
-const plannedCustomsDate = new Date(clearanceDate + 'T00:00:00');
+const plannedCustomsDate = new Date(clearanceDate + "T00:00:00");
 //                ↓
 // Date + string → 字符串拼接
 // "2026-02-11T00:00:00.000Z" + "T00:00:00"
@@ -53,19 +55,19 @@ if (clearanceDate instanceof Date) {
   // 如果已经是 Date 对象，直接使用（避免字符串拼接导致的格式错误）
   plannedCustomsDate = new Date(clearanceDate);
   logger.debug(`ETA/ATA is Date object for ${container.containerNumber}`);
-} else if (typeof clearanceDate === 'string') {
+} else if (typeof clearanceDate === "string") {
   // 如果是字符串，添加时间部分并解析
-  plannedCustomsDate = new Date(clearanceDate + 'T00:00:00');
+  plannedCustomsDate = new Date(clearanceDate + "T00:00:00");
   logger.debug(`ETA/ATA is string for ${container.containerNumber}`);
 } else {
   logger.error(`Invalid clearanceDate type: ${typeof clearanceDate}`);
-  return { success: false, message: '到港日期类型错误' };
+  return { success: false, message: "到港日期类型错误" };
 }
 
 // 立即验证有效性
 if (!plannedCustomsDate || isNaN(plannedCustomsDate.getTime())) {
   logger.error(`Failed to parse clearanceDate`);
-  return { success: false, message: '清关日期解析失败' };
+  return { success: false, message: "清关日期解析失败" };
 }
 ```
 
@@ -78,7 +80,7 @@ if (!plannedCustomsDate || isNaN(plannedCustomsDate.getTime())) {
 ```typescript
 // ✅ 正确方式
 const dateObj = new Date("2026-02-11"); // Date 对象
-const parsed = new Date(dateObj);        // 复制 Date 对象
+const parsed = new Date(dateObj); // 复制 Date 对象
 // 结果：有效的 Date 对象
 ```
 
@@ -86,8 +88,8 @@ const parsed = new Date(dateObj);        // 复制 Date 对象
 
 ```typescript
 // ✅ 正确方式（时区安全）
-const dateStr = "2026-02-11";           // 字符串
-const parsed = new Date(dateStr + 'T00:00:00'); // 添加时间部分
+const dateStr = "2026-02-11"; // 字符串
+const parsed = new Date(dateStr + "T00:00:00"); // 添加时间部分
 // 结果：有效的 Date 对象（本地时间）
 ```
 
@@ -96,7 +98,7 @@ const parsed = new Date(dateStr + 'T00:00:00'); // 添加时间部分
 ```typescript
 // ❌ 错误：Date + string
 const dateObj = new Date("2026-02-11");
-const wrong = new Date(dateObj + 'T00:00:00');
+const wrong = new Date(dateObj + "T00:00:00");
 // dateObj → "2026-02-11T00:00:00.000Z"
 // + 'T00:00:00' → "2026-02-11T00:00:00.000ZT00:00:00" ❌
 // new Date(...) → Invalid Date
@@ -109,6 +111,7 @@ const wrong = new Date(dateObj + 'T00:00:00');
 ### 1. 检查日志
 
 成功时应该看到：
+
 ```
 [IntelligentScheduling] ETA/ATA is Date object for ECMU5399586
 ```
@@ -116,6 +119,7 @@ const wrong = new Date(dateObj + 'T00:00:00');
 ### 2. 排产预览
 
 所有货柜应该正常显示：
+
 - ✅ 提柜日、送仓日、卸柜日、还箱日正常计算
 - ✅ 货币符号正确（英国仓库显示 `£`）
 - ✅ 费用计算正确
@@ -129,6 +133,7 @@ const wrong = new Date(dateObj + 'T00:00:00');
 **修改位置**：L310-L342
 
 **修改内容**：
+
 1. 添加类型判断逻辑（`instanceof Date` 和 `typeof string`）
 2. 分别处理 Date 对象和字符串
 3. 立即验证解析结果
@@ -153,11 +158,11 @@ const destPo = await this.portOperationsRepo.findOne({...});
 
 ```typescript
 // Date + string = string（先转 ISO 字符串，再拼接）
-new Date() + 'T00:00:00' 
+new Date() + "T00:00:00";
 // = "2026-03-26T05:00:00.000ZT00:00:00" ❌
 
 // 正确方式：使用 Date 构造函数
-new Date(dateObj)  // ✅ 复制 Date 对象
+new Date(dateObj); // ✅ 复制 Date 对象
 ```
 
 ---

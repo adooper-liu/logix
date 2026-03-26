@@ -23,8 +23,8 @@
 ```typescript
 // ❌ 问题：使用本地时间方法
 const date = new Date(earliestDate);
-date.setDate(date.getDate() + i);     // ← 使用本地时区
-date.setHours(0, 0, 0, 0);            // ← 使用本地时区
+date.setDate(date.getDate() + i); // ← 使用本地时区
+date.setHours(0, 0, 0, 0); // ← 使用本地时区
 ```
 
 ### 问题分析
@@ -37,14 +37,14 @@ earliestDate = "2026-03-27T00:00:00Z" (UTC 提柜日)
 执行代码：
   const date = new Date(earliestDate);
   // date = "2026-03-26T16:00:00-08:00" (太平洋时间)
-  
+
   date.setDate(date.getDate() + 0);
   // date.getDate() = 26 (太平洋时间的日期)
   // date.setDate(26) → 保持 3-26
-  
+
   date.setHours(0, 0, 0, 0);
   // "2026-03-26T00:00:00-08:00"
-  
+
 转换为 UTC 存储：
   // "2026-03-26T08:00:00Z" ❌ 变成 3-26！
 
@@ -62,8 +62,8 @@ earliestDate = "2026-03-27T00:00:00Z" (UTC 提柜日)
 ```typescript
 // ✅ 修复：使用 UTC 方法，避免时区问题
 const date = new Date(earliestDate);
-date.setUTCDate(date.getUTCDate() + i);  // ← 使用 UTC 方法
-date.setUTCHours(0, 0, 0, 0);            // ← 使用 UTC 方法
+date.setUTCDate(date.getUTCDate() + i); // ← 使用 UTC 方法
+date.setUTCHours(0, 0, 0, 0); // ← 使用 UTC 方法
 ```
 
 ### 修复效果
@@ -76,11 +76,11 @@ earliestDate = "2026-03-27T00:00:00Z" (UTC 提柜日)
 执行代码：
   const date = new Date(earliestDate);
   // date = "2026-03-27T00:00:00Z" (保持 UTC)
-  
+
   date.setUTCDate(date.getUTCDate() + 0);
   // date.getUTCDate() = 27 (UTC 日期)
   // date.setUTCDate(27) → 保持 3-27
-  
+
   date.setUTCHours(0, 0, 0, 0);
   // "2026-03-27T00:00:00Z" ✅ 正确！
 
@@ -141,16 +141,12 @@ date.setUTCHours(0, 0, 0, 0);
 
 ```typescript
 // ✅ 修复前
-const pickupDayStr = plannedPickupDate.toISOString().split('T')[0];
-const unloadDayStr = unloadDate.toISOString().split('T')[0];
+const pickupDayStr = plannedPickupDate.toISOString().split("T")[0];
+const unloadDayStr = unloadDate.toISOString().split("T")[0];
 
 // ✅ 修复后
-const pickupDayStr = plannedPickupDate.getUTCFullYear() + '-' + 
-                     String(plannedPickupDate.getUTCMonth() + 1).padStart(2, '0') + '-' + 
-                     String(plannedPickupDate.getUTCDate()).padStart(2, '0');
-const unloadDayStr = unloadDate.getUTCFullYear() + '-' + 
-                     String(unloadDate.getUTCMonth() + 1).padStart(2, '0') + '-' + 
-                     String(unloadDate.getUTCDate()).padStart(2, '0');
+const pickupDayStr = plannedPickupDate.getUTCFullYear() + "-" + String(plannedPickupDate.getUTCMonth() + 1).padStart(2, "0") + "-" + String(plannedPickupDate.getUTCDate()).padStart(2, "0");
+const unloadDayStr = unloadDate.getUTCFullYear() + "-" + String(unloadDate.getUTCMonth() + 1).padStart(2, "0") + "-" + String(unloadDate.getUTCDate()).padStart(2, "0");
 ```
 
 ### 3. 日期赋值 (L493-496)
@@ -160,10 +156,7 @@ const unloadDayStr = unloadDate.getUTCFullYear() + '-' +
 plannedPickupDate = new Date(futureDate);
 
 // ✅ 修复后
-plannedPickupDate = new Date(futureDate.getUTCFullYear(), 
-                             futureDate.getUTCMonth(), 
-                             futureDate.getUTCDate(),
-                             0, 0, 0, 0);
+plannedPickupDate = new Date(futureDate.getUTCFullYear(), futureDate.getUTCMonth(), futureDate.getUTCDate(), 0, 0, 0, 0);
 ```
 
 ### 4. 清关日期计算 (L389)
@@ -183,6 +176,7 @@ plannedCustomsDate.setUTCDate(plannedCustomsDate.getUTCDate() - 1);
 ### 1. 检查日志
 
 应该看到：
+
 ```
 [IntelligentScheduling] Pickup date adjusted from 2026-03-26 to tomorrow (2026-03-27) for ECMU5399586
 [IntelligentScheduling] Scheduled ECMU5399586: 清关=2026-03-26, 提柜=2026-03-27, 送仓=2026-03-27, 卸柜=2026-03-27
@@ -191,6 +185,7 @@ plannedCustomsDate.setUTCDate(plannedCustomsDate.getUTCDate() - 1);
 ### 2. 排产预览
 
 日期逻辑应该正确：
+
 ```
 清关日：2026-03-26
 提柜日：2026-03-27（后天）✅
@@ -231,6 +226,7 @@ plannedCustomsDate.setUTCDate(plannedCustomsDate.getUTCDate() - 1);
 **修复时间**：2026-03-26  
 **影响范围**：智能排产服务（intelligentScheduling.service.ts）  
 **修复文件**：
+
 - L389: 清关日期计算
 - L467-469: 日期比较逻辑
 - L493-496: 日期赋值逻辑

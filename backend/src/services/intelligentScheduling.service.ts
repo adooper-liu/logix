@@ -303,15 +303,17 @@ export class IntelligentSchedulingService {
           ...containerInfo
         };
       }
-      
+
       // 2. 计算计划清关日、提柜日（若 ATA/ETA 已过，提柜日至少为今天）
       // ✅ 修复：确保 clearanceDate 是 Date 对象，然后格式化为 YYYY-MM-DD 字符串
       let plannedCustomsDate: Date;
-      
+
       if (clearanceDate instanceof Date) {
         // 如果已经是 Date 对象，直接使用（避免字符串拼接导致的格式错误）
         plannedCustomsDate = new Date(clearanceDate);
-        logger.debug(`[IntelligentScheduling] ETA/ATA is Date object for ${container.containerNumber}`);
+        logger.debug(
+          `[IntelligentScheduling] ETA/ATA is Date object for ${container.containerNumber}`
+        );
       } else if (typeof clearanceDate === 'string') {
         // 如果是字符串，添加时间部分并解析
         plannedCustomsDate = new Date(clearanceDate + 'T00:00:00');
@@ -327,7 +329,7 @@ export class IntelligentSchedulingService {
           ...containerInfo
         };
       }
-      
+
       // ✅ 立即验证 plannedCustomsDate 有效性
       if (!plannedCustomsDate || isNaN(plannedCustomsDate.getTime())) {
         logger.error(
@@ -340,7 +342,7 @@ export class IntelligentSchedulingService {
           ...containerInfo
         };
       }
-            
+
       // ✅ 新增：ETA 顺延天数（从请求参数读取，前端传入，不保存）
       // 业务场景：给清关预留足够时间，避免排产计划从一开始就过期
       const etaBufferDays = _request.etaBufferDays || 0;
@@ -350,12 +352,12 @@ export class IntelligentSchedulingService {
           `[IntelligentScheduling] ETA buffer applied: +${etaBufferDays} days for ${container.containerNumber}`
         );
       }
-            
+
       let plannedPickupDate = await this.calculatePlannedPickupDate(
         plannedCustomsDate,
         destPo.lastFreeDate
       );
-      
+
       // ✅ 验证日期有效性
       if (!plannedPickupDate || isNaN(plannedPickupDate.getTime())) {
         logger.warn(
@@ -368,19 +370,25 @@ export class IntelligentSchedulingService {
           ...containerInfo
         };
       }
-      
+
       // ✅ 修复：使用纯日期比较（忽略时区），避免跨国业务场景下的日期混乱
       // 业务场景：英国货柜的 ETA 是英国本地日期，应该用英国日期判断，而不是服务器所在时区
       const today = new Date();
       // ✅ 使用 UTC 日期字符串，忽略时区差异（只比较日期部分）
-      const todayStr = today.getUTCFullYear() + '-' + 
-                       String(today.getUTCMonth() + 1).padStart(2, '0') + '-' + 
-                       String(today.getUTCDate()).padStart(2, '0'); // "2026-03-26"
-      
-      const pickupDateStr = plannedPickupDate.getUTCFullYear() + '-' + 
-                            String(plannedPickupDate.getUTCMonth() + 1).padStart(2, '0') + '-' + 
-                            String(plannedPickupDate.getUTCDate()).padStart(2, '0'); // "2026-03-26"
-      
+      const todayStr =
+        today.getUTCFullYear() +
+        '-' +
+        String(today.getUTCMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(today.getUTCDate()).padStart(2, '0'); // "2026-03-26"
+
+      const pickupDateStr =
+        plannedPickupDate.getUTCFullYear() +
+        '-' +
+        String(plannedPickupDate.getUTCMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(plannedPickupDate.getUTCDate()).padStart(2, '0'); // "2026-03-26"
+
       if (pickupDateStr <= todayStr) {
         // 提柜日是过去日期或今天，调整为明天（UTC 日期）
         const tomorrow = new Date(todayStr + 'T00:00:00Z'); // 强制使用 UTC 时间
@@ -389,10 +397,13 @@ export class IntelligentSchedulingService {
         plannedCustomsDate.setTime(plannedPickupDate.getTime());
         // ✅ 修复：使用 UTC 方法计算清关日期，避免时区问题
         plannedCustomsDate.setUTCDate(plannedCustomsDate.getUTCDate() - 1); // 保持 提=清关 +1
-        
-        const tomorrowStr = tomorrow.getUTCFullYear() + '-' + 
-                           String(tomorrow.getUTCMonth() + 1).padStart(2, '0') + '-' + 
-                           String(tomorrow.getUTCDate()).padStart(2, '0');
+
+        const tomorrowStr =
+          tomorrow.getUTCFullYear() +
+          '-' +
+          String(tomorrow.getUTCMonth() + 1).padStart(2, '0') +
+          '-' +
+          String(tomorrow.getUTCDate()).padStart(2, '0');
         logger.debug(
           `[IntelligentScheduling] Pickup date adjusted from ${pickupDateStr} to tomorrow (${tomorrowStr}) for ${container.containerNumber}`
         );
@@ -451,9 +462,7 @@ export class IntelligentSchedulingService {
 
       // ✅ 验证 plannedUnloadDate 有效性
       if (!plannedUnloadDate || isNaN(plannedUnloadDate.getTime())) {
-        logger.warn(
-          `[IntelligentScheduling] Invalid unload date for ${container.containerNumber}`
-        );
+        logger.warn(`[IntelligentScheduling] Invalid unload date for ${container.containerNumber}`);
         return {
           containerNumber: container.containerNumber,
           success: false,
@@ -464,13 +473,19 @@ export class IntelligentSchedulingService {
 
       // 验证并调整：如果无堆场但提≠卸，需要调整为 Live load
       // ✅ 使用 UTC 纯日期字符串，避免时区转换
-      const pickupDayStr = plannedPickupDate.getUTCFullYear() + '-' + 
-                           String(plannedPickupDate.getUTCMonth() + 1).padStart(2, '0') + '-' + 
-                           String(plannedPickupDate.getUTCDate()).padStart(2, '0');
+      const pickupDayStr =
+        plannedPickupDate.getUTCFullYear() +
+        '-' +
+        String(plannedPickupDate.getUTCMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(plannedPickupDate.getUTCDate()).padStart(2, '0');
       let unloadDate = plannedUnloadDate;
-      const unloadDayStr = unloadDate.getUTCFullYear() + '-' + 
-                           String(unloadDate.getUTCMonth() + 1).padStart(2, '0') + '-' + 
-                           String(unloadDate.getUTCDate()).padStart(2, '0');
+      const unloadDayStr =
+        unloadDate.getUTCFullYear() +
+        '-' +
+        String(unloadDate.getUTCMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(unloadDate.getUTCDate()).padStart(2, '0');
 
       if (!truckingCompany.hasYard && pickupDayStr !== unloadDayStr) {
         // 无堆场只能 Live load，需要找卸柜日 = 提柜日
@@ -490,10 +505,15 @@ export class IntelligentSchedulingService {
             unloadDate = futureDate;
             // 同时调整提柜日以匹配卸柜日（保持 Live load）
             // ✅ 修复：使用 UTC 方法复制日期
-            plannedPickupDate = new Date(futureDate.getUTCFullYear(), 
-                                         futureDate.getUTCMonth(), 
-                                         futureDate.getUTCDate(),
-                                         0, 0, 0, 0);
+            plannedPickupDate = new Date(
+              futureDate.getUTCFullYear(),
+              futureDate.getUTCMonth(),
+              futureDate.getUTCDate(),
+              0,
+              0,
+              0,
+              0
+            );
           }
         }
       }
@@ -503,7 +523,7 @@ export class IntelligentSchedulingService {
         unloadMode,
         unloadDate
       );
-            
+
       // ✅ 验证 plannedDeliveryDate 有效性
       if (!plannedDeliveryDate || isNaN(plannedDeliveryDate.getTime())) {
         logger.warn(
@@ -516,7 +536,7 @@ export class IntelligentSchedulingService {
           ...containerInfo
         };
       }
-      
+
       // 8. 计算计划还箱日（从 EmptyReturn 表获取最晚还箱日）
       let lastReturnDate: Date | undefined;
       const emptyReturn = await this.emptyReturnRepo.findOne({
@@ -529,7 +549,7 @@ export class IntelligentSchedulingService {
         lastReturnDate = new Date(destPo.lastFreeDate);
         lastReturnDate.setDate(lastReturnDate.getDate() + 7);
       }
-      
+
       // ✅ 新的还箱日计算逻辑：考虑车队还箱能力
       const returnDateResult = await this.calculatePlannedReturnDate(
         unloadDate,
@@ -538,9 +558,9 @@ export class IntelligentSchedulingService {
         lastReturnDate,
         plannedPickupDate
       );
-      
+
       const plannedReturnDate = returnDateResult.returnDate;
-      
+
       // 如果卸柜日需要调整（Live load 模式下还箱能力不足）
       if (returnDateResult.adjustedUnloadDate) {
         unloadDate = returnDateResult.adjustedUnloadDate;
@@ -550,12 +570,10 @@ export class IntelligentSchedulingService {
           `[IntelligentScheduling] Adjusted unload date from ${unloadDate.toISOString()} to ${returnDateResult.adjustedUnloadDate.toISOString()} for ${container.containerNumber} due to return capacity`
         );
       }
-            
+
       // ✅ 验证 plannedReturnDate 有效性
       if (!plannedReturnDate || isNaN(plannedReturnDate.getTime())) {
-        logger.warn(
-          `[IntelligentScheduling] Invalid return date for ${container.containerNumber}`
-        );
+        logger.warn(`[IntelligentScheduling] Invalid return date for ${container.containerNumber}`);
         return {
           containerNumber: container.containerNumber,
           success: false,
@@ -588,7 +606,7 @@ export class IntelligentSchedulingService {
         unloadDate,
         plannedReturnDate
       };
-      
+
       for (const [dateName, dateValue] of Object.entries(allDates)) {
         if (!dateValue || isNaN(dateValue.getTime())) {
           logger.error(
@@ -696,10 +714,12 @@ export class IntelligentSchedulingService {
   private async calculatePlannedPickupDate(customsDate: Date, lastFreeDate?: Date): Promise<Date> {
     // ✅ 验证输入日期
     if (!customsDate || isNaN(customsDate.getTime())) {
-      logger.warn('[IntelligentScheduling] Invalid customsDate passed to calculatePlannedPickupDate');
+      logger.warn(
+        '[IntelligentScheduling] Invalid customsDate passed to calculatePlannedPickupDate'
+      );
       return new Date(); // 返回今天作为默认值
     }
-    
+
     const pickupDate = new Date(customsDate);
     pickupDate.setDate(pickupDate.getDate() + 1); // 清关后次日提柜
 
@@ -886,21 +906,24 @@ export class IntelligentSchedulingService {
       // ✅ 修复：使用 UTC 方法，避免时区问题
       date.setUTCDate(date.getUTCDate() + i);
       date.setUTCHours(0, 0, 0, 0); // 去除时间部分，只保留日期
-  
+
       // ✅ 使用日期字符串查询，避免时区转换问题
       // 将日期格式化为 'YYYY-MM-DD' 字符串
-      const dateStr = date.getUTCFullYear() + '-' + 
-                      String(date.getUTCMonth() + 1).padStart(2, '0') + '-' + 
-                      String(date.getUTCDate()).padStart(2, '0');
-        
+      const dateStr =
+        date.getUTCFullYear() +
+        '-' +
+        String(date.getUTCMonth() + 1).padStart(2, '0') +
+        '-' +
+        String(date.getUTCDate()).padStart(2, '0');
+
       // 查找或创建当日占用记录
       const occupancy = await this.warehouseOccupancyRepo.findOne({
-        where: { 
-          warehouseCode, 
+        where: {
+          warehouseCode,
           date: dateStr as any // TypeORM 会将字符串转换为 DATE
         }
       });
-  
+
       if (!occupancy) {
         // 使用仓库默认产能
         const warehouse = await AppDataSource.getRepository(Warehouse).findOne({
@@ -909,7 +932,7 @@ export class IntelligentSchedulingService {
         const _capacity = warehouse?.dailyUnloadCapacity || 10; // 默认 10
         return date;
       }
-  
+
       if (occupancy.plannedCount < occupancy.capacity) {
         return date;
       }
@@ -935,11 +958,11 @@ export class IntelligentSchedulingService {
 
   /**
    * 计算计划还箱日（必须 提<=送<=卸<=还）
-   * 
+   *
    * 业务规则：
    * ① Drop off 模式：还 = 卸 + 1，但受车队还箱能力约束，若能力不足则顺延，最晚不超过 lastReturnDate
    * ② Live load 模式：还 = 卸（同日），若能力不足需调整卸柜日或选择其他车队
-   * 
+   *
    * @param unloadDate 卸柜日
    * @param unloadMode 卸柜方式（Drop off / Live load）
    * @param truckingCompanyId 车队 ID（用于查询还箱能力）
@@ -959,9 +982,9 @@ export class IntelligentSchedulingService {
   }> {
     const returnDateOnly = new Date(unloadDate);
     returnDateOnly.setUTCHours(0, 0, 0, 0);
-      
+
     let adjustedUnloadDate: Date | undefined;
-      
+
     if (unloadMode === 'Live load') {
       // Live load 模式：还 = 卸（同日）
       // 需要检查车队当日的还箱能力
@@ -970,7 +993,7 @@ export class IntelligentSchedulingService {
         returnDateOnly,
         lastReturnDate
       );
-        
+
       if (!availableDate) {
         // 车队还箱能力不足，且无法在 lastReturnDate 前找到可用日期
         // 返回卸柜日当天（由上层逻辑决定是否更换车队）
@@ -979,26 +1002,26 @@ export class IntelligentSchedulingService {
           adjustedUnloadDate: undefined
         };
       }
-        
+
       // 如果找到的日期不是卸柜日当天，需要调整卸柜日
       if (availableDate.getTime() !== returnDateOnly.getTime()) {
         adjustedUnloadDate = availableDate;
       }
-        
+
       return {
         returnDate: availableDate,
         adjustedUnloadDate
       };
     } else {
       // ✅ Drop off 模式：优先当天还箱，其次卸 +1，再往后顺延
-      
+
       // Step 1: 先检查卸柜日当天的还箱能力
       const availableOnUnloadDate = await this.findEarliestAvailableReturnDate(
         truckingCompanyId,
         returnDateOnly,
         lastReturnDate
       );
-      
+
       if (availableOnUnloadDate) {
         // 如果卸柜日当天有能力，当天还箱（最优解，减少堆场费用）
         return {
@@ -1006,17 +1029,17 @@ export class IntelligentSchedulingService {
           adjustedUnloadDate: undefined
         };
       }
-      
+
       // Step 2: 如果卸柜日当天没能力，再检查卸柜日 +1
       const nextDay = new Date(returnDateOnly);
       nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-      
+
       const availableOnNextDay = await this.findEarliestAvailableReturnDate(
         truckingCompanyId,
         nextDay,
         lastReturnDate
       );
-      
+
       if (availableOnNextDay) {
         // 卸柜日 +1 有能力，次日还箱（标准 Drop off 模式）
         return {
@@ -1024,14 +1047,14 @@ export class IntelligentSchedulingService {
           adjustedUnloadDate: undefined
         };
       }
-      
+
       // Step 3: 如果都没能力，继续顺延查找
       const availableDate = await this.findEarliestAvailableReturnDate(
         truckingCompanyId,
         nextDay,
         lastReturnDate
       );
-      
+
       if (!availableDate) {
         // 找不到可用日期，返回 nextDay（可能会超过 lastReturnDate，由后续逻辑处理）
         return {
@@ -1039,14 +1062,14 @@ export class IntelligentSchedulingService {
           adjustedUnloadDate: undefined
         };
       }
-      
+
       return {
         returnDate: availableDate,
         adjustedUnloadDate: undefined
       };
     }
   }
-  
+
   /**
    * 查找车队从 earliestDate 起首个有还箱能力的日期
    * @param truckingCompanyId 车队 ID
@@ -1060,15 +1083,18 @@ export class IntelligentSchedulingService {
     lastReturnDate?: Date
   ): Promise<Date | null> {
     // 向前查找最多 14 天（或到 lastReturnDate）
-    const maxDaysToSearch = lastReturnDate 
-      ? Math.min(14, Math.ceil((lastReturnDate.getTime() - earliestDate.getTime()) / (1000 * 60 * 60 * 24)))
+    const maxDaysToSearch = lastReturnDate
+      ? Math.min(
+          14,
+          Math.ceil((lastReturnDate.getTime() - earliestDate.getTime()) / (1000 * 60 * 60 * 24))
+        )
       : 14;
-      
+
     for (let i = 0; i <= maxDaysToSearch; i++) {
       const date = new Date(earliestDate);
       date.setUTCDate(date.getUTCDate() + i);
       date.setUTCHours(0, 0, 0, 0);
-        
+
       // 如果超过最晚还箱日，停止查找
       if (lastReturnDate) {
         const lastReturn = new Date(lastReturnDate);
@@ -1077,7 +1103,7 @@ export class IntelligentSchedulingService {
           return null;
         }
       }
-        
+
       // 查询车队当日的还箱档期占用
       const occupancy = await AppDataSource.getRepository(ExtTruckingReturnSlotOccupancy).findOne({
         where: {
@@ -1085,7 +1111,7 @@ export class IntelligentSchedulingService {
           slotDate: date
         }
       });
-        
+
       if (!occupancy) {
         // 无占用记录，使用车队默认还箱能力
         const trucking = await AppDataSource.getRepository(TruckingCompany).findOne({
@@ -1101,7 +1127,7 @@ export class IntelligentSchedulingService {
         return date;
       }
     }
-      
+
     // 找不到可用日期
     return null;
   }

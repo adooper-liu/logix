@@ -3,18 +3,22 @@
 ## 🐛 问题演进
 
 ### 第一阶段：时区问题（已修复）
+
 - ❌ ETA 日期按 UTC 解析，导致日期偏移
 - ✅ 修复：使用 `new Date(date + 'T00:00:00')` 强制本地时间解析
 
 ### 第二阶段：单个日期验证（已修复）
+
 - ❌ `plannedPickupDate` 未验证导致崩溃
 - ✅ 修复：在计算后立即验证
 
 ### 第三阶段：多个日期验证（已修复）
+
 - ❌ `plannedUnloadDate`、`plannedDeliveryDate`、`plannedReturnDate` 未验证
 - ✅ 修复：在每个日期计算后立即验证
 
 ### 第四阶段：最终全面验证（本次修复）
+
 - ❌ **即使有分散的验证，日期在后续计算中可能被修改**
 - ❌ `plannedCustomsDate` 在 buffer 调整、提柜日回退等逻辑后可能变为无效
 - ✅ 修复：在所有日期计算完成后，统一进行最终验证
@@ -52,9 +56,10 @@
 
 ```typescript
 // ❌ 问题：验证后日期仍被修改
-let plannedCustomsDate = new Date(clearanceDate + 'T00:00:00');
+let plannedCustomsDate = new Date(clearanceDate + "T00:00:00");
 // ✅ 此时有效
-if (!plannedCustomsDate || isNaN(plannedCustomsDate.getTime())) { }
+if (!plannedCustomsDate || isNaN(plannedCustomsDate.getTime())) {
+}
 
 // 但后续代码修改了它：
 plannedCustomsDate.setDate(plannedCustomsDate.getDate() + etaBufferDays);
@@ -80,32 +85,31 @@ const allDates = {
   plannedPickupDate,
   plannedDeliveryDate,
   unloadDate,
-  plannedReturnDate
+  plannedReturnDate,
 };
 
 for (const [dateName, dateValue] of Object.entries(allDates)) {
   if (!dateValue || isNaN(dateValue.getTime())) {
-    logger.error(
-      `[IntelligentScheduling] Critical: ${dateName} is invalid for ${container.containerNumber}`
-    );
+    logger.error(`[IntelligentScheduling] Critical: ${dateName} is invalid for ${container.containerNumber}`);
     return {
       containerNumber: container.containerNumber,
       success: false,
       message: `排产失败：${dateName} 计算错误`,
-      ...containerInfo
+      ...containerInfo,
     };
   }
 }
 
 // 12. 更新数据库（dryRun 模式下跳过）
 const plannedData = {
-  plannedCustomsDate: plannedCustomsDate.toISOString().split('T')[0],
-  plannedPickupDate: plannedPickupDate.toISOString().split('T')[0],
+  plannedCustomsDate: plannedCustomsDate.toISOString().split("T")[0],
+  plannedPickupDate: plannedPickupDate.toISOString().split("T")[0],
   // ... 安全使用
-}
+};
 ```
 
 **优点**：
+
 - ✅ 统一验证所有日期，无遗漏
 - ✅ 在任何修改后都能捕获问题
 - ✅ 提供清晰的错误定位
@@ -142,30 +146,32 @@ const plannedData = {
 
 ### 修复前（分散验证）
 
-| 日期字段 | 验证位置 | 验证时机 |
-|----------|----------|----------|
-| plannedCustomsDate | ❌ 无 | - |
-| plannedPickupDate | ✅ L326 | 计算后 |
-| plannedUnloadDate | ✅ L405 | 计算后 |
-| plannedDeliveryDate | ✅ L445 | 计算后 |
-| plannedReturnDate | ✅ L469 | 计算后 |
+| 日期字段            | 验证位置 | 验证时机 |
+| ------------------- | -------- | -------- |
+| plannedCustomsDate  | ❌ 无    | -        |
+| plannedPickupDate   | ✅ L326  | 计算后   |
+| plannedUnloadDate   | ✅ L405  | 计算后   |
+| plannedDeliveryDate | ✅ L445  | 计算后   |
+| plannedReturnDate   | ✅ L469  | 计算后   |
 
 **问题**：
+
 - ❌ `plannedCustomsDate` 未验证
 - ❌ 日期在后续计算中可能被修改
 - ❌ 验证点分散，容易遗漏
 
 ### 修复后（三层验证）
 
-| 日期字段 | 输入验证 | 分散验证 | 最终验证 |
-|----------|----------|----------|----------|
-| plannedCustomsDate | ✅ | - | ✅ |
-| plannedPickupDate | ✅ | ✅ L326 | ✅ |
-| plannedUnloadDate | - | ✅ L405 | ✅ |
-| plannedDeliveryDate | - | ✅ L445 | ✅ |
-| plannedReturnDate | - | ✅ L469 | ✅ |
+| 日期字段            | 输入验证 | 分散验证 | 最终验证 |
+| ------------------- | -------- | -------- | -------- |
+| plannedCustomsDate  | ✅       | -        | ✅       |
+| plannedPickupDate   | ✅       | ✅ L326  | ✅       |
+| plannedUnloadDate   | -        | ✅ L405  | ✅       |
+| plannedDeliveryDate | -        | ✅ L445  | ✅       |
+| plannedReturnDate   | -        | ✅ L469  | ✅       |
 
 **优点**：
+
 - ✅ 所有日期都被覆盖
 - ✅ 多层防护，万无一失
 - ✅ 统一验证，易于维护
@@ -181,14 +187,14 @@ const plannedData = {
 function calculateDates() {
   // 输入验证
   if (!input || isNaN(input.getTime())) return error;
-  
+
   // 计算并验证每个日期
   const date1 = calculateDate1(input);
   if (!date1 || isNaN(date1.getTime())) return error;
-  
+
   const date2 = calculateDate2(date1);
   if (!date2 || isNaN(date2.getTime())) return error;
-  
+
   // 最终统一验证
   const allDates = { date1, date2 };
   for (const [name, value] of Object.entries(allDates)) {
@@ -197,7 +203,7 @@ function calculateDates() {
       return error;
     }
   }
-  
+
   // 安全使用
   return { date1, date2 };
 }
@@ -212,7 +218,7 @@ const allDates = {
   plannedPickupDate,
   plannedDeliveryDate,
   unloadDate,
-  plannedReturnDate
+  plannedReturnDate,
 };
 
 for (const [dateName, dateValue] of Object.entries(allDates)) {
@@ -231,7 +237,7 @@ return {
   containerNumber: container.containerNumber,
   success: false,
   message: `排产失败：${dateName} 计算错误`, // 清晰说明哪个环节失败
-  ...containerInfo
+  ...containerInfo,
 };
 ```
 
@@ -242,11 +248,13 @@ return {
 ### 测试场景 1：所有日期正常
 
 **输入**：
+
 - ETA = 2026-03-28
 - 仓库可用
 - 车队可用
 
 **预期**：
+
 - 所有日期计算成功 ✅
 - 三层验证全部通过 ✅
 - 排产成功 ✅
@@ -254,10 +262,12 @@ return {
 ### 测试场景 2：customsDate 在计算中被修改为无效
 
 **输入**：
+
 - ETA = null
 - clearanceDate 无效
 
 **处理流程**：
+
 ```
  ETA = null
    ↓
@@ -281,10 +291,12 @@ return {
 ### 测试场景 3：日期在后续计算中被修改
 
 **输入**：
+
 - ETA = 2026-03-20（过去日期）
 - 今天 = 2026-03-26
 
 **处理流程**：
+
 ```
  ETA = 2026-03-20
    ↓
@@ -308,10 +320,12 @@ return {
 ### 测试场景 4：日期计算过程中出错
 
 **输入**：
+
 - 仓库产能不足
 - `findEarliestAvailableWarehouse` 返回 null
 
 **处理流程**：
+
 ```
  plannedUnloadDate = null
    ↓
@@ -337,7 +351,7 @@ function isValidDate(date: Date | null | undefined): boolean {
 
 // 使用示例
 if (!plannedCustomsDate || isNaN(plannedCustomsDate.getTime())) {
-  logger.error('Invalid customs date');
+  logger.error("Invalid customs date");
   return error;
 }
 ```
@@ -351,7 +365,7 @@ const allDates = {
   plannedPickupDate,
   plannedDeliveryDate,
   unloadDate,
-  plannedReturnDate
+  plannedReturnDate,
 };
 
 for (const [dateName, dateValue] of Object.entries(allDates)) {
@@ -368,11 +382,11 @@ for (const [dateName, dateValue] of Object.entries(allDates)) {
 
 ```typescript
 // ✅ 分层记录
-logger.warn('Invalid customsDate passed to calculatePlannedPickupDate');
+logger.warn("Invalid customsDate passed to calculatePlannedPickupDate");
 // ↓
 logger.error(`Critical: ${dateName} is invalid for ${container.containerNumber}`);
 // ↓
-logger.info('Pickup date adjusted to today');
+logger.info("Pickup date adjusted to today");
 ```
 
 ---
@@ -380,15 +394,17 @@ logger.info('Pickup date adjusted to today');
 ## 🎯 业务价值
 
 ### 解决的问题
+
 ✅ 彻底消除所有 Invalid Date 错误  
 ✅ 提供清晰的错误定位  
-✅ 多层防护，万无一失  
+✅ 多层防护，万无一失
 
 ### 带来的好处
+
 ✅ 系统健壮性极大提升  
 ✅ 用户体验更好（友好错误提示）  
 ✅ 运维更高效（快速定位问题）  
-✅ 代码质量更高（防御式编程）  
+✅ 代码质量更高（防御式编程）
 
 ---
 
@@ -399,6 +415,7 @@ logger.info('Pickup date adjusted to today');
 **文件**：`backend/src/services/intelligentScheduling.service.ts`
 
 **修改位置**：
+
 - L498-521: 最终统一验证（新增）
 - L405-417: plannedUnloadDate 验证（已有）
 - L445-463: plannedDeliveryDate 验证（已有）
@@ -407,6 +424,7 @@ logger.info('Pickup date adjusted to today');
 - L562-578: 输入参数验证（已有）
 
 **新增验证**：
+
 - 最终统一验证：1 个
 - 验证覆盖日期字段：5 个
 
@@ -414,16 +432,17 @@ logger.info('Pickup date adjusted to today');
 
 ## ✅ 修复状态
 
-| 修复项 | 状态 | 验证 |
-|--------|------|------|
-| 时区问题 | ✅ 完成 | 待测试 |
-| plannedPickupDate 验证 | ✅ 完成 | 已测试 |
-| plannedUnloadDate 验证 | ✅ 完成 | 待测试 |
-| plannedDeliveryDate 验证 | ✅ 完成 | 待测试 |
-| plannedReturnDate 验证 | ✅ 完成 | 待测试 |
-| **最终统一验证** | ✅ **完成** | **待测试** |
+| 修复项                   | 状态        | 验证       |
+| ------------------------ | ----------- | ---------- |
+| 时区问题                 | ✅ 完成     | 待测试     |
+| plannedPickupDate 验证   | ✅ 完成     | 已测试     |
+| plannedUnloadDate 验证   | ✅ 完成     | 待测试     |
+| plannedDeliveryDate 验证 | ✅ 完成     | 待测试     |
+| plannedReturnDate 验证   | ✅ 完成     | 待测试     |
+| **最终统一验证**         | ✅ **完成** | **待测试** |
 
 **下一步**：
+
 1. 重启后端服务
 2. 测试排产功能
 3. 验证所有日期计算正常

@@ -5,12 +5,14 @@
 ### 用户场景
 
 **货柜信息**：
+
 - 目的港：GBFXT（英国费利克斯托）
 - 仓库：Bedford（英国）
 - 车队：YunExpress UK Ltd（英国）
 - ETA：2026-02-11（英国本地日期）
 
 **时间信息**：
+
 - **中国时间**：2026-03-26 13:35 (UTC+8)
 - **英国时间**：2026-03-26 05:35 (UTC+0)
 - **服务器时间**：2026-03-25 21:35 (太平洋时间 UTC-8)
@@ -18,9 +20,11 @@
 ### 问题现象
 
 用户疑问：
+
 > "我想了解的是，因为这几个货柜是英国的，现在中国时间 3-26 日 13:35，是不是排产时，因为数据记录是英国的本地时间，所以不一致？"
 
 **核心问题**：
+
 - ✅ 用户说对了！问题就是**跨国时区差异**
 
 ---
@@ -40,10 +44,10 @@ TypeORM 查询：
 后端服务器（美国太平洋时间 UTC-8）：
   today = new Date()
   → 2026-03-25 21:35:00 PST
-  
+
 使用 toLocaleDateString('zh-CN'):
   → "2026/03/26" (按中国时区 UTC+8 转换)
-  
+
 问题：
   用"中国日期的今天"去判断"英国日期的货柜"
   服务器在"美国时间"执行计算
@@ -57,7 +61,7 @@ TypeORM 查询：
 ```typescript
 // 问题：UTC 转换导致日期偏移
 const today = new Date(); // 太平洋时间 2026-03-25 21:35
-const todayStr = today.toISOString().split('T')[0]; 
+const todayStr = today.toISOString().split('T')[0];
 // toISOString() = "2026-03-26T05:35:00.000Z"
 // todayStr = "2026-03-26" ✅ 看起来正确
 
@@ -87,6 +91,7 @@ const todayStr = today.toLocaleDateString('zh-CN', {...});
 ### 使用 UTC 纯日期比较
 
 **核心思想**：
+
 - 所有日期都转换为 **UTC 日期字符串**（忽略时区）
 - 只比较日期部分（`YYYY-MM-DD`），忽略时间部分
 - 统一使用 UTC，避免各国时区混乱
@@ -97,24 +102,18 @@ const todayStr = today.toLocaleDateString('zh-CN', {...});
 const today = new Date();
 
 // ✅ 使用 UTC 日期字符串，忽略时区差异（只比较日期部分）
-const todayStr = today.getUTCFullYear() + '-' + 
-                 String(today.getUTCMonth() + 1).padStart(2, '0') + '-' + 
-                 String(today.getUTCDate()).padStart(2, '0'); // "2026-03-26"
+const todayStr = today.getUTCFullYear() + "-" + String(today.getUTCMonth() + 1).padStart(2, "0") + "-" + String(today.getUTCDate()).padStart(2, "0"); // "2026-03-26"
 
-const pickupDateStr = plannedPickupDate.getUTCFullYear() + '-' + 
-                      String(plannedPickupDate.getUTCMonth() + 1).padStart(2, '0') + '-' + 
-                      String(plannedPickupDate.getUTCDate()).padStart(2, '0');
+const pickupDateStr = plannedPickupDate.getUTCFullYear() + "-" + String(plannedPickupDate.getUTCMonth() + 1).padStart(2, "0") + "-" + String(plannedPickupDate.getUTCDate()).padStart(2, "0");
 
 if (pickupDateStr <= todayStr) {
   // 提柜日是过去日期或今天，调整为明天（UTC 日期）
-  const tomorrow = new Date(todayStr + 'T00:00:00Z'); // 强制使用 UTC 时间
+  const tomorrow = new Date(todayStr + "T00:00:00Z"); // 强制使用 UTC 时间
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
   plannedPickupDate = tomorrow;
-  
-  const tomorrowStr = tomorrow.getUTCFullYear() + '-' + 
-                      String(tomorrow.getUTCMonth() + 1).padStart(2, '0') + '-' + 
-                      String(tomorrow.getUTCDate()).padStart(2, '0');
-  
+
+  const tomorrowStr = tomorrow.getUTCFullYear() + "-" + String(tomorrow.getUTCMonth() + 1).padStart(2, "0") + "-" + String(tomorrow.getUTCDate()).padStart(2, "0");
+
   logger.debug(`Pickup date adjusted from ${pickupDateStr} to tomorrow (${tomorrowStr})`);
 }
 ```
@@ -125,13 +124,14 @@ if (pickupDateStr <= todayStr) {
 
 ### 场景：中国时间 3-26 13:35
 
-| 地区 | 本地时间 | UTC 时间 | UTC 日期字符串 |
-|------|---------|---------|---------------|
-| 中国（UTC+8） | 2026-03-26 13:35 | 2026-03-26 05:35 | "2026-03-26" ✅ |
-| 英国（UTC+0） | 2026-03-26 05:35 | 2026-03-26 05:35 | "2026-03-26" ✅ |
+| 地区             | 本地时间         | UTC 时间         | UTC 日期字符串  |
+| ---------------- | ---------------- | ---------------- | --------------- |
+| 中国（UTC+8）    | 2026-03-26 13:35 | 2026-03-26 05:35 | "2026-03-26" ✅ |
+| 英国（UTC+0）    | 2026-03-26 05:35 | 2026-03-26 05:35 | "2026-03-26" ✅ |
 | 美国 PST (UTC-8) | 2026-03-25 21:35 | 2026-03-26 05:35 | "2026-03-26" ✅ |
 
 **结论**：
+
 - ✅ 无论服务器在哪个时区
 - ✅ 无论业务发生在哪个国家
 - ✅ UTC 日期字符串都是 "2026-03-26"
@@ -146,9 +146,7 @@ if (pickupDateStr <= todayStr) {
 ```typescript
 // 获取 UTC 日期字符串
 function toUTCDateString(date: Date): string {
-  return date.getUTCFullYear() + '-' + 
-         String(date.getUTCMonth() + 1).padStart(2, '0') + '-' + 
-         String(date.getUTCDate()).padStart(2, '0');
+  return date.getUTCFullYear() + "-" + String(date.getUTCMonth() + 1).padStart(2, "0") + "-" + String(date.getUTCDate()).padStart(2, "0");
 }
 
 // 示例
@@ -169,14 +167,14 @@ tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
 
 ```typescript
 // ❌ 本地时间（受时区影响）
-date.getFullYear()      // 本地年份
-date.getMonth()         // 本地月份
-date.getDate()          // 本地日期
+date.getFullYear(); // 本地年份
+date.getMonth(); // 本地月份
+date.getDate(); // 本地日期
 
 // ✅ UTC 时间（统一标准）
-date.getUTCFullYear()   // UTC 年份
-date.getUTCMonth()      // UTC 月份
-date.getUTCDate()       // UTC 日期
+date.getUTCFullYear(); // UTC 年份
+date.getUTCMonth(); // UTC 月份
+date.getUTCDate(); // UTC 日期
 ```
 
 ---
@@ -186,6 +184,7 @@ date.getUTCDate()       // UTC 日期
 ### 1. 检查日志
 
 应该看到：
+
 ```
 [IntelligentScheduling] Pickup date adjusted from 2026-03-26 to tomorrow (2026-03-27) for ECMU5399586
 ```
@@ -195,6 +194,7 @@ date.getUTCDate()       // UTC 日期
 所有日期应该正确显示：
 
 **中国用户看到**：
+
 ```
 清关日：2026-03-26
 提柜日：2026-03-27（明天）
@@ -204,6 +204,7 @@ date.getUTCDate()       // UTC 日期
 ```
 
 **英国用户看到**（同一时刻）：
+
 ```
 清关日：2026-03-26
 提柜日：2026-03-27（明天）
@@ -213,6 +214,7 @@ date.getUTCDate()       // UTC 日期
 ```
 
 **美国用户看到**（同一时刻）：
+
 ```
 清关日：2026-03-26
 提柜日：2026-03-27（明天）
