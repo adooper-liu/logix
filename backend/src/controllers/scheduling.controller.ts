@@ -1720,7 +1720,7 @@ export class SchedulingController {
 
       res.json({
         success: true,
-        data: result.map(w => ({
+        data: result.map((w) => ({
           warehouseCode: w.warehouseCode,
           warehouseName: w.warehouseName,
           propertyType: w.propertyType,

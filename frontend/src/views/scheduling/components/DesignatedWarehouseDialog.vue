@@ -21,11 +21,9 @@
             :value="container.containerNumber"
           />
         </el-select>
-        <div class="form-tip">
-          留空表示对所有选中的柜生效，也可选择特定柜号
-        </div>
+        <div class="form-tip">留空表示对所有选中的柜生效，也可选择特定柜号</div>
       </el-form-item>
-      
+
       <!-- ② 选择仓库 -->
       <el-form-item label="选择仓库" required>
         <el-select
@@ -34,11 +32,7 @@
           filterable
           style="width: 100%"
         >
-          <el-option-group
-            v-for="group in warehouseGroups"
-            :key="group.type"
-            :label="group.type"
-          >
+          <el-option-group v-for="group in warehouseGroups" :key="group.type" :label="group.type">
             <el-option
               v-for="wh in group.warehouses"
               :key="wh.warehouseCode"
@@ -58,11 +52,9 @@
             </el-option>
           </el-option-group>
         </el-select>
-        <div class="form-tip">
-          仅显示可用于该港口的仓库
-        </div>
+        <div class="form-tip">仅显示可用于该港口的仓库</div>
       </el-form-item>
-      
+
       <!-- ③ 仓库信息展示 -->
       <el-alert
         v-if="form.warehouseCode"
@@ -79,143 +71,151 @@
         </div>
       </el-alert>
     </el-form>
-    
+
     <template #footer>
       <el-button @click="dialogVisible = false">取消</el-button>
-      <el-button type="primary" @click="handleConfirm" :loading="confirming">
-        确认排产
-      </el-button>
+      <el-button type="primary" @click="handleConfirm" :loading="confirming"> 确认排产 </el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { ElMessage } from 'element-plus';
-import api from '@/services/api';
+import api from '@/services/api'
+import { ElMessage } from 'element-plus'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps<{
-  visible: boolean;
-  containerNumbers: string[]; // 选中的柜号列表
-  portCode?: string; // 当前港口
-  countryCode?: string; // 当前国家
-}>();
+  visible: boolean
+  containerNumbers: string[] // 选中的柜号列表
+  portCode?: string // 当前港口
+  countryCode?: string // 当前国家
+}>()
 
 const emit = defineEmits<{
-  (e: 'update:visible', value: boolean): void;
-  (e: 'confirm', data: {
-    warehouseCode: string;
-    containerNumbers?: string[];
-  }): void;
-}>();
+  (e: 'update:visible', value: boolean): void
+  (
+    e: 'confirm',
+    data: {
+      warehouseCode: string
+      containerNumbers?: string[]
+    }
+  ): void
+}>()
 
 // 表单数据
 const form = ref({
   warehouseCode: '',
-  containerNumbers: [] as string[]
-});
+  containerNumbers: [] as string[],
+})
 
 // 可用集装箱
-const availableContainers = ref(props.containerNumbers.map(num => ({
-  containerNumber: num
-})));
+const availableContainers = ref(
+  props.containerNumbers.map(num => ({
+    containerNumber: num,
+  }))
+)
 
 // 仓库列表
-const warehouses = ref<any[]>([]);
-const loading = ref(false);
+const warehouses = ref<any[]>([])
+const loading = ref(false)
 
 // 仓库分组（按类型）
 const warehouseGroups = computed(() => {
   const groups: Record<string, any[]> = {
-    '自营仓': [],
-    '平台仓': [],
-    '第三方仓': []
-  };
-  
+    自营仓: [],
+    平台仓: [],
+    第三方仓: [],
+  }
+
   warehouses.value.forEach(wh => {
     if (groups[wh.propertyType]) {
-      groups[wh.propertyType].push(wh);
+      groups[wh.propertyType].push(wh)
     }
-  });
-  
-  return Object.entries(groups).map(([type, list]) => ({
-    type,
-    warehouses: list
-  })).filter(g => g.warehouses.length > 0);
-});
+  })
+
+  return Object.entries(groups)
+    .map(([type, list]) => ({
+      type,
+      warehouses: list,
+    }))
+    .filter(g => g.warehouses.length > 0)
+})
 
 // 选中的仓库信息
 const selectedWarehouseInfo = computed(() => {
-  return warehouses.value.find(wh => wh.warehouseCode === form.value.warehouseCode);
-});
+  return warehouses.value.find(wh => wh.warehouseCode === form.value.warehouseCode)
+})
 
 // 对话框可见性
 const dialogVisible = computed({
   get: () => props.visible,
-  set: (val) => emit('update:visible', val)
-});
+  set: val => emit('update:visible', val),
+})
 
 // 加载仓库列表
 const loadWarehouses = async () => {
   if (!props.portCode || !props.countryCode) {
-    ElMessage.warning('缺少港口或国家信息');
-    return;
+    ElMessage.warning('缺少港口或国家信息')
+    return
   }
-  
-  loading.value = true;
+
+  loading.value = true
   try {
     const response = await api.get('/scheduling/warehouses', {
       params: {
         portCode: props.portCode,
-        countryCode: props.countryCode
-      }
-    });
-    
+        countryCode: props.countryCode,
+      },
+    })
+
     warehouses.value = response.data.map((wh: any) => ({
       ...wh,
-      available: wh.status === 'ACTIVE' && wh.dailyUnloadCapacity > 0
-    }));
+      available: wh.status === 'ACTIVE' && wh.dailyUnloadCapacity > 0,
+    }))
   } catch (error) {
-    ElMessage.error('加载仓库列表失败');
-    console.error(error);
+    ElMessage.error('加载仓库列表失败')
+    console.error(error)
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
 // 获取类型标签颜色
 const getTypeTag = (type: string) => {
   const map: Record<string, 'success' | 'warning' | 'info'> = {
-    '自营仓': 'success',
-    '平台仓': 'warning',
-    '第三方仓': 'info'
-  };
-  return map[type] || 'info';
-};
+    自营仓: 'success',
+    平台仓: 'warning',
+    第三方仓: 'info',
+  }
+  return map[type] || 'info'
+}
 
 // 确认操作
 const handleConfirm = () => {
   if (!form.value.warehouseCode) {
-    ElMessage.warning('请选择仓库');
-    return;
+    ElMessage.warning('请选择仓库')
+    return
   }
-  
+
   emit('confirm', {
     warehouseCode: form.value.warehouseCode,
-    containerNumbers: form.value.containerNumbers.length > 0 
-      ? form.value.containerNumbers 
-      : undefined
-  });
-  
-  dialogVisible.value = false;
-};
+    containerNumbers:
+      form.value.containerNumbers.length > 0 ? form.value.containerNumbers : undefined,
+  })
+
+  dialogVisible.value = false
+}
 
 // 监听可见性变化，加载数据
-watch(() => props.visible, (val) => {
-  if (val) {
-    loadWarehouses();
-  }
-}, { immediate: true });
+watch(
+  () => props.visible,
+  val => {
+    if (val) {
+      loadWarehouses()
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped lang="scss">
@@ -224,7 +224,7 @@ watch(() => props.visible, (val) => {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  
+
   .availability {
     font-size: 12px;
     color: #999;

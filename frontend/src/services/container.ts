@@ -197,7 +197,7 @@ class ContainerService {
     dryRun?: boolean
     containerNumbers?: string[]
     etaBufferDays?: number // ✅ 新增：ETA 顺延天数
-    
+
     // ✅ 新增：手工指定仓库模式（可选）
     designatedWarehouseMode?: boolean
     designatedWarehouseCode?: string

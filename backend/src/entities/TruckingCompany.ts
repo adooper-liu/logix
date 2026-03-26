@@ -40,6 +40,10 @@ export class TruckingCompany {
   @Column({ type: 'boolean', default: false, name: 'has_yard' })
   hasYard: boolean;
 
+  /** 合作关系级别：STRATEGIC=战略合作，CORE=核心，NORMAL=普通，TEMPORARY=临时 */
+  @Column({ type: 'varchar', length: 20, default: 'NORMAL', name: 'partnership_level' })
+  partnershipLevel?: 'STRATEGIC' | 'CORE' | 'NORMAL' | 'TEMPORARY';
+
   /** 堆场每日可容纳柜数（有堆场时有效） */
   @Column({ type: 'int', nullable: true, name: 'yard_daily_capacity' })
   yardDailyCapacity?: number;
