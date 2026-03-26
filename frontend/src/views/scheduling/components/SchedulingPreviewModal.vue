@@ -8,8 +8,8 @@
   >
     <!-- 操作按钮区 -->
     <div class="action-bar">
-      <el-button 
-        type="warning" 
+      <el-button
+        type="warning"
         icon="MagicStick"
         :loading="optimizing"
         @click="handleSmartOptimization"
@@ -17,7 +17,7 @@
         🎯 智能成本优化
       </el-button>
       <el-tag v-if="optimizationResult" type="success" effect="plain">
-        💰 已优化 {{ optimizationResult.optimizedCount }} 柜，可节省 
+        💰 已优化 {{ optimizationResult.optimizedCount }} 柜，可节省
         <strong>${{ (optimizationResult.totalSavings ?? 0).toFixed(2) }}</strong>
       </el-tag>
     </div>
@@ -78,10 +78,10 @@
       <el-table-column prop="destinationPort" label="目的港" width="90" />
       <!-- ✅ 已删除 lastFreeDate 列：因免费天数来源不明确（滞港/滞箱可能不同），应以成本计算结果为准 -->
       <el-table-column prop="lastReturnDate" label="最晚还箱日" width="100" />
-      
+
       <!-- ✅ 删除"剩余免费天"列：遵循 SKILL 原则，避免语义模糊的字段 -->
       <!-- 免费期计算应该统一由 DemurrageService 负责，前端不需要单独显示 -->
-      
+
       <el-table-column prop="plannedPickupDate" label="提柜日" width="100" />
       <el-table-column prop="plannedDeliveryDate" label="送仓日" width="100" />
       <el-table-column prop="plannedUnloadDate" label="卸柜日" width="100" />
@@ -400,10 +400,10 @@
 </template>
 
 <script setup lang="ts">
-import { CircleCheck, CircleClose } from '@element-plus/icons-vue'
-import { computed, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
 import { costOptimizerService, type Alternative } from '@/services/costOptimizer.service'
+import { CircleCheck, CircleClose } from '@element-plus/icons-vue'
+import { ElMessage } from 'element-plus'
+import { computed, ref, watch } from 'vue'
 import OptimizationAlternatives from './OptimizationAlternatives.vue'
 
 interface PreviewResult {
@@ -449,13 +449,13 @@ const emit = defineEmits<{
 const visible = ref(true)
 const selectedContainers = ref<string[]>([])
 const saving = ref(false)
-const optimizing = ref(false)  // ✅ 智能优化加载中
+const optimizing = ref(false) // ✅ 智能优化加载中
 const optimizationResult = ref<{
   optimizedCount: number
   totalSavings: number
   alternatives?: Alternative[]
 } | null>(null)
-const showAlternativesDialog = ref(false)  // 显示方案对比弹窗
+const showAlternativesDialog = ref(false) // 显示方案对比弹窗
 const currentAlternatives = ref<Alternative[]>([])
 
 const successCount = computed(() => props.previewResults.filter(r => r.success).length)
@@ -579,7 +579,7 @@ const handleClose = () => {
 const handleSmartOptimization = async () => {
   optimizing.value = true
   optimizationResult.value = null
-  
+
   try {
     // TODO: 从预览结果中提取参数
     const firstResult = props.previewResults[0]
@@ -594,28 +594,28 @@ const handleSmartOptimization = async () => {
       containers: props.previewResults.filter(r => r.success).map(r => r.containerNumber),
       warehouseCode: firstResult.plannedData.warehouseId || '',
       truckingCompanyId: firstResult.plannedData.truckingCompanyId || '',
-      basePickupDate: firstResult.plannedData.plannedPickupDate || ''
+      basePickupDate: firstResult.plannedData.plannedPickupDate || '',
       // ✅ 不再传递 lastFreeDate：后端应该自行查询每个容器的滞港费/滞箱费免费期
     }
-    
+
     console.log('[SchedulingPreviewModal] Request data:', requestData)
-    
+
     const result = await costOptimizerService.suggestOptimalUnloadDate(requestData)
-    
+
     console.log('[SchedulingPreviewModal] 优化结果:', result)
     console.log('[SchedulingPreviewModal] Alternatives:', result.alternatives)
-    
+
     optimizationResult.value = {
       optimizedCount: result.alternatives.length,
       totalSavings: result.savings,
-      alternatives: result.alternatives
+      alternatives: result.alternatives,
     }
-    
+
     // 显示 Top 3 方案对比卡片
     const slicedAlternatives = result.alternatives.slice(0, 3)
     currentAlternatives.value = slicedAlternatives
     showAlternativesDialog.value = true
-    
+
     ElMessage.success(
       `发现 ${optimizationResult.value.optimizedCount} 个货柜可优化，预计节省 $${(optimizationResult.value.totalSavings ?? 0).toFixed(2)}`
     )
@@ -637,7 +637,7 @@ const handleAcceptAll = async () => {
     // TODO: 应用优化方案到排产计划
     ElMessage.success('已应用优化方案')
     showAlternativesDialog.value = false
-    
+
     // TODO: 刷新预览结果
   } catch (error: any) {
     ElMessage.error(error.message || '应用失败')

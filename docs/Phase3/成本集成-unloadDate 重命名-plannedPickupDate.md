@@ -2,7 +2,7 @@
 
 **实施日期**: 2026-03-26  
 **重构类型**: 变量重命名 + 语义澄清  
-**影响范围**: 后端服务、前端组件、测试用例  
+**影响范围**: 后端服务、前端组件、测试用例
 
 ---
 
@@ -15,16 +15,18 @@
 ```typescript
 // ❌ 原始定义
 export interface UnloadOption {
-  unloadDate: Date;  // 实际含义是什么？
+  unloadDate: Date; // 实际含义是什么？
 }
 ```
 
 **实际使用中的矛盾**：
+
 1. 在 Direct/Live load 模式下：`unloadDate` = 提柜日 = 卸柜日（提=卸）
 2. 在 Drop off 模式下：代码把 `unloadDate` 当作提柜日用，但名称叫"卸柜日"
 3. 在 Expedited 模式下：`unloadDate` = 免费期前的提柜日
 
 **导致的问题**：
+
 - 💥 外部堆场堆存费计算错误（提=卸 vs 提<卸）
 - 💥 送仓日计算逻辑混乱
 - 💥 代码注释与实际实现不符
@@ -42,9 +44,9 @@ export interface UnloadOption {
 export interface UnloadOption {
   containerNumber: string;
   warehouse: Warehouse;
-  plannedPickupDate: Date;      // ← 重命名：计划提柜日（核心输入）
-  plannedUnloadDate?: Date;     // ← 新增：计划卸柜日（可选，由策略推导）
-  strategy: 'Direct' | 'Drop off' | 'Expedited';
+  plannedPickupDate: Date; // ← 重命名：计划提柜日（核心输入）
+  plannedUnloadDate?: Date; // ← 新增：计划卸柜日（可选，由策略推导）
+  strategy: "Direct" | "Drop off" | "Expedited";
   truckingCompany?: TruckingCompany;
   isWithinFreePeriod: boolean;
   totalCost?: number;
@@ -62,7 +64,7 @@ export interface UnloadOption {
 ```typescript
 /**
  * 卸柜方案选项
- * 
+ *
  * ⚠️ 关键说明：
  * - plannedPickupDate: 计划提柜日（核心输入）
  * - plannedUnloadDate: 计划卸柜日（可选，未提供时根据策略计算）
@@ -73,9 +75,9 @@ export interface UnloadOption {
 export interface UnloadOption {
   containerNumber: string;
   warehouse: Warehouse;
-  plannedPickupDate: Date;      // ← 重命名
-  plannedUnloadDate?: Date;     // ← 新增
-  strategy: 'Direct' | 'Drop off' | 'Expedited';
+  plannedPickupDate: Date; // ← 重命名
+  plannedUnloadDate?: Date; // ← 新增
+  strategy: "Direct" | "Drop off" | "Expedited";
   truckingCompany?: TruckingCompany;
   isWithinFreePeriod: boolean;
   totalCost?: number;
@@ -103,10 +105,10 @@ async evaluateTotalCost(option: UnloadOption): Promise<CostBreakdown> {
     // Direct/Live load: 提=送=卸
     // Drop off: 提<送=卸
     // Expedited: 提=送=卸（免费期内）
-    
+
     // ✅ 关键修复：明确区分提柜日和卸柜日
     const plannedPickupDate = option.plannedPickupDate;
-    
+
     // 如果未提供 plannedUnloadDate，根据策略推导
     let actualPlannedUnloadDate = option.plannedUnloadDate;
     if (!actualPlannedUnloadDate) {
@@ -118,7 +120,7 @@ async evaluateTotalCost(option: UnloadOption): Promise<CostBreakdown> {
         actualPlannedUnloadDate = option.plannedPickupDate;
       }
     }
-    
+
     // 估算还箱日：根据卸柜方式不同
     let plannedReturnDate: Date;
     if (option.strategy === 'Drop off') {
@@ -156,15 +158,15 @@ async evaluateTotalCost(option: UnloadOption): Promise<CostBreakdown> {
     if (option.strategy === 'Drop off' && option.truckingCompany) {
       try {
         const hasYard = option.truckingCompany.hasYard || false;
-        
+
         if (hasYard) {
           // ✅ 送仓日计算：Drop off 模式下，送仓日 = 卸柜日
           const plannedDeliveryDate = actualPlannedUnloadDate;
-          
+
           // ✅ 判断是否实际使用了堆场：提柜日 < 送仓日
           const pickupDayStr = option.plannedPickupDate.toISOString().split('T')[0];
           const deliveryDayStr = plannedDeliveryDate.toISOString().split('T')[0];
-          
+
           if (pickupDayStr !== deliveryDayStr) {
             // ✅ 提 < 送，说明货柜在堆场存放了
             // ✅ 预计堆场存放天数（从提柜日到送仓日）
@@ -172,7 +174,7 @@ async evaluateTotalCost(option: UnloadOption): Promise<CostBreakdown> {
               option.plannedPickupDate,
               plannedDeliveryDate
             );
-            
+
             // ... 计算费用
           }
         }
@@ -208,7 +210,7 @@ async evaluateTotalCost(option: UnloadOption): Promise<CostBreakdown> {
 
 ```typescript
 private async generateDropOffOptions(/* ... */): Promise<UnloadOption[]> {
-  
+
   options.push({
     containerNumber: container.containerNumber,
     warehouse,
@@ -217,7 +219,7 @@ private async generateDropOffOptions(/* ... */): Promise<UnloadOption[]> {
     truckingCompany: trucking,
     isWithinFreePeriod: false
   });
-  
+
 }
 ```
 
@@ -227,7 +229,7 @@ private async generateDropOffOptions(/* ... */): Promise<UnloadOption[]> {
 
 ```typescript
 private async generateExpeditedOptions(/* ... */): Promise<UnloadOption[]> {
-  
+
   options.push({
     containerNumber: container.containerNumber,
     warehouse,
@@ -235,7 +237,7 @@ private async generateExpeditedOptions(/* ... */): Promise<UnloadOption[]> {
     strategy: 'Expedited',
     isWithinFreePeriod: candidateDate <= lastFreeDate
   });
-  
+
 }
 ```
 
@@ -246,9 +248,9 @@ private async generateExpeditedOptions(/* ... */): Promise<UnloadOption[]> {
 ```typescript
 log.info(
   `[CostOptimizer] Selected optimal option: ` +
-  `Strategy=${best.option.strategy}, ` +
-  `PickupDate=${best.option.plannedPickupDate.toISOString().split('T')[0]}, ` +  // ← 重命名
-  `Cost=$${best.option.totalCost}`
+    `Strategy=${best.option.strategy}, ` +
+    `PickupDate=${best.option.plannedPickupDate.toISOString().split("T")[0]}, ` + // ← 重命名
+    `Cost=$${best.option.totalCost}`,
 );
 ```
 
@@ -266,8 +268,8 @@ export interface UnloadOption {
    * ⚠️ 重命名：原 unloadDate → plannedPickupDate
    * 计划提柜日（核心输入）
    */
-  plannedPickupDate: string;  // ← 重命名
-  strategy: 'Direct' | 'Drop off' | 'Expedited';
+  plannedPickupDate: string; // ← 重命名
+  strategy: "Direct" | "Drop off" | "Expedited";
   truckingCompany?: TruckingCompany;
   isWithinFreePeriod: boolean;
   estimatedDemurrage?: number;
@@ -305,11 +307,11 @@ export interface UnloadOption {
 ```typescript
 // ✅ 所有测试用例批量替换
 const option: UnloadOption = {
-  containerNumber: 'TEST1234567',
+  containerNumber: "TEST1234567",
   warehouse: mockWarehouse,
-  plannedPickupDate: pickupDate,  // ← 重命名
-  strategy: 'Direct',
-  isWithinFreePeriod: true
+  plannedPickupDate: pickupDate, // ← 重命名
+  strategy: "Direct",
+  isWithinFreePeriod: true,
 };
 ```
 
@@ -321,13 +323,13 @@ const option: UnloadOption = {
 
 ```typescript
 // ❌ 错误逻辑
-const plannedPickupDate = option.unloadDate;  // unloadDate 被当作提柜日
+const plannedPickupDate = option.unloadDate; // unloadDate 被当作提柜日
 
 // Drop off 模式下
-const plannedDeliveryDate = option.unloadDate;  // 送仓日 = unloadDate
+const plannedDeliveryDate = option.unloadDate; // 送仓日 = unloadDate
 const yardStorageDays = dateTimeUtils.daysBetween(
-  option.unloadDate,      // D1
-  plannedDeliveryDate     // D1
+  option.unloadDate, // D1
+  plannedDeliveryDate, // D1
 ); // = 0 天 ❌ 应该是 2-3 天
 ```
 
@@ -337,19 +339,19 @@ const yardStorageDays = dateTimeUtils.daysBetween(
 
 ```typescript
 // ✅ 正确逻辑
-const plannedPickupDate = option.plannedPickupDate;  // D1
+const plannedPickupDate = option.plannedPickupDate; // D1
 
 // Drop off 模式：自动推导卸柜日
 let actualPlannedUnloadDate = option.plannedUnloadDate;
-if (!actualPlannedUnloadDate && option.strategy === 'Drop off') {
-  actualPlannedUnloadDate = dateTimeUtils.addDays(option.plannedPickupDate, 2);  // D3
+if (!actualPlannedUnloadDate && option.strategy === "Drop off") {
+  actualPlannedUnloadDate = dateTimeUtils.addDays(option.plannedPickupDate, 2); // D3
 }
 
-const plannedDeliveryDate = actualPlannedUnloadDate;  // D3
+const plannedDeliveryDate = actualPlannedUnloadDate; // D3
 
 const yardStorageDays = dateTimeUtils.daysBetween(
-  option.plannedPickupDate,  // D1
-  plannedDeliveryDate        // D3
+  option.plannedPickupDate, // D1
+  plannedDeliveryDate, // D3
 ); // = 2 天 ✅ 正确
 ```
 
@@ -357,11 +359,11 @@ const yardStorageDays = dateTimeUtils.daysBetween(
 
 ## 🎯 **三种策略的日期关系**
 
-| 策略 | 提柜日 | 送仓日 | 卸柜日 | 还箱日 | 说明 |
-|------|--------|--------|--------|--------|------|
-| **Direct / Live load** | D1 | D1 | D1 | D1 | 直接送仓，不经堆场 |
-| **Drop off** | D1 | D3 | D3 | D6 | 在堆场存放 2 天，卸柜后 3 天还箱 |
-| **Expedited** | D(-1) | D(-1) | D(-1) | D(-1) | 免费期内加急处理 |
+| 策略                   | 提柜日 | 送仓日 | 卸柜日 | 还箱日 | 说明                             |
+| ---------------------- | ------ | ------ | ------ | ------ | -------------------------------- |
+| **Direct / Live load** | D1     | D1     | D1     | D1     | 直接送仓，不经堆场               |
+| **Drop off**           | D1     | D3     | D3     | D6     | 在堆场存放 2 天，卸柜后 3 天还箱 |
+| **Expedited**          | D(-1)  | D(-1)  | D(-1)  | D(-1)  | 免费期内加急处理                 |
 
 ---
 
@@ -375,6 +377,7 @@ npm test -- schedulingCostOptimizer.service.test.ts
 ```
 
 **预期结果**：
+
 - ✅ 所有测试通过
 - ✅ Direct 模式成本计算正确
 - ✅ Drop off 模式外部堆场堆存费计算正确
@@ -389,11 +392,11 @@ npm test -- schedulingCostOptimizer.service.test.ts
 ```typescript
 // 场景 1: Drop off 真 Drop off（提<送=卸）
 const dropOffOption: UnloadOption = {
-  containerNumber: 'TEST123',
+  containerNumber: "TEST123",
   warehouse: warehouse1,
-  plannedPickupDate: new Date('2026-03-25'),
-  strategy: 'Drop off',
-  isWithinFreePeriod: false
+  plannedPickupDate: new Date("2026-03-25"),
+  strategy: "Drop off",
+  isWithinFreePeriod: false,
 };
 
 const breakdown = await service.evaluateTotalCost(dropOffOption);
@@ -409,6 +412,7 @@ expect(breakdown.yardStorageCost).toBeGreaterThan(0);
 访问排产页面：`http://localhost:5173/#/scheduling`
 
 **测试步骤**：
+
 1. 选择一个待排产货柜
 2. 点击"预览排产"
 3. 查看费用明细中的"外部堆场费"
@@ -477,11 +481,11 @@ expect(breakdown.yardStorageCost).toBeGreaterThan(0);
 ```typescript
 const computedUnloadDate = computed(() => {
   if (!selectedOption.plannedPickupDate) return null;
-  
-  if (selectedOption.strategy === 'Drop off') {
+
+  if (selectedOption.strategy === "Drop off") {
     return addDays(selectedOption.plannedPickupDate, 2);
   }
-  
+
   return selectedOption.plannedPickupDate;
 });
 ```

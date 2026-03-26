@@ -1,7 +1,7 @@
 /**
  * 成本分析报告服务
  * Cost Analytics & Reporting Service
- * 
+ *
  * 功能：
  * 1. 生成月度/季度成本分析报告
  * 2. 总成本趋势分析
@@ -10,8 +10,8 @@
  * 5. 成本优化建议
  */
 
-import { AppDataSource } from '../data-source';
 import { Repository, SelectQueryBuilder } from 'typeorm';
+import { AppDataSource } from '../data-source';
 import { log } from '../utils/logger';
 
 interface CostReportPeriod {
@@ -55,19 +55,19 @@ export interface CostAnalyticsReport {
   // 基础信息
   period: CostReportPeriod;
   generatedAt: Date;
-  
+
   // 总体统计
   summary: {
     totalContainers: number;
     totalCost: number;
     avgCostPerContainer: number;
-    costWithSavings: number;      // 有节省的货柜数
-    costOverBudget: number;       // 超支的货柜数
+    costWithSavings: number; // 有节省的货柜数
+    costOverBudget: number; // 超支的货柜数
   };
-  
+
   // 成本趋势
   trends: CostTrendItem[];
-  
+
   // 费用构成
   breakdown: {
     demurrageCost: number;
@@ -85,13 +85,13 @@ export interface CostAnalyticsReport {
       handlingPercent: number;
     };
   };
-  
+
   // 差异分析
   variances: CostVarianceItem[];
-  
+
   // 优化机会
   opportunities: OptimizationOpportunity[];
-  
+
   // 预警信息
   alerts: Array<{
     type: 'high_cost' | 'variance' | 'trend';
@@ -100,28 +100,30 @@ export interface CostAnalyticsReport {
     containerNumber?: string;
     amount?: number;
   }>;
-  
+
   // 建议
   recommendations: string[];
 }
 
 export class CostAnalyticsService {
   private forecastRepo: Repository<any>; // ext_cost_forecast_vs_actual
-  
+
   constructor() {
     this.forecastRepo = AppDataSource.getRepository('ext_cost_forecast_vs_actual');
   }
-  
+
   /**
    * 📊 生成成本分析报告
-   * 
+   *
    * @param period 报告周期
    * @returns 完整的成本分析报告
    */
   async generateReport(period: CostReportPeriod): Promise<CostAnalyticsReport> {
     try {
-      log.info(`[CostAnalytics] Generating ${period.periodType} report from ${period.startDate} to ${period.endDate}`);
-      
+      log.info(
+        `[CostAnalytics] Generating ${period.periodType} report from ${period.startDate} to ${period.endDate}`
+      );
+
       const report: CostAnalyticsReport = {
         period,
         generatedAt: new Date(),
@@ -133,26 +135,25 @@ export class CostAnalyticsService {
         alerts: await this.generateAlerts(period),
         recommendations: await this.generateRecommendations(period)
       };
-      
+
       log.info(`[CostAnalytics] Report generated successfully`);
       log.info(`  - Total containers: ${report.summary.totalContainers}`);
       log.info(`  - Total cost: $${report.summary.totalCost.toFixed(2)}`);
       log.info(`  - Avg cost per container: $${report.summary.avgCostPerContainer.toFixed(2)}`);
-      
+
       return report;
-      
     } catch (error) {
       log.error('[CostAnalytics] Failed to generate report:', error);
       throw error;
     }
   }
-  
+
   /**
    * 生成总体统计
    */
   private async generateSummary(period: CostReportPeriod): Promise<CostAnalyticsReport['summary']> {
     const query = this.createBaseQuery(period);
-    
+
     const result = await query
       .select('COUNT(DISTINCT container_number)', 'totalContainers')
       .addSelect('SUM(actual_total_cost)', 'totalCost')
@@ -160,7 +161,7 @@ export class CostAnalyticsService {
       .addSelect(`COUNT(CASE WHEN cost_variance < 0 THEN 1 END)`, 'costWithSavings')
       .addSelect(`COUNT(CASE WHEN cost_variance > 0 THEN 1 END)`, 'costOverBudget')
       .getRawOne();
-    
+
     return {
       totalContainers: parseInt(result.totalContainers) || 0,
       totalCost: parseFloat(result.totalCost) || 0,
@@ -169,13 +170,13 @@ export class CostAnalyticsService {
       costOverBudget: parseInt(result.costOverBudget) || 0
     };
   }
-  
+
   /**
    * 分析成本趋势
    */
   private async analyzeTrends(period: CostReportPeriod): Promise<CostTrendItem[]> {
     const query = this.createBaseQuery(period);
-    
+
     // 根据周期类型分组
     let dateExpr: string;
     switch (period.periodType) {
@@ -194,7 +195,7 @@ export class CostAnalyticsService {
       default:
         dateExpr = 'DATE(forecast_created_at)';
     }
-    
+
     const results = await query
       .select(dateExpr, 'date')
       .addSelect('SUM(actual_total_cost)', 'totalCost')
@@ -209,7 +210,7 @@ export class CostAnalyticsService {
       .groupBy(dateExpr)
       .orderBy('date', 'ASC')
       .getRawMany();
-    
+
     return results.map((r: any) => ({
       date: r.date,
       totalCost: parseFloat(r.totalCost) || 0,
@@ -223,13 +224,15 @@ export class CostAnalyticsService {
       avgCostPerContainer: parseFloat(r.avgCostPerContainer) || 0
     }));
   }
-  
+
   /**
    * 分析费用构成
    */
-  private async analyzeBreakdown(period: CostReportPeriod): Promise<CostAnalyticsReport['breakdown']> {
+  private async analyzeBreakdown(
+    period: CostReportPeriod
+  ): Promise<CostAnalyticsReport['breakdown']> {
     const query = this.createBaseQuery(period);
-    
+
     const result = await query
       .select('SUM(actual_demurrage_cost)', 'demurrageCost')
       .addSelect('SUM(actual_detention_cost)', 'detentionCost')
@@ -239,9 +242,9 @@ export class CostAnalyticsService {
       .addSelect('SUM(actual_handling_cost)', 'handlingCost')
       .addSelect('SUM(actual_total_cost)', 'totalCost')
       .getRawOne();
-    
+
     const total = parseFloat(result.totalCost) || 0;
-    
+
     return {
       demurrageCost: parseFloat(result.demurrageCost) || 0,
       detentionCost: parseFloat(result.detentionCost) || 0,
@@ -250,22 +253,23 @@ export class CostAnalyticsService {
       transportationCost: parseFloat(result.transportationCost) || 0,
       handlingCost: parseFloat(result.handlingCost) || 0,
       percentages: {
-        demurragePercent: total > 0 ? (parseFloat(result.demurrageCost) / total * 100) : 0,
-        detentionPercent: total > 0 ? (parseFloat(result.detentionCost) / total * 100) : 0,
-        storagePercent: total > 0 ? (parseFloat(result.storageCost) / total * 100) : 0,
-        yardStoragePercent: total > 0 ? (parseFloat(result.yardStorageCost) / total * 100) : 0,
-        transportationPercent: total > 0 ? (parseFloat(result.transportationCost) / total * 100) : 0,
-        handlingPercent: total > 0 ? (parseFloat(result.handlingCost) / total * 100) : 0
+        demurragePercent: total > 0 ? (parseFloat(result.demurrageCost) / total) * 100 : 0,
+        detentionPercent: total > 0 ? (parseFloat(result.detentionCost) / total) * 100 : 0,
+        storagePercent: total > 0 ? (parseFloat(result.storageCost) / total) * 100 : 0,
+        yardStoragePercent: total > 0 ? (parseFloat(result.yardStorageCost) / total) * 100 : 0,
+        transportationPercent:
+          total > 0 ? (parseFloat(result.transportationCost) / total) * 100 : 0,
+        handlingPercent: total > 0 ? (parseFloat(result.handlingCost) / total) * 100 : 0
       }
     };
   }
-  
+
   /**
    * 分析差异
    */
   private async analyzeVariances(period: CostReportPeriod): Promise<CostVarianceItem[]> {
     const query = this.createBaseQuery(period);
-    
+
     const results = await query
       .select('container_number', 'containerNumber')
       .addSelect('forecast_total_cost', 'forecastCost')
@@ -278,7 +282,7 @@ export class CostAnalyticsService {
       .orderBy('ABS(cost_variance)', 'DESC')
       .limit(50)
       .getRawMany();
-    
+
     return results.map((r: any) => ({
       containerNumber: r.containerNumber,
       forecastCost: parseFloat(r.forecastCost) || 0,
@@ -288,13 +292,15 @@ export class CostAnalyticsService {
       reason: r.reason
     }));
   }
-  
+
   /**
    * 识别优化机会
    */
-  private async identifyOptimizationOpportunities(period: CostReportPeriod): Promise<OptimizationOpportunity[]> {
+  private async identifyOptimizationOpportunities(
+    period: CostReportPeriod
+  ): Promise<OptimizationOpportunity[]> {
     const query = this.createBaseQuery(period);
-    
+
     const results = await query
       .select('container_number', 'containerNumber')
       .addSelect('forecast_strategy', 'currentStrategy')
@@ -307,7 +313,7 @@ export class CostAnalyticsService {
       .orderBy('potential_savings', 'DESC')
       .limit(20)
       .getRawMany();
-    
+
     return results.map((r: any) => ({
       containerNumber: r.containerNumber,
       currentStrategy: r.currentStrategy,
@@ -317,13 +323,13 @@ export class CostAnalyticsService {
       potentialSavings: parseFloat(r.potentialSavings) || 0
     }));
   }
-  
+
   /**
    * 生成预警信息
    */
   private async generateAlerts(period: CostReportPeriod): Promise<CostAnalyticsReport['alerts']> {
     const alerts: CostAnalyticsReport['alerts'] = [];
-    
+
     // 1. 高成本预警（超过平均成本 50%）
     const highCostQuery = this.createBaseQuery(period);
     const avgCostResult = await highCostQuery
@@ -331,13 +337,13 @@ export class CostAnalyticsService {
       .getRawOne();
     const avgCost = parseFloat(avgCostResult.avgCost) || 0;
     const threshold = avgCost * 1.5;
-    
+
     const highCostContainers = await this.createBaseQuery(period)
       .select('container_number', 'containerNumber')
       .addSelect('actual_total_cost', 'cost')
       .where('actual_total_cost > :threshold', { threshold })
       .getRawMany();
-    
+
     for (const r of highCostContainers) {
       alerts.push({
         type: 'high_cost',
@@ -347,7 +353,7 @@ export class CostAnalyticsService {
         amount: parseFloat(r.cost)
       });
     }
-    
+
     // 2. 差异预警（实际比预测超过 30%）
     const varianceAlerts = await this.createBaseQuery(period)
       .select('container_number', 'containerNumber')
@@ -355,7 +361,7 @@ export class CostAnalyticsService {
       .addSelect('cost_variance', 'variance')
       .where('variance_percent > 30')
       .getRawMany();
-    
+
     for (const r of varianceAlerts) {
       alerts.push({
         type: 'variance',
@@ -365,15 +371,15 @@ export class CostAnalyticsService {
         amount: parseFloat(r.variance)
       });
     }
-    
+
     // 3. 趋势预警（连续上涨）
     const trends = await this.analyzeTrends(period);
     if (trends.length >= 3) {
       const lastThree = trends.slice(-3);
-      const isIncreasing = lastThree.every((t, i, arr) => 
-        i === 0 || t.totalCost > arr[i - 1].totalCost
+      const isIncreasing = lastThree.every(
+        (t, i, arr) => i === 0 || t.totalCost > arr[i - 1].totalCost
       );
-      
+
       if (isIncreasing) {
         alerts.push({
           type: 'trend',
@@ -382,48 +388,48 @@ export class CostAnalyticsService {
         });
       }
     }
-    
+
     return alerts;
   }
-  
+
   /**
    * 生成优化建议
    */
   private async generateRecommendations(period: CostReportPeriod): Promise<string[]> {
     const recommendations: string[] = [];
-    
+
     // 基于数据分析生成建议
     const breakdown = await this.analyzeBreakdown(period);
     const summary = await this.generateSummary(period);
-    
+
     // 1. 滞港费占比过高
     if (breakdown.percentages.demurragePercent > 30) {
       recommendations.push('滞港费占比较高，建议优化清关流程，加快提柜速度');
     }
-    
+
     // 2. 外部堆场费占比高
     if (breakdown.percentages.yardStoragePercent > 15) {
       recommendations.push('外部堆场费较高，建议增加 Direct 模式比例或优化 Drop off 时间安排');
     }
-    
+
     // 3. 加急费使用频繁
     if (breakdown.percentages.handlingPercent > 10) {
       recommendations.push('加急操作频繁，建议提前规划排产，减少紧急处理');
     }
-    
+
     // 4. 成本差异大
     if (summary.costOverBudget > summary.costWithSavings) {
       recommendations.push('多数货柜成本超支，建议加强成本预测准确性和过程管控');
     }
-    
+
     // 5. 默认建议
     if (recommendations.length === 0) {
       recommendations.push('成本结构健康，继续保持当前优化策略');
     }
-    
+
     return recommendations;
   }
-  
+
   /**
    * 创建基础查询
    */

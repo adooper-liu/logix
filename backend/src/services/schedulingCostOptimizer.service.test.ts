@@ -3,9 +3,9 @@
  * Scheduling Cost Optimizer Service Unit Tests
  */
 
-import { SchedulingCostOptimizerService, UnloadOption } from './schedulingCostOptimizer.service';
 import { Container } from '../entities/Container';
 import { Warehouse } from '../entities/Warehouse';
+import { SchedulingCostOptimizerService, UnloadOption } from './schedulingCostOptimizer.service';
 
 // 模拟容器数据
 const mockContainer: Container = {
@@ -94,7 +94,7 @@ describe('SchedulingCostOptimizerService', () => {
       const option: UnloadOption = {
         containerNumber: 'TEST1234567',
         warehouse: mockWarehouse,
-        plannedPickupDate: pickupDate,  // ← 重命名
+        plannedPickupDate: pickupDate, // ← 重命名
         strategy: 'Direct',
         isWithinFreePeriod: true
       };
@@ -127,7 +127,7 @@ describe('SchedulingCostOptimizerService', () => {
       const option: UnloadOption = {
         containerNumber: 'TEST1234567',
         warehouse: mockWarehouse,
-        plannedPickupDate: pickupDate,  // ← 重命名
+        plannedPickupDate: pickupDate, // ← 重命名
         strategy: 'Expedited',
         isWithinFreePeriod: true
       };
@@ -186,10 +186,7 @@ describe('SchedulingCostOptimizerService', () => {
 
   describe('generateExpeditedOptions', () => {
     it('should generate expedited options', async () => {
-      const options = await service['generateExpeditedOptions'](
-        mockContainer,
-        lastFreeDate
-      );
+      const options = await service['generateExpeditedOptions'](mockContainer, lastFreeDate);
       expect(Array.isArray(options)).toBe(true);
     });
   });
@@ -308,9 +305,7 @@ describe('SchedulingCostOptimizerService Integration', () => {
       );
 
       if (options.length > 0) {
-        await Promise.all(
-          options.map(option => service.evaluateTotalCost(option))
-        );
+        await Promise.all(options.map((option) => service.evaluateTotalCost(option)));
 
         const bestResult = await service.selectBestOption(options);
 

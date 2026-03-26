@@ -8,7 +8,7 @@
           <el-option label="Expedited" value="Expedited" />
         </el-select>
       </el-form-item>
-      
+
       <el-form-item label="仓库">
         <el-select v-model="selectedWarehouseCode" @change="handleWarehouseChange" filterable>
           <el-option
@@ -19,7 +19,7 @@
           />
         </el-select>
       </el-form-item>
-      
+
       <el-form-item label="提柜日期">
         <el-date-picker
           v-model="selectedOption.plannedPickupDate"
@@ -30,7 +30,7 @@
           @change="handleDateChange"
         />
       </el-form-item>
-      
+
       <el-form-item label="免费期内">
         <el-tag :type="selectedOption.isWithinFreePeriod ? 'success' : 'danger'">
           {{ selectedOption.isWithinFreePeriod ? '是' : '否' }}
@@ -41,8 +41,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
 import type { UnloadOption } from '@/types/scheduling'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps<{
   options: UnloadOption[]
@@ -55,13 +55,14 @@ const emit = defineEmits<{
 }>()
 
 const selectedOption = ref<UnloadOption>(
-  props.modelValue || props.options[0] || {
-    containerNumber: '',
-    warehouse: { warehouseCode: '', warehouseName: '', country: '' },
-    unloadDate: new Date().toISOString().split('T')[0],
-    strategy: 'Direct',
-    isWithinFreePeriod: true
-  }
+  props.modelValue ||
+    props.options[0] || {
+      containerNumber: '',
+      warehouse: { warehouseCode: '', warehouseName: '', country: '' },
+      unloadDate: new Date().toISOString().split('T')[0],
+      strategy: 'Direct',
+      isWithinFreePeriod: true,
+    }
 )
 
 const selectedWarehouseCode = ref(selectedOption.value.warehouse.warehouseCode)
@@ -99,12 +100,15 @@ const emitChange = () => {
   emit('update:modelValue', selectedOption.value)
 }
 
-watch(() => props.modelValue, (newVal) => {
-  if (newVal) {
-    selectedOption.value = newVal
-    selectedWarehouseCode.value = newVal.warehouse.warehouseCode
+watch(
+  () => props.modelValue,
+  newVal => {
+    if (newVal) {
+      selectedOption.value = newVal
+      selectedWarehouseCode.value = newVal.warehouse.warehouseCode
+    }
   }
-})
+)
 </script>
 
 <style scoped lang="scss">

@@ -67,9 +67,9 @@ export interface ScheduleResult {
   warehouseName?: string;
   etaDestPort?: string;
   ataDestPort?: string;
-  lastFreeDate?: string;        // ✅ 最后免费日
-  lastReturnDate?: string;      // ✅ 最晚还箱日（从 EmptyReturn 表获取）
-  freeDaysRemaining?: number;   // ✅ 还箱免费天数（动态计算：最晚还箱日 - 提柜日）
+  lastFreeDate?: string; // ✅ 最后免费日
+  lastReturnDate?: string; // ✅ 最晚还箱日（从 EmptyReturn 表获取）
+  freeDaysRemaining?: number; // ✅ 还箱免费天数（动态计算：最晚还箱日 - 提柜日）
   plannedData?: {
     plannedCustomsDate?: string;
     plannedPickupDate?: string;
@@ -676,7 +676,9 @@ export class IntelligentSchedulingService {
         warehouseCountry: warehouse.country || countryCode, // ✅ 添加仓库国家信息，用于前端货币格式化
         unloadModePlan: unloadMode,
         customsBrokerCode,
-        lastFreeDate: destPo.lastFreeDate ? new Date(destPo.lastFreeDate).toISOString().split('T')[0] : null, // ✅ 添加最后免费日
+        lastFreeDate: destPo.lastFreeDate
+          ? new Date(destPo.lastFreeDate).toISOString().split('T')[0]
+          : null, // ✅ 添加最后免费日
         // 还箱码头信息（使用仓库作为还箱地点）
         returnTerminalCode: warehouse.warehouseCode,
         returnTerminalName: warehouse.warehouseName || warehouse.warehouseCode
@@ -718,17 +720,22 @@ export class IntelligentSchedulingService {
       }
 
       // 计算还箱免费天数（动态计算：最晚还箱日 - 提柜日）
-      const freeDaysRemaining = lastReturnDate && plannedPickupDate
-        ? Math.floor((lastReturnDate.getTime() - plannedPickupDate.getTime()) / (1000 * 60 * 60 * 24))
-        : undefined;
+      const freeDaysRemaining =
+        lastReturnDate && plannedPickupDate
+          ? Math.floor(
+              (lastReturnDate.getTime() - plannedPickupDate.getTime()) / (1000 * 60 * 60 * 24)
+            )
+          : undefined;
 
       return {
         containerNumber: container.containerNumber,
         success: true,
         message: '排产成功',
-        lastFreeDate: destPo.lastFreeDate ? new Date(destPo.lastFreeDate).toISOString().split('T')[0] : undefined, // ✅ 最后免费日
-        lastReturnDate: lastReturnDate ? lastReturnDate.toISOString().split('T')[0] : undefined,                 // ✅ 最晚还箱日
-        freeDaysRemaining,                                                                                        // ✅ 还箱免费天数
+        lastFreeDate: destPo.lastFreeDate
+          ? new Date(destPo.lastFreeDate).toISOString().split('T')[0]
+          : undefined, // ✅ 最后免费日
+        lastReturnDate: lastReturnDate ? lastReturnDate.toISOString().split('T')[0] : undefined, // ✅ 最晚还箱日
+        freeDaysRemaining, // ✅ 还箱免费天数
         plannedData,
         estimatedCosts, // dryRun 模式下的预估费用
         ...containerInfo,

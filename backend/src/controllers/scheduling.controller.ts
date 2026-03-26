@@ -1790,12 +1790,7 @@ export class SchedulingController {
    */
   optimizeCost = async (req: Request, res: Response): Promise<void> => {
     try {
-      const {
-        containers,
-        warehouseCode,
-        truckingCompanyId,
-        basePickupDate
-      } = req.body;
+      const { containers, warehouseCode, truckingCompanyId, basePickupDate } = req.body;
 
       logger.info('[Scheduling] Optimize cost request:', {
         containers,
@@ -1862,8 +1857,11 @@ export class SchedulingController {
         new Date(basePickupDate)
         // ✅ 不传 lastFreeDate 参数，让服务层自行从 DemurrageService 获取权威数据
       );
-            
-      logger.info(`[Scheduling] Optimization result for ${containerNumber}:`, JSON.stringify(result, null, 2));
+
+      logger.info(
+        `[Scheduling] Optimization result for ${containerNumber}:`,
+        JSON.stringify(result, null, 2)
+      );
       logger.info(`[Scheduling] Alternatives count: ${result.alternatives.length}`);
       logger.info(`[Scheduling] Savings: ${result.savings}`);
 
@@ -1881,7 +1879,7 @@ export class SchedulingController {
             pickupDate: alt.pickupDate.toISOString().split('T')[0],
             strategy: alt.strategy,
             totalCost: alt.totalCost,
-            savings: alt.savings,  // ✅ 直接使用服务层返回的 savings
+            savings: alt.savings, // ✅ 直接使用服务层返回的 savings
             warehouseCode,
             truckingCompanyCode: truckingCompanyId
           }))

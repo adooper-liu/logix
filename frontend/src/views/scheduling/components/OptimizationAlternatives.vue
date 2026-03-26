@@ -5,7 +5,7 @@
       Debug: alternatives.length = {{ alternatives.length }}
       <pre>{{ JSON.stringify(alternatives, null, 2) }}</pre>
     </div> -->
-    
+
     <div class="alternatives-header">
       <h3>💡 为您推荐以下最优方案</h3>
       <p class="subtitle">基于成本智能分析，为您精选前 3 个最优方案</p>
@@ -85,9 +85,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import { CircleCheck } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
+import { ref } from 'vue'
 
 interface Alternative {
   containerNumber: string
@@ -121,7 +121,7 @@ const formatDate = (dateStr: string): string => {
 const formatNumber = (num: number): string => {
   return num.toLocaleString('en-US', {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 2,
   })
 }
 
@@ -208,29 +208,29 @@ const handleRejectAll = () => {
   }
 
   &.card-1 {
-    border-color: #FFD700;
-    background: linear-gradient(135deg, #FFF9E6 0%, #FFF 100%);
+    border-color: #ffd700;
+    background: linear-gradient(135deg, #fff9e6 0%, #fff 100%);
 
     .rank-badge {
-      background: linear-gradient(135deg, #FFD700, #FFA500);
+      background: linear-gradient(135deg, #ffd700, #ffa500);
     }
   }
 
   &.card-2 {
-    border-color: #C0C0C0;
-    background: linear-gradient(135deg, #F5F5F5 0%, #FFF 100%);
+    border-color: #c0c0c0;
+    background: linear-gradient(135deg, #f5f5f5 0%, #fff 100%);
 
     .rank-badge {
-      background: linear-gradient(135deg, #C0C0C0, #A8A8A8);
+      background: linear-gradient(135deg, #c0c0c0, #a8a8a8);
     }
   }
 
   &.card-3 {
-    border-color: #CD7F32;
-    background: linear-gradient(135deg, #FFF5EB 0%, #FFF 100%);
+    border-color: #cd7f32;
+    background: linear-gradient(135deg, #fff5eb 0%, #fff 100%);
 
     .rank-badge {
-      background: linear-gradient(135deg, #CD7F32, #B87333);
+      background: linear-gradient(135deg, #cd7f32, #b87333);
     }
   }
 }
@@ -283,13 +283,13 @@ const handleRejectAll = () => {
       }
 
       &.cost {
-        color: #E6A23C;
+        color: #e6a23c;
         font-size: 18px;
         font-weight: bold;
       }
 
       &.savings-amount {
-        color: #67C23A;
+        color: #67c23a;
         font-size: 16px;
         font-weight: 600;
       }
@@ -311,7 +311,7 @@ const handleRejectAll = () => {
   display: flex;
   align-items: center;
   gap: 4px;
-  color: #67C23A;
+  color: #67c23a;
   font-size: 12px;
   font-weight: 500;
 }

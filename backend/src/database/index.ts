@@ -78,7 +78,7 @@ export const dataSourceOptions: DataSourceOptions = {
     TruckingPortMapping,
     WarehouseTruckingMapping,
     PortWarehouseMapping,
-    DictSchedulingConfig,  // ✅ 注册智能排柜配置字典表
+    DictSchedulingConfig, // ✅ 注册智能排柜配置字典表
 
     // 业务表 (Business Tables)
     Customer,
