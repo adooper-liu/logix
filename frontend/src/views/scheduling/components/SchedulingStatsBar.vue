@@ -24,12 +24,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-  Clock,
-  DocumentAdd,
-  Edit,
-  House,
-} from '@element-plus/icons-vue'
+import { Clock, DocumentAdd, Edit, House } from '@element-plus/icons-vue'
 
 defineProps<{
   pendingCount: number

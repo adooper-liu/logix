@@ -2,7 +2,9 @@
   <el-card class="log-card" v-if="logs.length > 0">
     <template #header>
       <div class="card-header">
-        <span><el-icon><Document /></el-icon> 执行日志</span>
+        <span
+          ><el-icon><Document /></el-icon> 执行日志</span
+        >
         <div class="header-actions">
           <el-tag size="small" :type="logs.length > 0 ? 'success' : 'info'">
             {{ logs.length }} 条记录
@@ -33,13 +35,7 @@
 </template>
 
 <script setup lang="ts">
-import {
-  CircleCheck,
-  CircleClose,
-  Delete,
-  Document,
-  InfoFilled,
-} from '@element-plus/icons-vue'
+import { CircleCheck, CircleClose, Delete, Document, InfoFilled } from '@element-plus/icons-vue'
 
 interface Log {
   time: string
@@ -52,7 +48,7 @@ defineProps<{
 }>()
 
 defineEmits<{
-  'clear': []
+  clear: []
 }>()
 </script>
 

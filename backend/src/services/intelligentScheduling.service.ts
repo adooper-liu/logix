@@ -240,7 +240,7 @@ export class IntelligentSchedulingService {
     if (request.country?.trim()) {
       query.andWhere('cust.country = :country', { country: request.country.trim() });
     }
-    
+
     // ✅ 新增：港口过滤
     if (request.portCode?.trim()) {
       query.andWhere('po.portCode = :portCode', { portCode: request.portCode.trim() });

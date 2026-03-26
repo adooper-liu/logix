@@ -13,7 +13,13 @@
           <el-button type="primary" size="small" @click="$emit('export')" :disabled="disabled">
             <el-icon><Download /></el-icon> 导出
           </el-button>
-          <el-button type="success" size="small" plain @click="$emit('view-gantt')" :disabled="disabled">
+          <el-button
+            type="success"
+            size="small"
+            plain
+            @click="$emit('view-gantt')"
+            :disabled="disabled"
+          >
             <el-icon><View /></el-icon> 甘特图
           </el-button>
         </div>
@@ -32,7 +38,7 @@
             <div class="stat-label">总计</div>
           </div>
         </div>
-        
+
         <div class="stat-badge success">
           <div class="stat-badge-icon">
             <el-icon><CircleCheck /></el-icon>
@@ -42,7 +48,7 @@
             <div class="stat-label">成功</div>
           </div>
         </div>
-        
+
         <div class="stat-badge failed">
           <div class="stat-badge-icon">
             <el-icon><CircleClose /></el-icon>
@@ -52,7 +58,7 @@
             <div class="stat-label">失败</div>
           </div>
         </div>
-        
+
         <div class="stat-badge rate">
           <div class="stat-badge-content">
             <div class="stat-value">
@@ -68,7 +74,9 @@
         <el-tabs v-model="activeTab" type="border-card">
           <el-tab-pane :label="`全部 ${total}`" name="all">
             <div class="tab-toolbar">
-              <span class="tab-desc"><el-icon><Document /></el-icon> 所有排产结果</span>
+              <span class="tab-desc"
+                ><el-icon><Document /></el-icon> 所有排产结果</span
+              >
               <el-input
                 v-if="activeTab === 'all'"
                 v-model="searchText"
@@ -84,7 +92,9 @@
 
           <el-tab-pane :label="`成功 ${successCount}`" name="success">
             <div class="tab-toolbar">
-              <span class="tab-desc success"><el-icon><CircleCheck /></el-icon> ✓ 排产成功的货柜</span>
+              <span class="tab-desc success"
+                ><el-icon><CircleCheck /></el-icon> ✓ 排产成功的货柜</span
+              >
               <el-input
                 v-if="activeTab === 'success'"
                 v-model="searchText"
@@ -100,7 +110,9 @@
 
           <el-tab-pane :label="`失败 ${failedCount}`" name="failed">
             <div class="tab-toolbar">
-              <span class="tab-desc danger"><el-icon><CircleClose /></el-icon> ✗ 排产失败的货柜</span>
+              <span class="tab-desc danger"
+                ><el-icon><CircleClose /></el-icon> ✗ 排产失败的货柜</span
+              >
               <el-input
                 v-if="activeTab === 'failed'"
                 v-model="searchText"
@@ -124,7 +136,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
 import {
   Box,
   CircleCheck,
@@ -134,6 +145,7 @@ import {
   Download,
   View,
 } from '@element-plus/icons-vue'
+import { computed, ref } from 'vue'
 
 interface ScheduleResult {
   containerNumber: string
@@ -167,7 +179,7 @@ const getResultTagType = (): 'success' | 'warning' | 'danger' | 'info' => {
 }
 
 defineEmits<{
-  'export': []
+  export: []
   'view-gantt': []
 }>()
 </script>

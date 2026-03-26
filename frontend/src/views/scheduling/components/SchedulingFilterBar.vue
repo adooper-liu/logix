@@ -44,12 +44,7 @@
           <span class="unit-label">天</span>
         </div>
       </el-tooltip>
-      <el-button 
-        type="info" 
-        size="small" 
-        @click="$emit('show-logic')"
-        title="查看智能排产逻辑"
-      >
+      <el-button type="info" size="small" @click="$emit('show-logic')" title="查看智能排产逻辑">
         <el-icon><InfoFilled /></el-icon>
         逻辑
       </el-button>
@@ -57,9 +52,9 @@
 
     <!-- ③ 右侧：操作按钮组 -->
     <div class="action-group">
-      <el-button 
-        type="primary" 
-        :loading="loading" 
+      <el-button
+        type="primary"
+        :loading="loading"
         @click="$emit('preview')"
         size="default"
         title="预览排产方案，确认后保存"
@@ -78,21 +73,11 @@
         <el-icon><Setting /></el-icon>
         手工指定
       </el-button>
-      <el-button 
-        type="default" 
-        @click="$emit('back')"
-        size="default"
-      >
+      <el-button type="default" @click="$emit('back')" size="default">
         <el-icon><ArrowLeft /></el-icon>
         返回
       </el-button>
-      <el-button 
-        type="success" 
-        plain 
-        @click="$emit('refresh')"
-        size="default"
-        title="刷新统计数据"
-      >
+      <el-button type="success" plain @click="$emit('refresh')" size="default" title="刷新统计数据">
         <el-icon><Refresh /></el-icon>
         刷新
       </el-button>
@@ -102,13 +87,7 @@
 
 <script setup lang="ts">
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
-import {
-  ArrowLeft,
-  Cpu,
-  InfoFilled,
-  Refresh,
-  Setting,
-} from '@element-plus/icons-vue'
+import { ArrowLeft, Cpu, InfoFilled, Refresh, Setting } from '@element-plus/icons-vue'
 
 interface Port {
   port_code: string
@@ -127,10 +106,10 @@ defineProps<{
 
 defineEmits<{
   'show-logic': []
-  'preview': []
-  'designate': []
-  'back': []
-  'refresh': []
+  preview: []
+  designate: []
+  back: []
+  refresh: []
   'port-change': [portCode: string | null]
 }>()
 
@@ -210,11 +189,11 @@ const handlePortChange = (portCode: string | null) => {
   .top-action-bar {
     flex-wrap: wrap;
   }
-  
+
   .filter-group {
     min-width: 100%;
   }
-  
+
   .advanced-group {
     width: 100%;
     justify-content: center;
@@ -222,7 +201,7 @@ const handlePortChange = (portCode: string | null) => {
     border: none;
     border-top: 1px solid #e4e7ed;
   }
-  
+
   .action-group {
     width: 100%;
     justify-content: center;
@@ -233,11 +212,11 @@ const handlePortChange = (portCode: string | null) => {
   .top-action-bar {
     padding: 12px 16px;
   }
-  
+
   .filter-item {
     flex-wrap: wrap;
   }
-  
+
   .filter-label {
     min-width: 100%;
   }

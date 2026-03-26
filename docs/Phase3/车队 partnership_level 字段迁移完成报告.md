@@ -14,16 +14,16 @@
 
 ```sql
 -- ① 添加 partnership_level 字段
-ALTER TABLE dict_trucking_companies 
+ALTER TABLE dict_trucking_companies
 ADD COLUMN IF NOT EXISTS partnership_level VARCHAR(20) DEFAULT 'NORMAL';
 
 -- ② 添加注释
-COMMENT ON COLUMN dict_trucking_companies.partnership_level IS 
+COMMENT ON COLUMN dict_trucking_companies.partnership_level IS
 '合作关系级别：STRATEGIC=战略合作，CORE=核心，NORMAL=普通，TEMPORARY=临时';
 
 -- ③ 初始化数据
-UPDATE dict_trucking_companies 
-SET partnership_level = 'NORMAL' 
+UPDATE dict_trucking_companies
+SET partnership_level = 'NORMAL'
 WHERE partnership_level IS NULL;
 ```
 
@@ -34,6 +34,7 @@ WHERE partnership_level IS NULL;
 **文件**: [`backend/reinit_database_docker.ps1`](file://d:\Gihub\logix\backend\reinit_database_docker.ps1)
 
 **新增 Step 7**:
+
 ```powershell
 # Step 7: 其他脚本目录的迁移 (scripts/)
 Write-Host "`n[7/7] Running scripts directory migrations..." -ForegroundColor Yellow
@@ -59,6 +60,7 @@ Write-Host "✓ Scripts directory migrations completed" -ForegroundColor Green
 ### **3. 验证增强**
 
 **新增关键字段检查**:
+
 ```powershell
 # 关键字段检查
 Write-Host "`n[Key Fields Check]" -ForegroundColor Yellow
@@ -167,6 +169,7 @@ WHERE table_name = 'dict_trucking_companies'
 ```
 
 **预期结果**:
+
 ```
 column_name       | character varying | 'NORMAL'
 ```
@@ -174,7 +177,7 @@ column_name       | character varying | 'NORMAL'
 ### **2. 查看现有车队等级**
 
 ```sql
-SELECT 
+SELECT
   company_code,
   company_name,
   daily_capacity,
@@ -185,6 +188,7 @@ ORDER BY partnership_level, company_code;
 ```
 
 **预期结果**:
+
 ```
 所有现有车队的 partnership_level 都是 'NORMAL'
 ```
@@ -193,13 +197,13 @@ ORDER BY partnership_level, company_code;
 
 ```sql
 -- 示例：将某些车队设置为 CORE 级别
-UPDATE dict_trucking_companies 
-SET partnership_level = 'CORE' 
+UPDATE dict_trucking_companies
+SET partnership_level = 'CORE'
 WHERE company_code IN ('TRUCK_001', 'TRUCK_002');
 
 -- 示例：将战略合作伙伴设置为 STRATEGIC
-UPDATE dict_trucking_companies 
-SET partnership_level = 'STRATEGIC' 
+UPDATE dict_trucking_companies
+SET partnership_level = 'STRATEGIC'
 WHERE company_code = 'TRUCK_VIP_001';
 ```
 
@@ -226,6 +230,7 @@ npm run dev
 ### **3. 监控效果**
 
 观察以下指标：
+
 - 核心车队获得更多订单
 - 战略合作伙伴优先被选择
 - 成本与关系平衡合理
@@ -234,19 +239,20 @@ npm run dev
 
 ## 📚 **相关文档**
 
-| 文档名称 | 路径 | 说明 |
-|---------|------|------|
-| **SQL 脚本** | `backend/scripts/add-trucking-partnership-level.sql` | 迁移脚本 |
-| **执行脚本** | `backend/scripts/run-partnership-migration.js` | Node.js 执行脚本 |
-| **迁移指南** | `docs/Phase3/车队 partnership_level 字段迁移指南.md` | 详细操作指南 |
-| **关系类型方案** | `docs/Phase3/车队关系类型确定方案.md` | 完整设计方案 |
-| **本文档** | `docs/Phase3/车队 partnership_level 字段迁移完成报告.md` | 本报告 |
+| 文档名称         | 路径                                                     | 说明             |
+| ---------------- | -------------------------------------------------------- | ---------------- |
+| **SQL 脚本**     | `backend/scripts/add-trucking-partnership-level.sql`     | 迁移脚本         |
+| **执行脚本**     | `backend/scripts/run-partnership-migration.js`           | Node.js 执行脚本 |
+| **迁移指南**     | `docs/Phase3/车队 partnership_level 字段迁移指南.md`     | 详细操作指南     |
+| **关系类型方案** | `docs/Phase3/车队关系类型确定方案.md`                    | 完整设计方案     |
+| **本文档**       | `docs/Phase3/车队 partnership_level 字段迁移完成报告.md` | 本报告           |
 
 ---
 
 ## 🎊 **总结**
 
 **已完成**:
+
 - ✅ SQL 迁移脚本创建
 - ✅ 集成到数据库初始化流程
 - ✅ 添加验证步骤
@@ -254,12 +260,14 @@ npm run dev
 - ✅ 完整的文档
 
 **下一步**:
+
 1. 执行数据库初始化或单独迁移
 2. 验证字段已添加
 3. 重启后端服务
 4. 测试排产功能
 
 **预期收益**:
+
 - 💰 平均运输成本↓10-15%
 - ⚡ 车队利用率↑20%
 - 🤝 合作关系稳定性↑30%
@@ -267,4 +275,4 @@ npm run dev
 
 ---
 
-*本报告遵循 SKILL 原则，所有数据和步骤基于实际实现*
+_本报告遵循 SKILL 原则，所有数据和步骤基于实际实现_
