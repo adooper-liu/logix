@@ -73,10 +73,13 @@
                 滞箱费：${{ row.estimatedCosts.detentionCost.toLocaleString() }}
               </p>
               <p v-if="row.estimatedCosts.storageCost" style="margin: 4px 0">
-                仓储费：${{ row.estimatedCosts.storageCost.toLocaleString() }}
+                港口存储费：${{ row.estimatedCosts.storageCost.toLocaleString() }}
               </p>
               <p v-if="row.estimatedCosts.transportationCost" style="margin: 4px 0">
                 运输费：${{ row.estimatedCosts.transportationCost.toLocaleString() }}
+              </p>
+              <p v-if="row.estimatedCosts.yardStorageCost" style="margin: 4px 0">
+                外部堆场费：${{ row.estimatedCosts.yardStorageCost.toLocaleString() }}
               </p>
               <el-divider style="margin: 8px 0" />
               <p style="margin: 4px 0; font-weight: bold; color: #e6a23c">
@@ -139,6 +142,7 @@ interface PreviewResult {
     detentionCost?: number
     storageCost?: number
     transportationCost?: number
+    yardStorageCost?: number
     totalCost?: number
     currency?: string
   }

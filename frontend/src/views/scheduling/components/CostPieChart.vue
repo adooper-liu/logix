@@ -29,7 +29,7 @@ const initChart = () => {
     legend: {
       orient: 'vertical',
       left: 'left',
-      data: ['滞港费', '滞箱费', '堆存费', '运输费', '操作费']
+      data: ['滞港费', '滞箱费', '港口存储费', '运输费', '外部堆场费', '操作费']
     },
     series: [
       {
@@ -39,8 +39,9 @@ const initChart = () => {
         data: [
           { value: props.data.demurrageCost, name: '滞港费' },
           { value: props.data.detentionCost, name: '滞箱费' },
-          { value: props.data.storageCost, name: '堆存费' },
+          { value: props.data.storageCost, name: '港口存储费' },
           { value: props.data.transportationCost, name: '运输费' },
+          { value: props.data.yardStorageCost || 0, name: '外部堆场费' },
           { value: props.data.handlingCost, name: '操作费' }
         ].filter(item => item.value > 0),
         emphasis: {

@@ -11,7 +11,7 @@
           ${{ data.detentionCost.toFixed(2) }}
         </span>
       </el-descriptions-item>
-      <el-descriptions-item label="堆存费">
+      <el-descriptions-item label="港口存储费">
         <span :class="getAmountClass(data.storageCost)">
           ${{ data.storageCost.toFixed(2) }}
         </span>
@@ -21,12 +21,17 @@
           ${{ data.transportationCost.toFixed(2) }}
         </span>
       </el-descriptions-item>
+      <el-descriptions-item v-if="data.yardStorageCost" label="外部堆场费">
+        <span :class="getAmountClass(data.yardStorageCost)">
+          ${{ data.yardStorageCost.toFixed(2) }}
+        </span>
+      </el-descriptions-item>
       <el-descriptions-item label="操作费">
         <span :class="getAmountClass(data.handlingCost)">
           ${{ data.handlingCost.toFixed(2) }}
         </span>
       </el-descriptions-item>
-      <el-descriptions-item label="总成本" label-class-name="total-label">
+      <el-descriptions-item label="总成本" label-class-name="total-label" :span="2">
         <span :class="['total-amount', getAmountClass(data.totalCost)]">
           ${{ data.totalCost.toFixed(2) }}
         </span>

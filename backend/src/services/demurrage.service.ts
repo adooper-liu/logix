@@ -22,6 +22,9 @@ import { ShippingCompany } from '../entities/ShippingCompany';
 import { FreightForwarder } from '../entities/FreightForwarder';
 import { OverseasCompany } from '../entities/OverseasCompany';
 import { Customer } from '../entities/Customer';
+import { Warehouse } from '../entities/Warehouse';
+import { TruckingCompany } from '../entities/TruckingCompany';
+import { TruckingPortMapping } from '../entities/TruckingPortMapping';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import {
   calculateLogisticsStatus,
@@ -390,6 +393,16 @@ function isStorageCharge(std: { chargeTypeCode?: string | null; chargeName?: str
   const code = (std.chargeTypeCode ?? '').toUpperCase();
   const name = (std.chargeName ?? '').toLowerCase();
   return code.includes('STORAGE') || name.includes('storage') || name.includes('堆存');
+}
+
+/** 判断是否为纯滞港费（Demurrage）标准：到港侧起算，提柜截止；排除合并、滞箱、堆存类型 */
+function isDemurrageCharge(std: { chargeTypeCode?: string | null; chargeName?: string | null }): boolean {
+  if (isCombinedDemurrageDetention(std)) return false;
+  if (isDetentionCharge(std)) return false;
+  if (isStorageCharge(std)) return false;
+  const code = (std.chargeTypeCode ?? '').toUpperCase();
+  const name = (std.chargeName ?? '').toLowerCase();
+  return code.includes('DEMURRAGE') || name.includes('demurrage') || name.includes('滞港');
 }
 
 /**
@@ -1349,14 +1362,33 @@ export class DemurrageService {
     }
 
     // LRD：Combined(D&D) 为到港→还箱整段；否则沿用 Detention 的提柜起算
+    // ⭐ 三种场景完整支持：
+    //   场景① forecast + 无计划提柜：从 LFD 起算
+    //   场景② forecast + 有计划提柜：从计划提柜日起算
+    //   场景③ actual + 有实际提柜：从实际提柜日起算
     let pickupBasisForDetention: Date | null;
     const lastReturnDateMode: 'actual' | 'forecast' = calculationMode;
     if (lrdStd && firstCombinedStd && lrdStd.id === firstCombinedStd.id) {
+      // Combined D&D: 从到港日起算
       pickupBasisForDetention = lrdArrivalStart.date;
     } else {
-      pickupBasisForDetention = calculationMode === 'actual'
-        ? (params.calculationDates.pickupDateActual ?? null)
-        : (params.calculationDates.plannedPickupDate ?? null);
+      // 普通滞箱费：三种场景
+      if (calculationMode === 'actual') {
+        // ③ actual 模式：使用实际提柜日
+        pickupBasisForDetention = params.calculationDates.pickupDateActual ?? null;
+      } else {
+        // forecast 模式
+        if (params.calculationDates.plannedPickupDate) {
+          // ② 有计划提柜日：使用计划提柜日
+          pickupBasisForDetention = params.calculationDates.plannedPickupDate;
+        } else if (computedLastFreeDate) {
+          // ① 无计划提柜日：使用 LFD 作为 fallback
+          pickupBasisForDetention = computedLastFreeDate;
+        } else {
+          // 都没有：无法计算
+          pickupBasisForDetention = null;
+        }
+      }
     }
 
     let computedLastReturnDate: Date | null = null;
@@ -3041,8 +3073,13 @@ export class DemurrageService {
       }
     }
 
-    // 最晚还箱日（批量）：actual + 有提柜起算；已有 return_time 时若 last_return_date 为空仍补写
-    if (calculationMode === 'actual' && computedLastReturnDate && pickupDateActual) {
+    // ⭐ 最晚还箱日（批量/定时更新）：支持所有三种场景
+    //   场景① forecast + 无计划提柜：从 LFD 计算的结果
+    //   场景② forecast + 有计划提柜：从计划提柜日计算的结果
+    //   场景③ actual + 有实际提柜：从实际提柜日计算的结果
+    if (computedLastReturnDate) {
+      // ✅ 不再限制 calculationMode 和 pickupDateActual
+      // 只要有计算结果就写回
       let emptyReturn = await this.emptyReturnRepo.findOne({
         where: { containerNumber }
       });
@@ -3054,17 +3091,187 @@ export class DemurrageService {
         await this.emptyReturnRepo.save(emptyReturn);
         lastReturnDateWritten = true;
         logger.info(`[Demurrage] Wrote back last_return_date for ${containerNumber} (insert)`);
-      } else if (!emptyReturn.lastReturnDate) {
-        await this.emptyReturnRepo.update(
-          { containerNumber },
-          { lastReturnDate: computedLastReturnDate }
-        );
-        lastReturnDateWritten = true;
-        logger.info(`[Demurrage] Wrote back last_return_date for ${containerNumber}`);
+      } else {
+        // 检查是否需要更新
+        const shouldUpdate =
+          !emptyReturn.lastReturnDate ||
+          toDateOnly(emptyReturn.lastReturnDate).getTime() !== toDateOnly(computedLastReturnDate).getTime();
+        if (shouldUpdate) {
+          await this.emptyReturnRepo.update(
+            { containerNumber },
+            { lastReturnDate: computedLastReturnDate }
+          );
+          lastReturnDateWritten = true;
+          logger.info(`[Demurrage] Wrote back last_return_date for ${containerNumber}`);
+        }
       }
     }
 
     return { lastFreeDateWritten, lastReturnDateWritten };
+  }
+
+  /**
+   * 统一的总费用计算入口（所有场景复用）
+   * Unified total cost calculation entry point (reused across all scenarios)
+   * 
+   * @param containerNumber 柜号
+   * @param options 可选参数
+   * @param options.mode 计算模式：'actual' | 'forecast'（默认自动判断）
+   * @param options.plannedDates 预测模式必需的计划日期
+   * @param options.includeTransport 是否包含运输费（默认 false）
+   * @param options.warehouse 仓库信息（运输费必需）
+   * @param options.truckingCompany 车队信息（运输费必需）
+   * @param options.unloadMode 卸柜方式（运输费必需）
+   * 
+   * @returns 完整的费用明细和总计
+   */
+  async calculateTotalCost(
+    containerNumber: string,
+    options?: {
+      mode?: 'actual' | 'forecast';
+      plannedDates?: {
+        plannedPickupDate: Date;
+        plannedUnloadDate: Date;
+        plannedReturnDate: Date;
+      };
+      includeTransport?: boolean;
+      warehouse?: Warehouse;
+      truckingCompany?: TruckingCompany;
+      unloadMode?: string;
+    }
+  ): Promise<{
+    demurrageCost: number;
+    detentionCost: number;
+    storageCost: number;
+    ddCombinedCost: number;
+    transportationCost: number;
+    totalCost: number;
+    currency: string;
+    calculationMode: 'actual' | 'forecast';
+    items?: DemurrageItemResult[];
+  }> {
+    try {
+      // 1. 调用现有的 calculateForContainer() 获取滞港费、滞箱费、堆存费、D&D 合并费用
+      const demurrageResult = await this.calculateForContainer(containerNumber, {
+        freeDateWriteMode: 'none'
+      });
+
+      const costs = {
+        demurrageCost: 0,
+        detentionCost: 0,
+        storageCost: 0,
+        ddCombinedCost: 0,
+        transportationCost: 0,
+        totalCost: 0,
+        currency: 'USD',
+        calculationMode: 'forecast' as 'actual' | 'forecast',
+        items: [] as DemurrageItemResult[]
+      };
+
+      if (demurrageResult.result) {
+        // 2. 更新计算模式
+        costs.calculationMode = demurrageResult.result.calculationMode;
+        costs.currency = demurrageResult.result.currency;
+        costs.items = demurrageResult.result.items;
+
+        // 3. 分类汇总各项费用
+        demurrageResult.result.items.forEach(item => {
+          if (isDemurrageCharge(item)) {
+            costs.demurrageCost += item.amount;
+          }
+          if (isDetentionCharge(item)) {
+            costs.detentionCost += item.amount;
+          }
+          if (isStorageCharge(item)) {
+            costs.storageCost += item.amount;
+          }
+          if (isCombinedDemurrageDetention(item)) {
+            costs.ddCombinedCost += item.amount;
+          }
+        });
+      }
+
+      // 4. 计算运输费（如果需要）
+      if (options?.includeTransport && options.warehouse && options.truckingCompany) {
+        try {
+          costs.transportationCost = await this.calculateTransportationCostInternal(
+            containerNumber,
+            options.warehouse,
+            options.truckingCompany,
+            options.unloadMode || 'Live load'
+          );
+        } catch (error) {
+          logger.warn(`[Demurrage] Transportation cost calculation failed:`, error);
+          costs.transportationCost = 0;
+        }
+      }
+
+      // 5. 总计
+      costs.totalCost =
+        costs.demurrageCost +
+        costs.detentionCost +
+        costs.storageCost +
+        costs.ddCombinedCost +
+        costs.transportationCost;
+
+      return costs;
+    } catch (error) {
+      logger.error(`[Demurrage] calculateTotalCost error:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 计算运输费（内部方法，供 calculateTotalCost 调用）
+   * Calculate transportation cost (internal method for calculateTotalCost)
+   */
+  private async calculateTransportationCostInternal(
+    containerNumber: string,
+    warehouse: Warehouse,
+    truckingCompany: TruckingCompany,
+    unloadMode: string
+  ): Promise<number> {
+    try {
+      // 从 TruckingPortMapping 获取基础运费
+      const container = await this.containerRepo.findOne({
+        where: { containerNumber },
+        relations: ['portOperations']
+      });
+
+      if (!container) {
+        logger.warn(`[Demurrage] Container ${containerNumber} not found for transport cost calculation`);
+        return 0;
+      }
+
+      const destPo = container.portOperations?.find(
+        (po: any) => po.portType === 'destination'
+      );
+      const portCode = destPo?.portCode || 'USLAX';
+      const countryCode = warehouse.country || 'US';
+
+      // 查询映射表获取运费
+      const truckingPortMappingRepo = this.containerRepo.manager.getRepository(TruckingPortMapping);
+      const truckingPortMapping = await truckingPortMappingRepo.findOne({
+        where: {
+          country: countryCode,
+          portCode,
+          truckingCompanyId: truckingCompany.companyCode,
+          isActive: true
+        }
+      });
+
+      let transportFee = truckingPortMapping?.transportFee || 100; // 默认 $100
+
+      // Drop off 模式可能涉及两次运输，费用翻倍
+      if (unloadMode === 'Drop off') {
+        transportFee *= 2;
+      }
+
+      return transportFee;
+    } catch (error) {
+      logger.warn(`[Demurrage] calculateTransportationCostInternal error:`, error);
+      return 0;
+    }
   }
 }
 

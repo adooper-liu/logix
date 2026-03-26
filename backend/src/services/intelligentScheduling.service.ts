@@ -27,6 +27,7 @@ import { Warehouse } from '../entities/Warehouse';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { normalizeCountryCode } from '../utils/countryCode';
+import * as dateTimeUtils from '../utils/dateTimeUtils';
 import { logger } from '../utils/logger';
 import { ContainerStatusService } from './containerStatus.service';
 import { DemurrageService } from './demurrage.service';
@@ -76,6 +77,7 @@ export interface ScheduleResult {
     detentionCost?: number;
     storageCost?: number;
     transportationCost?: number;
+    yardStorageCost?: number; // 外部堆场堆存费（Drop off 模式专属）
     totalCost?: number;
     currency?: string;
   };
@@ -1105,117 +1107,86 @@ export class IntelligentSchedulingService {
     detentionCost?: number;
     storageCost?: number;
     transportationCost?: number;
+    yardStorageCost?: number; // 外部堆场堆存费（Drop off 模式专属）
     totalCost?: number;
     currency?: string;
   }> {
     try {
-      const costs: {
-        demurrageCost?: number;
-        detentionCost?: number;
-        storageCost?: number;
-        transportationCost?: number;
-        totalCost?: number;
-        currency?: string;
-      } = {
-        currency: 'USD'
-      };
+      // 使用统一的 calculateTotalCost 方法计算所有 D&D 费用和运输费
+      const totalCostResult = await this.demurrageService.calculateTotalCost(containerNumber, {
+        mode: 'forecast',
+        plannedDates: {
+          plannedPickupDate,
+          plannedUnloadDate,
+          plannedReturnDate
+        },
+        includeTransport: true,
+        warehouse,
+        truckingCompany,
+        unloadMode
+      });
 
-      // 1. 计算滞港费和滞箱费（使用与货柜详情页面相同的逻辑）
-      try {
-        const demurrageResult = await this.demurrageService.calculateForContainer(containerNumber, {
-          freeDateWriteMode: 'none'
-        });
-        if (demurrageResult.result) {
-          // 提取滞港费和滞箱费
-          const demurrageItems = demurrageResult.result.items.filter(
-            (item) =>
-              item.chargeTypeCode?.includes('DEMURRAGE') ||
-              item.chargeName?.toLowerCase().includes('滞港')
-          );
-          const detentionItems = demurrageResult.result.items.filter(
-            (item) =>
-              item.chargeTypeCode?.includes('DETENTION') ||
-              item.chargeName?.toLowerCase().includes('滞箱')
-          );
-
-          costs.demurrageCost = demurrageItems.reduce((sum, item) => sum + item.amount, 0);
-          costs.detentionCost = detentionItems.reduce((sum, item) => sum + item.amount, 0);
-          costs.currency = demurrageResult.result.currency;
-        }
-      } catch (error) {
-        logger.warn(`[IntelligentScheduling] Demurrage calculation failed:`, error);
-        costs.demurrageCost = 0;
-        costs.detentionCost = 0;
-      }
-
-      // 3. 计算堆存费（Drop off 模式）
-      if (unloadMode === 'Drop off') {
+      // 计算外部堆场堆存费（仅在 Drop off 模式、车队有堆场且实际使用时）
+      let yardStorageCost = 0;
+      if (unloadMode === 'Drop off' && truckingCompany.hasYard) {
         try {
-          // 计算堆存天数（从卸柜日到还箱日）
-          const storageDays = Math.max(
-            0,
-            Math.ceil(
-              (plannedReturnDate.getTime() - plannedUnloadDate.getTime()) / (1000 * 60 * 60 * 24)
-            )
-          );
-
-          // 从 TruckingPortMapping 获取堆存费率
-          let dailyRate = 50; // 默认 $50/天
-          let operationFee = 0;
-
-          const container = await this.containerRepo.findOne({
-            where: { containerNumber },
-            relations: ['portOperations']
-          });
-
-          if (container) {
-            const destPo = container.portOperations?.find(
-              (po: any) => po.portType === 'destination'
-            );
-            const portCode = destPo?.portCode || 'USLAX';
-
-            const truckingPortMapping = await this.truckingPortMappingRepo.findOne({
-              where: {
-                country: warehouse.country || 'US',
-                portCode,
-                truckingCompanyId: truckingCompany.companyCode,
-                isActive: true
-              }
+          // ✅ 关键修复：判断是否实际使用了堆场：提柜日 < 送仓日
+          // 送仓日计算：Drop off 模式下，送仓日 = 卸柜日
+          const plannedDeliveryDate = plannedUnloadDate; // Drop off: 送 = 卸
+          
+          // 判断是否实际使用了堆场：提柜日 < 送仓日
+          const pickupDayStr = plannedPickupDate.toISOString().split('T')[0];
+          const deliveryDayStr = plannedDeliveryDate.toISOString().split('T')[0];
+          
+          if (pickupDayStr !== deliveryDayStr) {
+            // ✅ 提 < 送，说明货柜在堆场存放了
+            // ✅ 预计堆场存放天数（从提柜日到送仓日）
+            const yardStorageDays = dateTimeUtils.daysBetween(plannedPickupDate, plannedDeliveryDate);
+          
+            // 获取货柜的目的港信息
+            const container = await this.containerRepo.findOne({
+              where: { containerNumber },
+              relations: ['portOperations']
             });
-
-            if (truckingPortMapping) {
-              dailyRate = truckingPortMapping.standardRate || dailyRate;
-              operationFee = truckingPortMapping.yardOperationFee || 0;
+            
+            if (container) {
+              const destPo = container.portOperations?.find((po: any) => po.portType === 'destination');
+              const portCode = destPo?.portCode || 'USLAX';
+              const countryCode = warehouse.country || 'US';
+              
+              // 从 TruckingPortMapping 获取堆场费率
+              const truckingPortMapping = await this.truckingPortMappingRepo.findOne({
+                where: {
+                  country: countryCode,
+                  portCode,
+                  truckingCompanyId: truckingCompany.companyCode,
+                  isActive: true
+                }
+              });
+              
+              if (truckingPortMapping) {
+                // 计算外部堆场堆存费 = 每日费率 × 天数 + 操作费
+                yardStorageCost = 
+                  (truckingPortMapping.standardRate || 0) * yardStorageDays + 
+                  (truckingPortMapping.yardOperationFee || 0);
+              }
             }
-          }
-
-          costs.storageCost = dailyRate * storageDays + operationFee;
+          } // ← 添加闭合括号
         } catch (error) {
-          logger.warn(`[IntelligentScheduling] Storage cost calculation failed:`, error);
-          costs.storageCost = 0;
+          logger.error(`[IntelligentScheduling] Yard storage cost calculation failed:`, error);
+          // 计算失败不影响整体，yardStorageCost 保持为 0
         }
       }
 
-      // 4. 计算运输费（基于距离估算）
-      try {
-        costs.transportationCost = await this.calculateTransportationCost(
-          containerNumber,
-          warehouse,
-          unloadMode
-        );
-      } catch (error) {
-        logger.warn(`[IntelligentScheduling] Transportation cost calculation failed:`, error);
-        costs.transportationCost = 0;
-      }
-
-      // 5. 总费用
-      costs.totalCost =
-        Number(costs.demurrageCost || 0) +
-        Number(costs.detentionCost || 0) +
-        Number(costs.storageCost || 0) +
-        Number(costs.transportationCost || 0);
-
-      return costs;
+      return {
+        demurrageCost: totalCostResult.demurrageCost,
+        detentionCost: totalCostResult.detentionCost,
+        storageCost: totalCostResult.storageCost, // 港口存储费
+        transportationCost: totalCostResult.transportationCost,
+        yardStorageCost, // 外部堆场堆存费（如有）
+        totalCost: totalCostResult.totalCost + yardStorageCost, // 总计包含两种堆存费
+        currency: totalCostResult.currency
+      };
     } catch (error) {
       logger.error(`[IntelligentScheduling] calculateEstimatedCosts error:`, error);
       return {
@@ -1225,72 +1196,7 @@ export class IntelligentSchedulingService {
     }
   }
 
-  /**
-   * 计算运输费用（基于 TruckingPortMapping）
-   */
-  private async calculateTransportationCost(
-    containerNumber: string,
-    warehouse: Warehouse,
-    unloadMode: string
-  ): Promise<number> {
-    try {
-      // 1. 获取货柜的目的港
-      const container = await this.containerRepo.findOne({
-        where: { containerNumber },
-        relations: ['portOperations']
-      });
 
-      if (!container) {
-        return 0;
-      }
-
-      const destPo = container.portOperations?.find((po: any) => po.portType === 'destination');
-      const portCode = destPo?.portCode || 'USLAX';
-      const countryCode = warehouse.country || 'US';
-
-      // 2. 获取与仓库关联的车队
-      const warehouseTruckingMappings = await this.warehouseTruckingMappingRepo.find({
-        where: {
-          warehouseCode: warehouse.warehouseCode,
-          country: countryCode,
-          isActive: true
-        }
-      });
-
-      if (warehouseTruckingMappings.length === 0) {
-        logger.warn(
-          `[IntelligentScheduling] No trucking mapping found for warehouse ${warehouse.warehouseCode}`
-        );
-        return 0;
-      }
-
-      // 3. 从 WarehouseTruckingMapping 获取运输费用
-      let transportFee = 0;
-
-      // 优先使用默认车队的运输费用
-      const defaultMapping = warehouseTruckingMappings.find((m) => m.isDefault);
-      if (defaultMapping) {
-        transportFee = Number(defaultMapping.transportFee) || 0;
-      } else {
-        // 否则使用第一个映射的运输费用
-        transportFee = Number(warehouseTruckingMappings[0].transportFee) || 0;
-      }
-
-      // 4. 如果没有找到映射，使用默认值
-      if (transportFee === 0) {
-        logger.warn(
-          `[IntelligentScheduling] No transport fee found for warehouse ${warehouse.warehouseCode}, using default fee`
-        );
-        transportFee = 100; // 默认 $100
-      }
-
-      // 5. Drop off 模式可能涉及两次运输，费用翻倍
-      return Number(unloadMode === 'Drop off' ? transportFee * 2 : transportFee);
-    } catch (error) {
-      logger.warn(`[IntelligentScheduling] calculateTransportationCost failed:`, error);
-      return 0;
-    }
-  }
 }
 
 export const intelligentSchedulingService = new IntelligentSchedulingService();

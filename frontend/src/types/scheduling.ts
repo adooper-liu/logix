@@ -45,7 +45,8 @@ export interface UnloadOption {
 export interface CostBreakdown {
   demurrageCost: number      // 滞港费
   detentionCost: number      // 滞箱费
-  storageCost: number        // 堆存费
+  storageCost: number        // 港口存储费
+  yardStorageCost: number    // 外部堆场堆存费（Drop off 模式专属）
   transportationCost: number // 运输费
   handlingCost: number       // 操作费（加急费等）
   totalCost: number          // 总成本
