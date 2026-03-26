@@ -20,16 +20,16 @@
         </el-descriptions-item>
         <el-descriptions-item label="Drop off"> {{ dropOffCount }} 柜 </el-descriptions-item>
         <el-descriptions-item label="预估总费用">
-          <el-tag type="warning">${{ totalEstimatedCost.toLocaleString() }}</el-tag>
+          <el-tag type="warning">{{ formatCurrency(totalEstimatedCost, previewResults[0]?.plannedData?.warehouseCountry || 'US') }}</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="平均费用">
           <el-tag v-if="successCount > 0" :type="averageCostType">
-            ${{ averageCost.toLocaleString() }}
+            {{ formatCurrency(averageCost, previewResults[0]?.plannedData?.warehouseCountry || 'US') }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="费用区间">
           <span style="font-weight: bold; color: #606266">
-            ${{ minCost.toLocaleString() }} ~ ${{ maxCost.toLocaleString() }}
+            {{ formatCurrency(minCost, previewResults[0]?.plannedData?.warehouseCountry || 'US') }} ~ {{ formatCurrency(maxCost, previewResults[0]?.plannedData?.warehouseCountry || 'US') }}
           </span>
         </el-descriptions-item>
       </el-descriptions>
@@ -64,112 +64,184 @@
       </el-table-column>
       <el-table-column prop="warehouseName" label="仓库" min-width="150" show-overflow-tooltip />
       <el-table-column prop="truckingCompany" label="车队" min-width="150" show-overflow-tooltip />
-      
+
       <!-- 费用明细列展开 -->
-      <el-table-column prop="estimatedCosts.demurrageCost" label="滞港费" width="95" sortable align="right">
+      <el-table-column
+        prop="estimatedCosts.demurrageCost"
+        label="滞港费"
+        width="95"
+        sortable
+        align="right"
+      >
         <template #default="{ row }">
-          <span v-if="row.estimatedCosts?.demurrageCost" :class="getAmountClass(row.estimatedCosts.demurrageCost)">
-            ${{ row.estimatedCosts.demurrageCost.toLocaleString() }}
+          <span
+            v-if="row.estimatedCosts?.demurrageCost"
+            :class="getAmountClass(row.estimatedCosts.demurrageCost)"
+          >
+            {{ formatCurrency(row.estimatedCosts.demurrageCost, row.plannedData?.warehouseCountry || 'US') }}
           </span>
           <span v-else>-</span>
         </template>
       </el-table-column>
-      
-      <el-table-column prop="estimatedCosts.detentionCost" label="滞箱费" width="95" sortable align="right">
+
+      <el-table-column
+        prop="estimatedCosts.detentionCost"
+        label="滞箱费"
+        width="95"
+        sortable
+        align="right"
+      >
         <template #default="{ row }">
-          <span v-if="row.estimatedCosts?.detentionCost" :class="getAmountClass(row.estimatedCosts.detentionCost)">
-            ${{ row.estimatedCosts.detentionCost.toLocaleString() }}
+          <span
+            v-if="row.estimatedCosts?.detentionCost"
+            :class="getAmountClass(row.estimatedCosts.detentionCost)"
+          >
+            {{ formatCurrency(row.estimatedCosts.detentionCost, row.plannedData?.warehouseCountry || 'US') }}
           </span>
           <span v-else>-</span>
         </template>
       </el-table-column>
-      
-      <el-table-column prop="estimatedCosts.storageCost" label="港口存储费" width="105" sortable align="right">
+
+      <el-table-column
+        prop="estimatedCosts.storageCost"
+        label="港口存储费"
+        width="105"
+        sortable
+        align="right"
+      >
         <template #default="{ row }">
-          <span v-if="row.estimatedCosts?.storageCost" :class="getAmountClass(row.estimatedCosts.storageCost)">
-            ${{ row.estimatedCosts.storageCost.toLocaleString() }}
+          <span
+            v-if="row.estimatedCosts?.storageCost"
+            :class="getAmountClass(row.estimatedCosts.storageCost)"
+          >
+            {{ formatCurrency(row.estimatedCosts.storageCost, row.plannedData?.warehouseCountry || 'US') }}
           </span>
           <span v-else>-</span>
         </template>
       </el-table-column>
-      
-      <el-table-column prop="estimatedCosts.ddCombinedCost" label="D&D 合并费" width="105" sortable align="right">
+
+      <el-table-column
+        prop="estimatedCosts.ddCombinedCost"
+        label="D&D 合并费"
+        width="105"
+        sortable
+        align="right"
+      >
         <template #default="{ row }">
-          <span v-if="row.estimatedCosts?.ddCombinedCost" :class="getAmountClass(row.estimatedCosts.ddCombinedCost)">
-            ${{ row.estimatedCosts.ddCombinedCost.toLocaleString() }}
+          <span
+            v-if="row.estimatedCosts?.ddCombinedCost"
+            :class="getAmountClass(row.estimatedCosts.ddCombinedCost)"
+          >
+            {{ formatCurrency(row.estimatedCosts.ddCombinedCost, row.plannedData?.warehouseCountry || 'US') }}
           </span>
           <span v-else>-</span>
         </template>
       </el-table-column>
-      
-      <el-table-column prop="estimatedCosts.transportationCost" label="运输费" width="95" sortable align="right">
+
+      <el-table-column
+        prop="estimatedCosts.transportationCost"
+        label="运输费"
+        width="95"
+        sortable
+        align="right"
+      >
         <template #default="{ row }">
-          <span v-if="row.estimatedCosts?.transportationCost" :class="getAmountClass(row.estimatedCosts.transportationCost)">
-            ${{ row.estimatedCosts.transportationCost.toLocaleString() }}
+          <span
+            v-if="row.estimatedCosts?.transportationCost"
+            :class="getAmountClass(row.estimatedCosts.transportationCost)"
+          >
+            {{ formatCurrency(row.estimatedCosts.transportationCost, row.plannedData?.warehouseCountry || 'US') }}
           </span>
           <span v-else>-</span>
         </template>
       </el-table-column>
-      
-      <el-table-column prop="estimatedCosts.yardStorageCost" label="外部堆场费" width="110" sortable align="right">
+
+      <el-table-column
+        prop="estimatedCosts.yardStorageCost"
+        label="外部堆场费"
+        width="110"
+        sortable
+        align="right"
+      >
         <template #default="{ row }">
-          <span v-if="row.estimatedCosts?.yardStorageCost" :class="getAmountClass(row.estimatedCosts.yardStorageCost)">
-            ${{ row.estimatedCosts.yardStorageCost.toLocaleString() }}
+          <span
+            v-if="row.estimatedCosts?.yardStorageCost"
+            :class="getAmountClass(row.estimatedCosts.yardStorageCost)"
+          >
+            {{ formatCurrency(row.estimatedCosts.yardStorageCost, row.plannedData?.warehouseCountry || 'US') }}
           </span>
           <span v-else>-</span>
         </template>
       </el-table-column>
-      
-      <el-table-column prop="estimatedCosts.handlingCost" label="操作费" width="95" sortable align="right">
+
+      <el-table-column
+        prop="estimatedCosts.handlingCost"
+        label="操作费"
+        width="95"
+        sortable
+        align="right"
+      >
         <template #default="{ row }">
-          <span v-if="row.estimatedCosts?.handlingCost" :class="getAmountClass(row.estimatedCosts.handlingCost)">
-            ${{ row.estimatedCosts.handlingCost.toLocaleString() }}
+          <span
+            v-if="row.estimatedCosts?.handlingCost"
+            :class="getAmountClass(row.estimatedCosts.handlingCost)"
+          >
+            {{ formatCurrency(row.estimatedCosts.handlingCost, row.plannedData?.warehouseCountry || 'US') }}
           </span>
           <span v-else>-</span>
         </template>
       </el-table-column>
-      
-      <el-table-column prop="estimatedCosts.totalCost" label="总费用" width="110" sortable align="right">
+
+      <el-table-column
+        prop="estimatedCosts.totalCost"
+        label="总费用"
+        width="110"
+        sortable
+        align="right"
+      >
         <template #default="{ row }">
-          <span v-if="row.estimatedCosts?.totalCost" :class="['total-cost', getAmountClass(row.estimatedCosts.totalCost)]">
-            ${{ row.estimatedCosts.totalCost.toLocaleString() }}
+          <span
+            v-if="row.estimatedCosts?.totalCost"
+            :class="['total-cost', getAmountClass(row.estimatedCosts.totalCost)]"
+          >
+            {{ formatCurrency(row.estimatedCosts.totalCost, row.plannedData?.warehouseCountry || 'US') }}
           </span>
           <span v-else>-</span>
         </template>
       </el-table-column>
-      
+
       <el-table-column label="费用明细" width="100" align="center">
         <template #default="{ row }">
           <el-popover v-if="row.estimatedCosts" placement="left" :width="220" trigger="hover">
             <div style="font-size: 12px">
               <p v-if="row.estimatedCosts.demurrageCost" style="margin: 4px 0">
-                滞港费：${{ row.estimatedCosts.demurrageCost.toLocaleString() }}
+                滞港费：{{ formatCurrency(row.estimatedCosts.demurrageCost, row.plannedData?.warehouseCountry || 'US') }}
               </p>
               <p v-if="row.estimatedCosts.detentionCost" style="margin: 4px 0">
-                滞箱费：${{ row.estimatedCosts.detentionCost.toLocaleString() }}
+                滞箱费：{{ formatCurrency(row.estimatedCosts.detentionCost, row.plannedData?.warehouseCountry || 'US') }}
               </p>
               <p v-if="row.estimatedCosts.storageCost" style="margin: 4px 0">
-                港口存储费：${{ row.estimatedCosts.storageCost.toLocaleString() }}
+                港口存储费：{{ formatCurrency(row.estimatedCosts.storageCost, row.plannedData?.warehouseCountry || 'US') }}
               </p>
               <p v-if="row.estimatedCosts.ddCombinedCost" style="margin: 4px 0">
-                D&D 合并费：${{ row.estimatedCosts.ddCombinedCost.toLocaleString() }}
+                D&D 合并费：{{ formatCurrency(row.estimatedCosts.ddCombinedCost, row.plannedData?.warehouseCountry || 'US') }}
               </p>
               <p v-if="row.estimatedCosts.transportationCost" style="margin: 4px 0">
-                运输费：${{ row.estimatedCosts.transportationCost.toLocaleString() }}
+                运输费：{{ formatCurrency(row.estimatedCosts.transportationCost, row.plannedData?.warehouseCountry || 'US') }}
               </p>
               <p v-if="row.estimatedCosts.yardStorageCost" style="margin: 4px 0">
-                外部堆场费：${{ row.estimatedCosts.yardStorageCost.toLocaleString() }}
+                外部堆场费：{{ formatCurrency(row.estimatedCosts.yardStorageCost, row.plannedData?.warehouseCountry || 'US') }}
               </p>
               <p v-if="row.estimatedCosts.handlingCost" style="margin: 4px 0">
-                操作费：${{ row.estimatedCosts.handlingCost.toLocaleString() }}
+                操作费：{{ formatCurrency(row.estimatedCosts.handlingCost, row.plannedData?.warehouseCountry || 'US') }}
               </p>
               <el-divider style="margin: 8px 0" />
               <p style="margin: 4px 0; font-weight: bold; color: #e6a23c">
-                合计：${{ row.estimatedCosts.totalCost?.toLocaleString() }}
+                合计：{{ formatCurrency(row.estimatedCosts.totalCost || 0, row.plannedData?.warehouseCountry || 'US') }}
               </p>
             </div>
             <template #reference>
-              <el-button type="text" size="small" icon="QuestionFilled">明细</el-button>
+              <el-button type="default" size="small" icon="QuestionFilled">明细</el-button>
             </template>
           </el-popover>
           <span v-else>-</span>
@@ -201,7 +273,7 @@
 </template>
 
 <script setup lang="ts">
-import { CircleCheck, CircleClose, QuestionFilled } from '@element-plus/icons-vue'
+import { CircleCheck, CircleClose } from '@element-plus/icons-vue'
 import { computed, ref, watch } from 'vue'
 
 interface PreviewResult {
@@ -215,6 +287,8 @@ interface PreviewResult {
     plannedReturnDate?: string
     warehouseId?: string
     warehouseName?: string
+    warehouseCode?: string
+    warehouseCountry?: string // ✅ 新增：仓库所在国家
     truckingCompanyId?: string
     truckingCompany?: string
     unloadMode?: 'Drop off' | 'Live load'
@@ -254,10 +328,12 @@ const dropOffCount = computed(
   () => props.previewResults.filter(r => r.plannedData?.unloadMode === 'Drop off').length
 )
 
-const totalEstimatedCost = computed(() => {
-  return props.previewResults
-    .filter(r => r.success && r.estimatedCosts?.totalCost)
-    .reduce((sum, r) => sum + (r.estimatedCosts?.totalCost || 0), 0)
+const totalEstimatedCost = computed((): number => {
+  const results = props.previewResults.filter(r => r.success && r.estimatedCosts?.totalCost)
+  return results.reduce((sum, r) => {
+    const cost = r.estimatedCosts?.totalCost ?? 0
+    return sum + cost
+  }, 0)
 })
 
 // 平均费用
@@ -292,13 +368,43 @@ const averageCostType = computed(() => {
   return 'danger'
 })
 
+// ✅ SKILL 规范：货币格式化函数
+const formatCurrency = (amount: number, countryCode?: string): string => {
+  const country = countryCode || 'US'
+  
+  // 根据国家获取货币符号
+  const currencyMap: Record<string, { symbol: string; code: string }> = {
+    US: { symbol: '$', code: 'USD' },
+    GB: { symbol: '£', code: 'GBP' },
+    EU: { symbol: '€', code: 'EUR' },
+    DE: { symbol: '€', code: 'EUR' },
+    FR: { symbol: '€', code: 'EUR' },
+    IT: { symbol: '€', code: 'EUR' },
+    ES: { symbol: '€', code: 'EUR' },
+    CA: { symbol: 'C$', code: 'CAD' },
+    AU: { symbol: 'A$', code: 'AUD' },
+    JP: { symbol: '¥', code: 'JPY' },
+    CN: { symbol: '¥', code: 'CNY' }
+  }
+  
+  const currency = currencyMap[country] || { symbol: '$', code: 'USD' }
+  
+  // 格式化数字（带千分位）
+  const formattedAmount = amount.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })
+  
+  return `${currency.symbol}${formattedAmount}`
+}
+
 // 费用颜色分级函数（遵循 SKILL 规范）
 const getAmountClass = (amount: number): string => {
-  if (amount === 0) return 'amount-zero'      // 绿色：无费用
-  if (amount <= 100) return 'amount-low'      // 黄色：低费用
-  if (amount <= 500) return 'amount-medium'   // 橙色：中等费用
-  if (amount <= 1000) return 'amount-high'    // 红色：高费用
-  return 'amount-critical'                    // 深红：严重警告（> $1000）
+  if (amount === 0) return 'amount-zero' // 绿色：无费用
+  if (amount <= 100) return 'amount-low' // 黄色：低费用
+  if (amount <= 500) return 'amount-medium' // 橙色：中等费用
+  if (amount <= 1000) return 'amount-high' // 红色：高费用
+  return 'amount-critical' // 深红：严重警告（> $1000）
 }
 
 const handleSelectionChange = (selection: any[]) => {
@@ -354,37 +460,38 @@ watch(
 
 /* 费用颜色分级样式（遵循 SKILL 规范）*/
 .amount-zero {
-  color: #67c23a;  /* 绿色：无费用 */
+  color: #67c23a; /* 绿色：无费用 */
   font-weight: 500;
 }
 
 .amount-low {
-  color: #e6a23c;  /* 黄色：低费用 */
+  color: #e6a23c; /* 黄色：低费用 */
   font-weight: 500;
 }
 
 .amount-medium {
-  color: #f56c6c;  /* 橙色：中等费用 */
+  color: #f56c6c; /* 橙色：中等费用 */
   font-weight: 600;
 }
 
 .amount-high {
-  color: #c92222;  /* 红色：高费用 */
+  color: #c92222; /* 红色：高费用 */
   font-weight: 700;
 }
 
 .amount-critical {
-  color: #8b0000;  /* 深红：严重警告 */
+  color: #8b0000; /* 深红：严重警告 */
   font-weight: 800;
   animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
-  0%, 100% { 
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }
-  50% { 
+  50% {
     opacity: 0.8;
     transform: scale(1.05);
   }
@@ -405,10 +512,11 @@ watch(
 }
 
 @keyframes glow {
-  0%, 100% { 
+  0%,
+  100% {
     filter: brightness(1);
   }
-  50% { 
+  50% {
     filter: brightness(1.3);
   }
 }

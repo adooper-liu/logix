@@ -68,6 +68,7 @@ export interface ScheduleResult {
     truckingCompany?: string;
     warehouseId?: string;
     warehouseName?: string;
+    warehouseCountry?: string; // ✅ 仓库国家代码，用于前端货币格式化
     unloadMode?: 'Drop off' | 'Live load';
     customsBrokerCode?: string;
   };
@@ -445,6 +446,7 @@ export class IntelligentSchedulingService {
         truckingCompany: truckingCompany.companyName || truckingCompany.companyCode,
         warehouseId: warehouse.warehouseCode,
         warehouseName: warehouse.warehouseName || warehouse.warehouseCode,
+        warehouseCountry: warehouse.country || countryCode, // ✅ 添加仓库国家信息，用于前端货币格式化
         unloadModePlan: unloadMode,
         customsBrokerCode,
         // 还箱码头信息（使用仓库作为还箱地点）
@@ -1128,6 +1130,17 @@ export class IntelligentSchedulingService {
         unloadMode
       });
 
+      // ✅ 调试日志：查看各项费用
+      logger.info(`[IntelligentScheduling] Cost breakdown for ${containerNumber}:`, {
+        demurrageCost: totalCostResult.demurrageCost,
+        detentionCost: totalCostResult.detentionCost,
+        storageCost: totalCostResult.storageCost,
+        ddCombinedCost: totalCostResult.ddCombinedCost,
+        transportationCost: totalCostResult.transportationCost,
+        totalCost: totalCostResult.totalCost,
+        currency: totalCostResult.currency
+      });
+
       // 计算外部堆场堆存费（仅在 Drop off 模式、车队有堆场且实际使用时）
       let yardStorageCost = 0;
       if (unloadMode === 'Drop off' && truckingCompany.hasYard) {
@@ -1135,27 +1148,32 @@ export class IntelligentSchedulingService {
           // ✅ 关键修复：判断是否实际使用了堆场：提柜日 < 送仓日
           // 送仓日计算：Drop off 模式下，送仓日 = 卸柜日
           const plannedDeliveryDate = plannedUnloadDate; // Drop off: 送 = 卸
-          
+
           // 判断是否实际使用了堆场：提柜日 < 送仓日
           const pickupDayStr = plannedPickupDate.toISOString().split('T')[0];
           const deliveryDayStr = plannedDeliveryDate.toISOString().split('T')[0];
-          
+
           if (pickupDayStr !== deliveryDayStr) {
             // ✅ 提 < 送，说明货柜在堆场存放了
             // ✅ 预计堆场存放天数（从提柜日到送仓日）
-            const yardStorageDays = dateTimeUtils.daysBetween(plannedPickupDate, plannedDeliveryDate);
-          
+            const yardStorageDays = dateTimeUtils.daysBetween(
+              plannedPickupDate,
+              plannedDeliveryDate
+            );
+
             // 获取货柜的目的港信息
             const container = await this.containerRepo.findOne({
               where: { containerNumber },
               relations: ['portOperations']
             });
-            
+
             if (container) {
-              const destPo = container.portOperations?.find((po: any) => po.portType === 'destination');
+              const destPo = container.portOperations?.find(
+                (po: any) => po.portType === 'destination'
+              );
               const portCode = destPo?.portCode || 'USLAX';
               const countryCode = warehouse.country || 'US';
-              
+
               // 从 TruckingPortMapping 获取堆场费率
               const truckingPortMapping = await this.truckingPortMappingRepo.findOne({
                 where: {
@@ -1165,12 +1183,13 @@ export class IntelligentSchedulingService {
                   isActive: true
                 }
               });
-              
+
               if (truckingPortMapping) {
                 // 计算外部堆场堆存费 = 每日费率 × 天数 + 操作费
-                yardStorageCost = 
-                  (truckingPortMapping.standardRate || 0) * yardStorageDays + 
-                  (truckingPortMapping.yardOperationFee || 0);
+                // ✅ 关键修复：TypeORM 的 decimal 类型返回字符串，需要显式转换为数字
+                const standardRate = Number(truckingPortMapping.standardRate) || 0;
+                const yardOperationFee = Number(truckingPortMapping.yardOperationFee) || 0;
+                yardStorageCost = standardRate * yardStorageDays + yardOperationFee;
               }
             }
           } // ← 添加闭合括号
@@ -1195,15 +1214,16 @@ export class IntelligentSchedulingService {
       }
 
       // ✅ 关键修复：完整返回所有费用项，包括 ddCombinedCost
+      // ✅ 确保所有数值都是 number 类型，避免字符串拼接
       return {
-        demurrageCost: totalCostResult.demurrageCost,
-        detentionCost: totalCostResult.detentionCost,
-        storageCost: totalCostResult.storageCost,
-        ddCombinedCost: totalCostResult.ddCombinedCost, // ✅ 新增：D&D 合并费用
-        transportationCost: totalCostResult.transportationCost,
-        yardStorageCost, // 外部堆场堆存费（如有）
-        handlingCost, // 加急费（如有）
-        totalCost: totalCostResult.totalCost + yardStorageCost + handlingCost, // 总计包含两种堆存费和加急费
+        demurrageCost: Number(totalCostResult.demurrageCost) || 0,
+        detentionCost: Number(totalCostResult.detentionCost) || 0,
+        storageCost: Number(totalCostResult.storageCost) || 0,
+        ddCombinedCost: Number(totalCostResult.ddCombinedCost) || 0, // ✅ 新增：D&D 合并费用
+        transportationCost: Number(totalCostResult.transportationCost) || 0,
+        yardStorageCost: Number(yardStorageCost) || 0, // 外部堆场堆存费（如有）
+        handlingCost: Number(handlingCost) || 0, // 加急费（如有）
+        totalCost: Number(totalCostResult.totalCost) + Number(yardStorageCost) + Number(handlingCost), // 总计包含两种堆存费和加急费
         currency: totalCostResult.currency
       };
     } catch (error) {
@@ -1214,8 +1234,6 @@ export class IntelligentSchedulingService {
       };
     }
   }
-
-
 }
 
 export const intelligentSchedulingService = new IntelligentSchedulingService();

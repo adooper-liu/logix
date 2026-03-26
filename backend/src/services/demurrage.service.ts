@@ -25,6 +25,8 @@ import { Customer } from '../entities/Customer';
 import { Warehouse } from '../entities/Warehouse';
 import { TruckingCompany } from '../entities/TruckingCompany';
 import { TruckingPortMapping } from '../entities/TruckingPortMapping';
+import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
+import { DictSchedulingConfig } from '../entities/DictSchedulingConfig';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import {
   calculateLogisticsStatus,
@@ -1730,6 +1732,21 @@ export class DemurrageService {
         std.freeDaysBasis
       );
 
+      // ✅ 调试日志：查看费用计算详情
+      if (chargeDays > 0) {
+        logger.info(`[Demurrage] Cost calculation for ${containerNumber}:`, {
+          chargeName: std.chargeName,
+          chargeTypeCode: std.chargeTypeCode,
+          rangeStart,
+          rangeEnd,
+          freeDays,
+          ratePerDay,
+          chargeDays,
+          amount,
+          tierBreakdown
+        });
+      }
+
       // 确定起算日和截止日的模式（堆存在全局 forecast 但已有 ATA 时用 actual 子模式）
       const startDateMode = isCombined
         ? calculationMode === 'forecast'
@@ -3232,45 +3249,107 @@ export class DemurrageService {
     unloadMode: string
   ): Promise<number> {
     try {
-      // 从 TruckingPortMapping 获取基础运费
-      const container = await this.containerRepo.findOne({
-        where: { containerNumber },
-        relations: ['portOperations']
-      });
-
-      if (!container) {
-        logger.warn(`[Demurrage] Container ${containerNumber} not found for transport cost calculation`);
-        return 0;
-      }
-
-      const destPo = container.portOperations?.find(
-        (po: any) => po.portType === 'destination'
-      );
-      const portCode = destPo?.portCode || 'USLAX';
-      const countryCode = warehouse.country || 'US';
-
-      // 查询映射表获取运费
-      const truckingPortMappingRepo = this.containerRepo.manager.getRepository(TruckingPortMapping);
-      const truckingPortMapping = await truckingPortMappingRepo.findOne({
+      // 从 dict_warehouse_trucking_mapping 获取基础运费
+      const warehouseTruckingMappingRepo = this.containerRepo.manager.getRepository(WarehouseTruckingMapping);
+      const warehouseTruckingMapping = await warehouseTruckingMappingRepo.findOne({
         where: {
-          country: countryCode,
-          portCode,
+          country: warehouse.country || 'US',
+          warehouseCode: warehouse.warehouseCode,
           truckingCompanyId: truckingCompany.companyCode,
           isActive: true
         }
       });
 
-      let transportFee = truckingPortMapping?.transportFee || 100; // 默认 $100
+      let transportFee = warehouseTruckingMapping?.transportFee || 100; // 默认 $100
+      // ✅ 关键修复：TypeORM 的 decimal 类型返回字符串，需要显式转换为数字
+      transportFee = Number(transportFee) || 100;
 
-      // Drop off 模式可能涉及两次运输，费用翻倍
+      // ✅ 关键修复：Drop off 模式下，只有实际使用了堆场（提 < 送）才翻倍
       if (unloadMode === 'Drop off') {
-        transportFee *= 2;
+        // 需要获取实际的提柜日和送仓日来判断是否使用了堆场
+        const actuallyUsedYard = await this.checkIfActuallyUsedYard(
+          containerNumber,
+          warehouse,
+          truckingCompany
+        );
+        
+        if (actuallyUsedYard) {
+          // ✅ 实际使用了堆场（提 < 送），需要两次运输，费用翻倍
+          const dropoffMultiplier = await this.getDropoffMultiplier();
+          transportFee *= dropoffMultiplier;
+          logger.debug(`[Demurrage] Drop off mode (used yard): transportFee=${transportFee}, multiplier=${dropoffMultiplier}`);
+        } else {
+          // ✅ 未使用堆场（提 = 送），只运输一次，不翻倍
+          logger.debug(`[Demurrage] Drop off mode (direct delivery): transportFee=${transportFee}, no multiplier`);
+        }
       }
 
       return transportFee;
     } catch (error) {
       logger.warn(`[Demurrage] calculateTransportationCostInternal error:`, error);
       return 0;
+    }
+  }
+
+  /**
+   * 从配置表读取 Drop off 模式运费倍数
+   * @returns Drop off 模式倍数，默认 2.0
+   */
+  private async getDropoffMultiplier(): Promise<number> {
+    try {
+      const configRepo = this.containerRepo.manager.getRepository(DictSchedulingConfig);
+      const config = await configRepo.findOne({
+        where: { configKey: 'transport_dropoff_multiplier' }
+      });
+      const multiplier = config ? parseFloat(config.configValue || '2.0') : 2.0;
+      return isNaN(multiplier) ? 2.0 : multiplier;
+    } catch (error) {
+      logger.warn('[Demurrage] Failed to read transport_dropoff_multiplier config:', error);
+      return 2.0; // 默认 2.0（两次运输）
+    }
+  }
+
+  /**
+   * 检查 Drop off 模式下是否实际使用了堆场
+   * 判断标准：提柜日 < 送仓日
+   * @returns true=实际使用了堆场，false=直接送仓
+   */
+  private async checkIfActuallyUsedYard(
+    containerNumber: string,
+    warehouse: Warehouse,
+    truckingCompany: TruckingCompany
+  ): Promise<boolean> {
+    try {
+      // 从 TruckingTransport 表获取提柜日和送仓日
+      const truckingTransportRepo = this.containerRepo.manager.getRepository(TruckingTransport);
+      const truckingTransport = await truckingTransportRepo.findOne({
+        where: { 
+          containerNumber,
+          truckingCompanyId: truckingCompany.companyCode
+        },
+        order: { createdAt: 'DESC' } // 获取最新的记录
+      });
+
+      if (!truckingTransport || !truckingTransport.pickupDate) {
+        return false;
+      }
+
+      const pickupDate = truckingTransport.pickupDate;
+      const deliveryDate = truckingTransport.deliveryDate;
+
+      if (!deliveryDate) {
+        // 还没有送仓，假设会使用堆场（保守估计）
+        return true;
+      }
+
+      // 判断提柜日是否早于送仓日
+      const pickupDayStr = pickupDate.toISOString().split('T')[0];
+      const deliveryDayStr = deliveryDate.toISOString().split('T')[0];
+
+      return pickupDayStr !== deliveryDayStr; // 提 < 送 = 使用了堆场
+    } catch (error) {
+      logger.warn('[Demurrage] checkIfActuallyUsedYard error:', error);
+      return false; // 出错时假设未使用堆场
     }
   }
 }
