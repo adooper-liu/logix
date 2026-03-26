@@ -20,11 +20,11 @@
         </el-select>
       </el-form-item>
       
-      <el-form-item label="卸柜日期">
+      <el-form-item label="提柜日期">
         <el-date-picker
-          v-model="selectedOption.unloadDate"
+          v-model="selectedOption.plannedPickupDate"
           type="date"
-          placeholder="选择卸柜日期"
+          placeholder="选择提柜日期"
           format="YYYY-MM-DD"
           value-format="YYYY-MM-DD"
           @change="handleDateChange"

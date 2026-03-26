@@ -19,6 +19,7 @@ import { Country } from '../entities/Country';
 import { Customer } from '../entities/Customer';
 import { CustomerType } from '../entities/CustomerType';
 import { CustomsBroker } from '../entities/CustomsBroker';
+import { DictSchedulingConfig } from '../entities/DictSchedulingConfig';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
 import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
@@ -77,6 +78,7 @@ export const dataSourceOptions: DataSourceOptions = {
     TruckingPortMapping,
     WarehouseTruckingMapping,
     PortWarehouseMapping,
+    DictSchedulingConfig,  // ✅ 注册智能排柜配置字典表
 
     // 业务表 (Business Tables)
     Customer,

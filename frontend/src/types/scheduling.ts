@@ -29,7 +29,11 @@ export interface TruckingCompany {
 export interface UnloadOption {
   containerNumber: string
   warehouse: Warehouse
-  unloadDate: string
+  /**
+   * ⚠️ 重命名：原 unloadDate → plannedPickupDate
+   * 计划提柜日（核心输入）
+   */
+  plannedPickupDate: string
   strategy: 'Direct' | 'Drop off' | 'Expedited'
   truckingCompany?: TruckingCompany
   isWithinFreePeriod: boolean

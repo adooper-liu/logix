@@ -94,7 +94,7 @@ describe('SchedulingCostOptimizerService', () => {
       const option: UnloadOption = {
         containerNumber: 'TEST1234567',
         warehouse: mockWarehouse,
-        unloadDate: pickupDate,
+        plannedPickupDate: pickupDate,  // ← 重命名
         strategy: 'Direct',
         isWithinFreePeriod: true
       };
@@ -113,7 +113,7 @@ describe('SchedulingCostOptimizerService', () => {
       const option: UnloadOption = {
         containerNumber: 'TEST1234567',
         warehouse: mockWarehouse,
-        unloadDate: pickupDate,
+        plannedPickupDate: pickupDate,
         strategy: 'Drop off',
         isWithinFreePeriod: false
       };
@@ -127,7 +127,7 @@ describe('SchedulingCostOptimizerService', () => {
       const option: UnloadOption = {
         containerNumber: 'TEST1234567',
         warehouse: mockWarehouse,
-        unloadDate: pickupDate,
+        plannedPickupDate: pickupDate,  // ← 重命名
         strategy: 'Expedited',
         isWithinFreePeriod: true
       };
@@ -144,14 +144,14 @@ describe('SchedulingCostOptimizerService', () => {
         {
           containerNumber: 'TEST1234567',
           warehouse: mockWarehouse,
-          unloadDate: pickupDate,
+          plannedPickupDate: pickupDate,
           strategy: 'Direct',
           isWithinFreePeriod: true
         },
         {
           containerNumber: 'TEST1234567',
           warehouse: mockWarehouse,
-          unloadDate: new Date(pickupDate.getTime() + 86400000), // 加一天
+          plannedPickupDate: new Date(pickupDate.getTime() + 86400000), // 加一天
           strategy: 'Drop off',
           isWithinFreePeriod: false
         }
@@ -199,7 +199,7 @@ describe('SchedulingCostOptimizerService', () => {
       const option: UnloadOption = {
         containerNumber: 'TEST1234567',
         warehouse: mockWarehouse,
-        unloadDate: pickupDate,
+        plannedPickupDate: pickupDate,
         strategy: 'Drop off',
         isWithinFreePeriod: false
       };

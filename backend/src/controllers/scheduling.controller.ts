@@ -136,9 +136,7 @@ export class SchedulingController {
           plannedDeliveryDate: plannedDeliveryDate.toISOString().split('T')[0],
           plannedUnloadDate: plannedUnloadDate.toISOString().split('T')[0],
           plannedReturnDate: plannedReturnDate.toISOString().split('T')[0],
-          lastFreeDate: destPo.lastFreeDate
-            ? new Date(destPo.lastFreeDate).toISOString().split('T')[0]
-            : null,
+          // ✅ 已删除 lastFreeDate：因免费天数来源不明确（滞港/滞箱可能不同），应以成本计算结果为准
           eta: destPo.eta ? new Date(destPo.eta).toISOString().split('T')[0] : null,
           ata: destPo.ata ? new Date(destPo.ata).toISOString().split('T')[0] : null
         }
@@ -1781,6 +1779,189 @@ export class SchedulingController {
         success: false,
         message: '获取仓库列表失败',
         data: []
+      });
+    }
+  };
+
+  /**
+   * POST /api/v1/scheduling/optimize-cost
+   * 智能成本优化建议
+   * Body: { containers, warehouseCode, truckingCompanyId, basePickupDate }
+   */
+  optimizeCost = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const {
+        containers,
+        warehouseCode,
+        truckingCompanyId,
+        basePickupDate
+      } = req.body;
+
+      logger.info('[Scheduling] Optimize cost request:', {
+        containers,
+        warehouseCode,
+        truckingCompanyId,
+        basePickupDate
+      });
+
+      // 验证参数
+      if (!containers || !Array.isArray(containers) || containers.length === 0) {
+        res.status(400).json({
+          success: false,
+          message: 'containers 不能为空'
+        });
+        return;
+      }
+
+      if (!warehouseCode || !truckingCompanyId || !basePickupDate) {
+        res.status(400).json({
+          success: false,
+          message: '缺少必要参数'
+        });
+        return;
+      }
+
+      // 获取仓库和车队信息
+      const warehouseRepo = AppDataSource.getRepository(Warehouse);
+      const truckingRepo = AppDataSource.getRepository(TruckingCompany);
+
+      const warehouse = await warehouseRepo.findOne({
+        where: { warehouseCode }
+      });
+
+      if (!warehouse) {
+        res.status(404).json({
+          success: false,
+          message: '仓库不存在'
+        });
+        return;
+      }
+
+      const truckingCompany = await truckingRepo.findOne({
+        where: { companyCode: truckingCompanyId }
+      });
+
+      if (!truckingCompany) {
+        res.status(404).json({
+          success: false,
+          message: '车队不存在'
+        });
+        return;
+      }
+
+      // ✅ SKILL 原则：不再在后端控制器中计算默认值
+      // 正确做法：让 SchedulingCostOptimizerService 自行从 DemurrageService 查询
+      // 传递 undefined，让服务层自行处理
+
+      // 对每个货柜进行优化建议（只取第一个货柜作为代表）
+      const containerNumber = containers[0];
+      const result = await this.costOptimizerService.suggestOptimalUnloadDate(
+        containerNumber,
+        warehouse,
+        truckingCompany,
+        new Date(basePickupDate)
+        // ✅ 不传 lastFreeDate 参数，让服务层自行从 DemurrageService 获取权威数据
+      );
+            
+      logger.info(`[Scheduling] Optimization result for ${containerNumber}:`, JSON.stringify(result, null, 2));
+      logger.info(`[Scheduling] Alternatives count: ${result.alternatives.length}`);
+      logger.info(`[Scheduling] Savings: ${result.savings}`);
+
+      res.json({
+        success: true,
+        data: {
+          originalCost: result.originalCost,
+          optimizedCost: result.optimizedCost,
+          savings: result.savings,
+          savingsPercent: result.savingsPercent,
+          suggestedPickupDate: result.suggestedPickupDate.toISOString().split('T')[0],
+          suggestedStrategy: result.suggestedStrategy,
+          alternatives: result.alternatives.map((alt) => ({
+            containerNumber,
+            pickupDate: alt.pickupDate.toISOString().split('T')[0],
+            strategy: alt.strategy,
+            totalCost: alt.totalCost,
+            savings: alt.savings,  // ✅ 直接使用服务层返回的 savings
+            warehouseCode,
+            truckingCompanyCode: truckingCompanyId
+          }))
+        }
+      });
+    } catch (error: any) {
+      logger.error('[Scheduling] optimizeCost error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || '成本优化失败'
+      });
+    }
+  };
+
+  /**
+   * POST /api/v1/scheduling/batch-optimize
+   * 批量成本优化
+   * Body: { containerNumbers, basePickupDate, lastFreeDate }
+   */
+  batchOptimizeCost = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { containerNumbers, basePickupDate, lastFreeDate } = req.body;
+
+      logger.info('[Scheduling] Batch optimize cost request:', {
+        containerNumbers,
+        basePickupDate,
+        lastFreeDate
+      });
+
+      // TODO: 实现批量优化逻辑
+      // 目前返回空结果
+
+      res.json({
+        success: true,
+        data: {
+          results: []
+        }
+      });
+    } catch (error: any) {
+      logger.error('[Scheduling] batchOptimizeCost error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || '批量优化失败'
+      });
+    }
+  };
+
+  /**
+   * GET /api/v1/scheduling/cost-comparison/:containerNumber
+   * 获取单个货柜的成本对比
+   */
+  getCostComparison = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { containerNumber } = req.params;
+
+      logger.info('[Scheduling] Get cost comparison for:', containerNumber);
+
+      // TODO: 从 ext_cost_forecast_vs_actual 表查询数据
+      // 目前返回模拟数据
+
+      res.json({
+        success: true,
+        data: {
+          forecast: {
+            totalCost: 1500,
+            breakdown: {}
+          },
+          actual: {
+            totalCost: 0,
+            breakdown: {}
+          },
+          variance: 0,
+          variancePercent: 0
+        }
+      });
+    } catch (error: any) {
+      logger.error('[Scheduling] getCostComparison error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || '获取成本对比失败'
       });
     }
   };

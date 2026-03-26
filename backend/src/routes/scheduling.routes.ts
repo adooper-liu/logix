@@ -63,4 +63,9 @@ router.post('/evaluate-cost', controller.evaluateCost);
 router.post('/compare-options', controller.compareOptions);
 router.get('/recommend-option/:id', controller.getRecommendOption);
 
+// 成本优化
+router.post('/optimize-cost', controller.optimizeCost);
+router.post('/batch-optimize', controller.batchOptimizeCost);
+router.get('/cost-comparison/:containerNumber', controller.getCostComparison);
+
 export default router;
