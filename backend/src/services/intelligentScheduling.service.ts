@@ -1106,8 +1106,10 @@ export class IntelligentSchedulingService {
     demurrageCost?: number;
     detentionCost?: number;
     storageCost?: number;
+    ddCombinedCost?: number; // D&D 合并费用
     transportationCost?: number;
     yardStorageCost?: number; // 外部堆场堆存费（Drop off 模式专属）
+    handlingCost?: number; // 操作费/加急费（Expedited 模式专属）
     totalCost?: number;
     currency?: string;
   }> {
@@ -1178,13 +1180,30 @@ export class IntelligentSchedulingService {
         }
       }
 
+      // 加急费单独计算（仅在 Expedited 模式下收取）
+      let handlingCost = 0;
+      if (unloadMode === 'Expedited') {
+        try {
+          const config = await this.schedulingConfigRepo.findOne({
+            where: { configKey: 'expedited_handling_fee' }
+          });
+          handlingCost = config?.configValue ? parseFloat(config.configValue) : 50;
+        } catch (error) {
+          logger.warn('[IntelligentScheduling] Get expedited handling fee failed:', error);
+          handlingCost = 50; // 默认$50
+        }
+      }
+
+      // ✅ 关键修复：完整返回所有费用项，包括 ddCombinedCost
       return {
         demurrageCost: totalCostResult.demurrageCost,
         detentionCost: totalCostResult.detentionCost,
-        storageCost: totalCostResult.storageCost, // 港口存储费
+        storageCost: totalCostResult.storageCost,
+        ddCombinedCost: totalCostResult.ddCombinedCost, // ✅ 新增：D&D 合并费用
         transportationCost: totalCostResult.transportationCost,
         yardStorageCost, // 外部堆场堆存费（如有）
-        totalCost: totalCostResult.totalCost + yardStorageCost, // 总计包含两种堆存费
+        handlingCost, // 加急费（如有）
+        totalCost: totalCostResult.totalCost + yardStorageCost + handlingCost, // 总计包含两种堆存费和加急费
         currency: totalCostResult.currency
       };
     } catch (error) {

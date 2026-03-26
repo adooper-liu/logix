@@ -10,6 +10,7 @@ $ErrorActionPreference = "Stop"
 $CONTAINER_NAME = "logix-timescaledb-prod"
 $SCRIPT_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path  # backend/
 $BACKEND_DIR = $SCRIPT_DIR                                      # backend/
+$SQL_DIR = Join-Path $BACKEND_DIR "sql"                          # backend/sql/
 $MIGRATIONS_DIR = Join-Path (Split-Path -Parent $SCRIPT_DIR) "migrations"  # migrations/
 
 Write-Host "========================================" -ForegroundColor Cyan
@@ -27,25 +28,32 @@ if (-not $containerRunning) {
 Write-Host "✓ Container $CONTAINER_NAME is running" -ForegroundColor Green
 
 # ============================================================
-# Step 1: 基础表创建 (backend/)
+# Step 1: 基础表创建 (sql/schema/ & sql/data/)
 # ============================================================
 Write-Host "`n[1/6] Creating base tables..." -ForegroundColor Yellow
 
+# 脚本分类：
+# - sql/schema/: 表结构脚本 (CREATE TABLE, ALTER, CONSTRAINT)
+# - sql/data/: 初始化数据脚本 (INSERT)
+# - migrations/: 增量迁移脚本 (ALTER, ADD COLUMN, INDEX, etc.)
+
 $baseScripts = @(
-    "01_drop_all_tables.sql",
-    "03_create_tables.sql",
-    "03_create_tables_supplement.sql",
-    "02_init_dict_tables_final.sql",
-    "04_fix_constraints.sql",
-    "05_init_warehouses.sql"
+    # Schema scripts (sql/schema/)
+    "sql/schema/01_drop_all_tables.sql",
+    "sql/schema/03_create_tables.sql",
+    "sql/schema/03_create_tables_supplement.sql",
+    "sql/schema/04_fix_constraints.sql",
+    # Data scripts (sql/data/) - 使用完整版字典数据
+    "sql/data/02_init_dict_tables_complete.sql",
+    "sql/data/05_init_warehouses.sql"
 )
 
 foreach ($script in $baseScripts) {
     $scriptPath = Join-Path $BACKEND_DIR $script
     if (Test-Path $scriptPath) {
         Write-Host "  - Executing $script..." -ForegroundColor Gray
-        docker cp "$scriptPath" ${CONTAINER_NAME}:/tmp/$script
-        docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/$script 2>&1 | Out-Null
+        docker cp "$scriptPath" ${CONTAINER_NAME}:/tmp/$(Split-Path $script -Leaf)
+        docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/$(Split-Path $script -Leaf) 2>&1 | Out-Null
     }
 }
 Write-Host "✓ Base tables created" -ForegroundColor Green
@@ -200,7 +208,7 @@ $additionalScripts = @(
     # 日期时间类型统一（重要）
     "unify-datetime-types.sql",
     
-    # 运输费用字段
+    # 运输费用字段（注意：add_transport_fee_to_mapping.sql 为重复脚本，已废弃）
     "add_transport_fee_to_warehouse_trucking_mapping.sql",
     "add_transport_fee_to_trucking_port_mapping.sql",
     

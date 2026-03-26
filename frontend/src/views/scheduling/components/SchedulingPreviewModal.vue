@@ -22,6 +22,16 @@
         <el-descriptions-item label="预估总费用">
           <el-tag type="warning">${{ totalEstimatedCost.toLocaleString() }}</el-tag>
         </el-descriptions-item>
+        <el-descriptions-item label="平均费用">
+          <el-tag v-if="successCount > 0" :type="averageCostType">
+            ${{ averageCost.toLocaleString() }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="费用区间">
+          <span style="font-weight: bold; color: #606266">
+            ${{ minCost.toLocaleString() }} ~ ${{ maxCost.toLocaleString() }}
+          </span>
+        </el-descriptions-item>
       </el-descriptions>
     </div>
 
@@ -54,17 +64,83 @@
       </el-table-column>
       <el-table-column prop="warehouseName" label="仓库" min-width="150" show-overflow-tooltip />
       <el-table-column prop="truckingCompany" label="车队" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="estimatedCosts.totalCost" label="预估费用" width="100" align="right">
+      
+      <!-- 费用明细列展开 -->
+      <el-table-column prop="estimatedCosts.demurrageCost" label="滞港费" width="95" sortable align="right">
         <template #default="{ row }">
-          <span v-if="row.estimatedCosts?.totalCost" style="color: #e6a23c; font-weight: bold">
+          <span v-if="row.estimatedCosts?.demurrageCost" :class="getAmountClass(row.estimatedCosts.demurrageCost)">
+            ${{ row.estimatedCosts.demurrageCost.toLocaleString() }}
+          </span>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+      
+      <el-table-column prop="estimatedCosts.detentionCost" label="滞箱费" width="95" sortable align="right">
+        <template #default="{ row }">
+          <span v-if="row.estimatedCosts?.detentionCost" :class="getAmountClass(row.estimatedCosts.detentionCost)">
+            ${{ row.estimatedCosts.detentionCost.toLocaleString() }}
+          </span>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+      
+      <el-table-column prop="estimatedCosts.storageCost" label="港口存储费" width="105" sortable align="right">
+        <template #default="{ row }">
+          <span v-if="row.estimatedCosts?.storageCost" :class="getAmountClass(row.estimatedCosts.storageCost)">
+            ${{ row.estimatedCosts.storageCost.toLocaleString() }}
+          </span>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+      
+      <el-table-column prop="estimatedCosts.ddCombinedCost" label="D&D 合并费" width="105" sortable align="right">
+        <template #default="{ row }">
+          <span v-if="row.estimatedCosts?.ddCombinedCost" :class="getAmountClass(row.estimatedCosts.ddCombinedCost)">
+            ${{ row.estimatedCosts.ddCombinedCost.toLocaleString() }}
+          </span>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+      
+      <el-table-column prop="estimatedCosts.transportationCost" label="运输费" width="95" sortable align="right">
+        <template #default="{ row }">
+          <span v-if="row.estimatedCosts?.transportationCost" :class="getAmountClass(row.estimatedCosts.transportationCost)">
+            ${{ row.estimatedCosts.transportationCost.toLocaleString() }}
+          </span>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+      
+      <el-table-column prop="estimatedCosts.yardStorageCost" label="外部堆场费" width="110" sortable align="right">
+        <template #default="{ row }">
+          <span v-if="row.estimatedCosts?.yardStorageCost" :class="getAmountClass(row.estimatedCosts.yardStorageCost)">
+            ${{ row.estimatedCosts.yardStorageCost.toLocaleString() }}
+          </span>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+      
+      <el-table-column prop="estimatedCosts.handlingCost" label="操作费" width="95" sortable align="right">
+        <template #default="{ row }">
+          <span v-if="row.estimatedCosts?.handlingCost" :class="getAmountClass(row.estimatedCosts.handlingCost)">
+            ${{ row.estimatedCosts.handlingCost.toLocaleString() }}
+          </span>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+      
+      <el-table-column prop="estimatedCosts.totalCost" label="总费用" width="110" sortable align="right">
+        <template #default="{ row }">
+          <span v-if="row.estimatedCosts?.totalCost" :class="['total-cost', getAmountClass(row.estimatedCosts.totalCost)]">
             ${{ row.estimatedCosts.totalCost.toLocaleString() }}
           </span>
           <span v-else>-</span>
         </template>
       </el-table-column>
-      <el-table-column label="费用明细" width="120" align="center">
+      
+      <el-table-column label="费用明细" width="100" align="center">
         <template #default="{ row }">
-          <el-popover v-if="row.estimatedCosts" placement="left" :width="200" trigger="hover">
+          <el-popover v-if="row.estimatedCosts" placement="left" :width="220" trigger="hover">
             <div style="font-size: 12px">
               <p v-if="row.estimatedCosts.demurrageCost" style="margin: 4px 0">
                 滞港费：${{ row.estimatedCosts.demurrageCost.toLocaleString() }}
@@ -75,11 +151,17 @@
               <p v-if="row.estimatedCosts.storageCost" style="margin: 4px 0">
                 港口存储费：${{ row.estimatedCosts.storageCost.toLocaleString() }}
               </p>
+              <p v-if="row.estimatedCosts.ddCombinedCost" style="margin: 4px 0">
+                D&D 合并费：${{ row.estimatedCosts.ddCombinedCost.toLocaleString() }}
+              </p>
               <p v-if="row.estimatedCosts.transportationCost" style="margin: 4px 0">
                 运输费：${{ row.estimatedCosts.transportationCost.toLocaleString() }}
               </p>
               <p v-if="row.estimatedCosts.yardStorageCost" style="margin: 4px 0">
                 外部堆场费：${{ row.estimatedCosts.yardStorageCost.toLocaleString() }}
+              </p>
+              <p v-if="row.estimatedCosts.handlingCost" style="margin: 4px 0">
+                操作费：${{ row.estimatedCosts.handlingCost.toLocaleString() }}
               </p>
               <el-divider style="margin: 8px 0" />
               <p style="margin: 4px 0; font-weight: bold; color: #e6a23c">
@@ -87,7 +169,7 @@
               </p>
             </div>
             <template #reference>
-              <el-icon style="cursor: pointer; color: #409eff"><QuestionFilled /></el-icon>
+              <el-button type="text" size="small" icon="QuestionFilled">明细</el-button>
             </template>
           </el-popover>
           <span v-else>-</span>
@@ -143,6 +225,7 @@ interface PreviewResult {
     storageCost?: number
     transportationCost?: number
     yardStorageCost?: number
+    handlingCost?: number
     totalCost?: number
     currency?: string
   }
@@ -176,6 +259,47 @@ const totalEstimatedCost = computed(() => {
     .filter(r => r.success && r.estimatedCosts?.totalCost)
     .reduce((sum, r) => sum + (r.estimatedCosts?.totalCost || 0), 0)
 })
+
+// 平均费用
+const averageCost = computed(() => {
+  const successWithCost = props.previewResults.filter(r => r.success && r.estimatedCosts?.totalCost)
+  if (successWithCost.length === 0) return 0
+  return totalEstimatedCost.value / successWithCost.length
+})
+
+// 最小费用
+const minCost = computed(() => {
+  const costs = props.previewResults
+    .filter(r => r.success && r.estimatedCosts?.totalCost)
+    .map(r => r.estimatedCosts!.totalCost!)
+  return costs.length > 0 ? Math.min(...costs) : 0
+})
+
+// 最大费用
+const maxCost = computed(() => {
+  const costs = props.previewResults
+    .filter(r => r.success && r.estimatedCosts?.totalCost)
+    .map(r => r.estimatedCosts!.totalCost!)
+  return costs.length > 0 ? Math.max(...costs) : 0
+})
+
+// 平均费用颜色类型
+const averageCostType = computed(() => {
+  const avg = averageCost.value
+  if (avg === 0) return 'success'
+  if (avg <= 100) return ''
+  if (avg <= 500) return 'warning'
+  return 'danger'
+})
+
+// 费用颜色分级函数（遵循 SKILL 规范）
+const getAmountClass = (amount: number): string => {
+  if (amount === 0) return 'amount-zero'      // 绿色：无费用
+  if (amount <= 100) return 'amount-low'      // 黄色：低费用
+  if (amount <= 500) return 'amount-medium'   // 橙色：中等费用
+  if (amount <= 1000) return 'amount-high'    // 红色：高费用
+  return 'amount-critical'                    // 深红：严重警告（> $1000）
+}
 
 const handleSelectionChange = (selection: any[]) => {
   selectedContainers.value = selection.map(s => s.containerNumber)
@@ -226,5 +350,66 @@ watch(
   display: flex;
   justify-content: space-between;
   gap: 10px;
+}
+
+/* 费用颜色分级样式（遵循 SKILL 规范）*/
+.amount-zero {
+  color: #67c23a;  /* 绿色：无费用 */
+  font-weight: 500;
+}
+
+.amount-low {
+  color: #e6a23c;  /* 黄色：低费用 */
+  font-weight: 500;
+}
+
+.amount-medium {
+  color: #f56c6c;  /* 橙色：中等费用 */
+  font-weight: 600;
+}
+
+.amount-high {
+  color: #c92222;  /* 红色：高费用 */
+  font-weight: 700;
+}
+
+.amount-critical {
+  color: #8b0000;  /* 深红：严重警告 */
+  font-weight: 800;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { 
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 0.8;
+    transform: scale(1.05);
+  }
+}
+
+.total-cost {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.total-cost.amount-critical {
+  font-size: 15px;
+  background: linear-gradient(45deg, #ff0000, #8b0000);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: glow 2s ease-in-out infinite;
+}
+
+@keyframes glow {
+  0%, 100% { 
+    filter: brightness(1);
+  }
+  50% { 
+    filter: brightness(1.3);
+  }
 }
 </style>
