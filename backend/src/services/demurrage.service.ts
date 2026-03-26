@@ -6,34 +6,33 @@
  */
 
 import { Repository } from 'typeorm';
-import { logger } from '../utils/logger';
-import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
-import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
-import { LastPickupSubqueryTemplates } from './statistics/LastPickupSubqueryTemplates';
-import { getDateRangeSubqueryRaw } from './statistics/common/DateRangeSubquery';
 import { Container } from '../entities/Container';
-import { PortOperation } from '../entities/PortOperation';
-import { SeaFreight } from '../entities/SeaFreight';
-import { TruckingTransport } from '../entities/TruckingTransport';
+import { Customer } from '../entities/Customer';
+import { DictSchedulingConfig } from '../entities/DictSchedulingConfig';
 import { EmptyReturn } from '../entities/EmptyReturn';
-import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
-import { Port } from '../entities/Port';
-import { ShippingCompany } from '../entities/ShippingCompany';
+import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
+import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
 import { FreightForwarder } from '../entities/FreightForwarder';
 import { OverseasCompany } from '../entities/OverseasCompany';
-import { Customer } from '../entities/Customer';
-import { Warehouse } from '../entities/Warehouse';
+import { Port } from '../entities/Port';
+import { PortOperation } from '../entities/PortOperation';
+import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
+import { SeaFreight } from '../entities/SeaFreight';
+import { ShippingCompany } from '../entities/ShippingCompany';
 import { TruckingCompany } from '../entities/TruckingCompany';
-import { TruckingPortMapping } from '../entities/TruckingPortMapping';
-import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
-import { DictSchedulingConfig } from '../entities/DictSchedulingConfig';
+import { TruckingTransport } from '../entities/TruckingTransport';
+import { Warehouse } from '../entities/Warehouse';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
+import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
+import { logger } from '../utils/logger';
 import {
   calculateLogisticsStatus,
   type LogisticsStatusResult,
   SimplifiedStatus
 } from '../utils/logisticsStatusMachine';
 import { buildKeyTimeline, type KeyTimelineResult } from './keyTimeline';
+import { LastPickupSubqueryTemplates } from './statistics/LastPickupSubqueryTemplates';
+import { getDateRangeSubqueryRaw } from './statistics/common/DateRangeSubquery';
 
 /** 阶梯费率项 */
 export interface DemurrageTierDto {
@@ -207,7 +206,11 @@ function workingDaysBetween(start: Date, end: Date): number {
   return count;
 }
 
-function matchCodeOrName(containerVal: string | null, stdCode: string | null, stdName: string | null): boolean {
+function matchCodeOrName(
+  containerVal: string | null,
+  stdCode: string | null,
+  stdName: string | null
+): boolean {
   if (!containerVal) return true;
   const cv = String(containerVal).trim().toLowerCase();
   const sc = stdCode ? String(stdCode).trim().toLowerCase() : '';
@@ -230,7 +233,8 @@ function normalizeTiers(raw: unknown): DemurrageTierDto[] | null {
     return arr
       .map((t) => {
         const fromDay = Number(t.fromDay ?? t.minDays ?? 0);
-        const toDay = t.toDay != null ? Number(t.toDay) : t.maxDays != null ? Number(t.maxDays) : null;
+        const toDay =
+          t.toDay != null ? Number(t.toDay) : t.maxDays != null ? Number(t.maxDays) : null;
         const ratePerDay = Number(t.ratePerDay ?? t.rate ?? 0);
         if (fromDay < 1) return null;
         return { fromDay, toDay, ratePerDay };
@@ -255,7 +259,12 @@ function normalizeTiers(raw: unknown): DemurrageTierDto[] | null {
       const rate = entries[i].rate;
       const isOpenEnded = entries[i].isOpenEnded;
       let toDay = fromDay;
-      while (i + 1 < entries.length && entries[i + 1].rate === rate && !entries[i + 1].isOpenEnded && entries[i + 1].day === toDay + 1) {
+      while (
+        i + 1 < entries.length &&
+        entries[i + 1].rate === rate &&
+        !entries[i + 1].isOpenEnded &&
+        entries[i + 1].day === toDay + 1
+      ) {
         i++;
         toDay = entries[i].day;
       }
@@ -270,13 +279,17 @@ function normalizeTiers(raw: unknown): DemurrageTierDto[] | null {
 /** 免费期是否按工作日（周六、周日不计入） */
 function freePeriodUsesWorkingDays(basis: string | null | undefined): boolean {
   const b = (basis ?? '').toLowerCase();
-  return b.includes('工作+自然') || b.includes('natural+working') || b === '工作日' || b === 'working';
+  return (
+    b.includes('工作+自然') || b.includes('natural+working') || b === '工作日' || b === 'working'
+  );
 }
 
 /** 计费期是否按工作日 */
 function chargePeriodUsesWorkingDays(basis: string | null | undefined): boolean {
   const b = (basis ?? '').toLowerCase();
-  return b.includes('自然+工作') || b.includes('working+natural') || b === '工作日' || b === 'working';
+  return (
+    b.includes('自然+工作') || b.includes('working+natural') || b === '工作日' || b === 'working'
+  );
 }
 
 /**
@@ -295,7 +308,13 @@ function calculateSingleDemurrage(
   lastFreeDate: Date;
   chargeDays: number;
   totalAmount: number;
-  tierBreakdown: Array<{ fromDay: number; toDay: number; days: number; ratePerDay: number; subtotal: number }>;
+  tierBreakdown: Array<{
+    fromDay: number;
+    toDay: number;
+    days: number;
+    ratePerDay: number;
+    subtotal: number;
+  }>;
 } {
   const n = Math.max(0, freeDays - 1);
   const lastFreeDate = freePeriodUsesWorkingDays(freeDaysBasis)
@@ -321,7 +340,13 @@ function calculateSingleDemurrage(
   }
 
   let totalAmount = 0;
-  const tierBreakdown: Array<{ fromDay: number; toDay: number; days: number; ratePerDay: number; subtotal: number }> = [];
+  const tierBreakdown: Array<{
+    fromDay: number;
+    toDay: number;
+    days: number;
+    ratePerDay: number;
+    subtotal: number;
+  }> = [];
 
   if (tiers && tiers.length > 0) {
     const sorted = [...tiers].sort((a, b) => a.fromDay - b.fromDay);
@@ -368,7 +393,10 @@ function calculateSingleDemurrage(
  * 判断是否为「Demurrage & Detention」合并费用项：一个费用项覆盖到港→还箱整段
  * chargeTypeCode/chargeName 同时包含 Demurrage 与 Detention 时视为合并类型
  */
-function isCombinedDemurrageDetention(std: { chargeTypeCode?: string | null; chargeName?: string | null }): boolean {
+function isCombinedDemurrageDetention(std: {
+  chargeTypeCode?: string | null;
+  chargeName?: string | null;
+}): boolean {
   const code = (std.chargeTypeCode ?? '').toUpperCase();
   const name = (std.chargeName ?? '').toLowerCase();
   const hasDem = code.includes('DEMURRAGE') || name.includes('demurrage') || name.includes('滞港');
@@ -377,7 +405,10 @@ function isCombinedDemurrageDetention(std: { chargeTypeCode?: string | null; cha
 }
 
 /** 判断是否为纯滞箱费（Detention）标准：起算日=提柜，截止日=还箱；排除合并类型 */
-function isDetentionCharge(std: { chargeTypeCode?: string | null; chargeName?: string | null }): boolean {
+function isDetentionCharge(std: {
+  chargeTypeCode?: string | null;
+  chargeName?: string | null;
+}): boolean {
   if (isCombinedDemurrageDetention(std)) return false;
   const code = (std.chargeTypeCode ?? '').toUpperCase();
   const name = (std.chargeName ?? '').toLowerCase();
@@ -389,7 +420,10 @@ function isDetentionCharge(std: { chargeTypeCode?: string | null; chargeName?: s
  * - forecast 且无 ATA/实际卸船：起算=修正 ETA / ETA；截止=max(计划提柜日, 当天)。
  * - actual，或 forecast 但已有 ATA（或按标准已有实际卸船日）：起算=「按到港」用 ATA，「按卸船」用卸船日；截止=实际提柜或当天。
  */
-function isStorageCharge(std: { chargeTypeCode?: string | null; chargeName?: string | null }): boolean {
+function isStorageCharge(std: {
+  chargeTypeCode?: string | null;
+  chargeName?: string | null;
+}): boolean {
   if (isCombinedDemurrageDetention(std)) return false;
   if (isDetentionCharge(std)) return false;
   const code = (std.chargeTypeCode ?? '').toUpperCase();
@@ -398,7 +432,10 @@ function isStorageCharge(std: { chargeTypeCode?: string | null; chargeName?: str
 }
 
 /** 判断是否为纯滞港费（Demurrage）标准：到港侧起算，提柜截止；排除合并、滞箱、堆存类型 */
-function isDemurrageCharge(std: { chargeTypeCode?: string | null; chargeName?: string | null }): boolean {
+function isDemurrageCharge(std: {
+  chargeTypeCode?: string | null;
+  chargeName?: string | null;
+}): boolean {
   if (isCombinedDemurrageDetention(std)) return false;
   if (isDetentionCharge(std)) return false;
   if (isStorageCharge(std)) return false;
@@ -442,7 +479,9 @@ export class DemurrageService {
   /**
    * 与 `calculateLogisticsStatus`（logisticsStatusMachine）一致，供滞港费先判定是否到达目的港。
    */
-  private async getLogisticsStatusSnapshot(containerNumber: string): Promise<LogisticsStatusResult | null> {
+  private async getLogisticsStatusSnapshot(
+    containerNumber: string
+  ): Promise<LogisticsStatusResult | null> {
     const container = await this.containerRepo.findOne({
       where: { containerNumber },
       relations: ['seaFreight']
@@ -483,7 +522,10 @@ export class DemurrageService {
    * 获取货柜用于匹配的维度
    * @param resolve 是否做匹配口径标准化（默认 true：优先 name，失败回退 code）
    */
-  private async getContainerMatchParams(containerNumber: string, resolve = true): Promise<{
+  private async getContainerMatchParams(
+    containerNumber: string,
+    resolve = true
+  ): Promise<{
     destinationPortCode: string | null;
     shippingCompanyCode: string | null;
     originForwarderCode: string | null;
@@ -518,7 +560,12 @@ export class DemurrageService {
       today: Date;
     };
     /** lastPickupDate 来源，用于展示 */
-    lastPickupDateSource?: 'process_port_operations.last_free_date' | 'process_port_operations.last_free_date (manual)' | 'process_trucking_transport.last_pickup_date' | 'process_trucking_transport.planned_pickup_date' | null;
+    lastPickupDateSource?:
+      | 'process_port_operations.last_free_date'
+      | 'process_port_operations.last_free_date (manual)'
+      | 'process_trucking_transport.last_pickup_date'
+      | 'process_trucking_transport.planned_pickup_date'
+      | null;
   }> {
     const container = await this.containerRepo.findOne({
       where: { containerNumber },
@@ -627,22 +674,21 @@ export class DemurrageService {
         : null;
     // 最晚提柜日：从 process_port_operations.last_free_date 读取
     // 优先使用手工维护的LFD（lastFreeDateSource === 'manual'）
-    const lastPickupDate = destPort?.lastFreeDate && destPort.lastFreeDateSource === 'manual'
-      ? toDateOnly(destPort.lastFreeDate)
-      : null;
+    const lastPickupDate =
+      destPort?.lastFreeDate && destPort.lastFreeDateSource === 'manual'
+        ? toDateOnly(destPort.lastFreeDate)
+        : null;
     // 截止日：优先使用最晚提柜日，其次使用计划提柜日（用于计算滞港费截止日）
     const _pickupDate = lastPickupDate ?? plannedPickupDate;
     const lastPickupDateSource = lastPickupDate
-      ? (destPort.lastFreeDateSource === 'manual'
-          ? ('process_port_operations.last_free_date (manual)' as const)
-          : ('process_port_operations.last_free_date' as const))
+      ? destPort.lastFreeDateSource === 'manual'
+        ? ('process_port_operations.last_free_date (manual)' as const)
+        : ('process_port_operations.last_free_date' as const)
       : plannedPickupDate
         ? ('process_trucking_transport.planned_pickup_date' as const)
         : null;
     const pickupDateActual =
-      truckings.length > 0 && truckings[0].pickupDate
-        ? toDateOnly(truckings[0].pickupDate)
-        : null;
+      truckings.length > 0 && truckings[0].pickupDate ? toDateOnly(truckings[0].pickupDate) : null;
     const endDate = pickupDateActual ?? today;
     const endDateSource = pickupDateActual ? 'process_trucking_transport.pickup_date' : '当前日期';
 
@@ -710,11 +756,15 @@ export class DemurrageService {
       const ffCodeResolved = await this.resolveToDictCode(originForwarderCode, 'forwarder');
       const overseasCodeResolved = await this.resolveToDictCode(foreignCompanyCode, 'overseas');
 
-      const resolvedPort = (await this.resolveDictNameByCode(portCodeResolved, 'port')) ?? portCodeResolved;
-      const resolvedShip = (await this.resolveDictNameByCode(shipCodeResolved, 'shipping')) ?? shipCodeResolved;
-      const resolvedFf = (await this.resolveDictNameByCode(ffCodeResolved, 'forwarder')) ?? ffCodeResolved;
+      const resolvedPort =
+        (await this.resolveDictNameByCode(portCodeResolved, 'port')) ?? portCodeResolved;
+      const resolvedShip =
+        (await this.resolveDictNameByCode(shipCodeResolved, 'shipping')) ?? shipCodeResolved;
+      const resolvedFf =
+        (await this.resolveDictNameByCode(ffCodeResolved, 'forwarder')) ?? ffCodeResolved;
       const resolvedOverseas =
-        (await this.resolveDictNameByCode(overseasCodeResolved, 'overseas')) ?? overseasCodeResolved;
+        (await this.resolveDictNameByCode(overseasCodeResolved, 'overseas')) ??
+        overseasCodeResolved;
       return {
         destinationPortCode: resolvedPort,
         shippingCompanyCode: resolvedShip,
@@ -767,7 +817,10 @@ export class DemurrageService {
       const repo = manager.getRepository(Port);
       const row = await repo
         .createQueryBuilder('p')
-        .where('p.port_code = :v OR LOWER(TRIM(p.port_name)) = LOWER(:v) OR (p.port_name_en IS NOT NULL AND LOWER(TRIM(p.port_name_en)) = LOWER(:v))', { v })
+        .where(
+          'p.port_code = :v OR LOWER(TRIM(p.port_name)) = LOWER(:v) OR (p.port_name_en IS NOT NULL AND LOWER(TRIM(p.port_name_en)) = LOWER(:v))',
+          { v }
+        )
         .getOne();
       if (row?.portCode) return row.portCode;
       const mapped = await this.resolveByUniversalMapping(v, ['PORT', 'PORT_CODE']);
@@ -783,14 +836,21 @@ export class DemurrageService {
         )
         .getOne();
       if (row?.companyCode) return row.companyCode;
-      const mapped = await this.resolveByUniversalMapping(v, ['SHIPPING_COMPANY', 'SHIPPING', 'CARRIER']);
+      const mapped = await this.resolveByUniversalMapping(v, [
+        'SHIPPING_COMPANY',
+        'SHIPPING',
+        'CARRIER'
+      ]);
       return mapped ?? v;
     }
     if (dictType === 'forwarder') {
       const repo = manager.getRepository(FreightForwarder);
       const row = await repo
         .createQueryBuilder('f')
-        .where('f.forwarder_code = :v OR LOWER(TRIM(f.forwarder_name)) = LOWER(:v) OR (f.forwarder_name_en IS NOT NULL AND LOWER(TRIM(f.forwarder_name_en)) = LOWER(:v))', { v })
+        .where(
+          'f.forwarder_code = :v OR LOWER(TRIM(f.forwarder_name)) = LOWER(:v) OR (f.forwarder_name_en IS NOT NULL AND LOWER(TRIM(f.forwarder_name_en)) = LOWER(:v))',
+          { v }
+        )
         .getOne();
       if (row?.forwarderCode) return row.forwarderCode;
       const mapped = await this.resolveByUniversalMapping(v, ['FREIGHT_FORWARDER', 'FORWARDER']);
@@ -800,7 +860,10 @@ export class DemurrageService {
       const repo = manager.getRepository(OverseasCompany);
       const row = await repo
         .createQueryBuilder('o')
-        .where('o.company_code = :v OR LOWER(TRIM(o.company_name)) = LOWER(:v) OR (o.company_name_en IS NOT NULL AND LOWER(TRIM(o.company_name_en)) = LOWER(:v))', { v })
+        .where(
+          'o.company_code = :v OR LOWER(TRIM(o.company_name)) = LOWER(:v) OR (o.company_name_en IS NOT NULL AND LOWER(TRIM(o.company_name_en)) = LOWER(:v))',
+          { v }
+        )
         .getOne();
       if (row?.companyCode) return row.companyCode;
 
@@ -812,7 +875,11 @@ export class DemurrageService {
         .getOne();
       if (customer?.overseasCompanyCode) return String(customer.overseasCompanyCode).trim();
 
-      const mapped = await this.resolveByUniversalMapping(v, ['OVERSEAS_COMPANY', 'OVERSEAS', 'CUSTOMER']);
+      const mapped = await this.resolveByUniversalMapping(v, [
+        'OVERSEAS_COMPANY',
+        'OVERSEAS',
+        'CUSTOMER'
+      ]);
       if (mapped) return mapped;
 
       // 兜底：输入为国家码时，尝试匹配该国家的海外公司编码（如 GB -> 83）
@@ -841,17 +908,17 @@ export class DemurrageService {
 
     if (dictType === 'port') {
       const repo = manager.getRepository(Port);
-      const row = await repo
-        .createQueryBuilder('p')
-        .where('p.port_code = :v', { v })
-        .getOne();
+      const row = await repo.createQueryBuilder('p').where('p.port_code = :v', { v }).getOne();
       return row?.portName ?? null;
     }
     if (dictType === 'shipping') {
       const repo = manager.getRepository(ShippingCompany);
       const row = await repo
         .createQueryBuilder('s')
-        .where('s.company_code = :v OR (s.scac_code IS NOT NULL AND LOWER(TRIM(s.scac_code)) = LOWER(:v))', { v })
+        .where(
+          's.company_code = :v OR (s.scac_code IS NOT NULL AND LOWER(TRIM(s.scac_code)) = LOWER(:v))',
+          { v }
+        )
         .getOne();
       // 标准库 shipping_company_name 常使用 company_code（如 CMA），
       // 因此优先返回 company_code，再回退英文名/中文名。
@@ -859,18 +926,12 @@ export class DemurrageService {
     }
     if (dictType === 'forwarder') {
       const repo = manager.getRepository(FreightForwarder);
-      const row = await repo
-        .createQueryBuilder('f')
-        .where('f.forwarder_code = :v', { v })
-        .getOne();
+      const row = await repo.createQueryBuilder('f').where('f.forwarder_code = :v', { v }).getOne();
       return row?.forwarderName ?? null;
     }
     if (dictType === 'overseas') {
       const repo = manager.getRepository(OverseasCompany);
-      const row = await repo
-        .createQueryBuilder('o')
-        .where('o.company_code = :v', { v })
-        .getOne();
+      const row = await repo.createQueryBuilder('o').where('o.company_code = :v', { v }).getOne();
       return row?.companyName ?? null;
     }
 
@@ -923,7 +984,8 @@ export class DemurrageService {
   private getUniversalMappingTargetTables(dictTypes: string[]): string[] {
     const upper = dictTypes.map((t) => t.toUpperCase());
     if (upper.some((t) => t.includes('PORT'))) return ['dict_ports'];
-    if (upper.some((t) => t.includes('SHIPPING') || t.includes('CARRIER'))) return ['dict_shipping_companies'];
+    if (upper.some((t) => t.includes('SHIPPING') || t.includes('CARRIER')))
+      return ['dict_shipping_companies'];
     if (upper.some((t) => t.includes('FORWARDER'))) return ['dict_freight_forwarders'];
     if (upper.some((t) => t.includes('OVERSEAS') || t.includes('CUSTOMER'))) {
       return ['dict_overseas_companies', 'biz_customers'];
@@ -956,16 +1018,26 @@ export class DemurrageService {
     // 2. 四字段匹配
     const fourFieldMatched = allChargeable.filter((s) => {
       if (params.destinationPortCode) {
-        if (!matchCodeOrName(params.destinationPortCode, s.destinationPortCode, s.destinationPortName)) return false;
+        if (
+          !matchCodeOrName(params.destinationPortCode, s.destinationPortCode, s.destinationPortName)
+        )
+          return false;
       }
       if (params.shippingCompanyCode) {
-        if (!matchCodeOrName(params.shippingCompanyCode, s.shippingCompanyCode, s.shippingCompanyName)) return false;
+        if (
+          !matchCodeOrName(params.shippingCompanyCode, s.shippingCompanyCode, s.shippingCompanyName)
+        )
+          return false;
       }
       if (params.originForwarderCode) {
-        if (!matchCodeOrName(params.originForwarderCode, s.originForwarderCode, s.originForwarderName)) return false;
+        if (
+          !matchCodeOrName(params.originForwarderCode, s.originForwarderCode, s.originForwarderName)
+        )
+          return false;
       }
       if (params.foreignCompanyCode) {
-        if (!matchCodeOrName(params.foreignCompanyCode, s.foreignCompanyCode, s.foreignCompanyName)) return false;
+        if (!matchCodeOrName(params.foreignCompanyCode, s.foreignCompanyCode, s.foreignCompanyName))
+          return false;
       }
       return true;
     });
@@ -996,7 +1068,9 @@ export class DemurrageService {
     const latest = withEffDate
       .filter((x) => x.effTime === maxEffTime)
       .map((x) => x.std)
-      .sort((a, b) => (a.sequenceNumber ?? 0) - (b.sequenceNumber ?? 0) || (a.id ?? 0) - (b.id ?? 0));
+      .sort(
+        (a, b) => (a.sequenceNumber ?? 0) - (b.sequenceNumber ?? 0) || (a.id ?? 0) - (b.id ?? 0)
+      );
 
     return latest;
   }
@@ -1065,27 +1139,91 @@ export class DemurrageService {
     const afterChargeable = afterEffective.filter((s) => s.isChargeable === 'N');
 
     const matched = afterChargeable.filter((s) => {
-      if (resolvedParams.destinationPortCode && !matchCodeOrName(resolvedParams.destinationPortCode, s.destinationPortCode, s.destinationPortName))
+      if (
+        resolvedParams.destinationPortCode &&
+        !matchCodeOrName(
+          resolvedParams.destinationPortCode,
+          s.destinationPortCode,
+          s.destinationPortName
+        )
+      )
         return false;
-      if (resolvedParams.shippingCompanyCode && !matchCodeOrName(resolvedParams.shippingCompanyCode, s.shippingCompanyCode, s.shippingCompanyName))
+      if (
+        resolvedParams.shippingCompanyCode &&
+        !matchCodeOrName(
+          resolvedParams.shippingCompanyCode,
+          s.shippingCompanyCode,
+          s.shippingCompanyName
+        )
+      )
         return false;
-      if (resolvedParams.originForwarderCode && !matchCodeOrName(resolvedParams.originForwarderCode, s.originForwarderCode, s.originForwarderName))
+      if (
+        resolvedParams.originForwarderCode &&
+        !matchCodeOrName(
+          resolvedParams.originForwarderCode,
+          s.originForwarderCode,
+          s.originForwarderName
+        )
+      )
         return false;
-      if (resolvedParams.foreignCompanyCode && !matchCodeOrName(resolvedParams.foreignCompanyCode, s.foreignCompanyCode, s.foreignCompanyName))
+      if (
+        resolvedParams.foreignCompanyCode &&
+        !matchCodeOrName(
+          resolvedParams.foreignCompanyCode,
+          s.foreignCompanyCode,
+          s.foreignCompanyName
+        )
+      )
         return false;
       return true;
     });
 
     const sample = afterChargeable.slice(0, 20).map((s) => {
       const reasons: string[] = [];
-      if (resolvedParams.destinationPortCode && !matchCodeOrName(resolvedParams.destinationPortCode, s.destinationPortCode, s.destinationPortName))
-        reasons.push(`目的港不匹配: 货柜=${resolvedParams.destinationPortCode} 标准=${s.destinationPortCode || s.destinationPortName || '(空)'}`);
-      if (resolvedParams.shippingCompanyCode && !matchCodeOrName(resolvedParams.shippingCompanyCode, s.shippingCompanyCode, s.shippingCompanyName))
-        reasons.push(`船公司不匹配: 货柜=${resolvedParams.shippingCompanyCode} 标准=${s.shippingCompanyCode || s.shippingCompanyName || '(空)'}`);
-      if (resolvedParams.originForwarderCode && !matchCodeOrName(resolvedParams.originForwarderCode, s.originForwarderCode, s.originForwarderName))
-        reasons.push(`货代不匹配: 货柜=${resolvedParams.originForwarderCode} 标准=${s.originForwarderCode || s.originForwarderName || '(空)'}`);
-      if (resolvedParams.foreignCompanyCode && !matchCodeOrName(resolvedParams.foreignCompanyCode, s.foreignCompanyCode, s.foreignCompanyName))
-        reasons.push(`客户/境外公司不匹配: 货柜=${resolvedParams.foreignCompanyCode} 标准=${s.foreignCompanyCode || s.foreignCompanyName || '(空)'}`);
+      if (
+        resolvedParams.destinationPortCode &&
+        !matchCodeOrName(
+          resolvedParams.destinationPortCode,
+          s.destinationPortCode,
+          s.destinationPortName
+        )
+      )
+        reasons.push(
+          `目的港不匹配: 货柜=${resolvedParams.destinationPortCode} 标准=${s.destinationPortCode || s.destinationPortName || '(空)'}`
+        );
+      if (
+        resolvedParams.shippingCompanyCode &&
+        !matchCodeOrName(
+          resolvedParams.shippingCompanyCode,
+          s.shippingCompanyCode,
+          s.shippingCompanyName
+        )
+      )
+        reasons.push(
+          `船公司不匹配: 货柜=${resolvedParams.shippingCompanyCode} 标准=${s.shippingCompanyCode || s.shippingCompanyName || '(空)'}`
+        );
+      if (
+        resolvedParams.originForwarderCode &&
+        !matchCodeOrName(
+          resolvedParams.originForwarderCode,
+          s.originForwarderCode,
+          s.originForwarderName
+        )
+      )
+        reasons.push(
+          `货代不匹配: 货柜=${resolvedParams.originForwarderCode} 标准=${s.originForwarderCode || s.originForwarderName || '(空)'}`
+        );
+      if (
+        resolvedParams.foreignCompanyCode &&
+        !matchCodeOrName(
+          resolvedParams.foreignCompanyCode,
+          s.foreignCompanyCode,
+          s.foreignCompanyName
+        )
+      )
+        reasons.push(
+          `客户/境外公司不匹配: 货柜=${resolvedParams.foreignCompanyCode} 标准=${s.foreignCompanyCode || s.foreignCompanyName || '(空)'}`
+        );
       if (reasons.length === 0) reasons.push('(应匹配)');
       return {
         id: s.id,
@@ -1097,7 +1235,9 @@ export class DemurrageService {
         originForwarderName: s.originForwarderName ?? null,
         foreignCompanyCode: s.foreignCompanyCode ?? null,
         foreignCompanyName: s.foreignCompanyName ?? null,
-        effectiveDate: s.effectiveDate ? toDateOnly(s.effectiveDate).toISOString().slice(0, 10) : null,
+        effectiveDate: s.effectiveDate
+          ? toDateOnly(s.effectiveDate).toISOString().slice(0, 10)
+          : null,
         expiryDate: s.expiryDate ? toDateOnly(s.expiryDate).toISOString().slice(0, 10) : null,
         isChargeable: s.isChargeable ?? 'N',
         excludeReasons: reasons
@@ -1271,7 +1411,9 @@ export class DemurrageService {
     const firstDetentionStd = standards.find((s) => isDetentionCharge(s));
     const firstCombinedStd = standards.find((s) => isCombinedDemurrageDetention(s));
 
-    const pickMinPositiveFreeDaysStd = (candidates: ExtDemurrageStandard[]): ExtDemurrageStandard | null => {
+    const pickMinPositiveFreeDaysStd = (
+      candidates: ExtDemurrageStandard[]
+    ): ExtDemurrageStandard | null => {
       const valids = candidates
         .filter((s) => Number(s.freeDays ?? 0) > 0)
         .sort((a, b) => {
@@ -1295,7 +1437,9 @@ export class DemurrageService {
     );
 
     // 起算日按标准计算方式（按到港/按卸船）+ 计算模式（actual/forecast）统一计算
-    const resolveArrivalStartDate = (calcBasisRaw: string | undefined | null): { date: Date | null; source: string | null } => {
+    const resolveArrivalStartDate = (
+      calcBasisRaw: string | undefined | null
+    ): { date: Date | null; source: string | null } => {
       const calcBasis = (calcBasisRaw ?? '').toLowerCase();
       const useDischargeOnly = calcBasis.includes('卸船');
 
@@ -1323,7 +1467,8 @@ export class DemurrageService {
       }
 
       if (calculationMode === 'actual') {
-        const date = params.calculationDates.ataDestPort ?? params.calculationDates.dischargeDate ?? null;
+        const date =
+          params.calculationDates.ataDestPort ?? params.calculationDates.dischargeDate ?? null;
         const source = params.calculationDates.ataDestPort
           ? 'ata'
           : params.calculationDates.dischargeDate
@@ -1403,10 +1548,8 @@ export class DemurrageService {
     }
 
     // 2. 最晚提柜日：优先用本次计算值（与基础日期一致）
-    const pickupDate =
-      computedLastFreeDate ?? params.calculationDates.lastPickupDate;
-    const lastReturnDate =
-      params.calculationDates.lastReturnDate ?? computedLastReturnDate ?? null;
+    const pickupDate = computedLastFreeDate ?? params.calculationDates.lastPickupDate;
+    const lastReturnDate = params.calculationDates.lastReturnDate ?? computedLastReturnDate ?? null;
 
     // 滞箱费（Detention）截止日：
     // ① forecast（未到港/无 ATA、无卸船）：max(今天, 计划还箱日)；无计划还箱日则用今天
@@ -1450,7 +1593,9 @@ export class DemurrageService {
       detentionEndDateSource,
       calculationDates: {
         ...params.calculationDates,
-        lastPickupDate: pickupDate ? toDateOnly(pickupDate) : params.calculationDates.lastPickupDate,
+        lastPickupDate: pickupDate
+          ? toDateOnly(pickupDate)
+          : params.calculationDates.lastPickupDate,
         lastPickupDateComputed: computedLastFreeDate ? toDateOnly(computedLastFreeDate) : null,
         lastPickupDateMode: pickupDate === computedLastFreeDate ? lastFreeDateMode : undefined,
         lastReturnDate: lastReturnDate ? toDateOnly(lastReturnDate) : null,
@@ -1601,7 +1746,8 @@ export class DemurrageService {
           // 按到港
           if (calculationMode === 'actual') {
             // actual模式：只用实际时间
-            demurrageStartForStd = params.calculationDates.ataDestPort ?? params.calculationDates.dischargeDate ?? null;
+            demurrageStartForStd =
+              params.calculationDates.ataDestPort ?? params.calculationDates.dischargeDate ?? null;
             demurrageStartSource = params.calculationDates.ataDestPort
               ? 'ata'
               : params.calculationDates.dischargeDate
@@ -1618,7 +1764,8 @@ export class DemurrageService {
             if (params.calculationDates.ataDestPort) {
               demurrageStartSource = 'ata';
             } else if (params.calculationDates.dischargeDate) {
-              demurrageStartSource = params.calculationDates.dischargeDateSource ?? 'discharged_time';
+              demurrageStartSource =
+                params.calculationDates.dischargeDateSource ?? 'discharged_time';
             } else if (params.calculationDates.revisedEtaDestPort) {
               demurrageStartSource = 'revised_eta';
             } else if (params.calculationDates.etaDestPort) {
@@ -1639,7 +1786,9 @@ export class DemurrageService {
       if (isCombined) {
         if (calculationMode === 'forecast') {
           rangeStart =
-            params.calculationDates.revisedEtaDestPort ?? params.calculationDates.etaDestPort ?? null;
+            params.calculationDates.revisedEtaDestPort ??
+            params.calculationDates.etaDestPort ??
+            null;
           itemStartSource = params.calculationDates.revisedEtaDestPort
             ? 'revised_eta'
             : params.calculationDates.etaDestPort
@@ -1686,12 +1835,12 @@ export class DemurrageService {
                 : null;
           }
           rangeEnd = pickupDateActual ? toDateOnly(pickupDateActual) : toDateOnly(today);
-          itemEndSource = pickupDateActual
-            ? 'process_trucking_transport.pickup_date'
-            : '当前日期';
+          itemEndSource = pickupDateActual ? 'process_trucking_transport.pickup_date' : '当前日期';
         } else {
           rangeStart =
-            params.calculationDates.revisedEtaDestPort ?? params.calculationDates.etaDestPort ?? null;
+            params.calculationDates.revisedEtaDestPort ??
+            params.calculationDates.etaDestPort ??
+            null;
           itemStartSource = params.calculationDates.revisedEtaDestPort
             ? 'revised_eta'
             : params.calculationDates.etaDestPort
@@ -1718,11 +1867,18 @@ export class DemurrageService {
 
       const freeDays = std.freeDays ?? 0;
       const ratePerDay = Number(std.ratePerDay ?? 0);
-      const tiers = normalizeTiers(std.tiers) ?? (Array.isArray(std.tiers) ? (std.tiers as DemurrageTierDto[]) : null);
+      const tiers =
+        normalizeTiers(std.tiers) ??
+        (Array.isArray(std.tiers) ? (std.tiers as DemurrageTierDto[]) : null);
       const curr = std.currency ?? 'USD';
       currency = curr;
 
-      const { lastFreeDate, chargeDays, totalAmount: amount, tierBreakdown } = calculateSingleDemurrage(
+      const {
+        lastFreeDate,
+        chargeDays,
+        totalAmount: amount,
+        tierBreakdown
+      } = calculateSingleDemurrage(
         rangeStart,
         rangeEnd,
         freeDays,
@@ -1831,7 +1987,9 @@ export class DemurrageService {
       // 匹配到的标准因缺关键日期被跳过：按 reason 给出更明确的提示
       if (skippedItems.length > 0) {
         const onlyPickup = skippedItems.every((s) => s.reasonCode === 'missing_pickup_date_actual');
-        const onlyPlanned = skippedItems.every((s) => s.reasonCode === 'missing_planned_pickup_date');
+        const onlyPlanned = skippedItems.every(
+          (s) => s.reasonCode === 'missing_planned_pickup_date'
+        );
         const onlyEtaCombined = skippedItems.every(
           (s) => s.reasonCode === 'missing_eta_combined_forecast'
         );
@@ -1899,7 +2057,8 @@ export class DemurrageService {
 
     const primaryStart = enhancedParams.startDate ?? enhancedParams.detentionStartDate;
     const primaryEnd = enhancedParams.endDate ?? enhancedParams.detentionEndDate;
-    const primaryStartSource = enhancedParams.startDateSource ?? enhancedParams.detentionStartDateSource;
+    const primaryStartSource =
+      enhancedParams.startDateSource ?? enhancedParams.detentionStartDateSource;
     const primaryEndSource = enhancedParams.endDateSource ?? enhancedParams.detentionEndDateSource;
 
     const formatDateForApi = (d: Date | null) => (d ? d.toISOString().slice(0, 10) : null);
@@ -1955,7 +2114,9 @@ export class DemurrageService {
         calculationBasis: s.calculationBasis ?? undefined,
         isChargeable: s.isChargeable ?? 'N',
         ratePerDay: s.ratePerDay != null ? Number(s.ratePerDay) : undefined,
-        tiers: normalizeTiers(s.tiers) ?? (Array.isArray(s.tiers) ? (s.tiers as DemurrageTierDto[]) : undefined),
+        tiers:
+          normalizeTiers(s.tiers) ??
+          (Array.isArray(s.tiers) ? (s.tiers as DemurrageTierDto[]) : undefined),
         currency: s.currency ?? 'USD'
       })),
       items,
@@ -2081,7 +2242,12 @@ export class DemurrageService {
         if (this.recordRepo) {
           const destinationPort = portMap.get(cn) ?? undefined;
           const logisticsStatus = container?.logisticsStatus ?? undefined;
-          const n = await this.saveCalculationToRecords(result, isReturnedEmpty, destinationPort, logisticsStatus);
+          const n = await this.saveCalculationToRecords(
+            result,
+            isReturnedEmpty,
+            destinationPort,
+            logisticsStatus
+          );
           saved += n;
           if (isReturnedEmpty) finalized++;
         }
@@ -2146,7 +2312,8 @@ export class DemurrageService {
       }
     }
 
-    const avgPerContainer = containerCountWithCharge > 0 ? totalAmount / containerCountWithCharge : 0;
+    const avgPerContainer =
+      containerCountWithCharge > 0 ? totalAmount / containerCountWithCharge : 0;
 
     return {
       totalAmount,
@@ -2166,9 +2333,7 @@ export class DemurrageService {
    * 从 ext_demurrage_records 读取汇总（每柜仅保留 final 或 temp 一种，不会重复）
    * 含按港口子分组（byPort）
    */
-  private async getSummaryFromRecords(
-    containerNumbers: string[]
-  ): Promise<{
+  private async getSummaryFromRecords(containerNumbers: string[]): Promise<{
     totalAmount: number;
     currency: string;
     containerCount: number;
@@ -2244,11 +2409,13 @@ export class DemurrageService {
         ORDER BY total_amount DESC`,
         containerNumbers
       );
-      return (rows || []).map((r: { port: string; total_amount: number; container_count: number }) => ({
-        port: String(r.port ?? '未指定目的港'),
-        totalAmount: Number(r.total_amount ?? 0),
-        containerCount: Number(r.container_count ?? 0)
-      }));
+      return (rows || []).map(
+        (r: { port: string; total_amount: number; container_count: number }) => ({
+          port: String(r.port ?? '未指定目的港'),
+          totalAmount: Number(r.total_amount ?? 0),
+          containerCount: Number(r.container_count ?? 0)
+        })
+      );
     } catch (e) {
       logger.warn('[Demurrage] getSummaryByPortFromRecords failed:', e);
       return [];
@@ -2466,19 +2633,23 @@ export class DemurrageService {
 
       if (rows.length === 0) return null;
 
-      const cns = rows.map(
-        (r: Record<string, unknown>) => String(r.containerNumber ?? r.container_number ?? '')
+      const cns = rows.map((r: Record<string, unknown>) =>
+        String(r.containerNumber ?? r.container_number ?? '')
       );
       const missingPortCns = cns.filter(
         (cn, i) => !(rows[i]?.destinationPort ?? rows[i]?.destination_port)
       );
       const portMap =
-        missingPortCns.length > 0 ? await this.getDestinationPortsForContainers(missingPortCns) : new Map<string, string>();
+        missingPortCns.length > 0
+          ? await this.getDestinationPortsForContainers(missingPortCns)
+          : new Map<string, string>();
       const missingStatusCns = cns.filter(
         (cn, i) => !(rows[i]?.logisticsStatus ?? rows[i]?.logistics_status)
       );
       const statusMap =
-        missingStatusCns.length > 0 ? await this.getLogisticsStatusForContainers(missingStatusCns) : new Map<string, string>();
+        missingStatusCns.length > 0
+          ? await this.getLogisticsStatusForContainers(missingStatusCns)
+          : new Map<string, string>();
 
       const items = rows.map((r: Record<string, unknown>, _i: number) => {
         const total = r.totalAmount ?? r.total_amount ?? r.totalamount ?? 0;
@@ -2491,11 +2662,13 @@ export class DemurrageService {
           totalAmount: Number(total),
           currency: String(r.currency ?? 'USD'),
           chargeDays: Number(days),
-          lastFreeDate: r.chargeEndDate ?? r.charge_end_date
-            ? String(r.chargeEndDate ?? r.charge_end_date).slice(0, 10)
-            : null,
+          lastFreeDate:
+            (r.chargeEndDate ?? r.charge_end_date)
+              ? String(r.chargeEndDate ?? r.charge_end_date).slice(0, 10)
+              : null,
           destinationPort: (fromRecord ? String(fromRecord) : portMap.get(cn)) ?? undefined,
-          logisticsStatus: (fromRecordStatus ? String(fromRecordStatus) : statusMap.get(cn)) ?? undefined
+          logisticsStatus:
+            (fromRecordStatus ? String(fromRecordStatus) : statusMap.get(cn)) ?? undefined
         };
       });
 
@@ -2510,16 +2683,23 @@ export class DemurrageService {
    * 按出运日期范围获取货柜号列表（与 statistics-detailed 同口径）
    * 使用 raw SQL 确保列名稳定
    */
-  private async getContainerNumbersInDateRange(startDate?: string, endDate?: string): Promise<string[]> {
+  private async getContainerNumbersInDateRange(
+    startDate?: string,
+    endDate?: string
+  ): Promise<string[]> {
     if (!startDate || !endDate) {
       const rows = await this.containerRepo.query(
         'SELECT DISTINCT container_number FROM biz_containers'
       );
-      return (rows || []).map((r: { container_number: string }) => r.container_number).filter(Boolean);
+      return (rows || [])
+        .map((r: { container_number: string }) => r.container_number)
+        .filter(Boolean);
     }
     const { sql, params } = getDateRangeSubqueryRaw(startDate, endDate);
     const rows = await this.containerRepo.query(sql, params);
-    return (rows || []).map((r: { container_number: string }) => r.container_number).filter(Boolean);
+    return (rows || [])
+      .map((r: { container_number: string }) => r.container_number)
+      .filter(Boolean);
   }
 
   /**
@@ -2530,7 +2710,12 @@ export class DemurrageService {
   async batchWriteBackComputedDates(options?: {
     limitLastFree?: number;
     limitLastReturn?: number;
-  }): Promise<{ lastFreeWritten: number; lastReturnWritten: number; lastFreeProcessed: number; lastReturnProcessed: number }> {
+  }): Promise<{
+    lastFreeWritten: number;
+    lastReturnWritten: number;
+    lastFreeProcessed: number;
+    lastReturnProcessed: number;
+  }> {
     const limitLastFree = options?.limitLastFree ?? 100;
     const limitLastReturn = options?.limitLastReturn ?? 100;
 
@@ -2580,7 +2765,9 @@ export class DemurrageService {
        (${noLastFreeFallbackSql})
        LIMIT ${Math.max(1, limitLastFree)}`
     );
-    const lastFreeNumbers = (lastFreeRows || []).map((r: { container_number: string }) => r.container_number).filter(Boolean);
+    const lastFreeNumbers = (lastFreeRows || [])
+      .map((r: { container_number: string }) => r.container_number)
+      .filter(Boolean);
 
     for (const cn of lastFreeNumbers) {
       try {
@@ -2606,7 +2793,9 @@ export class DemurrageService {
       )
       LIMIT ${Math.max(1, limitLastReturn)}
     `);
-    const lastReturnNumbers = (lastReturnRows || []).map((r: { container_number: string }) => r.container_number).filter(Boolean);
+    const lastReturnNumbers = (lastReturnRows || [])
+      .map((r: { container_number: string }) => r.container_number)
+      .filter(Boolean);
 
     for (const cn of lastReturnNumbers) {
       try {
@@ -2640,7 +2829,12 @@ export class DemurrageService {
   async runManualFreeDateUpdate(options?: {
     limitLastFree?: number;
     limitLastReturn?: number;
-  }): Promise<{ lastFreeWritten: number; lastReturnWritten: number; lastFreeProcessed: number; lastReturnProcessed: number }> {
+  }): Promise<{
+    lastFreeWritten: number;
+    lastReturnWritten: number;
+    lastFreeProcessed: number;
+    lastReturnProcessed: number;
+  }> {
     return this.batchWriteBackComputedDates(options);
   }
 
@@ -2651,7 +2845,12 @@ export class DemurrageService {
   async runScheduledFreeDateUpdate(options?: {
     limitLastFree?: number;
     limitLastReturn?: number;
-  }): Promise<{ lastFreeWritten: number; lastReturnWritten: number; lastFreeProcessed: number; lastReturnProcessed: number }> {
+  }): Promise<{
+    lastFreeWritten: number;
+    lastReturnWritten: number;
+    lastFreeProcessed: number;
+    lastReturnProcessed: number;
+  }> {
     return this.batchWriteBackComputedDates(options);
   }
 
@@ -2667,7 +2866,9 @@ export class DemurrageService {
   }> {
     await this.normalizeOrphanLastFreeDateSource(containerNumber);
     // 关键：单条免费日更新与滞港费面板使用同一套匹配与计算结果，避免口径分叉。
-    const { result, message } = await this.calculateForContainer(containerNumber, { freeDateWriteMode: 'none' });
+    const { result, message } = await this.calculateForContainer(containerNumber, {
+      freeDateWriteMode: 'none'
+    });
     if (!result) {
       return {
         containerNumber,
@@ -2729,7 +2930,13 @@ export class DemurrageService {
     proposedUnloadDate: Date;
     demurrageDays: number;
     demurrageCost: number;
-    tierBreakdown: Array<{ fromDay: number; toDay: number; days: number; ratePerDay: number; subtotal: number }>;
+    tierBreakdown: Array<{
+      fromDay: number;
+      toDay: number;
+      days: number;
+      ratePerDay: number;
+      subtotal: number;
+    }>;
     currency: string;
   }> {
     // 获取货柜信息
@@ -2737,8 +2944,7 @@ export class DemurrageService {
 
     // 确定起算日（按计算模式）
     const hasAtaOrDischarge = !!(
-      params.calculationDates.ataDestPort ??
-      params.calculationDates.dischargeDate
+      params.calculationDates.ataDestPort ?? params.calculationDates.dischargeDate
     );
     const calculationMode: 'actual' | 'forecast' = hasAtaOrDischarge ? 'actual' : 'forecast';
 
@@ -2753,7 +2959,9 @@ export class DemurrageService {
       (s) => !isDetentionCharge(s) && !isCombinedDemurrageDetention(s) && !isStorageCharge(s)
     );
     if (!firstDemurrageStd) {
-      throw new Error(`No demurrage standard (non-detention) found for container ${containerNumber}`);
+      throw new Error(
+        `No demurrage standard (non-detention) found for container ${containerNumber}`
+      );
     }
 
     // 确定起算日
@@ -2765,7 +2973,8 @@ export class DemurrageService {
       demurrageStartDate = params.calculationDates.dischargeDate ?? null;
     } else {
       if (calculationMode === 'actual') {
-        demurrageStartDate = params.calculationDates.ataDestPort ?? params.calculationDates.dischargeDate ?? null;
+        demurrageStartDate =
+          params.calculationDates.ataDestPort ?? params.calculationDates.dischargeDate ?? null;
       } else {
         demurrageStartDate =
           params.calculationDates.ataDestPort ??
@@ -2777,7 +2986,9 @@ export class DemurrageService {
     }
 
     if (!demurrageStartDate) {
-      throw new Error(`No start date found for demurrage calculation for container ${containerNumber}`);
+      throw new Error(
+        `No start date found for demurrage calculation for container ${containerNumber}`
+      );
     }
 
     // 计算免费期截止日
@@ -2820,7 +3031,11 @@ export class DemurrageService {
 
     // 计算费用
     const ratePerDay = Number(firstDemurrageStd.ratePerDay ?? 0);
-    const tiers = normalizeTiers(firstDemurrageStd.tiers) ?? (Array.isArray(firstDemurrageStd.tiers) ? (firstDemurrageStd.tiers as DemurrageTierDto[]) : null);
+    const tiers =
+      normalizeTiers(firstDemurrageStd.tiers) ??
+      (Array.isArray(firstDemurrageStd.tiers)
+        ? (firstDemurrageStd.tiers as DemurrageTierDto[])
+        : null);
     const curr = firstDemurrageStd.currency ?? 'USD';
 
     const { totalAmount, tierBreakdown } = calculateSingleDemurrage(
@@ -2859,7 +3074,13 @@ export class DemurrageService {
     proposedReturnDate: Date;
     detentionDays: number;
     detentionCost: number;
-    tierBreakdown: Array<{ fromDay: number; toDay: number; days: number; ratePerDay: number; subtotal: number }>;
+    tierBreakdown: Array<{
+      fromDay: number;
+      toDay: number;
+      days: number;
+      ratePerDay: number;
+      subtotal: number;
+    }>;
     currency: string;
   }> {
     // 获取货柜信息
@@ -2931,7 +3152,11 @@ export class DemurrageService {
 
     // 计算费用
     const ratePerDay = Number(firstDetentionStd.ratePerDay ?? 0);
-    const tiers = normalizeTiers(firstDetentionStd.tiers) ?? (Array.isArray(firstDetentionStd.tiers) ? (firstDetentionStd.tiers as DemurrageTierDto[]) : null);
+    const tiers =
+      normalizeTiers(firstDetentionStd.tiers) ??
+      (Array.isArray(firstDetentionStd.tiers)
+        ? (firstDetentionStd.tiers as DemurrageTierDto[])
+        : null);
     const curr = firstDetentionStd.currency ?? 'USD';
 
     const { totalAmount, tierBreakdown } = calculateSingleDemurrage(
@@ -2972,7 +3197,8 @@ export class DemurrageService {
     });
 
     if (computedLastFreeDate && destPort) {
-      const canOverwrite = !destPort.lastFreeDateSource || destPort.lastFreeDateSource === 'computed';
+      const canOverwrite =
+        !destPort.lastFreeDateSource || destPort.lastFreeDateSource === 'computed';
       if (canOverwrite) {
         await this.portOpRepo.update(
           { id: destPort.id },
@@ -2986,11 +3212,18 @@ export class DemurrageService {
         logger.info(`[Demurrage] Single free-date write: last_free_date ${containerNumber}`);
         const tt = await this.truckingRepo.findOne({ where: { containerNumber } });
         if (tt) {
-          await this.truckingRepo.update({ containerNumber }, { lastPickupDate: computedLastFreeDate });
-          logger.info(`[Demurrage] Single free-date write: synced trucking last_pickup_date ${containerNumber}`);
+          await this.truckingRepo.update(
+            { containerNumber },
+            { lastPickupDate: computedLastFreeDate }
+          );
+          logger.info(
+            `[Demurrage] Single free-date write: synced trucking last_pickup_date ${containerNumber}`
+          );
         }
       } else {
-        logger.info(`[Demurrage] Single free-date write skipped LFD for ${containerNumber} (manual source preserved)`);
+        logger.info(
+          `[Demurrage] Single free-date write skipped LFD for ${containerNumber} (manual source preserved)`
+        );
       }
     }
 
@@ -3006,18 +3239,23 @@ export class DemurrageService {
         });
         await this.emptyReturnRepo.save(emptyReturn);
         lastReturnDateWritten = true;
-        logger.info(`[Demurrage] Single free-date write: last_return_date insert ${containerNumber}`);
+        logger.info(
+          `[Demurrage] Single free-date write: last_return_date insert ${containerNumber}`
+        );
       } else {
         const shouldUpdate =
           !emptyReturn.lastReturnDate ||
-          toDateOnly(emptyReturn.lastReturnDate).getTime() !== toDateOnly(computedLastReturnDate).getTime();
+          toDateOnly(emptyReturn.lastReturnDate).getTime() !==
+            toDateOnly(computedLastReturnDate).getTime();
         if (shouldUpdate) {
           await this.emptyReturnRepo.update(
             { containerNumber },
             { lastReturnDate: computedLastReturnDate }
           );
           lastReturnDateWritten = true;
-          logger.info(`[Demurrage] Single free-date write: last_return_date overwrite ${containerNumber}`);
+          logger.info(
+            `[Demurrage] Single free-date write: last_return_date overwrite ${containerNumber}`
+          );
         }
       }
     }
@@ -3067,7 +3305,8 @@ export class DemurrageService {
     if (!pickupDateActual && computedLastFreeDate) {
       if (destPort) {
         // 只在来源为computed或空时才写回，保留手工维护的LFD
-        const canOverwrite = !destPort.lastFreeDateSource || destPort.lastFreeDateSource === 'computed';
+        const canOverwrite =
+          !destPort.lastFreeDateSource || destPort.lastFreeDateSource === 'computed';
         if (canOverwrite) {
           await this.portOpRepo.update(
             { id: destPort.id },
@@ -3078,14 +3317,23 @@ export class DemurrageService {
             }
           );
           lastFreeDateWritten = true;
-          logger.info(`[Demurrage] Wrote back last_free_date for ${containerNumber} (${calculationMode}, computed)`);
+          logger.info(
+            `[Demurrage] Wrote back last_free_date for ${containerNumber} (${calculationMode}, computed)`
+          );
           const tt = await this.truckingRepo.findOne({ where: { containerNumber } });
           if (tt) {
-            await this.truckingRepo.update({ containerNumber }, { lastPickupDate: computedLastFreeDate });
-            logger.info(`[Demurrage] Synced process_trucking_transport.last_pickup_date for ${containerNumber}`);
+            await this.truckingRepo.update(
+              { containerNumber },
+              { lastPickupDate: computedLastFreeDate }
+            );
+            logger.info(
+              `[Demurrage] Synced process_trucking_transport.last_pickup_date for ${containerNumber}`
+            );
           }
         } else {
-          logger.info(`[Demurrage] Skipped write back last_free_date for ${containerNumber} (manual source preserved)`);
+          logger.info(
+            `[Demurrage] Skipped write back last_free_date for ${containerNumber} (manual source preserved)`
+          );
         }
       }
     }
@@ -3112,7 +3360,8 @@ export class DemurrageService {
         // 检查是否需要更新
         const shouldUpdate =
           !emptyReturn.lastReturnDate ||
-          toDateOnly(emptyReturn.lastReturnDate).getTime() !== toDateOnly(computedLastReturnDate).getTime();
+          toDateOnly(emptyReturn.lastReturnDate).getTime() !==
+            toDateOnly(computedLastReturnDate).getTime();
         if (shouldUpdate) {
           await this.emptyReturnRepo.update(
             { containerNumber },
@@ -3130,7 +3379,7 @@ export class DemurrageService {
   /**
    * 统一的总费用计算入口（所有场景复用）
    * Unified total cost calculation entry point (reused across all scenarios)
-   * 
+   *
    * @param containerNumber 柜号
    * @param options 可选参数
    * @param options.mode 计算模式：'actual' | 'forecast'（默认自动判断）
@@ -3139,7 +3388,7 @@ export class DemurrageService {
    * @param options.warehouse 仓库信息（运输费必需）
    * @param options.truckingCompany 车队信息（运输费必需）
    * @param options.unloadMode 卸柜方式（运输费必需）
-   * 
+   *
    * @returns 完整的费用明细和总计
    */
   async calculateTotalCost(
@@ -3192,7 +3441,7 @@ export class DemurrageService {
         costs.items = demurrageResult.result.items;
 
         // 3. 分类汇总各项费用
-        demurrageResult.result.items.forEach(item => {
+        demurrageResult.result.items.forEach((item) => {
           if (isDemurrageCharge(item)) {
             costs.demurrageCost += item.amount;
           }
@@ -3250,7 +3499,8 @@ export class DemurrageService {
   ): Promise<number> {
     try {
       // 从 dict_warehouse_trucking_mapping 获取基础运费
-      const warehouseTruckingMappingRepo = this.containerRepo.manager.getRepository(WarehouseTruckingMapping);
+      const warehouseTruckingMappingRepo =
+        this.containerRepo.manager.getRepository(WarehouseTruckingMapping);
       const warehouseTruckingMapping = await warehouseTruckingMappingRepo.findOne({
         where: {
           country: warehouse.country || 'US',
@@ -3272,15 +3522,19 @@ export class DemurrageService {
           warehouse,
           truckingCompany
         );
-        
+
         if (actuallyUsedYard) {
           // ✅ 实际使用了堆场（提 < 送），需要两次运输，费用翻倍
           const dropoffMultiplier = await this.getDropoffMultiplier();
           transportFee *= dropoffMultiplier;
-          logger.debug(`[Demurrage] Drop off mode (used yard): transportFee=${transportFee}, multiplier=${dropoffMultiplier}`);
+          logger.debug(
+            `[Demurrage] Drop off mode (used yard): transportFee=${transportFee}, multiplier=${dropoffMultiplier}`
+          );
         } else {
           // ✅ 未使用堆场（提 = 送），只运输一次，不翻倍
-          logger.debug(`[Demurrage] Drop off mode (direct delivery): transportFee=${transportFee}, no multiplier`);
+          logger.debug(
+            `[Demurrage] Drop off mode (direct delivery): transportFee=${transportFee}, no multiplier`
+          );
         }
       }
 
@@ -3323,7 +3577,7 @@ export class DemurrageService {
       // 从 TruckingTransport 表获取提柜日和送仓日
       const truckingTransportRepo = this.containerRepo.manager.getRepository(TruckingTransport);
       const truckingTransport = await truckingTransportRepo.findOne({
-        where: { 
+        where: {
           containerNumber,
           truckingCompanyId: truckingCompany.companyCode
         },
@@ -3355,9 +3609,9 @@ export class DemurrageService {
 }
 
 export type {
+  KeyTimelineBuildInput,
+  KeyTimelineMetaDto,
   KeyTimelineMilestoneKey,
   KeyTimelineNodeDto,
-  KeyTimelineMetaDto,
-  KeyTimelineResult,
-  KeyTimelineBuildInput
+  KeyTimelineResult
 } from './keyTimeline';

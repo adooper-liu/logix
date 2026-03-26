@@ -20,16 +20,25 @@
         </el-descriptions-item>
         <el-descriptions-item label="Drop off"> {{ dropOffCount }} 柜 </el-descriptions-item>
         <el-descriptions-item label="预估总费用">
-          <el-tag type="warning">{{ formatCurrency(totalEstimatedCost, previewResults[0]?.plannedData?.warehouseCountry || 'US') }}</el-tag>
+          <el-tag type="warning">{{
+            formatCurrency(
+              totalEstimatedCost,
+              previewResults[0]?.plannedData?.warehouseCountry || 'US'
+            )
+          }}</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="平均费用">
           <el-tag v-if="successCount > 0" :type="averageCostType">
-            {{ formatCurrency(averageCost, previewResults[0]?.plannedData?.warehouseCountry || 'US') }}
+            {{
+              formatCurrency(averageCost, previewResults[0]?.plannedData?.warehouseCountry || 'US')
+            }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="费用区间">
           <span style="font-weight: bold; color: #606266">
-            {{ formatCurrency(minCost, previewResults[0]?.plannedData?.warehouseCountry || 'US') }} ~ {{ formatCurrency(maxCost, previewResults[0]?.plannedData?.warehouseCountry || 'US') }}
+            {{ formatCurrency(minCost, previewResults[0]?.plannedData?.warehouseCountry || 'US') }}
+            ~
+            {{ formatCurrency(maxCost, previewResults[0]?.plannedData?.warehouseCountry || 'US') }}
           </span>
         </el-descriptions-item>
       </el-descriptions>
@@ -78,7 +87,12 @@
             v-if="row.estimatedCosts?.demurrageCost"
             :class="getAmountClass(row.estimatedCosts.demurrageCost)"
           >
-            {{ formatCurrency(row.estimatedCosts.demurrageCost, row.plannedData?.warehouseCountry || 'US') }}
+            {{
+              formatCurrency(
+                row.estimatedCosts.demurrageCost,
+                row.plannedData?.warehouseCountry || 'US'
+              )
+            }}
           </span>
           <span v-else>-</span>
         </template>
@@ -96,7 +110,12 @@
             v-if="row.estimatedCosts?.detentionCost"
             :class="getAmountClass(row.estimatedCosts.detentionCost)"
           >
-            {{ formatCurrency(row.estimatedCosts.detentionCost, row.plannedData?.warehouseCountry || 'US') }}
+            {{
+              formatCurrency(
+                row.estimatedCosts.detentionCost,
+                row.plannedData?.warehouseCountry || 'US'
+              )
+            }}
           </span>
           <span v-else>-</span>
         </template>
@@ -114,7 +133,12 @@
             v-if="row.estimatedCosts?.storageCost"
             :class="getAmountClass(row.estimatedCosts.storageCost)"
           >
-            {{ formatCurrency(row.estimatedCosts.storageCost, row.plannedData?.warehouseCountry || 'US') }}
+            {{
+              formatCurrency(
+                row.estimatedCosts.storageCost,
+                row.plannedData?.warehouseCountry || 'US'
+              )
+            }}
           </span>
           <span v-else>-</span>
         </template>
@@ -132,7 +156,12 @@
             v-if="row.estimatedCosts?.ddCombinedCost"
             :class="getAmountClass(row.estimatedCosts.ddCombinedCost)"
           >
-            {{ formatCurrency(row.estimatedCosts.ddCombinedCost, row.plannedData?.warehouseCountry || 'US') }}
+            {{
+              formatCurrency(
+                row.estimatedCosts.ddCombinedCost,
+                row.plannedData?.warehouseCountry || 'US'
+              )
+            }}
           </span>
           <span v-else>-</span>
         </template>
@@ -150,7 +179,12 @@
             v-if="row.estimatedCosts?.transportationCost"
             :class="getAmountClass(row.estimatedCosts.transportationCost)"
           >
-            {{ formatCurrency(row.estimatedCosts.transportationCost, row.plannedData?.warehouseCountry || 'US') }}
+            {{
+              formatCurrency(
+                row.estimatedCosts.transportationCost,
+                row.plannedData?.warehouseCountry || 'US'
+              )
+            }}
           </span>
           <span v-else>-</span>
         </template>
@@ -168,7 +202,12 @@
             v-if="row.estimatedCosts?.yardStorageCost"
             :class="getAmountClass(row.estimatedCosts.yardStorageCost)"
           >
-            {{ formatCurrency(row.estimatedCosts.yardStorageCost, row.plannedData?.warehouseCountry || 'US') }}
+            {{
+              formatCurrency(
+                row.estimatedCosts.yardStorageCost,
+                row.plannedData?.warehouseCountry || 'US'
+              )
+            }}
           </span>
           <span v-else>-</span>
         </template>
@@ -186,7 +225,12 @@
             v-if="row.estimatedCosts?.handlingCost"
             :class="getAmountClass(row.estimatedCosts.handlingCost)"
           >
-            {{ formatCurrency(row.estimatedCosts.handlingCost, row.plannedData?.warehouseCountry || 'US') }}
+            {{
+              formatCurrency(
+                row.estimatedCosts.handlingCost,
+                row.plannedData?.warehouseCountry || 'US'
+              )
+            }}
           </span>
           <span v-else>-</span>
         </template>
@@ -204,7 +248,12 @@
             v-if="row.estimatedCosts?.totalCost"
             :class="['total-cost', getAmountClass(row.estimatedCosts.totalCost)]"
           >
-            {{ formatCurrency(row.estimatedCosts.totalCost, row.plannedData?.warehouseCountry || 'US') }}
+            {{
+              formatCurrency(
+                row.estimatedCosts.totalCost,
+                row.plannedData?.warehouseCountry || 'US'
+              )
+            }}
           </span>
           <span v-else>-</span>
         </template>
@@ -215,29 +264,69 @@
           <el-popover v-if="row.estimatedCosts" placement="left" :width="220" trigger="hover">
             <div style="font-size: 12px">
               <p v-if="row.estimatedCosts.demurrageCost" style="margin: 4px 0">
-                滞港费：{{ formatCurrency(row.estimatedCosts.demurrageCost, row.plannedData?.warehouseCountry || 'US') }}
+                滞港费：{{
+                  formatCurrency(
+                    row.estimatedCosts.demurrageCost,
+                    row.plannedData?.warehouseCountry || 'US'
+                  )
+                }}
               </p>
               <p v-if="row.estimatedCosts.detentionCost" style="margin: 4px 0">
-                滞箱费：{{ formatCurrency(row.estimatedCosts.detentionCost, row.plannedData?.warehouseCountry || 'US') }}
+                滞箱费：{{
+                  formatCurrency(
+                    row.estimatedCosts.detentionCost,
+                    row.plannedData?.warehouseCountry || 'US'
+                  )
+                }}
               </p>
               <p v-if="row.estimatedCosts.storageCost" style="margin: 4px 0">
-                港口存储费：{{ formatCurrency(row.estimatedCosts.storageCost, row.plannedData?.warehouseCountry || 'US') }}
+                港口存储费：{{
+                  formatCurrency(
+                    row.estimatedCosts.storageCost,
+                    row.plannedData?.warehouseCountry || 'US'
+                  )
+                }}
               </p>
               <p v-if="row.estimatedCosts.ddCombinedCost" style="margin: 4px 0">
-                D&D 合并费：{{ formatCurrency(row.estimatedCosts.ddCombinedCost, row.plannedData?.warehouseCountry || 'US') }}
+                D&D 合并费：{{
+                  formatCurrency(
+                    row.estimatedCosts.ddCombinedCost,
+                    row.plannedData?.warehouseCountry || 'US'
+                  )
+                }}
               </p>
               <p v-if="row.estimatedCosts.transportationCost" style="margin: 4px 0">
-                运输费：{{ formatCurrency(row.estimatedCosts.transportationCost, row.plannedData?.warehouseCountry || 'US') }}
+                运输费：{{
+                  formatCurrency(
+                    row.estimatedCosts.transportationCost,
+                    row.plannedData?.warehouseCountry || 'US'
+                  )
+                }}
               </p>
               <p v-if="row.estimatedCosts.yardStorageCost" style="margin: 4px 0">
-                外部堆场费：{{ formatCurrency(row.estimatedCosts.yardStorageCost, row.plannedData?.warehouseCountry || 'US') }}
+                外部堆场费：{{
+                  formatCurrency(
+                    row.estimatedCosts.yardStorageCost,
+                    row.plannedData?.warehouseCountry || 'US'
+                  )
+                }}
               </p>
               <p v-if="row.estimatedCosts.handlingCost" style="margin: 4px 0">
-                操作费：{{ formatCurrency(row.estimatedCosts.handlingCost, row.plannedData?.warehouseCountry || 'US') }}
+                操作费：{{
+                  formatCurrency(
+                    row.estimatedCosts.handlingCost,
+                    row.plannedData?.warehouseCountry || 'US'
+                  )
+                }}
               </p>
               <el-divider style="margin: 8px 0" />
               <p style="margin: 4px 0; font-weight: bold; color: #e6a23c">
-                合计：{{ formatCurrency(row.estimatedCosts.totalCost || 0, row.plannedData?.warehouseCountry || 'US') }}
+                合计：{{
+                  formatCurrency(
+                    row.estimatedCosts.totalCost || 0,
+                    row.plannedData?.warehouseCountry || 'US'
+                  )
+                }}
               </p>
             </div>
             <template #reference>
@@ -371,7 +460,7 @@ const averageCostType = computed(() => {
 // ✅ SKILL 规范：货币格式化函数
 const formatCurrency = (amount: number, countryCode?: string): string => {
   const country = countryCode || 'US'
-  
+
   // 根据国家获取货币符号
   const currencyMap: Record<string, { symbol: string; code: string }> = {
     US: { symbol: '$', code: 'USD' },
@@ -384,17 +473,17 @@ const formatCurrency = (amount: number, countryCode?: string): string => {
     CA: { symbol: 'C$', code: 'CAD' },
     AU: { symbol: 'A$', code: 'AUD' },
     JP: { symbol: '¥', code: 'JPY' },
-    CN: { symbol: '¥', code: 'CNY' }
+    CN: { symbol: '¥', code: 'CNY' },
   }
-  
+
   const currency = currencyMap[country] || { symbol: '$', code: 'USD' }
-  
+
   // 格式化数字（带千分位）
   const formattedAmount = amount.toLocaleString('en-US', {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 2,
   })
-  
+
   return `${currency.symbol}${formattedAmount}`
 }
 

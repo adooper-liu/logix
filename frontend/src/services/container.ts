@@ -196,6 +196,7 @@ class ContainerService {
     skip?: number
     dryRun?: boolean
     containerNumbers?: string[]
+    etaBufferDays?: number // ✅ 新增：ETA 顺延天数
   }): Promise<{
     success: boolean
     total: number

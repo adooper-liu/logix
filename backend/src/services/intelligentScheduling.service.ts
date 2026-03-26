@@ -46,6 +46,7 @@ export interface ScheduleRequest {
   limit?: number; // 每批处理数量，用于分步排产
   skip?: number; // 跳过数量，用于分步排产
   dryRun?: boolean; // 是否为预览模式（true=只计算不保存）
+  etaBufferDays?: number; // ETA 顺延天数（可选，前端传入，默认 0）
 }
 
 export interface ScheduleResult {
@@ -302,9 +303,18 @@ export class IntelligentSchedulingService {
           ...containerInfo
         };
       }
-
+      
       // 2. 计算计划清关日、提柜日（若 ATA/ETA 已过，提柜日至少为今天）
       const plannedCustomsDate = new Date(clearanceDate);
+            
+      // ✅ 新增：ETA 顺延天数（从请求参数读取，前端传入，不保存）
+      // 业务场景：给清关预留足够时间，避免排产计划从一开始就过期
+      const etaBufferDays = _request.etaBufferDays || 0;
+      if (etaBufferDays > 0) {
+        plannedCustomsDate.setDate(plannedCustomsDate.getDate() + etaBufferDays);
+        logger.debug(`[IntelligentScheduling] ETA buffer applied: +${etaBufferDays} days for ${container.containerNumber}`);
+      }
+            
       let plannedPickupDate = await this.calculatePlannedPickupDate(
         plannedCustomsDate,
         destPo.lastFreeDate
@@ -314,7 +324,7 @@ export class IntelligentSchedulingService {
       if (plannedPickupDate < today) {
         plannedPickupDate = new Date(today);
         plannedCustomsDate.setTime(today.getTime());
-        plannedCustomsDate.setDate(plannedCustomsDate.getDate() - 1); // 保持 提=清关+1
+        plannedCustomsDate.setDate(plannedCustomsDate.getDate() - 1); // 保持 提=清关 +1
       }
 
       // 4. 确定候选仓库（根据该国分公司 → 国家代码，见 12-国家概念统一约定.md）
@@ -1223,7 +1233,8 @@ export class IntelligentSchedulingService {
         transportationCost: Number(totalCostResult.transportationCost) || 0,
         yardStorageCost: Number(yardStorageCost) || 0, // 外部堆场堆存费（如有）
         handlingCost: Number(handlingCost) || 0, // 加急费（如有）
-        totalCost: Number(totalCostResult.totalCost) + Number(yardStorageCost) + Number(handlingCost), // 总计包含两种堆存费和加急费
+        totalCost:
+          Number(totalCostResult.totalCost) + Number(yardStorageCost) + Number(handlingCost), // 总计包含两种堆存费和加急费
         currency: totalCostResult.currency
       };
     } catch (error) {

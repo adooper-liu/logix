@@ -9,6 +9,17 @@
         <el-icon><InfoFilled /></el-icon>
         逻辑
       </el-button>
+      <span class="filter-label">ETA 顺延：</span>
+      <el-input-number
+        v-model="etaBufferDays"
+        :min="0"
+        :max="7"
+        :step="1"
+        placeholder="0-7 天"
+        controls-position="right"
+        size="small"
+        style="width: 120px"
+      />
       <el-button
         type="primary"
         :loading="scheduling"
@@ -399,6 +410,7 @@ const dateRange = ref<[Date, Date]>(
 
 // 操作说明相关
 const showLogicDialog = ref(false)
+const etaBufferDays = ref<number>(0) // ✅ 新增：ETA 顺延天数
 const writeDataInfo = [
   {
     table: 'process_trucking_transport',
@@ -746,6 +758,7 @@ const handlePreviewSchedule = async () => {
       startDate: dateRange.value?.[0] ? dayjs(dateRange.value[0]).format('YYYY-MM-DD') : undefined,
       endDate: dateRange.value?.[1] ? dayjs(dateRange.value[1]).format('YYYY-MM-DD') : undefined,
       dryRun: true, // ← 关键：预览模式
+      etaBufferDays: etaBufferDays.value, // ✅ 新增：ETA 顺延天数
     })
 
     if (!result.success) {
