@@ -30,13 +30,14 @@
         预览排产
       </el-button>
       <el-button
-        type="success"
-        :loading="scheduling"
-        @click="handleSchedule"
-        title="直接开始排产，分批处理并实时显示结果"
+        type="warning"
+        plain
+        @click="openDesignatedWarehouseDialog"
+        :disabled="overview.pendingCount === 0"
+        title="手工指定仓库进行排产"
       >
-        <el-icon><VideoPlay /></el-icon>
-        执行排产
+        <el-icon><Setting /></el-icon>
+        手工指定
       </el-button>
       <el-button type="default" @click="goBackToShipments">
         <el-icon><ArrowLeft /></el-icon>
@@ -340,6 +341,15 @@
     @cancel="showPreviewModal = false"
     @view-container="cn => router.push(`/shipments/${cn}`)"
   />
+  
+  <!-- 手工指定仓库对话框 -->
+  <DesignatedWarehouseDialog
+    v-model:visible="showDesignatedWarehouseDialog"
+    :container-numbers="[]" 
+    :port-code="currentPortCode"
+    :country-code="resolvedCountry"
+    @confirm="handleDesignatedWarehouseConfirm"
+  />
 </template>
 
 <script setup lang="ts">
@@ -360,12 +370,14 @@ import {
   InfoFilled,
   VideoPlay,
   View,
+  Setting,
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import SchedulingPreviewModal from './components/SchedulingPreviewModal.vue'
+import DesignatedWarehouseDialog from './components/DesignatedWarehouseDialog.vue'
 
 console.log('[SchedulingVisual] 组件开始加载')
 
@@ -738,6 +750,56 @@ const handleSchedule = async () => {
     currentStep.value = 0
   }
 }
+
+// ✅ 新增：手工指定仓库相关状态
+const showDesignatedWarehouseDialog = ref(false);
+// const selectedContainersForDesignation = ref<string[]>([]); // 不再需要预先选择
+// const hasSelectedContainers = computed(() => selectedContainersForDesignation.value.length > 0);
+const currentPortCode = ref<string>(''); // 当前选中的港口
+
+// 打开手工指定对话框 - 对所有待排产货柜生效
+const openDesignatedWarehouseDialog = () => {
+  if (overview.value.pendingCount === 0) {
+    ElMessage.warning('没有待排产的货柜');
+    return;
+  }
+  
+  showDesignatedWarehouseDialog.value = true;
+};
+
+// 确认手工指定仓库排产 - 对所有待排产货柜生效
+const handleDesignatedWarehouseConfirm = async (data: {
+  warehouseCode: string;
+  containerNumbers?: string[];
+}) => {
+  try {
+    addLog(`开始手工指定仓库排产...`, 'info');
+    
+    // 调用排产 API，传入手工指定参数
+    // 如果不指定 containerNumbers，则对所有待排产货柜生效
+    const result = await containerService.batchSchedule({
+      designatedWarehouseMode: true,
+      designatedWarehouseCode: data.warehouseCode,
+      containerNumbers: data.containerNumbers, // 如果用户选择了特定柜号则使用，否则为 undefined（全部）
+      dryRun: false, // 直接保存
+      etaBufferDays: etaBufferDays.value,
+    });
+    
+    if (result.success) {
+      ElMessage.success(`排产成功：${result.successCount} 个`);
+      addLog(`手工指定仓库排产完成：成功 ${result.successCount} 个`, 'success');
+      showDesignatedWarehouseDialog.value = false;
+      // 刷新数据
+      loadOverview();
+    } else {
+      ElMessage.error('排产失败：' + (result as any).message);
+      addLog(`手工指定仓库排产失败：${(result as any).message}`, 'error');
+    }
+  } catch (error: any) {
+    ElMessage.error('排产失败：' + (error.message || '未知错误'));
+    addLog(`手工指定仓库排产异常：${error.message}`, 'error');
+  }
+};
 
 // 预览排产（不保存，只显示方案）
 const handlePreviewSchedule = async () => {

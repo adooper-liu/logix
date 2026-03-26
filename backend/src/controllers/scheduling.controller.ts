@@ -1695,4 +1695,48 @@ export class SchedulingController {
       res.status(500).json({ success: false, message: error.message });
     }
   };
+
+  /**
+   * GET /api/v1/scheduling/warehouses
+   * 获取可用于指定港口的候选仓库列表
+   * Query: { portCode, countryCode }
+   */
+  getCandidateWarehouses = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { portCode, countryCode } = req.query;
+
+      if (!portCode || !countryCode) {
+        res.status(400).json({
+          success: false,
+          message: '缺少必要参数：portCode 和 countryCode'
+        });
+        return;
+      }
+
+      const result = await intelligentSchedulingService.getCandidateWarehouses(
+        String(countryCode),
+        String(portCode)
+      );
+
+      res.json({
+        success: true,
+        data: result.map(w => ({
+          warehouseCode: w.warehouseCode,
+          warehouseName: w.warehouseName,
+          propertyType: w.propertyType,
+          country: w.country,
+          dailyUnloadCapacity: w.dailyUnloadCapacity,
+          status: w.status,
+          address: w.address
+        }))
+      });
+    } catch (error: any) {
+      logger.error('[Scheduling] getCandidateWarehouses error:', error);
+      res.status(500).json({
+        success: false,
+        message: '获取仓库列表失败',
+        data: []
+      });
+    }
+  };
 }

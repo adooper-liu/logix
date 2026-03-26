@@ -47,6 +47,11 @@ export interface ScheduleRequest {
   skip?: number; // 跳过数量，用于分步排产
   dryRun?: boolean; // 是否为预览模式（true=只计算不保存）
   etaBufferDays?: number; // ETA 顺延天数（可选，前端传入，默认 0）
+  
+  // ✅ 新增：手工指定仓库（可选）
+  designatedWarehouseMode?: boolean; // 是否为手工指定模式
+  designatedWarehouseCode?: string; // 手工指定的仓库代码
+  designatedContainerNumbers?: string[]; // 手工指定仓库的柜号列表（可选，为空则全部）
 }
 
 export interface ScheduleResult {
@@ -270,9 +275,34 @@ export class IntelligentSchedulingService {
    */
   private async scheduleSingleContainer(
     container: Container,
-    _request: ScheduleRequest
+    request: ScheduleRequest
   ): Promise<ScheduleResult> {
     try {
+      // ✅ 检查是否为手工指定仓库模式
+      if (request.designatedWarehouseMode && request.designatedWarehouseCode) {
+        const destPo = container.portOperations?.find((po: any) => po.portType === 'destination');
+        if (!destPo) {
+          return {
+            containerNumber: container.containerNumber,
+            success: false,
+            message: '无目的港操作记录',
+            destinationPort: '',
+            destinationPortName: '',
+            etaDestPort: '',
+            ataDestPort: ''
+          };
+        }
+        
+        // 使用手工指定仓库逻辑
+        return this.scheduleWithDesignatedWarehouse(
+          container,
+          destPo,
+          request.designatedWarehouseCode,
+          request
+        );
+      }
+      
+      // 原有智能排产逻辑...
       // 获取目的港操作记录
       const destPo = container.portOperations?.find((po: any) => po.portType === 'destination');
 
@@ -345,7 +375,7 @@ export class IntelligentSchedulingService {
 
       // ✅ 新增：ETA 顺延天数（从请求参数读取，前端传入，不保存）
       // 业务场景：给清关预留足够时间，避免排产计划从一开始就过期
-      const etaBufferDays = _request.etaBufferDays || 0;
+      const etaBufferDays = request.etaBufferDays || 0;
       if (etaBufferDays > 0) {
         plannedCustomsDate.setDate(plannedCustomsDate.getDate() + etaBufferDays);
         logger.debug(
@@ -586,7 +616,7 @@ export class IntelligentSchedulingService {
       const customsBrokerCode = await this.selectCustomsBroker(countryCode, destPo.portCode);
 
       // 10. 计算预估费用（dryRun 模式）
-      const estimatedCosts = _request.dryRun
+      const estimatedCosts = request.dryRun
         ? await this.calculateEstimatedCosts(
             container.containerNumber,
             plannedPickupDate,
@@ -640,7 +670,7 @@ export class IntelligentSchedulingService {
         returnTerminalName: warehouse.warehouseName || warehouse.warehouseCode
       };
 
-      if (!_request.dryRun) {
+      if (!request.dryRun) {
         await this.updateContainerSchedule(container.containerNumber, plannedData);
 
         // 与 biz_containers.gantt_derived / logistics_status 对齐（流程表已更新）
@@ -811,7 +841,13 @@ export class IntelligentSchedulingService {
    * 无 portCode 或映射链无结果时返回 []，不再回退到该国全部仓库
    * 排序：is_default 优先 > 自营仓 > 平台仓 > 第三方仓 > warehouse_code 字典序
    */
-  private async getCandidateWarehouses(
+  /**
+   * 获取候选仓库列表（基于港口 + 车队 + 仓库映射链）
+   * @param countryCode 国家代码
+   * @param portCode 港口代码
+   * @returns 候选仓库列表
+   */
+  async getCandidateWarehouses(
     countryCode?: string,
     portCode?: string
   ): Promise<Warehouse[]> {
@@ -1465,6 +1501,9 @@ export class IntelligentSchedulingService {
     currency?: string;
   }> {
     try {
+      // ✅ 新增：检查是否为手工指定仓库模式，如果是，跳过成本优化建议
+      logger.debug(`[IntelligentScheduling] Calculating estimated costs for ${containerNumber}`);
+      
       // 使用统一的 calculateTotalCost 方法计算所有 D&D 费用和运输费
       const totalCostResult = await this.demurrageService.calculateTotalCost(containerNumber, {
         mode: 'forecast',
@@ -1581,6 +1620,201 @@ export class IntelligentSchedulingService {
       return {
         totalCost: 0,
         currency: 'USD'
+      };
+    }
+  }
+
+  /**
+   * 使用手工指定的仓库进行排产
+   * @param container 货柜
+   * @param destPo 港口操作
+   * @param designatedWarehouseCode 手工指定的仓库代码
+   * @param request 排产请求
+   * @returns 排产结果
+   */
+  private async scheduleWithDesignatedWarehouse(
+    container: Container,
+    destPo: PortOperation,
+    designatedWarehouseCode: string,
+    request: ScheduleRequest
+  ): Promise<ScheduleResult> {
+    try {
+      logger.info(
+        `[IntelligentScheduling] Using designated warehouse: ${designatedWarehouseCode} for ${container.containerNumber}`
+      );
+      
+      // 1. 验证仓库是否存在且可用
+      const warehouse = await AppDataSource.getRepository(Warehouse).findOne({
+        where: {
+          warehouseCode: designatedWarehouseCode,
+          status: 'ACTIVE'
+        }
+      });
+      
+      if (!warehouse) {
+        return {
+          containerNumber: container.containerNumber,
+          success: false,
+          message: `指定的仓库 ${designatedWarehouseCode} 不存在或已停用`,
+          destinationPort: destPo.portCode || '',
+          destinationPortName: destPo.portName || '',
+          etaDestPort: '',
+          ataDestPort: ''
+        };
+      }
+      
+      // 2. 验证仓库是否在映射关系中（确保有车队服务）
+      const countryCode = await this.resolveCountryCode(container.replenishmentOrders?.[0]);
+      const candidateWarehouses = await this.getCandidateWarehouses(
+        countryCode,
+        destPo.portCode
+      );
+      
+      const isWarehouseInMapping = candidateWarehouses.some(
+        w => w.warehouseCode === designatedWarehouseCode
+      );
+      
+      if (!isWarehouseInMapping) {
+        logger.warn(
+          `[IntelligentScheduling] Designated warehouse ${designatedWarehouseCode} not in mapping for port ${destPo.portCode}`
+        );
+        return {
+          containerNumber: container.containerNumber,
+          success: false,
+          message: `指定的仓库 ${designatedWarehouseCode} 不可用于该港口 ${destPo.portCode}（请配置映射关系）`,
+          destinationPort: destPo.portCode || '',
+          destinationPortName: destPo.portName || '',
+          etaDestPort: '',
+          ataDestPort: ''
+        };
+      }
+      
+      // 3. 计算清关日和提柜日 - 复用现有逻辑
+      const clearanceDate = destPo.eta || destPo.ata;
+      if (!clearanceDate) {
+        return {
+          containerNumber: container.containerNumber,
+          success: false,
+          message: '无到港日期（ATA/ETA），无法排产',
+          destinationPort: destPo.portCode || '',
+          destinationPortName: destPo.portName || '',
+          etaDestPort: '',
+          ataDestPort: ''
+        };
+      }
+      
+      let plannedCustomsDate = new Date(clearanceDate);
+      let plannedPickupDate = await this.calculatePlannedPickupDate(
+        plannedCustomsDate,
+        destPo.lastFreeDate
+      );
+      
+      // 4. 查找仓库最早可用日期
+      const plannedUnloadDate = await this.findEarliestAvailableDay(
+        designatedWarehouseCode,
+        plannedPickupDate
+      );
+      
+      if (!plannedUnloadDate) {
+        return {
+          containerNumber: container.containerNumber,
+          success: false,
+          message: `指定的仓库 ${designatedWarehouseCode} 在可预见的时间内无产能`,
+          destinationPort: destPo.portCode || '',
+          destinationPortName: destPo.portName || '',
+          etaDestPort: '',
+          ataDestPort: ''
+        };
+      }
+      
+      // 5. 选择车队（基于仓库和港口）
+      const truckingCompany = await this.selectTruckingCompany(
+        designatedWarehouseCode,
+        destPo.portCode,
+        plannedUnloadDate,
+        warehouse.country
+      );
+      
+      if (!truckingCompany) {
+        return {
+          containerNumber: container.containerNumber,
+          success: false,
+          message: `无法为仓库 ${designatedWarehouseCode} 找到合适的车队`,
+          destinationPort: destPo.portCode || '',
+          destinationPortName: destPo.portName || '',
+          etaDestPort: '',
+          ataDestPort: ''
+        };
+      }
+      
+      // 6. 根据车队是否有堆场决定卸柜方式
+      const unloadMode = truckingCompany.hasYard ? 'Drop off' : 'Live load';
+      
+      // 7. 计算送仓日
+      let plannedDeliveryDate = this.calculatePlannedDeliveryDate(
+        plannedPickupDate,
+        unloadMode,
+        plannedUnloadDate
+      );
+      
+      // 8. 计算还箱日
+      let lastReturnDate: Date | undefined;
+      const emptyReturn = await this.emptyReturnRepo.findOne({
+        where: { containerNumber: container.containerNumber }
+      });
+      if (emptyReturn?.lastReturnDate) {
+        lastReturnDate = new Date(emptyReturn.lastReturnDate);
+      } else if (destPo.lastFreeDate) {
+        lastReturnDate = new Date(destPo.lastFreeDate);
+        lastReturnDate.setDate(lastReturnDate.getDate() + 7);
+      }
+      
+      const returnDateResult = await this.calculatePlannedReturnDate(
+        plannedUnloadDate,
+        unloadMode,
+        truckingCompany.companyCode,
+        lastReturnDate,
+        plannedPickupDate
+      );
+      
+      // 9. 构建结果
+      return {
+        containerNumber: container.containerNumber,
+        success: true,
+        message: `使用指定仓库 ${warehouse.warehouseName} 排产成功`,
+        destinationPort: destPo.portCode || '',
+        destinationPortName: destPo.portName || '',
+        warehouseName: warehouse.warehouseName,
+        etaDestPort: (container.portOperations?.find((po: any) => po.portType === 'destination')?.eta as Date)?.toISOString().split('T')[0] || '',
+        ataDestPort: (container.portOperations?.find((po: any) => po.portType === 'destination')?.ata as Date)?.toISOString().split('T')[0] || '',
+        plannedData: {
+          plannedCustomsDate: plannedCustomsDate.toISOString().split('T')[0],
+          plannedPickupDate: plannedPickupDate.toISOString().split('T')[0],
+          plannedDeliveryDate: plannedDeliveryDate.toISOString().split('T')[0],
+          plannedUnloadDate: plannedUnloadDate.toISOString().split('T')[0],
+          plannedReturnDate: returnDateResult.returnDate.toISOString().split('T')[0],
+          truckingCompanyId: truckingCompany.companyCode,
+          truckingCompany: truckingCompany.companyName,
+          warehouseId: warehouse.warehouseCode,
+          warehouseName: warehouse.warehouseName,
+          warehouseCountry: warehouse.country,
+          unloadMode
+        }
+      };
+      
+    } catch (error) {
+      logger.error(
+        `[IntelligentScheduling] Error scheduling with designated warehouse for ${container.containerNumber}:`,
+        error
+      );
+      return {
+        containerNumber: container.containerNumber,
+        success: false,
+        message: `手工指定仓库排产失败：${error instanceof Error ? error.message : '未知错误'}`,
+        destinationPort: destPo.portCode || '',
+        destinationPortName: destPo.portName || '',
+        etaDestPort: '',
+        ataDestPort: ''
       };
     }
   }
