@@ -205,7 +205,7 @@ onMounted(() => {
 }
 
 .config-sidebar {
-  width: 64px;  /* ✅ 缩小菜单宽度，只显示图标 */
+  width: 64px; /* ✅ 缩小菜单宽度，只显示图标 */
   flex-shrink: 0;
 }
 
@@ -216,12 +216,12 @@ onMounted(() => {
 }
 
 .config-menu .el-menu-item {
-  justify-content: center;  /* ✅ 图标居中 */
-  padding-left: 50% !important;  /* ✅ 让图标居中 */
+  justify-content: center; /* ✅ 图标居中 */
+  padding-left: 50% !important; /* ✅ 让图标居中 */
 }
 
 .config-menu .el-icon {
-  font-size: 20px;  /* ✅ 图标稍大一些 */
+  font-size: 20px; /* ✅ 图标稍大一些 */
 }
 
 .config-main {

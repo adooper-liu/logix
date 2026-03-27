@@ -15,9 +15,6 @@ router.post('/batch-schedule', controller.batchSchedule);
 // 确认保存排产结果（重新计算并保存）
 router.post('/confirm', controller.confirmSchedule);
 
-// 排产预览（不写库）
-router.post('/:id/schedule-preview', controller.schedulePreview);
-
 // 排产概览
 router.get('/overview', controller.getSchedulingOverview);
 
@@ -66,7 +63,11 @@ router.get('/recommend-option/:id', controller.getRecommendOption);
 // 成本优化
 router.post('/optimize-cost', controller.optimizeCost);
 router.post('/optimize-container/:containerNumber', controller.optimizeContainer); // ✅ 新增：单柜优化
+console.log('[Scheduling Routes] ✅ optimize-container route registered');
 router.post('/batch-optimize', controller.batchOptimizeCost);
 router.get('/cost-comparison/:containerNumber', controller.getCostComparison);
+
+// 排产预览（不写库）- 放在最后，避免匹配其他具体路由
+router.post('/:id/schedule-preview', controller.schedulePreview);
 
 export default router;

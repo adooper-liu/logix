@@ -7,7 +7,7 @@
  * - 搜索功能：支持柜号、目的港、仓库搜索
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { computed } from 'vue'
 
 // 模拟 Vue 组件中的计算属性

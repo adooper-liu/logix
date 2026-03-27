@@ -572,9 +572,13 @@ class ContainerService {
     }
   }> {
     const { containerNumber, ...data } = params
-    const response = await this.api.post(`/scheduling/optimize-container/${containerNumber}`, data, {
-      timeout: 60000, // 60 秒超时
-    })
+    const response = await this.api.post(
+      `/scheduling/optimize-container/${containerNumber}`,
+      data,
+      {
+        timeout: 60000, // 60 秒超时
+      }
+    )
     return response.data
   }
 }

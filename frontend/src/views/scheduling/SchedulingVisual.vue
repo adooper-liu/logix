@@ -412,7 +412,10 @@
                         <div>免费天数：{{ row.freeDays !== undefined ? row.freeDays : '-' }}</div>
                         <div>计算逻辑：从卸柜日开始计算免费期</div>
                       </template>
-                      <div v-if="row.lastFreeDate" style="display: flex; flex-direction: column; gap: 4px">
+                      <div
+                        v-if="row.lastFreeDate"
+                        style="display: flex; flex-direction: column; gap: 4px"
+                      >
                         <span>{{ row.lastFreeDate }}</span>
                         <el-tag :type="getLfdTagStatus(row)" size="small">
                           {{ getLfdCountdown(row) }}
@@ -429,7 +432,10 @@
                         <div>免费天数：{{ row.freeDays !== undefined ? row.freeDays : '-' }}</div>
                         <div>计算逻辑：从卸柜日开始计算免费期</div>
                       </template>
-                      <div v-if="row.lastReturnDate" style="display: flex; flex-direction: column; gap: 4px">
+                      <div
+                        v-if="row.lastReturnDate"
+                        style="display: flex; flex-direction: column; gap: 4px"
+                      >
                         <span>{{ row.lastReturnDate }}</span>
                         <el-tag :type="getLrdTagStatus(row)" size="small">
                           {{ getLrdCountdown(row) }}
@@ -445,12 +451,16 @@
                       <div class="plan-date-item">
                         <el-icon><Clock /></el-icon>
                         <span class="date-label">提柜:</span>
-                        <span class="date-value">{{ row.plannedData.plannedPickupDate || '-' }}</span>
+                        <span class="date-value">{{
+                          row.plannedData.plannedPickupDate || '-'
+                        }}</span>
                       </div>
                       <div class="plan-date-item">
                         <el-icon><Van /></el-icon>
                         <span class="date-label">送仓:</span>
-                        <span class="date-value">{{ row.plannedData.plannedDeliveryDate || '-' }}</span>
+                        <span class="date-value">{{
+                          row.plannedData.plannedDeliveryDate || '-'
+                        }}</span>
                       </div>
                       <div class="plan-date-item">
                         <el-icon><Box /></el-icon>
@@ -460,7 +470,9 @@
                       <div class="plan-date-item">
                         <el-icon><OfficeBuilding /></el-icon>
                         <span class="date-label">还箱:</span>
-                        <span class="date-value">{{ row.plannedData.plannedReturnDate || '-' }}</span>
+                        <span class="date-value">{{
+                          row.plannedData.plannedReturnDate || '-'
+                        }}</span>
                       </div>
                     </div>
                     <span v-else>-</span>
@@ -471,7 +483,9 @@
                   <template #default="{ row }">
                     <el-tree
                       v-if="row.estimatedCosts && row.estimatedCosts.totalCost"
-                      :data="buildCostTree(row.estimatedCosts, row.plannedData?.warehouseCountry || 'US')"
+                      :data="
+                        buildCostTree(row.estimatedCosts, row.plannedData?.warehouseCountry || 'US')
+                      "
                       :props="costTreeProps"
                       :expand-on-click-node="false"
                       default-expand-all
@@ -480,12 +494,18 @@
                     >
                       <template #default="{ node, data }">
                         <span class="cost-tree-node">
-                          <span class="cost-tree-label" v-if="data.level === 1">{{ node.label }}</span>
-                          <span 
-                            class="cost-tree-value" 
-                            :class="data.level === 0 ? 'cost-value-total' : getAmountClass(data.value)"
+                          <span class="cost-tree-label" v-if="data.level === 1">{{
+                            node.label
+                          }}</span>
+                          <span
+                            class="cost-tree-value"
+                            :class="
+                              data.level === 0 ? 'cost-value-total' : getAmountClass(data.value)
+                            "
                           >
-                            {{ formatCurrency(data.value, row.plannedData?.warehouseCountry || 'US') }}
+                            {{
+                              formatCurrency(data.value, row.plannedData?.warehouseCountry || 'US')
+                            }}
                           </span>
                         </span>
                       </template>
@@ -511,7 +531,10 @@
                 <el-table-column prop="message" label="消息" show-overflow-tooltip />
               </el-table>
               <!-- ✅ P2: 分页组件 -->
-              <div class="pagination-container" style="display: flex; justify-content: flex-end; margin-top: 16px">
+              <div
+                class="pagination-container"
+                style="display: flex; justify-content: flex-end; margin-top: 16px"
+              >
                 <el-pagination
                   v-model:current-page="currentPage"
                   :page-size="pageSize"
@@ -571,12 +594,16 @@
                       <div class="plan-date-item">
                         <el-icon><Clock /></el-icon>
                         <span class="date-label">提柜:</span>
-                        <span class="date-value">{{ row.plannedData.plannedPickupDate || '-' }}</span>
+                        <span class="date-value">{{
+                          row.plannedData.plannedPickupDate || '-'
+                        }}</span>
                       </div>
                       <div class="plan-date-item">
                         <el-icon><Van /></el-icon>
                         <span class="date-label">送仓:</span>
-                        <span class="date-value">{{ row.plannedData.plannedDeliveryDate || '-' }}</span>
+                        <span class="date-value">{{
+                          row.plannedData.plannedDeliveryDate || '-'
+                        }}</span>
                       </div>
                       <div class="plan-date-item">
                         <el-icon><Box /></el-icon>
@@ -586,7 +613,9 @@
                       <div class="plan-date-item">
                         <el-icon><OfficeBuilding /></el-icon>
                         <span class="date-label">还箱:</span>
-                        <span class="date-value">{{ row.plannedData.plannedReturnDate || '-' }}</span>
+                        <span class="date-value">{{
+                          row.plannedData.plannedReturnDate || '-'
+                        }}</span>
                       </div>
                     </div>
                     <span v-else>-</span>
@@ -594,7 +623,10 @@
                 </el-table-column>
               </el-table>
               <!-- ✅ P2: 分页组件 -->
-              <div class="pagination-container" style="display: flex; justify-content: flex-end; margin-top: 16px">
+              <div
+                class="pagination-container"
+                style="display: flex; justify-content: flex-end; margin-top: 16px"
+              >
                 <el-pagination
                   v-model:current-page="currentPage"
                   :page-size="pageSize"
@@ -645,7 +677,10 @@
                 <el-table-column prop="message" label="失败原因" show-overflow-tooltip />
               </el-table>
               <!-- ✅ P2: 分页组件 -->
-              <div class="pagination-container" style="display: flex; justify-content: flex-end; margin-top: 16px">
+              <div
+                class="pagination-container"
+                style="display: flex; justify-content: flex-end; margin-top: 16px"
+              >
                 <el-pagination
                   v-model:current-page="currentPage"
                   :page-size="pageSize"
@@ -762,7 +797,7 @@ const displayResults = computed(() => {
   const isPreview = isPreviewMode.value
   const previewLen = previewResults.value.length
   const scheduleResults = scheduleResult.value?.results || []
-  
+
   if (isPreview && previewLen > 0) {
     return previewResults.value
   }
@@ -865,10 +900,10 @@ const costTreeProps = {
 // ✅ 构建费用树形结构
 const buildCostTree = (costs: any, _country: string) => {
   const tree: any[] = []
-  
+
   // 添加子节点（分项费用）
   const children: any[] = []
-  
+
   if (costs.demurrageCost) {
     children.push({
       label: '滞港费',
@@ -876,7 +911,7 @@ const buildCostTree = (costs: any, _country: string) => {
       level: 1,
     })
   }
-  
+
   if (costs.detentionCost) {
     children.push({
       label: '滞箱费',
@@ -884,7 +919,7 @@ const buildCostTree = (costs: any, _country: string) => {
       level: 1,
     })
   }
-  
+
   if (costs.storageCost) {
     children.push({
       label: '港口存储费',
@@ -892,7 +927,7 @@ const buildCostTree = (costs: any, _country: string) => {
       level: 1,
     })
   }
-  
+
   if (costs.transportationCost) {
     children.push({
       label: '运输费',
@@ -900,7 +935,7 @@ const buildCostTree = (costs: any, _country: string) => {
       level: 1,
     })
   }
-  
+
   if (costs.yardStorageCost) {
     children.push({
       label: '堆场堆存费',
@@ -908,7 +943,7 @@ const buildCostTree = (costs: any, _country: string) => {
       level: 1,
     })
   }
-  
+
   // 添加根节点（总费用）
   tree.push({
     label: '总费用',
@@ -916,7 +951,7 @@ const buildCostTree = (costs: any, _country: string) => {
     level: 0,
     children: children,
   })
-  
+
   return tree
 }
 
@@ -1013,13 +1048,23 @@ const exportScheduleResult = () => {
   // ✅ P3: 添加筛选条件到导出文件头部
   const filterInfo = [
     ['导出时间', dayjs().format('YYYY-MM-DD HH:mm:ss')],
-    ['日期范围', dateRange.value ? `${dayjs(dateRange.value[0]).format('YYYY-MM-DD')} 至 ${dayjs(dateRange.value[1]).format('YYYY-MM-DD')}` : '全部'],
+    [
+      '日期范围',
+      dateRange.value
+        ? `${dayjs(dateRange.value[0]).format('YYYY-MM-DD')} 至 ${dayjs(dateRange.value[1]).format('YYYY-MM-DD')}`
+        : '全部',
+    ],
     ['目的港', selectedPortCode.value || '所有港口'],
     ['搜索关键词', searchText.value || '无'],
     ['总柜数', scheduleResult.value.results.length],
     ['成功', successCount.value],
     ['失败', failedCount.value],
-    ['成功率', displayResults.value.length > 0 ? ((successCount.value / displayResults.value.length) * 100).toFixed(1) + '%' : '0%'],
+    [
+      '成功率',
+      displayResults.value.length > 0
+        ? ((successCount.value / displayResults.value.length) * 100).toFixed(1) + '%'
+        : '0%',
+    ],
     ['', ''], // 空行分隔
   ]
 
@@ -1077,7 +1122,7 @@ const exportScheduleResult = () => {
   const csvContent = [
     ...filterInfo.map((row: string[]) => row.map((cell: unknown) => `"${cell}"`).join(',')), // ✅ P3: 添加筛选条件
     headers.map((cell: string) => `"${cell}"`).join(','),
-    ...rows.map((row: string[]) => row.map((cell: unknown) => `"${cell}"`).join(','))
+    ...rows.map((row: string[]) => row.map((cell: unknown) => `"${cell}"`).join(',')),
   ].join('\n')
 
   const BOM = '\uFEFF'
@@ -1164,7 +1209,7 @@ const getResultTagType = (): 'success' | 'warning' | 'danger' | 'info' => {
     if (successRate >= 0.7) return 'warning'
     return 'danger'
   }
-  
+
   // 正式模式：基于正式结果计算
   if (scheduleResult.value?.total === 0) return 'info'
   const successRate = scheduleResult.value.successCount / scheduleResult.value.total
@@ -1460,7 +1505,7 @@ const handlePreviewSchedule = async () => {
     // ✅ 直接显示预览结果，不再弹出对话框
     isPreviewMode.value = true
     scheduleResult.value = null // 清空正式结果
-        
+
     addLog(`预览完成：成功 ${result.successCount} 个，失败 ${result.failedCount} 个`, 'info')
     ElMessage.success(`预览完成：成功 ${result.successCount} 个，请在下方审查并勾选要保存的方案`)
   } catch (error: any) {
@@ -1579,22 +1624,20 @@ const getAmountClass = (amount: number) => {
 // ✅ 新增：成本优化快捷操作
 const handleOptimizeContainer = async (row: any) => {
   const containerNumber = row.containerNumber
-  
+
   // ✅ 优化：从多个可能的字段获取仓库代码
-  const warehouseCode = 
-    row.plannedData?.warehouseCode ||    // 优先从 plannedData 获取
-    row.warehouseCode ||                 // 从根对象获取
-    row.destinationWarehouse ||          // 备用字段 1
-    row.warehouseId ||                   // 备用字段 2
-    row.warehouseName?.split(' ')[0] ||  // ✅ 新增：从仓库名称提取（如果有）
-    row.plannedData?.warehouseName?.split(' ')[0]  // ✅ 新增：从 plannedData 的仓库名称提取
-  
+  const warehouseCode =
+    row.plannedData?.warehouseCode || // 优先从 plannedData 获取
+    row.warehouseCode || // 从根对象获取
+    row.destinationWarehouse || // 备用字段 1
+    row.warehouseId || // 备用字段 2
+    row.warehouseName?.split(' ')[0] || // ✅ 新增：从仓库名称提取（如果有）
+    row.plannedData?.warehouseName?.split(' ')[0] // ✅ 新增：从 plannedData 的仓库名称提取
+
   // ✅ 优化：从多个可能的字段获取车队 ID
-  const truckingCompanyId = 
-    row.plannedData?.truckingCompanyId || 
-    row.truckingCompanyId || 
-    row.truckingCompany
-  
+  const truckingCompanyId =
+    row.plannedData?.truckingCompanyId || row.truckingCompanyId || row.truckingCompany
+
   const basePickupDate = row.plannedData?.plannedPickupDate || row.plannedPickupDate
 
   console.log('[handleOptimizeContainer] 检查参数:', {
@@ -1646,7 +1689,7 @@ const handleOptimizeContainer = async (row: any) => {
 
       if (result.success && result.data) {
         const { savings, suggestedPickupDate, suggestedStrategy, alternatives } = result.data
-        
+
         // 显示优化结果
         ElMessageBox.alert(
           `<div class="optimize-result">
@@ -1658,9 +1701,13 @@ const handleOptimizeContainer = async (row: any) => {
             </ul>
             <p><strong>备选方案：</strong></p>
             <ul>
-              ${alternatives.slice(0, 3).map((alt: any) => 
-                `<li>提柜日：${alt.pickupDate} | 策略：${alt.strategy} | 总成本：$${alt.totalCost.toFixed(2)} | 节省：$${alt.savings.toFixed(2)}</li>`
-              ).join('')}
+              ${alternatives
+                .slice(0, 3)
+                .map(
+                  (alt: any) =>
+                    `<li>提柜日：${alt.pickupDate} | 策略：${alt.strategy} | 总成本：$${alt.totalCost.toFixed(2)} | 节省：$${alt.savings.toFixed(2)}</li>`
+                )
+                .join('')}
             </ul>
           </div>`,
           `货柜 ${containerNumber} 优化完成`,
@@ -1670,7 +1717,10 @@ const handleOptimizeContainer = async (row: any) => {
             type: 'success',
           }
         )
-        addLog(`优化完成：建议 ${suggestedPickupDate} 提柜，${suggestedStrategy}，节省 $${savings.toFixed(2)}`, 'success')
+        addLog(
+          `优化完成：建议 ${suggestedPickupDate} 提柜，${suggestedStrategy}，节省 $${savings.toFixed(2)}`,
+          'success'
+        )
       } else {
         ElMessage.warning('优化未返回结果')
         addLog(`优化未返回结果`, 'warning')
@@ -1689,11 +1739,11 @@ const getLfdTagStatus = (row: any) => {
   const today = new Date()
   const lfd = row.lastFreeDate ? new Date(row.lastFreeDate) : null
   if (!lfd) return 'info'
-  
+
   const diffDays = Math.floor((lfd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-  if (diffDays < 0) return 'danger'    // 超期
-  if (diffDays <= 2) return 'warning'  // 即将到期
-  return 'success'                     // 安全
+  if (diffDays < 0) return 'danger' // 超期
+  if (diffDays <= 2) return 'warning' // 即将到期
+  return 'success' // 安全
 }
 
 // ✅ 新增：获取最晚提柜日倒计时文本
@@ -1701,7 +1751,7 @@ const getLfdCountdown = (row: any) => {
   const today = new Date()
   const lfd = row.lastFreeDate ? new Date(row.lastFreeDate) : null
   if (!lfd) return ''
-  
+
   const diffDays = Math.floor((lfd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
   if (diffDays < 0) return `超期${Math.abs(diffDays)}天`
   if (diffDays === 0) return '今天到期'
@@ -1714,11 +1764,11 @@ const getLrdTagStatus = (row: any) => {
   const today = new Date()
   const lrd = row.lastReturnDate ? new Date(row.lastReturnDate) : null
   if (!lrd) return 'info'
-  
+
   const diffDays = Math.floor((lrd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
-  if (diffDays < 0) return 'danger'    // 超期
-  if (diffDays <= 2) return 'warning'  // 即将到期
-  return 'success'                     // 安全
+  if (diffDays < 0) return 'danger' // 超期
+  if (diffDays <= 2) return 'warning' // 即将到期
+  return 'success' // 安全
 }
 
 // ✅ 新增：获取最晚还箱日倒计时文本
@@ -1726,7 +1776,7 @@ const getLrdCountdown = (row: any) => {
   const today = new Date()
   const lrd = row.lastReturnDate ? new Date(row.lastReturnDate) : null
   if (!lrd) return ''
-  
+
   const diffDays = Math.floor((lrd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
   if (diffDays < 0) return `超期${Math.abs(diffDays)}天`
   if (diffDays === 0) return '今天到期'
@@ -1736,9 +1786,9 @@ const getLrdCountdown = (row: any) => {
 
 // ✅ 新增：获取剩余免费天样式类
 const getFreeDaysClass = (days: number) => {
-  if (days < 0) return 'text-danger font-weight-bold'  // 超期
+  if (days < 0) return 'text-danger font-weight-bold' // 超期
   if (days <= 2) return 'text-warning font-weight-bold' // 紧张
-  return 'text-success'                                 // 安全
+  return 'text-success' // 安全
 }
 
 // 监听国家变化
@@ -2562,20 +2612,20 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  padding: 2px 4px;  /* ✅ 更紧凑：从 4px 0 改为 2px 4px */
+  padding: 2px 4px; /* ✅ 更紧凑：从 4px 0 改为 2px 4px */
 }
 
 .cost-tree-label {
   color: #606266;
   font-size: 13px;
-  flex: 1;  /* ✅ 标签占据剩余空间 */
+  flex: 1; /* ✅ 标签占据剩余空间 */
 }
 
 .cost-tree-value {
   font-weight: 500;
   font-size: 13px;
-  min-width: 100px;  /* ✅ 金额固定宽度 */
-  text-align: left;  /* ✅ 金额左对齐 */
+  min-width: 100px; /* ✅ 金额固定宽度 */
+  text-align: left; /* ✅ 金额左对齐 */
 }
 
 .cost-tree-value.cost-value-total {
@@ -2598,7 +2648,7 @@ onMounted(() => {
 /* 树形节点缩进 */
 .cost-tree :deep(.el-tree-node__content) {
   height: auto;
-  padding: 2px 0;  /* ✅ 更紧凑：减少垂直间距 */
+  padding: 2px 0; /* ✅ 更紧凑：减少垂直间距 */
 }
 
 .cost-tree :deep(.el-tree-node__expand-icon) {
@@ -2608,7 +2658,7 @@ onMounted(() => {
 
 /* ✅ 总费用行样式（隐藏标签，只显示金额） */
 .cost-tree :deep(.el-tree-node.is-leaf .el-tree-node__content) {
-  padding-left: 0;  /* ✅ 根节点不缩进 */
+  padding-left: 0; /* ✅ 根节点不缩进 */
 }
 
 .stat-text {

@@ -7,7 +7,7 @@
  * - getLfdCountdown/getLrdCountdown: 免费期倒计时
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 // 模拟 Vue 组件中的辅助方法
 const formatCurrency = (value: number | string, currencyCode: string = 'US') => {
