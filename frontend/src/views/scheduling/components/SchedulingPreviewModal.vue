@@ -400,8 +400,8 @@
 </template>
 
 <script setup lang="ts">
-import { costOptimizerService, type Alternative } from '@/services/costOptimizer.service'
 import { useCostOptimization } from '@/composables/useCostOptimization'
+import { type Alternative } from '@/services/costOptimizer.service'
 import { CircleCheck, CircleClose } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { computed, ref, watch } from 'vue'
