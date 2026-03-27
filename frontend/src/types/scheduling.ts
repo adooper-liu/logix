@@ -73,3 +73,35 @@ export interface RecommendationResult {
   reason: string
   savings: number
 }
+
+/**
+ * ✅ 新增：成本优化建议（Task 2.1）
+ */
+export interface OptimizationSuggestion {
+  originalCost: number // 原方案成本
+  optimizedCost: number // 优化后成本
+  savings: number // 节省金额
+  suggestedPickupDate: string // 建议提柜日
+  suggestedStrategy?: string // 建议策略
+  shouldOptimize: boolean // 是否建议优化（savings > 0）
+}
+
+/**
+ * 排产结果
+ */
+export interface ScheduleResult {
+  containerNumber: string
+  success: boolean
+  message?: string
+  plannedData?: Record<string, any>
+  estimatedCosts?: CostBreakdown
+  lastFreeDate?: string
+  lastReturnDate?: string
+  freeDaysRemaining?: number
+  destinationPort?: string
+  destinationPortName?: string
+  warehouseName?: string
+  etaDestPort?: string
+  ataDestPort?: string
+  optimizationSuggestions?: OptimizationSuggestion // ✅ 新增：成本优化建议（可选）
+}

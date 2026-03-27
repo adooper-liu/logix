@@ -3,7 +3,7 @@
     <el-form :model="selectedOption" label-width="100px" size="small">
       <el-form-item label="策略">
         <el-select v-model="selectedOption.strategy" @change="handleSelectChange">
-          <el-option label="Direct" value="Direct" />
+          <el-option label="Live Unload" value="Direct" />
           <el-option label="Drop off" value="Drop off" />
           <el-option label="Expedited" value="Expedited" />
         </el-select>

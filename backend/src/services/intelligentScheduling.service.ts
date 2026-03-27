@@ -31,6 +31,7 @@ import * as dateTimeUtils from '../utils/dateTimeUtils';
 import { logger } from '../utils/logger';
 import { ContainerStatusService } from './containerStatus.service';
 import { DemurrageService } from './demurrage.service';
+import { SchedulingCostOptimizerService } from './schedulingCostOptimizer.service';
 
 /**
  * 未指定的清关公司编码
@@ -103,6 +104,7 @@ export interface BatchScheduleResponse {
   failedCount: number;
   results: ScheduleResult[];
   hasMore?: boolean; // 是否还有待排产货柜（分步排产时使用）
+  totalOptimizationSavings?: number; // ✅ Task 2.1: 总优化节省金额
 }
 
 /**
@@ -121,6 +123,8 @@ export class IntelligentSchedulingService {
   private customerRepo = AppDataSource.getRepository(Customer);
   private customsBrokerRepo = AppDataSource.getRepository(CustomsBroker);
   private schedulingConfigRepo = AppDataSource.getRepository(DictSchedulingConfig);
+  private warehouseRepo = AppDataSource.getRepository(Warehouse); // ✅ Task 2.1
+  private truckingCompanyRepo = AppDataSource.getRepository(TruckingCompany); // ✅ Task 2.1
   private containerStatusService = new ContainerStatusService();
   private demurrageService = new DemurrageService(
     AppDataSource.getRepository(ExtDemurrageStandard),
@@ -132,6 +136,9 @@ export class IntelligentSchedulingService {
     AppDataSource.getRepository(ReplenishmentOrder),
     AppDataSource.getRepository(ExtDemurrageRecord)
   );
+  
+  // ✅ Task 2.1: 新增成本优化服务
+  private costOptimizerService = new SchedulingCostOptimizerService();
 
   /**
    * 批量排产
@@ -186,19 +193,74 @@ export class IntelligentSchedulingService {
 
       // 4. 对每个货柜进行排产（dryRun 模式下只计算不保存）
       for (const container of toProcess) {
-        const result = await this.scheduleSingleContainer(container, request);
-        results.push(result);
+        const result = await this.scheduleSingleContainer(container, request)
+        results.push(result)
       }
-
-      const successCount = results.filter((r) => r.success).length;
+      
+      // ✅ Task 2.1: 对成功的排产结果附加成本优化建议
+      const successfulResults = results.filter(r => r.success && r.plannedData)
+      for (const result of successfulResults) {
+        try {
+          const plannedData = result.plannedData!
+          const warehouseCode = plannedData.warehouseId // ✅ warehouseId 就是 warehouseCode
+          const truckingCompanyId = plannedData.truckingCompanyId
+                
+          if (!warehouseCode || !truckingCompanyId || !plannedData.plannedPickupDate) {
+            continue // 缺少必要参数，跳过优化
+          }
+      
+          // 获取仓库和车队信息
+          const warehouse = await this.warehouseRepo.findOne({ where: { warehouseCode } })
+          const truckingCompany = await this.truckingCompanyRepo.findOne({ 
+            where: { companyCode: truckingCompanyId } 
+          })
+      
+          if (!warehouse || !truckingCompany) {
+            continue // 找不到实体，跳过优化
+          }
+      
+          // 调用成本优化服务
+          const optimization = await this.costOptimizerService.suggestOptimalUnloadDate(
+            result.containerNumber,
+            warehouse,
+            truckingCompany,
+            new Date(plannedData.plannedPickupDate)
+          )
+      
+          // 附加优化建议
+          ;(result as any).optimizationSuggestions = {
+            originalCost: optimization.originalCost,
+            optimizedCost: optimization.optimizedCost,
+            savings: optimization.savings,
+            suggestedPickupDate: optimization.suggestedPickupDate.toISOString().split('T')[0],
+            suggestedStrategy: optimization.suggestedStrategy,
+            shouldOptimize: optimization.savings > 0
+          }
+        } catch (error: any) {
+          logger.warn(
+            `[IntelligentScheduling] Cost optimization suggestion failed for ${result.containerNumber}:`,
+            error.message
+          )
+          // 优化失败不影响排产结果，继续处理下一个
+        }
+      }
+      
+      const successCount = results.filter((r) => r.success).length
+            
+      // ✅ 计算总优化节省金额
+      const totalOptimizationSavings = successfulResults.reduce((sum, r: any) => {
+        return sum + (r.optimizationSuggestions?.savings || 0)
+      }, 0)
+      
       return {
         success: true,
         total: containers.length,
         successCount,
         failedCount: results.length - successCount,
         results,
-        hasMore
-      };
+        hasMore,
+        totalOptimizationSavings // ✅ 新增：总优化节省金额
+      }
     } catch (error: any) {
       logger.error('[IntelligentScheduling] batchSchedule error:', error);
       return {

@@ -281,6 +281,36 @@
         </template>
       </el-table-column>
 
+      <!-- ✅ Task 2.2: 新增优化建议列 -->
+      <el-table-column label="💡 优化建议" width="130" align="center">
+        <template #default="{ row }">
+          <div
+            v-if="row.optimizationSuggestions"
+            style="display: flex; flex-direction: column; gap: 4px"
+          >
+            <el-tag
+              v-if="row.optimizationSuggestions.shouldOptimize"
+              type="success"
+              effect="plain"
+              size="small"
+              style="cursor: pointer"
+              @click="handleViewOptimizationSuggestion(row)"
+            >
+              💰 可省 ${{ row.optimizationSuggestions.savings.toFixed(2) }}
+            </el-tag>
+            <el-tag v-else type="info" effect="plain" size="small"> ✅ 已最优 </el-tag>
+            <div
+              v-if="row.optimizationSuggestions.shouldOptimize"
+              style="font-size: 11px; color: #67c23a; cursor: pointer"
+              @click="handleViewOptimizationSuggestion(row)"
+            >
+              查看详情 →
+            </div>
+          </div>
+          <span v-else style="color: #999">-</span>
+        </template>
+      </el-table-column>
+
       <el-table-column label="费用明细" width="100" align="center">
         <template #default="{ row }">
           <el-popover v-if="row.estimatedCosts" placement="left" :width="220" trigger="hover">
@@ -358,6 +388,37 @@
           <span v-else>-</span>
         </template>
       </el-table-column>
+
+      <!-- ✅ Task 2.2: 新增优化建议列 -->
+      <el-table-column label="💡 优化建议" width="130" align="center">
+        <template #default="{ row }">
+          <div
+            v-if="row.optimizationSuggestions"
+            style="display: flex; flex-direction: column; gap: 4px"
+          >
+            <el-tag
+              v-if="row.optimizationSuggestions.shouldOptimize"
+              type="success"
+              effect="plain"
+              size="small"
+              style="cursor: pointer"
+              @click="handleViewOptimizationSuggestion(row)"
+            >
+              💰 可省 ${{ row.optimizationSuggestions.savings.toFixed(2) }}
+            </el-tag>
+            <el-tag v-else type="info" effect="plain" size="small"> ✅ 已最优 </el-tag>
+            <div
+              v-if="row.optimizationSuggestions.shouldOptimize"
+              style="font-size: 11px; color: #67c23a; cursor: pointer"
+              @click="handleViewOptimizationSuggestion(row)"
+            >
+              查看详情 →
+            </div>
+          </div>
+          <span v-else style="color: #999">-</span>
+        </template>
+      </el-table-column>
+
       <el-table-column label="状态" width="80">
         <template #default="{ row }">
           <el-icon v-if="row.success" color="#67C23A"><CircleCheck /></el-icon>
@@ -381,19 +442,20 @@
       </div>
     </template>
 
-    <!-- 方案对比弹窗 -->
+    <!-- ✅ 成本优化结果卡片弹窗 -->
     <el-dialog
-      v-model="showAlternativesDialog"
-      title="💡 成本优化方案对比"
+      v-model="showOptimizationDialog"
+      title="💰 成本优化分析报告"
       width="900px"
       :close-on-click-modal="false"
     >
-      <OptimizationAlternatives
-        :alternatives="currentAlternatives"
+      <OptimizationResultCard
+        v-if="bulkOptimizationReport"
+        :report="bulkOptimizationReport"
         :loading="optimizing"
-        @select="handleAlternativeSelect"
-        @accept-all="handleAcceptAll"
-        @reject-all="handleRejectAll"
+        :show-actions="true"
+        @accept="handleAcceptOptimization"
+        @reject="handleRejectOptimization"
       />
     </el-dialog>
   </el-dialog>
@@ -401,11 +463,10 @@
 
 <script setup lang="ts">
 import { useCostOptimization } from '@/composables/useCostOptimization'
-import { type Alternative } from '@/services/costOptimizer.service'
 import { CircleCheck, CircleClose } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { computed, ref, watch } from 'vue'
-import OptimizationAlternatives from './OptimizationAlternatives.vue'
+import OptimizationResultCard from './OptimizationResultCard.vue'
 
 interface PreviewResult {
   containerNumber: string
@@ -435,6 +496,15 @@ interface PreviewResult {
     currency?: string
   }
   destinationPort?: string
+  // ✅ Task 2.2: 新增成本优化建议字段
+  optimizationSuggestions?: {
+    originalCost: number
+    optimizedCost: number
+    savings: number
+    suggestedPickupDate: string
+    suggestedStrategy?: string
+    shouldOptimize: boolean
+  }
 }
 
 const props = defineProps<{
@@ -453,8 +523,8 @@ const saving = ref(false)
 
 // ✅ 使用统一的成本优化 Hook
 const { optimizing, optimizationResult, executeOptimization } = useCostOptimization()
-const showAlternativesDialog = ref(false) // 显示方案对比弹窗
-const currentAlternatives = ref<Alternative[]>([])
+const showOptimizationDialog = ref(false) // ✅ 显示优化结果对话框
+const bulkOptimizationReport = ref<any>(null) // ✅ 批量优化报告
 
 const successCount = computed(() => props.previewResults.filter(r => r.success).length)
 
@@ -579,10 +649,56 @@ const handleSmartOptimization = async () => {
     // ✅ 复用排产预览结果作为数据源
     const result = await executeOptimization(props.previewResults)
 
-    // 显示 Top 3 方案对比卡片
-    const slicedAlternatives = result.alternatives.slice(0, 3)
-    currentAlternatives.value = slicedAlternatives
-    showAlternativesDialog.value = true
+    // ✅ 构建完整的批量优化报告对象（遵循 SKILL：单一事实来源）
+    const firstResult = props.previewResults[0]
+    bulkOptimizationReport.value = {
+      originalCost: {
+        total: result.originalCost,
+        pickupDate: firstResult?.plannedData?.plannedPickupDate || '',
+        strategy: firstResult?.plannedData?.unloadMode || 'Direct',
+        breakdown: firstResult?.estimatedCosts || {
+          demurrageCost: 0,
+          detentionCost: 0,
+          storageCost: 0,
+          yardStorageCost: 0,
+          transportationCost: 0,
+          handlingCost: 0,
+          totalCost: result.originalCost,
+        },
+      },
+      optimizedCost: {
+        total: result.optimizedCost,
+        pickupDate: result.alternatives[0]?.pickupDate || '',
+        strategy: result.alternatives[0]?.strategy || 'Direct',
+        breakdown: result.alternatives[0] || {
+          demurrageCost: 0,
+          detentionCost: 0,
+          storageCost: 0,
+          yardStorageCost: 0,
+          transportationCost: 0,
+          handlingCost: 0,
+          totalCost: result.optimizedCost,
+        },
+      },
+      savings: {
+        amount: result.totalSavings,
+        percentage: (result.totalSavings / result.originalCost) * 100,
+        explanation: `优化 ${result.optimizedCount} 个货柜的提柜日期和策略，预计节省 $${result.totalSavings.toFixed(2)}`,
+      },
+      decisionSupport: {
+        freeDaysRemaining: 7, // TODO: 从后端返回
+        lastFreeDate: '', // TODO: 从后端返回
+        warehouseAvailability: '充足',
+        weekendAlert: false, // TODO: 根据实际日期计算
+      },
+      allAlternatives: result.alternatives.slice(0, 5).map((alt: any) => ({
+        ...alt,
+        breakdown: alt, // 简化处理
+      })),
+    }
+
+    // ✅ 显示 OptimizationResultCard 对话框
+    showOptimizationDialog.value = true
 
     ElMessage.success(
       `发现 ${result.optimizedCount} 个货柜可优化，预计节省 $${(result.totalSavings ?? 0).toFixed(2)}`
@@ -592,28 +708,38 @@ const handleSmartOptimization = async () => {
   }
 }
 
-// ✅ 处理方案选择
-const handleAlternativeSelect = (index: number, alternative: Alternative) => {
-  console.log('选择方案:', index, alternative)
+// ✅ 接受优化方案
+const handleAcceptOptimization = (alternative: any) => {
+  console.log('[handleAcceptOptimization] 接受方案:', alternative)
+  showOptimizationDialog.value = false
+  ElMessage.success('已应用优化方案')
+  // TODO: 实际保存优化结果到数据库
 }
 
-// ✅ 接受所有优化
-const handleAcceptAll = async () => {
-  try {
-    // TODO: 应用优化方案到排产计划
-    ElMessage.success('已应用优化方案')
-    showAlternativesDialog.value = false
-
-    // TODO: 刷新预览结果
-  } catch (error: any) {
-    ElMessage.error(error.message || '应用失败')
-  }
-}
-
-// ✅ 拒绝所有优化
-const handleRejectAll = () => {
-  showAlternativesDialog.value = false
+// ✅ 拒绝优化方案
+const handleRejectOptimization = (alternative: any) => {
+  console.log('[handleRejectOptimization] 拒绝方案:', alternative)
+  showOptimizationDialog.value = false
   ElMessage.info('已拒绝优化方案')
+}
+
+// ✅ Task 2.2: 查看单个货柜的优化建议详情
+const handleViewOptimizationSuggestion = async (row: PreviewResult) => {
+  try {
+    if (!row.optimizationSuggestions) {
+      ElMessage.warning('该货柜暂无优化建议')
+      return
+    }
+
+    console.log('[handleViewOptimizationSuggestion] 查看优化建议:', row.containerNumber)
+
+    // TODO: 构建单个货柜的优化报告并显示对话框
+    // 简化处理：暂时只显示一个消息
+    ElMessage.success(`可查看 ${row.containerNumber} 的优化详情：预计节省 $${row.optimizationSuggestions.savings.toFixed(2)}`)
+  } catch (error: any) {
+    console.error('[handleViewOptimizationSuggestion] Error:', error)
+    ElMessage.error('查看优化详情失败，请稍后重试')
+  }
 }
 
 // 监听预览结果变化，默认全选成功的

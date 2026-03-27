@@ -345,7 +345,7 @@
                     size="small"
                     style="width: 130px; margin-left: 8px"
                   >
-                    <el-option label="Direct" value="Direct" />
+                    <el-option label="Live Unload" value="Direct" />
                     <el-option label="Drop off" value="Drop off" />
                     <el-option label="Expedited" value="Expedited" />
                   </el-select>
@@ -725,6 +725,24 @@
       :country-code="resolvedCountry"
       @confirm="handleDesignatedWarehouseConfirm"
     />
+
+    <!-- ✅ 成本优化结果卡片弹窗 -->
+    <el-dialog
+      v-model="showOptimizationDialog"
+      :title="`💰 货柜 ${currentOptimizationContainer} 优化完成`"
+      width="1200px"
+      :close-on-click-modal="false"
+    >
+      <OptimizationResultCard
+        v-if="optimizationReport"
+        :report="optimizationReport"
+        :container-number="currentOptimizationContainer"
+        :loading="false"
+        :show-actions="false"
+        @accept="handleAcceptOptimization"
+        @reject="handleRejectOptimization"
+      />
+    </el-dialog>
   </div>
 </template>
 
@@ -756,8 +774,8 @@ import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import OptimizationResultCard from './components/OptimizationResultCard.vue'
 import DesignatedWarehouseDialog from './components/DesignatedWarehouseDialog.vue'
-// ✅ 已移除：SchedulingPreviewModal 组件不再需要
 
 console.log('[SchedulingVisual] 组件开始加载')
 
@@ -787,6 +805,11 @@ const previewResults = ref<any[]>([]) // 预览结果
 const selectedPreviewContainers = ref<string[]>([]) // 用户选中的柜号
 const resultTableRef = ref() // 表格引用，用于全选操作
 const saving = ref(false) // 保存中状态
+
+// ✅ 新增：成本优化卡片对话框状态
+const showOptimizationDialog = ref(false)
+const currentOptimizationContainer = ref('') // 当前优化的柜号
+const optimizationReport = ref<any>(null) // 单个柜优化报告
 
 // ✅ 增强：高级搜索相关状态
 const searchUnloadMode = ref<string>('') // 卸柜方式过滤
@@ -1283,6 +1306,14 @@ const addLog = (message: string, type: string = 'info') => {
   })
 }
 
+// ✅ 新增：判断是否为周末
+const isWeekend = (dateStr: string): boolean => {
+  if (!dateStr) return false
+  const date = new Date(dateStr)
+  const day = date.getDay()
+  return day === 0 || day === 6 // 0 = 周日，6 = 周六
+}
+
 const BATCH_SIZE = 3
 
 // 预览确认相关 - 已移除，改为内联显示
@@ -1690,37 +1721,71 @@ const handleOptimizeContainer = async (row: any) => {
       })
 
       if (result.success && result.data) {
-        const { savings, suggestedPickupDate, suggestedStrategy, alternatives } = result.data
+        const data = result.data as any
+        const { originalCost, optimizedCost, savings, savingsPercent, suggestedPickupDate, suggestedStrategy, alternatives } = data
 
-        // 显示优化结果
-        ElMessageBox.alert(
-          `<div class="optimize-result">
-            <p><strong>优化方案：</strong></p>
-            <ul>
-              <li>建议提柜日：${suggestedPickupDate}</li>
-              <li>建议策略：${suggestedStrategy}</li>
-              <li>预计节省：$${savings.toFixed(2)}</li>
-            </ul>
-            <p><strong>备选方案：</strong></p>
-            <ul>
-              ${alternatives
-                .slice(0, 3)
-                .map(
-                  (alt: any) =>
-                    `<li>提柜日：${alt.pickupDate} | 策略：${alt.strategy} | 总成本：$${alt.totalCost.toFixed(2)} | 节省：$${alt.savings.toFixed(2)}</li>`
-                )
-                .join('')}
-            </ul>
-          </div>`,
-          `货柜 ${containerNumber} 优化完成`,
-          {
-            dangerouslyUseHTMLString: true,
-            confirmButtonText: '确定',
-            type: 'success',
-          }
-        )
+        // ✅ 构建优化报告（使用 OptimizationResultCard 需要的格式）
+        const firstAlt = alternatives?.[0] as any
+        const lastAlt = alternatives?.[alternatives.length - 1] as any
+        
+        // ✅ 关键修复：原方案应该使用 basePickupDate，而不是 alternatives[0].pickupDate
+        const originalPickupDate = basePickupDate // ✅ 使用原始计划日期
+        const originalStrategy = truckingCompanyId?.hasYard ? 'Drop off' : 'Direct'
+        
+        // 从 alternatives 中提取 breakdown 数据（后端现在返回 breakdown）
+        const originalBreakdown = firstAlt?.breakdown || {
+          demurrageCost: 0,
+          detentionCost: 0,
+          storageCost: 0,
+          transportationCost: 0,
+          yardStorageCost: 0,
+          handlingCost: 0,
+          totalCost: typeof originalCost === 'number' ? originalCost : 0,
+        }
+        
+        const optimizedBreakdown = lastAlt?.breakdown || {
+          demurrageCost: 0,
+          detentionCost: 0,
+          storageCost: 0,
+          transportationCost: 0,
+          yardStorageCost: 0,
+          handlingCost: 0,
+          totalCost: typeof optimizedCost === 'number' ? optimizedCost : 0,
+        }
+        
+        optimizationReport.value = {
+          originalCost: {
+            total: typeof originalCost === 'number' ? originalCost : 0,
+            pickupDate: originalPickupDate, // ✅ 使用原始计划日期
+            strategy: originalStrategy, // ✅ 使用原始策略
+            breakdown: originalBreakdown,
+          },
+          optimizedCost: {
+            total: typeof optimizedCost === 'number' ? optimizedCost : 0,
+            pickupDate: suggestedPickupDate,
+            strategy: suggestedStrategy || 'Direct',
+            breakdown: optimizedBreakdown,
+          },
+          savings: {
+            amount: typeof savings === 'number' ? savings : 0,
+            percentage: typeof savingsPercent === 'number' ? savingsPercent : 0,
+            explanation: `通过调整提柜日期从 ${originalPickupDate} 至 ${suggestedPickupDate}，采用 ${suggestedStrategy} 策略，预计节省 $${(savings || 0).toFixed(2)}`,
+          },
+          decisionSupport: {
+            freeDaysRemaining: 0, // TODO: 从后端获取
+            lastFreeDate: '', // TODO: 从后端获取
+            warehouseAvailability: '充足',
+            weekendAlert: false, // TODO: 根据日期判断
+          },
+          allAlternatives: (alternatives || []) as any[],
+        }
+
+        // ✅ 显示优化结果对话框
+        currentOptimizationContainer.value = containerNumber
+        showOptimizationDialog.value = true
+
         addLog(
-          `优化完成：建议 ${suggestedPickupDate} 提柜，${suggestedStrategy}，节省 $${savings.toFixed(2)}`,
+          `优化完成：建议 ${suggestedPickupDate} 提柜，${suggestedStrategy}，节省 $${(savings || 0).toFixed(2)}`,
           'success'
         )
       } else {
@@ -1734,6 +1799,22 @@ const handleOptimizeContainer = async (row: any) => {
       addLog(`优化失败：${error.message}`, 'error')
     }
   }
+}
+
+// ✅ 处理接受优化结果
+const handleAcceptOptimization = (alternative: any) => {
+  console.log('[SchedulingVisual] 接受优化方案:', alternative)
+  // TODO: 实际保存优化结果到数据库
+  ElMessage.success('优化方案已应用')
+  showOptimizationDialog.value = false
+  // TODO: 刷新列表或更新对应行的数据
+}
+
+// ✅ 处理拒绝优化结果
+const handleRejectOptimization = (alternative: any) => {
+  console.log('[SchedulingVisual] 拒绝优化方案:', alternative)
+  ElMessage.info('已取消优化')
+  showOptimizationDialog.value = false
 }
 
 // ✅ 新增：获取最晚提柜日标签状态

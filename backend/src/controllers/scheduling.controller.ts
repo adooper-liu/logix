@@ -1880,8 +1880,10 @@ export class SchedulingController {
             strategy: alt.strategy,
             totalCost: alt.totalCost,
             savings: alt.savings, // ✅ 直接使用服务层返回的 savings
+            breakdown: alt.breakdown, // ✅ 关键修复：添加费用明细，供图表使用
             warehouseCode,
-            truckingCompanyCode: truckingCompanyId
+            truckingCompanyCode: truckingCompanyId,
+            isWithinFreePeriod: alt.breakdown?.totalCost === 0 // ✅ 新增：是否在免费期内
           }))
         }
       });
@@ -1978,6 +1980,7 @@ export class SchedulingController {
             strategy: alt.strategy,
             totalCost: alt.totalCost,
             savings: alt.savings,
+            breakdown: alt.breakdown, // ✅ 包含费用明细
             warehouseCode,
             truckingCompanyCode: truckingCompanyId
           }))

@@ -78,6 +78,50 @@ export interface OptimalUnloadResult {
   alternatives: UnloadOption[]; // 备选方案
 }
 
+/**
+ * 🎯 批量优化 - 货柜分类
+ *
+ * @description 按免费期状态分类货柜
+ * @since 2026-03-27
+ */
+export interface ContainerCategory {
+  containerNumber: string;
+  category: 'within_free_period' | 'overdue'; // 免费期内 | 已超期
+  plannedPickupDate: Date;
+  lastFreeDate: Date;
+  remainingDays: number; // 剩余免费天数（正数=免费期内，负数=已超期）
+  originalCost: number;
+  warehouseCode: string;
+  truckingCompanyId: string;
+}
+
+/**
+ * 🎯 批量优化 - 优先级货柜
+ *
+ * @description 带优先级的货柜容器
+ * @since 2026-03-27
+ */
+export interface PriorityContainer extends ContainerCategory {
+  priority: number; // 优先级（数字越小优先级越高）
+  optimizedPickupDate?: Date; // 优化后的提柜日
+  optimizedCost?: number; // 优化后的成本
+  savings?: number; // 节省金额
+}
+
+/**
+ * 🎯 优化策略配置
+ *
+ * @description 定义不同类别货柜的搜索策略
+ * @since 2026-03-27
+ */
+interface OptimizationStrategyConfig {
+  searchDirection: 'forward' | 'backward';
+  searchStartOffset: number;
+  searchEndOffset: number;
+  prioritizeZeroCost: boolean;
+  allowSkipIfNoCapacity: boolean;
+}
+
 export class SchedulingCostOptimizerService {
   private schedulingConfigRepo: Repository<DictSchedulingConfig>;
   private warehouseRepo: Repository<Warehouse>;
@@ -700,7 +744,10 @@ export class SchedulingCostOptimizerService {
   /**
    * 🎯 成本优化建议：智能推荐最优卸柜日期
    *
-   * 通过探索当前日期前后 7 天的成本变化，找到成本最低的卸柜日期
+   * **SKILL 原则**:
+   * - Single Fact Source: 免费期从 DemurrageService 获取
+   * - Lazy Evaluation: 只计算必要的日期（分类后智能搜索）
+   * - Leverage: 复用 categorizeSingleContainer、selectOptimizationStrategy、generateSearchRange
    *
    * @param containerNumber 柜号
    * @param warehouse 仓库信息
@@ -708,6 +755,7 @@ export class SchedulingCostOptimizerService {
    * @param basePickupDate 基础提柜日（通常为智能排产计算的日期）
    * @param lastFreeDate 免费期截止日（可选，如果不传则从 DemurrageService 查询）
    * @returns 最优方案建议
+   * @since 2026-03-27 (重构于 2026-03-27)
    */
   async suggestOptimalUnloadDate(
     containerNumber: string,
@@ -726,7 +774,8 @@ export class SchedulingCostOptimizerService {
       pickupDate: Date;
       strategy: 'Direct' | 'Drop off' | 'Expedited';
       totalCost: number;
-      savings: number; // ✅ 补充 savings 字段
+      savings: number;
+      breakdown: CostBreakdown; // ✅ 新增：费用明细
     }>;
   }> {
     try {
@@ -769,7 +818,19 @@ export class SchedulingCostOptimizerService {
         );
       }
 
-      // 2. 计算当前方案的成本
+      // 2. ✅ 新增：分类判断（SKILL: Lazy Evaluation）
+      const category = await this.categorizeSingleContainer(
+        containerNumber,
+        basePickupDate,
+        effectiveLastFreeDate
+      );
+
+      log.info(
+        `[CostOptimizer] Categorized ${containerNumber}: ${category.category} ` +
+          `(remaining days: ${category.remainingDays})`
+      );
+
+      // 3. 计算当前方案的成本
       const currentOption: UnloadOption = {
         containerNumber,
         warehouse,
@@ -783,31 +844,67 @@ export class SchedulingCostOptimizerService {
       const originalCost = currentBreakdown.totalCost;
 
       log.info(`[CostOptimizer] Current cost: $${originalCost.toFixed(2)}`);
+      
+      // ✅ 关键调试：输出当前方案的详细信息
+      log.info(`[CostOptimizer] Current option details:`, {
+        pickupDate: basePickupDate.toISOString().split('T')[0],
+        strategy: currentOption.strategy,
+        warehouse: warehouse.warehouseCode,
+        isWithinFreePeriod: currentOption.isWithinFreePeriod
+      });
 
-      // 3. 向前/向后探索最多 7 天（考虑周末和仓库档期）
-      const searchRange = 7; // 天
+      // 4. ✅ 新增：选择优化策略（SKILL: Keep It Logical）
+      const strategy = this.selectOptimizationStrategy(category);
+
+      log.info(
+        `[CostOptimizer] Using strategy: ${strategy.searchDirection} ` +
+          `(offset: ${strategy.searchStartOffset} ~ ${strategy.searchEndOffset})`
+      );
+
+      // 5. ✅ 新增：生成智能搜索范围（SKILL: Lazy Evaluation）
+      const searchDates = this.generateSearchRange(
+        basePickupDate,
+        effectiveLastFreeDate,
+        strategy,
+        category // ✅ 传入分类参数，用于智能过滤
+      );
+
+      log.info(`[CostOptimizer] Search range: ${searchDates.length} dates (reduced from 15)`);
+
+      // 6. 遍历搜索日期，评估成本
       const candidates: Array<{
         pickupDate: Date;
         strategy: 'Direct' | 'Drop off' | 'Expedited';
         totalCost: number;
+        breakdown: CostBreakdown;
       }> = [];
+      
+      log.info(`[CostOptimizer] Starting to evaluate ${searchDates.length} candidate dates...`);
 
-      for (let offset = -searchRange; offset <= searchRange; offset++) {
-        const candidateDate = dateTimeUtils.addDays(basePickupDate, offset);
-
-        // 跳过过去的日期
-        if (candidateDate < new Date()) {
-          continue;
-        }
-
+      for (const candidateDate of searchDates) {
+        const candidateDateStr = candidateDate.toISOString().split('T')[0];
+        log.debug(`[CostOptimizer] Evaluating date: ${candidateDateStr}`);
+        
         // 跳过周末（如果配置了）
         if (this.isWeekend(candidateDate) && (await this.shouldSkipWeekends())) {
+          log.debug(`[CostOptimizer] Skipping weekend: ${candidateDateStr}`);
           continue;
         }
 
         // 检查仓库档期
         if (!(await this.isWarehouseAvailable(warehouse, candidateDate))) {
-          continue;
+          // ✅ 新增：无能力时的处理（SKILL: allowSkipIfNoCapacity）
+          if (strategy.allowSkipIfNoCapacity) {
+            log.debug(
+              `[CostOptimizer] No capacity on ${candidateDateStr}, skipping (allowSkipIfNoCapacity=true)`
+            );
+            continue; // 免费期内的可以跳过
+          } else {
+            log.warn(
+              `[CostOptimizer] No capacity on ${candidateDateStr}, but must process (allowSkipIfNoCapacity=false)`
+            );
+            // 超期的必须处理，继续找其他日期
+          }
         }
 
         // 为每个候选日期评估不同策略的成本
@@ -816,31 +913,94 @@ export class SchedulingCostOptimizerService {
           ...(truckingCompany.hasYard ? (['Drop off'] as const) : []),
           ...(candidateDate <= effectiveLastFreeDate ? (['Expedited'] as const) : [])
         ];
+        
+        log.debug(`[CostOptimizer] Strategies for ${candidateDateStr}: ${strategies.join(', ')}`);
 
-        for (const strategy of strategies) {
+        for (const strat of strategies) {
           const option: UnloadOption = {
             containerNumber,
             warehouse,
             plannedPickupDate: candidateDate,
-            strategy,
+            strategy: strat,
             truckingCompany,
             isWithinFreePeriod: candidateDate <= effectiveLastFreeDate
           };
 
           const breakdown = await this.evaluateTotalCost(option);
+          
+          // ✅ 关键调试：输出每个方案的费用明细
+          log.info(`[CostOptimizer] Cost breakdown for ${candidateDateStr} ${strat}:`, {
+            container: option.containerNumber,
+            pickupDate: candidateDateStr,
+            strategy: strat,
+            demurrage: breakdown.demurrageCost,
+            detention: breakdown.detentionCost,
+            storage: breakdown.storageCost,
+            yardStorage: breakdown.yardStorageCost,
+            transportation: breakdown.transportationCost,
+            handling: breakdown.handlingCost,
+            total: breakdown.totalCost,
+            isWithinFreePeriod: option.isWithinFreePeriod
+          });
+
+          // ✅ 新增：优先零成本（SKILL: prioritizeZeroCost）
+          if (strategy.prioritizeZeroCost && breakdown.totalCost > 0) {
+            log.debug(`[CostOptimizer] Skipping non-zero cost option: $${breakdown.totalCost.toFixed(2)}`);
+            continue; // 跳过非零成本的选项
+          }
 
           candidates.push({
             pickupDate: candidateDate,
-            strategy,
-            totalCost: breakdown.totalCost
+            strategy: strat,
+            totalCost: breakdown.totalCost,
+            breakdown // ✅ 保存完整的费用明细
           });
+
+          // ✅ 新增：找到第一个满足条件的就停止（SKILL: Lazy Evaluation）
+          if (strategy.prioritizeZeroCost && breakdown.totalCost === 0) {
+            log.debug(
+              `[CostOptimizer] Found zero-cost option on ${candidateDateStr}, stopping early`
+            );
+            break; // 找到成本为 0 的就停止
+          }
+        }
+
+        // 如果已经找到候选，且是免费期内的，可以提前停止
+        if (candidates.length > 0 && strategy.prioritizeZeroCost) {
+          log.debug(`[CostOptimizer] Found ${candidates.length} candidates, stopping date loop`);
+          break;
         }
       }
+      
+      log.info(`[CostOptimizer] Total candidates found: ${candidates.length}`);
 
-      // 4. 找到成本最低的方案
+      // 7. 找到成本最低的方案
       if (candidates.length === 0) {
         log.warn(`[CostOptimizer] No candidates found for ${containerNumber}`);
-        // 如果没有候选方案，返回当前方案作为最优方案
+
+        // ✅ 新增：如果没有候选方案，且允许跳过
+        if (strategy.allowSkipIfNoCapacity) {
+          log.info(`[CostOptimizer] Skipping optimization, using original date`);
+          return {
+            suggestedPickupDate: basePickupDate,
+            suggestedStrategy: truckingCompany.hasYard ? 'Drop off' : 'Direct',
+            originalCost,
+            optimizedCost: originalCost,
+            savings: 0,
+            savingsPercent: 0,
+            alternatives: [
+              {
+                pickupDate: basePickupDate,
+                strategy: truckingCompany.hasYard ? 'Drop off' : 'Direct',
+                totalCost: originalCost,
+                savings: 0,
+                breakdown: currentBreakdown
+              }
+            ]
+          };
+        }
+
+        // 不允许跳过，使用当前方案
         return {
           suggestedPickupDate: basePickupDate,
           suggestedStrategy: truckingCompany.hasYard ? 'Drop off' : 'Direct',
@@ -853,39 +1013,49 @@ export class SchedulingCostOptimizerService {
               pickupDate: basePickupDate,
               strategy: truckingCompany.hasYard ? 'Drop off' : 'Direct',
               totalCost: originalCost,
-              savings: 0
+              savings: 0,
+              breakdown: currentBreakdown
             }
           ]
         };
       }
 
+      // 8. 选择最优方案
       const optimalCandidate = candidates.reduce((min, curr) =>
         curr.totalCost < min.totalCost ? curr : min
       );
-
-      log.info(`[CostOptimizer] Found ${candidates.length} candidates, optimal:`);
-      log.info(`  - Date: ${optimalCandidate.pickupDate.toISOString().split('T')[0]}`);
-      log.info(`  - Strategy: ${optimalCandidate.strategy}`);
-      log.info(`  - Cost: $${optimalCandidate.totalCost.toFixed(2)}`);
 
       const optimizedCost = optimalCandidate.totalCost;
       const savings = originalCost - optimizedCost;
       const savingsPercent = originalCost > 0 ? (savings / originalCost) * 100 : 0;
 
-      log.info(`[CostOptimizer] Optimal solution found:`);
-      log.info(`  - Date: ${optimalCandidate.pickupDate.toISOString().split('T')[0]}`);
-      log.info(`  - Strategy: ${optimalCandidate.strategy}`);
-      log.info(
-        `  - Cost: $${optimizedCost.toFixed(2)} (saved $${savings.toFixed(2)}, ${savingsPercent.toFixed(1)}%)`
+      log.info(`[CostOptimizer] Found optimal solution:`, {
+        date: optimalCandidate.pickupDate.toISOString().split('T')[0],
+        strategy: optimalCandidate.strategy,
+        cost: `$${optimalCandidate.totalCost.toFixed(2)}`,
+        savings: `$${savings.toFixed(2)}`,
+        savingsPercent: `${savingsPercent.toFixed(2)}%`
+      });
+      
+      // ✅ 关键调试：输出所有候选方案对比
+      log.info(`[CostOptimizer] All candidates comparison:`, 
+        candidates.map(c => ({
+          date: c.pickupDate.toISOString().split('T')[0],
+          strategy: c.strategy,
+          cost: `$${c.totalCost.toFixed(2)}`
+        }))
       );
 
-      // 5. 返回前 3 个最优方案供用户选择
+      // 9. 返回前 3 个最优方案
       const sortedCandidates = candidates
         .sort((a, b) => a.totalCost - b.totalCost)
         .slice(0, 3)
         .map((candidate) => ({
-          ...candidate,
-          savings: originalCost - candidate.totalCost // ✅ 补充 savings 字段
+          pickupDate: candidate.pickupDate, // 保持 Date 类型
+          strategy: candidate.strategy,
+          totalCost: candidate.totalCost,
+          savings: originalCost - candidate.totalCost,
+          breakdown: candidate.breakdown
         }));
 
       return {
@@ -981,6 +1151,428 @@ export class SchedulingCostOptimizerService {
     } catch (error) {
       log.warn(`[Config] Failed to read skip_weekends config:`, error);
       return false; // 默认不跳过
+    }
+  }
+
+  // ============================================================================
+  // 🎯 批量成本优化功能
+  // ============================================================================
+
+  /**
+   * 🎯 策略配置接口
+   *
+   * @description 定义不同类别货柜的优化策略
+   * @since 2026-03-27
+   */
+  private readonly OPTIMIZATION_STRATEGIES = {
+    // 已超期：尽量往前排（日期越早越好，减少损失）
+    OVERDUE: {
+      searchDirection: 'forward' as const,
+      searchStartOffset: 0, // 从今天开始
+      searchEndOffset: 7, // 往后 7 天
+      prioritizeZeroCost: false, // 已经不可能的，尽量减少损失
+      allowSkipIfNoCapacity: false // 超期的必须处理
+    },
+
+    // 免费期内：从免费日往前优化（日期越大越好，成本为 0）
+    WITHIN_FREE_PERIOD: {
+      searchDirection: 'backward' as const,
+      searchStartOffset: 0, // 从免费期截止日开始
+      searchEndOffset: -7, // 往前 7 天
+      prioritizeZeroCost: true, // 必须成本为 0
+      allowSkipIfNoCapacity: true // 无能力时保持原日期
+    }
+  };
+
+  /**
+   * 🎯 分类单个货柜：判断属于哪个子集
+   *
+   * **SKILL 原则**:
+   * - Single Fact Source: 免费期数据从 DemurrageService 获取
+   * - Leverage: 复用现有的 DemurrageService
+   *
+   * @param containerNumber 柜号
+   * @param basePickupDate 基础提柜日
+   * @param lastFreeDate 免费期截止日（可选）
+   * @returns 分类结果
+   * @since 2026-03-27
+   */
+  private async categorizeSingleContainer(
+    containerNumber: string,
+    basePickupDate: Date,
+    lastFreeDate?: Date
+  ): Promise<ContainerCategory> {
+    try {
+      // ✅ SKILL: 从权威数据源获取免费期
+      const demurrageResult = await this.demurrageService.calculateForContainer(containerNumber, {
+        freeDateWriteMode: 'none'
+      });
+
+      const effectiveLastFreeDate =
+        lastFreeDate || demurrageResult.result?.items?.[0]?.lastFreeDate;
+      if (!effectiveLastFreeDate) {
+        log.warn(`[CostOptimizer] Last free date not found for ${containerNumber}, using default`);
+      }
+
+      // ✅ 计算剩余天数（相对于当前日期）
+      const today = new Date();
+      const remainingDays = dateTimeUtils.daysBetween(
+        today,
+        effectiveLastFreeDate || basePickupDate
+      );
+
+      // ✅ 关键修复：判断原计划是否已经超期
+      // 即使今天还在免费期内，如果 lastFreeDate < basePickupDate，说明原计划已经超期了
+      const todayOnly = new Date(today);
+      todayOnly.setHours(0, 0, 0, 0);
+      const basePickupOnly = new Date(basePickupDate);
+      basePickupOnly.setHours(0, 0, 0, 0);
+      const effectiveLastFreeOnly = effectiveLastFreeDate ? new Date(effectiveLastFreeDate) : new Date(basePickupDate);
+      effectiveLastFreeOnly.setHours(0, 0, 0, 0);
+      
+      const isOriginalPlanOverdue = effectiveLastFreeOnly < basePickupOnly;
+      
+      log.info(`[CostOptimizer] Categorization for ${containerNumber}:`, {
+        today: todayOnly.toISOString().split('T')[0],
+        basePickupDate: basePickupOnly.toISOString().split('T')[0],
+        lastFreeDate: effectiveLastFreeOnly.toISOString().split('T')[0],
+        remainingDays,
+        isOriginalPlanOverdue
+      });
+
+      // ✅ 分类逻辑：
+      // 1. 如果原计划已经超期（lastFreeDate < basePickupDate），无论今天如何，都是 overdue
+      // 2. 否则，根据剩余天数判断
+      let category: 'within_free_period' | 'overdue';
+      let actualRemainingDays = remainingDays;
+      
+      if (isOriginalPlanOverdue) {
+        // 原计划超期，即使今天还在免费期内，也是 overdue
+        category = 'overdue';
+        log.info(`[CostOptimizer] Original plan is overdue, using 'overdue' category`);
+      } else {
+        // 原计划未超期，根据剩余天数判断
+        category = remainingDays >= 0 ? 'within_free_period' : 'overdue';
+      }
+
+      return {
+        containerNumber,
+        category,
+        plannedPickupDate: basePickupDate,
+        lastFreeDate: effectiveLastFreeDate || basePickupDate,
+        remainingDays: actualRemainingDays,
+        originalCost: 0,
+        warehouseCode: '',
+        truckingCompanyId: ''
+      };
+    } catch (error) {
+      log.error(`[CostOptimizer] Failed to categorize ${containerNumber}:`, error);
+      // 防御性编程：出错时默认为免费期内
+      return {
+        containerNumber,
+        category: 'within_free_period',
+        plannedPickupDate: basePickupDate,
+        lastFreeDate: basePickupDate,
+        remainingDays: 0,
+        originalCost: 0,
+        warehouseCode: '',
+        truckingCompanyId: ''
+      };
+    }
+  }
+
+  /**
+   * 🎯 选择优化策略：根据分类
+   *
+   * **SKILL 原则**:
+   * - Keep It Logical: 不同类别使用不同策略
+   *
+   * @param category 货柜分类
+   * @returns 优化策略
+   * @since 2026-03-27
+   */
+  private selectOptimizationStrategy(category: ContainerCategory): OptimizationStrategyConfig {
+    if (category.category === 'overdue') {
+      return this.OPTIMIZATION_STRATEGIES.OVERDUE;
+    } else {
+      return this.OPTIMIZATION_STRATEGIES.WITHIN_FREE_PERIOD;
+    }
+  }
+
+  /**
+   * 🎯 生成智能搜索范围：根据策略
+   *
+   * **SKILL 原则**:
+   * - Lazy Evaluation: 只计算必要的日期
+   * - Leverage: 复用现有的 dateTimeUtils
+   *
+   * @param basePickupDate 基础提柜日
+   * @param lastFreeDate 免费期截止日
+   * @param strategy 优化策略
+   * @returns 搜索日期列表
+   * @since 2026-03-27
+   */
+  private generateSearchRange(
+    basePickupDate: Date,
+    lastFreeDate: Date,
+    strategy: OptimizationStrategyConfig,
+    category?: ContainerCategory // ✅ 新增参数：用于智能过滤
+  ): Date[] {
+    const dates: Date[] = [];
+    const today = new Date();
+    
+    // ✅ 关键修复：获取日期字符串用于比较
+    const todayStr = today.toISOString().split('T')[0];
+    const basePickupDateStr = basePickupDate.toISOString().split('T')[0];
+
+    if (strategy.searchDirection === 'forward') {
+      // ✅ 已超期：从今天开始往后找（尽早处理）
+      for (let offset = strategy.searchStartOffset; offset <= strategy.searchEndOffset; offset++) {
+        const date = dateTimeUtils.addDays(today, offset);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        // ✅ 修复 1: 不能是过去
+        if (dateStr < todayStr) {
+          continue;
+        }
+        
+        // ✅ 修复 2: 根据分类决定是否过滤
+        // 只有免费期内的才过滤：不能早于原计划（避免不必要的提前）
+        // 已超期的不过滤：允许找到比原计划更早的日期（尽早处理）
+        if (category?.category === 'within_free_period' && dateStr < basePickupDateStr) {
+          continue; // 免费期内的：跳过早于原计划的日期
+        }
+        
+        dates.push(date);
+      }
+    } else if (strategy.searchDirection === 'backward') {
+      // ✅ 免费期内：从免费日往前找（靠近免费期）
+      for (let offset = strategy.searchStartOffset; offset >= strategy.searchEndOffset; offset--) {
+        const date = dateTimeUtils.addDays(lastFreeDate, offset);
+        const dateStr = date.toISOString().split('T')[0];
+        
+        // ✅ 修复 1: 不能是过去
+        if (dateStr < todayStr) {
+          continue;
+        }
+        
+        // ✅ 修复 2: 不能早于原计划（避免不必要的提前）
+        if (dateStr < basePickupDateStr) {
+          continue;
+        }
+        
+        // ✅ 修复 3: 不能是当天（除非原计划就是当天）
+        // 约束：不能优化到当天，避免操作过于仓促
+        if (dateStr === todayStr && dateStr !== basePickupDateStr) {
+          continue; // 当天且原计划不是当天，跳过
+        }
+        
+        dates.push(date);
+      }
+    }
+
+    log.debug(
+      `[CostOptimizer] Generated ${dates.length} dates for ${strategy.searchDirection} search: ` +
+        `${dates.map(d => d.toISOString().split('T')[0]).join(', ')}`
+    );
+
+    return dates;
+  }
+
+  /**
+   * 🎯 分配优先级：根据分类和紧急程度
+   *
+   * **SKILL 原则**:
+   * - Keep It Logical: 超期的优先级最高
+   * - Lazy Evaluation: 只计算必要的优先级
+   *
+   * @param withinFreePeriod 免费期内的货柜
+   * @param overdue 已超期的货柜
+   * @returns 带优先级的货柜列表
+   * @since 2026-03-27
+   */
+  assignPriorities(
+    withinFreePeriod: ContainerCategory[],
+    overdue: ContainerCategory[]
+  ): PriorityContainer[] {
+    const priorityQueue: PriorityContainer[] = [];
+
+    log.info(`[BatchOptimizer] Assigning priorities...`);
+
+    // ✅ 已超期的优先级最高（1 ~ N）
+    overdue.forEach((container, index) => {
+      priorityQueue.push({
+        ...container,
+        priority: index + 1 // 超期的优先级最高
+      });
+    });
+
+    // ✅ 免费期内的优先级较低（N+1 ~ M）
+    withinFreePeriod.forEach((container, index) => {
+      priorityQueue.push({
+        ...container,
+        priority: overdue.length + index + 1
+      });
+    });
+
+    log.info(
+      `[BatchOptimizer] Priorities assigned:` +
+        ` Total: ${priorityQueue.length},` +
+        ` Highest priority: ${priorityQueue[0]?.priority},` +
+        ` Lowest priority: ${priorityQueue[priorityQueue.length - 1]?.priority}`
+    );
+
+    return priorityQueue;
+  }
+
+  // ============================================================================
+  // 🎯 批量成本优化主方法（复用单柜优化逻辑）
+  // ============================================================================
+
+  /**
+   * 🎯 批量成本优化：智能分类 + 优先级排序 + 能力约束
+   *
+   * **SKILL 原则**:
+   * - Single Fact Source: 免费期从 DemurrageService 获取
+   * - Leverage: 直接复用 suggestOptimalUnloadDate 方法，不重复造轮子
+   * - Keep It Logical: 分类 → 排序 → 逐个优化
+   *
+   * @param containerNumbers 货柜列表
+   * @param basePickupDate 基础提柜日
+   * @param lastFreeDate 免费期截止日（可选）
+   * @returns 优化结果
+   * @since 2026-03-27
+   */
+  async batchOptimize(
+    containerNumbers: string[],
+    basePickupDate: Date,
+    lastFreeDate?: Date
+  ): Promise<{
+    results: PriorityContainer[];
+    summary: {
+      totalContainers: number;
+      withinFreePeriodCount: number;
+      overdueCount: number;
+      totalSavings: number;
+      optimizedCount: number;
+    };
+  }> {
+    try {
+      log.info(`[BatchOptimizer] Starting batch optimization for ${containerNumbers.length} containers`);
+
+      // 1. ✅ 分类货柜（手动实现，因为还没有 categorizeContainers 方法）
+      const withinFreePeriod: ContainerCategory[] = [];
+      const overdue: ContainerCategory[] = [];
+
+      for (const containerNumber of containerNumbers) {
+        const category = await this.categorizeSingleContainer(
+          containerNumber,
+          basePickupDate,
+          lastFreeDate
+        );
+
+        if (category.category === 'within_free_period') {
+          withinFreePeriod.push(category);
+        } else {
+          overdue.push(category);
+        }
+      }
+
+      const categories = { withinFreePeriod, overdue };
+
+      log.info(
+        `[BatchOptimizer] Categorized:` +
+          ` Within free period: ${categories.withinFreePeriod.length},` +
+          ` Overdue: ${categories.overdue.length}`
+      );
+
+      // 2. ✅ 分配优先级（复用 assignPriorities 方法）
+      const priorityQueue = this.assignPriorities(
+        categories.withinFreePeriod,
+        categories.overdue
+      );
+
+      // 3. ✅ 预计算仓库能力（简化版，暂不实现）
+      // TODO: 后续可以添加 precomputeWarehouseCapacities 方法
+      const warehouseCapacities = new Map<string, Map<string, any>>();
+
+      // 4. ✅ 按优先级优化每个货柜（关键：直接复用 suggestOptimalUnloadDate！）
+      const results: PriorityContainer[] = [];
+
+      for (const container of priorityQueue) {
+        log.info(
+          `[BatchOptimizer] Processing ${container.containerNumber} ` +
+            `(Priority: ${container.priority}, Category: ${container.category})`
+        );
+
+        // 获取车队信息
+        const truckingCompany = await this.truckingCompanyRepo.findOne({
+          where: { companyCode: container.truckingCompanyId }
+        });
+
+        if (!truckingCompany) {
+          log.warn(`[BatchOptimizer] Trucking company not found for ${container.containerNumber}`);
+          continue;
+        }
+
+        // ✅ 关键：直接复用单柜优化方法！不重复造轮子
+        const warehouse = await this.warehouseRepo.findOne({ where: { warehouseCode: container.warehouseCode } });
+        
+        if (!warehouse) {
+          log.warn(`[BatchOptimizer] Warehouse not found for ${container.containerNumber}`);
+          continue;
+        }
+
+        const optimalResult = await this.suggestOptimalUnloadDate(
+          container.containerNumber,
+          warehouse,
+          truckingCompany,
+          container.plannedPickupDate,
+          container.lastFreeDate
+        );
+
+        results.push({
+          ...container,
+          optimizedPickupDate: optimalResult.suggestedPickupDate,
+          optimizedCost: optimalResult.optimizedCost,
+          savings: optimalResult.savings
+        });
+
+        // 更新仓库能力（占用一个位置）
+        if (optimalResult.suggestedPickupDate) {
+          const capacity = warehouseCapacities
+            .get(container.warehouseCode)
+            ?.get(optimalResult.suggestedPickupDate.toISOString());
+
+          if (capacity) {
+            capacity.usedCapacity++;
+            capacity.availableCapacity--;
+          }
+        }
+      }
+
+      // 5. ✅ 统计汇总
+      const summary = {
+        totalContainers: containerNumbers.length,
+        withinFreePeriodCount: categories.withinFreePeriod.length,
+        overdueCount: categories.overdue.length,
+        totalSavings: results.reduce((sum, r) => sum + (r.savings || 0), 0),
+        optimizedCount: results.filter(r => r.optimizedPickupDate !== r.plannedPickupDate).length
+      };
+
+      log.info(
+        `[BatchOptimizer] Completed:` +
+          ` Optimized: ${summary.optimizedCount}/${summary.totalContainers},` +
+          ` Total savings: $${summary.totalSavings.toFixed(2)}`
+      );
+
+      return {
+        results,
+        summary
+      };
+    } catch (error) {
+      log.error(`[BatchOptimizer] Failed:`, error);
+      throw error;
     }
   }
 }

@@ -36,7 +36,7 @@
           <div class="info-row">
             <span class="label">策略</span>
             <el-tag :type="getStrategyType(alt.strategy)" size="small">
-              {{ alt.strategy }}
+              {{ formatStrategy(alt.strategy) }}
             </el-tag>
           </div>
 
@@ -129,7 +129,7 @@ const formatNumber = (num: number): string => {
 const getStrategyType = (strategy: string): string => {
   switch (strategy) {
     case 'Direct':
-      return 'success'
+      return 'success'  // Live Unload
     case 'Drop off':
       return 'warning'
     case 'Expedited':
@@ -137,6 +137,14 @@ const getStrategyType = (strategy: string): string => {
     default:
       return 'info'
   }
+}
+
+// 格式化策略显示（Direct 显示为 Live Unload）
+const formatStrategy = (strategy: string): string => {
+  if (strategy === 'Direct') {
+    return 'Live Unload'
+  }
+  return strategy
 }
 
 // 选择方案

@@ -1301,7 +1301,10 @@ export class DemurrageService {
    */
   async calculateForContainer(
     containerNumber: string,
-    options?: { freeDateWriteMode?: 'batch' | 'none' }
+    options?: { 
+      freeDateWriteMode?: 'batch' | 'none';
+      paramsOverride?: any; // ContainerMatchParams 类型
+    }
   ): Promise<{
     result: DemurrageCalculationResult | null;
     message?: string;
@@ -1318,7 +1321,8 @@ export class DemurrageService {
       | 'missing_arrival_storage_actual';
   }> {
     await this.normalizeOrphanLastFreeDateSource(containerNumber);
-    const params = await this.getContainerMatchParams(containerNumber);
+    // ✅ 关键修复：如果传入了 paramsOverride，使用覆盖的参数，否则从数据库获取
+    const params = options?.paramsOverride || await this.getContainerMatchParams(containerNumber);
 
     // 第一步：状态机判定是否到达目的港（或提柜/卸柜/还箱），再决定 actual vs forecast（计划逻辑）
     const logisticsSnapshot = await this.getLogisticsStatusSnapshot(containerNumber);
@@ -1847,7 +1851,7 @@ export class DemurrageService {
               ? 'eta'
               : null;
           rangeEnd = maxDate(toDateOnly(plannedPickupDate!), toDateOnly(today));
-          itemEndSource = 'max(计划提柜日, 当前日期)';
+          itemEndSource = 'max(计划提柜日，当前日期)';
         }
       } else if (isDetention) {
         rangeStart = enhancedParams.detentionStartDate;
@@ -3391,6 +3395,17 @@ export class DemurrageService {
    *
    * @returns 完整的费用明细和总计
    */
+  /**
+   * 🎯 计算总成本（支持传入计划日期）
+   *
+   * **用途**: 成本优化场景中，需要评估不同提柜日期的成本差异
+   *
+   * @param containerNumber 柜号
+   * @param options 配置选项
+   * @param options.plannedDates 计划日期（关键参数，用于覆盖数据库中的原计划）
+   * @returns 总成本及明细
+   * @since 2026-03-27 (新增 plannedDates 支持)
+   */
   async calculateTotalCost(
     containerNumber: string,
     options?: {
@@ -3417,7 +3432,13 @@ export class DemurrageService {
     items?: DemurrageItemResult[];
   }> {
     try {
-      // 1. 调用现有的 calculateForContainer() 获取滞港费、滞箱费、堆存费、D&D 合并费用
+      // 1. ✅ 修复 3: 如果传入了 plannedDates，使用临时覆盖逻辑
+      if (options?.plannedDates) {
+        const optionsWithPlanned = options as typeof options & { plannedDates: NonNullable<typeof options.plannedDates> };
+        return await this.calculateTotalCostWithPlannedDates(containerNumber, optionsWithPlanned);
+      }
+
+      // 2. 否则使用原有逻辑（从数据库读取计划日期）
       const demurrageResult = await this.calculateForContainer(containerNumber, {
         freeDateWriteMode: 'none'
       });
@@ -3483,6 +3504,141 @@ export class DemurrageService {
       return costs;
     } catch (error) {
       logger.error(`[Demurrage] calculateTotalCost error:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * 🎯 计算总成本（带计划日期覆盖）
+   *
+   * **核心逻辑**: 临时修改 calculationDates，使用传入的计划日期而非数据库中的日期
+   *
+   * @param containerNumber 柜号
+   * @param options 配置选项（包含 plannedDates）
+   * @returns 总成本及明细
+   * @since 2026-03-27
+   */
+  private async calculateTotalCostWithPlannedDates(
+    containerNumber: string,
+    options: {
+      mode?: 'actual' | 'forecast';
+      plannedDates: {
+        plannedPickupDate: Date;
+        plannedUnloadDate: Date;
+        plannedReturnDate: Date;
+      };
+      includeTransport?: boolean;
+      warehouse?: Warehouse;
+      truckingCompany?: TruckingCompany;
+      unloadMode?: string;
+    }
+  ): Promise<{
+    demurrageCost: number;
+    detentionCost: number;
+    storageCost: number;
+    ddCombinedCost: number;
+    transportationCost: number;
+    totalCost: number;
+    currency: string;
+    calculationMode: 'actual' | 'forecast';
+    items?: DemurrageItemResult[];
+  }> {
+    try {
+      // 1. 先获取基础参数（包含数据库中的日期）
+      const params = await this.getContainerMatchParams(containerNumber);
+      
+      // 2. ✅ 关键：临时覆盖 calculationDates 中的计划日期
+      const originalPlannedPickupDate = params.calculationDates.plannedPickupDate;
+      const originalPlannedReturnDate = params.calculationDates.plannedReturnDate;
+      
+      // 使用传入的计划日期（保持 Date 类型）
+      params.calculationDates.plannedPickupDate = options.plannedDates.plannedPickupDate;
+      params.calculationDates.plannedReturnDate = options.plannedDates.plannedReturnDate;
+      
+      logger.info(
+        `[Demurrage] Temporarily overriding planned dates for ${containerNumber}:`,
+        {
+          originalPickup: originalPlannedPickupDate,
+          newPickup: params.calculationDates.plannedPickupDate,
+          originalReturn: originalPlannedReturnDate,
+          newReturn: params.calculationDates.plannedReturnDate
+        }
+      );
+      
+      // 3. ✅ 关键修复：调用 calculateForContainer 时传入覆盖后的 params
+      const demurrageResult = await this.calculateForContainer(containerNumber, {
+        freeDateWriteMode: 'none',
+        paramsOverride: params  // 传入覆盖后的参数
+      });
+      
+      // 4. 恢复原始日期（防御性编程）
+      params.calculationDates.plannedPickupDate = originalPlannedPickupDate || null;
+      params.calculationDates.plannedReturnDate = originalPlannedReturnDate || null;
+      
+      const costs = {
+        demurrageCost: 0,
+        detentionCost: 0,
+        storageCost: 0,
+        ddCombinedCost: 0,
+        transportationCost: 0,
+        totalCost: 0,
+        currency: 'USD',
+        calculationMode: 'forecast' as 'actual' | 'forecast',
+        items: [] as DemurrageItemResult[]
+      };
+      
+      if (demurrageResult.result) {
+        costs.calculationMode = demurrageResult.result.calculationMode;
+        costs.currency = demurrageResult.result.currency;
+        costs.items = demurrageResult.result.items;
+        
+        // 分类汇总各项费用
+        demurrageResult.result.items.forEach((item) => {
+          if (isDemurrageCharge(item)) {
+            costs.demurrageCost += item.amount;
+          }
+          if (isDetentionCharge(item)) {
+            costs.detentionCost += item.amount;
+          }
+          if (isStorageCharge(item)) {
+            costs.storageCost += item.amount;
+          }
+          if (isCombinedDemurrageDetention(item)) {
+            costs.ddCombinedCost += item.amount;
+          }
+        });
+      }
+      
+      // 5. 计算运输费（如果需要）
+      if (options?.includeTransport && options.warehouse && options.truckingCompany) {
+        try {
+          costs.transportationCost = await this.calculateTransportationCostInternal(
+            containerNumber,
+            options.warehouse,
+            options.truckingCompany,
+            options.unloadMode || 'Live load'
+          );
+        } catch (error) {
+          logger.warn(`[Demurrage] Transportation cost calculation failed:`, error);
+          costs.transportationCost = 0;
+        }
+      }
+      
+      // 6. 总计
+      costs.totalCost =
+        costs.demurrageCost +
+        costs.detentionCost +
+        costs.storageCost +
+        costs.ddCombinedCost +
+        costs.transportationCost;
+      
+      logger.info(
+        `[Demurrage] Calculated cost for ${containerNumber} with pickup date ${options.plannedDates.plannedPickupDate.toISOString().split('T')[0]}: $${costs.totalCost.toFixed(2)}`
+      );
+      
+      return costs;
+    } catch (error) {
+      logger.error(`[Demurrage] calculateTotalCostWithPlannedDates error:`, error);
       throw error;
     }
   }
