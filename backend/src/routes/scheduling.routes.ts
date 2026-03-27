@@ -65,6 +65,7 @@ router.get('/recommend-option/:id', controller.getRecommendOption);
 
 // 成本优化
 router.post('/optimize-cost', controller.optimizeCost);
+router.post('/optimize-container/:containerNumber', controller.optimizeContainer); // ✅ 新增：单柜优化
 router.post('/batch-optimize', controller.batchOptimizeCost);
 router.get('/cost-comparison/:containerNumber', controller.getCostComparison);
 

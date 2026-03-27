@@ -9,37 +9,44 @@
     </div>
 
     <div class="config-content">
-      <!-- 左侧导航菜单 -->
+      <!-- 左侧导航菜单 - 只显示图标 -->
       <div class="config-sidebar">
         <el-menu :default-active="activeMenu" class="config-menu" @select="handleMenuSelect">
-          <el-menu-item index="overview">
-            <el-icon><House /></el-icon>
-            <span>排产概览</span>
-          </el-menu-item>
-          <el-menu-item index="warehouse">
-            <el-icon><Box /></el-icon>
-            <span>仓库管理</span>
-          </el-menu-item>
-          <el-menu-item index="trucking">
-            <el-icon><Van /></el-icon>
-            <span>车队管理</span>
-          </el-menu-item>
-          <el-menu-item index="yard">
-            <el-icon><OfficeBuilding /></el-icon>
-            <span>堆场管理</span>
-          </el-menu-item>
-          <el-menu-item index="mapping">
-            <el-icon><Connection /></el-icon>
-            <span>映射关系</span>
-          </el-menu-item>
-          <el-menu-item index="capacity">
-            <el-icon><Calendar /></el-icon>
-            <span>产能日历</span>
-          </el-menu-item>
-          <el-menu-item index="visual">
-            <el-icon><Cpu /></el-icon>
-            <span>开始排产</span>
-          </el-menu-item>
+          <el-tooltip content="排产概览" placement="right">
+            <el-menu-item index="overview">
+              <el-icon><House /></el-icon>
+            </el-menu-item>
+          </el-tooltip>
+          <el-tooltip content="仓库管理" placement="right">
+            <el-menu-item index="warehouse">
+              <el-icon><Box /></el-icon>
+            </el-menu-item>
+          </el-tooltip>
+          <el-tooltip content="车队管理" placement="right">
+            <el-menu-item index="trucking">
+              <el-icon><Van /></el-icon>
+            </el-menu-item>
+          </el-tooltip>
+          <el-tooltip content="堆场管理" placement="right">
+            <el-menu-item index="yard">
+              <el-icon><OfficeBuilding /></el-icon>
+            </el-menu-item>
+          </el-tooltip>
+          <el-tooltip content="映射关系" placement="right">
+            <el-menu-item index="mapping">
+              <el-icon><Connection /></el-icon>
+            </el-menu-item>
+          </el-tooltip>
+          <el-tooltip content="产能日历" placement="right">
+            <el-menu-item index="capacity">
+              <el-icon><Calendar /></el-icon>
+            </el-menu-item>
+          </el-tooltip>
+          <el-tooltip content="开始排产" placement="right">
+            <el-menu-item index="visual">
+              <el-icon><Cpu /></el-icon>
+            </el-menu-item>
+          </el-tooltip>
         </el-menu>
       </div>
 
@@ -198,7 +205,7 @@ onMounted(() => {
 }
 
 .config-sidebar {
-  width: 200px;
+  width: 64px;  /* ✅ 缩小菜单宽度，只显示图标 */
   flex-shrink: 0;
 }
 
@@ -206,6 +213,15 @@ onMounted(() => {
   border-right: none;
   background: #fff;
   border-radius: 4px;
+}
+
+.config-menu .el-menu-item {
+  justify-content: center;  /* ✅ 图标居中 */
+  padding-left: 50% !important;  /* ✅ 让图标居中 */
+}
+
+.config-menu .el-icon {
+  font-size: 20px;  /* ✅ 图标稍大一些 */
 }
 
 .config-main {

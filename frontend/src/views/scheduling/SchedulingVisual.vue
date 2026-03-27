@@ -190,44 +190,71 @@
       </el-empty>
     </div>
 
-    <!-- ✅ 优化：排产结果卡片 - 按注意力路线重新布局 -->
-    <el-card v-if="scheduleResult || !loading" class="result-card">
+    <!-- ✅ 优化：排产结果/预览合并卡片 - 根据 isPreviewMode 切换模式 -->
+    <el-card v-if="displayResults.length > 0 || !loading" class="result-card">
       <!-- ① 卡片头部：标题 + 核心操作（第一眼关注） -->
       <template #header>
         <div class="card-header-optimized">
           <div class="header-left">
             <el-icon class="header-icon"><DataLine /></el-icon>
-            <span class="header-title">排产结果</span>
-            <el-tag v-if="scheduleResult?.total > 0" :type="getResultTagType()" size="small">
-              {{ scheduleResult.total }} 个货柜
+            <span class="header-title">{{ isPreviewMode ? '排产预览' : '排产结果' }}</span>
+            <el-tag v-if="displayResults.length > 0" :type="getResultTagType()" size="small">
+              {{ displayResults.length }} 个货柜
+            </el-tag>
+            <el-tag v-if="isPreviewMode" type="warning" size="small" effect="plain">
+              ⚠️ 预览模式，未保存
             </el-tag>
           </div>
           <div class="header-right">
-            <!-- 主要操作：导出 -->
-            <el-button
-              type="primary"
-              size="small"
-              @click="exportScheduleResult"
-              :disabled="!scheduleResult"
-            >
-              <el-icon><Download /></el-icon> 导出
-            </el-button>
-            <!-- 次要操作：查看甘特图 -->
-            <el-button
-              type="success"
-              size="small"
-              plain
-              @click="router.push('/gantt-chart')"
-              :disabled="!scheduleResult"
-            >
-              <el-icon><View /></el-icon> 甘特图
-            </el-button>
+            <!-- 预览模式：显示操作按钮组 -->
+            <template v-if="isPreviewMode">
+              <el-button
+                type="success"
+                size="small"
+                @click="handleConfirmSave"
+                :disabled="selectedPreviewContainers.length === 0"
+                :loading="saving"
+                title="保存选中的排产方案"
+              >
+                <el-icon><Check /></el-icon> 确认保存 ({{ selectedPreviewContainers.length }})
+              </el-button>
+              <el-button
+                type="info"
+                size="small"
+                plain
+                @click="handleDiscardPreview"
+                title="放弃预览结果"
+              >
+                <el-icon><Close /></el-icon> 放弃
+              </el-button>
+            </template>
+
+            <!-- 正式模式：显示导出和甘特图 -->
+            <template v-else>
+              <el-button
+                type="primary"
+                size="small"
+                @click="exportScheduleResult"
+                :disabled="!scheduleResult"
+              >
+                <el-icon><Download /></el-icon> 导出
+              </el-button>
+              <el-button
+                type="success"
+                size="small"
+                plain
+                @click="router.push('/gantt-chart')"
+                :disabled="!scheduleResult"
+              >
+                <el-icon><View /></el-icon> 甘特图
+              </el-button>
+            </template>
           </div>
         </div>
       </template>
 
       <!-- 有数据时显示统计徽章和 TAB -->
-      <template v-if="scheduleResult">
+      <template v-if="displayResults.length > 0">
         <!-- ② 统计徽章区：4 个关键指标（视觉焦点） -->
         <div class="result-stats-enhanced">
           <div class="stat-badge total">
@@ -235,8 +262,8 @@
               <el-icon><Box /></el-icon>
             </div>
             <div class="stat-badge-content">
-              <div class="stat-value">{{ scheduleResult.total }}</div>
-              <div class="stat-label">总计</div>
+              <div class="stat-value">{{ displayResults.length }}</div>
+              <div class="stat-label">总柜数</div>
             </div>
           </div>
 
@@ -245,7 +272,7 @@
               <el-icon><CircleCheck /></el-icon>
             </div>
             <div class="stat-badge-content">
-              <div class="stat-value">{{ scheduleResult.successCount }}</div>
+              <div class="stat-value">{{ successCount }}</div>
               <div class="stat-label">成功</div>
             </div>
           </div>
@@ -255,7 +282,7 @@
               <el-icon><CircleClose /></el-icon>
             </div>
             <div class="stat-badge-content">
-              <div class="stat-value">{{ scheduleResult.failedCount }}</div>
+              <div class="stat-value">{{ failedCount }}</div>
               <div class="stat-label">失败</div>
             </div>
           </div>
@@ -264,8 +291,8 @@
             <div class="stat-badge-content">
               <div class="stat-value">
                 {{
-                  scheduleResult.total > 0
-                    ? ((scheduleResult.successCount / scheduleResult.total) * 100).toFixed(1)
+                  displayResults.length > 0
+                    ? ((successCount / displayResults.length) * 100).toFixed(1)
                     : 0
                 }}%
               </div>
@@ -276,29 +303,81 @@
 
         <!-- ③ TAB 过滤区：带计数的标签页（快速筛选） -->
         <div class="tabs-filter-section">
+          <!-- ✅ 新增：预览模式下的批量操作栏 -->
+          <div v-if="isPreviewMode" class="batch-action-bar">
+            <el-alert type="warning" :closable="false" show-icon style="flex: 1">
+              <template #title>
+                已选择 <strong>{{ selectedPreviewContainers.length }}</strong> 个货柜，请确认后保存
+              </template>
+            </el-alert>
+            <el-button
+              type="primary"
+              size="small"
+              @click="selectAllOnPage"
+              :disabled="displayResults.every((r: any) => r.success === false)"
+            >
+              全选成功项
+            </el-button>
+            <el-button type="default" size="small" @click="clearSelection"> 取消全选 </el-button>
+          </div>
+
           <el-tabs v-model="resultTab" class="result-tabs" type="border-card">
-            <el-tab-pane :label="`全部 ${scheduleResult.total}`" name="all">
+            <el-tab-pane :label="`全部 ${displayResults.length}`" name="all">
               <div class="tab-toolbar">
                 <span class="tab-desc"
-                  ><el-icon><Document /></el-icon> 所有排产结果</span
+                  ><el-icon><Document /></el-icon>
+                  {{ isPreviewMode ? '所有预览结果' : '所有排产结果' }}</span
                 >
-                <el-input
-                  v-if="resultTab === 'all'"
-                  v-model="searchText"
-                  placeholder="搜索柜号..."
-                  prefix-icon="Search"
-                  size="small"
-                  clearable
-                  style="width: 200px"
-                />
+                <!-- ✅ 增强：高级搜索区 -->
+                <div class="advanced-search">
+                  <el-input
+                    v-model="searchText"
+                    placeholder="搜索柜号/目的港/仓库..."
+                    prefix-icon="Search"
+                    size="small"
+                    clearable
+                    style="width: 220px"
+                  />
+                  <el-select
+                    v-model="searchUnloadMode"
+                    placeholder="卸柜方式"
+                    clearable
+                    size="small"
+                    style="width: 130px; margin-left: 8px"
+                  >
+                    <el-option label="Direct" value="Direct" />
+                    <el-option label="Drop off" value="Drop off" />
+                    <el-option label="Expedited" value="Expedited" />
+                  </el-select>
+                  <el-input-number
+                    v-model="searchMaxCost"
+                    placeholder="最大费用"
+                    :min="0"
+                    :precision="2"
+                    size="small"
+                    controls-position="right"
+                    style="width: 140px; margin-left: 8px"
+                  />
+                </div>
               </div>
+              <!-- ✅ P2: 性能优化 - 使用虚拟滚动表格 -->
               <el-table
-                :data="scheduleResult.results"
-                max-height="300"
+                :data="paginatedData"
+                max-height="400"
                 size="small"
                 stripe
                 highlight-current-row
+                ref="resultTableRef"
+                @selection-change="handlePreviewSelectionChange"
               >
+                <!-- ✅ 新增：预览模式下显示勾选框 -->
+                <el-table-column
+                  v-if="isPreviewMode"
+                  type="selection"
+                  width="50"
+                  fixed
+                  :selectable="(row: any) => row.success"
+                />
                 <el-table-column label="柜号" width="130" fixed>
                   <template #default="{ row }">
                     <el-link
@@ -325,30 +404,131 @@
                 />
                 <el-table-column prop="etaDestPort" label="ETA" width="100" />
                 <el-table-column prop="ataDestPort" label="ATA" width="100" />
-                <el-table-column label="计划日期" min-width="200">
+                <!-- ✅ 优化：免费期信息 - 显示最晚提柜日、最晚还箱日两列 -->
+                <el-table-column label="最晚提柜日 (LFD)" width="140">
                   <template #default="{ row }">
-                    <span v-if="row.plannedData">
-                      <span class="date-item"
-                        >提柜: {{ row.plannedData.plannedPickupDate || '-' }}</span
-                      >
-                      <span class="date-item"
-                        >送仓: {{ row.plannedData.plannedDeliveryDate || '-' }}</span
-                      >
-                      <span class="date-item"
-                        >还箱: {{ row.plannedData.plannedReturnDate || '-' }}</span
-                      >
-                    </span>
+                    <el-tooltip>
+                      <template #content>
+                        <div>免费天数：{{ row.freeDays !== undefined ? row.freeDays : '-' }}</div>
+                        <div>计算逻辑：从卸柜日开始计算免费期</div>
+                      </template>
+                      <div v-if="row.lastFreeDate" style="display: flex; flex-direction: column; gap: 4px">
+                        <span>{{ row.lastFreeDate }}</span>
+                        <el-tag :type="getLfdTagStatus(row)" size="small">
+                          {{ getLfdCountdown(row) }}
+                        </el-tag>
+                      </div>
+                      <span v-else>-</span>
+                    </el-tooltip>
+                  </template>
+                </el-table-column>
+                <el-table-column label="最晚还箱日 (LRD)" width="140">
+                  <template #default="{ row }">
+                    <el-tooltip>
+                      <template #content>
+                        <div>免费天数：{{ row.freeDays !== undefined ? row.freeDays : '-' }}</div>
+                        <div>计算逻辑：从卸柜日开始计算免费期</div>
+                      </template>
+                      <div v-if="row.lastReturnDate" style="display: flex; flex-direction: column; gap: 4px">
+                        <span>{{ row.lastReturnDate }}</span>
+                        <el-tag :type="getLrdTagStatus(row)" size="small">
+                          {{ getLrdCountdown(row) }}
+                        </el-tag>
+                      </div>
+                      <span v-else>-</span>
+                    </el-tooltip>
+                  </template>
+                </el-table-column>
+                <el-table-column label="计划日期" min-width="160">
+                  <template #default="{ row }">
+                    <div v-if="row.plannedData" class="plan-dates-container">
+                      <div class="plan-date-item">
+                        <el-icon><Clock /></el-icon>
+                        <span class="date-label">提柜:</span>
+                        <span class="date-value">{{ row.plannedData.plannedPickupDate || '-' }}</span>
+                      </div>
+                      <div class="plan-date-item">
+                        <el-icon><Van /></el-icon>
+                        <span class="date-label">送仓:</span>
+                        <span class="date-value">{{ row.plannedData.plannedDeliveryDate || '-' }}</span>
+                      </div>
+                      <div class="plan-date-item">
+                        <el-icon><Box /></el-icon>
+                        <span class="date-label">卸柜:</span>
+                        <span class="date-value">{{ row.plannedData.unloadDate || '-' }}</span>
+                      </div>
+                      <div class="plan-date-item">
+                        <el-icon><OfficeBuilding /></el-icon>
+                        <span class="date-label">还箱:</span>
+                        <span class="date-value">{{ row.plannedData.plannedReturnDate || '-' }}</span>
+                      </div>
+                    </div>
+                    <span v-else>-</span>
+                  </template>
+                </el-table-column>
+                <!-- ✅ 优化：费用信息 - 树形结构展示 -->
+                <el-table-column label="费用明细" min-width="210">
+                  <template #default="{ row }">
+                    <el-tree
+                      v-if="row.estimatedCosts && row.estimatedCosts.totalCost"
+                      :data="buildCostTree(row.estimatedCosts, row.plannedData?.warehouseCountry || 'US')"
+                      :props="costTreeProps"
+                      :expand-on-click-node="false"
+                      default-expand-all
+                      size="small"
+                      class="cost-tree"
+                    >
+                      <template #default="{ node, data }">
+                        <span class="cost-tree-node">
+                          <span class="cost-tree-label" v-if="data.level === 1">{{ node.label }}</span>
+                          <span 
+                            class="cost-tree-value" 
+                            :class="data.level === 0 ? 'cost-value-total' : getAmountClass(data.value)"
+                          >
+                            {{ formatCurrency(data.value, row.plannedData?.warehouseCountry || 'US') }}
+                          </span>
+                        </span>
+                      </template>
+                    </el-tree>
+                    <span v-else>-</span>
+                  </template>
+                </el-table-column>
+                <!-- ✅ 新增：操作列 - 成本优化快捷入口 -->
+                <el-table-column label="操作" width="120" fixed v-if="displayResults.length > 0">
+                  <template #default="{ row }">
+                    <el-button
+                      v-if="row.success && row.plannedData"
+                      type="primary"
+                      size="small"
+                      @click="handleOptimizeContainer(row)"
+                      title="成本优化"
+                    >
+                      <el-icon><Money /></el-icon> 优化
+                    </el-button>
                     <span v-else>-</span>
                   </template>
                 </el-table-column>
                 <el-table-column prop="message" label="消息" show-overflow-tooltip />
               </el-table>
+              <!-- ✅ P2: 分页组件 -->
+              <div class="pagination-container" style="display: flex; justify-content: flex-end; margin-top: 16px">
+                <el-pagination
+                  v-model:current-page="currentPage"
+                  :page-size="pageSize"
+                  :total="filteredDisplayResults.length"
+                  :page-sizes="[20, 50, 100]"
+                  layout="total, sizes, prev, pager, next, jumper"
+                  @size-change="handleSizeChange"
+                  @current-change="handleCurrentChange"
+                />
+              </div>
             </el-tab-pane>
 
-            <el-tab-pane :label="`成功 ${scheduleResult.successCount}`" name="success">
+            <el-tab-pane :label="`成功 ${successCount}`" name="success">
               <div class="tab-toolbar">
                 <span class="tab-desc success"
-                  ><el-icon><CircleCheck /></el-icon> ✓ 排产成功的货柜</span
+                  ><el-icon><CircleCheck /></el-icon> ✓
+                  {{ isPreviewMode ? '预览成功' : '排产成功' }}的货柜</span
                 >
                 <el-input
                   v-if="resultTab === 'success'"
@@ -361,12 +541,13 @@
                 />
               </div>
               <el-table
-                :data="successResults"
-                max-height="300"
+                :data="successPaginatedData"
+                max-height="400"
                 size="small"
                 stripe
                 highlight-current-row
               >
+                <el-table-column v-if="isPreviewMode" type="selection" width="50" fixed />
                 <el-table-column label="柜号" width="150" fixed>
                   <template #default="{ row }">
                     <el-link
@@ -384,29 +565,53 @@
                   width="120"
                   show-overflow-tooltip
                 />
-                <el-table-column label="计划日期" min-width="200">
+                <el-table-column label="计划日期" min-width="280">
                   <template #default="{ row }">
-                    <span v-if="row.plannedData">
-                      <span class="date-item"
-                        >提柜: {{ row.plannedData.plannedPickupDate || '-' }}</span
-                      >
-                      <span class="date-item"
-                        >送仓: {{ row.plannedData.plannedDeliveryDate || '-' }}</span
-                      >
-                      <span class="date-item"
-                        >还箱: {{ row.plannedData.plannedReturnDate || '-' }}</span
-                      >
-                    </span>
+                    <div v-if="row.plannedData" class="plan-dates-container">
+                      <div class="plan-date-item">
+                        <el-icon><Clock /></el-icon>
+                        <span class="date-label">提柜:</span>
+                        <span class="date-value">{{ row.plannedData.plannedPickupDate || '-' }}</span>
+                      </div>
+                      <div class="plan-date-item">
+                        <el-icon><Van /></el-icon>
+                        <span class="date-label">送仓:</span>
+                        <span class="date-value">{{ row.plannedData.plannedDeliveryDate || '-' }}</span>
+                      </div>
+                      <div class="plan-date-item">
+                        <el-icon><Box /></el-icon>
+                        <span class="date-label">卸柜:</span>
+                        <span class="date-value">{{ row.plannedData.unloadDate || '-' }}</span>
+                      </div>
+                      <div class="plan-date-item">
+                        <el-icon><OfficeBuilding /></el-icon>
+                        <span class="date-label">还箱:</span>
+                        <span class="date-value">{{ row.plannedData.plannedReturnDate || '-' }}</span>
+                      </div>
+                    </div>
                     <span v-else>-</span>
                   </template>
                 </el-table-column>
               </el-table>
+              <!-- ✅ P2: 分页组件 -->
+              <div class="pagination-container" style="display: flex; justify-content: flex-end; margin-top: 16px">
+                <el-pagination
+                  v-model:current-page="currentPage"
+                  :page-size="pageSize"
+                  :total="successFilteredResults.length"
+                  :page-sizes="[20, 50, 100]"
+                  layout="total, sizes, prev, pager, next, jumper"
+                  @size-change="handleSizeChange"
+                  @current-change="handleCurrentChange"
+                />
+              </div>
             </el-tab-pane>
 
-            <el-tab-pane :label="`失败 ${scheduleResult.failedCount}`" name="failed">
+            <el-tab-pane :label="`失败 ${failedCount}`" name="failed">
               <div class="tab-toolbar">
                 <span class="tab-desc danger"
-                  ><el-icon><CircleClose /></el-icon> ✗ 排产失败的货柜</span
+                  ><el-icon><CircleClose /></el-icon> ✗
+                  {{ isPreviewMode ? '预览失败' : '排产失败' }}的货柜</span
                 >
                 <el-input
                   v-if="resultTab === 'failed'"
@@ -419,8 +624,8 @@
                 />
               </div>
               <el-table
-                :data="failedResults"
-                max-height="300"
+                :data="failedPaginatedData"
+                max-height="400"
                 size="small"
                 stripe
                 highlight-current-row
@@ -439,6 +644,18 @@
                 <el-table-column prop="etaDestPort" label="ETA" width="100" />
                 <el-table-column prop="message" label="失败原因" show-overflow-tooltip />
               </el-table>
+              <!-- ✅ P2: 分页组件 -->
+              <div class="pagination-container" style="display: flex; justify-content: flex-end; margin-top: 16px">
+                <el-pagination
+                  v-model:current-page="currentPage"
+                  :page-size="pageSize"
+                  :total="failedFilteredResults.length"
+                  :page-sizes="[20, 50, 100]"
+                  layout="total, sizes, prev, pager, next, jumper"
+                  @size-change="handleSizeChange"
+                  @current-change="handleCurrentChange"
+                />
+              </div>
             </el-tab-pane>
           </el-tabs>
         </div>
@@ -446,18 +663,24 @@
 
       <!-- 无数据时显示提示 -->
       <template v-else>
-        <el-empty description="暂无排产结果，请点击“预览排产”执行排产流程" />
+        <el-empty
+          :description="
+            isPreviewMode
+              ? '暂无预览结果，请点击“预览排产”计算方案'
+              : '暂无排产结果，请点击“预览排产”执行排产流程'
+          "
+        />
       </template>
     </el-card>
 
-    <!-- 预览确认弹窗 -->
-    <SchedulingPreviewModal
+    <!-- ✅ 已移除：预览确认弹窗 - 改为直接在页面显示 -->
+    <!-- <SchedulingPreviewModal
       v-model="showPreviewModal"
       :preview-results="previewResults"
       @confirm="handleConfirmSchedule"
       @cancel="showPreviewModal = false"
-      @view-container="cn => router.push(`/shipments/${cn}`)"
-    />
+      @view-container="cn => router.push(`/shipments/${cn}`)
+    /> -->
 
     <!-- 手工指定仓库对话框 -->
     <DesignatedWarehouseDialog
@@ -477,16 +700,21 @@ import { useAppStore } from '@/store/app'
 import {
   ArrowLeft,
   Box,
+  Check,
   CircleCheck,
   CircleClose,
   Clock,
+  Close,
   Cpu,
   DocumentAdd,
   Download,
   Edit,
   House,
   InfoFilled,
+  Money,
+  OfficeBuilding,
   Setting,
+  Van,
   View,
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
@@ -494,7 +722,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import DesignatedWarehouseDialog from './components/DesignatedWarehouseDialog.vue'
-import SchedulingPreviewModal from './components/SchedulingPreviewModal.vue'
+// ✅ 已移除：SchedulingPreviewModal 组件不再需要
 
 console.log('[SchedulingVisual] 组件开始加载')
 
@@ -517,6 +745,208 @@ const appStore = useAppStore()
 
 console.log('[SchedulingVisual] route:', route)
 console.log('[SchedulingVisual] query:', route.query)
+
+// ✅ 新增：预览模式相关状态
+const isPreviewMode = ref(false) // 是否为预览模式
+const previewResults = ref<any[]>([]) // 预览结果
+const selectedPreviewContainers = ref<string[]>([]) // 用户选中的柜号
+const resultTableRef = ref() // 表格引用，用于全选操作
+const saving = ref(false) // 保存中状态
+
+// ✅ 增强：高级搜索相关状态
+const searchUnloadMode = ref<string>('') // 卸柜方式过滤
+const searchMaxCost = ref<number | undefined>() // 最大费用过滤
+
+// ✅ 新增：统一数据展示源（优先使用预览结果，否则使用正式结果）
+const displayResults = computed(() => {
+  const isPreview = isPreviewMode.value
+  const previewLen = previewResults.value.length
+  const scheduleResults = scheduleResult.value?.results || []
+  
+  if (isPreview && previewLen > 0) {
+    return previewResults.value
+  }
+  return scheduleResults as any[]
+})
+
+// ✅ 新增：搜索文本（必须在 watch 之前定义）
+const searchText = ref('')
+
+// ✅ 新增：结果 TAB（必须在 watch 之前定义）
+const resultTab = ref('all')
+
+// ✅ 新增：成功和失败的统计（基于 displayResults）
+const successCount = computed(() => {
+  return displayResults.value.filter((r: any) => r.success).length
+})
+
+const failedCount = computed(() => {
+  return displayResults.value.filter((r: any) => !r.success).length
+})
+
+// ✅ 新增：过滤后的结果（支持搜索）
+const filteredDisplayResults = computed(() => {
+  const results = displayResults.value
+
+  if (!searchText.value) return results
+
+  const searchLower = searchText.value.toLowerCase()
+  return results.filter(
+    (r: any) =>
+      r.containerNumber?.toLowerCase().includes(searchLower) ||
+      r.destinationPort?.toLowerCase().includes(searchLower) ||
+      r.warehouseName?.toLowerCase().includes(searchLower)
+  )
+})
+
+// ✅ P2: 分页 - 当前页码和每页大小
+const currentPage = ref(1)
+const pageSize = ref(50)
+
+// ✅ P2: 分页 - 计算总页数
+const totalPages = computed(() => {
+  const filtered = filteredDisplayResults.value
+  return Math.ceil(filtered.length / pageSize.value)
+})
+
+// ✅ P2: 分页 - 成功结果的当前页数据
+const successPaginatedData = computed(() => {
+  const filtered = successFilteredResults.value
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filtered.slice(start, end)
+})
+
+// ✅ P2: 分页 - 失败结果的当前页数据
+const failedPaginatedData = computed(() => {
+  const filtered = failedFilteredResults.value
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filtered.slice(start, end)
+})
+
+// ✅ P2: 分页 - 当前页数据（虚拟滚动优化）
+const paginatedData = computed(() => {
+  const filtered = filteredDisplayResults.value
+  const start = (currentPage.value - 1) * pageSize.value
+  const end = start + pageSize.value
+  return filtered.slice(start, end)
+})
+
+// ✅ P2: 分页 - 页码改变时重置到第一页
+watch([searchText, resultTab], () => {
+  currentPage.value = 1
+})
+
+// ✅ P2: 分页处理函数
+const handleSizeChange = (val: number) => {
+  pageSize.value = val
+  currentPage.value = 1 // 重置到第一页
+}
+
+const handleCurrentChange = (val: number) => {
+  currentPage.value = val
+  // 滚动到表格顶部
+  nextTick(() => {
+    const tableContainer = document.querySelector('.el-table__body-wrapper')
+    if (tableContainer) {
+      tableContainer.scrollTop = 0
+    }
+  })
+}
+
+// ✅ 费用树形结构配置
+const costTreeProps = {
+  children: 'children',
+  label: 'label',
+  value: 'value',
+}
+
+// ✅ 构建费用树形结构
+const buildCostTree = (costs: any, _country: string) => {
+  const tree: any[] = []
+  
+  // 添加子节点（分项费用）
+  const children: any[] = []
+  
+  if (costs.demurrageCost) {
+    children.push({
+      label: '滞港费',
+      value: costs.demurrageCost,
+      level: 1,
+    })
+  }
+  
+  if (costs.detentionCost) {
+    children.push({
+      label: '滞箱费',
+      value: costs.detentionCost,
+      level: 1,
+    })
+  }
+  
+  if (costs.storageCost) {
+    children.push({
+      label: '港口存储费',
+      value: costs.storageCost,
+      level: 1,
+    })
+  }
+  
+  if (costs.transportationCost) {
+    children.push({
+      label: '运输费',
+      value: costs.transportationCost,
+      level: 1,
+    })
+  }
+  
+  if (costs.yardStorageCost) {
+    children.push({
+      label: '堆场堆存费',
+      value: costs.yardStorageCost,
+      level: 1,
+    })
+  }
+  
+  // 添加根节点（总费用）
+  tree.push({
+    label: '总费用',
+    value: costs.totalCost,
+    level: 0,
+    children: children,
+  })
+  
+  return tree
+}
+
+const successFilteredResults = computed(() => {
+  const results = displayResults.value.filter((r: any) => r.success)
+
+  if (!searchText.value) return results
+
+  const searchLower = searchText.value.toLowerCase()
+  return results.filter(
+    (r: any) =>
+      r.containerNumber?.toLowerCase().includes(searchLower) ||
+      r.destinationPort?.toLowerCase().includes(searchLower) ||
+      r.warehouseName?.toLowerCase().includes(searchLower)
+  )
+})
+
+const failedFilteredResults = computed(() => {
+  const results = displayResults.value.filter(r => !r.success)
+
+  if (!searchText.value) return results
+
+  const searchLower = searchText.value.toLowerCase()
+  return results.filter(
+    (r: any) =>
+      r.containerNumber?.toLowerCase().includes(searchLower) ||
+      r.destinationPort?.toLowerCase().includes(searchLower) ||
+      r.message?.toLowerCase().includes(searchLower)
+  )
+})
 
 // 计算属性 - 优先使用 URL 参数
 const resolvedCountry = computed(() => {
@@ -572,27 +1002,28 @@ const logContainer = ref<HTMLElement>()
 // ✅ 新增：港口选择
 const selectedPortCode = ref<string>('')
 const scheduleResult = ref<any>(null)
-const resultTab = ref('all')
 
-// ✅ 新增：搜索文本
-const searchText = ref('')
-
-// 计算属性
-const successResults = computed(() => {
-  return scheduleResult.value?.results?.filter((r: any) => r.success) || []
-})
-
-const failedResults = computed(() => {
-  return scheduleResult.value?.results?.filter((r: any) => !r.success) || []
-})
-
-// 导出CSV
+// ✅ P3: 导出增强 - 包含费用明细和筛选条件
 const exportScheduleResult = () => {
   if (!scheduleResult.value?.results?.length) {
     ElMessage.warning('没有可导出的数据')
     return
   }
 
+  // ✅ P3: 添加筛选条件到导出文件头部
+  const filterInfo = [
+    ['导出时间', dayjs().format('YYYY-MM-DD HH:mm:ss')],
+    ['日期范围', dateRange.value ? `${dayjs(dateRange.value[0]).format('YYYY-MM-DD')} 至 ${dayjs(dateRange.value[1]).format('YYYY-MM-DD')}` : '全部'],
+    ['目的港', selectedPortCode.value || '所有港口'],
+    ['搜索关键词', searchText.value || '无'],
+    ['总柜数', scheduleResult.value.results.length],
+    ['成功', successCount.value],
+    ['失败', failedCount.value],
+    ['成功率', displayResults.value.length > 0 ? ((successCount.value / displayResults.value.length) * 100).toFixed(1) + '%' : '0%'],
+    ['', ''], // 空行分隔
+  ]
+
+  // ✅ P3: 扩展 CSV 表头包含费用明细
   const headers = [
     '柜号',
     '状态',
@@ -600,27 +1031,54 @@ const exportScheduleResult = () => {
     '仓库',
     'ETA',
     'ATA',
+    '最晚提柜日 (LFD)',
+    '最晚还箱日 (LRD)',
+    '剩余免费天',
     '计划提柜日',
     '计划送仓日',
     '计划还箱日',
+    '卸柜策略',
+    '滞港费',
+    '滞箱费',
+    '港口存储费',
+    '运输费',
+    '堆场堆存费',
+    '总费用',
     '消息',
   ]
-  const rows = scheduleResult.value.results.map((r: any) => [
-    r.containerNumber,
-    r.success ? '成功' : '失败',
-    r.destinationPort || '',
-    r.warehouseName || '',
-    r.etaDestPort || '',
-    r.ataDestPort || '',
-    r.plannedData?.plannedPickupDate || '',
-    r.plannedData?.plannedDeliveryDate || '',
-    r.plannedData?.plannedReturnDate || '',
-    r.message || '',
-  ])
 
-  const csvContent = [headers, ...rows]
-    .map(row => row.map((cell: unknown) => `"${cell}"`).join(','))
-    .join('\n')
+  // ✅ P3: 提取费用明细数据
+  const rows = scheduleResult.value.results.map((r: any) => {
+    const costs = r.estimatedCosts || {}
+    return [
+      r.containerNumber,
+      r.success ? '成功' : '失败',
+      r.destinationPort || '',
+      r.warehouseName || '',
+      r.etaDestPort || '',
+      r.ataDestPort || '',
+      r.lastFreeDate || '',
+      r.lastReturnDate || '',
+      r.freeDaysRemaining !== undefined ? String(r.freeDaysRemaining) : '',
+      r.plannedData?.plannedPickupDate || '',
+      r.plannedData?.plannedDeliveryDate || '',
+      r.plannedData?.plannedReturnDate || '',
+      r.plannedData?.unloadModePlan || '',
+      costs.demurrageCost !== undefined ? String(costs.demurrageCost.toFixed(2)) : '',
+      costs.detentionCost !== undefined ? String(costs.detentionCost.toFixed(2)) : '',
+      costs.storageCost !== undefined ? String(costs.storageCost.toFixed(2)) : '',
+      costs.transportationCost !== undefined ? String(costs.transportationCost.toFixed(2)) : '',
+      costs.yardStorageCost !== undefined ? String(costs.yardStorageCost.toFixed(2)) : '',
+      costs.totalCost !== undefined ? String(costs.totalCost.toFixed(2)) : '',
+      r.message || '',
+    ]
+  })
+
+  const csvContent = [
+    ...filterInfo.map((row: string[]) => row.map((cell: unknown) => `"${cell}"`).join(',')), // ✅ P3: 添加筛选条件
+    headers.map((cell: string) => `"${cell}"`).join(','),
+    ...rows.map((row: string[]) => row.map((cell: unknown) => `"${cell}"`).join(','))
+  ].join('\n')
 
   const BOM = '\uFEFF'
   const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' })
@@ -696,6 +1154,18 @@ const handlePortChange = (portCode: string | null) => {
 
 // ✅ 新增：获取结果标签类型
 const getResultTagType = (): 'success' | 'warning' | 'danger' | 'info' => {
+  // 预览模式：基于预览结果计算
+  if (isPreviewMode.value && previewResults.value.length > 0) {
+    const total = previewResults.value.length
+    const success = previewResults.value.filter(r => r.success).length
+    if (total === 0) return 'info'
+    const successRate = success / total
+    if (successRate >= 0.9) return 'success'
+    if (successRate >= 0.7) return 'warning'
+    return 'danger'
+  }
+  
+  // 正式模式：基于正式结果计算
   if (scheduleResult.value?.total === 0) return 'info'
   const successRate = scheduleResult.value.successCount / scheduleResult.value.total
   if (successRate >= 0.9) return 'success'
@@ -770,9 +1240,9 @@ const addLog = (message: string, type: string = 'info') => {
 
 const BATCH_SIZE = 3
 
-// 预览确认相关
-const showPreviewModal = ref(false)
-const previewResults = ref<any[]>([])
+// 预览确认相关 - 已移除，改为内联显示
+// const showPreviewModal = ref(false)
+// const previewResults = ref<any[]>([]) // 已移到上面与 isPreviewMode 一起声明
 
 // 执行排产（分步：每批 3 个，暂停确认是否继续）
 const handleSchedule = async () => {
@@ -979,14 +1449,20 @@ const handlePreviewSchedule = async () => {
       plannedDeliveryDate: r.plannedData?.plannedDeliveryDate || '-',
       plannedUnloadDate: r.plannedData?.plannedUnloadDate || '-',
       plannedReturnDate: r.plannedData?.plannedReturnDate || '-',
-      warehouseName: r.plannedData?.warehouseName || '-',
+      warehouseName: r.warehouseName || r.plannedData?.warehouseName || '-',
       truckingCompany: r.plannedData?.truckingCompany || '-',
       unloadMode: r.plannedData?.unloadModePlan || '-',
       estimatedCosts: r.plannedData?.estimatedCosts || r.estimatedCosts || undefined,
+      lastFreeDate: r.lastFreeDate || '-',
+      freeDaysRemaining: r.freeDaysRemaining ?? undefined,
     }))
 
+    // ✅ 直接显示预览结果，不再弹出对话框
+    isPreviewMode.value = true
+    scheduleResult.value = null // 清空正式结果
+        
     addLog(`预览完成：成功 ${result.successCount} 个，失败 ${result.failedCount} 个`, 'info')
-    showPreviewModal.value = true
+    ElMessage.success(`预览完成：成功 ${result.successCount} 个，请在下方审查并勾选要保存的方案`)
   } catch (error: any) {
     ElMessage.error('预览失败：' + (error.message || '未知错误'))
   } finally {
@@ -994,28 +1470,33 @@ const handlePreviewSchedule = async () => {
   }
 }
 
-// 确认保存排产结果
-const handleConfirmSchedule = async (selectedContainers: string[]) => {
-  if (selectedContainers.length === 0) {
-    ElMessage.warning('请选择要保存的货柜')
+// 确认保存排产结果 - 已移除，改用 handleConfirmSave 替代
+// const handleConfirmSchedule = async (selectedContainers: string[]) => { ... }
+
+// ✅ 新增：确认保存预览结果
+const handleConfirmSave = async () => {
+  if (selectedPreviewContainers.value.length === 0) {
+    ElMessage.warning('请至少选择一个货柜')
     return
   }
 
   try {
-    addLog(`正在保存 ${selectedContainers.length} 个货柜的排产结果...`, 'info')
+    saving.value = true
+    addLog(`正在保存 ${selectedPreviewContainers.value.length} 个货柜的排产结果...`, 'info')
 
     // 调用 confirm 接口（重新计算并保存）
     const result = await containerService.confirmSchedule({
-      containerNumbers: selectedContainers,
+      containerNumbers: selectedPreviewContainers.value,
     })
 
     if (result.success) {
       ElMessage.success(`成功保存 ${result.savedCount} 个货柜`)
       addLog(`确认保存完成：成功 ${result.savedCount} 个`, 'success')
 
-      // 关闭弹窗
-      showPreviewModal.value = false
+      // 清空预览状态
+      isPreviewMode.value = false
       previewResults.value = []
+      selectedPreviewContainers.value = []
 
       // 刷新概览数据
       await loadOverview()
@@ -1029,7 +1510,235 @@ const handleConfirmSchedule = async (selectedContainers: string[]) => {
   } catch (error: any) {
     ElMessage.error('保存失败：' + (error.message || '未知错误'))
     addLog('保存失败：' + error.message, 'error')
+  } finally {
+    saving.value = false
   }
+}
+
+// ✅ 新增：放弃预览结果
+const handleDiscardPreview = () => {
+  isPreviewMode.value = false
+  previewResults.value = []
+  selectedPreviewContainers.value = []
+  addLog('用户放弃了预览结果', 'info')
+  ElMessage.info('已放弃预览结果')
+}
+
+// ✅ 新增：全选成功的货柜
+const selectAllOnPage = () => {
+  if (resultTableRef.value) {
+    // 获取所有成功的行
+    const successRows = displayResults.value.filter((r: any) => r.success)
+    // 设置选中状态
+    resultTableRef.value.toggleAllSelection()
+
+    // 手动设置选中项（只选中成功的）
+    selectedPreviewContainers.value = successRows.map((r: any) => r.containerNumber)
+
+    ElMessage.success(`已选择 ${selectedPreviewContainers.value.length} 个成功的货柜`)
+  }
+}
+
+// ✅ 新增：取消全选
+const clearSelection = () => {
+  if (resultTableRef.value) {
+    resultTableRef.value.clearSelection()
+  }
+  selectedPreviewContainers.value = []
+}
+
+// ✅ 新增：处理表格选择变化
+const handlePreviewSelectionChange = (selection: any[]) => {
+  selectedPreviewContainers.value = selection.map((r: any) => r.containerNumber)
+}
+
+// ✅ 增强：辅助方法 - 格式化货币
+const formatCurrency = (value: number | string, currency: string = 'US') => {
+  const numValue = typeof value === 'string' ? parseFloat(value) : value
+  if (isNaN(numValue)) return '-'
+
+  const currencySymbols: Record<string, string> = {
+    US: '$',
+    CN: '¥',
+    EU: '€',
+    UK: '£',
+  }
+
+  const symbol = currencySymbols[currency] || '$'
+  return `${symbol}${numValue.toFixed(2)}`
+}
+
+// ✅ 增强：辅助方法 - 获取费用颜色类别
+const getAmountClass = (amount: number) => {
+  if (amount <= 0) return 'cost-low'
+  if (amount < 500) return 'cost-medium'
+  if (amount < 1000) return 'cost-high'
+  return 'cost-critical'
+}
+
+// ✅ 新增：成本优化快捷操作
+const handleOptimizeContainer = async (row: any) => {
+  const containerNumber = row.containerNumber
+  
+  // ✅ 优化：从多个可能的字段获取仓库代码
+  const warehouseCode = 
+    row.plannedData?.warehouseCode ||    // 优先从 plannedData 获取
+    row.warehouseCode ||                 // 从根对象获取
+    row.destinationWarehouse ||          // 备用字段 1
+    row.warehouseId ||                   // 备用字段 2
+    row.warehouseName?.split(' ')[0] ||  // ✅ 新增：从仓库名称提取（如果有）
+    row.plannedData?.warehouseName?.split(' ')[0]  // ✅ 新增：从 plannedData 的仓库名称提取
+  
+  // ✅ 优化：从多个可能的字段获取车队 ID
+  const truckingCompanyId = 
+    row.plannedData?.truckingCompanyId || 
+    row.truckingCompanyId || 
+    row.truckingCompany
+  
+  const basePickupDate = row.plannedData?.plannedPickupDate || row.plannedPickupDate
+
+  console.log('[handleOptimizeContainer] 检查参数:', {
+    containerNumber,
+    warehouseCode,
+    truckingCompanyId,
+    basePickupDate,
+    plannedData: row.plannedData,
+    rowKeys: Object.keys(row),
+  })
+
+  if (!warehouseCode) {
+    console.error('[handleOptimizeContainer] 缺少仓库代码，所有可能的字段都为空')
+    ElMessage.warning('缺少仓库信息，无法进行优化。请确认排产结果中是否包含仓库信息。')
+    return
+  }
+
+  if (!truckingCompanyId) {
+    console.error('[handleOptimizeContainer] 缺少车队 ID，所有可能的字段都为空')
+    ElMessage.warning('缺少车队信息，无法进行优化。请确认排产结果中是否包含车队信息。')
+    return
+  }
+
+  if (!basePickupDate) {
+    console.error('[handleOptimizeContainer] 缺少计划提柜日期')
+    ElMessage.warning('缺少计划提柜日期，无法进行优化。请确认排产结果中是否包含计划日期。')
+    return
+  }
+
+  try {
+    ElMessageBox.confirm(
+      `是否对货柜 ${containerNumber} 进行成本优化？系统将重新计算最优卸柜日期。`,
+      '成本优化',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'info',
+      }
+    ).then(async () => {
+      addLog(`开始优化货柜 ${containerNumber}...`, 'info')
+
+      // ✅ 调用后端成本优化 API
+      const result = await containerService.optimizeContainer({
+        containerNumber,
+        warehouseCode,
+        truckingCompanyId,
+        basePickupDate,
+      })
+
+      if (result.success && result.data) {
+        const { savings, suggestedPickupDate, suggestedStrategy, alternatives } = result.data
+        
+        // 显示优化结果
+        ElMessageBox.alert(
+          `<div class="optimize-result">
+            <p><strong>优化方案：</strong></p>
+            <ul>
+              <li>建议提柜日：${suggestedPickupDate}</li>
+              <li>建议策略：${suggestedStrategy}</li>
+              <li>预计节省：$${savings.toFixed(2)}</li>
+            </ul>
+            <p><strong>备选方案：</strong></p>
+            <ul>
+              ${alternatives.slice(0, 3).map((alt: any) => 
+                `<li>提柜日：${alt.pickupDate} | 策略：${alt.strategy} | 总成本：$${alt.totalCost.toFixed(2)} | 节省：$${alt.savings.toFixed(2)}</li>`
+              ).join('')}
+            </ul>
+          </div>`,
+          `货柜 ${containerNumber} 优化完成`,
+          {
+            dangerouslyUseHTMLString: true,
+            confirmButtonText: '确定',
+            type: 'success',
+          }
+        )
+        addLog(`优化完成：建议 ${suggestedPickupDate} 提柜，${suggestedStrategy}，节省 $${savings.toFixed(2)}`, 'success')
+      } else {
+        ElMessage.warning('优化未返回结果')
+        addLog(`优化未返回结果`, 'warning')
+      }
+    })
+  } catch (error: any) {
+    if (error !== 'cancel') {
+      ElMessage.error('优化失败：' + error.message)
+      addLog(`优化失败：${error.message}`, 'error')
+    }
+  }
+}
+
+// ✅ 新增：获取最晚提柜日标签状态
+const getLfdTagStatus = (row: any) => {
+  const today = new Date()
+  const lfd = row.lastFreeDate ? new Date(row.lastFreeDate) : null
+  if (!lfd) return 'info'
+  
+  const diffDays = Math.floor((lfd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays < 0) return 'danger'    // 超期
+  if (diffDays <= 2) return 'warning'  // 即将到期
+  return 'success'                     // 安全
+}
+
+// ✅ 新增：获取最晚提柜日倒计时文本
+const getLfdCountdown = (row: any) => {
+  const today = new Date()
+  const lfd = row.lastFreeDate ? new Date(row.lastFreeDate) : null
+  if (!lfd) return ''
+  
+  const diffDays = Math.floor((lfd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays < 0) return `超期${Math.abs(diffDays)}天`
+  if (diffDays === 0) return '今天到期'
+  if (diffDays === 1) return '明天到期'
+  return `剩${diffDays}天`
+}
+
+// ✅ 新增：获取最晚还箱日标签状态
+const getLrdTagStatus = (row: any) => {
+  const today = new Date()
+  const lrd = row.lastReturnDate ? new Date(row.lastReturnDate) : null
+  if (!lrd) return 'info'
+  
+  const diffDays = Math.floor((lrd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays < 0) return 'danger'    // 超期
+  if (diffDays <= 2) return 'warning'  // 即将到期
+  return 'success'                     // 安全
+}
+
+// ✅ 新增：获取最晚还箱日倒计时文本
+const getLrdCountdown = (row: any) => {
+  const today = new Date()
+  const lrd = row.lastReturnDate ? new Date(row.lastReturnDate) : null
+  if (!lrd) return ''
+  
+  const diffDays = Math.floor((lrd.getTime() - today.getTime()) / (1000 * 60 * 60 * 24))
+  if (diffDays < 0) return `超期${Math.abs(diffDays)}天`
+  if (diffDays === 0) return '今天到期'
+  if (diffDays === 1) return '明天到期'
+  return `剩${diffDays}天`
+}
+
+// ✅ 新增：获取剩余免费天样式类
+const getFreeDaysClass = (days: number) => {
+  if (days < 0) return 'text-danger font-weight-bold'  // 超期
+  if (days <= 2) return 'text-warning font-weight-bold' // 紧张
+  return 'text-success'                                 // 安全
 }
 
 // 监听国家变化
@@ -1327,6 +2036,110 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* ✅ 新增：批量操作栏样式 */
+.batch-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #fff7e6 0%, #ffffff 100%);
+  border: 1px solid #ffd591;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+/* ✅ 增强：高级搜索区样式 */
+.advanced-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ✅ 增强：费用明细样式 */
+.cost-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.cost-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.cost-label {
+  color: #666;
+  flex-shrink: 0;
+}
+
+.cost-value {
+  font-weight: 500;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.cost-value.danger {
+  color: #f56c6c;
+}
+
+.cost-value.warning {
+  color: #e6a23c;
+}
+
+.cost-value.info {
+  color: #409eff;
+}
+
+.cost-value-total {
+  font-weight: bold;
+  font-size: 13px;
+}
+
+.cost-row.total {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed #ddd;
+}
+
+/* 费用颜色类别 */
+.cost-low {
+  color: #67c23a;
+}
+
+.cost-medium {
+  color: #e6a23c;
+}
+
+.cost-high {
+  color: #f56c6c;
+}
+
+.cost-critical {
+  color: #f56c6c;
+  font-weight: bold;
+}
+
+/* ✅ 优化：免费期显示样式 */
+.text-danger {
+  color: #f56c6c;
+}
+
+.text-warning {
+  color: #e6a23c;
+}
+
+.text-success {
+  color: #67c23a;
+}
+
+.font-weight-bold {
+  font-weight: bold;
 }
 
 /* ✅ 优化：结果卡片样式 */
@@ -1707,6 +2520,95 @@ onMounted(() => {
 
 .stat-box.failed .stat-num {
   color: #f56c6c;
+}
+
+/* ✅ 计划日期样式 */
+.plan-dates-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.plan-date-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.plan-date-item .el-icon {
+  color: #909399;
+  font-size: 14px;
+}
+
+.date-label {
+  color: #606266;
+  font-weight: 500;
+  min-width: 40px;
+}
+
+.date-value {
+  color: #303133;
+  font-weight: 500;
+}
+
+/* ✅ 费用树形结构样式 */
+.cost-tree {
+  width: 100%;
+}
+
+.cost-tree-node {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 2px 4px;  /* ✅ 更紧凑：从 4px 0 改为 2px 4px */
+}
+
+.cost-tree-label {
+  color: #606266;
+  font-size: 13px;
+  flex: 1;  /* ✅ 标签占据剩余空间 */
+}
+
+.cost-tree-value {
+  font-weight: 500;
+  font-size: 13px;
+  min-width: 100px;  /* ✅ 金额固定宽度 */
+  text-align: left;  /* ✅ 金额左对齐 */
+}
+
+.cost-tree-value.cost-value-total {
+  color: #303133;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+/* 费用等级样式 */
+.cost-tree-value.cost-critical {
+  color: #f56c6c;
+  font-weight: bold;
+}
+
+.cost-tree-value.cost-warning {
+  color: #e6a23c;
+  font-weight: 500;
+}
+
+/* 树形节点缩进 */
+.cost-tree :deep(.el-tree-node__content) {
+  height: auto;
+  padding: 2px 0;  /* ✅ 更紧凑：减少垂直间距 */
+}
+
+.cost-tree :deep(.el-tree-node__expand-icon) {
+  font-size: 12px;
+  color: #909399;
+}
+
+/* ✅ 总费用行样式（隐藏标签，只显示金额） */
+.cost-tree :deep(.el-tree-node.is-leaf .el-tree-node__content) {
+  padding-left: 0;  /* ✅ 根节点不缩进 */
 }
 
 .stat-text {

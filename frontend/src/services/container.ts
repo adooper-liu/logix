@@ -540,6 +540,43 @@ class ContainerService {
     const response = await this.api.get('/containers/by-filter', { params })
     return response.data
   }
+
+  /**
+   * 单柜成本优化
+   * POST /api/v1/scheduling/optimize-container/:containerNumber
+   */
+  async optimizeContainer(params: {
+    containerNumber: string
+    warehouseCode: string
+    truckingCompanyId: string
+    basePickupDate: string
+  }): Promise<{
+    success: boolean
+    data: {
+      containerNumber: string
+      originalCost: number
+      optimizedCost: number
+      savings: number
+      savingsPercent: number
+      suggestedPickupDate: string
+      suggestedStrategy: 'Direct' | 'Drop off' | 'Expedited'
+      alternatives: Array<{
+        containerNumber: string
+        pickupDate: string
+        strategy: 'Direct' | 'Drop off' | 'Expedited'
+        totalCost: number
+        savings: number
+        warehouseCode: string
+        truckingCompanyCode: string
+      }>
+    }
+  }> {
+    const { containerNumber, ...data } = params
+    const response = await this.api.post(`/scheduling/optimize-container/${containerNumber}`, data, {
+      timeout: 60000, // 60 秒超时
+    })
+    return response.data
+  }
 }
 
 export const containerService = new ContainerService()

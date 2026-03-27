@@ -1895,6 +1895,103 @@ export class SchedulingController {
   };
 
   /**
+   * POST /api/v1/scheduling/optimize-container/:containerNumber
+   * 单柜成本优化
+   * Body: { warehouseCode, truckingCompanyId, basePickupDate }
+   */
+  optimizeContainer = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { containerNumber } = req.params;
+      const { warehouseCode, truckingCompanyId, basePickupDate } = req.body;
+
+      logger.info('[Scheduling] Optimize container request:', {
+        containerNumber,
+        warehouseCode,
+        truckingCompanyId,
+        basePickupDate
+      });
+
+      // 验证参数
+      if (!warehouseCode || !truckingCompanyId || !basePickupDate) {
+        res.status(400).json({
+          success: false,
+          message: '缺少必要参数：warehouseCode, truckingCompanyId, basePickupDate'
+        });
+        return;
+      }
+
+      // 获取仓库和车队信息
+      const warehouseRepo = AppDataSource.getRepository(Warehouse);
+      const truckingRepo = AppDataSource.getRepository(TruckingCompany);
+
+      const warehouse = await warehouseRepo.findOne({
+        where: { warehouseCode }
+      });
+
+      if (!warehouse) {
+        res.status(404).json({
+          success: false,
+          message: '仓库不存在'
+        });
+        return;
+      }
+
+      const truckingCompany = await truckingRepo.findOne({
+        where: { companyCode: truckingCompanyId }
+      });
+
+      if (!truckingCompany) {
+        res.status(404).json({
+          success: false,
+          message: '车队不存在'
+        });
+        return;
+      }
+
+      // 调用成本优化服务
+      const result = await this.costOptimizerService.suggestOptimalUnloadDate(
+        containerNumber,
+        warehouse,
+        truckingCompany,
+        new Date(basePickupDate)
+      );
+
+      logger.info(
+        `[Scheduling] Optimization result for ${containerNumber}:`,
+        JSON.stringify(result, null, 2)
+      );
+
+      res.json({
+        success: true,
+        data: {
+          containerNumber,
+          originalCost: result.originalCost,
+          optimizedCost: result.optimizedCost,
+          savings: result.savings,
+          savingsPercent: result.savingsPercent,
+          suggestedPickupDate: result.suggestedPickupDate.toISOString().split('T')[0],
+          suggestedStrategy: result.suggestedStrategy,
+          alternatives: result.alternatives.map((alt) => ({
+            containerNumber,
+            pickupDate: alt.pickupDate.toISOString().split('T')[0],
+            strategy: alt.strategy,
+            totalCost: alt.totalCost,
+            savings: alt.savings,
+            warehouseCode,
+            truckingCompanyCode: truckingCompanyId
+          }))
+        }
+      });
+    } catch (error: any) {
+      logger.error('[Scheduling] optimizeContainer error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || '成本优化失败'
+      });
+    }
+  };
+
+  /**
    * POST /api/v1/scheduling/batch-optimize
    * 批量成本优化
    * Body: { containerNumbers, basePickupDate, lastFreeDate }
