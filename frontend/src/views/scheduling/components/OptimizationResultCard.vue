@@ -835,7 +835,7 @@ const getUrgencyType = (days: number): string => {
     }
 
     .trend-chart-container {
-      height: 260px; /* ✅ 关键修复：固定高度与表格一致 */
+      height: 265px; /* ✅ 优化：增加 5px 高度 */
       border: 1px solid #e4e7ed;
       border-radius: 6px; /* ✅ 关键修复：减小圆角 */
       padding: 12px; /* ✅ 优化：增加 padding */
@@ -845,7 +845,7 @@ const getUrgencyType = (days: number): string => {
       box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); /* ✅ 新增：轻微阴影 */
 
       :deep(.vue-echarts) {
-        height: 248px; /* ✅ 新增：固定高度，与表格高度一致 */
+        height: 253px; /* ✅ 优化：增加 5px，与容器高度一致（265px - 24px padding） */
         width: 100%;
       }
     }
