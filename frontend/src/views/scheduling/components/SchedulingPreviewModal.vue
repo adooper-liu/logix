@@ -401,6 +401,7 @@
 
 <script setup lang="ts">
 import { costOptimizerService, type Alternative } from '@/services/costOptimizer.service'
+import { useCostOptimization } from '@/composables/useCostOptimization'
 import { CircleCheck, CircleClose } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { computed, ref, watch } from 'vue'
@@ -449,12 +450,9 @@ const emit = defineEmits<{
 const visible = ref(true)
 const selectedContainers = ref<string[]>([])
 const saving = ref(false)
-const optimizing = ref(false) // ✅ 智能优化加载中
-const optimizationResult = ref<{
-  optimizedCount: number
-  totalSavings: number
-  alternatives?: Alternative[]
-} | null>(null)
+
+// ✅ 使用统一的成本优化 Hook
+const { optimizing, optimizationResult, executeOptimization } = useCostOptimization()
 const showAlternativesDialog = ref(false) // 显示方案对比弹窗
 const currentAlternatives = ref<Alternative[]>([])
 
@@ -575,41 +573,11 @@ const handleClose = () => {
   emit('cancel')
 }
 
-// ✅ 智能成本优化
+// ✅ 智能成本优化（重构版）
 const handleSmartOptimization = async () => {
-  optimizing.value = true
-  optimizationResult.value = null
-
   try {
-    // TODO: 从预览结果中提取参数
-    const firstResult = props.previewResults[0]
-    if (!firstResult || !firstResult.plannedData) {
-      throw new Error('无有效的预览结果')
-    }
-
-    // ✅ 关键修复：lastFreeDate 字段已删除（语义模糊：无法区分是滞港还是滞箱的免费期）
-    // ✅ 正确做法：让后端自行从 DemurrageService 查询免费期，前端不需要传递
-    // 调用后端智能优化 API（不再传递 lastFreeDate 参数）
-    const requestData = {
-      containers: props.previewResults.filter(r => r.success).map(r => r.containerNumber),
-      warehouseCode: firstResult.plannedData.warehouseId || '',
-      truckingCompanyId: firstResult.plannedData.truckingCompanyId || '',
-      basePickupDate: firstResult.plannedData.plannedPickupDate || '',
-      // ✅ 不再传递 lastFreeDate：后端应该自行查询每个容器的滞港费/滞箱费免费期
-    }
-
-    console.log('[SchedulingPreviewModal] Request data:', requestData)
-
-    const result = await costOptimizerService.suggestOptimalUnloadDate(requestData)
-
-    console.log('[SchedulingPreviewModal] 优化结果:', result)
-    console.log('[SchedulingPreviewModal] Alternatives:', result.alternatives)
-
-    optimizationResult.value = {
-      optimizedCount: result.alternatives.length,
-      totalSavings: result.savings,
-      alternatives: result.alternatives,
-    }
+    // ✅ 复用排产预览结果作为数据源
+    const result = await executeOptimization(props.previewResults)
 
     // 显示 Top 3 方案对比卡片
     const slicedAlternatives = result.alternatives.slice(0, 3)
@@ -617,12 +585,10 @@ const handleSmartOptimization = async () => {
     showAlternativesDialog.value = true
 
     ElMessage.success(
-      `发现 ${optimizationResult.value.optimizedCount} 个货柜可优化，预计节省 $${(optimizationResult.value.totalSavings ?? 0).toFixed(2)}`
+      `发现 ${result.optimizedCount} 个货柜可优化，预计节省 $${(result.totalSavings ?? 0).toFixed(2)}`
     )
   } catch (error: any) {
     ElMessage.error(error.message || '智能优化失败，请稍后重试')
-  } finally {
-    optimizing.value = false
   }
 }
 

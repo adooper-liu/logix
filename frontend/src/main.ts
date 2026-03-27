@@ -19,11 +19,15 @@ import './assets/styles/global.scss'
 import { registerLazyDirective } from './utils/lazyLoader'
 import { performanceMonitorPlugin } from './utils/performanceMonitor'
 import dateTimePlugin from './plugins/dateTime'
+import { initSentry } from './plugins/sentry'
 
 // 环境变量
 const enablePerformanceMonitor = import.meta.env.VITE_ENABLE_PERFORMANCE_MONITOR === 'true'
 
 const app = createApp(App)
+
+// 初始化 Sentry 错误监控
+initSentry(app)
 
 // 注册性能监控插件
 if (enablePerformanceMonitor) {

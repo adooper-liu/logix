@@ -1,1 +1,18 @@
-npm test
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🚀 Running pre-commit checks..."
+
+# Type check
+echo "📝 Running type check..."
+npm run type-check
+
+# Run lint (staged files only via lint-staged)
+echo "🔍 Running lint..."
+npx lint-staged
+
+# Run tests
+echo "🧪 Running tests..."
+npm run test
+
+echo "✅ Pre-commit checks passed!"

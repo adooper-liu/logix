@@ -1625,14 +1625,16 @@ const getAmountClass = (amount: number) => {
 const handleOptimizeContainer = async (row: any) => {
   const containerNumber = row.containerNumber
 
-  // ✅ 优化：从多个可能的字段获取仓库代码
+  // ✅ 关键修复：plannedData.warehouseId 存储的就是 warehouseCode（见后端代码第 674 行）
+  // 优先级：plannedData.warehouseId > warehouseCode > 其他备用字段
   const warehouseCode =
-    row.plannedData?.warehouseCode || // 优先从 plannedData 获取
+    row.plannedData?.warehouseId || // ✅ 首选：排产数据中的 warehouseId（实际是 warehouseCode）
+    row.plannedData?.warehouseCode || // 备选：plannedData 中的 warehouseCode 字段
     row.warehouseCode || // 从根对象获取
+    row.warehouseId || // 备用字段（根对象的 warehouseId）
     row.destinationWarehouse || // 备用字段 1
-    row.warehouseId || // 备用字段 2
-    row.warehouseName?.split(' ')[0] || // ✅ 新增：从仓库名称提取（如果有）
-    row.plannedData?.warehouseName?.split(' ')[0] // ✅ 新增：从 plannedData 的仓库名称提取
+    row.warehouseName?.split(' ')[0] || // 最后尝试：从仓库名称提取
+    row.plannedData?.warehouseName?.split(' '[0]) // 从 plannedData 的仓库名称提取
 
   // ✅ 优化：从多个可能的字段获取车队 ID
   const truckingCompanyId =
