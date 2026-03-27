@@ -1301,7 +1301,7 @@ export class DemurrageService {
    */
   async calculateForContainer(
     containerNumber: string,
-    options?: { 
+    options?: {
       freeDateWriteMode?: 'batch' | 'none';
       paramsOverride?: any; // ContainerMatchParams 类型
     }
@@ -1322,7 +1322,7 @@ export class DemurrageService {
   }> {
     await this.normalizeOrphanLastFreeDateSource(containerNumber);
     // ✅ 关键修复：如果传入了 paramsOverride，使用覆盖的参数，否则从数据库获取
-    const params = options?.paramsOverride || await this.getContainerMatchParams(containerNumber);
+    const params = options?.paramsOverride || (await this.getContainerMatchParams(containerNumber));
 
     // 第一步：状态机判定是否到达目的港（或提柜/卸柜/还箱），再决定 actual vs forecast（计划逻辑）
     const logisticsSnapshot = await this.getLogisticsStatusSnapshot(containerNumber);
@@ -3434,7 +3434,9 @@ export class DemurrageService {
     try {
       // 1. ✅ 修复 3: 如果传入了 plannedDates，使用临时覆盖逻辑
       if (options?.plannedDates) {
-        const optionsWithPlanned = options as typeof options & { plannedDates: NonNullable<typeof options.plannedDates> };
+        const optionsWithPlanned = options as typeof options & {
+          plannedDates: NonNullable<typeof options.plannedDates>;
+        };
         return await this.calculateTotalCostWithPlannedDates(containerNumber, optionsWithPlanned);
       }
 
@@ -3546,35 +3548,32 @@ export class DemurrageService {
     try {
       // 1. 先获取基础参数（包含数据库中的日期）
       const params = await this.getContainerMatchParams(containerNumber);
-      
+
       // 2. ✅ 关键：临时覆盖 calculationDates 中的计划日期
       const originalPlannedPickupDate = params.calculationDates.plannedPickupDate;
       const originalPlannedReturnDate = params.calculationDates.plannedReturnDate;
-      
+
       // 使用传入的计划日期（保持 Date 类型）
       params.calculationDates.plannedPickupDate = options.plannedDates.plannedPickupDate;
       params.calculationDates.plannedReturnDate = options.plannedDates.plannedReturnDate;
-      
-      logger.info(
-        `[Demurrage] Temporarily overriding planned dates for ${containerNumber}:`,
-        {
-          originalPickup: originalPlannedPickupDate,
-          newPickup: params.calculationDates.plannedPickupDate,
-          originalReturn: originalPlannedReturnDate,
-          newReturn: params.calculationDates.plannedReturnDate
-        }
-      );
-      
+
+      logger.info(`[Demurrage] Temporarily overriding planned dates for ${containerNumber}:`, {
+        originalPickup: originalPlannedPickupDate,
+        newPickup: params.calculationDates.plannedPickupDate,
+        originalReturn: originalPlannedReturnDate,
+        newReturn: params.calculationDates.plannedReturnDate
+      });
+
       // 3. ✅ 关键修复：调用 calculateForContainer 时传入覆盖后的 params
       const demurrageResult = await this.calculateForContainer(containerNumber, {
         freeDateWriteMode: 'none',
-        paramsOverride: params  // 传入覆盖后的参数
+        paramsOverride: params // 传入覆盖后的参数
       });
-      
+
       // 4. 恢复原始日期（防御性编程）
       params.calculationDates.plannedPickupDate = originalPlannedPickupDate || null;
       params.calculationDates.plannedReturnDate = originalPlannedReturnDate || null;
-      
+
       const costs = {
         demurrageCost: 0,
         detentionCost: 0,
@@ -3586,12 +3585,12 @@ export class DemurrageService {
         calculationMode: 'forecast' as 'actual' | 'forecast',
         items: [] as DemurrageItemResult[]
       };
-      
+
       if (demurrageResult.result) {
         costs.calculationMode = demurrageResult.result.calculationMode;
         costs.currency = demurrageResult.result.currency;
         costs.items = demurrageResult.result.items;
-        
+
         // 分类汇总各项费用
         demurrageResult.result.items.forEach((item) => {
           if (isDemurrageCharge(item)) {
@@ -3608,7 +3607,7 @@ export class DemurrageService {
           }
         });
       }
-      
+
       // 5. 计算运输费（如果需要）
       if (options?.includeTransport && options.warehouse && options.truckingCompany) {
         try {
@@ -3623,7 +3622,7 @@ export class DemurrageService {
           costs.transportationCost = 0;
         }
       }
-      
+
       // 6. 总计
       costs.totalCost =
         costs.demurrageCost +
@@ -3631,11 +3630,11 @@ export class DemurrageService {
         costs.storageCost +
         costs.ddCombinedCost +
         costs.transportationCost;
-      
+
       logger.info(
         `[Demurrage] Calculated cost for ${containerNumber} with pickup date ${options.plannedDates.plannedPickupDate.toISOString().split('T')[0]}: $${costs.totalCost.toFixed(2)}`
       );
-      
+
       return costs;
     } catch (error) {
       logger.error(`[Demurrage] calculateTotalCostWithPlannedDates error:`, error);

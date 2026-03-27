@@ -3,7 +3,7 @@
  * Tests for Cost Optimization Date Constraints
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { beforeEach, describe, expect, it } from '@jest/globals';
 import { SchedulingCostOptimizerService } from '../services/schedulingCostOptimizer.service';
 import * as dateTimeUtils from '../utils/dateTimeUtils';
 

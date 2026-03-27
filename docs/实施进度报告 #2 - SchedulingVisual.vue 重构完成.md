@@ -19,24 +19,25 @@
 ##### 1. 导入 OptimizationResultCard 组件
 
 ```typescript
-import OptimizationResultCard from './components/OptimizationResultCard.vue'
+import OptimizationResultCard from "./components/OptimizationResultCard.vue";
 ```
 
 ##### 2. 新增对话框状态管理
 
 ```typescript
 // ✅ 成本优化卡片对话框状态
-const showOptimizationDialog = ref(false)
-const currentOptimizationReport = ref<any>(null)
+const showOptimizationDialog = ref(false);
+const currentOptimizationReport = ref<any>(null);
 ```
 
 ##### 3. 重构 handleOptimizeContainer 函数
 
 **修改前**（使用 ElMessageBox.alert 显示 HTML）:
+
 ```typescript
 if (result.success && result.data) {
-  const { savings, suggestedPickupDate, suggestedStrategy, alternatives } = result.data
-  
+  const { savings, suggestedPickupDate, suggestedStrategy, alternatives } = result.data;
+
   // ❌ 简单的文字列表
   ElMessageBox.alert(
     `<div class="optimize-result">
@@ -49,16 +50,17 @@ if (result.success && result.data) {
       ...
     </div>`,
     `货柜 ${containerNumber} 优化完成`,
-    { dangerouslyUseHTMLString: true }
-  )
+    { dangerouslyUseHTMLString: true },
+  );
 }
 ```
 
 **修改后**（使用 OptimizationResultCard 组件）:
+
 ```typescript
 if (result.success && result.data) {
   const { originalCost, optimizedCost, savings, savingsPercent, alternatives } = result.data
-  
+
   // ✅ 构建完整的优化报告对象（遵循 SKILL：单一事实来源）
   currentOptimizationReport.value = {
     originalCost: {
@@ -86,10 +88,10 @@ if (result.success && result.data) {
     },
     allAlternatives: alternatives.map((alt: any) => ({ ...alt })),
   }
-  
+
   // ✅ 显示 OptimizationResultCard 对话框
   showOptimizationDialog.value = true
-  
+
   addLog(`优化完成：建议 ${alternatives[0]?.pickupDate} 提柜，${alternatives[0]?.strategy}，节省 $${savings.toFixed(2)}`, 'success')
 }
 ```
@@ -98,12 +100,7 @@ if (result.success && result.data) {
 
 ```vue
 <!-- ✅ 成本优化结果卡片对话框 -->
-<el-dialog
-  v-model="showOptimizationDialog"
-  title="💰 成本优化分析报告"
-  width="900px"
-  :close-on-click-modal="false"
->
+<el-dialog v-model="showOptimizationDialog" title="💰 成本优化分析报告" width="900px" :close-on-click-modal="false">
   <OptimizationResultCard
     v-if="currentOptimizationReport"
     :report="currentOptimizationReport"
@@ -120,20 +117,20 @@ if (result.success && result.data) {
 ```typescript
 // ✅ 接受优化方案
 const handleAcceptOptimization = (alternative: any) => {
-  console.log('[handleAcceptOptimization] 接受方案:', alternative)
-  showOptimizationDialog.value = false
-  ElMessage.success('已应用优化方案')
-  addLog(`接受优化方案：${alternative.pickupDate} ${alternative.strategy}`, 'success')
+  console.log("[handleAcceptOptimization] 接受方案:", alternative);
+  showOptimizationDialog.value = false;
+  ElMessage.success("已应用优化方案");
+  addLog(`接受优化方案：${alternative.pickupDate} ${alternative.strategy}`, "success");
   // TODO: 实际保存优化结果到数据库
-}
+};
 
 // ✅ 拒绝优化方案
 const handleRejectOptimization = (alternative: any) => {
-  console.log('[handleRejectOptimization] 拒绝方案:', alternative)
-  showOptimizationDialog.value = false
-  ElMessage.info('已拒绝优化方案')
-  addLog('拒绝优化方案', 'info')
-}
+  console.log("[handleRejectOptimization] 拒绝方案:", alternative);
+  showOptimizationDialog.value = false;
+  ElMessage.info("已拒绝优化方案");
+  addLog("拒绝优化方案", "info");
+};
 ```
 
 ##### 6. 新增工具函数
@@ -141,11 +138,11 @@ const handleRejectOptimization = (alternative: any) => {
 ```typescript
 // ✅ 判断是否为周末
 const isWeekend = (dateStr: string): boolean => {
-  if (!dateStr) return false
-  const date = new Date(dateStr)
-  const day = date.getDay()
-  return day === 0 || day === 6 // 0 = 周日，6 = 周六
-}
+  if (!dateStr) return false;
+  const date = new Date(dateStr);
+  const day = date.getDay();
+  return day === 0 || day === 6; // 0 = 周日，6 = 周六
+};
 ```
 
 ---
@@ -155,21 +152,25 @@ const isWeekend = (dateStr: string): boolean => {
 ### 1. 遵循 SKILL 原则
 
 #### Single Source of Truth（单一事实来源）
+
 - ✅ 所有数据来自后端 API 返回的 `result.data`
 - ✅ 直接使用 `originalCost` 和 `optimizedCost`（后端权威数据）
 - ✅ 不再在前端重新计算节省金额
 
 #### Keep It Simple（保持简单）
+
 - ✅ 职责分离：组件负责显示，父组件负责数据
 - ✅ Props 设计简洁：只需要 report 对象
 - ✅ Emits 定义清晰：accept/reject 两个事件
 
 #### Leverage Existing（利用现有）
+
 - ✅ 复用 OptimizationResultCard 组件（Task 1.1 创建）
 - ✅ 复用现有的 containerService.optimizeContainer API
 - ✅ 复用现有的 addLog 日志系统
 
 #### Long-term Maintainability（长期可维护性）
+
 - ✅ TypeScript 类型完整（虽然使用 any，但有注释说明）
 - ✅ 代码注释详细
 - ✅ 事件处理函数独立，易于测试
@@ -177,6 +178,7 @@ const isWeekend = (dateStr: string): boolean => {
 ### 2. 用户体验提升
 
 #### 修改前
+
 ```
 ┌─────────────────────────────────┐
 │ 货柜 MSKU1234567 优化完成        │
@@ -194,6 +196,7 @@ const isWeekend = (dateStr: string): boolean => {
 ```
 
 #### 修改后
+
 ```
 ┌─────────────────────────────────────────────────┐
 │ 💰 成本优化分析报告                              │
@@ -225,6 +228,7 @@ const isWeekend = (dateStr: string): boolean => {
 ```
 
 **改进点**:
+
 1. ✅ 视觉化节省金额（大字体 + 颜色分级）
 2. ✅ 费用明细对比表（原方案 vs 优化后）
 3. ✅ 决策辅助信息（免费期、仓库档期）
@@ -236,12 +240,14 @@ const isWeekend = (dateStr: string): boolean => {
 ## 📊 质量指标
 
 ### 代码质量
+
 - ✅ TypeScript 类型：部分使用 any（有注释说明 TODO）
 - ✅ ESLint 规则遵循：是
 - ✅ 代码注释完整度：95%
 - ✅ 组件职责单一性：是
 
 ### 功能完整性
+
 - ✅ 导入组件：完成
 - ✅ 状态管理：完成
 - ✅ 数据构建：完成
@@ -250,6 +256,7 @@ const isWeekend = (dateStr: string): boolean => {
 - ✅ 工具函数：完成
 
 ### 可维护性
+
 - ✅ 函数命名语义化
 - ✅ 代码结构清晰
 - ✅ 注释详细说明
@@ -261,26 +268,31 @@ const isWeekend = (dateStr: string): boolean => {
 
 ### 问题 1: 类型安全性不足
 
-**现象**: 
+**现象**:
+
 ```typescript
-const currentOptimizationReport = ref<any>(null)
+const currentOptimizationReport = ref<any>(null);
 ```
 
-**原因**: 
+**原因**:
+
 - OptimizationReport 类型定义在组件内部
 - 没有统一的类型导出
 
-**解决**: 
+**解决**:
+
 - 📝 建议后续整合到 `frontend/src/types/scheduling.ts`
 - 📝 或者在 OptimizationResultCard.vue 中导出类型
 
-**临时方案**: 
+**临时方案**:
+
 - ✅ 使用 `any` 但有详细注释
 - ✅ 数据结构严格遵循 OptimizationResultCard 的 Props
 
 ### 问题 2: 部分数据字段缺失
 
-**现象**: 
+**现象**:
+
 ```typescript
 decisionSupport: {
   freeDaysRemaining: 7, // TODO: 从后端返回
@@ -290,45 +302,45 @@ decisionSupport: {
 }
 ```
 
-**原因**: 
+**原因**:
+
 - 后端 API 没有返回免费期和仓库档期信息
 
-**解决**: 
+**解决**:
+
 - 📝 建议后端 API 增加返回字段
 - ✅ 当前使用默认值和前端计算
 
 ### 优化建议
 
 1. **增加错误处理**
+
    ```typescript
    if (!alternatives || alternatives.length === 0) {
-     ElMessage.warning('未找到优化方案')
-     return
+     ElMessage.warning("未找到优化方案");
+     return;
    }
    ```
 
 2. **增加加载状态**
+
    ```typescript
-   const optimizing = ref(false)
-   
+   const optimizing = ref(false);
+
    // 在 API 调用前设置
-   optimizing.value = true
-   
+   optimizing.value = true;
+
    // 在 finally 块中重置
-   optimizing.value = false
+   optimizing.value = false;
    ```
 
 3. **增加用户确认**
    ```typescript
    const handleAcceptOptimization = (alternative: any) => {
-     ElMessageBox.confirm(
-       '确定要应用此优化方案吗？',
-       '确认',
-       { type: 'warning' }
-     ).then(() => {
+     ElMessageBox.confirm("确定要应用此优化方案吗？", "确认", { type: "warning" }).then(() => {
        // 实际保存逻辑
-     })
-   }
+     });
+   };
    ```
 
 ---
@@ -340,6 +352,7 @@ decisionSupport: {
 **目标**: 将批量优化的 OptimizationAlternatives 替换为 OptimizationResultCard
 
 **步骤**:
+
 1. 导入 OptimizationResultCard 组件
 2. 构建批量优化报告对象
 3. 更新对话框模板
@@ -354,21 +367,21 @@ decisionSupport: {
 
 ### 阶段 1：优化结果显示增强（P0 高优先级）
 
-| 任务 | 状态 | 进度 | 备注 |
-|------|------|------|------|
-| T1.1: 创建组件 | ✅ Done | 100% | 623 行代码 |
-| T1.2: SchedulingVisual.vue | ✅ Done | 100% | +80 行代码 |
-| T1.3: SchedulingPreviewModal.vue | ⏳ Pending | 0% | 等待执行 |
+| 任务                             | 状态       | 进度 | 备注       |
+| -------------------------------- | ---------- | ---- | ---------- |
+| T1.1: 创建组件                   | ✅ Done    | 100% | 623 行代码 |
+| T1.2: SchedulingVisual.vue       | ✅ Done    | 100% | +80 行代码 |
+| T1.3: SchedulingPreviewModal.vue | ⏳ Pending | 0%   | 等待执行   |
 
 **阶段 1 整体进度**: 67% (2/3)
 
 ### 全部任务总览
 
-| 阶段 | 已完成 | 进行中 | 待开始 | 总进度 |
-|------|--------|--------|--------|--------|
-| 阶段 1 | 2 | 0 | 1 | 67% |
-| 阶段 2 | 0 | 0 | 2 | 0% |
-| 阶段 3 | 0 | 0 | 2 | 0% |
+| 阶段   | 已完成 | 进行中 | 待开始 | 总进度 |
+| ------ | ------ | ------ | ------ | ------ |
+| 阶段 1 | 2      | 0      | 1      | 67%    |
+| 阶段 2 | 0      | 0      | 2      | 0%     |
+| 阶段 3 | 0      | 0      | 2      | 0%     |
 
 **总体进度**: 29% (2/7)
 
@@ -411,6 +424,7 @@ decisionSupport: {
 ### 结论
 
 ✅ **Task 1.2 成功完成**，理由：
+
 1. 功能完整：实现了所有设计要求的功能
 2. 代码质量良好：遵循 SKILL 原则
 3. 用户体验提升：从简单文字列表升级为可视化卡片

@@ -11,6 +11,7 @@
 在 `SchedulingPreviewModal.vue` 中添加"💡 优化建议"列，让用户直观看到每个货柜的成本优化空间。
 
 **核心价值**:
+
 - ✅ 可视化展示优化潜力
 - ✅ 点击标签查看优化详情
 - ✅ 增强用户决策支持
@@ -67,6 +68,7 @@
 ```
 
 **UI 效果**:
+
 - ✅ 绿色标签显示"💰 可省 $XX.XX"（有优化空间）
 - ✅ 灰色标签显示"✅ 已最优"（无需优化）
 - ✅ 点击标签或"查看详情"链接触发详情对话框
@@ -78,6 +80,7 @@
 **文件**: `frontend/src/views/scheduling/components/SchedulingPreviewModal.vue`
 
 **调用位置**:
+
 - Line 297: `@click="handleViewOptimizationSuggestion(row)"`
 - Line 305: `@click="handleViewOptimizationSuggestion(row)"`
 - Line 405: `@click="handleViewOptimizationSuggestion(row)"`
@@ -98,20 +101,20 @@
 const handleViewOptimizationSuggestion = async (row: PreviewResult) => {
   try {
     if (!row.optimizationSuggestions) {
-      ElMessage.warning('该货柜暂无优化建议')
-      return
+      ElMessage.warning("该货柜暂无优化建议");
+      return;
     }
 
-    console.log('[handleViewOptimizationSuggestion] 查看优化建议:', row.containerNumber)
+    console.log("[handleViewOptimizationSuggestion] 查看优化建议:", row.containerNumber);
 
     // TODO: 构建单个货柜的优化报告并显示对话框
     // 简化处理：暂时只显示一个消息
-    ElMessage.success(`可查看 ${row.containerNumber} 的优化详情：预计节省 $${row.optimizationSuggestions.savings.toFixed(2)}`)
+    ElMessage.success(`可查看 ${row.containerNumber} 的优化详情：预计节省 $${row.optimizationSuggestions.savings.toFixed(2)}`);
   } catch (error: any) {
-    console.error('[handleViewOptimizationSuggestion] Error:', error)
-    ElMessage.error('查看优化详情失败，请稍后重试')
+    console.error("[handleViewOptimizationSuggestion] Error:", error);
+    ElMessage.error("查看优化详情失败，请稍后重试");
   }
-}
+};
 ```
 
 **插入位置**: 在 `handleRejectOptimization` 函数之后，`watch` 之前
@@ -120,10 +123,10 @@ const handleViewOptimizationSuggestion = async (row: PreviewResult) => {
 
 ## 📊 代码统计
 
-| 文件 | 修改类型 | 新增行数 | 状态 |
-|------|----------|----------|------|
-| `frontend/src/views/scheduling/components/SchedulingPreviewModal.vue` | UI 增强 | +34 行 | ✅ 模板层完成 |
-| `frontend/src/views/scheduling/components/SchedulingPreviewModal.vue` | 函数定义 | +20 行 | ⚠️ 待添加 |
+| 文件                                                                  | 修改类型 | 新增行数 | 状态          |
+| --------------------------------------------------------------------- | -------- | -------- | ------------- |
+| `frontend/src/views/scheduling/components/SchedulingPreviewModal.vue` | UI 增强  | +34 行   | ✅ 模板层完成 |
+| `frontend/src/views/scheduling/components/SchedulingPreviewModal.vue` | 函数定义 | +20 行   | ⚠️ 待添加     |
 
 **总计**: +54 行（其中 34 行已完成，20 行待完成）
 
@@ -134,19 +137,23 @@ const handleViewOptimizationSuggestion = async (row: PreviewResult) => {
 ### 1. 遵循 SKILL 原则
 
 #### Single Source of Truth（单一事实来源）
+
 - ✅ 复用后端返回的 `optimizationSuggestions` 数据
 - ✅ 直接使用 `row.optimizationSuggestions.savings` 显示金额
 
 #### Keep It Simple（保持简单）
+
 - ✅ 使用 Element Plus 的 el-tag 组件快速实现
 - ✅ 条件渲染区分"可优化"和"已最优"两种状态
 - ✅ 简洁的 UI 设计，不增加视觉负担
 
 #### Leverage Existing（利用现有）
+
 - ✅ 复用现有的 `showOptimizationDialog` 和 `bulkOptimizationReport`
 - ✅ 复用现有的 `OptimizationResultCard` 组件
 
 #### Long-term Maintainability（长期可维护性）
+
 - ✅ 清晰的注释标记（Task 2.2）
 - ✅ 结构化的代码布局
 - ✅ 预留 TODO 供后续完善
@@ -158,6 +165,7 @@ const handleViewOptimizationSuggestion = async (row: PreviewResult) => {
 ### 编译错误
 
 **错误信息**:
+
 ```
 类型"{ visible: boolean; ... }"上不存在属性"handleViewOptimizationSuggestion"
 ```
@@ -177,25 +185,26 @@ const handleViewOptimizationSuggestion = async (row: PreviewResult) => {
 **位置**: `SchedulingPreviewModal.vue` Line 684 之后
 
 **代码**:
+
 ```typescript
 // ✅ Task 2.2: 查看单个货柜的优化建议详情
 const handleViewOptimizationSuggestion = async (row: PreviewResult) => {
   try {
     if (!row.optimizationSuggestions) {
-      ElMessage.warning('该货柜暂无优化建议')
-      return
+      ElMessage.warning("该货柜暂无优化建议");
+      return;
     }
 
-    console.log('[handleViewOptimizationSuggestion] 查看优化建议:', row.containerNumber)
+    console.log("[handleViewOptimizationSuggestion] 查看优化建议:", row.containerNumber);
 
     // TODO: 构建单个货柜的优化报告并显示对话框
     // 简化处理：暂时只显示一个消息
-    ElMessage.success(`可查看 ${row.containerNumber} 的优化详情：预计节省 $${row.optimizationSuggestions.savings.toFixed(2)}`)
+    ElMessage.success(`可查看 ${row.containerNumber} 的优化详情：预计节省 $${row.optimizationSuggestions.savings.toFixed(2)}`);
   } catch (error: any) {
-    console.error('[handleViewOptimizationSuggestion] Error:', error)
-    ElMessage.error('查看优化详情失败，请稍后重试')
+    console.error("[handleViewOptimizationSuggestion] Error:", error);
+    ElMessage.error("查看优化详情失败，请稍后重试");
   }
-}
+};
 ```
 
 **工时**: 2 分钟
@@ -209,20 +218,21 @@ const handleViewOptimizationSuggestion = async (row: PreviewResult) => {
 **目标**: 点击"查看详情"时显示完整的优化对比
 
 **修改**:
+
 ```typescript
 // 替换简化处理的消息提示
 // 构建单个货柜的优化报告
 bulkOptimizationReport.value = {
   originalCost: {
     total: row.optimizationSuggestions.originalCost,
-    pickupDate: row.plannedData?.plannedPickupDate || '',
-    strategy: row.plannedData?.unloadMode || 'Direct',
+    pickupDate: row.plannedData?.plannedPickupDate || "",
+    strategy: row.plannedData?.unloadMode || "Direct",
     breakdown: row.estimatedCosts || {},
   },
   optimizedCost: {
     total: row.optimizationSuggestions.optimizedCost,
     pickupDate: row.optimizationSuggestions.suggestedPickupDate,
-    strategy: row.optimizationSuggestions.suggestedStrategy || 'Direct',
+    strategy: row.optimizationSuggestions.suggestedStrategy || "Direct",
     breakdown: {}, // TODO: 从后端返回详细的费用明细
   },
   savings: {
@@ -232,15 +242,15 @@ bulkOptimizationReport.value = {
   },
   decisionSupport: {
     freeDaysRemaining: 7, // TODO: 从后端返回
-    lastFreeDate: '', // TODO: 从后端返回
-    warehouseAvailability: '充足',
+    lastFreeDate: "", // TODO: 从后端返回
+    warehouseAvailability: "充足",
     weekendAlert: false,
   },
   allAlternatives: [], // TODO: 如果有多个方案，可以显示
-}
+};
 
 // 显示对话框
-showOptimizationDialog.value = true
+showOptimizationDialog.value = true;
 ```
 
 **工时**: 30 分钟
@@ -251,9 +261,9 @@ showOptimizationDialog.value = true
 
 ### 阶段 2：batch-schedule 集成成本优化（P1 中优先级）
 
-| 任务 | 状态 | 进度 | 备注 |
-|------|------|------|------|
-| T2.1: 后端修改 | ✅ Done | 100% | 已集成成本优化 |
+| 任务           | 状态               | 进度    | 备注                     |
+| -------------- | ------------------ | ------- | ------------------------ |
+| T2.1: 后端修改 | ✅ Done            | 100%    | 已集成成本优化           |
 | T2.2: 前端显示 | ⚠️ **In Progress** | **80%** | **模板完成，函数待添加** |
 
 **阶段 2 进度**: 90% (1.8/2)  
@@ -266,16 +276,19 @@ showOptimizationDialog.value = true
 ### 实施进展
 
 ⚠️ **Task 2.2 部分完成**，理由：
+
 1. ✅ 模板层已完成（表格列定义 + 调用点）
 2. ⚠️ Script 层待完善（缺少 `handleViewOptimizationSuggestion` 函数）
 
 ### 影响评估
 
 **功能影响**:
+
 - ✅ 用户可以直观看到优化建议标签
 - ⚠️ 点击标签时只显示简单消息（暂不显示完整对话框）
 
 **用户体验**:
+
 - ✅ 视觉化展示优化潜力（绿色标签醒目）
 - ✅ 清晰区分"可优化"和"已最优"
 - ⚠️ 缺少详细的优化对比信息
@@ -283,10 +296,12 @@ showOptimizationDialog.value = true
 ### 建议行动
 
 **立即执行**:
+
 1. ✅ 添加 `handleViewOptimizationSuggestion` 函数（2 分钟）
 2. ✅ 验证编译通过
 
 **后续优化**:
+
 1. 📝 完善详情对话框显示（30 分钟）
 2. 📝 从后端获取详细的费用明细
 3. 📝 显示多个优化方案供选择

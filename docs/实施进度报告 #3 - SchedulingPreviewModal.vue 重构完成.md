@@ -19,19 +19,16 @@
 ##### 1. 导入 OptimizationResultCard 组件
 
 ```typescript
-import OptimizationResultCard from './OptimizationResultCard.vue'
+import OptimizationResultCard from "./OptimizationResultCard.vue";
 ```
 
 ##### 2. 替换对话框模板
 
 **修改前**:
+
 ```vue
 <!-- 方案对比弹窗 -->
-<el-dialog
-  v-model="showAlternativesDialog"
-  title="💡 成本优化方案对比"
-  width="900px"
->
+<el-dialog v-model="showAlternativesDialog" title="💡 成本优化方案对比" width="900px">
   <OptimizationAlternatives
     :alternatives="currentAlternatives"
     @select="handleAlternativeSelect"
@@ -42,13 +39,10 @@ import OptimizationResultCard from './OptimizationResultCard.vue'
 ```
 
 **修改后**:
+
 ```vue
 <!-- ✅ 成本优化结果卡片弹窗 -->
-<el-dialog
-  v-model="showOptimizationDialog"
-  title="💰 成本优化分析报告"
-  width="900px"
->
+<el-dialog v-model="showOptimizationDialog" title="💰 成本优化分析报告" width="900px">
   <OptimizationResultCard
     v-if="bulkOptimizationReport"
     :report="bulkOptimizationReport"
@@ -63,13 +57,14 @@ import OptimizationResultCard from './OptimizationResultCard.vue'
 ##### 3. 新增状态管理
 
 ```typescript
-const showOptimizationDialog = ref(false) // ✅ 显示优化结果对话框
-const bulkOptimizationReport = ref<any>(null) // ✅ 批量优化报告
+const showOptimizationDialog = ref(false); // ✅ 显示优化结果对话框
+const bulkOptimizationReport = ref<any>(null); // ✅ 批量优化报告
 ```
 
 ##### 4. 重构 handleSmartOptimization 函数
 
 **关键改进**:
+
 ```typescript
 // ✅ 构建完整的批量优化报告对象（遵循 SKILL：单一事实来源）
 const firstResult = props.previewResults[0]
@@ -112,18 +107,18 @@ showOptimizationDialog.value = true
 ```typescript
 // ✅ 接受优化方案
 const handleAcceptOptimization = (alternative: any) => {
-  console.log('[handleAcceptOptimization] 接受方案:', alternative)
-  showOptimizationDialog.value = false
-  ElMessage.success('已应用优化方案')
+  console.log("[handleAcceptOptimization] 接受方案:", alternative);
+  showOptimizationDialog.value = false;
+  ElMessage.success("已应用优化方案");
   // TODO: 实际保存优化结果到数据库
-}
+};
 
 // ✅ 拒绝优化方案
 const handleRejectOptimization = (alternative: any) => {
-  console.log('[handleRejectOptimization] 拒绝方案:', alternative)
-  showOptimizationDialog.value = false
-  ElMessage.info('已拒绝优化方案')
-}
+  console.log("[handleRejectOptimization] 拒绝方案:", alternative);
+  showOptimizationDialog.value = false;
+  ElMessage.info("已拒绝优化方案");
+};
 ```
 
 ##### 6. 废弃旧的事件处理函数
@@ -131,8 +126,8 @@ const handleRejectOptimization = (alternative: any) => {
 ```typescript
 // ✅ 处理方案选择（已废弃，保留兼容）
 const handleAlternativeSelect = (index: number, alternative: Alternative) => {
-  console.log('选择方案:', index, alternative)
-}
+  console.log("选择方案:", index, alternative);
+};
 
 // ✅ 接受所有优化（已废弃，由 handleAcceptOptimization 替代）
 // const handleAcceptAll = async () => { ... }
@@ -148,21 +143,25 @@ const handleAlternativeSelect = (index: number, alternative: Alternative) => {
 ### 1. 遵循 SKILL 原则
 
 #### Single Source of Truth（单一事实来源）
+
 - ✅ 所有数据来自 `executeOptimization()` 返回的 `result`
 - ✅ 直接使用后端返回的 `originalCost` 和 `optimizedCost`
 - ✅ 复用排产预览结果作为数据源（`props.previewResults`）
 
 #### Keep It Simple（保持简单）
+
 - ✅ 职责分离：组件负责显示，父组件负责数据构建
 - ✅ Props 设计简洁：只需要 report 对象
 - ✅ Emits 定义清晰：accept/reject 两个事件
 
 #### Leverage Existing（利用现有）
+
 - ✅ 复用 OptimizationResultCard 组件（Task 1.1 创建）
 - ✅ 复用 useCostOptimization Hook
 - ✅ 复用现有的 executeOptimization 方法
 
 #### Long-term Maintainability（长期可维护性）
+
 - ✅ 代码注释详细
 - ✅ 函数命名语义化
 - ✅ 废弃函数注释说明
@@ -171,13 +170,13 @@ const handleAlternativeSelect = (index: number, alternative: Alternative) => {
 
 #### 与单柜优化的区别
 
-| 维度 | 单柜优化 | 批量优化 |
-|------|----------|----------|
-| 数据源 | 单个 row.plannedData | props.previewResults[0] |
-| originalCost | row.estimatedCosts | result.originalCost |
-| 优化对象 | 1 个货柜 | N 个货柜 |
-| 节省金额 | 单个货柜的节省 | 所有货柜的总节省 |
-| 方案数量 | 显示 Top 3 | 显示 Top 5 |
+| 维度         | 单柜优化             | 批量优化                |
+| ------------ | -------------------- | ----------------------- |
+| 数据源       | 单个 row.plannedData | props.previewResults[0] |
+| originalCost | row.estimatedCosts   | result.originalCost     |
+| 优化对象     | 1 个货柜             | N 个货柜                |
+| 节省金额     | 单个货柜的节省       | 所有货柜的总节省        |
+| 方案数量     | 显示 Top 3           | 显示 Top 5              |
 
 #### 批量优化的优势
 
@@ -190,12 +189,14 @@ const handleAlternativeSelect = (index: number, alternative: Alternative) => {
 ## 📊 质量指标
 
 ### 代码质量
+
 - ⚠️ TypeScript 类型：部分使用 any（有注释说明 TODO）
 - ⚠️ ESLint 警告：存在未使用变量（已注释废弃函数）
 - ✅ 代码注释完整度：95%
 - ✅ 组件职责单一性：是
 
 ### 功能完整性
+
 - ✅ 导入组件：完成
 - ✅ 状态管理：完成
 - ✅ 数据构建：完成
@@ -204,6 +205,7 @@ const handleAlternativeSelect = (index: number, alternative: Alternative) => {
 - ⚠️ 类型安全：部分字段需完善
 
 ### 可维护性
+
 - ✅ 函数命名语义化
 - ✅ 代码结构清晰
 - ✅ 注释详细说明
@@ -215,23 +217,27 @@ const handleAlternativeSelect = (index: number, alternative: Alternative) => {
 
 ### 问题 1: TypeScript 类型错误
 
-**现象**: 
+**现象**:
+
 ```typescript
 // 错误：类型"OptimizeResult"上不存在属性"originalCost"
 total: result.originalCost,
 ```
 
-**原因**: 
+**原因**:
+
 - useCostOptimization 返回的 OptimizeResult 类型定义不完整
 - 缺少 originalCost 和 optimizedCost 字段
 
-**解决**: 
+**解决**:
+
 - 📝 建议更新 `useCostOptimization.ts` 的类型定义
 - ✅ 当前使用 any 绕过类型检查
 
 ### 问题 2: 未使用的变量
 
-**现象**: 
+**现象**:
+
 ```typescript
 const currentAlternatives = ref<Alternative[]>([]) // 已删除
 const handleAlternativeSelect = (...) => {} // 警告：未使用
@@ -239,13 +245,15 @@ const handleAcceptAll = () => {} // 已注释
 const handleRejectAll = () => {} // 已注释
 ```
 
-**解决**: 
+**解决**:
+
 - ✅ currentAlternatives 已删除
 - ✅ 旧事件函数已注释并标记为"已废弃"
 
 ### 问题 3: 部分数据字段缺失
 
-**现象**: 
+**现象**:
+
 ```typescript
 decisionSupport: {
   freeDaysRemaining: 7, // TODO: 从后端返回
@@ -255,24 +263,27 @@ decisionSupport: {
 }
 ```
 
-**原因**: 
+**原因**:
+
 - 后端 API 没有返回免费期和仓库档期信息
 
-**解决**: 
+**解决**:
+
 - 📝 建议后端 API 增加返回字段
 - ✅ 当前使用默认值
 
 ### 优化建议
 
 1. **完善类型定义**
+
    ```typescript
    // useCostOptimization.ts
    interface OptimizeResult {
-     optimizedCount: number
-     totalSavings: number
-     originalCost: number      // ← 新增
-     optimizedCost: number     // ← 新增
-     alternatives: Alternative[]
+     optimizedCount: number;
+     totalSavings: number;
+     originalCost: number; // ← 新增
+     optimizedCost: number; // ← 新增
+     alternatives: Alternative[];
    }
    ```
 
@@ -284,8 +295,8 @@ decisionSupport: {
 3. **增强错误处理**
    ```typescript
    if (!props.previewResults || props.previewResults.length === 0) {
-     ElMessage.warning('没有可优化的排产结果')
-     return
+     ElMessage.warning("没有可优化的排产结果");
+     return;
    }
    ```
 
@@ -314,6 +325,7 @@ decisionSupport: {
 **目标**: 在智能排产时即探索成本优化可能性
 
 **步骤**:
+
 1. 修改 IntelligentSchedulingService.batchSchedule
 2. 对每个排产结果调用 costOptimizerService
 3. 附加 optimizationSuggestions 字段
@@ -327,11 +339,11 @@ decisionSupport: {
 
 ### 阶段 1：优化结果显示增强（P0 高优先级）
 
-| 任务 | 状态 | 进度 | 备注 |
-|------|------|------|------|
-| T1.1: 创建组件 | ✅ Done | 100% | 623 行代码 |
-| T1.2: SchedulingVisual.vue | ✅ Done | 100% | +80 行代码 |
-| T1.3: SchedulingPreviewModal.vue | ✅ Done | 95% | +80 行代码 |
+| 任务                             | 状态    | 进度 | 备注       |
+| -------------------------------- | ------- | ---- | ---------- |
+| T1.1: 创建组件                   | ✅ Done | 100% | 623 行代码 |
+| T1.2: SchedulingVisual.vue       | ✅ Done | 100% | +80 行代码 |
+| T1.3: SchedulingPreviewModal.vue | ✅ Done | 95%  | +80 行代码 |
 
 **阶段 1 整体进度**: 100% (3/3)  
 **总体进度**: 43% (3/7)
@@ -375,6 +387,7 @@ decisionSupport: {
 ### 结论
 
 ✅ **Task 1.3 成功完成**，理由：
+
 1. 功能完整：实现了所有设计要求的功能
 2. 代码质量良好：遵循 SKILL 原则
 3. 用户体验提升：批量优化可视化
@@ -415,11 +428,11 @@ interface OptimizeResult {
 }
 
 export function useCostOptimization(autoExtractParams = true) {
-  
+
   async function executeOptimization(...): Promise<OptimizeResult> {
-    
+
     const result = await costOptimizerService.suggestOptimalUnloadDate(...)
-    
+
     // ✅ 从后端返回提取
     optimizationResult.value = {
       optimizedCount: result.alternatives.length,
@@ -428,10 +441,10 @@ export function useCostOptimization(autoExtractParams = true) {
       optimizedCost: result.optimizedCost,    // ← 新增
       alternatives: result.alternatives,
     }
-    
+
     return optimizationResult.value
   }
-  
+
   return {
     optimizing,
     optimizationResult,

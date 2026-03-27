@@ -844,7 +844,7 @@ export class SchedulingCostOptimizerService {
       const originalCost = currentBreakdown.totalCost;
 
       log.info(`[CostOptimizer] Current cost: $${originalCost.toFixed(2)}`);
-      
+
       // ✅ 关键调试：输出当前方案的详细信息
       log.info(`[CostOptimizer] Current option details:`, {
         pickupDate: basePickupDate.toISOString().split('T')[0],
@@ -878,13 +878,13 @@ export class SchedulingCostOptimizerService {
         totalCost: number;
         breakdown: CostBreakdown;
       }> = [];
-      
+
       log.info(`[CostOptimizer] Starting to evaluate ${searchDates.length} candidate dates...`);
 
       for (const candidateDate of searchDates) {
         const candidateDateStr = candidateDate.toISOString().split('T')[0];
         log.debug(`[CostOptimizer] Evaluating date: ${candidateDateStr}`);
-        
+
         // 跳过周末（如果配置了）
         if (this.isWeekend(candidateDate) && (await this.shouldSkipWeekends())) {
           log.debug(`[CostOptimizer] Skipping weekend: ${candidateDateStr}`);
@@ -913,7 +913,7 @@ export class SchedulingCostOptimizerService {
           ...(truckingCompany.hasYard ? (['Drop off'] as const) : []),
           ...(candidateDate <= effectiveLastFreeDate ? (['Expedited'] as const) : [])
         ];
-        
+
         log.debug(`[CostOptimizer] Strategies for ${candidateDateStr}: ${strategies.join(', ')}`);
 
         for (const strat of strategies) {
@@ -927,7 +927,7 @@ export class SchedulingCostOptimizerService {
           };
 
           const breakdown = await this.evaluateTotalCost(option);
-          
+
           // ✅ 关键调试：输出每个方案的费用明细
           log.info(`[CostOptimizer] Cost breakdown for ${candidateDateStr} ${strat}:`, {
             container: option.containerNumber,
@@ -945,7 +945,9 @@ export class SchedulingCostOptimizerService {
 
           // ✅ 新增：优先零成本（SKILL: prioritizeZeroCost）
           if (strategy.prioritizeZeroCost && breakdown.totalCost > 0) {
-            log.debug(`[CostOptimizer] Skipping non-zero cost option: $${breakdown.totalCost.toFixed(2)}`);
+            log.debug(
+              `[CostOptimizer] Skipping non-zero cost option: $${breakdown.totalCost.toFixed(2)}`
+            );
             continue; // 跳过非零成本的选项
           }
 
@@ -971,7 +973,7 @@ export class SchedulingCostOptimizerService {
           break;
         }
       }
-      
+
       log.info(`[CostOptimizer] Total candidates found: ${candidates.length}`);
 
       // 7. 找到成本最低的方案
@@ -1036,10 +1038,11 @@ export class SchedulingCostOptimizerService {
         savings: `$${savings.toFixed(2)}`,
         savingsPercent: `${savingsPercent.toFixed(2)}%`
       });
-      
+
       // ✅ 关键调试：输出所有候选方案对比
-      log.info(`[CostOptimizer] All candidates comparison:`, 
-        candidates.map(c => ({
+      log.info(
+        `[CostOptimizer] All candidates comparison:`,
+        candidates.map((c) => ({
           date: c.pickupDate.toISOString().split('T')[0],
           strategy: c.strategy,
           cost: `$${c.totalCost.toFixed(2)}`
@@ -1227,11 +1230,13 @@ export class SchedulingCostOptimizerService {
       todayOnly.setHours(0, 0, 0, 0);
       const basePickupOnly = new Date(basePickupDate);
       basePickupOnly.setHours(0, 0, 0, 0);
-      const effectiveLastFreeOnly = effectiveLastFreeDate ? new Date(effectiveLastFreeDate) : new Date(basePickupDate);
+      const effectiveLastFreeOnly = effectiveLastFreeDate
+        ? new Date(effectiveLastFreeDate)
+        : new Date(basePickupDate);
       effectiveLastFreeOnly.setHours(0, 0, 0, 0);
-      
+
       const isOriginalPlanOverdue = effectiveLastFreeOnly < basePickupOnly;
-      
+
       log.info(`[CostOptimizer] Categorization for ${containerNumber}:`, {
         today: todayOnly.toISOString().split('T')[0],
         basePickupDate: basePickupOnly.toISOString().split('T')[0],
@@ -1245,7 +1250,7 @@ export class SchedulingCostOptimizerService {
       // 2. 否则，根据剩余天数判断
       let category: 'within_free_period' | 'overdue';
       let actualRemainingDays = remainingDays;
-      
+
       if (isOriginalPlanOverdue) {
         // 原计划超期，即使今天还在免费期内，也是 overdue
         category = 'overdue';
@@ -1320,7 +1325,7 @@ export class SchedulingCostOptimizerService {
   ): Date[] {
     const dates: Date[] = [];
     const today = new Date();
-    
+
     // ✅ 关键修复：获取日期字符串用于比较
     const todayStr = today.toISOString().split('T')[0];
     const basePickupDateStr = basePickupDate.toISOString().split('T')[0];
@@ -1330,19 +1335,19 @@ export class SchedulingCostOptimizerService {
       for (let offset = strategy.searchStartOffset; offset <= strategy.searchEndOffset; offset++) {
         const date = dateTimeUtils.addDays(today, offset);
         const dateStr = date.toISOString().split('T')[0];
-        
+
         // ✅ 修复 1: 不能是过去
         if (dateStr < todayStr) {
           continue;
         }
-        
+
         // ✅ 修复 2: 根据分类决定是否过滤
         // 只有免费期内的才过滤：不能早于原计划（避免不必要的提前）
         // 已超期的不过滤：允许找到比原计划更早的日期（尽早处理）
         if (category?.category === 'within_free_period' && dateStr < basePickupDateStr) {
           continue; // 免费期内的：跳过早于原计划的日期
         }
-        
+
         dates.push(date);
       }
     } else if (strategy.searchDirection === 'backward') {
@@ -1350,30 +1355,30 @@ export class SchedulingCostOptimizerService {
       for (let offset = strategy.searchStartOffset; offset >= strategy.searchEndOffset; offset--) {
         const date = dateTimeUtils.addDays(lastFreeDate, offset);
         const dateStr = date.toISOString().split('T')[0];
-        
+
         // ✅ 修复 1: 不能是过去
         if (dateStr < todayStr) {
           continue;
         }
-        
+
         // ✅ 修复 2: 不能早于原计划（避免不必要的提前）
         if (dateStr < basePickupDateStr) {
           continue;
         }
-        
+
         // ✅ 修复 3: 不能是当天（除非原计划就是当天）
         // 约束：不能优化到当天，避免操作过于仓促
         if (dateStr === todayStr && dateStr !== basePickupDateStr) {
           continue; // 当天且原计划不是当天，跳过
         }
-        
+
         dates.push(date);
       }
     }
 
     log.debug(
       `[CostOptimizer] Generated ${dates.length} dates for ${strategy.searchDirection} search: ` +
-        `${dates.map(d => d.toISOString().split('T')[0]).join(', ')}`
+        `${dates.map((d) => d.toISOString().split('T')[0]).join(', ')}`
     );
 
     return dates;
@@ -1458,7 +1463,9 @@ export class SchedulingCostOptimizerService {
     };
   }> {
     try {
-      log.info(`[BatchOptimizer] Starting batch optimization for ${containerNumbers.length} containers`);
+      log.info(
+        `[BatchOptimizer] Starting batch optimization for ${containerNumbers.length} containers`
+      );
 
       // 1. ✅ 分类货柜（手动实现，因为还没有 categorizeContainers 方法）
       const withinFreePeriod: ContainerCategory[] = [];
@@ -1487,10 +1494,7 @@ export class SchedulingCostOptimizerService {
       );
 
       // 2. ✅ 分配优先级（复用 assignPriorities 方法）
-      const priorityQueue = this.assignPriorities(
-        categories.withinFreePeriod,
-        categories.overdue
-      );
+      const priorityQueue = this.assignPriorities(categories.withinFreePeriod, categories.overdue);
 
       // 3. ✅ 预计算仓库能力（简化版，暂不实现）
       // TODO: 后续可以添加 precomputeWarehouseCapacities 方法
@@ -1516,8 +1520,10 @@ export class SchedulingCostOptimizerService {
         }
 
         // ✅ 关键：直接复用单柜优化方法！不重复造轮子
-        const warehouse = await this.warehouseRepo.findOne({ where: { warehouseCode: container.warehouseCode } });
-        
+        const warehouse = await this.warehouseRepo.findOne({
+          where: { warehouseCode: container.warehouseCode }
+        });
+
         if (!warehouse) {
           log.warn(`[BatchOptimizer] Warehouse not found for ${container.containerNumber}`);
           continue;
@@ -1557,7 +1563,7 @@ export class SchedulingCostOptimizerService {
         withinFreePeriodCount: categories.withinFreePeriod.length,
         overdueCount: categories.overdue.length,
         totalSavings: results.reduce((sum, r) => sum + (r.savings || 0), 0),
-        optimizedCount: results.filter(r => r.optimizedPickupDate !== r.plannedPickupDate).length
+        optimizedCount: results.filter((r) => r.optimizedPickupDate !== r.plannedPickupDate).length
       };
 
       log.info(

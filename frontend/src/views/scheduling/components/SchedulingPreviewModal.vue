@@ -735,7 +735,9 @@ const handleViewOptimizationSuggestion = async (row: PreviewResult) => {
 
     // TODO: 构建单个货柜的优化报告并显示对话框
     // 简化处理：暂时只显示一个消息
-    ElMessage.success(`可查看 ${row.containerNumber} 的优化详情：预计节省 $${row.optimizationSuggestions.savings.toFixed(2)}`)
+    ElMessage.success(
+      `可查看 ${row.containerNumber} 的优化详情：预计节省 $${row.optimizationSuggestions.savings.toFixed(2)}`
+    )
   } catch (error: any) {
     console.error('[handleViewOptimizationSuggestion] Error:', error)
     ElMessage.error('查看优化详情失败，请稍后重试')

@@ -774,8 +774,8 @@ import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import OptimizationResultCard from './components/OptimizationResultCard.vue'
 import DesignatedWarehouseDialog from './components/DesignatedWarehouseDialog.vue'
+import OptimizationResultCard from './components/OptimizationResultCard.vue'
 
 console.log('[SchedulingVisual] 组件开始加载')
 
@@ -1722,16 +1722,24 @@ const handleOptimizeContainer = async (row: any) => {
 
       if (result.success && result.data) {
         const data = result.data as any
-        const { originalCost, optimizedCost, savings, savingsPercent, suggestedPickupDate, suggestedStrategy, alternatives } = data
+        const {
+          originalCost,
+          optimizedCost,
+          savings,
+          savingsPercent,
+          suggestedPickupDate,
+          suggestedStrategy,
+          alternatives,
+        } = data
 
         // ✅ 构建优化报告（使用 OptimizationResultCard 需要的格式）
         const firstAlt = alternatives?.[0] as any
         const lastAlt = alternatives?.[alternatives.length - 1] as any
-        
+
         // ✅ 关键修复：原方案应该使用 basePickupDate，而不是 alternatives[0].pickupDate
         const originalPickupDate = basePickupDate // ✅ 使用原始计划日期
         const originalStrategy = truckingCompanyId?.hasYard ? 'Drop off' : 'Direct'
-        
+
         // 从 alternatives 中提取 breakdown 数据（后端现在返回 breakdown）
         const originalBreakdown = firstAlt?.breakdown || {
           demurrageCost: 0,
@@ -1742,7 +1750,7 @@ const handleOptimizeContainer = async (row: any) => {
           handlingCost: 0,
           totalCost: typeof originalCost === 'number' ? originalCost : 0,
         }
-        
+
         const optimizedBreakdown = lastAlt?.breakdown || {
           demurrageCost: 0,
           detentionCost: 0,
@@ -1752,7 +1760,7 @@ const handleOptimizeContainer = async (row: any) => {
           handlingCost: 0,
           totalCost: typeof optimizedCost === 'number' ? optimizedCost : 0,
         }
-        
+
         optimizationReport.value = {
           originalCost: {
             total: typeof originalCost === 'number' ? originalCost : 0,

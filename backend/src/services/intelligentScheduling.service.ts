@@ -136,7 +136,7 @@ export class IntelligentSchedulingService {
     AppDataSource.getRepository(ReplenishmentOrder),
     AppDataSource.getRepository(ExtDemurrageRecord)
   );
-  
+
   // ✅ Task 2.1: 新增成本优化服务
   private costOptimizerService = new SchedulingCostOptimizerService();
 
@@ -193,65 +193,65 @@ export class IntelligentSchedulingService {
 
       // 4. 对每个货柜进行排产（dryRun 模式下只计算不保存）
       for (const container of toProcess) {
-        const result = await this.scheduleSingleContainer(container, request)
-        results.push(result)
+        const result = await this.scheduleSingleContainer(container, request);
+        results.push(result);
       }
-      
+
       // ✅ Task 2.1: 对成功的排产结果附加成本优化建议
-      const successfulResults = results.filter(r => r.success && r.plannedData)
+      const successfulResults = results.filter((r) => r.success && r.plannedData);
       for (const result of successfulResults) {
         try {
-          const plannedData = result.plannedData!
-          const warehouseCode = plannedData.warehouseId // ✅ warehouseId 就是 warehouseCode
-          const truckingCompanyId = plannedData.truckingCompanyId
-                
+          const plannedData = result.plannedData!;
+          const warehouseCode = plannedData.warehouseId; // ✅ warehouseId 就是 warehouseCode
+          const truckingCompanyId = plannedData.truckingCompanyId;
+
           if (!warehouseCode || !truckingCompanyId || !plannedData.plannedPickupDate) {
-            continue // 缺少必要参数，跳过优化
+            continue; // 缺少必要参数，跳过优化
           }
-      
+
           // 获取仓库和车队信息
-          const warehouse = await this.warehouseRepo.findOne({ where: { warehouseCode } })
-          const truckingCompany = await this.truckingCompanyRepo.findOne({ 
-            where: { companyCode: truckingCompanyId } 
-          })
-      
+          const warehouse = await this.warehouseRepo.findOne({ where: { warehouseCode } });
+          const truckingCompany = await this.truckingCompanyRepo.findOne({
+            where: { companyCode: truckingCompanyId }
+          });
+
           if (!warehouse || !truckingCompany) {
-            continue // 找不到实体，跳过优化
+            continue; // 找不到实体，跳过优化
           }
-      
+
           // 调用成本优化服务
           const optimization = await this.costOptimizerService.suggestOptimalUnloadDate(
             result.containerNumber,
             warehouse,
             truckingCompany,
             new Date(plannedData.plannedPickupDate)
-          )
-      
+          );
+
           // 附加优化建议
-          ;(result as any).optimizationSuggestions = {
+          (result as any).optimizationSuggestions = {
             originalCost: optimization.originalCost,
             optimizedCost: optimization.optimizedCost,
             savings: optimization.savings,
             suggestedPickupDate: optimization.suggestedPickupDate.toISOString().split('T')[0],
             suggestedStrategy: optimization.suggestedStrategy,
             shouldOptimize: optimization.savings > 0
-          }
+          };
         } catch (error: any) {
           logger.warn(
             `[IntelligentScheduling] Cost optimization suggestion failed for ${result.containerNumber}:`,
             error.message
-          )
+          );
           // 优化失败不影响排产结果，继续处理下一个
         }
       }
-      
-      const successCount = results.filter((r) => r.success).length
-            
+
+      const successCount = results.filter((r) => r.success).length;
+
       // ✅ 计算总优化节省金额
       const totalOptimizationSavings = successfulResults.reduce((sum, r: any) => {
-        return sum + (r.optimizationSuggestions?.savings || 0)
-      }, 0)
-      
+        return sum + (r.optimizationSuggestions?.savings || 0);
+      }, 0);
+
       return {
         success: true,
         total: containers.length,
@@ -260,7 +260,7 @@ export class IntelligentSchedulingService {
         results,
         hasMore,
         totalOptimizationSavings // ✅ 新增：总优化节省金额
-      }
+      };
     } catch (error: any) {
       logger.error('[IntelligentScheduling] batchSchedule error:', error);
       return {

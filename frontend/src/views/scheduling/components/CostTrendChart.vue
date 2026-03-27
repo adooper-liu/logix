@@ -1,9 +1,4 @@
-/**
- * 成本趋势图组件
- * Cost Trend Chart Component
- * 
- * 展示卸柜日附近 7 天的成本变化趋势
- */
+/** * 成本趋势图组件 * Cost Trend Chart Component * * 展示卸柜日附近 7 天的成本变化趋势 */
 
 <template>
   <div class="cost-trend-chart">
@@ -17,17 +12,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import * as echarts from 'echarts'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
 import { LineChart } from 'echarts/charts'
 import {
+  GridComponent,
+  MarkPointComponent,
   TitleComponent,
   TooltipComponent,
-  MarkPointComponent,
-  GridComponent,
 } from 'echarts/components'
+import { use } from 'echarts/core'
+import { CanvasRenderer } from 'echarts/renderers'
+import { computed } from 'vue'
 import VChart from 'vue-echarts'
 
 // ============================================================================
@@ -39,18 +34,19 @@ import VChart from 'vue-echarts'
  * 通用设计，支持来自不同源的 Alternative 数据
  */
 interface ChartAlternative {
-  pickupDate: string      // 提柜日期
-  totalCost: number       // 总成本
-  strategy?: string       // 策略（可选）
-  savings?: number        // 节省金额（可选）
-  breakdown?: {           // 费用明细（可选）
+  pickupDate: string // 提柜日期
+  totalCost: number // 总成本
+  strategy?: string // 策略（可选）
+  savings?: number // 节省金额（可选）
+  breakdown?: {
+    // 费用明细（可选）
     demurrageCost?: number
     detentionCost?: number
     storageCost?: number
     transportationCost?: number
-    [key: string]: any    // 允许扩展其他费用字段
+    [key: string]: any // 允许扩展其他费用字段
   }
-  [key: string]: any      // 允许扩展其他字段
+  [key: string]: any // 允许扩展其他字段
 }
 
 // ✅ 注册必需的组件
@@ -80,18 +76,18 @@ const chartOption = computed(() => {
   }
 
   // ✅ 关键修复：过滤掉无效数据
-  const validAlternatives = props.alternatives.filter(alt => 
-    alt.pickupDate && alt.totalCost !== undefined && alt.totalCost !== null
+  const validAlternatives = props.alternatives.filter(
+    alt => alt.pickupDate && alt.totalCost !== undefined && alt.totalCost !== null
   )
-  
+
   if (validAlternatives.length === 0) {
     console.warn('[CostTrendChart] No valid alternatives found')
     return null
   }
 
   // 提取数据
-  const dates = validAlternatives.map((alt) => alt.pickupDate)
-  const totalCosts = validAlternatives.map((alt) => alt.totalCost)
+  const dates = validAlternatives.map(alt => alt.pickupDate)
+  const totalCosts = validAlternatives.map(alt => alt.totalCost)
 
   // ✅ 关键修复：确保所有值都是数字
   const sanitizedCosts = totalCosts.map(cost => {
@@ -103,14 +99,14 @@ const chartOption = computed(() => {
   const minCostIndex = sanitizedCosts.indexOf(Math.min(...sanitizedCosts))
   const minCostDate = dates[minCostIndex]
   const minCostValue = sanitizedCosts[minCostIndex]
-  
+
   // ✅ 关键修复：输出调试信息
   console.log('[CostTrendChart] Data:', {
     dates,
     costs: sanitizedCosts,
     minCostIndex,
     minCostDate,
-    minCostValue
+    minCostValue,
   })
 
   return {
@@ -136,10 +132,10 @@ const chartOption = computed(() => {
       formatter: (params: any) => {
         const date = params[0].name
         const cost = params[0].value
-        
+
         let content = `<div style="font-weight: 600; margin-bottom: 8px; color: #303133">${date}</div>`
         content += `<div style="font-size: 14px; color: #409EFF; font-weight: 600;">总成本：$${cost.toFixed(2)}</div>`
-        
+
         return content
       },
     },
@@ -199,7 +195,7 @@ const chartOption = computed(() => {
           symbol: 'circle',
           symbolSize: 8,
         })),
-        smooth: 0.3,  // ✅ 优化：减小平滑度，使曲线更自然
+        smooth: 0.3, // ✅ 优化：减小平滑度，使曲线更自然
         markPoint: {
           symbol: 'pin',
           symbolSize: 50,
@@ -265,8 +261,8 @@ const chartOption = computed(() => {
 <style scoped>
 .cost-trend-chart {
   width: 100%;
-  height: 100%;  /* ✅ 关键修复：使用 100% 高度，自适应父容器 */
-  padding: 0;    /* ✅ 移除 padding，让图表占满容器 */
+  height: 100%; /* ✅ 关键修复：使用 100% 高度，自适应父容器 */
+  padding: 0; /* ✅ 移除 padding，让图表占满容器 */
   background: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);

@@ -129,7 +129,7 @@ const formatNumber = (num: number): string => {
 const getStrategyType = (strategy: string): string => {
   switch (strategy) {
     case 'Direct':
-      return 'success'  // Live Unload
+      return 'success' // Live Unload
     case 'Drop off':
       return 'warning'
     case 'Expedited':

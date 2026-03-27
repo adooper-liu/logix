@@ -3,7 +3,7 @@
  * Tests for Container Category Logic
  */
 
-import { describe, it, expect, beforeEach } from '@jest/globals';
+import { beforeEach, describe, expect, it } from '@jest/globals';
 import { SchedulingCostOptimizerService } from '../services/schedulingCostOptimizer.service';
 
 describe('SchedulingCostOptimizerService - Category Logic', () => {
@@ -19,7 +19,7 @@ describe('SchedulingCostOptimizerService - Category Logic', () => {
       // 目的是验证当 lastFreeDate < basePickupDate 时
       // 系统会自动切换到 forward 策略而不是 backward
       expect(true).toBe(true);
-      
+
       // TODO: 集成测试时需要验证：
       // 1. category.category === 'overdue'
       // 2. strategy.searchDirection === 'forward'
@@ -29,7 +29,7 @@ describe('SchedulingCostOptimizerService - Category Logic', () => {
     it('应该正确处理真正的免费期内情况', async () => {
       // 这个测试需要实际的数据库连接，暂时跳过
       expect(true).toBe(true);
-      
+
       // TODO: 集成测试时需要验证：
       // 1. category.category === 'within_free_period'
       // 2. strategy.searchDirection === 'backward'
@@ -52,17 +52,12 @@ describe('SchedulingCostOptimizerService - Category Logic', () => {
         allowSkipIfNoCapacity: false
       };
 
-      const dates = (service as any).generateSearchRange(
-        basePickupDate,
-        lastFreeDate,
-        strategy,
-        {
-          category: 'overdue',
-          remainingDays: 0,
-          plannedPickupDate: basePickupDate,
-          lastFreeDate
-        }
-      );
+      const dates = (service as any).generateSearchRange(basePickupDate, lastFreeDate, strategy, {
+        category: 'overdue',
+        remainingDays: 0,
+        plannedPickupDate: basePickupDate,
+        lastFreeDate
+      });
 
       // 应该生成从今天开始的日期
       expect(dates.length).toBeGreaterThan(0);
@@ -83,17 +78,12 @@ describe('SchedulingCostOptimizerService - Category Logic', () => {
         allowSkipIfNoCapacity: true
       };
 
-      const dates = (service as any).generateSearchRange(
-        basePickupDate,
-        lastFreeDate,
-        strategy,
-        {
-          category: 'within_free_period',
-          remainingDays: 3,
-          plannedPickupDate: basePickupDate,
-          lastFreeDate
-        }
-      );
+      const dates = (service as any).generateSearchRange(basePickupDate, lastFreeDate, strategy, {
+        category: 'within_free_period',
+        remainingDays: 3,
+        plannedPickupDate: basePickupDate,
+        lastFreeDate
+      });
 
       // 应该生成从免费期截止日往前的日期
       expect(dates.length).toBeGreaterThan(0);
@@ -113,17 +103,12 @@ describe('SchedulingCostOptimizerService - Category Logic', () => {
         allowSkipIfNoCapacity: true
       };
 
-      const dates = (service as any).generateSearchRange(
-        basePickupDate,
-        lastFreeDate,
-        strategy,
-        {
-          category: 'within_free_period',
-          remainingDays: 3,
-          plannedPickupDate: basePickupDate,
-          lastFreeDate
-        }
-      );
+      const dates = (service as any).generateSearchRange(basePickupDate, lastFreeDate, strategy, {
+        category: 'within_free_period',
+        remainingDays: 3,
+        plannedPickupDate: basePickupDate,
+        lastFreeDate
+      });
 
       // 所有日期都应该 >= basePickupDate
       const basePickupDateStr = basePickupDate.toISOString().split('T')[0];
@@ -146,17 +131,12 @@ describe('SchedulingCostOptimizerService - Category Logic', () => {
         allowSkipIfNoCapacity: false
       };
 
-      const dates = (service as any).generateSearchRange(
-        basePickupDate,
-        lastFreeDate,
-        strategy,
-        {
-          category: 'overdue',
-          remainingDays: -1,
-          plannedPickupDate: basePickupDate,
-          lastFreeDate
-        }
-      );
+      const dates = (service as any).generateSearchRange(basePickupDate, lastFreeDate, strategy, {
+        category: 'overdue',
+        remainingDays: -1,
+        plannedPickupDate: basePickupDate,
+        lastFreeDate
+      });
 
       // 应该包含今天的日期（尽早处理）
       const todayStr = today.toISOString().split('T')[0];

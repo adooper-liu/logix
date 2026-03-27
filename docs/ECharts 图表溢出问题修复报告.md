@@ -3,12 +3,14 @@
 ## 问题描述
 
 **错误信息**：
+
 ```
-SchedulingVisual.vue:1783 [ECharts] Can't get DOM width or height. 
+SchedulingVisual.vue:1783 [ECharts] Can't get DOM width or height.
 Please check dom.clientWidth and dom.clientHeight. They should not be 0.
 ```
 
 **现象**：
+
 - 成本趋势图表溢出容器
 - 图表高度与容器高度不匹配
 - 图表显示不完整
@@ -20,6 +22,7 @@ Please check dom.clientWidth and dom.clientHeight. They should not be 0.
 ### 高度冲突
 
 **CostTrendChart.vue**（子组件）：
+
 ```vue
 <v-chart
   :style="{ height: '400px', width: '100%' }"  /* ❌ 固定高度 400px */
@@ -33,14 +36,16 @@ Please check dom.clientWidth and dom.clientHeight. They should not be 0.
 ```
 
 **OptimizationResultCard.vue**（父容器）：
+
 ```scss
 .trend-chart-container {
-  height: 240px;  /* ❌ 固定高度 240px */
+  height: 240px; /* ❌ 固定高度 240px */
   padding: 8px;
 }
 ```
 
 **问题**：
+
 1. 子组件设置 `height: 400px`
 2. 父容器设置 `height: 240px`
 3. 高度冲突导致图表溢出
@@ -93,6 +98,7 @@ Please check dom.clientWidth and dom.clientHeight. They should not be 0.
 ```
 
 **说明**：
+
 - 图表高度改为 `100%`，由父容器决定实际高度
 - 移除 `padding: 20px`，让图表充分利用容器空间
 - 使用 CSS 注释 `/* */` 而不是 `//`（SCSS 不支持）
@@ -111,13 +117,13 @@ Please check dom.clientWidth and dom.clientHeight. They should not be 0.
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-  
+
   .detail-left {
     /* 没有最小高度限制 */
   }
-  
+
   .trend-chart-container {
-    height: 240px;  /* ❌ 固定高度 */
+    height: 240px; /* ❌ 固定高度 */
     padding: 8px;
   }
 }
@@ -127,21 +133,21 @@ Please check dom.clientWidth and dom.clientHeight. They should not be 0.
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-  
+
   .detail-left {
-    min-height: 240px;  /* ✅ 确保最小高度 */
+    min-height: 240px; /* ✅ 确保最小高度 */
   }
-  
+
   .trend-chart-container {
-    height: 100%;       /* ✅ 使用 100% 高度，填满父容器 */
-    min-height: 240px;  /* ✅ 确保最小高度 */
+    height: 100%; /* ✅ 使用 100% 高度，填满父容器 */
+    min-height: 240px; /* ✅ 确保最小高度 */
     border: 1px solid #e4e7ed;
     border-radius: 8px;
     padding: 8px;
     background: #fff;
     position: relative;
-    box-sizing: border-box;  /* ✅ 确保 padding 不增加总高度 */
-    
+    box-sizing: border-box; /* ✅ 确保 padding 不增加总高度 */
+
     :deep(.vue-echarts) {
       height: 100%;
       width: 100%;
@@ -151,6 +157,7 @@ Please check dom.clientWidth and dom.clientHeight. They should not be 0.
 ```
 
 **说明**：
+
 - 容器高度改为 `100%`，相对于父元素 `.detail-section`
 - 添加 `min-height: 240px` 确保最小可用高度
 - 添加 `box-sizing: border-box` 确保 padding 不增加总高度
@@ -229,16 +236,18 @@ OptimizationResultCard (根容器)
 ### SCSS 注释规范
 
 **错误写法**：
+
 ```scss
 .height {
-  height: 100%;  // ❌ SCSS 不支持 // 注释
+  height: 100%; // ❌ SCSS 不支持 // 注释
 }
 ```
 
 **正确写法**：
+
 ```scss
 .height {
-  height: 100%;  /* ✅ 使用 CSS 注释 */
+  height: 100%; /* ✅ 使用 CSS 注释 */
 }
 ```
 
@@ -250,12 +259,12 @@ OptimizationResultCard (根容器)
 // ✅ 正确：所有父元素都有高度
 .parent {
   height: 500px;
-  
+
   .child {
-    height: 100%;  // 相对于 parent 的 500px
-    
+    height: 100%; // 相对于 parent 的 500px
+
     .grandchild {
-      height: 100%;  // 相对于 child 的 500px
+      height: 100%; // 相对于 child 的 500px
     }
   }
 }
@@ -263,9 +272,9 @@ OptimizationResultCard (根容器)
 // ❌ 错误：父元素没有高度
 .parent {
   /* 没有高度 */
-  
+
   .child {
-    height: 100%;  // 无效！不知道相对于谁
+    height: 100%; // 无效！不知道相对于谁
   }
 }
 ```
@@ -312,6 +321,7 @@ OptimizationResultCard (根容器)
 ### 2. 检查计算样式
 
 在开发者工具中查看：
+
 - `.detail-right` 的高度应该是一个具体值（如 240px）
 - `.trend-chart-container` 的高度应该是 `100%`（等于父元素）
 - `.cost-trend-chart` 的高度应该是 `100%`（等于父元素）
@@ -354,18 +364,19 @@ OptimizationResultCard (根容器)
 ### 解决方案
 
 **自适应高度**：
+
 1. 子组件使用 `height: 100%`
 2. 父容器使用 `height: 100%` + `min-height: 240px`
 3. 移除所有固定高度设置
 
 ### 关键修改
 
-| 文件 | 修改内容 | 作用 |
-|------|---------|------|
-| CostTrendChart.vue | `height: '100%'` | 图表自适应父容器 |
-| CostTrendChart.vue | `padding: 0` | 充分利用容器空间 |
-| OptimizationResultCard.vue | `height: 100%` | 容器自适应父元素 |
-| OptimizationResultCard.vue | `min-height: 240px` | 确保最小可用高度 |
+| 文件                       | 修改内容                 | 作用                 |
+| -------------------------- | ------------------------ | -------------------- |
+| CostTrendChart.vue         | `height: '100%'`         | 图表自适应父容器     |
+| CostTrendChart.vue         | `padding: 0`             | 充分利用容器空间     |
+| OptimizationResultCard.vue | `height: 100%`           | 容器自适应父元素     |
+| OptimizationResultCard.vue | `min-height: 240px`      | 确保最小可用高度     |
 | OptimizationResultCard.vue | `box-sizing: border-box` | padding 不增加总高度 |
 
 ---

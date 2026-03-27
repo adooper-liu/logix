@@ -26,8 +26,8 @@ interface OptimizeParams {
 interface OptimizeResult {
   optimizedCount: number
   totalSavings: number
-  originalCost: number      // ✅ 新增：原方案成本
-  optimizedCost: number     // ✅ 新增：优化后成本
+  originalCost: number // ✅ 新增：原方案成本
+  optimizedCost: number // ✅ 新增：优化后成本
   alternatives: Alternative[]
 }
 
@@ -157,8 +157,8 @@ export function useCostOptimization(autoExtractParams = true) {
       optimizationResult.value = {
         optimizedCount: result.alternatives.length,
         totalSavings: result.savings,
-        originalCost: result.originalCost,      // ✅ 新增
-        optimizedCost: result.optimizedCost,    // ✅ 新增
+        originalCost: result.originalCost, // ✅ 新增
+        optimizedCost: result.optimizedCost, // ✅ 新增
         alternatives: result.alternatives,
       }
 
