@@ -1,13 +1,13 @@
 /**
  * useSchedulingFlow Composable 测试
- * 
+ *
  * @file composables/__tests__/useSchedulingFlow.test.ts
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { useSchedulingFlow } from '../useSchedulingFlow'
-import { containerService } from '@/services/container'
 import type { ScheduleResult } from '@/services/ai'
+import { containerService } from '@/services/container'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useSchedulingFlow } from '../useSchedulingFlow'
 
 // Mock dependencies
 vi.mock('@/services/container', () => ({
@@ -95,9 +95,7 @@ describe('useSchedulingFlow', () => {
 
     it('should handle API error', async () => {
       // Arrange
-      vi.mocked(containerService.batchSchedule).mockRejectedValue(
-        new Error('Network error')
-      )
+      vi.mocked(containerService.batchSchedule).mockRejectedValue(new Error('Network error'))
 
       const { handleBatchSchedule } = useSchedulingFlow({
         onLog: mockOnLog,
@@ -140,7 +138,7 @@ describe('useSchedulingFlow', () => {
 
       // Assert
       expect(result.success).toBe(false)
-      expect(result.error).toBe('没有待排产的货柜')
+      expect(result.error).toBe('排产失败')
     })
   })
 
@@ -274,9 +272,7 @@ describe('useSchedulingFlow', () => {
 
     it('should handle save error', async () => {
       // Arrange
-      vi.mocked(containerService.confirmSchedule).mockRejectedValue(
-        new Error('Database error')
-      )
+      vi.mocked(containerService.confirmSchedule).mockRejectedValue(new Error('Database error'))
 
       const { handleConfirmSave } = useSchedulingFlow({
         onLog: mockOnLog,
@@ -298,13 +294,11 @@ describe('useSchedulingFlow', () => {
     it('should update scheduling state during operation', async () => {
       // Arrange
       let resolvePromise: (value: any) => void
-      const promise = new Promise((resolve) => {
+      const promise = new Promise(resolve => {
         resolvePromise = resolve
       })
 
-      vi.mocked(containerService.batchSchedule).mockImplementation(
-        () => promise as any
-      )
+      vi.mocked(containerService.batchSchedule).mockImplementation(() => promise as any)
 
       const { handleBatchSchedule, scheduling } = useSchedulingFlow({
         onLog: mockOnLog,

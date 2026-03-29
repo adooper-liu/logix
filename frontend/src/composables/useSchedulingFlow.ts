@@ -1,17 +1,17 @@
 /**
  * 排产流程管理 Composable
- * 
+ *
  * 负责处理批量排产的核心逻辑，包括：
  * - 批量排产（支持分批确认）
  * - 预览排产
  * - 确认保存排产结果
- * 
+ *
  * @module composables/useSchedulingFlow
  */
 
-import { ref } from 'vue'
 import { containerService } from '@/services/container'
-import type { BatchScheduleParams, ScheduleResult } from '@/types/scheduling'
+import type { ScheduleResult } from '@/services/ai'
+import { ref } from 'vue'
 
 export interface UseSchedulingFlowOptions {
   /** 日志回调 */
@@ -24,7 +24,7 @@ export interface UseSchedulingFlowOptions {
   onError?: (error: Error) => void
 }
 
-export interface ScheduleParams extends Partial<BatchScheduleParams> {
+export interface ScheduleParams {
   /** 国家 */
   country?: string
   /** 目的港代码 */
@@ -33,7 +33,7 @@ export interface ScheduleParams extends Partial<BatchScheduleParams> {
   startDate?: string
   /** 结束日期 */
   endDate?: string
-  /** 是否预览（不保存） */
+  /** 是否预览 (不保存) */
   dryRun?: boolean
   /** ETA 顺延天数 */
   etaBufferDays?: number
@@ -42,16 +42,16 @@ export interface ScheduleParams extends Partial<BatchScheduleParams> {
 export function useSchedulingFlow(options: UseSchedulingFlowOptions) {
   const { onLog, onProgress, onSuccess, onError } = options
   const scheduling = ref(false)
-  
+
   /**
    * 批量排产（支持分批确认）
-   * 
+   *
    * @param params 排产参数
    * @returns 排产结果
    */
   const handleBatchSchedule = async (params: ScheduleParams) => {
     scheduling.value = true
-    const allResults = []
+    const allResults: any[] = []
     let totalSuccess = 0
     let totalFailed = 0
 
@@ -69,8 +69,7 @@ export function useSchedulingFlow(options: UseSchedulingFlowOptions) {
       })
 
       if (!result.success) {
-        const errorMessage = result.message || '排产失败'
-        throw new Error(errorMessage)
+        throw new Error('排产失败')
       }
 
       // 处理结果
@@ -92,7 +91,7 @@ export function useSchedulingFlow(options: UseSchedulingFlowOptions) {
 
       return {
         success: true,
-        results: allResults,
+        results: allResults as ScheduleResult['results'],
         totalSuccess,
         totalFailed,
         hasMore: result.hasMore,
@@ -113,7 +112,7 @@ export function useSchedulingFlow(options: UseSchedulingFlowOptions) {
 
   /**
    * 预览排产（dryRun=true）
-   * 
+   *
    * @param params 排产参数
    * @returns 预览结果
    */
@@ -126,15 +125,12 @@ export function useSchedulingFlow(options: UseSchedulingFlowOptions) {
 
   /**
    * 确认保存排产结果
-   * 
+   *
    * @param containerNumbers 货柜号列表
    * @param previewResults 预览结果数据
    * @returns 保存结果
    */
-  const handleConfirmSave = async (
-    containerNumbers: string[],
-    previewResults: any[]
-  ) => {
+  const handleConfirmSave = async (containerNumbers: string[], previewResults: any[]) => {
     try {
       onLog(`正在保存 ${containerNumbers.length} 个货柜的排产结果...`, 'info')
 
@@ -145,7 +141,7 @@ export function useSchedulingFlow(options: UseSchedulingFlowOptions) {
 
       if (result.success) {
         onLog(`成功保存 ${result.savedCount} 个货柜`, 'success')
-        
+
         return {
           success: true,
           savedCount: result.savedCount,
@@ -154,7 +150,7 @@ export function useSchedulingFlow(options: UseSchedulingFlowOptions) {
         onLog('保存失败', 'error')
         return {
           success: false,
-          error: result.message,
+          error: '保存失败',
         }
       }
     } catch (error: any) {

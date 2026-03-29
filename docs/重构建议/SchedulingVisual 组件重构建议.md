@@ -14,7 +14,8 @@
 ### 1. **顶部操作区** (TopActionBar) - ✅ 已部分组件化
 
 **当前代码位置**: 第 3-105 行
-**功能**: 
+**功能**:
+
 - 日期范围选择
 - 目的港过滤
 - ETA 顺延设置
@@ -22,7 +23,8 @@
 
 **建议**: 已有 `SchedulingFilterBar.vue`，但功能不完整，需要扩展
 
-**重构方案**: 
+**重构方案**:
+
 - 创建 `TopActionBar.vue` 组件
 - 将所有过滤条件、按钮组逻辑移入
 - 通过 props 传递 `dateRange`、`selectedPortCode`、`etaBufferDays`
@@ -44,7 +46,8 @@
 ### 3. **执行日志** (ExecutionLogs) - ✅ 已组件化
 
 **当前代码位置**: 第 131-175 行
-**功能**: 
+**功能**:
+
 - 显示排产执行日志
 - 支持折叠/展开
 - 支持清空
@@ -59,7 +62,8 @@
 ### 4. **排产结果展示区** (ResultDisplay) - ❌ 未组件化
 
 **当前代码位置**: 第 184-700+ 行（大量代码）
-**功能**: 
+**功能**:
+
 - 预览模式/正式模式切换
 - 结果表格展示
 - 费用树形结构展示
@@ -68,7 +72,8 @@
 - 搜索/过滤/分页
 - TAB 切换（全部/成功/失败）
 
-**建议**: 
+**建议**:
+
 - 创建 `ResultDisplay.vue` 组件
 - 拆分为更小的子组件：
   - `ResultTable.vue` - 结果表格
@@ -89,14 +94,16 @@
 ### 6. **资源档期检查** (ResourceCapacity) - ❌ 未组件化
 
 **当前代码位置**: 第 1990-2200+ 行
-**功能**: 
+**功能**:
+
 - 仓库档期 API 调用
 - 车队档期 API 调用
 - 占用率计算
 - 档期状态判断（正常/紧张/超负荷）
 - 预加载逻辑
 
-**建议**: 
+**建议**:
+
 - 创建 `ResourceCapacityView.vue` 组件
 - 已有 `CalendarCapacityView.vue`，但需要检查是否复用
 - 将档期检查逻辑封装为 composable：`useResourceCapacity()`
@@ -106,13 +113,15 @@
 ### 7. **批量成本优化** (BatchOptimization) - ❌ 未组件化
 
 **当前代码位置**: 第 2200-2400+ 行
-**功能**: 
+**功能**:
+
 - 批量优化逻辑
 - 原计划对比
 - 费用涨跌计算
 - 优化方案保存
 
-**建议**: 
+**建议**:
+
 - 创建 `BatchOptimizationPanel.vue` 组件
 - 已有 `CostOptimizationPanel.vue`，需要检查功能覆盖
 
@@ -121,12 +130,14 @@
 ### 8. **执行日志逻辑** (Logics) - ❌ 未组件化
 
 **当前代码位置**: 第 1403-1415 行
-**功能**: 
+**功能**:
+
 - 日志添加
 - 时间格式化
 - 自动滚动
 
-**建议**: 
+**建议**:
+
 - 封装为 composable：`useExecutionLog()`
 - 支持多个组件复用日志逻辑
 
@@ -135,14 +146,16 @@
 ### 9. **排产流程控制** (SchedulingFlow) - ❌ 未组件化
 
 **当前代码位置**: 第 1432-1603 行（handleSchedule）、第 1657-1800+ 行（handlePreviewSchedule）
-**功能**: 
+**功能**:
+
 - 批量排产逻辑
 - 分批处理（每批 3 个）
 - 用户确认继续/停止
 - 日志记录
 - 错误处理
 
-**建议**: 
+**建议**:
+
 - 封装为 composable：`useSchedulingFlow()`
 - 支持预览模式和正式模式
 - 统一处理批量逻辑、日志、错误
@@ -160,13 +173,15 @@
 ### 11. **数据导出** (DataExport) - ❌ 未组件化
 
 **当前代码位置**: 第 1173-1399 行
-**功能**: 
+**功能**:
+
 - 导出 Excel
 - 包含费用明细
 - 包含筛选条件
 - 包含统计信息
 
-**建议**: 
+**建议**:
+
 - 封装为 composable：`useDataExport()`
 - 支持多种导出格式（Excel、CSV）
 - 统一处理导出逻辑
@@ -176,14 +191,16 @@
 ### 12. **分页逻辑** (Pagination) - ❌ 未组件化
 
 **当前代码位置**: 第 952-1006 行
-**功能**: 
+**功能**:
+
 - 当前页码
 - 每页大小
 - 总页数计算
 - 分页数据切片
 - 页码改变事件
 
-**建议**: 
+**建议**:
+
 - 封装为 composable：`usePagination()`
 - 支持任意列表数据的分页
 
@@ -303,19 +320,16 @@ composables/
 
 ```typescript
 // composables/useSchedulingFlow.ts
-export function useSchedulingFlow(options: {
-  onLog: (message: string, type: string) => void
-  onProgress: (progress: number) => void
-}) {
-  const scheduling = ref(false)
-  const BATCH_SIZE = 3
-  
+export function useSchedulingFlow(options: { onLog: (message: string, type: string) => void; onProgress: (progress: number) => void }) {
+  const scheduling = ref(false);
+  const BATCH_SIZE = 3;
+
   const handleBatchSchedule = async (params: ScheduleParams) => {
-    scheduling.value = true
-    const allResults = []
-    let totalSuccess = 0
-    let totalFailed = 0
-    
+    scheduling.value = true;
+    const allResults = [];
+    let totalSuccess = 0;
+    let totalFailed = 0;
+
     try {
       // 分批处理逻辑
       while (hasMore) {
@@ -323,41 +337,41 @@ export function useSchedulingFlow(options: {
           ...params,
           limit: BATCH_SIZE,
           skip,
-        })
-        
+        });
+
         // 处理结果
-        result.results.forEach(r => {
-          if (r.success) totalSuccess++
-          else totalFailed++
-          allResults.push(r)
-        })
-        
+        result.results.forEach((r) => {
+          if (r.success) totalSuccess++;
+          else totalFailed++;
+          allResults.push(r);
+        });
+
         // 用户确认
-        if (hasMore && !await confirmContinue()) {
-          break
+        if (hasMore && !(await confirmContinue())) {
+          break;
         }
       }
-      
+
       return {
         success: true,
         results: allResults,
         totalSuccess,
         totalFailed,
-      }
+      };
     } catch (error) {
       return {
         success: false,
         error: error.message,
-      }
+      };
     } finally {
-      scheduling.value = false
+      scheduling.value = false;
     }
-  }
-  
+  };
+
   return {
     scheduling,
     handleBatchSchedule,
-  }
+  };
 }
 ```
 
@@ -370,45 +384,31 @@ export function useSchedulingFlow(options: {
     <template #header>
       <div class="card-header-optimized">
         <div class="header-left">
-          <span class="header-title">{{ isPreviewMode ? '排产预览' : '排产结果' }}</span>
+          <span class="header-title">{{ isPreviewMode ? "排产预览" : "排产结果" }}</span>
         </div>
         <div class="header-right">
           <slot name="actions" />
         </div>
       </div>
     </template>
-    
+
     <!-- 统计徽章 -->
     <div class="result-stats-enhanced">
       <slot name="stats" />
     </div>
-    
+
     <!-- 过滤和 TAB -->
-    <ResultFilters 
-      v-model:search="searchText"
-      v-model:tab="resultTab"
-      :success-count="successCount"
-      :failed-count="failedCount"
-    />
-    
+    <ResultFilters v-model:search="searchText" v-model:tab="resultTab" :success-count="successCount" :failed-count="failedCount" />
+
     <!-- 结果表格 -->
-    <ResultTable
-      ref="resultTableRef"
-      :data="filteredDisplayResults"
-      :is-preview="isPreviewMode"
-      @selection-change="handleSelectionChange"
-    >
+    <ResultTable ref="resultTableRef" :data="filteredDisplayResults" :is-preview="isPreviewMode" @selection-change="handleSelectionChange">
       <template #cost="{ row }">
         <CostTreeDisplay :costs="row.estimatedCosts" />
       </template>
     </ResultTable>
-    
+
     <!-- 分页 -->
-    <Pagination
-      v-model:current-page="currentPage"
-      v-model:page-size="pageSize"
-      :total="filteredDisplayResults.length"
-    />
+    <Pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :total="filteredDisplayResults.length" />
   </el-card>
 </template>
 

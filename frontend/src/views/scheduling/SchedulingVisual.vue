@@ -839,6 +839,7 @@
 <script setup lang="ts">
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import CostOptimizationPanel from '@/components/CostOptimizationPanel.vue'
+import { useSchedulingFlow } from '@/composables/useSchedulingFlow'
 import api from '@/services/api'
 import { containerService } from '@/services/container'
 import { useAppStore } from '@/store/app'
@@ -1159,7 +1160,6 @@ const overview = ref<any>({
   truckings: [],
   ports: [], // ✅ 新增：港口列表
 })
-const scheduling = ref(false)
 const loading = ref(true) // 添加 loading 状态
 const isLogCollapsed = ref(false) // ✅ 新增：日志折叠状态
 const logs = ref<Array<{ time: string; message: string; type: string }>>([])
@@ -1424,6 +1424,23 @@ const isWeekend = (dateStr: string): boolean => {
 
 const BATCH_SIZE = 3
 
+// ✅ 使用 Composable 统一管理排产流程
+const {
+  scheduling,
+  handleBatchSchedule: executeSchedulingFlow,
+} = useSchedulingFlow({
+  onLog: addLog,
+  onProgress: (progress) => {
+    console.log('[排产进度]', progress)
+  },
+  onSuccess: (result) => {
+    console.log('[排产成功]', result)
+  },
+  onError: (error) => {
+    console.error('[排产错误]', error)
+  },
+})
+
 // 预览确认相关 - 已移除，改为内联显示
 // const showPreviewModal = ref(false)
 // const previewResults = ref<any[]>([]) // 已移到上面与 isPreviewMode 一起声明
@@ -1666,14 +1683,14 @@ const handlePreviewSchedule = async () => {
   try {
     addLog('开始预览排产方案...', 'info')
 
-    // 调用批量排产接口，dryRun=true（只计算不保存）
-    const result = await containerService.batchSchedule({
+    // 调用 Composable 的 handlePreviewSchedule
+    const result = await executeSchedulingFlow({
       country: resolvedCountry.value || undefined,
-      portCode: selectedPortCode.value || undefined, // ✅ 新增：传递港口参数
+      portCode: selectedPortCode.value || undefined,
       startDate: dateRange.value?.[0] ? dayjs(dateRange.value[0]).format('YYYY-MM-DD') : undefined,
       endDate: dateRange.value?.[1] ? dayjs(dateRange.value[1]).format('YYYY-MM-DD') : undefined,
       dryRun: true, // ← 关键：预览模式
-      etaBufferDays: etaBufferDays.value, // ✅ 新增：ETA 顺延天数
+      etaBufferDays: etaBufferDays.value,
     })
 
     if (!result.success) {
@@ -1682,7 +1699,7 @@ const handlePreviewSchedule = async () => {
     }
 
     // 转换数据格式以适配预览组件
-    previewResults.value = result.results.map((r: any, index: number) => {
+    previewResults.value = (result.results || []).map((r: any, index: number) => {
       // ✅ 新增：如果是第一条成功记录，显示详细计算过程
       if (index === 0 && r.success) {
         addLog(`\ud83d\udcca 首个货柜计算详情（预览）:`, 'info')
@@ -1692,13 +1709,13 @@ const handlePreviewSchedule = async () => {
           addLog(`  - 车队：${r.plannedData.truckingCompany || '-'}`)
           addLog(`  - 卸柜方式：${r.plannedData.unloadModePlan || '-'}`)
           if (r.estimatedCosts) {
-            addLog(`  - 预估费用：$${r.estimatedCosts.totalCost?.toFixed(2) || '0.00'}`)
+            addLog(`  - 预估费用：$${r.estimatedCosts.totalCost?.toString() || '0.00'}`)
             addLog(
-              `    \u2022 运输费：$${r.estimatedCosts.transportationCost?.toFixed(2) || '0.00'}`
+              `    • 运输费：$${r.estimatedCosts.transportationCost?.toString() || '0.00'}`
             )
-            addLog(`    \u2022 卸货费：$${r.estimatedCosts.handlingCost?.toFixed(2) || '0.00'}`)
-            addLog(`    \u2022 仓储费：$${r.estimatedCosts.storageCost?.toFixed(2) || '0.00'}`)
-            addLog(`    \u2022 其他：$${r.estimatedCosts.otherCost?.toFixed(2) || '0.00'}`)
+            addLog(`    • 卸货费：$${r.estimatedCosts.handlingCost?.toString() || '0.00'}`)
+            addLog(`    • 仓储费：$${r.estimatedCosts.storageCost?.toString() || '0.00'}`)
+            addLog(`    • 其他：$${r.estimatedCosts.otherCost?.toString() || '0.00'}`)
           }
           if (r.freeDaysRemaining !== undefined) {
             addLog(`  - 免期剩余：${r.freeDaysRemaining} 天`)
@@ -1729,8 +1746,8 @@ const handlePreviewSchedule = async () => {
     isPreviewMode.value = true
     scheduleResult.value = null // 清空正式结果
 
-    addLog(`预览完成：成功 ${result.successCount} 个，失败 ${result.failedCount} 个`, 'info')
-    ElMessage.success(`预览完成：成功 ${result.successCount} 个，请在下方审查并勾选要保存的方案`)
+    addLog(`预览完成：成功 ${result.totalSuccess} 个，失败 ${result.totalFailed} 个`, 'info')
+    ElMessage.success(`预览完成：成功 ${result.totalSuccess} 个，请在下方审查并勾选要保存的方案`)
 
     // ✅ 新增：自动滚动到结果区域
     await nextTick()
