@@ -1703,7 +1703,7 @@ const refreshCapacityData = async () => {
   console.log('[refreshCapacityData] 刷新档期数据...')
   // 清空档期缓存
   capacityCache.value.clear()
-  
+
   // 重新加载当前可见的档期数据（可选）
   // 如果需要立即刷新 UI，可以重新调用 getWarehouseCapacityText 等方法
 }

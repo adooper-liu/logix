@@ -46,15 +46,20 @@ LogiX 开发范式 (LDF) 是一套完整的开发方法论，包含：
 ### Step 2: 使用检查工具
 
 ```bash
-# 安装依赖
-npm install -g ts-node typescript
+# 安装依赖（如果需要）
+npm install
 
-# 运行检查工具
-cd scripts
-npx ts-node dev-paradigm-check.ts --phase architecture
+# 运行检查工具 - 检查架构分析阶段
+npm run check:arch
+
+# 检查所有阶段
+npm run check:all
+
+# 生成 Markdown 报告
+npm run check:all > report.md
 
 # 查看帮助
-npx ts-node dev-paradigm-check.ts --help
+npm run check -- --help
 ```
 
 ### Step 3: 应用实践
@@ -75,19 +80,19 @@ npx ts-node dev-paradigm-check.ts --help
 
 ### 核心文档
 
-| 文档 | 用途 | 阅读时间 |
-|------|------|----------|
-| [logix-dev-paradigm.md](.lingma/skills/logix-dev-paradigm.md) | 完整范式说明 | 30 分钟 |
-| [开发范式案例库.md](docs/开发范式案例库.md) | 实战案例集 | 60 分钟 |
-| [开发范式培训计划.md](docs/开发范式培训计划.md) | 学习成长路径 | 20 分钟 |
-| [开发范式持续改进机制.md](docs/开发范式持续改进机制.md) | 反馈优化机制 | 15 分钟 |
+| 文档                                                          | 用途         | 阅读时间 |
+| ------------------------------------------------------------- | ------------ | -------- |
+| [logix-dev-paradigm.md](.lingma/skills/logix-dev-paradigm.md) | 完整范式说明 | 30 分钟  |
+| [开发范式案例库.md](docs/开发范式案例库.md)                   | 实战案例集   | 60 分钟  |
+| [开发范式培训计划.md](docs/开发范式培训计划.md)               | 学习成长路径 | 20 分钟  |
+| [开发范式持续改进机制.md](docs/开发范式持续改进机制.md)       | 反馈优化机制 | 15 分钟  |
 
 ### 工具脚本
 
-| 脚本 | 功能 | 使用示例 |
-|------|------|----------|
-| `dev-paradigm-check.ts` | 自动检查清单 | `npx ts-node dev-paradigm-check.ts --phase architecture` |
-| `generate-report.ts` | 生成检查报告 | `npx ts-node dev-paradigm-check.ts --output markdown > report.md` |
+| 脚本                    | 功能         | 使用示例                                                          |
+| ----------------------- | ------------ | ----------------------------------------------------------------- |
+| `dev-paradigm-check.ts` | 自动检查清单 | `npx ts-node dev-paradigm-check.ts --phase architecture`          |
+| `generate-report.ts`    | 生成检查报告 | `npx ts-node dev-paradigm-check.ts --output markdown > report.md` |
 
 ---
 
@@ -195,6 +200,7 @@ Ctrl + Shift + F
 
 ```markdown
 每周五下午花 15 分钟：
+
 - 本周做了什么？
 - 遇到什么问题？
 - 学到了什么？
@@ -244,13 +250,15 @@ Ctrl + Shift + F
 **挑战**: 预览功能完成，但确认保存不生效
 
 **应用范式**:
+
 1. 深度分析架构（2 小时）
 2. 选择最小改动方案
 3. 完善现有方法（非重写）
 4. 补充测试验证
 5. 编写案例沉淀
 
-**结果**: 
+**结果**:
+
 - ✅ 2 小时完成（原计划 8 小时）
 - ✅ 零缺陷上线
 - ✅ 经验传承
@@ -260,12 +268,14 @@ Ctrl + Shift + F
 **挑战**: 用户混淆产能负荷和日期紧急度
 
 **应用范式**:
+
 1. 用户体验分析
 2. 分离显示逻辑
 3. 渐进式重构
 4. A/B 测试验证
 
 **结果**:
+
 - ✅ 用户满意度提升 30%
 - ✅ 代码逻辑更清晰
 - ✅ 可维护性提高

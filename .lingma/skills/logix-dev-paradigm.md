@@ -31,7 +31,7 @@ graph LR
     E --> F[6. 测试验证]
     F --> G[7. 复盘沉淀]
     G --> A
-    
+
     style D fill:#f96,stroke:#333
     style F fill:#9c6,stroke:#333
     style G fill:#6cf,stroke:#333
@@ -44,35 +44,37 @@ graph LR
 ### 1.1 业务架构
 
 **分析清单**:
+
 ```typescript
 interface BusinessArchitecture {
   // 参与者
-  actors: string[]           // 谁在使用？
-  
+  actors: string[]; // 谁在使用？
+
   // 流程
   workflow: {
-    steps: string[]          // 步骤序列
-    triggers: string[]       // 触发条件
-    outputs: string[]        // 产出物
-  }
-  
+    steps: string[]; // 步骤序列
+    triggers: string[]; // 触发条件
+    outputs: string[]; // 产出物
+  };
+
   // 规则
   rules: {
-    constraints: string[]    // 约束条件
-    validations: string[]    // 验证逻辑
-    calculations: string[]   // 计算规则
-  }
-  
+    constraints: string[]; // 约束条件
+    validations: string[]; // 验证逻辑
+    calculations: string[]; // 计算规则
+  };
+
   // 状态
   states: {
-    lifecycle: string[]      // 生命周期
-    transitions: string[]    // 状态转换
-    guards: string[]         // 守卫条件
-  }
+    lifecycle: string[]; // 生命周期
+    transitions: string[]; // 状态转换
+    guards: string[]; // 守卫条件
+  };
 }
 ```
 
 **实例：排产系统**
+
 ```markdown
 - actors: ['计划员', '仓库管理员', '车队调度']
 - workflow:
@@ -94,48 +96,50 @@ interface BusinessArchitecture {
 ### 1.2 数据模型架构（五层分析法）
 
 **分析清单**:
+
 ```typescript
 interface DataModelAnalysis {
   // Layer 1: 实体定义
   entity: {
-    tableName: string        // 表名
-    columns: Column[]        // 字段
-    primaryKeys: string[]    // 主键
-    indexes: Index[]         // 索引
-  }
-  
+    tableName: string; // 表名
+    columns: Column[]; // 字段
+    primaryKeys: string[]; // 主键
+    indexes: Index[]; // 索引
+  };
+
   // Layer 2: 关系映射
   relations: {
-    oneToOne: Relation[]
-    oneToMany: Relation[]
-    manyToMany: Relation[]
-  }
-  
+    oneToOne: Relation[];
+    oneToMany: Relation[];
+    manyToMany: Relation[];
+  };
+
   // Layer 3: 数据约束
   constraints: {
-    notNull: string[]
-    unique: string[]
-    foreignKey: FK[]
-    check: Check[]
-  }
-  
+    notNull: string[];
+    unique: string[];
+    foreignKey: FK[];
+    check: Check[];
+  };
+
   // Layer 4: 数据流转
   dataFlow: {
-    create: string[]         // 创建来源
-    update: string[]         // 更新场景
-    delete: string[]         // 删除条件
-    query: string[]          // 查询场景
-  }
-  
+    create: string[]; // 创建来源
+    update: string[]; // 更新场景
+    delete: string[]; // 删除条件
+    query: string[]; // 查询场景
+  };
+
   // Layer 5: 历史版本
   versioning: {
-    hasHistory: boolean
-    trackingFields: string[]
-  }
+    hasHistory: boolean;
+    trackingFields: string[];
+  };
 }
 ```
 
 **关键检查点**:
+
 - ✅ 字段名与数据库一致（不要臆想）
 - ✅ 主键/外键关系正确
 - ✅ 索引覆盖查询场景
@@ -146,36 +150,38 @@ interface DataModelAnalysis {
 ### 1.3 服务层架构
 
 **分析清单**:
+
 ```typescript
 interface ServiceAnalysis {
   capabilities: {
-    methods: Method[]        // 方法列表
-    inputs: any[]            // 输入参数
-    outputs: any[]           // 输出结果
-    sideEffects: string[]    // 副作用
-  }
-  
+    methods: Method[]; // 方法列表
+    inputs: any[]; // 输入参数
+    outputs: any[]; // 输出结果
+    sideEffects: string[]; // 副作用
+  };
+
   dependencies: {
-    services: string[]       // 依赖的服务
-    repositories: string[]   // 依赖的 Repository
-    utils: string[]          // 依赖的工具类
-  }
-  
+    services: string[]; // 依赖的服务
+    repositories: string[]; // 依赖的 Repository
+    utils: string[]; // 依赖的工具类
+  };
+
   transactions: {
-    requiresNew: string[]    // 新事务
-    required: string[]       // 加入现有事务
-    readOnly: string[]       // 只读事务
-  }
-  
+    requiresNew: string[]; // 新事务
+    required: string[]; // 加入现有事务
+    readOnly: string[]; // 只读事务
+  };
+
   exceptions: {
-    throws: string[]         // 抛出的异常
-    catches: string[]        // 捕获的异常
-    fallbacks: string[]      // 降级策略
-  }
+    throws: string[]; // 抛出的异常
+    catches: string[]; // 捕获的异常
+    fallbacks: string[]; // 降级策略
+  };
 }
 ```
 
 **关键问题**:
+
 - 这个方法的核心职责是什么？
 - 它依赖哪些外部服务？
 - 事务边界在哪里？
@@ -186,44 +192,45 @@ interface ServiceAnalysis {
 ### 1.4 前端架构（六边形模型）
 
 **分析清单**:
+
 ```typescript
 interface FrontendArchitecture {
   components: {
-    pages: string[]          // 页面组件
-    containers: string[]     // 容器组件
-    presents: string[]       // 展示组件
-    hooks: string[]          // 自定义 Hook
-  }
-  
+    pages: string[]; // 页面组件
+    containers: string[]; // 容器组件
+    presents: string[]; // 展示组件
+    hooks: string[]; // 自定义 Hook
+  };
+
   state: {
-    local: string[]          // 本地状态
-    shared: string[]         // 共享状态
-    persisted: string[]      // 持久化状态
-  }
-  
+    local: string[]; // 本地状态
+    shared: string[]; // 共享状态
+    persisted: string[]; // 持久化状态
+  };
+
   dataFlow: {
-    fetch: string[]          // 数据获取
-    mutate: string[]         // 数据变更
-    cache: string[]          // 缓存策略
-  }
-  
+    fetch: string[]; // 数据获取
+    mutate: string[]; // 数据变更
+    cache: string[]; // 缓存策略
+  };
+
   events: {
-    userActions: string[]    // 用户操作
-    systemEvents: string[]   // 系统事件
-    callbacks: string[]      // 回调函数
-  }
-  
+    userActions: string[]; // 用户操作
+    systemEvents: string[]; // 系统事件
+    callbacks: string[]; // 回调函数
+  };
+
   uiLogic: {
-    validations: string[]    // 表单验证
-    computations: string[]   // 计算属性
-    effects: string[]        // 副作用
-  }
-  
+    validations: string[]; // 表单验证
+    computations: string[]; // 计算属性
+    effects: string[]; // 副作用
+  };
+
   styles: {
-    global: string[]         // 全局样式
-    scoped: string[]         // 作用域样式
-    dynamic: string[]        // 动态样式
-  }
+    global: string[]; // 全局样式
+    scoped: string[]; // 作用域样式
+    dynamic: string[]; // 动态样式
+  };
 }
 ```
 
@@ -232,41 +239,42 @@ interface FrontendArchitecture {
 ### 1.5 数据流架构（全链路追踪）
 
 **分析清单**:
+
 ```typescript
 interface DataFlowAnalysis {
   sources: {
-    external: string[]       // 外部系统
-    internal: string[]       // 内部系统
-    manual: string[]         // 人工录入
-  }
-  
+    external: string[]; // 外部系统
+    internal: string[]; // 内部系统
+    manual: string[]; // 人工录入
+  };
+
   processing: {
-    validate: string[]       // 验证
-    transform: string[]      // 转换
-    enrich: string[]         // 丰富
-    aggregate: string[]      // 聚合
-  }
-  
+    validate: string[]; // 验证
+    transform: string[]; // 转换
+    enrich: string[]; // 丰富
+    aggregate: string[]; // 聚合
+  };
+
   storage: {
-    database: string[]       // 数据库存储
-    cache: string[]          // 缓存存储
-    session: string[]        // 会话存储
-  }
-  
+    database: string[]; // 数据库存储
+    cache: string[]; // 缓存存储
+    session: string[]; // 会话存储
+  };
+
   consumption: {
-    display: string[]        // 显示
-    export: string[]         // 导出
-    report: string[]         // 报表
-    integration: string[]    // 集成
-  }
-  
+    display: string[]; // 显示
+    export: string[]; // 导出
+    report: string[]; // 报表
+    integration: string[]; // 集成
+  };
+
   lifecycle: {
-    create: string[]         // 创建
-    read: string[]           // 读取
-    update: string[]         // 更新
-    delete: string[]         // 删除
-    archive: string[]        // 归档
-  }
+    create: string[]; // 创建
+    read: string[]; // 读取
+    update: string[]; // 更新
+    delete: string[]; // 删除
+    archive: string[]; // 归档
+  };
 }
 ```
 
@@ -288,13 +296,14 @@ interface DataFlowAnalysis {
 
 ```typescript
 interface RootCause {
-  direct: string             // 直接原因
-  indirect: string[]         // 间接原因
-  systemic: string[]         // 系统性原因
+  direct: string; // 直接原因
+  indirect: string[]; // 间接原因
+  systemic: string[]; // 系统性原因
 }
 ```
 
 **5 Why 分析法**:
+
 ```
 问题：卸柜日期不显示
 Why 1? → plannedData.unloadDate 是 undefined
@@ -308,10 +317,10 @@ Why 4? → 前端没有对齐后端接口定义
 
 ```typescript
 interface ImpactAssessment {
-  users: number              // 影响用户数
-  data: string[]             // 影响数据
-  features: string[]         // 影响功能
-  performance: string        // 性能影响
+  users: number; // 影响用户数
+  data: string[]; // 影响数据
+  features: string[]; // 影响功能
+  performance: string; // 性能影响
 }
 ```
 
@@ -319,9 +328,9 @@ interface ImpactAssessment {
 
 ```typescript
 interface Urgency {
-  severity: 1 | 2 | 3        // 严重程度 (1=致命，2=严重，3=一般)
-  priority: 1 | 2 | 3        // 优先级
-  sla: string                // SLA 要求
+  severity: 1 | 2 | 3; // 严重程度 (1=致命，2=严重，3=一般)
+  priority: 1 | 2 | 3; // 优先级
+  sla: string; // SLA 要求
 }
 ```
 
@@ -329,9 +338,9 @@ interface Urgency {
 
 ```typescript
 interface FixStrategy {
-  immediate: string          // 临时修复（止血）
-  permanent: string          // 永久修复（治本）
-  preventive: string[]       // 预防措施（避免复发）
+  immediate: string; // 临时修复（止血）
+  permanent: string; // 永久修复（治本）
+  preventive: string[]; // 预防措施（避免复发）
 }
 ```
 
@@ -341,12 +350,12 @@ interface FixStrategy {
 
 ### 方案选择矩阵
 
-| 维度 | 方案 A：最小改动 | 方案 B：适度扩展 | 方案 C：重构重写 |
-|------|----------------|----------------|----------------|
-| **工作量** | 低 (1-2h) | 中 (4-8h) | 高 (1-3d) |
-| **风险** | 低 | 中 | 高 |
+| 维度         | 方案 A：最小改动 | 方案 B：适度扩展   | 方案 C：重构重写   |
+| ------------ | ---------------- | ------------------ | ------------------ |
+| **工作量**   | 低 (1-2h)        | 中 (4-8h)          | 高 (1-3d)          |
+| **风险**     | 低               | 中                 | 高                 |
 | **适用场景** | Bug 修复、小优化 | 功能增强、技术债务 | 架构升级、历史包袱 |
-| **推荐指数** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ |
+| **推荐指数** | ⭐⭐⭐⭐⭐       | ⭐⭐⭐⭐           | ⭐⭐               |
 
 ### 决策树
 
@@ -368,16 +377,16 @@ Q3: 是否可以小步迭代？
 
 ```typescript
 function evaluateOption(option: Option): string {
-  const score = 
-    option.pros.length * 3 -      // 优点加分
-    option.cons.length * 2 +      // 缺点减分
-    (1 - option.effort / 100) * 20 -  // 工作量因子
-    option.risk * 10              // 风险因子
-  
-  if (score >= 25) return '强烈推荐 ✅'
-  if (score >= 15) return '推荐 👍'
-  if (score >= 5) return '可接受 👌'
-  return '不推荐 ❌'
+  const score =
+    option.pros.length * 3 - // 优点加分
+    option.cons.length * 2 + // 缺点减分
+    (1 - option.effort / 100) * 20 - // 工作量因子
+    option.risk * 10; // 风险因子
+
+  if (score >= 25) return "强烈推荐 ✅";
+  if (score >= 15) return "推荐 👍";
+  if (score >= 5) return "可接受 👌";
+  return "不推荐 ❌";
 }
 ```
 
@@ -399,26 +408,31 @@ function evaluateOption(option: Option): string {
 
 ```markdown
 ## 架构合理性
+
 - [ ] 是否符合分层架构？
 - [ ] 职责分离是否清晰？
 - [ ] 依赖方向是否正确？
 
 ## 代码质量
+
 - [ ] 是否遵循编码规范？
 - [ ] 是否有代码异味？
 - [ ] 是否过度设计？
 
 ## 性能考虑
+
 - [ ] 是否有性能瓶颈？
 - [ ] 是否需要缓存？
 - [ ] 是否需要异步？
 
 ## 安全考虑
+
 - [ ] 是否有 SQL 注入风险？
 - [ ] 是否有 XSS/CSRF 风险？
 - [ ] 敏感数据是否加密？
 
 ## 可维护性
+
 - [ ] 代码是否易读？
 - [ ] 注释是否充分？
 - [ ] 测试是否覆盖？
@@ -488,23 +502,27 @@ function evaluateOption(option: Option): string {
 
 ```markdown
 ## 代码质量
+
 - [ ] 是否遵循编码规范？
 - [ ] 是否有代码异味？
 - [ ] 是否过度设计？
 - [ ] 是否充分注释？
 
 ## 测试覆盖
+
 - [ ] 是否编写单元测试？
 - [ ] 是否编写集成测试？
 - [ ] 测试覆盖率是否达标？
 
 ## 性能考虑
+
 - [ ] 是否有性能瓶颈？
 - [ ] 是否需要缓存？
 - [ ] 是否需要异步？
 - [ ] 是否需要限流？
 
 ## 安全考虑
+
 - [ ] 是否有 SQL 注入？
 - [ ] 是否有 XSS 攻击？
 - [ ] 是否有 CSRF 攻击？
@@ -521,24 +539,24 @@ function evaluateOption(option: Option): string {
 interface TestingPyramid {
   // Level 1: 单元测试（70%）
   unitTests: {
-    coverage: number           // 覆盖率目标 (>80%)
-    tools: string[]            // Jest/Vitest
-    examples: string[]         // 测试用例
-  }
-  
+    coverage: number; // 覆盖率目标 (>80%)
+    tools: string[]; // Jest/Vitest
+    examples: string[]; // 测试用例
+  };
+
   // Level 2: 集成测试（20%）
   integrationTests: {
-    scenarios: string[]        // 集成场景
-    mocks: string[]            // Mock 对象
-    fixtures: string[]         // 测试数据
-  }
-  
+    scenarios: string[]; // 集成场景
+    mocks: string[]; // Mock 对象
+    fixtures: string[]; // 测试数据
+  };
+
   // Level 3: E2E 测试（10%）
   e2eTests: {
-    workflows: string[]        // 端到端流程
-    browsers: string[]         // 浏览器矩阵
-    devices: string[]          // 设备矩阵
-  }
+    workflows: string[]; // 端到端流程
+    browsers: string[]; // 浏览器矩阵
+    devices: string[]; // 设备矩阵
+  };
 }
 ```
 
@@ -546,24 +564,28 @@ interface TestingPyramid {
 
 ```markdown
 ## 功能测试
+
 - [ ] 正常路径测试
 - [ ] 异常路径测试
 - [ ] 边界条件测试
 - [ ] 兼容性测试
 
 ## 性能测试
+
 - [ ] 负载测试
 - [ ] 压力测试
 - [ ] 并发测试
 - [ ] 耐久性测试
 
 ## 安全测试
+
 - [ ] 注入攻击测试
 - [ ] 认证授权测试
 - [ ] 数据加密测试
 - [ ] 日志审计测试
 
 ## 回归测试
+
 - [ ] 核心功能回归
 - [ ] 历史 Bug 回归
 - [ ] 接口兼容性回归
@@ -577,21 +599,25 @@ interface TestingPyramid {
 
 ```markdown
 ## 回顾目标
+
 - [ ] 原始目标是什么？
 - [ ] 实际结果如何？
 - [ ] 差距在哪里？
 
 ## 分析原因
+
 - [ ] 成功因素是什么？
 - [ ] 失败原因是什么？
 - [ ] 意外发现是什么？
 
 ## 总结经验
+
 - [ ] 学到了什么？
 - [ ] 下次可以做什么改进？
 - [ ] 有哪些最佳实践？
 
 ## 行动计划
+
 - [ ] 需要停止什么？
 - [ ] 需要开始什么？
 - [ ] 需要继续什么？
@@ -601,18 +627,21 @@ interface TestingPyramid {
 
 ```markdown
 ## 文档更新
+
 - [ ] API 文档
 - [ ] 用户手册
 - [ ] 运维手册
 - [ ] 知识库文章
 
 ## 代码资产
+
 - [ ] 通用组件
 - [ ] 工具函数
 - [ ] 测试用例
 - [ ] 代码模板
 
 ## 经验分享
+
 - [ ] 团队内部分享
 - [ ] 技术博客
 - [ ] 案例研究
@@ -668,37 +697,44 @@ L - 学习沉淀（Learning）
 # 技术方案：[方案名称]
 
 ## 背景
+
 - 问题描述
 - 业务价值
 - 技术驱动力
 
 ## 目标
+
 - 功能目标
 - 性能目标
 - 质量目标
 
 ## 方案设计
+
 - 架构图
 - 核心流程
 - 接口设计
 
 ## 方案对比
+
 - 方案 A：优缺点
 - 方案 B：优缺点
 - 方案 C：优缺点
 - 推荐方案及理由
 
 ## 实施计划
+
 - 阶段划分
 - 时间安排
 - 资源需求
 
 ## 风险评估
+
 - 技术风险
 - 业务风险
 - 应对措施
 
 ## 验收标准
+
 - 功能验收
 - 性能验收
 - 质量验收
@@ -708,22 +744,26 @@ L - 学习沉淀（Learning）
 
 ```markdown
 ## 代码质量
+
 - [ ] 命名是否清晰？
 - [ ] 函数是否单一职责？
 - [ ] 是否有重复代码？
 - [ ] 是否有魔法数字？
 
 ## 测试覆盖
+
 - [ ] 是否有单元测试？
 - [ ] 测试用例是否充分？
 - [ ] 是否覆盖边界条件？
 
 ## 性能考虑
+
 - [ ] 是否有 N+1 查询？
 - [ ] 是否需要缓存？
 - [ ] 是否有内存泄漏？
 
 ## 安全考虑
+
 - [ ] 输入是否验证？
 - [ ] 输出是否转义？
 - [ ] 权限是否检查？
@@ -741,6 +781,7 @@ L - 学习沉淀（Learning）
 ---
 
 **版本历史**:
+
 - v2.0 (2026-03-27): 完善版，增加测试/复盘环节
 - v1.0 (2026-03-26): 初始版本
 

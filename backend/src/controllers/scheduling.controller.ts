@@ -6,14 +6,14 @@
 import { Request, Response } from 'express';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
+import { ExtTruckingSlotOccupancy } from '../entities/ExtTruckingSlotOccupancy';
+import { ExtWarehouseDailyOccupancy } from '../entities/ExtWarehouseDailyOccupancy';
 import { PortOperation } from '../entities/PortOperation';
 import { TruckingCompany } from '../entities/TruckingCompany';
-import { Warehouse } from '../entities/Warehouse';
-import { Yard } from '../entities/Yard';
-import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { TruckingTransport } from '../entities/TruckingTransport';
-import { ExtWarehouseDailyOccupancy } from '../entities/ExtWarehouseDailyOccupancy';
-import { ExtTruckingSlotOccupancy } from '../entities/ExtTruckingSlotOccupancy';
+import { Warehouse } from '../entities/Warehouse';
+import { WarehouseOperation } from '../entities/WarehouseOperation';
+import { Yard } from '../entities/Yard';
 import { containerService } from '../services/container.service';
 import { intelligentSchedulingService } from '../services/intelligentScheduling.service';
 import { SchedulingCostOptimizerService } from '../services/schedulingCostOptimizer.service';
@@ -2383,7 +2383,7 @@ export class SchedulingController {
     });
 
     if (warehouseOccupancy) {
-      warehouseOccupancy.plannedCount += 1;  // ✅ 使用正确的字段名
+      warehouseOccupancy.plannedCount += 1; // ✅ 使用正确的字段名
       await manager.save(warehouseOccupancy);
       logger.debug(
         `[Scheduling] Warehouse capacity occupied: ${warehouseId} on ${plannedUnloadDate}`
@@ -2404,7 +2404,7 @@ export class SchedulingController {
       });
 
       if (truckingOccupancy) {
-        truckingOccupancy.plannedTrips += 1;  // ✅ 使用正确的字段名
+        truckingOccupancy.plannedTrips += 1; // ✅ 使用正确的字段名
         await manager.save(truckingOccupancy);
         logger.debug(
           `[Scheduling] Trucking capacity occupied: ${truckingCompanyId} on ${plannedReturnDate}`
