@@ -229,7 +229,10 @@ class ContainerService {
    * 确认保存排产结果
    * POST /api/scheduling/confirm
    */
-  async confirmSchedule(params: { containerNumbers: string[] }): Promise<{
+  async confirmSchedule(params: { 
+    containerNumbers: string[],
+    previewResults?: any[]  // ✅ 新增：预览数据（可选）
+  }): Promise<{
     success: boolean
     savedCount: number
     total: number

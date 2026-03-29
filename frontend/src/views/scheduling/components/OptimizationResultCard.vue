@@ -835,7 +835,7 @@ const getUrgencyType = (days: number): string => {
     }
 
     .trend-chart-container {
-      height: 265px; /* ✅ 优化：增加 5px 高度 */
+      height: 270px; /* ✅ 优化：增加 5px 高度 */
       border: 1px solid #e4e7ed;
       border-radius: 6px; /* ✅ 关键修复：减小圆角 */
       padding: 12px; /* ✅ 优化：增加 padding */
