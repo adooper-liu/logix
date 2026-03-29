@@ -201,7 +201,12 @@
             <template v-if="isPreviewMode">
               <!-- 选择操作区 -->
               <div v-if="displayResults.length > 0" class="selection-actions-inline">
-                <el-tag v-if="selectedPreviewContainers.length > 0" type="warning" size="small" effect="plain">
+                <el-tag
+                  v-if="selectedPreviewContainers.length > 0"
+                  type="warning"
+                  size="small"
+                  effect="plain"
+                >
                   已选 {{ selectedPreviewContainers.length }} 个
                 </el-tag>
                 <el-button
@@ -223,7 +228,7 @@
                   取消全选
                 </el-button>
               </div>
-              
+
               <!-- 确认操作区 -->
               <el-button
                 type="success"
@@ -1441,7 +1446,7 @@ const handleSchedule = async () => {
   }> = []
   let totalSuccess = 0
   let totalFailed = 0
-  
+
   try {
     addLog(`开始排产，待排产货柜：${overview.value.pendingCount} 个`, 'info')
     addLog('按 ATA/ETA 排序（先到先得）', 'info')
@@ -1480,7 +1485,7 @@ const handleSchedule = async () => {
           const dates = r.plannedData
             ? ` 提柜:${r.plannedData.plannedPickupDate} 送仓:${r.plannedData.plannedDeliveryDate} 还箱:${r.plannedData.plannedReturnDate}`
             : ''
-          
+
           // ✅ 新增：如果是第一条成功记录，显示详细计算过程
           if (index === 0 && result.results.length > 0) {
             addLog(`\ud83d\udcca 首个货柜计算详情:`, 'info')
@@ -1493,25 +1498,39 @@ const handleSchedule = async () => {
                 addLog(`  - 预估费用：$${r.estimatedCosts.totalCost?.toFixed(2) || '0.00'}`)
                 // 显示所有费用项（按重要性排序）
                 if (r.estimatedCosts.demurrageCost) {
-                  addLog(`    \u2022 滞港费：$${r.estimatedCosts.demurrageCost?.toFixed(2) || '0.00'}`)
+                  addLog(
+                    `    \u2022 滞港费：$${r.estimatedCosts.demurrageCost?.toFixed(2) || '0.00'}`
+                  )
                 }
                 if (r.estimatedCosts.detentionCost) {
-                  addLog(`    \u2022 滞箱费：$${r.estimatedCosts.detentionCost?.toFixed(2) || '0.00'}`)
+                  addLog(
+                    `    \u2022 滞箱费：$${r.estimatedCosts.detentionCost?.toFixed(2) || '0.00'}`
+                  )
                 }
                 if (r.estimatedCosts.ddCombinedCost) {
-                  addLog(`    \u2022 D&D 合并费：$${r.estimatedCosts.ddCombinedCost?.toFixed(2) || '0.00'}`)
+                  addLog(
+                    `    \u2022 D&D 合并费：$${r.estimatedCosts.ddCombinedCost?.toFixed(2) || '0.00'}`
+                  )
                 }
                 if (r.estimatedCosts.storageCost) {
-                  addLog(`    \u2022 仓储费：$${r.estimatedCosts.storageCost?.toFixed(2) || '0.00'}`)
+                  addLog(
+                    `    \u2022 仓储费：$${r.estimatedCosts.storageCost?.toFixed(2) || '0.00'}`
+                  )
                 }
                 if (r.estimatedCosts.transportationCost) {
-                  addLog(`    \u2022 运输费：$${r.estimatedCosts.transportationCost?.toFixed(2) || '0.00'}`)
+                  addLog(
+                    `    \u2022 运输费：$${r.estimatedCosts.transportationCost?.toFixed(2) || '0.00'}`
+                  )
                 }
                 if (r.estimatedCosts.yardStorageCost) {
-                  addLog(`    \u2022 堆场堆存费：$${r.estimatedCosts.yardStorageCost?.toFixed(2) || '0.00'}`)
+                  addLog(
+                    `    \u2022 堆场堆存费：$${r.estimatedCosts.yardStorageCost?.toFixed(2) || '0.00'}`
+                  )
                 }
                 if (r.estimatedCosts.handlingCost) {
-                  addLog(`    \u2022 操作费：$${r.estimatedCosts.handlingCost?.toFixed(2) || '0.00'}`)
+                  addLog(
+                    `    \u2022 操作费：$${r.estimatedCosts.handlingCost?.toFixed(2) || '0.00'}`
+                  )
                 }
                 if (r.estimatedCosts.otherCost) {
                   addLog(`    \u2022 其他：$${r.estimatedCosts.otherCost?.toFixed(2) || '0.00'}`)
@@ -1674,7 +1693,9 @@ const handlePreviewSchedule = async () => {
           addLog(`  - 卸柜方式：${r.plannedData.unloadModePlan || '-'}`)
           if (r.estimatedCosts) {
             addLog(`  - 预估费用：$${r.estimatedCosts.totalCost?.toFixed(2) || '0.00'}`)
-            addLog(`    \u2022 运输费：$${r.estimatedCosts.transportationCost?.toFixed(2) || '0.00'}`)
+            addLog(
+              `    \u2022 运输费：$${r.estimatedCosts.transportationCost?.toFixed(2) || '0.00'}`
+            )
             addLog(`    \u2022 卸货费：$${r.estimatedCosts.handlingCost?.toFixed(2) || '0.00'}`)
             addLog(`    \u2022 仓储费：$${r.estimatedCosts.storageCost?.toFixed(2) || '0.00'}`)
             addLog(`    \u2022 其他：$${r.estimatedCosts.otherCost?.toFixed(2) || '0.00'}`)
@@ -1688,7 +1709,7 @@ const handlePreviewSchedule = async () => {
         }
         addLog(`  - 计算说明：${r.message || '成功'}`)
       }
-      
+
       return {
         ...r,
         plannedPickupDate: r.plannedData?.plannedPickupDate || '-',

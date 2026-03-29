@@ -7,16 +7,19 @@
 ### 1. 成本优化面板位置调整 🎯
 
 **优化前：**
+
 - 成本优化面板位于执行日志和排产结果之间
 - 打断了主流程的视觉连续性
 - 用户需要跳过优化面板才能看到排产结果
 
 **优化后：**
+
 - 将成本优化面板移到页面底部（排产结果卡片之后）
 - 保持"执行日志 → 排产结果 → 成本优化"的信息层次
 - 用户可以专注于主要排产结果，再查看优化建议
 
 **代码位置：**
+
 ```
 frontend/src/views/scheduling/SchedulingVisual.vue
 - 第 806-814 行：成本优化面板新位置
@@ -27,16 +30,19 @@ frontend/src/views/scheduling/SchedulingVisual.vue
 ### 2. 执行日志可折叠 📋
 
 **优化前：**
+
 - 执行日志固定显示，占用较大垂直空间
 - 信息密度不可控，影响主要内容的查看
 
 **优化后：**
+
 - 添加折叠/展开按钮，用户可自主控制信息密度
 - 默认展开状态（`isLogCollapsed = false`）
 - 提供日志条数统计和清空功能
 - 收起时显示"展开"，展开时显示"收起"，配合箭头图标
 
 **代码位置：**
+
 ```
 frontend/src/views/scheduling/SchedulingVisual.vue
 - 第 160 行：条件渲染日志卡片（仅在有日志时显示）
@@ -50,17 +56,20 @@ frontend/src/views/scheduling/SchedulingVisual.vue
 ### 3. 自动聚焦结果 ✨
 
 **优化前：**
+
 - 预览完成后停留在页面顶部
 - 用户需要手动滚动才能看到排产结果
 - 操作流程不够流畅
 
 **优化后：**
+
 - 预览完成后自动平滑滚动到结果区域
 - 使用 `scrollIntoView({ behavior: 'smooth' })` 实现平滑效果
 - 通过 `nextTick()` 确保 DOM 更新后再滚动
 - 提升用户体验，减少操作步骤
 
 **代码位置：**
+
 ```
 frontend/src/views/scheduling/SchedulingVisual.vue
 - 第 1653-1655 行：在 handlePreviewSchedule 中调用滚动
@@ -68,17 +77,18 @@ frontend/src/views/scheduling/SchedulingVisual.vue
 ```
 
 **实现细节：**
+
 ```typescript
 // ✅ 新增：自动滚动到结果区域
 const scrollToResults = () => {
   nextTick(() => {
     // 查找结果卡片元素
-    const resultCard = document.querySelector('.result-card')
+    const resultCard = document.querySelector(".result-card");
     if (resultCard) {
-      resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      resultCard.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  })
-}
+  });
+};
 ```
 
 ---
@@ -86,17 +96,20 @@ const scrollToResults = () => {
 ### 4. 首个货柜计算过程详情 📊
 
 **优化前：**
+
 - 执行日志只显示简单的成功/失败结果
 - 用户看不到具体的计算细节
 - 缺乏透明度，难以理解排产逻辑
 
 **优化后：**
+
 - 每批处理的**第一条成功记录**显示详细计算过程
 - 包含完整的费用明细和关键日期信息
 - 增强透明度和可解释性
 - 帮助用户理解排产决策依据
 
 **显示内容包括：**
+
 ```
 📊 首个货柜计算详情:
   - 柜号：CONT1234567
@@ -115,6 +128,7 @@ const scrollToResults = () => {
 ```
 
 **代码位置：**
+
 ```
 frontend/src/views/scheduling/SchedulingVisual.vue
 - 第 1487-1521 行：正式排产的计算详情
@@ -126,6 +140,7 @@ frontend/src/views/scheduling/SchedulingVisual.vue
 ### 5. 成本优化面板可折叠 💰
 
 **额外优化：**
+
 - 成本优化面板默认收起（`isCollapsed = true`）
 - 添加折叠/展开按钮，用户可按需查看
 - 标题区左侧显示标题和节省金额标签
@@ -133,6 +148,7 @@ frontend/src/views/scheduling/SchedulingVisual.vue
 - 减少初始视觉干扰，保持页面简洁
 
 **代码位置：**
+
 ```
 frontend/src/components/CostOptimizationPanel.vue
 - 第 6-18 行：新的头部布局（左右分区）
@@ -148,8 +164,9 @@ frontend/src/components/CostOptimizationPanel.vue
 ## 视觉效果对比
 
 ### 优化前布局流
+
 ```
-[流程步骤] 
+[流程步骤]
    ↓
 [执行日志] ← 固定占用空间
    ↓
@@ -161,6 +178,7 @@ frontend/src/components/CostOptimizationPanel.vue
 ```
 
 ### 优化后布局流
+
 ```
 [流程步骤]
    ↓
@@ -232,6 +250,7 @@ frontend/src/components/CostOptimizationPanel.vue
 ## 技术实现要点
 
 ### 1. 条件渲染优化
+
 ```vue
 <!-- 优化前：v-if 在卡片内部 -->
 <el-card v-if="logs.length > 0">
@@ -254,48 +273,51 @@ result.results.forEach((r: any, index: number) => {
   if (r.success) {
     // 检测是否为第一条成功记录
     if (index === 0 && result.results.length > 0) {
-      addLog(`📊 首个货柜计算详情:`, 'info')
-      
+      addLog(`📊 首个货柜计算详情:`, "info");
+
       // 显示完整费用明细
       if (r.estimatedCosts) {
-        addLog(`  - 预估费用：$${r.estimatedCosts.totalCost?.toFixed(2)}`)
-        addLog(`    • 运输费：$${r.estimatedCosts.transportationCost?.toFixed(2)}`)
-        addLog(`    • 卸货费：$${r.estimatedCosts.handlingCost?.toFixed(2)}`)
-        addLog(`    • 仓储费：$${r.estimatedCosts.storageCost?.toFixed(2)}`)
-        addLog(`    • 其他：$${r.estimatedCosts.otherCost?.toFixed(2)}`)
+        addLog(`  - 预估费用：$${r.estimatedCosts.totalCost?.toFixed(2)}`);
+        addLog(`    • 运输费：$${r.estimatedCosts.transportationCost?.toFixed(2)}`);
+        addLog(`    • 卸货费：$${r.estimatedCosts.handlingCost?.toFixed(2)}`);
+        addLog(`    • 仓储费：$${r.estimatedCosts.storageCost?.toFixed(2)}`);
+        addLog(`    • 其他：$${r.estimatedCosts.otherCost?.toFixed(2)}`);
       }
-      
+
       // 显示免期信息
       if (r.freeDaysRemaining !== undefined) {
-        addLog(`  - 免期剩余：${r.freeDaysRemaining} 天`)
+        addLog(`  - 免期剩余：${r.freeDaysRemaining} 天`);
       }
       if (r.lastFreeDate) {
-        addLog(`  - 最后免期日：${r.lastFreeDate}`)
+        addLog(`  - 最后免期日：${r.lastFreeDate}`);
       }
-      
-      addLog(`  - 计算说明：${r.message || '成功'}`)
+
+      addLog(`  - 计算说明：${r.message || "成功"}`);
     }
-    
+
     // 显示常规成功日志
-    addLog(`✓ ${r.containerNumber}: ${r.message || '成功'}${dates}`, 'success')
+    addLog(`✓ ${r.containerNumber}: ${r.message || "成功"}${dates}`, "success");
   }
-})
+});
 ```
 
 **关键点：**
+
 - 使用 `forEach` 的 `index` 参数识别第一条记录
 - 仅对成功的记录显示详情（失败记录无详细数据）
-- 使用缩进格式提升可读性（`  - ` 和 `    • `）
+- 使用缩进格式提升可读性（` -` 和 `   •`）
 - 所有数值保留两位小数（`.toFixed(2)`）
 - 空值处理使用 `|| '-'` 或 `|| '0.00'`
 
 **设计原则：**
+
 - **透明性**：让用户清楚看到计算依据
 - **简洁性**：只显示关键信息，避免信息过载
 - **一致性**：预览和正式排产使用相同的详情格式
 - **实用性**：重点展示费用明细和日期约束
 
 ### 3. 折叠动画
+
 ```vue
 <div v-show="!isCollapsed" class="log-container">
   <!-- 可折叠内容 -->
@@ -305,24 +327,26 @@ result.results.forEach((r: any, index: number) => {
 **注意：** 使用 `v-show` 而非 `v-if`，保持组件状态
 
 ### 4. 平滑滚动
+
 ```typescript
-await nextTick()
-scrollToResults()
+await nextTick();
+scrollToResults();
 
 const scrollToResults = () => {
   nextTick(() => {
-    const resultCard = document.querySelector('.result-card')
+    const resultCard = document.querySelector(".result-card");
     if (resultCard) {
-      resultCard.scrollIntoView({ 
-        behavior: 'smooth', 
-        block: 'start' 
-      })
+      resultCard.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
     }
-  })
-}
+  });
+};
 ```
 
-**关键点：** 
+**关键点：**
+
 - 使用 `nextTick()` 确保 DOM 已更新
 - `behavior: 'smooth'` 实现平滑动画
 - `block: 'start'` 滚动到元素顶部
@@ -330,21 +354,22 @@ const scrollToResults = () => {
 ### 5. 日志自动滚动
 
 ```typescript
-const addLog = (message: string, type: string = 'info') => {
-  const now = new Date()
-  const time = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}:${now.getSeconds().toString().padStart(2, '0')}`
-  logs.value.push({ time, message, type })
+const addLog = (message: string, type: string = "info") => {
+  const now = new Date();
+  const time = `${now.getHours().toString().padStart(2, "0")}:${now.getMinutes().toString().padStart(2, "0")}:${now.getSeconds().toString().padStart(2, "0")}`;
+  logs.value.push({ time, message, type });
 
   // 自动滚动到底部
   nextTick(() => {
     if (logContainer.value) {
-      logContainer.value.scrollTop = logContainer.value.scrollHeight
+      logContainer.value.scrollTop = logContainer.value.scrollHeight;
     }
-  })
-}
+  });
+};
 ```
 
 **作用：**
+
 - 新日志产生时自动滚动到最新位置
 - 确保用户始终能看到最新的执行进度
 - 与"首个货柜详情"配合，先看详情，再看后续日志
@@ -354,6 +379,7 @@ const addLog = (message: string, type: string = 'info') => {
 ## 测试建议
 
 ### 功能测试
+
 - [x] 执行日志折叠/展开功能正常
 - [x] 成本优化面板折叠/展开功能正常
 - [x] 预览完成后自动滚动到结果区域
@@ -363,12 +389,14 @@ const addLog = (message: string, type: string = 'info') => {
 - [x] 空值处理得当（显示"-"或"0.00"）
 
 ### 兼容性测试
+
 - [ ] Chrome 浏览器测试
 - [ ] Firefox 浏览器测试
 - [ ] Safari 浏览器测试
 - [ ] Edge 浏览器测试
 
 ### 响应式测试
+
 - [ ] 桌面端大屏测试
 - [ ] 笔记本屏幕测试
 - [ ] 平板设备测试
