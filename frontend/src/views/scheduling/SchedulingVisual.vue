@@ -169,6 +169,11 @@
                 <el-tag size="small" :type="logs.length > 0 ? 'success' : 'info'">
                   {{ logs.length }} 条记录
                 </el-tag>
+                <!-- ✅ 新增：折叠按钮 -->
+                <el-button text size="small" @click="isLogCollapsed = !isLogCollapsed">
+                  <el-icon><ArrowUp v-if="isLogCollapsed" /><ArrowDown v-else /></el-icon>
+                  {{ isLogCollapsed ? '展开' : '收起' }}
+                </el-button>
                 <el-button text size="small" @click="logs = []">
                   <el-icon><Delete /></el-icon> 清空
                 </el-button>
@@ -176,7 +181,8 @@
             </div>
           </template>
 
-          <div class="log-container" ref="logContainer">
+          <!-- ✅ 可折叠内容 -->
+          <div v-show="!isLogCollapsed" class="log-container" ref="logContainer">
             <div v-for="(log, index) in logs" :key="index" class="log-item" :class="log.type">
               <el-icon v-if="log.type === 'success'">
                 <CircleCheck />
@@ -847,6 +853,7 @@
 
 <script setup lang="ts">
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
+import CostOptimizationPanel from '@/components/CostOptimizationPanel.vue'
 import api from '@/services/api'
 import { containerService } from '@/services/container'
 import { useAppStore } from '@/store/app'
@@ -876,7 +883,6 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import DesignatedWarehouseDialog from './components/DesignatedWarehouseDialog.vue'
 import OptimizationResultCard from './components/OptimizationResultCard.vue'
-import CostOptimizationPanel from '@/components/CostOptimizationPanel.vue'
 
 console.log('[SchedulingVisual] 组件开始加载')
 
@@ -1640,7 +1646,7 @@ const handlePreviewSchedule = async () => {
 
     addLog(`预览完成：成功 ${result.successCount} 个，失败 ${result.failedCount} 个`, 'info')
     ElMessage.success(`预览完成：成功 ${result.successCount} 个，请在下方审查并勾选要保存的方案`)
-    
+
     // ✅ 新增：预加载所有档期数据，避免渲染时重复请求
     if (result.results && result.results.length > 0) {
       await preloadCapacityData(result.results)
@@ -1772,7 +1778,7 @@ const handleOptimizationApplied = (containerNumber: string | 'all') => {
     // 如果只应用了单个货柜，可以针对性刷新
     ElMessage.success(`货柜 ${containerNumber} 的优化已应用`)
   }
-  
+
   // TODO: 如果需要，可以在这里调用刷新 API
   // await loadOverview() // 或者刷新具体的货柜数据
 }
@@ -1832,11 +1838,13 @@ const preloadCapacityData = async (results: any[]) => {
     }
   })
 
-  console.info(`[预加载] 需要加载 ${truckingRequests.size} 个车队，${warehouseRequests.size} 个仓库`)
+  console.info(
+    `[预加载] 需要加载 ${truckingRequests.size} 个车队，${warehouseRequests.size} 个仓库`
+  )
 
   // 批量并发请求 (限制并发数)
   const MAX_CONCURRENT = 10
-  
+
   // 处理车队请求
   const truckingChunks = Array.from(truckingRequests).reduce((acc, key, i) => {
     if (i % MAX_CONCURRENT === 0) acc.push([])
@@ -1849,11 +1857,11 @@ const preloadCapacityData = async (results: any[]) => {
       const [type, id, date] = key.split(':')
       try {
         if (type === 'trucking') {
-          await getTruckingCapacityText({ 
-            plannedData: { 
-              truckingCompanyId: id, 
-              plannedPickupDate: date 
-            } 
+          await getTruckingCapacityText({
+            plannedData: {
+              truckingCompanyId: id,
+              plannedPickupDate: date,
+            },
           })
         }
       } catch (error) {

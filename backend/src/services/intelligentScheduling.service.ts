@@ -2191,12 +2191,12 @@ export class IntelligentSchedulingService {
 
   /**
    * 批量成本优化（Task 8.1.1）
-   * 
+   *
    * ✅ SKILL 原则:
    * - Leverage: 复用 SchedulingCostOptimizerService.suggestOptimalUnloadDate()
    * - Incremental: 分批处理，控制并发
    * - Knowledge: 共享缓存减少 DB 查询
-   * 
+   *
    * @param containerNumbers 柜号列表
    * @param options 优化选项
    * @returns 批量优化结果
@@ -2226,14 +2226,14 @@ export class IntelligentSchedulingService {
       // 4. 并发处理每个批次
       for (const batch of batches) {
         const batchStartTime = Date.now();
-        
-        const batchPromises = batch.map(number => 
+
+        const batchPromises = batch.map((number) =>
           this.optimizeSingleContainer(number, warehouseCache, truckingCache)
         );
-        
+
         const batchResults = await Promise.all(batchPromises);
         allResults.push(...batchResults.filter((r): r is BatchOptimizeResult => r !== null));
-        
+
         logger.debug(`[BatchOptimizer] Batch completed in ${Date.now() - batchStartTime}ms`);
       }
 
@@ -2278,7 +2278,7 @@ export class IntelligentSchedulingService {
       const warehouseOp = await this.warehouseOperationRepo.findOne({
         where: { containerNumber }
       });
-      
+
       const truckingTrans = await this.truckingTransportRepo.findOne({
         where: { containerNumber }
       });
@@ -2294,26 +2294,29 @@ export class IntelligentSchedulingService {
       // 3. 使用缓存查找仓库和车队
       let warehouse = warehouseCache.get(warehouseCode);
       if (!warehouse) {
-        warehouse = await this.warehouseRepo.findOne({ where: { warehouseCode } }) || undefined;
+        warehouse = (await this.warehouseRepo.findOne({ where: { warehouseCode } })) || undefined;
         warehouseCache.set(warehouseCode, warehouse);
       }
 
       let truckingCompany = truckingCache.get(truckingCompanyId);
       if (!truckingCompany) {
-        truckingCompany = await this.truckingCompanyRepo.findOne({ 
-          where: { companyCode: truckingCompanyId } 
-        }) || undefined;
+        truckingCompany =
+          (await this.truckingCompanyRepo.findOne({
+            where: { companyCode: truckingCompanyId }
+          })) || undefined;
         truckingCache.set(truckingCompanyId, truckingCompany);
       }
 
       if (!warehouse || !truckingCompany) {
-        logger.warn(`[BatchOptimizer] Missing warehouse or trucking company for ${containerNumber}`);
+        logger.warn(
+          `[BatchOptimizer] Missing warehouse or trucking company for ${containerNumber}`
+        );
         return null;
       }
 
       // 4. 复用现有的成本优化服务
-      const plannedPickupDate = truckingTrans.plannedPickupDate 
-        ? new Date(truckingTrans.plannedPickupDate) 
+      const plannedPickupDate = truckingTrans.plannedPickupDate
+        ? new Date(truckingTrans.plannedPickupDate)
         : new Date();
 
       const optimization = await this.costOptimizerService.suggestOptimalUnloadDate(

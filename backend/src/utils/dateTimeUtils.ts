@@ -7,8 +7,8 @@
  */
 
 import dayjs from 'dayjs';
-import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
+import utc from 'dayjs/plugin/utc';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -102,18 +102,18 @@ export const isWeekend = (date: Date): boolean => {
 
 /**
  * 如果日期为周末，顺延至下周一
- * 
+ *
  * @param date 要检查的日期
  * @param skipWeekends 是否跳过周末（默认 true）
  * @returns 调整后的日期（如果原日期不是周末则返回原日期）
- * 
+ *
  * @example
  * // 假设 2026-03-28 是周六
  * adjustForWeekend(new Date('2026-03-28')) // 2026-03-30 (周一)
- * 
- * // 假设 2026-03-29 是周日  
+ *
+ * // 假设 2026-03-29 是周日
  * adjustForWeekend(new Date('2026-03-29')) // 2026-03-30 (周一)
- * 
+ *
  * // 非周末日期不变
  * adjustForWeekend(new Date('2026-03-27')) // 2026-03-27 (周五)
  */
@@ -124,13 +124,15 @@ export const adjustForWeekend = (date: Date, skipWeekends: boolean = true): Date
 
   const adjusted = new Date(date);
   const day = date.getDay();
-  
-  if (day === 6) { // 周六 → 下周一 (+2 天)
+
+  if (day === 6) {
+    // 周六 → 下周一 (+2 天)
     adjusted.setDate(adjusted.getDate() + 2);
-  } else if (day === 0) { // 周日 → 下周一 (+1 天)
+  } else if (day === 0) {
+    // 周日 → 下周一 (+1 天)
     adjusted.setDate(adjusted.getDate() + 1);
   }
-  
+
   return adjusted;
 };
 
@@ -140,7 +142,10 @@ export const adjustForWeekend = (date: Date, skipWeekends: boolean = true): Date
  * @param format 格式类型
  * @returns 格式化后的字符串
  */
-export const formatDateToLocal = (date: Date | string, format: 'full' | 'date' | 'time' | 'datetime' = 'datetime'): string => {
+export const formatDateToLocal = (
+  date: Date | string,
+  format: 'full' | 'date' | 'time' | 'datetime' = 'datetime'
+): string => {
   const d = typeof date === 'string' ? parseLocalDate(date) : date;
 
   const year = d.getFullYear();
@@ -250,9 +255,11 @@ export const isSameDay = (date1: Date | string, date2: Date | string): boolean =
   const d1 = typeof date1 === 'string' ? parseLocalDate(date1) : date1;
   const d2 = typeof date2 === 'string' ? parseLocalDate(date2) : date2;
 
-  return d1.getFullYear() === d2.getFullYear() &&
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
     d1.getMonth() === d2.getMonth() &&
-    d1.getDate() === d2.getDate();
+    d1.getDate() === d2.getDate()
+  );
 };
 
 /**
@@ -262,7 +269,11 @@ export const isSameDay = (date1: Date | string, date2: Date | string): boolean =
  * @param end 结束日期
  * @returns 是否在范围内
  */
-export const isDateInRange = (date: Date | string, start: Date | string, end: Date | string): boolean => {
+export const isDateInRange = (
+  date: Date | string,
+  start: Date | string,
+  end: Date | string
+): boolean => {
   const d = typeof date === 'string' ? parseLocalDate(date) : date;
   const startDate = typeof start === 'string' ? parseLocalDate(start) : start;
   const endDate = typeof end === 'string' ? parseLocalDate(end) : end;
@@ -285,7 +296,9 @@ export const toDateOnly = (d: Date | string): Date => {
  */
 export const parseIsoDateOnlyForFilter = (input?: string | null): string | undefined => {
   if (input == null || input === '') return undefined;
-  const m = String(input).trim().match(/^(\d{4}-\d{2}-\d{2})/);
+  const m = String(input)
+    .trim()
+    .match(/^(\d{4}-\d{2}-\d{2})/);
   return m ? m[1] : undefined;
 };
 

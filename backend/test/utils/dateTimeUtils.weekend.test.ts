@@ -3,8 +3,8 @@
  * @see backend/src/utils/dateTimeUtils.ts - adjustForWeekend()
  */
 
-import { describe, it, expect } from 'vitest';
-import { isWeekend, adjustForWeekend } from '../../src/utils/dateTimeUtils';
+import { describe, expect, it } from 'vitest';
+import { adjustForWeekend, isWeekend } from '../../src/utils/dateTimeUtils';
 
 describe('DateTimeUtils - Weekend Handling', () => {
   describe('isWeekend()', () => {
@@ -57,7 +57,7 @@ describe('DateTimeUtils - Weekend Handling', () => {
       // 2026-03-28 是周六
       const saturday = new Date('2026-03-28');
       const adjusted = adjustForWeekend(saturday);
-      
+
       // 应该调整为 2026-03-30 (周一)
       expect(adjusted.getFullYear()).toBe(2026);
       expect(adjusted.getMonth()).toBe(2); // 3 月 (0-based)
@@ -69,7 +69,7 @@ describe('DateTimeUtils - Weekend Handling', () => {
       // 2026-03-29 是周日
       const sunday = new Date('2026-03-29');
       const adjusted = adjustForWeekend(sunday);
-      
+
       // 应该调整为 2026-03-30 (周一)
       expect(adjusted.getFullYear()).toBe(2026);
       expect(adjusted.getMonth()).toBe(2); // 3 月 (0-based)
@@ -83,13 +83,13 @@ describe('DateTimeUtils - Weekend Handling', () => {
         '2026-03-30', // 周一
         '2026-03-31', // 周二
         '2026-04-01', // 周三
-        '2026-04-02'  // 周四
+        '2026-04-02' // 周四
       ];
 
-      testDates.forEach(dateStr => {
+      testDates.forEach((dateStr) => {
         const original = new Date(dateStr);
         const adjusted = adjustForWeekend(original);
-        
+
         expect(adjusted.getTime()).toBe(original.getTime());
       });
     });
@@ -98,7 +98,7 @@ describe('DateTimeUtils - Weekend Handling', () => {
       // 2026-03-28 是周六
       const saturday = new Date('2026-03-28');
       const adjusted = adjustForWeekend(saturday, false);
-      
+
       // 应该保持不变
       expect(adjusted.getTime()).toBe(saturday.getTime());
     });
@@ -106,9 +106,9 @@ describe('DateTimeUtils - Weekend Handling', () => {
     it('应该返回新对象而不是修改原对象', () => {
       const saturday = new Date('2026-03-28');
       const originalTime = saturday.getTime();
-      
+
       const adjusted = adjustForWeekend(saturday);
-      
+
       // 原对象不应该被修改
       expect(saturday.getTime()).toBe(originalTime);
       // 返回的是新对象
@@ -119,7 +119,7 @@ describe('DateTimeUtils - Weekend Handling', () => {
       // 2026-05-30 是周六 (月末)
       const saturdayEndOfMonth = new Date('2026-05-30');
       const adjusted = adjustForWeekend(saturdayEndOfMonth);
-      
+
       // 应该调整为 2026-06-01 (周一)
       expect(adjusted.getMonth()).toBe(5); // 6 月
       expect(adjusted.getDate()).toBe(1);
@@ -129,7 +129,7 @@ describe('DateTimeUtils - Weekend Handling', () => {
       // 2026-12-26 是周六
       const saturdayEndOfYear = new Date('2026-12-26');
       const adjusted = adjustForWeekend(saturdayEndOfYear);
-      
+
       // 应该调整为 2026-12-28 (周一)
       expect(adjusted.getFullYear()).toBe(2026);
       expect(adjusted.getMonth()).toBe(11); // 12 月
@@ -141,7 +141,7 @@ describe('DateTimeUtils - Weekend Handling', () => {
     it('应该处理无效日期', () => {
       const invalidDate = new Date('invalid');
       const result = adjustForWeekend(invalidDate);
-      
+
       // 无效日期应该保持无效
       expect(isNaN(result.getTime())).toBe(true);
     });
@@ -150,7 +150,7 @@ describe('DateTimeUtils - Weekend Handling', () => {
       // 2026-03-28 10:30:00 (周六)
       const saturdayWithTime = new Date('2026-03-28T10:30:00');
       const adjusted = adjustForWeekend(saturdayWithTime);
-      
+
       // 应该调整为周一，但保留时间部分
       expect(adjusted.getHours()).toBe(10);
       expect(adjusted.getMinutes()).toBe(30);
@@ -163,11 +163,11 @@ describe('DateTimeUtils - Weekend Handling', () => {
       // 假设 lastFreeDate 是周六
       const lastFreeDate = new Date('2026-03-28');
       const adjustedLastFreeDate = adjustForWeekend(lastFreeDate);
-      
+
       // 提柜日应该在调整后的 lastFreeDate 之前
       const plannedPickupDate = new Date(adjustedLastFreeDate);
       plannedPickupDate.setDate(plannedPickupDate.getDate() - 1);
-      
+
       expect(plannedPickupDate.getDay()).not.toBe(6); // 不是周六
       expect(plannedPickupDate.getDay()).not.toBe(0); // 不是周日
     });
@@ -176,14 +176,14 @@ describe('DateTimeUtils - Weekend Handling', () => {
       // 假设截止日期是周日
       const deadline = new Date('2026-03-29');
       const adjustedDeadline = adjustForWeekend(deadline);
-      
+
       // 调整后的截止日期应该是周一
       expect(adjustedDeadline.getDay()).toBe(1); // 周一
-      
+
       // 实际作业日期可以在调整后的截止日期之前
       const workDate = new Date(adjustedDeadline);
       workDate.setDate(workDate.getDate() - 1); // 周日
-        
+
       // 但由于 skipWeekends，实际应该安排在周五
       const actualWorkDate = adjustForWeekend(workDate);
       expect(actualWorkDate.getDay()).toBe(1); // 周一

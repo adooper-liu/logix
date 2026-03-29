@@ -2139,12 +2139,12 @@ export class SchedulingController {
   /**
    * POST /api/v1/scheduling/batch-optimize
    * 批量优化货柜成本（Task 8.1.1）
-   * 
+   *
    * ✅ SKILL 原则:
    * - Leverage: 复用 IntelligentSchedulingService.batchOptimizeContainers()
    * - Incremental: 最小改动，只添加 Controller 层
    * - Knowledge: 参考 optimizeContainer 等方法结构
-   * 
+   *
    * Body: { containerNumbers: string[], options?: { forceRefresh?: boolean } }
    */
   batchOptimizeContainers = async (req: Request, res: Response): Promise<void> => {
@@ -2173,7 +2173,7 @@ export class SchedulingController {
 
       // 计算性能指标
       const totalSavings = results.reduce((sum, r) => sum + r.savings, 0);
-      const optimizedCount = results.filter(r => r.shouldOptimize).length;
+      const optimizedCount = results.filter((r) => r.shouldOptimize).length;
 
       logger.info(`[Scheduling] Batch optimization completed:`, {
         totalContainers: containerNumbers.length,
