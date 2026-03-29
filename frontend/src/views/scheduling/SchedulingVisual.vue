@@ -128,38 +128,10 @@
       </div>
     </div>
 
-    <!-- 紧凑流程图 -->
-    <div class="flow-bar">
-      <div class="flow-step" :class="{ active: currentStep >= 1 }">
-        <span class="step-num">1</span>
-        <span class="step-text">查询</span>
-      </div>
-      <span class="flow-arrow">→</span>
-      <div class="flow-step" :class="{ active: currentStep >= 2 }">
-        <span class="step-num">2</span>
-        <span class="step-text">排序</span>
-      </div>
-      <span class="flow-arrow">→</span>
-      <div class="flow-step" :class="{ active: currentStep >= 3 }">
-        <span class="step-num">3</span>
-        <span class="step-text">计划日</span>
-      </div>
-      <span class="flow-arrow">→</span>
-      <div class="flow-step" :class="{ active: currentStep >= 4 }">
-        <span class="step-num">4</span>
-        <span class="step-text">资源</span>
-      </div>
-      <span class="flow-arrow">→</span>
-      <div class="flow-step" :class="{ active: currentStep >= 5 }">
-        <span class="step-num">5</span>
-        <span class="step-text">写回</span>
-      </div>
-    </div>
-
     <!-- ✅ 优化：将执行日志移到下方，与排产结果并列 -->
-    <el-row :gutter="12">
+    <el-row :gutter="12" v-if="logs.length > 0">
       <el-col :span="24">
-        <el-card class="log-card" v-if="logs.length > 0">
+        <el-card class="log-card">
           <template #header>
             <div class="card-header">
               <span
@@ -202,16 +174,6 @@
       </el-col>
     </el-row>
 
-    <!-- ✅ 新增：成本优化面板 -->
-    <el-row :gutter="12" style="margin-top: 16px">
-      <el-col :span="24">
-        <CostOptimizationPanel
-          :selected-containers="selectedPreviewContainers"
-          @applied="handleOptimizationApplied"
-        />
-      </el-col>
-    </el-row>
-
     <!-- 空状态 -->
     <div v-if="!loading && overview.pendingCount === 0" class="empty-state">
       <el-empty description="没有待排产的货柜">
@@ -219,7 +181,7 @@
       </el-empty>
     </div>
 
-    <!-- ✅ 优化：排产结果/预览合并卡片 - 根据 isPreviewMode 切换模式 -->
+    <!-- ✅ 排产结果/预览合并卡片 - 根据 isPreviewMode 切换模式 -->
     <el-card v-if="displayResults.length > 0 || !loading" class="result-card">
       <!-- ① 卡片头部：标题 + 核心操作（第一眼关注） -->
       <template #header>
@@ -237,6 +199,32 @@
           <div class="header-right">
             <!-- 预览模式：显示操作按钮组 -->
             <template v-if="isPreviewMode">
+              <!-- 选择操作区 -->
+              <div v-if="displayResults.length > 0" class="selection-actions-inline">
+                <el-tag v-if="selectedPreviewContainers.length > 0" type="warning" size="small" effect="plain">
+                  已选 {{ selectedPreviewContainers.length }} 个
+                </el-tag>
+                <el-button
+                  type="primary"
+                  size="small"
+                  plain
+                  @click="selectAllOnPage"
+                  :disabled="displayResults.every((r: any) => r.success === false)"
+                >
+                  全选成功项
+                </el-button>
+                <el-button
+                  type="default"
+                  size="small"
+                  plain
+                  @click="clearSelection"
+                  :disabled="selectedPreviewContainers.length === 0"
+                >
+                  取消全选
+                </el-button>
+              </div>
+              
+              <!-- 确认操作区 -->
               <el-button
                 type="success"
                 size="small"
@@ -332,24 +320,6 @@
 
         <!-- ③ TAB 过滤区：带计数的标签页（快速筛选） -->
         <div class="tabs-filter-section">
-          <!-- ✅ 新增：预览模式下的批量操作栏 -->
-          <div v-if="isPreviewMode" class="batch-action-bar">
-            <el-alert type="warning" :closable="false" show-icon style="flex: 1">
-              <template #title>
-                已选择 <strong>{{ selectedPreviewContainers.length }}</strong> 个货柜，请确认后保存
-              </template>
-            </el-alert>
-            <el-button
-              type="primary"
-              size="small"
-              @click="selectAllOnPage"
-              :disabled="displayResults.every((r: any) => r.success === false)"
-            >
-              全选成功项
-            </el-button>
-            <el-button type="default" size="small" @click="clearSelection"> 取消全选 </el-button>
-          </div>
-
           <el-tabs v-model="resultTab" class="result-tabs" type="border-card">
             <el-tab-pane :label="`全部 ${displayResults.length}`" name="all">
               <div class="tab-toolbar">
@@ -813,6 +783,16 @@
       </template>
     </el-card>
 
+    <!-- ✅ 新增：成本优化面板（移到底部） -->
+    <el-row :gutter="12" style="margin-top: 20px; margin-bottom: 20px">
+      <el-col :span="24">
+        <CostOptimizationPanel
+          :selected-containers="selectedPreviewContainers"
+          @applied="handleOptimizationApplied"
+        />
+      </el-col>
+    </el-row>
+
     <!-- ✅ 已移除：预览确认弹窗 - 改为直接在页面显示 -->
     <!-- <SchedulingPreviewModal
       v-model="showPreviewModal"
@@ -1050,6 +1030,14 @@ const buildCostTree = (costs: any, _country: string) => {
     })
   }
 
+  if (costs.ddCombinedCost) {
+    children.push({
+      label: 'D&D 合并费',
+      value: costs.ddCombinedCost,
+      level: 1,
+    })
+  }
+
   if (costs.storageCost) {
     children.push({
       label: '港口存储费',
@@ -1070,6 +1058,14 @@ const buildCostTree = (costs: any, _country: string) => {
     children.push({
       label: '堆场堆存费',
       value: costs.yardStorageCost,
+      level: 1,
+    })
+  }
+
+  if (costs.handlingCost) {
+    children.push({
+      label: '操作费',
+      value: costs.handlingCost,
       level: 1,
     })
   }
@@ -1160,7 +1156,7 @@ const overview = ref<any>({
 })
 const scheduling = ref(false)
 const loading = ref(true) // 添加 loading 状态
-const currentStep = ref(0)
+const isLogCollapsed = ref(false) // ✅ 新增：日志折叠状态
 const logs = ref<Array<{ time: string; message: string; type: string }>>([])
 const logContainer = ref<HTMLElement>()
 
@@ -1435,7 +1431,6 @@ const handleSchedule = async () => {
   }
 
   scheduling.value = true
-  currentStep.value = 0
   scheduleResult.value = null
   logs.value = []
   const allResults: Array<{
@@ -1446,20 +1441,15 @@ const handleSchedule = async () => {
   }> = []
   let totalSuccess = 0
   let totalFailed = 0
-
+  
   try {
-    currentStep.value = 1
-    addLog(`开始排产，待排产货柜: ${overview.value.pendingCount} 个`, 'info')
-    currentStep.value = 2
+    addLog(`开始排产，待排产货柜：${overview.value.pendingCount} 个`, 'info')
     addLog('按 ATA/ETA 排序（先到先得）', 'info')
-    currentStep.value = 3
     addLog('计算计划清关日/提柜日/送仓日', 'info')
-    currentStep.value = 4
     addLog(
-      `可用仓库: ${overview.value.warehouses?.length || 0} 个，可用车队: ${overview.value.truckings?.length || 0} 个`,
+      `可用仓库：${overview.value.warehouses?.length || 0} 个，可用车队：${overview.value.truckings?.length || 0} 个`,
       'info'
     )
-    currentStep.value = 5
     addLog(`每批处理 ${BATCH_SIZE} 个货柜，计算完成后暂停确认`, 'info')
 
     let skip = 0
@@ -1483,17 +1473,65 @@ const handleSchedule = async () => {
       hasMore = result.hasMore ?? false
 
       // 每条结果写入日志
-      result.results.forEach((r: any) => {
+      result.results.forEach((r: any, index: number) => {
         allResults.push(r)
         if (r.success) {
           totalSuccess += 1
           const dates = r.plannedData
             ? ` 提柜:${r.plannedData.plannedPickupDate} 送仓:${r.plannedData.plannedDeliveryDate} 还箱:${r.plannedData.plannedReturnDate}`
             : ''
-          addLog(`✓ ${r.containerNumber}: ${r.message || '成功'}${dates}`, 'success')
+          
+          // ✅ 新增：如果是第一条成功记录，显示详细计算过程
+          if (index === 0 && result.results.length > 0) {
+            addLog(`\ud83d\udcca 首个货柜计算详情:`, 'info')
+            addLog(`  - 柜号：${r.containerNumber}`)
+            if (r.plannedData) {
+              addLog(`  - 仓库：${r.warehouseName || r.plannedData.warehouseName || '-'}`)
+              addLog(`  - 车队：${r.plannedData.truckingCompany || '-'}`)
+              addLog(`  - 卸柜方式：${r.plannedData.unloadModePlan || '-'}`)
+              if (r.estimatedCosts) {
+                addLog(`  - 预估费用：$${r.estimatedCosts.totalCost?.toFixed(2) || '0.00'}`)
+                // 显示所有费用项（按重要性排序）
+                if (r.estimatedCosts.demurrageCost) {
+                  addLog(`    \u2022 滞港费：$${r.estimatedCosts.demurrageCost?.toFixed(2) || '0.00'}`)
+                }
+                if (r.estimatedCosts.detentionCost) {
+                  addLog(`    \u2022 滞箱费：$${r.estimatedCosts.detentionCost?.toFixed(2) || '0.00'}`)
+                }
+                if (r.estimatedCosts.ddCombinedCost) {
+                  addLog(`    \u2022 D&D 合并费：$${r.estimatedCosts.ddCombinedCost?.toFixed(2) || '0.00'}`)
+                }
+                if (r.estimatedCosts.storageCost) {
+                  addLog(`    \u2022 仓储费：$${r.estimatedCosts.storageCost?.toFixed(2) || '0.00'}`)
+                }
+                if (r.estimatedCosts.transportationCost) {
+                  addLog(`    \u2022 运输费：$${r.estimatedCosts.transportationCost?.toFixed(2) || '0.00'}`)
+                }
+                if (r.estimatedCosts.yardStorageCost) {
+                  addLog(`    \u2022 堆场堆存费：$${r.estimatedCosts.yardStorageCost?.toFixed(2) || '0.00'}`)
+                }
+                if (r.estimatedCosts.handlingCost) {
+                  addLog(`    \u2022 操作费：$${r.estimatedCosts.handlingCost?.toFixed(2) || '0.00'}`)
+                }
+                if (r.estimatedCosts.otherCost) {
+                  addLog(`    \u2022 其他：$${r.estimatedCosts.otherCost?.toFixed(2) || '0.00'}`)
+                }
+              }
+              if (r.freeDaysRemaining !== undefined) {
+                addLog(`  - 免期剩余：${r.freeDaysRemaining} 天`)
+              }
+              if (r.lastFreeDate) {
+                addLog(`  - 最后免期日：${r.lastFreeDate}`)
+              }
+            }
+            addLog(`  - 计算说明：${r.message || '成功'}`)
+            addLog(`${'\u2713'} ${r.containerNumber}: ${r.message || '成功'}${dates}`, 'success')
+          } else {
+            addLog(`${'\u2713'} ${r.containerNumber}: ${r.message || '成功'}${dates}`, 'success')
+          }
         } else {
           totalFailed += 1
-          addLog(`✗ ${r.containerNumber}: ${r.message || '失败'}`, 'error')
+          addLog(`${'\u2717'} ${r.containerNumber}: ${r.message || '失败'}`, 'error')
         }
       })
 
@@ -1542,7 +1580,6 @@ const handleSchedule = async () => {
     emit('error', error)
   } finally {
     scheduling.value = false
-    currentStep.value = 0
   }
 }
 
@@ -1626,19 +1663,46 @@ const handlePreviewSchedule = async () => {
     }
 
     // 转换数据格式以适配预览组件
-    previewResults.value = result.results.map((r: any) => ({
-      ...r,
-      plannedPickupDate: r.plannedData?.plannedPickupDate || '-',
-      plannedDeliveryDate: r.plannedData?.plannedDeliveryDate || '-',
-      plannedUnloadDate: r.plannedData?.plannedUnloadDate || '-',
-      plannedReturnDate: r.plannedData?.plannedReturnDate || '-',
-      warehouseName: r.warehouseName || r.plannedData?.warehouseName || '-',
-      truckingCompany: r.plannedData?.truckingCompany || '-',
-      unloadMode: r.plannedData?.unloadModePlan || '-',
-      estimatedCosts: r.plannedData?.estimatedCosts || r.estimatedCosts || undefined,
-      lastFreeDate: r.lastFreeDate || '-',
-      freeDaysRemaining: r.freeDaysRemaining ?? undefined,
-    }))
+    previewResults.value = result.results.map((r: any, index: number) => {
+      // ✅ 新增：如果是第一条成功记录，显示详细计算过程
+      if (index === 0 && r.success) {
+        addLog(`\ud83d\udcca 首个货柜计算详情（预览）:`, 'info')
+        addLog(`  - 柜号：${r.containerNumber}`)
+        if (r.plannedData) {
+          addLog(`  - 仓库：${r.warehouseName || r.plannedData.warehouseName || '-'}`)
+          addLog(`  - 车队：${r.plannedData.truckingCompany || '-'}`)
+          addLog(`  - 卸柜方式：${r.plannedData.unloadModePlan || '-'}`)
+          if (r.estimatedCosts) {
+            addLog(`  - 预估费用：$${r.estimatedCosts.totalCost?.toFixed(2) || '0.00'}`)
+            addLog(`    \u2022 运输费：$${r.estimatedCosts.transportationCost?.toFixed(2) || '0.00'}`)
+            addLog(`    \u2022 卸货费：$${r.estimatedCosts.handlingCost?.toFixed(2) || '0.00'}`)
+            addLog(`    \u2022 仓储费：$${r.estimatedCosts.storageCost?.toFixed(2) || '0.00'}`)
+            addLog(`    \u2022 其他：$${r.estimatedCosts.otherCost?.toFixed(2) || '0.00'}`)
+          }
+          if (r.freeDaysRemaining !== undefined) {
+            addLog(`  - 免期剩余：${r.freeDaysRemaining} 天`)
+          }
+          if (r.lastFreeDate) {
+            addLog(`  - 最后免期日：${r.lastFreeDate}`)
+          }
+        }
+        addLog(`  - 计算说明：${r.message || '成功'}`)
+      }
+      
+      return {
+        ...r,
+        plannedPickupDate: r.plannedData?.plannedPickupDate || '-',
+        plannedDeliveryDate: r.plannedData?.plannedDeliveryDate || '-',
+        plannedUnloadDate: r.plannedData?.plannedUnloadDate || '-',
+        plannedReturnDate: r.plannedData?.plannedReturnDate || '-',
+        warehouseName: r.warehouseName || r.plannedData?.warehouseName || '-',
+        truckingCompany: r.plannedData?.truckingCompany || '-',
+        unloadMode: r.plannedData?.unloadModePlan || '-',
+        estimatedCosts: r.plannedData?.estimatedCosts || r.estimatedCosts || undefined,
+        lastFreeDate: r.lastFreeDate || '-',
+        freeDaysRemaining: r.freeDaysRemaining ?? undefined,
+      }
+    })
 
     // ✅ 直接显示预览结果，不再弹出对话框
     isPreviewMode.value = true
@@ -1646,6 +1710,10 @@ const handlePreviewSchedule = async () => {
 
     addLog(`预览完成：成功 ${result.successCount} 个，失败 ${result.failedCount} 个`, 'info')
     ElMessage.success(`预览完成：成功 ${result.successCount} 个，请在下方审查并勾选要保存的方案`)
+
+    // ✅ 新增：自动滚动到结果区域
+    await nextTick()
+    scrollToResults()
 
     // ✅ 新增：预加载所有档期数据，避免渲染时重复请求
     if (result.results && result.results.length > 0) {
@@ -1767,6 +1835,17 @@ const handlePreviewSelectionChange = (selection: any[]) => {
   selectedPreviewContainers.value = selection.map((r: any) => r.containerNumber)
 }
 
+// ✅ 新增：自动滚动到结果区域
+const scrollToResults = () => {
+  nextTick(() => {
+    // 查找结果卡片元素
+    const resultCard = document.querySelector('.result-card')
+    if (resultCard) {
+      resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  })
+}
+
 // ✅ 新增：处理成本优化应用后的回调
 const handleOptimizationApplied = (containerNumber: string | 'all') => {
   // 刷新相关数据
@@ -1829,7 +1908,8 @@ const preloadCapacityData = async (results: any[]) => {
       }
 
       // 收集仓库
-      const warehouseCode = row.plannedData.warehouseCode || row.plannedData.warehouseId
+      // ✅ 修复：warehouseId 就是 warehouseCode，直接使用
+      const warehouseCode = row.plannedData.warehouseId
       const unloadDate = row.plannedData.plannedUnloadDate
       if (warehouseCode && unloadDate) {
         const key = `warehouse:${warehouseCode}:${unloadDate}`
@@ -1861,6 +1941,32 @@ const preloadCapacityData = async (results: any[]) => {
             plannedData: {
               truckingCompanyId: id,
               plannedPickupDate: date,
+            },
+          })
+        }
+      } catch (error) {
+        console.warn(`[预加载] ${key} 失败:`, error)
+      }
+    })
+    await Promise.all(promises)
+  }
+
+  // 处理仓库请求
+  const warehouseChunks = Array.from(warehouseRequests).reduce((acc, key, i) => {
+    if (i % MAX_CONCURRENT === 0) acc.push([])
+    acc[acc.length - 1].push(key)
+    return acc
+  }, [] as string[][])
+
+  for (const chunk of warehouseChunks) {
+    const promises = chunk.map(async key => {
+      const [type, code, date] = key.split(':')
+      try {
+        if (type === 'warehouse') {
+          await getWarehouseCapacityText({
+            plannedData: {
+              warehouseId: code, // ✅ warehouseId 就是 warehouseCode
+              plannedUnloadDate: date,
             },
           })
         }
@@ -2022,9 +2128,8 @@ const getWarehouseCapacityType = (row: any) => {
     return 'success'
   }
 
-  // 触发异步加载
-  getWarehouseCapacityText(row)
-
+  // ✅ 关键修复：渲染时禁止触发异步请求，直接返回默认值
+  // 预加载已处理所有数据，这里只是防御性代码
   return 'info'
 }
 
@@ -2040,9 +2145,7 @@ const getWarehouseOccupancyRate = (row: any) => {
     return typeof data === 'string' ? 0 : data.occupancyRate || 0
   }
 
-  // 触发异步加载
-  getWarehouseCapacityText(row)
-
+  // ✅ 关键修复：渲染时禁止触发异步请求，直接返回 0
   return 0
 }
 
@@ -2077,9 +2180,7 @@ const getTruckingCapacityType = (row: any) => {
     return 'success'
   }
 
-  // 触发异步加载
-  getTruckingCapacityText(row)
-
+  // ✅ 关键修复：渲染时禁止触发异步请求，直接返回默认值
   return 'info'
 }
 
@@ -2095,9 +2196,7 @@ const getTruckingOccupancyRate = (row: any) => {
     return typeof data === 'string' ? 0 : data.occupancyRate || 0
   }
 
-  // 触发异步加载
-  getTruckingCapacityText(row)
-
+  // ✅ 关键修复：渲染时禁止触发异步请求，直接返回 0
   return 0
 }
 
@@ -2722,47 +2821,6 @@ onMounted(() => {
   color: #909399;
 }
 
-/* 紧凑流程条 */
-.flow-bar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  padding: 10px;
-  background: #fff;
-  border-radius: 4px;
-}
-
-.flow-step {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  border-radius: 4px;
-  background: #f5f7fa;
-  color: #909399;
-}
-
-.flow-step.active {
-  background: #409eff;
-  color: #fff;
-}
-
-.flow-step .step-num {
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.flow-step .step-text {
-  font-size: 12px;
-}
-
-.flow-bar .flow-arrow {
-  color: #c0c4cc;
-  font-size: 12px;
-}
-
 /* 紧凑卡片 */
 .compact-card {
   margin-bottom: 12px;
@@ -2799,6 +2857,35 @@ onMounted(() => {
   border: 1px solid #ffd591;
   border-radius: 8px;
   margin-bottom: 16px;
+}
+
+/* ✅ 新增：顶部批量操作栏样式（标题栏下方） */
+.batch-action-bar-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #f5f7fa;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  margin: 12px 0;
+}
+
+/* ✅ 新增：选择操作区样式（独立容器） */
+.selection-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ✅ 新增：选择操作区样式（内联到标题栏） */
+.selection-actions-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  border-right: 1px solid #dcdfe6;
+  margin-right: 12px;
 }
 
 /* ✅ 增强：高级搜索区样式 */

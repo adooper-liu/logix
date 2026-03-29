@@ -3,119 +3,131 @@
     <el-card shadow="hover" class="optimization-card">
       <template #header>
         <div class="card-header">
-          <span class="title">💰 成本优化建议</span>
-          <el-tag v-if="totalSavings > 0" type="success" size="small">
-            预计节省：${{ totalSavings.toFixed(2) }}
-          </el-tag>
+          <div class="header-left">
+            <span class="title">💰 成本优化建议</span>
+            <el-tag v-if="totalSavings > 0" type="success" size="small">
+              预计节省：${{ totalSavings.toFixed(2) }}
+            </el-tag>
+          </div>
+          <div class="header-right">
+            <!-- ✅ 新增：折叠按钮 -->
+            <el-button text size="small" @click="isCollapsed = !isCollapsed">
+              <el-icon><ArrowUp v-if="!isCollapsed" /><ArrowDown v-else /></el-icon>
+              {{ isCollapsed ? '展开' : '收起' }}
+            </el-button>
+          </div>
         </div>
       </template>
 
-      <!-- 批量优化操作区 -->
-      <div class="optimization-actions">
-        <el-button
-          type="primary"
-          :loading="isOptimizing"
-          @click="handleBatchOptimize"
-          :disabled="selectedContainers.length === 0"
+      <!-- ✅ 可折叠内容 -->
+      <div v-show="!isCollapsed">
+        <!-- 批量优化操作区 -->
+        <div class="optimization-actions">
+          <el-button
+            type="primary"
+            :loading="isOptimizing"
+            @click="handleBatchOptimize"
+            :disabled="selectedContainers.length === 0"
+          >
+            🚀 批量优化 ({{ selectedContainers.length }} 柜)
+          </el-button>
+
+          <el-button
+            type="success"
+            :loading="isApplying"
+            @click="handleApplyAll"
+            :disabled="optimizationResults.length === 0"
+          >
+            ✅ 一键应用所有优化
+          </el-button>
+
+          <el-button @click="handleRefresh">🔄 刷新</el-button>
+        </div>
+
+        <!-- 优化结果表格 -->
+        <el-table
+          v-if="optimizationResults.length > 0"
+          :data="optimizationResults"
+          border
+          stripe
+          max-height="400"
+          class="optimization-table"
         >
-          🚀 批量优化 ({{ selectedContainers.length }} 柜)
-        </el-button>
+          <el-table-column prop="containerNumber" label="柜号" width="150" />
 
-        <el-button
-          type="success"
-          :loading="isApplying"
-          @click="handleApplyAll"
-          :disabled="optimizationResults.length === 0"
-        >
-          ✅ 一键应用所有优化
-        </el-button>
+          <el-table-column label="原始成本" width="100">
+            <template #default="{ row }">
+              <span class="cost-original">${{ row.originalCost.toFixed(2) }}</span>
+            </template>
+          </el-table-column>
 
-        <el-button @click="handleRefresh">🔄 刷新</el-button>
-      </div>
+          <el-table-column label="优化后成本" width="100">
+            <template #default="{ row }">
+              <span class="cost-optimized">${{ row.optimizedCost.toFixed(2) }}</span>
+            </template>
+          </el-table-column>
 
-      <!-- 优化结果表格 -->
-      <el-table
-        v-if="optimizationResults.length > 0"
-        :data="optimizationResults"
-        border
-        stripe
-        max-height="400"
-        class="optimization-table"
-      >
-        <el-table-column prop="containerNumber" label="柜号" width="150" />
+          <el-table-column label="节省金额" width="100">
+            <template #default="{ row }">
+              <span :class="['savings', row.savings > 0 ? 'positive' : '']">
+                {{ row.savings > 0 ? '+$' + row.savings.toFixed(2) : '$0.00' }}
+              </span>
+            </template>
+          </el-table-column>
 
-        <el-table-column label="原始成本" width="100">
-          <template #default="{ row }">
-            <span class="cost-original">${{ row.originalCost.toFixed(2) }}</span>
+          <el-table-column label="建议提柜日" width="120">
+            <template #default="{ row }">
+              {{ row.suggestedPickupDate || '-' }}
+            </template>
+          </el-table-column>
+
+          <el-table-column label="是否优化" width="100">
+            <template #default="{ row }">
+              <el-tag v-if="row.shouldOptimize" type="success" size="small"> 建议优化 </el-tag>
+              <el-tag v-else type="info" size="small"> 保持原计划 </el-tag>
+            </template>
+          </el-table-column>
+
+          <el-table-column label="操作" fixed="right" width="150">
+            <template #default="{ row }">
+              <el-button
+                v-if="row.shouldOptimize"
+                type="primary"
+                size="small"
+                @click="handleApplySingle(row)"
+              >
+                应用
+              </el-button>
+              <el-button v-else type="info" size="small" disabled> 无需调整 </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <!-- 空状态 -->
+        <el-empty v-else>
+          <template #description> 请选择货柜并点击<b>批量优化</b>按钮 </template>
+          <template #image>
+            <el-icon :size="100">
+              <TrendCharts />
+            </el-icon>
           </template>
-        </el-table-column>
+        </el-empty>
 
-        <el-table-column label="优化后成本" width="100">
-          <template #default="{ row }">
-            <span class="cost-optimized">${{ row.optimizedCost.toFixed(2) }}</span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="节省金额" width="100">
-          <template #default="{ row }">
-            <span :class="['savings', row.savings > 0 ? 'positive' : '']">
-              {{ row.savings > 0 ? '+$' + row.savings.toFixed(2) : '$0.00' }}
-            </span>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="建议提柜日" width="120">
-          <template #default="{ row }">
-            {{ row.suggestedPickupDate || '-' }}
-          </template>
-        </el-table-column>
-
-        <el-table-column label="是否优化" width="100">
-          <template #default="{ row }">
-            <el-tag v-if="row.shouldOptimize" type="success" size="small"> 建议优化 </el-tag>
-            <el-tag v-else type="info" size="small"> 保持原计划 </el-tag>
-          </template>
-        </el-table-column>
-
-        <el-table-column label="操作" fixed="right" width="150">
-          <template #default="{ row }">
-            <el-button
-              v-if="row.shouldOptimize"
-              type="primary"
-              size="small"
-              @click="handleApplySingle(row)"
-            >
-              应用
-            </el-button>
-            <el-button v-else type="info" size="small" disabled> 无需调整 </el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <!-- 空状态 -->
-      <el-empty v-else>
-        <template #description> 请选择货柜并点击<b>批量优化</b>按钮 </template>
-        <template #image>
-          <el-icon :size="100">
-            <TrendCharts />
-          </el-icon>
-        </template>
-      </el-empty>
-
-      <!-- 性能指标 -->
-      <div v-if="performanceMetrics" class="performance-metrics">
-        <el-divider>性能指标</el-divider>
-        <el-descriptions :column="3" border size="small">
-          <el-descriptions-item label="总柜数">
-            {{ performanceMetrics.totalContainers }}
-          </el-descriptions-item>
-          <el-descriptions-item label="处理耗时">
-            {{ performanceMetrics.totalTimeMs }}ms
-          </el-descriptions-item>
-          <el-descriptions-item label="平均耗时/柜">
-            {{ performanceMetrics.avgTimePerContainer }}ms
-          </el-descriptions-item>
-        </el-descriptions>
+        <!-- 性能指标 -->
+        <div v-if="performanceMetrics" class="performance-metrics">
+          <el-divider>性能指标</el-divider>
+          <el-descriptions :column="3" border size="small">
+            <el-descriptions-item label="总柜数">
+              {{ performanceMetrics.totalContainers }}
+            </el-descriptions-item>
+            <el-descriptions-item label="处理耗时">
+              {{ performanceMetrics.totalTimeMs }}ms
+            </el-descriptions-item>
+            <el-descriptions-item label="平均耗时/柜">
+              {{ performanceMetrics.avgTimePerContainer }}ms
+            </el-descriptions-item>
+          </el-descriptions>
+        </div>
       </div>
     </el-card>
   </div>
@@ -123,7 +135,7 @@
 
 <script setup lang="ts">
 import { intelligentSchedulingApi } from '@/api/intelligentScheduling'
-import { TrendCharts } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowUp, TrendCharts } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, ref, watch } from 'vue'
 
@@ -155,6 +167,7 @@ const isOptimizing = ref(false)
 const isApplying = ref(false)
 const optimizationResults = ref<OptimizationResult[]>([])
 const performanceMetrics = ref<PerformanceMetrics | null>(null)
+const isCollapsed = ref(true) // ✅ 新增：默认收起
 
 // 计算属性
 const totalSavings = computed(() => {
@@ -309,9 +322,20 @@ watch(
     justify-content: space-between;
     align-items: center;
 
-    .title {
-      font-size: 16px;
-      font-weight: 600;
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      .title {
+        font-size: 16px;
+        font-weight: 600;
+      }
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
     }
   }
 }
