@@ -840,6 +840,7 @@
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import CostOptimizationPanel from '@/components/CostOptimizationPanel.vue'
 import { useSchedulingFlow } from '@/composables/useSchedulingFlow'
+import { useResourceCapacity } from '@/composables/useResourceCapacity'
 import api from '@/services/api'
 import { containerService } from '@/services/container'
 import { useAppStore } from '@/store/app'
@@ -1440,6 +1441,25 @@ const {
     console.error('[排产错误]', error)
   },
 })
+
+// ✅ 使用 Composable 统一管理资源档期（备用）
+// const {
+//   capacityCache: resourceCapacityCache,
+//   loading: capacityLoading,
+//   getWarehouseCapacityText,
+//   getTruckingCapacityText,
+//   getWarehouseCapacityStatus,
+//   getTruckingCapacityStatus,
+//   preloadFromResults: preloadCapacityFromResults,
+//   clearCache: clearResourceCapacityCache,
+// } = useResourceCapacity({
+//   onError: (error) => {
+//     console.error('[档期检查错误]', error)
+//   },
+//   onLog: (message) => {
+//     console.log('[档期管理]', message)
+//   },
+// })
 
 // 预览确认相关 - 已移除，改为内联显示
 // const showPreviewModal = ref(false)
