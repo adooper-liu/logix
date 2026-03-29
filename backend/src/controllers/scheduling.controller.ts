@@ -2137,6 +2137,74 @@ export class SchedulingController {
   };
 
   /**
+   * POST /api/v1/scheduling/batch-optimize
+   * 批量优化货柜成本（Task 8.1.1）
+   * 
+   * ✅ SKILL 原则:
+   * - Leverage: 复用 IntelligentSchedulingService.batchOptimizeContainers()
+   * - Incremental: 最小改动，只添加 Controller 层
+   * - Knowledge: 参考 optimizeContainer 等方法结构
+   * 
+   * Body: { containerNumbers: string[], options?: { forceRefresh?: boolean } }
+   */
+  batchOptimizeContainers = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { containerNumbers, options } = req.body;
+
+      logger.info('[Scheduling] Batch optimize containers request:', {
+        containerNumbers,
+        options
+      });
+
+      // 验证参数
+      if (!containerNumbers || !Array.isArray(containerNumbers)) {
+        res.status(400).json({
+          success: false,
+          message: 'containerNumbers 参数必须是数组'
+        });
+        return;
+      }
+
+      // 调用服务的批量优化方法
+      const results = await intelligentSchedulingService.batchOptimizeContainers(
+        containerNumbers,
+        options
+      );
+
+      // 计算性能指标
+      const totalSavings = results.reduce((sum, r) => sum + r.savings, 0);
+      const optimizedCount = results.filter(r => r.shouldOptimize).length;
+
+      logger.info(`[Scheduling] Batch optimization completed:`, {
+        totalContainers: containerNumbers.length,
+        resultsCount: results.length,
+        optimizedCount,
+        totalSavings
+      });
+
+      res.json({
+        success: true,
+        data: {
+          results,
+          performance: {
+            totalContainers: containerNumbers.length,
+            resultsCount: results.length,
+            optimizedCount,
+            totalSavings
+          }
+        }
+      });
+    } catch (error: any) {
+      logger.error('[Scheduling] batchOptimizeContainers error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || '批量优化失败',
+        data: null
+      });
+    }
+  };
+
+  /**
    * GET /api/v1/scheduling/cost-comparison/:containerNumber
    * 获取单个货柜的成本对比
    */

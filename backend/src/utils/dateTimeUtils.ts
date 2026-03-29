@@ -91,6 +91,50 @@ export const parseLocalDate = (dateStr: string): Date => {
 };
 
 /**
+ * 检查日期是否为周末
+ * @param date 要检查的日期
+ * @returns 是否为周末 (true=周六或周日)
+ */
+export const isWeekend = (date: Date): boolean => {
+  const day = date.getDay();
+  return day === 0 || day === 6;
+};
+
+/**
+ * 如果日期为周末，顺延至下周一
+ * 
+ * @param date 要检查的日期
+ * @param skipWeekends 是否跳过周末（默认 true）
+ * @returns 调整后的日期（如果原日期不是周末则返回原日期）
+ * 
+ * @example
+ * // 假设 2026-03-28 是周六
+ * adjustForWeekend(new Date('2026-03-28')) // 2026-03-30 (周一)
+ * 
+ * // 假设 2026-03-29 是周日  
+ * adjustForWeekend(new Date('2026-03-29')) // 2026-03-30 (周一)
+ * 
+ * // 非周末日期不变
+ * adjustForWeekend(new Date('2026-03-27')) // 2026-03-27 (周五)
+ */
+export const adjustForWeekend = (date: Date, skipWeekends: boolean = true): Date => {
+  if (!skipWeekends || !isWeekend(date)) {
+    return new Date(date);
+  }
+
+  const adjusted = new Date(date);
+  const day = date.getDay();
+  
+  if (day === 6) { // 周六 → 下周一 (+2 天)
+    adjusted.setDate(adjusted.getDate() + 2);
+  } else if (day === 0) { // 周日 → 下周一 (+1 天)
+    adjusted.setDate(adjusted.getDate() + 1);
+  }
+  
+  return adjusted;
+};
+
+/**
  * 格式化日期对象为本地时间字符串
  * @param date 日期对象
  * @param format 格式类型

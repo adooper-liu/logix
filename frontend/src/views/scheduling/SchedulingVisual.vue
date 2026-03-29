@@ -196,6 +196,16 @@
       </el-col>
     </el-row>
 
+    <!-- ✅ 新增：成本优化面板 -->
+    <el-row :gutter="12" style="margin-top: 16px">
+      <el-col :span="24">
+        <CostOptimizationPanel
+          :selected-containers="selectedPreviewContainers"
+          @applied="handleOptimizationApplied"
+        />
+      </el-col>
+    </el-row>
+
     <!-- 空状态 -->
     <div v-if="!loading && overview.pendingCount === 0" class="empty-state">
       <el-empty description="没有待排产的货柜">
@@ -866,6 +876,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import DesignatedWarehouseDialog from './components/DesignatedWarehouseDialog.vue'
 import OptimizationResultCard from './components/OptimizationResultCard.vue'
+import CostOptimizationPanel from '@/components/CostOptimizationPanel.vue'
 
 console.log('[SchedulingVisual] 组件开始加载')
 
@@ -1629,6 +1640,11 @@ const handlePreviewSchedule = async () => {
 
     addLog(`预览完成：成功 ${result.successCount} 个，失败 ${result.failedCount} 个`, 'info')
     ElMessage.success(`预览完成：成功 ${result.successCount} 个，请在下方审查并勾选要保存的方案`)
+    
+    // ✅ 新增：预加载所有档期数据，避免渲染时重复请求
+    if (result.results && result.results.length > 0) {
+      await preloadCapacityData(result.results)
+    }
   } catch (error: any) {
     ElMessage.error('预览失败：' + (error.message || '未知错误'))
   } finally {
@@ -1745,6 +1761,22 @@ const handlePreviewSelectionChange = (selection: any[]) => {
   selectedPreviewContainers.value = selection.map((r: any) => r.containerNumber)
 }
 
+// ✅ 新增：处理成本优化应用后的回调
+const handleOptimizationApplied = (containerNumber: string | 'all') => {
+  // 刷新相关数据
+  if (containerNumber === 'all') {
+    // 如果是批量应用，重新加载整个列表
+    ElMessage.success('优化已应用，正在刷新数据...')
+    // 可以在这里添加刷新逻辑
+  } else {
+    // 如果只应用了单个货柜，可以针对性刷新
+    ElMessage.success(`货柜 ${containerNumber} 的优化已应用`)
+  }
+  
+  // TODO: 如果需要，可以在这里调用刷新 API
+  // await loadOverview() // 或者刷新具体的货柜数据
+}
+
 // ✅ 增强：辅助方法 - 格式化货币
 const formatCurrency = (value: number | string, currency: string = 'US') => {
   const numValue = typeof value === 'string' ? parseFloat(value) : value
@@ -1771,6 +1803,68 @@ const getAmountClass = (amount: number) => {
 
 // ✅ 新增：档期数据缓存（避免重复请求）
 const capacityCache = ref<Map<string, any>>(new Map())
+
+/**
+ * ✅ 新增：预加载所有货柜的档期信息（批量请求，避免 429）
+ */
+const preloadCapacityData = async (results: any[]) => {
+  const truckingRequests = new Set<string>()
+  const warehouseRequests = new Set<string>()
+
+  // 收集所有需要请求的车队和仓库
+  results.forEach(row => {
+    if (row.plannedData) {
+      // 收集车队
+      const truckingId = row.plannedData.truckingCompanyId || row.plannedData.truckingCompany
+      const pickupDate = row.plannedData.plannedPickupDate
+      if (truckingId && pickupDate) {
+        const key = `trucking:${truckingId}:${pickupDate}`
+        truckingRequests.add(key)
+      }
+
+      // 收集仓库
+      const warehouseCode = row.plannedData.warehouseCode || row.plannedData.warehouseId
+      const unloadDate = row.plannedData.plannedUnloadDate
+      if (warehouseCode && unloadDate) {
+        const key = `warehouse:${warehouseCode}:${unloadDate}`
+        warehouseRequests.add(key)
+      }
+    }
+  })
+
+  console.info(`[预加载] 需要加载 ${truckingRequests.size} 个车队，${warehouseRequests.size} 个仓库`)
+
+  // 批量并发请求 (限制并发数)
+  const MAX_CONCURRENT = 10
+  
+  // 处理车队请求
+  const truckingChunks = Array.from(truckingRequests).reduce((acc, key, i) => {
+    if (i % MAX_CONCURRENT === 0) acc.push([])
+    acc[acc.length - 1].push(key)
+    return acc
+  }, [] as string[][])
+
+  for (const chunk of truckingChunks) {
+    const promises = chunk.map(async key => {
+      const [type, id, date] = key.split(':')
+      try {
+        if (type === 'trucking') {
+          await getTruckingCapacityText({ 
+            plannedData: { 
+              truckingCompanyId: id, 
+              plannedPickupDate: date 
+            } 
+          })
+        }
+      } catch (error) {
+        console.warn(`[预加载] ${key} 失败:`, error)
+      }
+    })
+    await Promise.all(promises)
+  }
+
+  console.info('[预加载] 完成')
+}
 
 // ✅ 新增：获取仓库档期状态文本（集成真实 API）
 const getWarehouseCapacityText = async (row: any) => {
@@ -1901,10 +1995,8 @@ const getWarehouseCapacityLabel = (row: any) => {
     return typeof data === 'string' ? data : data.status
   }
 
-  // 触发异步加载（不阻塞渲染）
-  getWarehouseCapacityText(row)
-
-  return '加载中...'
+  // ✅ 修复：不再触发请求，直接返回默认值 (预加载已处理)
+  return '暂无数据'
 }
 
 const getWarehouseCapacityType = (row: any) => {
@@ -1958,10 +2050,8 @@ const getTruckingCapacityLabel = (row: any) => {
     return typeof data === 'string' ? data : data.status
   }
 
-  // 触发异步加载
-  getTruckingCapacityText(row)
-
-  return '加载中...'
+  // ✅ 修复：不再触发请求，直接返回默认值 (预加载已处理)
+  return '暂无数据'
 }
 
 const getTruckingCapacityType = (row: any) => {

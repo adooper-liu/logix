@@ -64,7 +64,8 @@ router.get('/recommend-option/:id', controller.getRecommendOption);
 router.post('/optimize-cost', controller.optimizeCost);
 router.post('/optimize-container/:containerNumber', controller.optimizeContainer); // ✅ 新增：单柜优化
 console.log('[Scheduling Routes] ✅ optimize-container route registered');
-router.post('/batch-optimize', controller.batchOptimizeCost);
+router.post('/batch-optimize', controller.batchOptimizeContainers); // ✅ 新增：批量优化
+console.log('[Scheduling Routes] ✅ batch-optimize route registered');
 router.get('/cost-comparison/:containerNumber', controller.getCostComparison);
 
 // 排产预览（不写库）- 放在最后，避免匹配其他具体路由

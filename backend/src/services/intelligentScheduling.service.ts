@@ -34,6 +34,18 @@ import { DemurrageService } from './demurrage.service';
 import { SchedulingCostOptimizerService } from './schedulingCostOptimizer.service';
 
 /**
+ * 批量优化结果接口
+ */
+interface BatchOptimizeResult {
+  containerNumber: string;
+  originalCost: number;
+  optimizedCost: number;
+  savings: number;
+  suggestedPickupDate?: string;
+  shouldOptimize: boolean;
+}
+
+/**
  * 未指定的清关公司编码
  */
 const UNSPECIFIED_CUSTOMS_BROKER = 'UNSPECIFIED';
@@ -2173,6 +2185,168 @@ export class IntelligentSchedulingService {
         ataDestPort: ''
       };
     }
+  }
+
+  // ==================== Task 8.1.1: 批量性能优化 ====================
+
+  /**
+   * 批量成本优化（Task 8.1.1）
+   * 
+   * ✅ SKILL 原则:
+   * - Leverage: 复用 SchedulingCostOptimizerService.suggestOptimalUnloadDate()
+   * - Incremental: 分批处理，控制并发
+   * - Knowledge: 共享缓存减少 DB 查询
+   * 
+   * @param containerNumbers 柜号列表
+   * @param options 优化选项
+   * @returns 批量优化结果
+   */
+  async batchOptimizeContainers(
+    containerNumbers: string[],
+    options?: { forceRefresh?: boolean }
+  ): Promise<BatchOptimizeResult[]> {
+    const startTime = Date.now();
+    logger.info(`[BatchOptimizer] Starting for ${containerNumbers.length} containers`);
+
+    try {
+      // 1. 读取配置
+      const config = await this.schedulingConfigRepo.findOne({
+        where: { configKey: 'batch_size_limit' }
+      });
+      const batchSize = parseInt(config?.configValue || '50');
+
+      // 2. 分批处理
+      const batches = this.chunkArray(containerNumbers, batchSize);
+      const allResults: BatchOptimizeResult[] = [];
+
+      // 3. 构建共享缓存（避免重复查询）
+      const warehouseCache = new Map<string, Warehouse>();
+      const truckingCache = new Map<string, TruckingCompany>();
+
+      // 4. 并发处理每个批次
+      for (const batch of batches) {
+        const batchStartTime = Date.now();
+        
+        const batchPromises = batch.map(number => 
+          this.optimizeSingleContainer(number, warehouseCache, truckingCache)
+        );
+        
+        const batchResults = await Promise.all(batchPromises);
+        allResults.push(...batchResults.filter((r): r is BatchOptimizeResult => r !== null));
+        
+        logger.debug(`[BatchOptimizer] Batch completed in ${Date.now() - batchStartTime}ms`);
+      }
+
+      const totalTime = Date.now() - startTime;
+      logger.info(`[BatchOptimizer] Completed:`, {
+        totalContainers: containerNumbers.length,
+        resultsCount: allResults.length,
+        totalTimeMs: totalTime,
+        avgTimePerContainer: (totalTime / containerNumbers.length).toFixed(2)
+      });
+
+      return allResults;
+    } catch (error) {
+      logger.error('[BatchOptimizer] Error:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 优化单个货柜（内部方法）
+   */
+  private async optimizeSingleContainer(
+    containerNumber: string,
+    warehouseCache: Map<string, Warehouse>,
+    truckingCache: Map<string, TruckingCompany>
+  ): Promise<BatchOptimizeResult | null> {
+    try {
+      // 1. 获取货柜（带关联）
+      const container = await this.containerRepo.findOne({
+        where: { containerNumber },
+        relations: ['portOperations', 'seaFreight', 'replenishmentOrders']
+      });
+
+      if (!container) {
+        logger.warn(`[BatchOptimizer] Container not found: ${containerNumber}`);
+        return null;
+      }
+
+      // 2. 从 gantt_derived 或排产状态中获取仓库和车队信息
+      // 注意：Container 表没有直接的 warehouseId/truckingCompanyId 字段
+      // 需要通过其他表关联查询
+      const warehouseOp = await this.warehouseOperationRepo.findOne({
+        where: { containerNumber }
+      });
+      
+      const truckingTrans = await this.truckingTransportRepo.findOne({
+        where: { containerNumber }
+      });
+
+      const warehouseCode = warehouseOp?.warehouseId;
+      const truckingCompanyId = truckingTrans?.truckingCompanyId;
+
+      if (!warehouseCode || !truckingCompanyId) {
+        logger.warn(`[BatchOptimizer] No schedule data for ${containerNumber}`);
+        return null;
+      }
+
+      // 3. 使用缓存查找仓库和车队
+      let warehouse = warehouseCache.get(warehouseCode);
+      if (!warehouse) {
+        warehouse = await this.warehouseRepo.findOne({ where: { warehouseCode } }) || undefined;
+        warehouseCache.set(warehouseCode, warehouse);
+      }
+
+      let truckingCompany = truckingCache.get(truckingCompanyId);
+      if (!truckingCompany) {
+        truckingCompany = await this.truckingCompanyRepo.findOne({ 
+          where: { companyCode: truckingCompanyId } 
+        }) || undefined;
+        truckingCache.set(truckingCompanyId, truckingCompany);
+      }
+
+      if (!warehouse || !truckingCompany) {
+        logger.warn(`[BatchOptimizer] Missing warehouse or trucking company for ${containerNumber}`);
+        return null;
+      }
+
+      // 4. 复用现有的成本优化服务
+      const plannedPickupDate = truckingTrans.plannedPickupDate 
+        ? new Date(truckingTrans.plannedPickupDate) 
+        : new Date();
+
+      const optimization = await this.costOptimizerService.suggestOptimalUnloadDate(
+        containerNumber,
+        warehouse,
+        truckingCompany,
+        plannedPickupDate
+      );
+
+      // 5. 构建结果
+      return {
+        containerNumber,
+        originalCost: optimization.originalCost,
+        optimizedCost: optimization.optimizedCost,
+        savings: optimization.savings,
+        suggestedPickupDate: optimization.suggestedPickupDate?.toISOString().split('T')[0],
+        shouldOptimize: optimization.savings > 0
+      };
+    } catch (error) {
+      logger.error(`[BatchOptimizer] Error for ${containerNumber}:`, error);
+      return null;
+    }
+  }
+
+  /**
+   * 数组长分块工具方法
+   */
+  private chunkArray<T>(array: T[], size: number): T[][] {
+    const chunks: T[][] = [];
+    for (let i = 0; i < array.length; i += size) {
+      chunks.push(array.slice(i, i + size));
+    }
+    return chunks;
   }
 }
 
