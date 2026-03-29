@@ -1,0 +1,50 @@
+---
+description: LogiX 项目结构速查 - 数据库表、实体、API、前端服务
+alwaysApply: true
+---
+
+# LogiX 项目结构速查
+
+## 数据库表（以 backend/03_create_tables.sql 为准）
+
+| 前缀 | 用途 | 核心表 |
+|------|------|--------|
+| dict_ | 字典 | dict_countries, dict_ports, dict_container_types, dict_customer_types, dict_warehouses, dict_shipping_companies, dict_freight_forwarders, dict_customs_brokers, dict_trucking_companies, dict_overseas_companies |
+| biz_ | 业务 | biz_containers, biz_replenishment_orders, biz_customers, biz_container_skus |
+| process_ | 流程 | process_sea_freight, process_port_operations, process_trucking_transport, process_warehouse_operations, process_empty_return |
+| ext_ | 扩展 | ext_container_status_events, ext_container_loading_records, ext_container_hold_records, ext_container_charges |
+
+关联链：biz_replenishment_orders.container_number → biz_containers；biz_containers.bill_of_lading_number → process_sea_freight；流程表均通过 container_number 关联 biz_containers。所有表名字段名均为 snake_case。
+
+## 实体与表名对应（backend/src/entities）
+
+- Container → biz_containers；ReplenishmentOrder → biz_replenishment_orders；SeaFreight → process_sea_freight；PortOperation → process_port_operations；TruckingTransport → process_trucking_transport；WarehouseOperation → process_warehouse_operations；EmptyReturn → process_empty_return。
+- 字典：Country → dict_countries；Port → dict_ports；ContainerType → dict_container_types；Customer → biz_customers；CustomerType → dict_customer_types。实体属性 camelCase，@Column({ name: 'snake_case' })。
+
+## 后端 API（前缀 /api/v1，见 backend/src/routes/index.ts）
+
+- /containers：列表 GET /、详情 GET /:id、增删改 POST/PUT/DELETE、统计 GET /statistics、GET /statistics-detailed、GET /statistics-yearly-volume、GET /statistics-verify、GET /by-filter、状态更新 POST /:containerNumber/update-status、批量状态 POST /update-statuses/batch
+- /countries、/customers、/customer-types：CRUD GET/POST/PUT/DELETE，列表 GET /
+- /import：POST /excel、POST /excel/batch
+- /external：POST /sync/:containerNumber、GET /events/:containerNumber 等
+- /logistics-path：GET /container/:containerNumber、GET /bl/:billOfLadingNumber、POST /sync 等
+- /adapters：GET /status、GET /container/:containerNumber/status-events、POST /container/:containerNumber/sync 等
+- /dict-mapping、/dict-mapping/universal：港口映射、通用字典映射
+
+## 前端对接
+
+- 接口基址：VITE_API_BASE_URL 或默认 http://localhost:3001/api/v1（见 frontend/src/services/container.ts）。
+- 主要服务：frontend/src/services/container.ts（ContainerService：getContainers、getContainerById、统计等）；其他 API 调用可参考该目录下服务与 api.ts 的 axios 实例。
+- Excel 导入映射：frontend/src/views/import/ExcelImport.vue，table/field 必须与数据库表名、字段名一致（snake_case）。
+
+新增表/字段时：先改 03_create_tables.sql 与对应实体，再改后端路由/控制器与前端服务及 Excel 映射。
+
+## 业务逻辑速查
+
+- **状态机**：7 层简化状态由 calculateLogisticsStatus 按优先级计算（还箱 > WMS 卸柜 > 提柜 > 目的港 ATA > 中转港 ATA/进闸 > 海运出运 > 未出运）；ContainerStatusService 负责单柜/批量更新 logistics_status。
+- **滞港费/最晚提柜**：目的港 process_port_operations.last_free_date 为免费期截止日；LastPickupStatisticsService 按该日期做 expired/urgent/warning/normal/noLastFreeDate 五类统计。
+- **飞驼 API**：FeiTuoAdapter 拉取事件，FeiTuoStatusMapping 将状态码映射到核心字段（ata_dest_port、gate_in_time 等），写 process_port_operations 后需触发状态重算。飞驼 API 文档 https://doc.freightower.com/；业务与整合详见 frontend/public/docs/05-state-machine/03-业务状态机与飞驼.md、11-project/09-飞驼节点状态码解读与接入整合方案.md。
+- **智能排柜架构**：流程表（process_trucking_transport、process_warehouse_operations）中的车队、仓库是**智能排柜引擎分派后的结果**；引擎根据 dict_trucking_port_mapping、dict_warehouse_trucking_mapping、车队能力、仓库能力、ETA 等多因素分派，再将结果写入流程表。详见 frontend/public/docs/11-project/10-智能排柜与五节点调度最终开发方案.md。
+- **国家概念统一**：country 字段实质指该国分公司（子公司类型客户）；统一存 dict_countries.code；sell_to_country 特例存子公司名称。详见 frontend/public/docs/11-project/12-国家概念统一约定.md。
+- **销往国家→排柜资源**：sell_to_country → countryCode → 清关行/车队/仓库。详见 frontend/public/docs/11-project/13-销往国家到排柜资源关联逻辑.md。
+- **清关行/车队/仓库缺省**：无该国记录时用「XX清关行」「XX车队」「XX仓库」（XX=国家中文名）。customer_code 空时从 sell_to_country 回填；last_free_date/last_return_date 空时按 15 文档补全。

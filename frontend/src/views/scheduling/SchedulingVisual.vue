@@ -1675,26 +1675,37 @@ const handleConfirmSave = async () => {
         results: selectedResults.filter((r: any) => r.success),
       }
 
+      // ✅ 新增：保存后刷新档期数据
+      await refreshCapacityData()
+
       // 清空预览状态
       isPreviewMode.value = false
       previewResults.value = []
       selectedPreviewContainers.value = []
 
-      // 刷新概览数据
+      // ✅ 新增：刷新待排产数量统计
       await loadOverview()
-
-      // 触发完成事件
-      emit('complete', result)
     } else {
-      ElMessage.error('保存失败：' + (result as any).message)
-      addLog('保存失败：' + (result as any).message, 'error')
+      ElMessage.error('保存失败')
+      addLog(`确认保存失败`, 'error')
     }
   } catch (error: any) {
-    ElMessage.error('保存失败：' + (error.message || '未知错误'))
-    addLog('保存失败：' + error.message, 'error')
+    console.error('[handleConfirmSave] Error:', error)
+    ElMessage.error('保存失败：' + error.message)
+    addLog(`确认保存失败：${error.message}`, 'error')
   } finally {
     saving.value = false
   }
+}
+
+// ✅ 新增：刷新档期数据（清空缓存）
+const refreshCapacityData = async () => {
+  console.log('[refreshCapacityData] 刷新档期数据...')
+  // 清空档期缓存
+  capacityCache.value.clear()
+  
+  // 重新加载当前可见的档期数据（可选）
+  // 如果需要立即刷新 UI，可以重新调用 getWarehouseCapacityText 等方法
 }
 
 // ✅ 新增：放弃预览结果
@@ -2152,11 +2163,11 @@ const handleOptimizeContainer = async (row: any) => {
 // ✅ 新增：获取日期状态文本（剩余天数/超期天数）
 const getDateStatusText = (dateStr: string) => {
   if (!dateStr) return ''
-  
+
   const today = dayjs().startOf('day')
   const targetDate = dayjs(dateStr).startOf('day')
   const diffDays = targetDate.diff(today, 'day')
-  
+
   if (diffDays < 0) {
     return `已超期${Math.abs(diffDays)}天`
   } else if (diffDays === 0) {
@@ -2171,17 +2182,17 @@ const getDateStatusText = (dateStr: string) => {
 // ✅ 新增：获取日期状态样式类
 const getDateStatusClass = (dateStr: string) => {
   if (!dateStr) return ''
-  
+
   const today = dayjs().startOf('day')
   const targetDate = dayjs(dateStr).startOf('day')
   const diffDays = targetDate.diff(today, 'day')
-  
+
   if (diffDays < 0) {
-    return 'date-status-overdue'  // 超期 - 红色
+    return 'date-status-overdue' // 超期 - 红色
   } else if (diffDays <= 2) {
-    return 'date-status-urgent'   // 紧急 - 橙色
+    return 'date-status-urgent' // 紧急 - 橙色
   } else {
-    return 'date-status-normal'   // 正常 - 绿色
+    return 'date-status-normal' // 正常 - 绿色
   }
 }
 

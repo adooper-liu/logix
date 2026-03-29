@@ -10,6 +10,10 @@ import { PortOperation } from '../entities/PortOperation';
 import { TruckingCompany } from '../entities/TruckingCompany';
 import { Warehouse } from '../entities/Warehouse';
 import { Yard } from '../entities/Yard';
+import { WarehouseOperation } from '../entities/WarehouseOperation';
+import { TruckingTransport } from '../entities/TruckingTransport';
+import { ExtWarehouseDailyOccupancy } from '../entities/ExtWarehouseDailyOccupancy';
+import { ExtTruckingSlotOccupancy } from '../entities/ExtTruckingSlotOccupancy';
 import { containerService } from '../services/container.service';
 import { intelligentSchedulingService } from '../services/intelligentScheduling.service';
 import { SchedulingCostOptimizerService } from '../services/schedulingCostOptimizer.service';
@@ -22,6 +26,10 @@ export class SchedulingController {
   private portOperationRepo = AppDataSource.getRepository(PortOperation);
   private warehouseRepo = AppDataSource.getRepository(Warehouse);
   private truckingCompanyRepo = AppDataSource.getRepository(TruckingCompany);
+  private warehouseOperationRepo = AppDataSource.getRepository(WarehouseOperation);
+  private truckingTransportRepo = AppDataSource.getRepository(TruckingTransport);
+  private warehouseOccupancyRepo = AppDataSource.getRepository(ExtWarehouseDailyOccupancy);
+  private truckingOccupancyRepo = AppDataSource.getRepository(ExtTruckingSlotOccupancy);
   private dateTimeUtils = new DateTimeUtils();
 
   /**
@@ -2208,24 +2216,11 @@ export class SchedulingController {
           container.scheduleStatus = 'issued';
           await queryRunner.manager.save(container);
 
-          // 5. 保存计划日期（简化实现：仅记录日志，实际由 batchSchedule 处理）
-          // TODO: 如果需要直接保存到 WarehouseOperation/TruckingOperation
-          logger.info(`[Scheduling] Preview data for ${preview.containerNumber}:`, {
-            plannedPickupDate: preview.plannedData.plannedPickupDate,
-            plannedUnloadDate: preview.plannedData.plannedUnloadDate,
-            plannedReturnDate: preview.plannedData.plannedReturnDate,
-            warehouseId: preview.plannedData.warehouseId,
-            truckingCompanyId: preview.plannedData.truckingCompanyId,
-            unloadMode: preview.plannedData.unloadMode
-          });
+          // ✅ 新增：保存计划日期到数据库
+          await this.savePlannedDates(preview.plannedData, queryRunner.manager);
 
-          // 6. 占用资源（简化实现：记录日志，实际占用由 batchSchedule 处理）
-          logger.info(`[Scheduling] Preview saved for ${preview.containerNumber}`, {
-            warehouseId: preview.plannedData.warehouseId,
-            unloadDate: preview.plannedData.plannedUnloadDate,
-            truckingCompanyId: preview.plannedData.truckingCompanyId,
-            returnDate: preview.plannedData.plannedReturnDate
-          });
+          // ✅ 新增：扣减资源档期
+          await this.occupyCapacity(preview.plannedData, queryRunner.manager);
 
           results.push({
             containerNumber: preview.containerNumber,
@@ -2330,6 +2325,95 @@ export class SchedulingController {
     } catch (error) {
       logger.warn('[Scheduling] Resource availability check failed:', error);
       return true; // 检查失败时默认允许（保守策略）
+    }
+  }
+
+  /**
+   * ✅ 新增：保存计划日期到数据库
+   */
+  private async savePlannedDates(plannedData: any, manager: any): Promise<void> {
+    const { containerNumber, warehouseId, truckingCompanyId } = plannedData;
+
+    // 1. 保存仓库操作（WarehouseOperation）
+    let warehouseOp = await manager.findOne(WarehouseOperation, {
+      where: { containerNumber }
+    });
+
+    if (!warehouseOp) {
+      warehouseOp = new WarehouseOperation();
+      warehouseOp.containerNumber = containerNumber;
+    }
+
+    warehouseOp.warehouseId = warehouseId;
+    warehouseOp.plannedUnloadDate = new Date(plannedData.plannedUnloadDate);
+    warehouseOp.unloadModeActual = plannedData.unloadMode;
+
+    await manager.save(warehouseOp);
+
+    // 2. 保存车队运输（TruckingTransport）
+    let trucking = await manager.findOne(TruckingTransport, {
+      where: { containerNumber }
+    });
+
+    if (!trucking) {
+      trucking = new TruckingTransport();
+      trucking.containerNumber = containerNumber;
+    }
+
+    trucking.truckingCompanyId = truckingCompanyId;
+    trucking.pickupDate = new Date(plannedData.plannedPickupDate);
+    trucking.returnDate = new Date(plannedData.plannedReturnDate);
+
+    await manager.save(trucking);
+  }
+
+  /**
+   * ✅ 新增：扣减资源档期
+   */
+  private async occupyCapacity(plannedData: any, manager: any): Promise<void> {
+    const { warehouseId, truckingCompanyId, plannedUnloadDate, plannedReturnDate, unloadMode } =
+      plannedData;
+
+    // 1. 扣减仓库档期（增加 plannedCount）
+    const warehouseOccupancy = await manager.findOne(ExtWarehouseDailyOccupancy, {
+      where: {
+        warehouseCode: warehouseId,
+        date: plannedUnloadDate
+      }
+    });
+
+    if (warehouseOccupancy) {
+      warehouseOccupancy.plannedCount += 1;  // ✅ 使用正确的字段名
+      await manager.save(warehouseOccupancy);
+      logger.debug(
+        `[Scheduling] Warehouse capacity occupied: ${warehouseId} on ${plannedUnloadDate}`
+      );
+    } else {
+      logger.warn(
+        `[Scheduling] Warehouse occupancy record not found: ${warehouseId} on ${plannedUnloadDate}`
+      );
+    }
+
+    // 2. 扣减车队档期（Drop off 模式，增加 plannedTrips）
+    if (unloadMode === 'Drop off') {
+      const truckingOccupancy = await manager.findOne(ExtTruckingSlotOccupancy, {
+        where: {
+          truckingCompanyId,
+          date: plannedReturnDate
+        }
+      });
+
+      if (truckingOccupancy) {
+        truckingOccupancy.plannedTrips += 1;  // ✅ 使用正确的字段名
+        await manager.save(truckingOccupancy);
+        logger.debug(
+          `[Scheduling] Trucking capacity occupied: ${truckingCompanyId} on ${plannedReturnDate}`
+        );
+      } else {
+        logger.warn(
+          `[Scheduling] Trucking occupancy record not found: ${truckingCompanyId} on ${plannedReturnDate}`
+        );
+      }
     }
   }
 }
