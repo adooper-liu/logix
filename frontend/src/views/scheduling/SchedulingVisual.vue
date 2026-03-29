@@ -71,7 +71,7 @@
           <el-icon><Check /></el-icon>
           批量保存优化 ({{ optimizedContainers.size }})
         </el-button>
-        
+
         <el-button
           type="primary"
           :loading="scheduling"
@@ -467,8 +467,13 @@
                         <span class="date-value">{{
                           row.plannedData.plannedPickupDate || '-'
                         }}</span>
-                        <span v-if="row.plannedData.plannedPickupDate" 
-                              :class="['date-status', getDateStatusClass(row.plannedData.plannedPickupDate)]">
+                        <span
+                          v-if="row.plannedData.plannedPickupDate"
+                          :class="[
+                            'date-status',
+                            getDateStatusClass(row.plannedData.plannedPickupDate),
+                          ]"
+                        >
                           {{ getDateStatusText(row.plannedData.plannedPickupDate) }}
                         </span>
                       </div>
@@ -478,8 +483,13 @@
                         <span class="date-value">{{
                           row.plannedData.plannedDeliveryDate || '-'
                         }}</span>
-                        <span v-if="row.plannedData.plannedDeliveryDate" 
-                              :class="['date-status', getDateStatusClass(row.plannedData.plannedDeliveryDate)]">
+                        <span
+                          v-if="row.plannedData.plannedDeliveryDate"
+                          :class="[
+                            'date-status',
+                            getDateStatusClass(row.plannedData.plannedDeliveryDate),
+                          ]"
+                        >
                           {{ getDateStatusText(row.plannedData.plannedDeliveryDate) }}
                         </span>
                       </div>
@@ -489,8 +499,13 @@
                         <span class="date-value">{{
                           row.plannedData.plannedUnloadDate || '-'
                         }}</span>
-                        <span v-if="row.plannedData.plannedUnloadDate" 
-                              :class="['date-status', getDateStatusClass(row.plannedData.plannedUnloadDate)]">
+                        <span
+                          v-if="row.plannedData.plannedUnloadDate"
+                          :class="[
+                            'date-status',
+                            getDateStatusClass(row.plannedData.plannedUnloadDate),
+                          ]"
+                        >
                           {{ getDateStatusText(row.plannedData.plannedUnloadDate) }}
                         </span>
                       </div>
@@ -500,8 +515,13 @@
                         <span class="date-value">{{
                           row.plannedData.plannedReturnDate || '-'
                         }}</span>
-                        <span v-if="row.plannedData.plannedReturnDate" 
-                              :class="['date-status', getDateStatusClass(row.plannedData.plannedReturnDate)]">
+                        <span
+                          v-if="row.plannedData.plannedReturnDate"
+                          :class="[
+                            'date-status',
+                            getDateStatusClass(row.plannedData.plannedReturnDate),
+                          ]"
+                        >
                           {{ getDateStatusText(row.plannedData.plannedReturnDate) }}
                         </span>
                       </div>
@@ -520,16 +540,16 @@
                           <div>卸柜日期：{{ row.plannedData.plannedUnloadDate || '-' }}</div>
                           <div>占用率：{{ getWarehouseOccupancyRate(row) }}%</div>
                         </template>
-                        <el-tag 
-                          size="small" 
-                          :type="getWarehouseCapacityType(row)" 
+                        <el-tag
+                          size="small"
+                          :type="getWarehouseCapacityType(row)"
                           effect="plain"
                           style="margin-bottom: 4px"
                         >
                           🏭 {{ getWarehouseCapacityLabel(row) }}
                         </el-tag>
                       </el-tooltip>
-                      
+
                       <!-- 车队档期状态 -->
                       <el-tooltip placement="top">
                         <template #content>
@@ -537,11 +557,7 @@
                           <div>提柜日期：{{ row.plannedData.plannedPickupDate || '-' }}</div>
                           <div>占用率：{{ getTruckingOccupancyRate(row) }}%</div>
                         </template>
-                        <el-tag 
-                          size="small" 
-                          :type="getTruckingCapacityType(row)" 
-                          effect="plain"
-                        >
+                        <el-tag size="small" :type="getTruckingCapacityType(row)" effect="plain">
                           🚛 {{ getTruckingCapacityLabel(row) }}
                         </el-tag>
                       </el-tooltip>
@@ -1635,8 +1651,8 @@ const handleConfirmSave = async () => {
     addLog(`正在保存 ${selectedPreviewContainers.value.length} 个货柜的排产结果...`, 'info')
 
     // ✅ 关键修复：从 previewResults 中提取已选中的货柜数据
-    const selectedResults = previewResults.value.filter(
-      (r: any) => selectedPreviewContainers.value.includes(r.containerNumber)
+    const selectedResults = previewResults.value.filter((r: any) =>
+      selectedPreviewContainers.value.includes(r.containerNumber)
     )
 
     console.log('[handleConfirmSave] 保存的预览数据:', selectedResults)
@@ -1644,7 +1660,7 @@ const handleConfirmSave = async () => {
     // ✅ 调用 confirm 接口（传递 previewResults，直接保存不重新计算）
     const result = await containerService.confirmSchedule({
       containerNumbers: selectedPreviewContainers.value,
-      previewResults: selectedResults  // ✅ 传递预览数据
+      previewResults: selectedResults, // ✅ 传递预览数据
     })
 
     if (result.success) {
@@ -1656,7 +1672,7 @@ const handleConfirmSave = async () => {
         total: result.savedCount,
         successCount: result.savedCount,
         failedCount: 0,
-        results: selectedResults.filter((r: any) => r.success)
+        results: selectedResults.filter((r: any) => r.success),
       }
 
       // 清空预览状态
@@ -1749,16 +1765,16 @@ const capacityCache = ref<Map<string, any>>(new Map())
 const getWarehouseCapacityText = async (row: any) => {
   const warehouseCode = row.plannedData?.warehouseId || row.plannedData?.warehouseCode
   const unloadDate = row.plannedData?.plannedUnloadDate
-  
+
   if (!warehouseCode || !unloadDate) return '未知'
-  
+
   // 检查缓存
   const cacheKey = `warehouse:${warehouseCode}:${unloadDate}`
   if (capacityCache.value.has(cacheKey)) {
     const cached = capacityCache.value.get(cacheKey)
     return typeof cached === 'string' ? cached : cached.status
   }
-  
+
   try {
     // 调用后端 API 获取真实档期数据
     const response = await api.get('/scheduling/resources/capacity/range', {
@@ -1766,20 +1782,21 @@ const getWarehouseCapacityText = async (row: any) => {
         resourceType: 'warehouse',
         warehouseCode,
         start: unloadDate,
-        end: unloadDate
-      }
+        end: unloadDate,
+      },
     })
-    
+
     if (response.data.success && response.data.data.length > 0) {
       const capacityData = response.data.data[0]
-      const occupancyRate = capacityData.baseCapacity > 0 
-        ? (capacityData.occupied / capacityData.baseCapacity) * 100 
-        : 0
-      
+      const occupancyRate =
+        capacityData.baseCapacity > 0
+          ? (capacityData.occupied / capacityData.baseCapacity) * 100
+          : 0
+
       let status = '正常'
       if (occupancyRate >= 95) status = '超负荷'
       else if (occupancyRate >= 80) status = '紧张'
-      
+
       // 缓存状态和占用率
       capacityCache.value.set(cacheKey, { status, occupancyRate })
       return status
@@ -1787,7 +1804,7 @@ const getWarehouseCapacityText = async (row: any) => {
   } catch (error) {
     console.error('获取仓库档期失败:', error)
   }
-  
+
   // 降级逻辑：仅基于占用率判断（不再考虑日期）
   // 如果 API 失败，返回默认状态
   capacityCache.value.set(cacheKey, { status: '正常', occupancyRate: 0 })
@@ -1806,16 +1823,16 @@ const getWarehouseCapacityStatus = async (row: any) => {
 const getTruckingCapacityText = async (row: any) => {
   const truckingCompanyId = row.plannedData?.truckingCompanyId || row.plannedData?.truckingCompany
   const pickupDate = row.plannedData?.plannedPickupDate
-  
+
   if (!truckingCompanyId || !pickupDate) return '未知'
-  
+
   // 检查缓存
   const cacheKey = `trucking:${truckingCompanyId}:${pickupDate}`
   if (capacityCache.value.has(cacheKey)) {
     const cached = capacityCache.value.get(cacheKey)
     return typeof cached === 'string' ? cached : cached.status
   }
-  
+
   try {
     // 调用后端 API 获取真实档期数据
     const response = await api.get('/scheduling/resources/capacity/range', {
@@ -1823,20 +1840,21 @@ const getTruckingCapacityText = async (row: any) => {
         resourceType: 'trucking',
         truckingCompanyId,
         start: pickupDate,
-        end: pickupDate
-      }
+        end: pickupDate,
+      },
     })
-    
+
     if (response.data.success && response.data.data.length > 0) {
       const capacityData = response.data.data[0]
-      const occupancyRate = capacityData.baseCapacity > 0 
-        ? (capacityData.occupied / capacityData.baseCapacity) * 100 
-        : 0
-      
+      const occupancyRate =
+        capacityData.baseCapacity > 0
+          ? (capacityData.occupied / capacityData.baseCapacity) * 100
+          : 0
+
       let status = '正常'
       if (occupancyRate >= 95) status = '超负荷'
       else if (occupancyRate >= 80) status = '紧张'
-      
+
       // 缓存状态和占用率
       capacityCache.value.set(cacheKey, { status, occupancyRate })
       return status
@@ -1844,7 +1862,7 @@ const getTruckingCapacityText = async (row: any) => {
   } catch (error) {
     console.error('获取车队档期失败:', error)
   }
-  
+
   // 降级逻辑：仅基于占用率判断（不再考虑日期）
   // 如果 API 失败，返回默认状态
   capacityCache.value.set(cacheKey, { status: '正常', occupancyRate: 0 })
@@ -1863,27 +1881,27 @@ const getTruckingCapacityStatus = async (row: any) => {
 const getWarehouseCapacityLabel = (row: any) => {
   const warehouseCode = row.plannedData?.warehouseId || row.plannedData?.warehouseCode
   const unloadDate = row.plannedData?.plannedUnloadDate
-  
+
   if (!warehouseCode || !unloadDate) return '未知'
-  
+
   const cacheKey = `warehouse:${warehouseCode}:${unloadDate}`
   if (capacityCache.value.has(cacheKey)) {
     const data = capacityCache.value.get(cacheKey)
     return typeof data === 'string' ? data : data.status
   }
-  
+
   // 触发异步加载（不阻塞渲染）
   getWarehouseCapacityText(row)
-  
+
   return '加载中...'
 }
 
 const getWarehouseCapacityType = (row: any) => {
   const warehouseCode = row.plannedData?.warehouseId || row.plannedData?.warehouseCode
   const unloadDate = row.plannedData?.plannedUnloadDate
-  
+
   if (!warehouseCode || !unloadDate) return 'info'
-  
+
   const cacheKey = `warehouse:${warehouseCode}:${unloadDate}`
   if (capacityCache.value.has(cacheKey)) {
     const data = capacityCache.value.get(cacheKey)
@@ -1892,55 +1910,55 @@ const getWarehouseCapacityType = (row: any) => {
     if (text === '紧张') return 'warning'
     return 'success'
   }
-  
+
   // 触发异步加载
   getWarehouseCapacityText(row)
-  
+
   return 'info'
 }
 
 const getWarehouseOccupancyRate = (row: any) => {
   const warehouseCode = row.plannedData?.warehouseId || row.plannedData?.warehouseCode
   const unloadDate = row.plannedData?.plannedUnloadDate
-  
+
   if (!warehouseCode || !unloadDate) return 0
-  
+
   const cacheKey = `warehouse:${warehouseCode}:${unloadDate}`
   if (capacityCache.value.has(cacheKey)) {
     const data = capacityCache.value.get(cacheKey)
-    return typeof data === 'string' ? 0 : (data.occupancyRate || 0)
+    return typeof data === 'string' ? 0 : data.occupancyRate || 0
   }
-  
+
   // 触发异步加载
   getWarehouseCapacityText(row)
-  
+
   return 0
 }
 
 const getTruckingCapacityLabel = (row: any) => {
   const truckingCompanyId = row.plannedData?.truckingCompanyId || row.plannedData?.truckingCompany
   const pickupDate = row.plannedData?.plannedPickupDate
-  
+
   if (!truckingCompanyId || !pickupDate) return '未知'
-  
+
   const cacheKey = `trucking:${truckingCompanyId}:${pickupDate}`
   if (capacityCache.value.has(cacheKey)) {
     const data = capacityCache.value.get(cacheKey)
     return typeof data === 'string' ? data : data.status
   }
-  
+
   // 触发异步加载
   getTruckingCapacityText(row)
-  
+
   return '加载中...'
 }
 
 const getTruckingCapacityType = (row: any) => {
   const truckingCompanyId = row.plannedData?.truckingCompanyId || row.plannedData?.truckingCompany
   const pickupDate = row.plannedData?.plannedPickupDate
-  
+
   if (!truckingCompanyId || !pickupDate) return 'info'
-  
+
   const cacheKey = `trucking:${truckingCompanyId}:${pickupDate}`
   if (capacityCache.value.has(cacheKey)) {
     const data = capacityCache.value.get(cacheKey)
@@ -1949,28 +1967,28 @@ const getTruckingCapacityType = (row: any) => {
     if (text === '紧张') return 'warning'
     return 'success'
   }
-  
+
   // 触发异步加载
   getTruckingCapacityText(row)
-  
+
   return 'info'
 }
 
 const getTruckingOccupancyRate = (row: any) => {
   const truckingCompanyId = row.plannedData?.truckingCompanyId || row.plannedData?.truckingCompany
   const pickupDate = row.plannedData?.plannedPickupDate
-  
+
   if (!truckingCompanyId || !pickupDate) return 0
-  
+
   const cacheKey = `trucking:${truckingCompanyId}:${pickupDate}`
   if (capacityCache.value.has(cacheKey)) {
     const data = capacityCache.value.get(cacheKey)
-    return typeof data === 'string' ? 0 : (data.occupancyRate || 0)
+    return typeof data === 'string' ? 0 : data.occupancyRate || 0
   }
-  
+
   // 触发异步加载
   getTruckingCapacityText(row)
-  
+
   return 0
 }
 
@@ -2131,24 +2149,60 @@ const handleOptimizeContainer = async (row: any) => {
   }
 }
 
+// ✅ 新增：获取日期状态文本（剩余天数/超期天数）
+const getDateStatusText = (dateStr: string) => {
+  if (!dateStr) return ''
+  
+  const today = dayjs().startOf('day')
+  const targetDate = dayjs(dateStr).startOf('day')
+  const diffDays = targetDate.diff(today, 'day')
+  
+  if (diffDays < 0) {
+    return `已超期${Math.abs(diffDays)}天`
+  } else if (diffDays === 0) {
+    return '今天'
+  } else if (diffDays === 1) {
+    return '明天'
+  } else {
+    return `剩余${diffDays}天`
+  }
+}
+
+// ✅ 新增：获取日期状态样式类
+const getDateStatusClass = (dateStr: string) => {
+  if (!dateStr) return ''
+  
+  const today = dayjs().startOf('day')
+  const targetDate = dayjs(dateStr).startOf('day')
+  const diffDays = targetDate.diff(today, 'day')
+  
+  if (diffDays < 0) {
+    return 'date-status-overdue'  // 超期 - 红色
+  } else if (diffDays <= 2) {
+    return 'date-status-urgent'   // 紧急 - 橙色
+  } else {
+    return 'date-status-normal'   // 正常 - 绿色
+  }
+}
+
 // ✅ 新增：批量优化保存
 const optimizedContainers = ref<Set<string>>(new Set()) // 存储已优化的货柜号
 
 // ✅ 处理接受优化结果（支持批量保存）
 const handleAcceptOptimization = async (alternative: any) => {
   console.log('[SchedulingVisual] 接受优化方案:', alternative)
-  
+
   try {
     // 1. 获取当前货柜的完整预览数据
     const currentContainer = previewResults.value.find(
       (r: any) => r.containerNumber === currentOptimizationContainer.value
     )
-    
+
     if (!currentContainer) {
       ElMessage.error('未找到货柜数据')
       return
     }
-    
+
     // 2. 更新为优化后的方案
     const optimizedData = {
       ...currentContainer,
@@ -2158,12 +2212,12 @@ const handleAcceptOptimization = async (alternative: any) => {
         unloadMode: alternative.strategy,
         plannedReturnDate: alternative.returnDate || currentContainer.plannedData.plannedReturnDate,
       },
-      estimatedCosts: alternative.breakdown
+      estimatedCosts: alternative.breakdown,
     }
-    
+
     // 3. 添加到批量保存列表
     optimizedContainers.value.add(currentOptimizationContainer.value)
-    
+
     // 4. 更新预览结果（本地更新，不立即保存）
     const index = previewResults.value.findIndex(
       (r: any) => r.containerNumber === currentOptimizationContainer.value
@@ -2171,13 +2225,13 @@ const handleAcceptOptimization = async (alternative: any) => {
     if (index !== -1) {
       previewResults.value[index] = optimizedData
     }
-    
+
     ElMessage.success(`已添加优化方案到保存列表 (${optimizedContainers.value.size} 个)`)
     addLog(`已添加优化方案：${currentOptimizationContainer.value}`, 'success')
-    
+
     // 5. 关闭对话框
     showOptimizationDialog.value = false
-    
+
     // 6. 提示用户是否立即保存
     if (optimizedContainers.value.size > 1) {
       ElMessageBox.confirm(
@@ -2188,12 +2242,14 @@ const handleAcceptOptimization = async (alternative: any) => {
           cancelButtonText: '稍后保存',
           type: 'warning',
         }
-      ).then(async () => {
-        await handleBatchSaveOptimizations()
-      }).catch(() => {
-        // 用户选择稍后保存
-        ElMessage.info('可以继续优化其他货柜，稍后统一保存')
-      })
+      )
+        .then(async () => {
+          await handleBatchSaveOptimizations()
+        })
+        .catch(() => {
+          // 用户选择稍后保存
+          ElMessage.info('可以继续优化其他货柜，稍后统一保存')
+        })
     }
   } catch (error: any) {
     console.error('[handleAcceptOptimization] error:', error)
@@ -2226,7 +2282,7 @@ const handleBatchSaveOptimizations = async () => {
     // 2. 批量调用后端保存
     const result = await containerService.confirmSchedule({
       containerNumbers: containersToSave,
-      previewResults: optimizedDataList
+      previewResults: optimizedDataList,
     })
 
     if (result.success) {
@@ -2239,12 +2295,12 @@ const handleBatchSaveOptimizations = async () => {
 
       // 4. 刷新概览数据
       await loadOverview()
-      
+
       // 5. 退出预览模式，显示正式排产结果
       isPreviewMode.value = false
       previewResults.value = []
       selectedPreviewContainers.value = []
-      
+
       // 6. 重新执行预览排产（获取最新的 initial 货柜）
       // await handlePreviewSchedule()  ← 已移除，不需要自动重新预览
 
@@ -3259,5 +3315,29 @@ onMounted(() => {
 .date-range-picker span {
   color: #606266;
   font-size: 14px;
+}
+
+/* 日期状态样式 */
+.date-status {
+  margin-left: 8px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.date-status-normal {
+  color: #67c23a;
+  background-color: #f0f9eb;
+}
+
+.date-status-urgent {
+  color: #e6a23c;
+  background-color: #fdf6ec;
+}
+
+.date-status-overdue {
+  color: #f56c6c;
+  background-color: #fef0f0;
 }
 </style>

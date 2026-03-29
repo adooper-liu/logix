@@ -11,6 +11,7 @@
 ### 1.1 现状分析
 
 **当前流程**：
+
 ```
 步骤 1：预览排产
 前端 → POST /api/v1/containers/batch-schedule?dryRun=true
@@ -30,12 +31,12 @@
 
 ### 1.2 存在的问题
 
-| 问题 | 具体表现 | 影响 |
-|------|---------|------|
-| **用户体验割裂** | 预览看到的和最终保存的不一样 | 用户不信任系统 |
-| **数据不一致风险** | 两次计算之间数据可能变化 | 保存的结果不是用户想要的 |
-| **预览价值打折** | 既然都要重新计算，预览意义何在？ | 功能显得多余 |
-| **并发控制缺失** | 无法处理多用户同时操作 | 可能导致资源冲突 |
+| 问题               | 具体表现                         | 影响                     |
+| ------------------ | -------------------------------- | ------------------------ |
+| **用户体验割裂**   | 预览看到的和最终保存的不一样     | 用户不信任系统           |
+| **数据不一致风险** | 两次计算之间数据可能变化         | 保存的结果不是用户想要的 |
+| **预览价值打折**   | 既然都要重新计算，预览意义何在？ | 功能显得多余             |
+| **并发控制缺失**   | 无法处理多用户同时操作           | 可能导致资源冲突         |
 
 ---
 
@@ -46,12 +47,13 @@
 **原则**：信任前端传回的预览数据，直接保存，避免重新计算
 
 **架构变更**：
+
 ```
 优化前：
 确认保存 → 只传 containerNumbers → 后端重新计算
 
 优化后：
-确认保存 → 传 containerNumbers + previewResults → 
+确认保存 → 传 containerNumbers + previewResults →
           优先使用预览数据 → 后端验证 → 保存
 ```
 
@@ -64,7 +66,7 @@
 ```typescript
 /**
  * 确认并保存排产结果
- * 
+ *
  * 优化策略：
  * 1. 如果传了 previewResults，直接使用（信任前端）
  * 2. 如果没有传，才重新计算（向后兼容）
@@ -82,7 +84,7 @@ confirmSchedule = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    logger.info(`[Scheduling] Confirm schedule request:`, { 
+    logger.info(`[Scheduling] Confirm schedule request:`, {
       containerNumbers,
       hasPreviewResults: !!previewResults
     });
@@ -223,8 +225,8 @@ private validatePreviewResult(preview: any): boolean {
   const { plannedData } = preview;
 
   // 计划日期必须完整
-  if (!plannedData.plannedPickupDate || 
-      !plannedData.plannedUnloadDate || 
+  if (!plannedData.plannedPickupDate ||
+      !plannedData.plannedUnloadDate ||
       !plannedData.plannedReturnDate) {
     return false;
   }
@@ -294,50 +296,48 @@ private async checkResourceAvailability(preview: any): Promise<boolean> {
 // ✅ 新增：确认保存预览结果
 const handleConfirmSave = async () => {
   if (selectedPreviewContainers.value.length === 0) {
-    ElMessage.warning('请至少选择一个货柜')
-    return
+    ElMessage.warning("请至少选择一个货柜");
+    return;
   }
 
   try {
-    saving.value = true
-    addLog(`正在保存 ${selectedPreviewContainers.value.length} 个货柜的排产结果...`, 'info')
+    saving.value = true;
+    addLog(`正在保存 ${selectedPreviewContainers.value.length} 个货柜的排产结果...`, "info");
 
     // ✅ 关键改进：传回完整的预览结果
-    const previewDataToSave = previewResults.value.filter((result: any) => 
-      selectedPreviewContainers.value.includes(result.containerNumber)
-    )
+    const previewDataToSave = previewResults.value.filter((result: any) => selectedPreviewContainers.value.includes(result.containerNumber));
 
     // 调用 confirm 接口（带预览数据）
     const result = await containerService.confirmSchedule({
       containerNumbers: selectedPreviewContainers.value,
-      previewResults: previewDataToSave  // ✅ 新增：传回预览数据
-    })
+      previewResults: previewDataToSave, // ✅ 新增：传回预览数据
+    });
 
     if (result.success) {
-      ElMessage.success(`成功保存 ${result.savedCount} 个货柜`)
-      addLog(`确认保存完成：成功 ${result.savedCount} 个`, 'success')
+      ElMessage.success(`成功保存 ${result.savedCount} 个货柜`);
+      addLog(`确认保存完成：成功 ${result.savedCount} 个`, "success");
 
       // 清空预览状态
-      isPreviewMode.value = false
-      previewResults.value = []
-      selectedPreviewContainers.value = []
+      isPreviewMode.value = false;
+      previewResults.value = [];
+      selectedPreviewContainers.value = [];
 
       // 刷新概览数据
-      await loadOverview()
+      await loadOverview();
 
       // 触发完成事件
-      emit('complete', result)
+      emit("complete", result);
     } else {
-      ElMessage.error('保存失败：' + (result as any).message)
-      addLog('保存失败：' + (result as any).message, 'error')
+      ElMessage.error("保存失败：" + (result as any).message);
+      addLog("保存失败：" + (result as any).message, "error");
     }
   } catch (error: any) {
-    ElMessage.error('保存失败：' + (error.message || '未知错误'))
-    addLog('保存失败：' + error.message, 'error')
+    ElMessage.error("保存失败：" + (error.message || "未知错误"));
+    addLog("保存失败：" + error.message, "error");
   } finally {
-    saving.value = false
+    saving.value = false;
   }
-}
+};
 ```
 
 ---
@@ -348,22 +348,22 @@ const handleConfirmSave = async () => {
 
 #### 调度相关组件
 
-| 组件名 | 路径 | 功能 | 可复用性 |
-|-------|------|------|---------|
-| **SchedulingVisual.vue** | views/scheduling/ | 主页面 | ⭐⭐⭐ 核心页面 |
-| **SchedulingResultCard.vue** | components/ | 结果卡片展示 | ⭐⭐⭐ 可复用 |
-| **OptimizationResultCard.vue** | components/ | 成本优化结果展示 | ⭐⭐⭐ 可复用 |
-| **OptimizationAlternatives.vue** | components/ | 备选方案对比 | ⭐⭐ 可复用 |
-| **CostBreakdownDisplay.vue** | components/ | 成本明细展示 | ⭐⭐⭐ 可复用 |
-| **CostPieChart.vue** | components/ | 成本构成饼图 | ⭐⭐ 可复用 |
-| **UnloadOptionSelector.vue** | components/ | 卸柜方案选择器 | ⭐⭐ 可复用 |
+| 组件名                           | 路径              | 功能             | 可复用性        |
+| -------------------------------- | ----------------- | ---------------- | --------------- |
+| **SchedulingVisual.vue**         | views/scheduling/ | 主页面           | ⭐⭐⭐ 核心页面 |
+| **SchedulingResultCard.vue**     | components/       | 结果卡片展示     | ⭐⭐⭐ 可复用   |
+| **OptimizationResultCard.vue**   | components/       | 成本优化结果展示 | ⭐⭐⭐ 可复用   |
+| **OptimizationAlternatives.vue** | components/       | 备选方案对比     | ⭐⭐ 可复用     |
+| **CostBreakdownDisplay.vue**     | components/       | 成本明细展示     | ⭐⭐⭐ 可复用   |
+| **CostPieChart.vue**             | components/       | 成本构成饼图     | ⭐⭐ 可复用     |
+| **UnloadOptionSelector.vue**     | components/       | 卸柜方案选择器   | ⭐⭐ 可复用     |
 
 #### 成本优化相关组件
 
-| 组件名 | 路径 | 功能 | 可复用性 |
-|-------|------|------|---------|
+| 组件名                        | 路径        | 功能         | 可复用性      |
+| ----------------------------- | ----------- | ------------ | ------------- |
 | **CostOptimizationPanel.vue** | components/ | 成本优化面板 | ⚠️ 孤立未使用 |
-| **CostTrendChart.vue** | components/ | 成本趋势图表 | ⭐⭐ 可复用 |
+| **CostTrendChart.vue**        | components/ | 成本趋势图表 | ⭐⭐ 可复用   |
 
 ### 3.2 复用建议
 
@@ -373,17 +373,10 @@ const handleConfirmSave = async () => {
 
 ```vue
 <!-- 当前用法 -->
-<SchedulingResultCard 
-  :total="displayResults.length"
-  :success-count="successCount"
-  :failed-count="failedCount"
-  :results="displayResults"
-/>
+<SchedulingResultCard :total="displayResults.length" :success-count="successCount" :failed-count="failedCount" :results="displayResults" />
 
 <!-- 可以复用于 -->
-✅ 预览模式结果显示
-✅ 正式排产结果显示
-✅ 成本优化后的结果展示
+✅ 预览模式结果显示 ✅ 正式排产结果显示 ✅ 成本优化后的结果展示
 ```
 
 **复用方式**：通过 slot 传递不同的表格内容
@@ -393,7 +386,7 @@ const handleConfirmSave = async () => {
   <el-table :data="data">
     <!-- 预览模式：显示勾选框 -->
     <el-table-column v-if="isPreviewMode" type="selection" />
-    
+
     <!-- 共同的内容 -->
     <el-table-column label="柜号">...</el-table-column>
     <el-table-column label="计划日期">...</el-table-column>
@@ -409,22 +402,20 @@ const handleConfirmSave = async () => {
 <CostBreakdownDisplay :data="costBreakdown" />
 
 <!-- 可以复用于 -->
-✅ 预览结果中的费用展示
-✅ 优化方案对比
-✅ 最终保存结果的费用展示
+✅ 预览结果中的费用展示 ✅ 优化方案对比 ✅ 最终保存结果的费用展示
 ```
 
 **复用方式**：统一的 costBreakdown 数据结构
 
 ```typescript
 interface CostBreakdown {
-  demurrageCost: number
-  detentionCost: number
-  storageCost: number
-  transportationCost: number
-  yardStorageCost: number
-  handlingCost: number
-  totalCost: number
+  demurrageCost: number;
+  detentionCost: number;
+  storageCost: number;
+  transportationCost: number;
+  yardStorageCost: number;
+  handlingCost: number;
+  totalCost: number;
 }
 ```
 
@@ -432,25 +423,21 @@ interface CostBreakdown {
 
 ```vue
 <!-- 当前用法 -->
-<OptimizationAlternatives 
-  :alternatives="report.allAlternatives"
-  @select="handleSelectAlternative"
-/>
+<OptimizationAlternatives :alternatives="report.allAlternatives" @select="handleSelectAlternative" />
 
 <!-- 可以复用于 -->
-✅ 成本优化时的多方案对比
-✅ 预览结果中的方案对比
+✅ 成本优化时的多方案对比 ✅ 预览结果中的方案对比
 ```
 
 **复用方式**：统一的 UnloadOption 数据结构
 
 ```typescript
 interface UnloadOption {
-  containerNumber: string
-  strategy: 'Direct' | 'Drop off' | 'Expedited'
-  plannedPickupDate: string
-  totalCost: number
-  savings?: number
+  containerNumber: string;
+  strategy: "Direct" | "Drop off" | "Expedited";
+  plannedPickupDate: string;
+  totalCost: number;
+  savings?: number;
 }
 ```
 
@@ -459,6 +446,7 @@ interface UnloadOption {
 **❌ CostOptimizationPanel.vue** - 建议重构而非复用
 
 原因：
+
 1. 组件孤立存在，未被任何页面引用
 2. 依赖的后端 API 不存在（/api/v1/cost-optimization/evaluate）
 3. 事件处理不完整（emit 无监听）
@@ -474,19 +462,14 @@ interface UnloadOption {
       <!-- 成本优化快捷入口 -->
       <el-table-column label="操作">
         <template #default="{ row }">
-          <el-button @click="handleOptimizeContainer(row)">
-            优化
-          </el-button>
+          <el-button @click="handleOptimizeContainer(row)"> 优化 </el-button>
         </template>
       </el-table-column>
     </el-table>
 
     <!-- 成本优化弹窗 -->
     <el-dialog v-model="showOptimizationDialog">
-      <OptimizationResultCard 
-        :report="optimizationReport"
-        @accept="handleAcceptOptimization"
-      />
+      <OptimizationResultCard :report="optimizationReport" @accept="handleAcceptOptimization" />
     </el-dialog>
   </div>
 </template>
@@ -525,12 +508,7 @@ interface UnloadOption {
     </div>
 
     <!-- 重要提示 -->
-    <el-alert 
-      type="info" 
-      show-icon
-      title="预览数据将直接保存，请仔细审查"
-      style="margin-bottom: 16px"
-    />
+    <el-alert type="info" show-icon title="预览数据将直接保存，请仔细审查" style="margin-bottom: 16px" />
 
     <!-- 结果表格（复用 SchedulingResultCard 的 slot） -->
     <SchedulingResultCard :results="previewResults">
@@ -551,11 +529,7 @@ interface UnloadOption {
           </el-table-column>
           <el-table-column label="费用明细">
             <template #default="{ row }">
-              <CostBreakdownDisplay 
-                v-if="row.estimatedCosts"
-                :data="row.estimatedCosts"
-                :compact="true"
-              />
+              <CostBreakdownDisplay v-if="row.estimatedCosts" :data="row.estimatedCosts" :compact="true" />
             </template>
           </el-table-column>
         </el-table>
@@ -565,13 +539,7 @@ interface UnloadOption {
     <!-- 操作按钮 -->
     <template #footer>
       <el-button @click="handleDiscard">放弃</el-button>
-      <el-button 
-        type="primary" 
-        @click="handleConfirm"
-        :disabled="selectedCount === 0"
-      >
-        确认保存 ({{ selectedCount }})
-      </el-button>
+      <el-button type="primary" @click="handleConfirm" :disabled="selectedCount === 0"> 确认保存 ({{ selectedCount }}) </el-button>
     </template>
   </el-card>
 </template>
@@ -630,27 +598,27 @@ interface UnloadOption {
 
 ### 5.1 用户体验提升
 
-| 指标 | 优化前 | 优化后 | 提升 |
-|------|--------|--------|------|
-| **所见即所得** | ❌ 预览和保存不一致 | ✅ 完全一致 | 100% |
-| **用户信任度** | ⭐⭐ 低 | ⭐⭐⭐⭐⭐ 高 | 显著提升 |
-| **操作确定性** | ❌ 不知道保存后是什么 | ✅ 完全可控 | 100% |
+| 指标           | 优化前                | 优化后        | 提升     |
+| -------------- | --------------------- | ------------- | -------- |
+| **所见即所得** | ❌ 预览和保存不一致   | ✅ 完全一致   | 100%     |
+| **用户信任度** | ⭐⭐ 低               | ⭐⭐⭐⭐⭐ 高 | 显著提升 |
+| **操作确定性** | ❌ 不知道保存后是什么 | ✅ 完全可控   | 100%     |
 
 ### 5.2 技术收益
 
-| 指标 | 优化前 | 优化后 | 提升 |
-|------|--------|--------|------|
-| **计算次数** | 2 次（预览 + 保存各 1 次） | 1 次（仅预览） | 减少 50% |
-| **响应时间** | ~2-3 秒（保存时重新计算） | ~0.5 秒（直接保存） | 快 4-6 倍 |
-| **服务器负载** | 高（重复计算） | 低（一次计算） | 减少 50% |
+| 指标           | 优化前                     | 优化后              | 提升      |
+| -------------- | -------------------------- | ------------------- | --------- |
+| **计算次数**   | 2 次（预览 + 保存各 1 次） | 1 次（仅预览）      | 减少 50%  |
+| **响应时间**   | ~2-3 秒（保存时重新计算）  | ~0.5 秒（直接保存） | 快 4-6 倍 |
+| **服务器负载** | 高（重复计算）             | 低（一次计算）      | 减少 50%  |
 
 ### 5.3 组件复用收益
 
-| 组件 | 复用场景 | 避免重复开发 |
-|------|---------|-------------|
-| SchedulingResultCard | 预览结果、正式结果、优化结果 | 节省 2-3 天开发时间 |
-| CostBreakdownDisplay | 预览费用、优化费用对比 | 节省 1-2 天开发时间 |
-| OptimizationAlternatives | 成本优化、方案对比 | 节省 1-2 天开发时间 |
+| 组件                     | 复用场景                     | 避免重复开发        |
+| ------------------------ | ---------------------------- | ------------------- |
+| SchedulingResultCard     | 预览结果、正式结果、优化结果 | 节省 2-3 天开发时间 |
+| CostBreakdownDisplay     | 预览费用、优化费用对比       | 节省 1-2 天开发时间 |
+| OptimizationAlternatives | 成本优化、方案对比           | 节省 1-2 天开发时间 |
 
 **总计节省**：约 4-7 天开发时间
 
@@ -660,53 +628,56 @@ interface UnloadOption {
 
 ### 6.1 潜在风险
 
-| 风险 | 可能性 | 影响 | 缓解措施 |
-|------|--------|------|---------|
-| **前端数据被篡改** | 低 | 高 | 后端验证数据完整性 |
-| **资源超卖** | 中 | 高 | 保存前检查资源可用性 |
-| **并发冲突** | 中 | 中 | 数据库事务 + 乐观锁 |
-| **向后不兼容** | 低 | 中 | 保留重新计算的 fallback |
+| 风险               | 可能性 | 影响 | 缓解措施                |
+| ------------------ | ------ | ---- | ----------------------- |
+| **前端数据被篡改** | 低     | 高   | 后端验证数据完整性      |
+| **资源超卖**       | 中     | 高   | 保存前检查资源可用性    |
+| **并发冲突**       | 中     | 中   | 数据库事务 + 乐观锁     |
+| **向后不兼容**     | 低     | 中   | 保留重新计算的 fallback |
 
 ### 6.2 应对策略
 
 **1. 数据验证**
+
 ```typescript
 // 后端必须验证前端传回的数据
 if (!this.validatePreviewResult(preview)) {
-  throw new Error('预览数据格式不正确')
+  throw new Error("预览数据格式不正确");
 }
 ```
 
 **2. 资源检查**
+
 ```typescript
 // 保存前检查资源是否仍然可用
-const resourceAvailable = await this.checkResourceAvailability(preview)
+const resourceAvailable = await this.checkResourceAvailability(preview);
 if (!resourceAvailable) {
-  throw new Error('仓库或车队资源不足')
+  throw new Error("仓库或车队资源不足");
 }
 ```
 
 **3. 事务保证**
+
 ```typescript
 // 使用数据库事务保证一致性
-const queryRunner = this.dataSource.createQueryRunner()
-await queryRunner.connect()
-await queryRunner.startTransaction()
+const queryRunner = this.dataSource.createQueryRunner();
+await queryRunner.connect();
+await queryRunner.startTransaction();
 
 try {
   // 保存容器状态
-  await queryRunner.manager.save(container)
-  
+  await queryRunner.manager.save(container);
+
   // 保存计划日期
-  await queryRunner.manager.save(destPo)
-  
+  await queryRunner.manager.save(destPo);
+
   // 占用资源
-  await queryRunner.manager.save(warehouseOccupancy)
-  
-  await queryRunner.commitTransaction()
+  await queryRunner.manager.save(warehouseOccupancy);
+
+  await queryRunner.commitTransaction();
 } catch (error) {
-  await queryRunner.rollbackTransaction()
-  throw error
+  await queryRunner.rollbackTransaction();
+  throw error;
 }
 ```
 
@@ -726,16 +697,19 @@ try {
 ### 7.2 实施建议
 
 **立即执行**：
+
 1. 后端添加 savePreviewResults 方法
 2. 前端修改 handleConfirmSave 传回 previewResults
 3. 添加数据验证和资源检查
 
 **分阶段推进**：
+
 - Phase 1 (1-2 天): 后端改造 + 单元测试
 - Phase 2 (1-2 天): 前端改造 + 组件复用
 - Phase 3 (1 天): 集成测试 + 性能测试
 
 **长期优化**：
+
 - 考虑引入数据库乐观锁
 - 增加更详细的操作日志
 - 优化并发控制机制

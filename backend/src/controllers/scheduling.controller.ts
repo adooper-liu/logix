@@ -13,8 +13,8 @@ import { Yard } from '../entities/Yard';
 import { containerService } from '../services/container.service';
 import { intelligentSchedulingService } from '../services/intelligentScheduling.service';
 import { SchedulingCostOptimizerService } from '../services/schedulingCostOptimizer.service';
-import { logger } from '../utils/logger';
 import { DateTimeUtils } from '../utils/dateTimeUtils';
+import { logger } from '../utils/logger';
 
 export class SchedulingController {
   private costOptimizerService = new SchedulingCostOptimizerService();
@@ -160,7 +160,7 @@ export class SchedulingController {
   /**
    * POST /api/v1/scheduling/confirm
    * 确认并保存排产结果（支持使用预览数据）
-   * 
+   *
    * 优化策略：
    * 1. 如果传了 previewResults，直接使用（信任前端，快速路径）
    * 2. 如果没有传，重新计算（向后兼容，慢速路径）
@@ -178,9 +178,9 @@ export class SchedulingController {
         return;
       }
 
-      logger.info(`[Scheduling] Confirm schedule request:`, { 
+      logger.info(`[Scheduling] Confirm schedule request:`, {
         containerNumbers,
-        hasPreviewResults: !!previewResults 
+        hasPreviewResults: !!previewResults
       });
 
       let result;
@@ -616,7 +616,7 @@ export class SchedulingController {
       res.json({
         success: true,
         data: {
-          pendingCount,  // ✅ 修复：包括 initial 和 issued（与 batchSchedule 口径一致）
+          pendingCount, // ✅ 修复：包括 initial 和 issued（与 batchSchedule 口径一致）
           initialCount,
           issuedCount,
           warehouses: warehouses.map((w) => ({
@@ -1728,7 +1728,7 @@ export class SchedulingController {
              GROUP BY DATE(wo.unload_date)`,
             ['issued', String(warehouseCode), start, end]
           );
-          
+
           // 构建占用映射
           bookedContainers.forEach((item: any) => {
             const dateStr = new Date(item.date).toISOString().split('T')[0];
@@ -1792,7 +1792,7 @@ export class SchedulingController {
              GROUP BY DATE(tt.pickup_date)`,
             ['issued', String(truckingCompanyId), start, end]
           );
-          
+
           // 构建占用映射
           bookedContainers.forEach((item: any) => {
             const dateStr = new Date(item.date).toISOString().split('T')[0];
@@ -2233,9 +2233,11 @@ export class SchedulingController {
             message: '保存成功'
           });
           successCount++;
-
         } catch (error: any) {
-          logger.error(`[Scheduling] Failed to save preview for ${preview.containerNumber}:`, error);
+          logger.error(
+            `[Scheduling] Failed to save preview for ${preview.containerNumber}:`,
+            error
+          );
           results.push({
             containerNumber: preview.containerNumber,
             success: false,
@@ -2272,9 +2274,11 @@ export class SchedulingController {
     const { plannedData } = preview;
 
     // 计划日期必须完整
-    if (!plannedData.plannedPickupDate || 
-        !plannedData.plannedUnloadDate || 
-        !plannedData.plannedReturnDate) {
+    if (
+      !plannedData.plannedPickupDate ||
+      !plannedData.plannedUnloadDate ||
+      !plannedData.plannedReturnDate
+    ) {
       return false;
     }
 
@@ -2316,7 +2320,9 @@ export class SchedulingController {
         if (truckingCompany) {
           // TODO: 检查车队还箱档期占用情况
           // 简化实现：假设车队档期总是可用
-          logger.debug(`[Scheduling] Trucking ${plannedData.truckingCompanyId} capacity check passed`);
+          logger.debug(
+            `[Scheduling] Trucking ${plannedData.truckingCompanyId} capacity check passed`
+          );
         }
       }
 
