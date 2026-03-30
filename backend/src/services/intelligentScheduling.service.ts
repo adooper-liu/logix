@@ -41,6 +41,7 @@ import { CostEstimationService } from './CostEstimationService';
 import { DemurrageService } from './demurrage.service';
 import { OccupancyCalculator } from './OccupancyCalculator';
 import { SchedulingCostOptimizerService } from './schedulingCostOptimizer.service';
+import { SchedulingDateCalculator } from './SchedulingDateCalculator';
 import { SchedulingSorter } from './SchedulingSorter';
 import { TruckingSelectorService } from './TruckingSelectorService';
 import { WarehouseSelectorService } from './WarehouseSelectorService';
@@ -92,8 +93,10 @@ export interface ScheduleResult {
   warehouseName?: string;
   etaDestPort?: string;
   ataDestPort?: string;
-  lastFreeDate?: string; // ✅ 最后免费日
+  lastFreeDate?: string; // ✅ 最后免费日（提柜）
   lastReturnDate?: string; // ✅ 最晚还箱日（从 EmptyReturn 表获取）
+  pickupFreeDays?: number; // ✅ 提柜免费天数（MIN(滞港，堆存，D&D)）
+  returnFreeDays?: number; // ✅ 还箱免费天数（D&D 或 滞箱）
   freeDaysRemaining?: number; // ✅ 还箱免费天数（动态计算：最晚还箱日 - 提柜日）
   plannedData?: {
     plannedCustomsDate?: string;
@@ -167,23 +170,11 @@ export class IntelligentSchedulingService {
   // ✅ Phase 3: 新增独立服务实例
   private containerFilterService = new ContainerFilterService();
   private schedulingSorter = new SchedulingSorter();
-  private warehouseSelectorService = new WarehouseSelectorService(
-    AppDataSource.getRepository(Warehouse),
-    AppDataSource.getRepository(ExtWarehouseDailyOccupancy),
-    AppDataSource.getRepository(WarehouseTruckingMapping),
-    AppDataSource.getRepository(TruckingCompany)
-  );
-  private truckingSelectorService = new TruckingSelectorService(
-    AppDataSource.getRepository(TruckingCompany),
-    AppDataSource.getRepository(TruckingPortMapping),
-    AppDataSource.getRepository(WarehouseTruckingMapping),
-    AppDataSource.getRepository(ExtTruckingSlotOccupancy)
-  );
-  private occupancyCalculator = new OccupancyCalculator(
-    AppDataSource.getRepository(ExtWarehouseDailyOccupancy),
-    AppDataSource.getRepository(ExtTruckingSlotOccupancy)
-  );
+  private warehouseSelectorService = new WarehouseSelectorService();
+  private truckingSelectorService = new TruckingSelectorService();
+  private occupancyCalculator = new OccupancyCalculator();
   private costEstimationService = new CostEstimationService();
+  private dateCalculator = new SchedulingDateCalculator();
 
   /**
    * 批量排产
@@ -193,6 +184,9 @@ export class IntelligentSchedulingService {
     const results: ScheduleResult[] = [];
 
     try {
+      // ✅ 记录是否为预览模式
+      logger.info(`[IntelligentScheduling] Starting ${request.dryRun ? 'Preview' : 'Production'} scheduling for country: ${request.country}`);
+      
       // 1. 查询待排产的货柜
       const containers = await this.getContainersToSchedule(request);
       logger.info(`[IntelligentScheduling] Found ${containers.length} containers to schedule`);
@@ -211,6 +205,8 @@ export class IntelligentSchedulingService {
       // 3. 仅对本批货柜做滞港费写回（避免全量写回导致首批迟迟不返回）
       const CONCURRENCY = CONCURRENCY_CONFIG.BATCH_OPERATIONS; // 配置化：默认值为 5
       const lastFreeByCn: Record<string, Date> = {};
+      const pickupFreeDaysByCn: Record<string, number> = {}; // ✅ 提柜免费天数
+      const returnFreeDaysByCn: Record<string, number> = {}; // ✅ 还箱免费天数
       try {
         const numbers = toProcess.map((c) => c.containerNumber);
         for (let i = 0; i < numbers.length; i += CONCURRENCY) {
@@ -225,12 +221,97 @@ export class IntelligentSchedulingService {
                 ? s.value?.result?.calculationDates?.lastPickupDateComputed
                 : null;
             if (computed) lastFreeByCn[batch[j]] = new Date(computed);
+            
+            // ✅ 分类提取免费天数（确保口径一致）
+            if (s.status === 'fulfilled' && s.value?.result) {
+              const standards = s.value.result.matchedStandards || [];
+              
+              // ✅ 提取各类免费天数（参考 riskService.ts 标准方法）
+              const isCombined = (std: any) => {
+                const code = (std.chargeTypeCode ?? '').toUpperCase();
+                const name = (std.chargeName ?? '').toLowerCase();
+                const hasDem = code.includes('DEMURRAGE') || name.includes('demurrage') || name.includes('滞港');
+                const hasDet = code.includes('DETENTION') || name.includes('detention') || name.includes('滞箱');
+                return hasDem && hasDet;
+              };
+              
+              const isDetention = (std: any) => {
+                if (isCombined(std)) return false;
+                const code = (std.chargeTypeCode ?? '').toUpperCase();
+                const name = (std.chargeName ?? '').toLowerCase();
+                return code.includes('DETENTION') || name.includes('detention') || name.includes('滞箱');
+              };
+              
+              const isStorage = (std: any) => {
+                if (isCombined(std)) return false;
+                if (isDetention(std)) return false;
+                const code = (std.chargeTypeCode ?? '').toUpperCase();
+                const name = (std.chargeName ?? '').toLowerCase();
+                return code.includes('STORAGE') || name.includes('storage') || name.includes('堆存');
+              };
+              
+              const isDemurrage = (std: any) => {
+                if (isCombined(std)) return false;
+                if (isDetention(std)) return false;
+                if (isStorage(std)) return false;
+                const code = (std.chargeTypeCode ?? '').toUpperCase();
+                const name = (std.chargeName ?? '').toLowerCase();
+                return code.includes('DEMURRAGE') || name.includes('demurrage') || name.includes('滞港');
+              };
+              
+              // 根据费用类型分类提取
+              const demurrageStandard = standards.find(isDemurrage);
+              const storageStandard = standards.find(isStorage);
+              const detentionStandard = standards.find(isDetention);
+              const dndStandard = standards.find(isCombined);
+              
+              const demurrageFreeDays = demurrageStandard?.freeDays;
+              const storageFreeDays = storageStandard?.freeDays;
+              const detentionFreeDays = detentionStandard?.freeDays;
+              const dnDFreeDays = dndStandard?.freeDays;
+              
+              // ✅ 调试：打印提取的免费天数
+              logger.info(
+                `[IntelligentScheduling] Container ${batch[j]}: demurrage=${demurrageFreeDays} (${demurrageStandard?.chargeName}), storage=${storageFreeDays} (${storageStandard?.chargeName}), detention=${detentionFreeDays} (${detentionStandard?.chargeName}), dnd=${dnDFreeDays} (${dndStandard?.chargeName})`
+              );
+              
+              // ✅ 强制转换确保 freeDays 是数字
+              const demurrageFreeDaysNum = typeof demurrageFreeDays === 'number' ? demurrageFreeDays : undefined;
+              const storageFreeDaysNum = typeof storageFreeDays === 'number' ? storageFreeDays : undefined;
+              const detentionFreeDaysNum = typeof detentionFreeDays === 'number' ? detentionFreeDays : undefined;
+              const dnDFreeDaysNum = typeof dnDFreeDays === 'number' ? dnDFreeDays : undefined;
+              
+              // 提柜免费天数 = MIN(滞港，堆存，D&D)
+              const pickupFreeDaysCandidates = [demurrageFreeDaysNum, storageFreeDaysNum, dnDFreeDaysNum].filter(d => d !== undefined);
+              const pickupFreeDays = pickupFreeDaysCandidates.length > 0 
+                ? Math.min(...pickupFreeDaysCandidates)
+                : undefined;
+              
+              // 还箱免费天数 = D&D 或 滞箱
+              const returnFreeDays = dnDFreeDaysNum ?? detentionFreeDaysNum;
+              
+              // 保存结果
+              if (pickupFreeDays !== undefined) {
+                pickupFreeDaysByCn[batch[j]] = pickupFreeDays;
+              }
+              if (returnFreeDays !== undefined) {
+                returnFreeDaysByCn[batch[j]] = returnFreeDays;
+              }
+            }
           }
         }
         for (const c of toProcess) {
           const destPo = c.portOperations?.find((po: any) => po.portType === 'destination');
           if (destPo && lastFreeByCn[c.containerNumber]) {
             (destPo as any).lastFreeDate = lastFreeByCn[c.containerNumber];
+          }
+          // ✅ 设置提柜免费天数（用于 LFD 计算）
+          if (destPo && pickupFreeDaysByCn[c.containerNumber] !== undefined) {
+            (destPo as any).pickupFreeDays = pickupFreeDaysByCn[c.containerNumber];
+          }
+          // ✅ 设置还箱免费天数（用于 LRD 计算）
+          if (destPo && returnFreeDaysByCn[c.containerNumber] !== undefined) {
+            (destPo as any).returnFreeDays = returnFreeDaysByCn[c.containerNumber];
           }
         }
       } catch (e) {
@@ -397,6 +478,39 @@ export class IntelligentSchedulingService {
     request: ScheduleRequest
   ): Promise<ScheduleResult> {
     try {
+      // ✅ 业务规则检查①：如果已有实际还箱日，不参与排产
+      // 查询实际提柜日和实际还箱日（Container 实体未定义 OneToMany 关系，需手动查询）
+      const [truckingTransport, emptyReturn] = await Promise.all([
+        this.truckingTransportRepo.findOne({ where: { containerNumber: container.containerNumber } }),
+        this.emptyReturnRepo.findOne({ where: { containerNumber: container.containerNumber } })
+      ]);
+      
+      const actualPickupDate = truckingTransport?.pickupDate || null;
+      const actualReturnDate = emptyReturn?.returnTime || null;
+      
+      if (actualReturnDate) {
+        logger.info(
+          `[IntelligentScheduling] Skip scheduling for ${container.containerNumber}: already returned (actual return date: ${actualReturnDate.toISOString()})`
+        );
+        return {
+          containerNumber: container.containerNumber,
+          success: false,
+          message: '货柜已还箱，无需排产',
+          destinationPort: '',
+          destinationPortName: '',
+          etaDestPort: '',
+          ataDestPort: ''
+        };
+      }
+      
+      // ✅ 业务规则检查②：如果已有实际提柜日，锁定提/送/卸日期，只计算还箱日
+      if (actualPickupDate) {
+        logger.info(
+          `[IntelligentScheduling] Scheduling with actual pickup date for ${container.containerNumber}: pickup=${actualPickupDate.toISOString()}`
+        );
+        // 使用实际提柜日进行后续计算（在下方逻辑中处理）
+      }
+
       // ✅ 检查是否为手工指定仓库模式
       if (request.designatedWarehouseMode && request.designatedWarehouseCode) {
         const destPo = container.portOperations?.find((po: any) => po.portType === 'destination');
@@ -502,7 +616,7 @@ export class IntelligentSchedulingService {
         );
       }
 
-      let plannedPickupDate = await this.calculatePlannedPickupDate(
+      let plannedPickupDate = await this.dateCalculator.calculatePlannedPickupDate(
         plannedCustomsDate,
         destPo.lastFreeDate
       );
@@ -518,6 +632,16 @@ export class IntelligentSchedulingService {
           message: '计算提柜日失败',
           ...containerInfo
         };
+      }
+
+      // ✅ 业务规则：如果已有实际提柜日，锁定计划提柜日=实际提柜日
+      if (actualPickupDate) {
+        plannedPickupDate = new Date(actualPickupDate);
+        plannedCustomsDate = new Date(plannedPickupDate);
+        plannedCustomsDate.setUTCDate(plannedCustomsDate.getUTCDate() - 1); // 清关日=提柜日 -1
+        logger.info(
+          `[IntelligentScheduling] Locked pickup date to actual pickup date: ${plannedPickupDate.toISOString()} for ${container.containerNumber}`
+        );
       }
 
       // ✅ 修复：使用纯日期比较（忽略时区），避免跨国业务场景下的日期混乱
@@ -638,7 +762,13 @@ export class IntelligentSchedulingService {
         '-' +
         String(unloadDate.getUTCDate()).padStart(2, '0');
 
-      if (!truckingCompany.hasYard && pickupDayStr !== unloadDayStr) {
+      // ✅ 业务规则：如果已有实际提柜日，强制计划送仓日=计划卸柜日=实际提柜日
+      if (actualPickupDate) {
+        unloadDate = new Date(actualPickupDate);
+        logger.info(
+          `[IntelligentScheduling] Locked unload date to actual pickup date: ${unloadDate.toISOString()} for ${container.containerNumber}`
+        );
+      } else if (!truckingCompany.hasYard && pickupDayStr !== unloadDayStr) {
         // 无堆场只能 Live load，需要找卸柜日 = 提柜日
         const availableDate = await this.findEarliestAvailableDay(
           warehouse.warehouseCode,
@@ -669,11 +799,19 @@ export class IntelligentSchedulingService {
         }
       }
 
-      let plannedDeliveryDate = this.calculatePlannedDeliveryDate(
+      let plannedDeliveryDate = this.dateCalculator.calculatePlannedDeliveryDate(
         plannedPickupDate,
         unloadMode,
         unloadDate
       );
+
+      // ✅ 业务规则：如果已有实际提柜日，强制计划送仓日=实际提柜日
+      if (actualPickupDate) {
+        plannedDeliveryDate = new Date(actualPickupDate);
+        logger.info(
+          `[IntelligentScheduling] Locked delivery date to actual pickup date: ${plannedDeliveryDate.toISOString()} for ${container.containerNumber}`
+        );
+      }
 
       // ✅ 验证 plannedDeliveryDate 有效性
       if (!plannedDeliveryDate || isNaN(plannedDeliveryDate.getTime())) {
@@ -690,11 +828,11 @@ export class IntelligentSchedulingService {
 
       // 8. 计算计划还箱日（从 EmptyReturn 表获取最晚还箱日）
       let lastReturnDate: Date | undefined;
-      const emptyReturn = await this.emptyReturnRepo.findOne({
+      const existingEmptyReturn = await this.emptyReturnRepo.findOne({
         where: { containerNumber: container.containerNumber }
       });
-      if (emptyReturn?.lastReturnDate) {
-        lastReturnDate = new Date(emptyReturn.lastReturnDate);
+      if (existingEmptyReturn?.lastReturnDate) {
+        lastReturnDate = new Date(existingEmptyReturn.lastReturnDate);
       } else if (destPo.lastFreeDate) {
         //  fallback: 从 lastFreeDate + 免费用箱天数计算（默认 7 天）
         lastReturnDate = new Date(destPo.lastFreeDate);
@@ -702,7 +840,7 @@ export class IntelligentSchedulingService {
       }
 
       // ✅ 新的还箱日计算逻辑：考虑车队还箱能力
-      const returnDateResult = await this.calculatePlannedReturnDate(
+      const returnDateResult = await this.dateCalculator.calculatePlannedReturnDate(
         unloadDate,
         unloadMode,
         truckingCompany.companyCode,
@@ -839,15 +977,31 @@ export class IntelligentSchedulingService {
             )
           : undefined;
 
+      // ✅ 获取免费天数（区分提柜和还箱）
+      const pickupFreeDays = (destPo as any).pickupFreeDays ?? undefined; // 提柜免费天数
+      const returnFreeDays = (destPo as any).returnFreeDays ?? undefined; // 还箱免费天数
+      
+      // ✅ 调试日志：记录免费天数（使用 info 确保输出）
+      logger.info(
+        `[IntelligentScheduling] Container ${container.containerNumber}: pickupFreeDays=${pickupFreeDays}, returnFreeDays=${returnFreeDays}`
+      );
+      
+      // ✅ 调试：打印 destPo 对象，检查免费天数是否存在
+      logger.info(
+        `[IntelligentScheduling] Container ${container.containerNumber}: destPo.pickupFreeDays=${(destPo as any).pickupFreeDays}, destPo.returnFreeDays=${(destPo as any).returnFreeDays}`
+      );
+
       return {
         containerNumber: container.containerNumber,
         success: true,
         message: '排产成功',
         lastFreeDate: destPo.lastFreeDate
           ? new Date(destPo.lastFreeDate).toISOString().split('T')[0]
-          : undefined, // ✅ 最后免费日
+          : undefined, // ✅ 最后免费日（提柜）
         lastReturnDate: lastReturnDate ? lastReturnDate.toISOString().split('T')[0] : undefined, // ✅ 最晚还箱日
-        freeDaysRemaining, // ✅ 还箱免费天数
+        pickupFreeDays, // ✅ 提柜免费天数（MIN(滞港，堆存，D&D)）
+        returnFreeDays, // ✅ 还箱免费天数（D&D 或 滞箱）
+        freeDaysRemaining, // ✅ 还箱免费天数（动态计算）
         plannedData,
         estimatedCosts, // dryRun 模式下的预估费用
         ...containerInfo,
@@ -876,70 +1030,6 @@ export class IntelligentSchedulingService {
   }
 
   /**
-   * 计算计划提柜日
-   * = 计划清关日 + 1天，且 ≤ last_free_date
-   * （下限「至少今天」在 scheduleSingleContainer 中统一处理）
-   */
-  private async calculatePlannedPickupDate(customsDate: Date, lastFreeDate?: Date): Promise<Date> {
-    // ✅ 验证输入日期
-    if (!customsDate || isNaN(customsDate.getTime())) {
-      logger.warn(
-        '[IntelligentScheduling] Invalid customsDate passed to calculatePlannedPickupDate'
-      );
-      return new Date(); // 返回今天作为默认值
-    }
-
-    const pickupDate = new Date(customsDate);
-    pickupDate.setDate(pickupDate.getDate() + 1); // 清关后次日提柜
-
-    if (lastFreeDate) {
-      const lastFree = new Date(lastFreeDate);
-      lastFree.setHours(0, 0, 0, 0);
-      if (pickupDate > lastFree) {
-        pickupDate.setTime(lastFree.getTime());
-      }
-    }
-
-    // 跳过周末（如果配置了 skip_weekends = true）
-    await this.skipWeekendsIfNeeded(pickupDate);
-
-    return pickupDate;
-  }
-
-  /**
-   * 检查配置并跳过周末（如果 skip_weekends = true）
-   * @param date 要检查的日期（会被直接修改）
-   */
-  private async skipWeekendsIfNeeded(date: Date): Promise<void> {
-    try {
-      const config = await this.schedulingConfigRepo.findOne({
-        where: { configKey: 'skip_weekends' }
-      });
-
-      const shouldSkipWeekends = config?.configValue === 'true';
-      if (!shouldSkipWeekends) {
-        return;
-      }
-
-      // 跳过周六（6）和周日（0）
-      while (date.getDay() === 0 || date.getDay() === 6) {
-        date.setDate(date.getDate() + 1);
-      }
-    } catch (error) {
-      logger.warn('[IntelligentScheduling] Error checking weekend config:', error);
-      // 配置读取失败时不跳过，避免阻塞排产
-    }
-  }
-
-  /**
-   * 检查日期是否为周末（周六或周日）
-   */
-  private isWeekend(date: Date): boolean {
-    const day = date.getDay();
-    return day === 0 || day === 6;
-  }
-
-  /**
    * 将备货单的销往信息解析为国家代码（dict_countries.code）
    * 约定：country 字段存国家代码；sell_to_country 存子公司名称，需通过 customer 取 country
    * @see frontend/public/docs/11-project/12-国家概念统一约定.md
@@ -962,88 +1052,6 @@ export class IntelligentSchedulingService {
       select: ['country']
     });
     return cust?.country ?? undefined;
-  }
-
-  /**
-   * 仓库属性类型优先级（自营仓优先于平台仓，避免误选 FBW 等平台仓）
-   * 自营仓(CA-S003/Oshawa) > 平台仓(CA-P003/FBW_CA) > 第三方仓
-   */
-  private static readonly PROPERTY_TYPE_PRIORITY: Record<string, number> = {
-    自营仓: 1,
-    平台仓: 2,
-    第三方仓: 3
-  };
-
-  /**
-   * 获取候选仓库列表（严格匹配映射关系）
-   * 仅返回 dict_trucking_port_mapping + dict_warehouse_trucking_mapping 推导出的仓库
-   * 无 portCode 或映射链无结果时返回 []，不再回退到该国全部仓库
-   * 排序：is_default 优先 > 自营仓 > 平台仓 > 第三方仓 > warehouse_code 字典序
-   */
-  /**
-   * 获取候选仓库列表（基于港口 + 车队 + 仓库映射链）
-   * @param countryCode 国家代码
-   * @param portCode 港口代码
-   * @returns 候选仓库列表
-   */
-  async getCandidateWarehouses(countryCode?: string, portCode?: string): Promise<Warehouse[]> {
-    if (!portCode || !countryCode) {
-      return [];
-    }
-
-    // 1. 港口→车队（dict_trucking_port_mapping）
-    const portMappings = await this.truckingPortMappingRepo.find({
-      where: { portCode, country: countryCode, isActive: true }
-    });
-    if (portMappings.length === 0) return [];
-
-    const truckingCompanyIds = portMappings.map((m) => m.truckingCompanyId);
-
-    // 2. 车队→仓库（dict_warehouse_trucking_mapping），仅映射中有的仓库
-    const warehouseMappings = await this.warehouseTruckingMappingRepo.find({
-      where: {
-        truckingCompanyId: In(truckingCompanyIds),
-        country: countryCode,
-        isActive: true
-      }
-    });
-    if (warehouseMappings.length === 0) return [];
-
-    const warehouseCodes = [...new Set(warehouseMappings.map((m) => m.warehouseCode))];
-    const repo = AppDataSource.getRepository(Warehouse);
-    const warehouses = await repo.find({
-      where: {
-        warehouseCode: In(warehouseCodes),
-        country: countryCode,
-        status: 'ACTIVE'
-      }
-    });
-    return this.sortWarehousesByPriority(warehouses, warehouseMappings);
-  }
-
-  /**
-   * 按优先级排序候选仓库：is_default > 自营仓 > 平台仓 > 第三方仓 > warehouse_code
-   */
-  private sortWarehousesByPriority(
-    warehouses: Warehouse[],
-    warehouseMappings: WarehouseTruckingMapping[]
-  ): Warehouse[] {
-    const defaultWarehouseCodes = new Set(
-      warehouseMappings.filter((m) => m.isDefault).map((m) => m.warehouseCode)
-    );
-    const getPriority = (p: string) =>
-      IntelligentSchedulingService.PROPERTY_TYPE_PRIORITY[p] ??
-      COST_OPTIMIZATION_CONFIG.DEFAULT_PROPERTY_PRIORITY; // 配置化：默认优先级
-
-    return [...warehouses].sort((a, b) => {
-      const aDefault = defaultWarehouseCodes.has(a.warehouseCode) ? 0 : 1;
-      const bDefault = defaultWarehouseCodes.has(b.warehouseCode) ? 0 : 1;
-      if (aDefault !== bDefault) return aDefault - bDefault;
-      const pa = getPriority(a.propertyType);
-      const pb = getPriority(b.propertyType);
-      if (pa !== pb) return pa - pb;
-      return (a.warehouseCode || '').localeCompare(b.warehouseCode || '');
-    });
   }
 
   /**
@@ -1076,12 +1084,11 @@ export class IntelligentSchedulingService {
     // 向前查找最多 30 天
     for (let i = 0; i < 30; i++) {
       const date = new Date(earliestDate);
-      // ✅ 修复：使用 UTC 方法，避免时区问题
+      // 使用 UTC 方法，避免时区问题
       date.setUTCDate(date.getUTCDate() + i);
       date.setUTCHours(0, 0, 0, 0); // 去除时间部分，只保留日期
 
-      // ✅ 使用日期字符串查询，避免时区转换问题
-      // 将日期格式化为 'YYYY-MM-DD' 字符串
+      // 使用日期字符串查询，避免时区转换问题
       const dateStr =
         date.getUTCFullYear() +
         '-' +
@@ -1093,7 +1100,7 @@ export class IntelligentSchedulingService {
       const occupancy = await this.warehouseOccupancyRepo.findOne({
         where: {
           warehouseCode,
-          date: dateStr as any // TypeORM 会将字符串转换为 DATE
+          date: dateStr as any
         }
       });
 
@@ -1102,8 +1109,8 @@ export class IntelligentSchedulingService {
         const warehouse = await AppDataSource.getRepository(Warehouse).findOne({
           where: { warehouseCode }
         });
-        const _capacity =
-          warehouse?.dailyUnloadCapacity || OCCUPANCY_CONFIG.DEFAULT_WAREHOUSE_DAILY_CAPACITY; // 配置化：默认日卸柜能力
+        const capacity =
+          warehouse?.dailyUnloadCapacity || OCCUPANCY_CONFIG.DEFAULT_WAREHOUSE_DAILY_CAPACITY;
         return date;
       }
 
@@ -1115,198 +1122,14 @@ export class IntelligentSchedulingService {
   }
 
   /**
-   * 计算计划送仓日（必须 提<=送<=卸）
-   * Live load（直接送）：提=送=卸（同日）；Drop off（先放堆场）：提<送=卸
+   * 获取候选仓库列表（基于港口 + 车队 + 仓库映射链）
+   * @param countryCode 国家代码
+   * @param portCode 港口代码
+   * @returns 候选仓库列表
    */
-  private calculatePlannedDeliveryDate(
-    pickupDate: Date,
-    unloadMode: string,
-    unloadDate: Date
-  ): Date {
-    if (unloadMode === 'Live load') {
-      return new Date(pickupDate); // 提 = 送（同日）
-    }
-    // Drop off：送 = 卸（送仓日即卸柜日）
-    return new Date(unloadDate);
-  }
-
-  /**
-   * 计算计划还箱日（必须 提<=送<=卸<=还）
-   *
-   * 业务规则：
-   * ① Drop off 模式：还 = 卸 + 1，但受车队还箱能力约束，若能力不足则顺延，最晚不超过 lastReturnDate
-   * ② Live load 模式：还 = 卸（同日），若能力不足需调整卸柜日或选择其他车队
-   *
-   * @param unloadDate 卸柜日
-   * @param unloadMode 卸柜方式（Drop off / Live load）
-   * @param truckingCompanyId 车队 ID（用于查询还箱能力）
-   * @param lastReturnDate 最晚还箱日（最终红线）
-   * @param plannedPickupDate 计划提柜日（用于 Live load 模式下调整卸柜日）
-   * @returns { returnDate: 还箱日，adjustedUnloadDate: 调整后的卸柜日（Live load 模式下可能需要调整）}
-   */
-  private async calculatePlannedReturnDate(
-    unloadDate: Date,
-    unloadMode: string,
-    truckingCompanyId: string,
-    lastReturnDate?: Date,
-    plannedPickupDate?: Date
-  ): Promise<{
-    returnDate: Date;
-    adjustedUnloadDate?: Date;
-  }> {
-    const returnDateOnly = new Date(unloadDate);
-    returnDateOnly.setUTCHours(0, 0, 0, 0);
-
-    let adjustedUnloadDate: Date | undefined;
-
-    if (unloadMode === 'Live load') {
-      // Live load 模式：还 = 卸（同日）
-      // 需要检查车队当日的还箱能力
-      const availableDate = await this.findEarliestAvailableReturnDate(
-        truckingCompanyId,
-        returnDateOnly,
-        lastReturnDate
-      );
-
-      if (!availableDate) {
-        // 车队还箱能力不足，且无法在 lastReturnDate 前找到可用日期
-        // 返回卸柜日当天（由上层逻辑决定是否更换车队）
-        return {
-          returnDate: returnDateOnly,
-          adjustedUnloadDate: undefined
-        };
-      }
-
-      // 如果找到的日期不是卸柜日当天，需要调整卸柜日
-      if (availableDate.getTime() !== returnDateOnly.getTime()) {
-        adjustedUnloadDate = availableDate;
-      }
-
-      return {
-        returnDate: availableDate,
-        adjustedUnloadDate
-      };
-    } else {
-      // ✅ Drop off 模式：优先当天还箱，其次卸 +1，再往后顺延
-
-      // Step 1: 先检查卸柜日当天的还箱能力
-      const availableOnUnloadDate = await this.findEarliestAvailableReturnDate(
-        truckingCompanyId,
-        returnDateOnly,
-        lastReturnDate
-      );
-
-      if (availableOnUnloadDate) {
-        // 如果卸柜日当天有能力，当天还箱（最优解，减少堆场费用）
-        return {
-          returnDate: availableOnUnloadDate,
-          adjustedUnloadDate: undefined
-        };
-      }
-
-      // Step 2: 如果卸柜日当天没能力，再检查卸柜日 +1
-      const nextDay = new Date(returnDateOnly);
-      nextDay.setUTCDate(nextDay.getUTCDate() + 1);
-
-      const availableOnNextDay = await this.findEarliestAvailableReturnDate(
-        truckingCompanyId,
-        nextDay,
-        lastReturnDate
-      );
-
-      if (availableOnNextDay) {
-        // 卸柜日 +1 有能力，次日还箱（标准 Drop off 模式）
-        return {
-          returnDate: availableOnNextDay,
-          adjustedUnloadDate: undefined
-        };
-      }
-
-      // Step 3: 如果都没能力，继续顺延查找
-      const availableDate = await this.findEarliestAvailableReturnDate(
-        truckingCompanyId,
-        nextDay,
-        lastReturnDate
-      );
-
-      if (!availableDate) {
-        // 找不到可用日期，返回 nextDay（可能会超过 lastReturnDate，由后续逻辑处理）
-        return {
-          returnDate: nextDay,
-          adjustedUnloadDate: undefined
-        };
-      }
-
-      return {
-        returnDate: availableDate,
-        adjustedUnloadDate: undefined
-      };
-    }
-  }
-
-  /**
-   * 查找车队从 earliestDate 起首个有还箱能力的日期
-   * @param truckingCompanyId 车队 ID
-   * @param earliestDate 起始日期
-   * @param lastReturnDate 最晚还箱日（可选，若指定则不能超过此日期）
-   * @returns 最早可用的还箱日，若找不到则返回 null
-   */
-  private async findEarliestAvailableReturnDate(
-    truckingCompanyId: string,
-    earliestDate: Date,
-    lastReturnDate?: Date
-  ): Promise<Date | null> {
-    // 向前查找最多 14 天（或到 lastReturnDate）
-    const maxDaysToSearch = lastReturnDate
-      ? Math.min(
-          14,
-          Math.ceil((lastReturnDate.getTime() - earliestDate.getTime()) / (1000 * 60 * 60 * 24))
-        )
-      : 14;
-
-    for (let i = 0; i <= maxDaysToSearch; i++) {
-      const date = new Date(earliestDate);
-      date.setUTCDate(date.getUTCDate() + i);
-      date.setUTCHours(0, 0, 0, 0);
-
-      // 如果超过最晚还箱日，停止查找
-      if (lastReturnDate) {
-        const lastReturn = new Date(lastReturnDate);
-        lastReturn.setUTCHours(0, 0, 0, 0);
-        if (date > lastReturn) {
-          return null;
-        }
-      }
-
-      // 查询车队当日的还箱档期占用
-      const occupancy = await AppDataSource.getRepository(ExtTruckingReturnSlotOccupancy).findOne({
-        where: {
-          truckingCompanyId,
-          slotDate: date
-        }
-      });
-
-      if (!occupancy) {
-        // 无占用记录，使用车队默认还箱能力
-        const trucking = await AppDataSource.getRepository(TruckingCompany).findOne({
-          where: { companyCode: truckingCompanyId },
-          select: ['dailyReturnCapacity', 'dailyCapacity']
-        });
-        const capacity =
-          trucking?.dailyReturnCapacity ??
-          trucking?.dailyCapacity ??
-          OCCUPANCY_CONFIG.DEFAULT_TRUCKING_RETURN_CAPACITY; // 配置化：默认日还箱能力
-        if (capacity > 0) {
-          return date;
-        }
-      } else if (occupancy.plannedCount < occupancy.capacity) {
-        // 有剩余能力
-        return date;
-      }
-    }
-
-    // 找不到可用日期
-    return null;
+  async getCandidateWarehouses(countryCode?: string, portCode?: string): Promise<Warehouse[]> {
+    // 委托给 WarehouseSelectorService
+    return this.warehouseSelectorService.getCandidateWarehouses(countryCode, portCode);
   }
 
   /**
@@ -1647,6 +1470,13 @@ export class IntelligentSchedulingService {
       // ✅ 新增：检查是否为手工指定仓库模式，如果是，跳过成本优化建议
       logger.debug(`[IntelligentScheduling] Calculating estimated costs for ${containerNumber}`);
 
+      // ✅ 调试日志：查看传入的计划日期
+      logger.info(`[IntelligentScheduling] Planned dates for ${containerNumber}:`, {
+        plannedPickupDate,
+        plannedUnloadDate,
+        plannedReturnDate
+      });
+
       // 使用统一的 calculateTotalCost 方法计算所有 D&D 费用和运输费
       const totalCostResult = await this.demurrageService.calculateTotalCost(containerNumber, {
         mode: 'forecast',
@@ -1669,7 +1499,15 @@ export class IntelligentSchedulingService {
         ddCombinedCost: totalCostResult.ddCombinedCost,
         transportationCost: totalCostResult.transportationCost,
         totalCost: totalCostResult.totalCost,
-        currency: totalCostResult.currency
+        currency: totalCostResult.currency,
+        items: totalCostResult.items?.map(item => ({
+          chargeName: item.chargeName,
+          chargeTypeCode: item.chargeTypeCode,
+          freeDays: item.freeDays,
+          chargeDays: item.chargeDays,
+          amount: item.amount,
+          tierBreakdown: item.tierBreakdown
+        }))
       });
 
       // 计算外部堆场堆存费（仅在 Drop off 模式、车队有堆场且实际使用时）
@@ -2114,7 +1952,7 @@ export class IntelligentSchedulingService {
       }
 
       let plannedCustomsDate = new Date(clearanceDate);
-      let plannedPickupDate = await this.calculatePlannedPickupDate(
+      let plannedPickupDate = await this.dateCalculator.calculatePlannedPickupDate(
         plannedCustomsDate,
         destPo.lastFreeDate
       );
@@ -2162,7 +2000,7 @@ export class IntelligentSchedulingService {
       const unloadMode = truckingCompany.hasYard ? 'Drop off' : 'Live load';
 
       // 7. 计算送仓日
-      let plannedDeliveryDate = this.calculatePlannedDeliveryDate(
+      let plannedDeliveryDate = this.dateCalculator.calculatePlannedDeliveryDate(
         plannedPickupDate,
         unloadMode,
         plannedUnloadDate
@@ -2180,13 +2018,17 @@ export class IntelligentSchedulingService {
         lastReturnDate.setDate(lastReturnDate.getDate() + 7);
       }
 
-      const returnDateResult = await this.calculatePlannedReturnDate(
+      const returnDateResult = await this.dateCalculator.calculatePlannedReturnDate(
         plannedUnloadDate,
         unloadMode,
         truckingCompany.companyCode,
         lastReturnDate,
         plannedPickupDate
       );
+
+      // ✅ 获取免费天数（区分提柜和还箱）
+      const pickupFreeDays = (destPo as any).pickupFreeDays ?? undefined; // 提柜免费天数
+      const returnFreeDays = (destPo as any).returnFreeDays ?? undefined; // 还箱免费天数
 
       // 9. 构建结果
       return {
@@ -2204,6 +2046,12 @@ export class IntelligentSchedulingService {
           (container.portOperations?.find((po: any) => po.portType === 'destination')?.ata as Date)
             ?.toISOString()
             .split('T')[0] || '',
+        lastFreeDate: destPo.lastFreeDate
+          ? new Date(destPo.lastFreeDate).toISOString().split('T')[0]
+          : undefined,
+        lastReturnDate: lastReturnDate ? lastReturnDate.toISOString().split('T')[0] : undefined,
+        pickupFreeDays, // ✅ 提柜免费天数
+        returnFreeDays, // ✅ 还箱免费天数
         plannedData: {
           plannedCustomsDate: plannedCustomsDate.toISOString().split('T')[0],
           plannedPickupDate: plannedPickupDate.toISOString().split('T')[0],
@@ -2342,17 +2190,22 @@ export class IntelligentSchedulingService {
       // 3. 使用缓存查找仓库和车队
       let warehouse = warehouseCache.get(warehouseCode);
       if (!warehouse) {
-        warehouse = (await this.warehouseRepo.findOne({ where: { warehouseCode } })) || undefined;
-        warehouseCache.set(warehouseCode, warehouse);
+        const foundWarehouse = await this.warehouseRepo.findOne({ where: { warehouseCode } });
+        if (foundWarehouse) {
+          warehouseCache.set(warehouseCode, foundWarehouse);
+          warehouse = foundWarehouse;
+        }
       }
 
       let truckingCompany = truckingCache.get(truckingCompanyId);
       if (!truckingCompany) {
-        truckingCompany =
-          (await this.truckingCompanyRepo.findOne({
-            where: { companyCode: truckingCompanyId }
-          })) || undefined;
-        truckingCache.set(truckingCompanyId, truckingCompany);
+        const foundTrucking = await this.truckingCompanyRepo.findOne({
+          where: { companyCode: truckingCompanyId }
+        });
+        if (foundTrucking) {
+          truckingCache.set(truckingCompanyId, foundTrucking);
+          truckingCompany = foundTrucking;
+        }
       }
 
       if (!warehouse || !truckingCompany) {

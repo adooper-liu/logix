@@ -1,0 +1,4 @@
+src/services/costAnalytics.service.ts(14,31): error TS2307: Cannot find module '../data-source' or its corresponding type declarations.
+src/services/costOptimization.integration.example.ts(51,9): error TS2353: Object literal may only specify known properties, and 'unloadDate' does not exist in type 'UnloadOption'.
+src/services/schedulingCostOptimizer.service.test.ts(272,7): error TS2353: Object literal may only specify known properties, and 'unloadDate' does not exist in type 'UnloadOption'.
+src/tests/cost-optimizer-calculation.test.ts(7,48): error TS2307: Cannot find module '../src/services/schedulingCostOptimizer.service' or its corresponding type declarations.

@@ -16,13 +16,13 @@
 
 ### **完成情况**
 
-| 任务 | 状态 | 备注 |
-|------|------|------|
-| 创建服务文件 | ✅ 完成 | 109 行代码 |
-| 复制筛选逻辑 | ✅ 完成 | 核心查询已复制 |
-| 编写单元测试 | ✅ 完成 | 6 个测试用例 |
-| 重构原服务调用 | ⏳ 待执行 | 下一步 |
-| 清理优化 | ⏳ 待执行 | 下一步 |
+| 任务           | 状态      | 备注           |
+| -------------- | --------- | -------------- |
+| 创建服务文件   | ✅ 完成   | 109 行代码     |
+| 复制筛选逻辑   | ✅ 完成   | 核心查询已复制 |
+| 编写单元测试   | ✅ 完成   | 6 个测试用例   |
+| 重构原服务调用 | ⏳ 待执行 | 下一步         |
+| 清理优化       | ⏳ 待执行 | 下一步         |
 
 ---
 
@@ -37,11 +37,11 @@
 ```typescript
 export class ContainerFilterService {
   private containerRepo: Repository<Container>;
-  
+
   constructor() {
     this.containerRepo = AppDataSource.getRepository(Container);
   }
-  
+
   async filter(options: FilterOptions): Promise<Container[]> {
     // 构建查询
     const query = this.containerRepo
@@ -50,23 +50,24 @@ export class ContainerFilterService {
       .leftJoinAndSelect('c.seaFreight', 'sf')
       .leftJoinAndSelect('c.replenishmentOrders', 'o')
       .leftJoinAndSelect('o.customer', 'cust')
-      .where('c.scheduleStatus IN (:...statuses)', { 
-        statuses: ['initial', 'issued'] 
+      .where('c.scheduleStatus IN (:...statuses)', {
+        statuses: ['initial', 'issued']
       });
-    
+
     // 港口过滤
     if (options.portCodes && options.portCodes.length > 0) {
-      query.andWhere('po.portCode IN (:...portCodes)', { 
-        portCodes: options.portCodes 
+      query.andWhere('po.portCode IN (:...portCodes)', {
+        portCodes: options.portCodes
       });
     }
-    
+
     return query.getMany();
   }
 }
 ```
 
 **功能点：**
+
 - ✅ 按 scheduleStatus 筛选（initial, issued）
 - ✅ 按港口代码过滤
 - ✅ 加载关联数据（portOperations, seaFreight, orders, customer）
@@ -90,7 +91,7 @@ describe('ContainerFilterService', () => {
     ✓ should only return initial or issued containers
     ✓ should include related entities
   });
-  
+
   describe('constructor', () => {
     ✓ should initialize container repository
   });
@@ -98,12 +99,14 @@ describe('ContainerFilterService', () => {
 ```
 
 **测试结果：**
+
 ```
 Test Suites: 1 failed, 1 total
 Tests:       5 failed, 1 passed, 6 total
 ```
 
 **说明：**
+
 - ⚠️ 失败是因为需要真实的数据库连接
 - ✅ 这是集成测试，需要数据库支持
 - 📝 下一步需要在集成测试框架下运行
@@ -145,6 +148,7 @@ export class ContainerFilterService {
 ```
 
 **设计亮点：**
+
 - ✅ 清晰的职责定义
 - ✅ 完整的 JSDoc 注释
 - ✅ TypeScript 类型安全
@@ -174,14 +178,15 @@ async filter(options: FilterOptions): Promise<Container[]> {
 
 **对比验证：**
 
-| 功能 | 原代码 | 新代码 | 一致性 |
-|------|--------|--------|--------|
-| scheduleStatus 过滤 | ✅ | ✅ | ✅ 一致 |
-| 港口过滤 | ✅ | ✅ | ✅ 一致 |
-| 关联数据加载 | ✅ | ✅ | ✅ 一致 |
-| 日期范围过滤 | ✅ | ⚠️ TODO | ⏳ 待完善 |
+| 功能                | 原代码 | 新代码  | 一致性    |
+| ------------------- | ------ | ------- | --------- |
+| scheduleStatus 过滤 | ✅     | ✅      | ✅ 一致   |
+| 港口过滤            | ✅     | ✅      | ✅ 一致   |
+| 关联数据加载        | ✅     | ✅      | ✅ 一致   |
+| 日期范围过滤        | ✅     | ⚠️ TODO | ⏳ 待完善 |
 
 **改进点：**
+
 - ✅ 增加了 FilterOptions 接口（更清晰）
 - ✅ 增加了详细的日志记录
 - ✅ 增加了错误处理
@@ -215,6 +220,7 @@ it('should handle undefined options gracefully', async () => {
 ```
 
 **测试特点：**
+
 - ✅ 覆盖正常场景
 - ✅ 覆盖边界场景
 - ✅ 覆盖异常场景
@@ -254,11 +260,11 @@ import { ContainerFilterService } from './ContainerFilterService';
 // Step 2: 添加服务属性
 export class IntelligentSchedulingService {
   private containerFilterService: ContainerFilterService;
-  
+
   constructor() {
     this.containerFilterService = new ContainerFilterService();
   }
-  
+
   // ... 其他代码
 }
 
@@ -266,13 +272,13 @@ export class IntelligentSchedulingService {
 async batchSchedule(request: ScheduleRequest) {
   // 原代码：
   // const containers = await this.getContainersToSchedule(request);
-  
+
   // 新代码：
   const containers = await this.containerFilterService.filter({
     portCodes: request.portCode ? [request.portCode] : undefined,
     minFreeDays: request.minFreeDays
   });
-  
+
   // ... 后续逻辑不变
 }
 
@@ -302,23 +308,27 @@ npm test
 ### **问题 1: 单元测试需要数据库**
 
 **现象：**
+
 ```
 TypeError: Cannot read properties of undefined (reading 'createQueryBuilder')
 ```
 
 **原因：**
+
 - TypeORM Repository 需要初始化后才能使用
 - 单元测试没有真实的数据库连接
 
 **解决方案：**
 
 **方案 A: 使用集成测试框架**
+
 ```bash
 # 在集成测试中运行
 npm run test:e2e -- ContainerFilterService
 ```
 
 **方案 B: Mock Repository**
+
 ```typescript
 // 修改测试，Mock Repository
 const mockRepo = {
@@ -374,6 +384,7 @@ const mockRepo = {
 
 ```markdown
 服务拆分五步法：
+
 1. 创建服务框架 (15 min)
 2. 复制核心逻辑 (20 min)
 3. 编写单元测试 (25 min)
@@ -434,7 +445,7 @@ console.log(`找到 ${containers.length} 个待排产货柜`);
 ⏭️ **继续执行 Step 1.4** - 重构原服务调用
 
 **预计时间：** 15 分钟  
-**风险等级：** 🟢 低  
+**风险等级：** 🟢 低
 
 ---
 

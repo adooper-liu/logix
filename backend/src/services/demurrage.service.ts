@@ -351,7 +351,21 @@ function calculateSingleDemurrage(
   if (tiers && tiers.length > 0) {
     const sorted = [...tiers].sort((a, b) => a.fromDay - b.fromDay);
     let remainingDays = chargeDays;
-    let currentDay = 1;
+    // ✅ 关键修复：计费天数应该从免费期后的第一天开始计算
+    // 例如：免费天数 7 天，计费从第 8 天开始
+    let currentDay = freeDays + 1;
+
+    // ✅ 调试日志：查看阶梯费率计算详情
+    logger.info(`[Demurrage] Tier calculation:`, {
+      freeDays,
+      chargeDays,
+      currentDay,
+      tiers: sorted.map(t => ({
+        fromDay: t.fromDay,
+        toDay: t.toDay,
+        ratePerDay: t.ratePerDay
+      }))
+    });
 
     for (const tier of sorted) {
       if (remainingDays <= 0) break;

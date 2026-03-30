@@ -53,11 +53,11 @@ import { logger } from '../utils/logger';
  */
 export class ContainerFilterService {
   private containerRepo: Repository<Container>;
-  
+
   constructor() {
     this.containerRepo = AppDataSource.getRepository(Container);
   }
-  
+
   /**
    * 筛选待排产货柜
    * @param options 筛选条件
@@ -65,9 +65,9 @@ export class ContainerFilterService {
    */
   async filter(options: FilterOptions): Promise<Container[]> {
     logger.info('[ContainerFilterService] Filtering containers:', options);
-    
+
     // TODO: 从 intelligentScheduling.service.ts 复制筛选逻辑到这里
-    
+
     return [];
   }
 }
@@ -128,11 +128,11 @@ import { ContainerFilterService } from './ContainerFilterService';
 
 describe('ContainerFilterService', () => {
   let service: ContainerFilterService;
-  
+
   beforeEach(() => {
     service = new ContainerFilterService();
   });
-  
+
   describe('filter', () => {
     it('should filter containers by port codes', async () => {
       // Arrange
@@ -140,26 +140,26 @@ describe('ContainerFilterService', () => {
         portCodes: ['USLAX'],
         minFreeDays: 3
       };
-      
+
       // Act
       const result = await service.filter(options);
-      
+
       // Assert
       expect(result).toBeDefined();
       expect(Array.isArray(result)).toBe(true);
     });
-    
+
     it('should handle empty port codes', async () => {
       const options = {
         portCodes: [],
         minFreeDays: 3
       };
-      
+
       const result = await service.filter(options);
-      
+
       expect(result).toEqual([]);
     });
-    
+
     // TODO: 添加更多测试用例
   });
 });
@@ -184,22 +184,22 @@ import { ContainerFilterService } from './ContainerFilterService';
 // Step 2: 在服务类中添加属性
 export class IntelligentSchedulingService {
   private containerFilterService: ContainerFilterService;
-  
+
   constructor() {
     this.containerFilterService = new ContainerFilterService();
   }
-  
+
   // Step 3: 替换调用
   async batchSchedule(request: ScheduleRequest) {
     // 原代码：
     // const containers = await this.filterContainers(portCodes, minFreeDays);
-    
+
     // 新代码：
     const containers = await this.containerFilterService.filter({
       portCodes,
       minFreeDays
     });
-    
+
     // ... 后续逻辑不变
   }
 }
@@ -320,14 +320,14 @@ npm test -- --verbose
 
 ### **Phase 2 Steps 完成情况**
 
-| Step | 服务名称 | 状态 | 开始时间 | 完成时间 | 实际耗时 |
-|------|----------|------|----------|----------|----------|
-| **1** | ContainerFilterService | ⏳ 待开始 | - | - | - |
-| **2** | SchedulingSorter | ⏳ 待开始 | - | - | - |
-| **3** | WarehouseSelectorService | ⏳ 待开始 | - | - | - |
-| **4** | TruckingSelectorService | ⏳ 待开始 | - | - | - |
-| **5** | OccupancyCalculator | ⏳ 待开始 | - | - | - |
-| **6** | CostEstimationService | ⏳ 待开始 | - | - | - |
+| Step  | 服务名称                 | 状态      | 开始时间 | 完成时间 | 实际耗时 |
+| ----- | ------------------------ | --------- | -------- | -------- | -------- |
+| **1** | ContainerFilterService   | ⏳ 待开始 | -        | -        | -        |
+| **2** | SchedulingSorter         | ⏳ 待开始 | -        | -        | -        |
+| **3** | WarehouseSelectorService | ⏳ 待开始 | -        | -        | -        |
+| **4** | TruckingSelectorService  | ⏳ 待开始 | -        | -        | -        |
+| **5** | OccupancyCalculator      | ⏳ 待开始 | -        | -        | -        |
+| **6** | CostEstimationService    | ⏳ 待开始 | -        | -        | -        |
 
 ---
 
@@ -337,15 +337,19 @@ npm test -- --verbose
 ## YYYY-MM-DD 站会
 
 ### 昨天完成
+
 - [ ] Step X: XXXXService
 
 ### 今天计划
+
 - [ ] 开始 Step Y: YYYYService
 
 ### 遇到的困难
+
 - [ ] 无 / 具体问题
 
 ### 需要的帮助
+
 - [ ] 无 / 需要 XXX 支持
 ```
 
@@ -362,6 +366,7 @@ npm test -- --verbose
 ```
 
 **建议奖励：**
+
 - ☕ 一杯喜欢的咖啡
 - 🚶 户外散步 10 分钟
 - 🎵 听一首喜欢的歌
@@ -378,6 +383,7 @@ npm test -- --verbose
 ```
 
 **建议奖励：**
+
 - 🍔 一顿美食
 - 🎬 一场电影
 - 🛍️ 小礼物犒劳自己
@@ -393,6 +399,7 @@ npm test -- --verbose
 ```
 
 **建议奖励：**
+
 - 🎁 大礼物（游戏机、书籍等）
 - 🏖️ 一天假期
 - 📸 团队合影留念

@@ -17,7 +17,8 @@
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "jest --runInBand",
-    "verify:stats-filter": "tsx scripts/verify-statistics-by-filter-consistency.ts"
+    "verify:stats-filter": "tsx scripts/verify-statistics-by-filter-consistency.ts",
+    "skill:check": "node scripts/check-skill-compliance.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.27.1",

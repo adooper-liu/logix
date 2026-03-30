@@ -162,7 +162,7 @@ const getCountdownText = (): string => {
   return `倒计时${diffDays}天`
 }
 
-// 历时文本：有 nextDate 时为 后一节点-当前节点，否则为 当前节点-上一节点
+// 历时文本：有 nextDate 时为 后一节点 - 当前节点（区分超期/提前）
 const getElapsedText = (): string => {
   const date = dateObj.value
   if (!date) return ''
@@ -170,16 +170,28 @@ const getElapsedText = (): string => {
   const nextDate = nextDateObj.value
   if (nextDate) {
     const diffDays = Math.floor((nextDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
-    if (diffDays <= 0) return ''
-    if (diffDays === 1) return '历时1天'
-    return `历时${diffDays}天`
+    // ✅ 计划节点 vs 实际节点：区分超期/提前
+    if (diffDays > 0) {
+      // 实际晚于计划 → 实际超期
+      if (diffDays === 1) return '实际超期 1 天'
+      return `实际超期${diffDays}天`
+    } else if (diffDays < 0) {
+      // 实际早于计划 → 实际提前
+      const absDiff = Math.abs(diffDays)
+      if (absDiff === 1) return '实际提前 1 天'
+      return `实际提前${absDiff}天`
+    } else {
+      // diffDays === 0，当天完成
+      return '按时完成'
+    }
   }
 
+  // 无 nextDate：使用 prevDate 计算普通历时
   const prevDate = prevDateObj.value
   if (!prevDate) return ''
   const diffDays = Math.floor((date.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24))
   if (diffDays <= 0) return ''
-  if (diffDays === 1) return '历时1天'
+  if (diffDays === 1) return '历时 1 天'
   return `历时${diffDays}天`
 }
 
@@ -209,31 +221,30 @@ const overdueDays = computed(() => {
 
 // 获取显示的类型
 const displayType = computed((): 'countdown' | 'elapsed' | 'overdue' => {
+  // 显式指定模式
   if (props.mode !== 'auto') {
     return props.mode as 'countdown' | 'elapsed' | 'overdue'
   }
 
-  if (props.hasNextNode) return 'elapsed'
-
-  if (props.isCurrentNode) {
-    const time = overdueTime.value
-    if (!time) return 'elapsed'
-    return time < 0 ? 'countdown' : 'overdue'
+  // ✅ 实际业务节点：总是显示历时（因为业务已真实发生）
+  const actualEventLabels = ['出运', 'ATA', '卸船', '实际提柜', '实际还箱']
+  if (actualEventLabels.includes(props.label || '')) {
+    return 'elapsed'
   }
 
-  // 无后一节点：根据时间与标准判断
+  // ✅ 计划与预警节点：根据后一节点和时间判断
+  
+  // 有后一节点：显示历时（实际 - 计划）
+  if (props.hasNextNode) {
+    return 'elapsed'
+  }
+
+  // 无后一节点：根据时间判断
   const time = overdueTime.value
   if (!time) return 'elapsed'
   if (time < 0) return 'countdown'
-  // 实际还箱：业务终点，文案为历时，非超期
-  if (props.label === '实际还箱' && prevDateObj.value) {
-    return 'elapsed'
-  }
-  // 关键节点在过去：总是显示超期（文本为"超期X天"），颜色根据是否超过标准决定
-  if (isKeyNode.value) {
-    return 'overdue'
-  }
-  // 非关键节点在过去：文案为超期（如实际提柜后待还箱），与「历时」区分
+  
+  // 日期在过去：显示超期
   return 'overdue'
 })
 
@@ -267,8 +278,30 @@ const colorType = computed((): 'danger' | 'warning' | 'success' | 'info' | '' =>
     if (diffDays <= 3) return 'warning'
     return 'success'
   }
-  // 历时：统一中性蓝
+  // ✅ 历时：区分实际超期/实际提前
   if (type === 'elapsed') {
+    // 检查是否是计划节点 vs 实际节点的对比
+    const planWarningLabels = ['ETA', '修正 ETA', '最晚提柜', '最晚还箱']
+    
+    // 如果当前是计划节点，且有 nextDate（实际节点），根据差值正负判断颜色
+    if (planWarningLabels.includes(props.label || '') && nextDateObj.value) {
+      const date = dateObj.value
+      const nextDate = nextDateObj.value
+      if (!date) return 'info' // 安全检查
+      const diffDays = Math.floor((nextDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
+      
+      if (diffDays > 0) {
+        // 实际超期 → 橙色警告
+        return 'warning'
+      } else if (diffDays < 0) {
+        // 实际提前 → 绿色成功
+        return 'success'
+      } else {
+        // 按时完成 → 蓝色信息
+        return 'info'
+      }
+    }
+    // 普通历时 → 蓝色信息
     return 'info'
   }
   return 'info'

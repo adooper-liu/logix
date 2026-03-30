@@ -843,6 +843,24 @@ export class SchedulingCostOptimizerService {
       const currentBreakdown = await this.evaluateTotalCost(currentOption);
       const originalCost = currentBreakdown.totalCost;
 
+      // ✅ 关键修复：确保 originalCost 是数字类型
+      if (typeof originalCost !== 'number' || isNaN(originalCost)) {
+        log.warn(`[CostOptimizer] Invalid originalCost for ${currentOption.containerNumber}:`, {
+          originalCost,
+          breakdown: currentBreakdown
+        });
+        // 返回当前方案，但不进行优化
+        return {
+          suggestedPickupDate: basePickupDate,
+          suggestedStrategy: currentOption.strategy,
+          originalCost: 0,
+          optimizedCost: 0,
+          savings: 0,
+          savingsPercent: 0,
+          alternatives: []
+        };
+      }
+
       log.info(`[CostOptimizer] Current cost: $${originalCost.toFixed(2)}`);
 
       // ✅ 关键调试：输出当前方案的详细信息

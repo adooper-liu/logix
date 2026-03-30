@@ -1,0 +1,13 @@
+PASS src/services/CostEstimationService.test.ts (6.184 s)
+PASS src/services/SchedulingSorter.test.ts (6.27 s)
+PASS src/services/WarehouseSelectorService.test.ts (6.445 s)
+PASS src/services/intelligentScheduling.service.test.ts (6.668 s)
+PASS src/services/ContainerFilterService.test.ts (6.987 s)
+PASS src/services/OccupancyCalculator.test.ts (6.992 s)
+PASS src/services/TruckingSelectorService.test.ts (7.122 s)
+
+Test Suites: 7 passed, 7 total
+Tests:       54 passed, 54 total
+Snapshots:   0 total
+Time:        7.892 s
+Ran all test suites matching ContainerFilterService.test.ts|SchedulingSorter.test.ts|WarehouseSelectorService.test.ts|TruckingSelectorService.test.ts|OccupancyCalculator.test.ts|CostEstimationService.test.ts|intelligentScheduling.service.test.ts.

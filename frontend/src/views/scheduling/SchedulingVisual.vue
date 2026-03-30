@@ -413,7 +413,7 @@
                   <template #default="{ row }">
                     <el-tooltip>
                       <template #content>
-                        <div>免费天数：{{ row.freeDays !== undefined ? row.freeDays : '-' }}</div>
+                        <div>免费天数：{{ row.pickupFreeDays !== undefined ? row.pickupFreeDays : '-' }}</div>
                         <div>计算逻辑：从卸柜日开始计算免费期</div>
                       </template>
                       <div
@@ -433,8 +433,8 @@
                   <template #default="{ row }">
                     <el-tooltip>
                       <template #content>
-                        <div>免费天数：{{ row.freeDays !== undefined ? row.freeDays : '-' }}</div>
-                        <div>计算逻辑：从卸柜日开始计算免费期</div>
+                        <div>免费天数：{{ row.returnFreeDays !== undefined ? row.returnFreeDays : '-' }}</div>
+                        <div>计算逻辑：从提柜日开始计算免费期</div>
                       </template>
                       <div
                         v-if="row.lastReturnDate"
@@ -1743,6 +1743,13 @@ const handlePreviewSchedule = async () => {
           if (r.lastFreeDate) {
             addLog(`  - 最后免期日：${r.lastFreeDate}`)
           }
+          // ✅ 新增：显示免费天数
+          if (r.pickupFreeDays !== undefined) {
+            addLog(`  - 提柜免费天数：${r.pickupFreeDays} 天`)
+          }
+          if (r.returnFreeDays !== undefined) {
+            addLog(`  - 还箱免费天数：${r.returnFreeDays} 天`)
+          }
         }
         addLog(`  - 计算说明：${r.message || '成功'}`)
       }
@@ -1758,6 +1765,9 @@ const handlePreviewSchedule = async () => {
         unloadMode: r.plannedData?.unloadModePlan || '-',
         estimatedCosts: r.plannedData?.estimatedCosts || r.estimatedCosts || undefined,
         lastFreeDate: r.lastFreeDate || '-',
+        lastReturnDate: r.lastReturnDate || '-',
+        pickupFreeDays: r.pickupFreeDays,
+        returnFreeDays: r.returnFreeDays,
         freeDaysRemaining: r.freeDaysRemaining ?? undefined,
       }
     })

@@ -22,6 +22,7 @@ touch backend/tests/integration/scheduling/intelligent-scheduling.e2e.test.ts
 ```
 
 **测试覆盖：**
+
 - [ ] **batchSchedule 完整流程测试**
   - [ ] 待排产货柜筛选
   - [ ] 仓库和车队选择
@@ -54,7 +55,7 @@ describe('Performance Baseline', () => {
     const duration = Date.now() - startTime;
     expect(duration).toBeLessThan(5000);
   });
-  
+
   it('single container scheduling should complete within 500ms', async () => {
     const startTime = Date.now();
     await service.scheduleSingle(containerNumber);
@@ -65,6 +66,7 @@ describe('Performance Baseline', () => {
 ```
 
 **基线指标：**
+
 - [ ] 批量排产（10 个货柜）：< 5 秒
 - [ ] 单次排产：< 500 毫秒
 - [ ] 档期查询：< 100 毫秒
@@ -84,6 +86,7 @@ touch backend/scripts/rollback-phase2.sh
 ```
 
 **回滚脚本内容：**
+
 ```bash
 #!/bin/bash
 echo "🔄 Rolling back to pre-Phase 2 state..."
@@ -111,11 +114,11 @@ import { AppDataSource } from '../../database';
 
 export class ContainerFilterService {
   private containerRepo: Repository<Container>;
-  
+
   constructor() {
     this.containerRepo = AppDataSource.getRepository(Container);
   }
-  
+
   async filter(options: FilterOptions): Promise<Container[]> {
     // 实现逻辑
   }
@@ -123,6 +126,7 @@ export class ContainerFilterService {
 ```
 
 **优点：**
+
 - ✅ 与现有代码风格一致
 - ✅ 易于测试（可 Mock）
 - ✅ 无需引入额外依赖
@@ -167,6 +171,7 @@ logger.error('[ContainerFilterService] Filter failed:', {
 ```
 
 **关键节点埋点：**
+
 - [ ] 服务方法入口
 - [ ] 数据库查询前后
 - [ ] 异常捕获点
@@ -182,32 +187,38 @@ logger.error('[ContainerFilterService] Filter failed:', {
 
 ```markdown
 □ 1.1 创建服务文件 (15 min)
-  - 定义类结构
-  - 导入依赖
-  - 构造函数初始化
-  
+
+- 定义类结构
+- 导入依赖
+- 构造函数初始化
+
 □ 1.2 复制筛选逻辑 (20 min)
-  - 读取原始代码（Line ~600-800）
-  - 逐块复制到新服务
-  - 确保 TypeScript 编译通过
-  
+
+- 读取原始代码（Line ~600-800）
+- 逐块复制到新服务
+- 确保 TypeScript 编译通过
+
 □ 1.3 编写单元测试 (25 min)
-  - Mock 测试数据
-  - 测试筛选规则
-  - 边界条件测试
-  
+
+- Mock 测试数据
+- 测试筛选规则
+- 边界条件测试
+
 □ 1.4 重构原服务调用 (15 min)
-  - 导入 ContainerFilterService
-  - 替换 filterContainers 调用
-  - 验证功能一致
-  
+
+- 导入 ContainerFilterService
+- 替换 filterContainers 调用
+- 验证功能一致
+
 □ 1.5 清理优化 (15 min)
-  - 删除重复代码
-  - 更新注释
-  - 运行测试验证
+
+- 删除重复代码
+- 更新注释
+- 运行测试验证
 ```
 
 **验收标准：**
+
 - [ ] 所有测试通过
 - [ ] 代码编译无误
 - [ ] 功能行为一致
@@ -221,23 +232,27 @@ logger.error('[ContainerFilterService] Filter failed:', {
 
 ```markdown
 □ 2.1 创建服务文件 (10 min)
-  
+
 □ 2.2 复制排序逻辑 (15 min)
-  - 纯函数，相对简单
-  - 注意比较器逻辑
-  
+
+- 纯函数，相对简单
+- 注意比较器逻辑
+
 □ 2.3 编写单元测试 (20 min)
-  - 排序规则验证
-  - 边界情况测试
-  
+
+- 排序规则验证
+- 边界情况测试
+
 □ 2.4 重构调用 (10 min)
-  - 替换为服务调用
-  - 验证排序结果一致
-  
+
+- 替换为服务调用
+- 验证排序结果一致
+
 □ 2.5 清理优化 (5 min)
 ```
 
 **特点：**
+
 - ✅ 纯函数逻辑 - 无副作用
 - ✅ 风险较低 - 算法独立
 - ✅ 立即可验证
@@ -250,23 +265,26 @@ logger.error('[ContainerFilterService] Filter failed:', {
 
 ```markdown
 □ 3.1 创建服务文件 (20 min)
-  
+
 □ 3.2 复制仓库选择逻辑 (30 min)
-  - 映射关系检查
-  - 档期可用性验证
-  - 优先级排序
-  
+
+- 映射关系检查
+- 档期可用性验证
+- 优先级排序
+
 □ 3.3 编写集成测试 (40 min)
-  - 真实数据库测试
-  - 映射链验证
-  - 档期扣减测试
-  
+
+- 真实数据库测试
+- 映射链验证
+- 档期扣减测试
+
 □ 3.4 重构调用 (20 min)
-  
+
 □ 3.5 清理优化 (10 min)
 ```
 
 **风险点：**
+
 - ⚠️ 数据库依赖 - 需要真实连接
 - ⚠️ 档期逻辑复杂 - 容易遗漏边界
 
@@ -277,6 +295,7 @@ logger.error('[ContainerFilterService] Filter failed:', {
 **任务清单：** 类似 Step 3
 
 **风险点：**
+
 - ⚠️ 多目标优化 - 综合评分逻辑
 - ⚠️ 保底分配 - 特殊业务规则
 
@@ -288,25 +307,28 @@ logger.error('[ContainerFilterService] Filter failed:', {
 
 ```markdown
 □ 5.1 创建服务文件 (20 min)
-  
+
 □ 5.2 复制档期计算逻辑 (40 min)
-  - 仓库档期计算
-  - 车队档期计算
-  - 还箱档期计算
-  
+
+- 仓库档期计算
+- 车队档期计算
+- 还箱档期计算
+
 □ 5.3 编写集成测试 (50 min)
-  - 计算准确性验证
-  - 档期扣减原子性
-  - 并发场景测试
-  
+
+- 计算准确性验证
+- 档期扣减原子性
+- 并发场景测试
+
 □ 5.4 重构调用 (25 min)
-  
+
 □ 5.5 清理优化 (15 min)
 ```
 
 **风险等级：** 🔴 高
 
 **关键验证：**
+
 - [ ] 仓库档期计算准确性
 - [ ] 车队档期计算准确性
 - [ ] 还箱档期计算准确性
@@ -321,25 +343,28 @@ logger.error('[ContainerFilterService] Filter failed:', {
 
 ```markdown
 □ 6.1 创建服务文件 (20 min)
-  
+
 □ 6.2 复制成本计算逻辑 (40 min)
-  - 滞港费计算
-  - 运输费计算
-  - 总费用汇总
-  
+
+- 滞港费计算
+- 运输费计算
+- 总费用汇总
+
 □ 6.3 编写集成测试 (40 min)
-  - 计算准确性验证
-  - Drop off 模式特殊处理
-  - 边界条件测试
-  
+
+- 计算准确性验证
+- Drop off 模式特殊处理
+- 边界条件测试
+
 □ 6.4 重构调用 (20 min)
-  
+
 □ 6.5 清理优化 (10 min)
 ```
 
 **风险等级：** 🔴 高
 
 **关键验证：**
+
 - [ ] 滞港费计算准确性
 - [ ] 运输费计算准确性
 - [ ] 总费用汇总准确性
@@ -353,29 +378,34 @@ logger.error('[ContainerFilterService] Filter failed:', {
 
 ```markdown
 □ **代码质量**
-  - [ ] TypeScript 编译通过
-  - [ ] ESLint 无警告
-  - [ ] 代码格式化完成
-  
+
+- [ ] TypeScript 编译通过
+- [ ] ESLint 无警告
+- [ ] 代码格式化完成
+
 □ **测试覆盖**
-  - [ ] 单元测试通过
-  - [ ] 集成测试通过
-  - [ ] 性能测试达标
-  
+
+- [ ] 单元测试通过
+- [ ] 集成测试通过
+- [ ] 性能测试达标
+
 □ **功能验证**
-  - [ ] 与原逻辑行为一致
-  - [ ] 边界条件处理正确
-  - [ ] 异常处理完整
-  
+
+- [ ] 与原逻辑行为一致
+- [ ] 边界条件处理正确
+- [ ] 异常处理完整
+
 □ **文档完善**
-  - [ ] JSDoc 注释完整
-  - [ ] 执行报告已编写
-  - [ ] README 已更新
-  
+
+- [ ] JSDoc 注释完整
+- [ ] 执行报告已编写
+- [ ] README 已更新
+
 □ **SKILL 符合度**
-  - [ ] 单一职责原则
-  - [ ] 知识沉淀完整
-  - [ ] 索引清晰明确
+
+- [ ] 单一职责原则
+- [ ] 知识沉淀完整
+- [ ] 索引清晰明确
 ```
 
 ---

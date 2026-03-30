@@ -266,15 +266,37 @@ const getDateAlertColor = (
 
 /**
  * 判断是否有「有效」后一节点（用于历时/倒计时/超期显示）
- * - 最晚提柜：后一节点为实际提柜，只有实际提柜已发生（有日期）才算有后一节点
- * - 最晚还箱：后一节点为实际还箱，只有实际还箱已发生（有日期）才算有后一节点
- * - 其他节点：检查所有后续业务节点是否有实际日期（排除当前日期节点）
+ * 
+ * ✅ 业务规则：时间线节点分为两类
+ * 
+ * 1. 实际业务节点：出运、ATA、卸船、实际提柜、实际还箱
+ *    - 总是显示历时（蓝色）
+ *    - hasNextNode = true
+ * 
+ * 2. 计划与预警节点：ETA、修正 ETA、最晚提柜、最晚还箱
+ *    - 如果后续实际节点已发生 → 显示历时（实际 - 计划 的天数差）
+ *    - 如果后续实际节点未发生 → 显示倒计时/超期
+ * 
+ * 判断规则：
+ * - 实际业务节点：总是 hasNextNode = true
+ * - 最晚提柜：检查实际提柜是否已发生
+ * - 最晚还箱：检查实际还箱是否已发生
+ * - ETA/修正 ETA：检查所有后续实际业务节点是否有已发生的
  */
 const getEffectiveHasNextNode = (
   event: TimelineEvent,
   index: number,
   allEvents: TimelineEvent[]
 ): boolean => {
+  // ✅ 实际业务节点：总是显示历时
+  const actualEventLabels = ['出运', 'ATA', '卸船', '实际提柜', '实际还箱']
+  if (actualEventLabels.includes(event.label)) {
+    return true
+  }
+  
+  // ✅ 计划与预警节点：检查后续实际节点是否已发生
+  
+  // 1. 最晚提柜：检查实际提柜是否已发生
   if (event.label === '最晚提柜') {
     const pickupDate = dates.value?.pickupDateActual
     if (!pickupDate) return false
@@ -282,6 +304,8 @@ const getEffectiveHasNextNode = (
     const pickupDateObj = typeof pickupDate === 'string' ? new Date(pickupDate) : pickupDate
     return pickupDateObj < new Date()
   }
+  
+  // 2. 最晚还箱：检查实际还箱是否已发生
   if (event.label === '最晚还箱') {
     const returnTime = dates.value?.returnTime
     if (!returnTime) return false
@@ -290,16 +314,19 @@ const getEffectiveHasNextNode = (
     return returnTimeObj < new Date()
   }
   
-  // 检查所有后续业务节点是否有实际日期（排除当前日期节点）
-  for (let i = index + 1; i < allEvents.length; i++) {
-    const nextEvent = allEvents[i]
-    // 排除当前日期节点，只考虑实际的业务节点
-    if (nextEvent.label !== '当前') {
-      // 检查该节点是否有实际日期（即日期早于当前日期）
-      if (nextEvent.date < new Date()) {
-        return true
+  // 3. ETA/修正 ETA：检查所有后续实际业务节点是否有已发生的
+  if (event.label === 'ETA' || event.label === '修正 ETA') {
+    for (let i = index + 1; i < allEvents.length; i++) {
+      const nextEvent = allEvents[i]
+      // 只检查实际业务节点
+      if (actualEventLabels.includes(nextEvent.label)) {
+        // 如果该节点日期已发生（早于当前时间）
+        if (nextEvent.date < new Date()) {
+          return true
+        }
       }
     }
+    return false
   }
   
   return false

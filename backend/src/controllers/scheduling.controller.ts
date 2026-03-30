@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
 import { EmptyReturn } from '../entities/EmptyReturn';
+import { ExtTruckingReturnSlotOccupancy } from '../entities/ExtTruckingReturnSlotOccupancy';
 import { ExtTruckingSlotOccupancy } from '../entities/ExtTruckingSlotOccupancy';
 import { ExtWarehouseDailyOccupancy } from '../entities/ExtWarehouseDailyOccupancy';
 import { PortOperation } from '../entities/PortOperation';
@@ -32,6 +33,7 @@ export class SchedulingController {
   private truckingTransportRepo = AppDataSource.getRepository(TruckingTransport);
   private warehouseOccupancyRepo = AppDataSource.getRepository(ExtWarehouseDailyOccupancy);
   private truckingOccupancyRepo = AppDataSource.getRepository(ExtTruckingSlotOccupancy);
+  private truckingReturnOccupancyRepo = AppDataSource.getRepository(ExtTruckingReturnSlotOccupancy);
   private schedulingHistoryRepo = AppDataSource.getRepository(SchedulingHistory);
   private dateTimeUtils = new DateTimeUtils();
 
@@ -2368,44 +2370,82 @@ export class SchedulingController {
 
   /**
    * 检查资源可用性（防止超卖）
+   * 真正的产能检查：查询 ext_warehouse_daily_occupancy 表，检查 remaining > 0
    */
   private async checkResourceAvailability(preview: any, queryRunner?: any): Promise<boolean> {
     try {
       const { plannedData } = preview;
+      const manager = queryRunner?.manager;
 
-      // 检查仓库档期
-      const warehouse = await (queryRunner?.manager || this.warehouseRepo).findOne(Warehouse, {
+      // 1. 检查仓库是否存在
+      const warehouse = await (manager || this.warehouseRepo).findOne(Warehouse, {
         where: { warehouseCode: plannedData.warehouseId }
       });
 
-      if (warehouse) {
-        // TODO: 检查仓库档期占用情况
-        // 简化实现：假设仓库档期总是可用
-        logger.debug(`[Scheduling] Warehouse ${plannedData.warehouseId} capacity check passed`);
+      if (!warehouse) {
+        logger.warn(`[Scheduling] Warehouse ${plannedData.warehouseId} not found`);
+        return false;
       }
 
-      // 如果是 Drop off 模式，检查车队还箱档期
-      if (plannedData.unloadMode === 'Drop off') {
-        const truckingCompany = await (queryRunner?.manager || this.truckingCompanyRepo).findOne(
-          TruckingCompany,
-          {
-            where: { truckingCompanyId: plannedData.truckingCompanyId }
-          }
-        );
+      // 2. 查询仓库当日产能占用记录
+      const occupancy = await (manager || this.warehouseOccupancyRepo).findOne(ExtWarehouseDailyOccupancy, {
+        where: {
+          warehouseCode: plannedData.warehouseId,
+          date: plannedData.plannedUnloadDate
+        }
+      });
 
-        if (truckingCompany) {
-          // TODO: 检查车队还箱档期占用情况
-          // 简化实现：假设车队档期总是可用
-          logger.debug(
-            `[Scheduling] Trucking ${plannedData.truckingCompanyId} capacity check passed`
+      // 3. 如果没有记录，说明该日期尚未排产，默认可用
+      if (!occupancy) {
+        logger.debug(
+          `[Scheduling] No occupancy record for ${plannedData.warehouseId} on ${plannedData.plannedUnloadDate}, assuming available`
+        );
+      } else {
+        // 4. 检查剩余产能
+        if (occupancy.remaining <= 0 || occupancy.plannedCount >= occupancy.capacity) {
+          logger.warn(
+            `[Scheduling] Warehouse ${plannedData.warehouseId} is full on ${plannedData.plannedUnloadDate}: ` +
+              `capacity=${occupancy.capacity}, planned=${occupancy.plannedCount}, remaining=${occupancy.remaining}`
           );
+          return false; // 仓库已满
+        }
+        logger.debug(
+          `[Scheduling] Warehouse ${plannedData.warehouseId} has capacity: ` +
+            `capacity=${occupancy.capacity}, planned=${occupancy.plannedCount}, remaining=${occupancy.remaining}`
+        );
+      }
+
+      // 5. 如果是 Drop off 模式，检查车队还箱档期
+      if (plannedData.unloadMode === 'Drop off' && plannedData.plannedReturnDate) {
+        const truckingCompany = await (manager || this.truckingCompanyRepo).findOne(TruckingCompany, {
+          where: { truckingCompanyId: plannedData.truckingCompanyId }
+        });
+
+        // 只有有堆场的车队才需要检查还箱档期
+        if (truckingCompany && truckingCompany.hasYard) {
+          const returnOccupancy = await (manager || this.truckingReturnOccupancyRepo).findOne(
+            ExtTruckingReturnSlotOccupancy,
+            {
+              where: {
+                truckingCompanyId: plannedData.truckingCompanyId,
+                slotDate: plannedData.plannedReturnDate
+              }
+            }
+          );
+
+          if (returnOccupancy && returnOccupancy.remaining <= 0) {
+            logger.warn(
+              `[Scheduling] Trucking ${plannedData.truckingCompanyId} return capacity is full on ${plannedData.plannedReturnDate}`
+            );
+            return false; // 车队还箱已满
+          }
         }
       }
 
       return true; // 资源可用
     } catch (error) {
-      logger.warn('[Scheduling] Resource availability check failed:', error);
-      return true; // 检查失败时默认允许（保守策略）
+      logger.error('[Scheduling] Resource availability check failed:', error);
+      return false; // 检查失败时拒绝（严格策略，防止带病排产）
     }
   }
 
