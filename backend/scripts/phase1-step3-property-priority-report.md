@@ -26,7 +26,7 @@
 ```typescript
 export const COST_OPTIMIZATION_CONFIG = {
   // ... 原有配置
-  
+
   /**
    * 属性类型优先级默认值（当未配置时）
    * 用于仓库排序：自营仓 < 平台仓 < 第三方仓
@@ -38,9 +38,9 @@ export const COST_OPTIMIZATION_CONFIG = {
 
 **配置说明：**
 
-| 配置项 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `DEFAULT_PROPERTY_PRIORITY` | number | 999 | 仓库属性类型默认优先级 |
+| 配置项                      | 类型   | 默认值 | 说明                   |
+| --------------------------- | ------ | ------ | ---------------------- |
+| `DEFAULT_PROPERTY_PRIORITY` | number | 999    | 仓库属性类型默认优先级 |
 
 **业务含义：**
 
@@ -63,17 +63,17 @@ export const COST_OPTIMIZATION_CONFIG = {
 ```typescript
 describe('COST_OPTIMIZATION_CONFIG', () => {
   // ... 原有测试
-  
+
   // 新增测试：优先级默认值验证
   it('DEFAULT_PROPERTY_PRIORITY 应该是合理的默认值', () => {
     const priority = COST_OPTIMIZATION_CONFIG.DEFAULT_PROPERTY_PRIORITY;
-    
+
     // 验证范围：应该大于已配置的优先级（1,2,3）
-    expect(priority).toBeGreaterThanOrEqual(100);  // >= 100
-    
+    expect(priority).toBeGreaterThanOrEqual(100); // >= 100
+
     // 验证上限：防止配置错误导致异常值
-    expect(priority).toBeLessThanOrEqual(9999);    // <= 9999
-    
+    expect(priority).toBeLessThanOrEqual(9999); // <= 9999
+
     // 验证类型：必须是整数
     expect(Number.isInteger(priority)).toBe(true);
   });
@@ -97,11 +97,12 @@ describe('COST_OPTIMIZATION_CONFIG', () => {
 
 **替换记录：**
 
-| 行号 | 原代码 | 新代码 | 配置项 |
-|------|--------|--------|--------|
-| 998 | `?? 999` | `?? COST_OPTIMIZATION_CONFIG.DEFAULT_PROPERTY_PRIORITY` | 优先级默认值 |
+| 行号 | 原代码   | 新代码                                                  | 配置项       |
+| ---- | -------- | ------------------------------------------------------- | ------------ |
+| 998  | `?? 999` | `?? COST_OPTIMIZATION_CONFIG.DEFAULT_PROPERTY_PRIORITY` | 优先级默认值 |
 
 **重构统计：**
+
 - ✅ 替换硬编码：**1 处**
 - ✅ 改进注释：**1 处**
 - ✅ 破坏性变更：**0 处**
@@ -110,7 +111,7 @@ describe('COST_OPTIMIZATION_CONFIG', () => {
 
 ## 🔍 详细执行过程
 
-### **Step 1: 识别候选项** 
+### **Step 1: 识别候选项**
 
 **时间：** 3 分钟
 
@@ -128,8 +129,7 @@ Line 998: PROPERTY_TYPE_PRIORITY[p] ?? 999;
 
 ```typescript
 // Line 998: 仓库属性优先级默认值
-const getPriority = (p: string) =>
-  IntelligentSchedulingService.PROPERTY_TYPE_PRIORITY[p] ?? 999;
+const getPriority = (p: string) => IntelligentSchedulingService.PROPERTY_TYPE_PRIORITY[p] ?? 999;
 //                                                      ^^^^ 这个 999 是什么？
 
 // 业务含义：
@@ -153,7 +153,7 @@ const getPriority = (p: string) =>
 
 export const COST_OPTIMIZATION_CONFIG = {
   // ... 其他成本相关配置
-  
+
   /**
    * 属性类型优先级默认值（当未配置时）
    * 用于仓库排序：自营仓 < 平台仓 < 第三方仓
@@ -167,11 +167,11 @@ export const COST_OPTIMIZATION_CONFIG = {
 
 ```typescript
 // ✅ 好名字
-DEFAULT_PROPERTY_PRIORITY  // 一看就懂
+DEFAULT_PROPERTY_PRIORITY; // 一看就懂
 
 // ❌ 坏名字
-DEFAULT_PRIORITY           // 太宽泛，不知道是什么优先级
-PROPERTY_PRIORITY_DEFAULT  // 语法混乱
+DEFAULT_PRIORITY; // 太宽泛，不知道是什么优先级
+PROPERTY_PRIORITY_DEFAULT; // 语法混乱
 ```
 
 ---
@@ -190,7 +190,7 @@ const getPriority = (p: string) =>
 // 修改后
 + import { ..., COST_OPTIMIZATION_CONFIG } from '../config/scheduling.config';
 const getPriority = (p: string) =>
-  IntelligentSchedulingService.PROPERTY_TYPE_PRIORITY[p] ?? 
+  IntelligentSchedulingService.PROPERTY_TYPE_PRIORITY[p] ??
     COST_OPTIMIZATION_CONFIG.DEFAULT_PROPERTY_PRIORITY; // 配置化：默认优先级
 ```
 
@@ -271,13 +271,11 @@ Tests:       19 passed (新增 1 个)
 
 ```typescript
 // 修改前
-const getPriority = (p: string) =>
-  PROPERTY_TYPE_PRIORITY[p] ?? 999;  // 硬编码
+const getPriority = (p: string) => PROPERTY_TYPE_PRIORITY[p] ?? 999; // 硬编码
 
 // 修改后
 const getPriority = (p: string) =>
-  PROPERTY_TYPE_PRIORITY[p] ?? 
-    COST_OPTIMIZATION_CONFIG.DEFAULT_PROPERTY_PRIORITY;  // 配置化
+  PROPERTY_TYPE_PRIORITY[p] ?? COST_OPTIMIZATION_CONFIG.DEFAULT_PROPERTY_PRIORITY; // 配置化
 
 // ✅ 行为完全一致（默认值都是 999）
 // ✅ 但可维护性提升（可调整）
@@ -289,15 +287,15 @@ const getPriority = (p: string) =>
 
 ```typescript
 // 仓库排序规则
- warehouses.sort((a, b) => {
+warehouses.sort((a, b) => {
   // 1. 默认仓库优先
   if (aDefault !== bDefault) return aDefault - bDefault;
-  
+
   // 2. 按属性类型优先级排序
   const pa = getPriority(a.propertyType);
   const pb = getPriority(b.propertyType);
   return pa - pb;
-  
+
   // 排序结果：
   // 自营仓 (1) < 平台仓 (2) < 第三方仓 (3) < 未配置 (999)
 });
@@ -313,8 +311,7 @@ const getPriority = (p: string) =>
 
 ```typescript
 // ❌ 问题：魔法数字含义不明
-const getPriority = (p: string) =>
-  PROPERTY_TYPE_PRIORITY[p] ?? 999;  // 999 是什么？为什么是 999？
+const getPriority = (p: string) => PROPERTY_TYPE_PRIORITY[p] ?? 999; // 999 是什么？为什么是 999？
 
 // 问题：
 // - 需要查看上下文才能理解
@@ -329,8 +326,7 @@ const getPriority = (p: string) =>
 ```typescript
 // ✅ 优点：配置项含义清晰
 const getPriority = (p: string) =>
-  PROPERTY_TYPE_PRIORITY[p] ?? 
-    COST_OPTIMIZATION_CONFIG.DEFAULT_PROPERTY_PRIORITY;  // 默认优先级
+  PROPERTY_TYPE_PRIORITY[p] ?? COST_OPTIMIZATION_CONFIG.DEFAULT_PROPERTY_PRIORITY; // 默认优先级
 
 // 优点：
 // - 看名字就知道用途
@@ -342,24 +338,24 @@ const getPriority = (p: string) =>
 
 ### **量化收益**
 
-| 指标 | 修改前 | 修改后 | 提升 |
-|------|--------|--------|------|
-| **硬编码默认值** | 1 处 | 0 处 | ⬇️ 100% |
-| **测试覆盖** | 18 个 | 19 个 | ⬆️ 5.6% |
-| **可读性** | 中 | 优 | ⬆️ 显著 |
-| **可调性** | 难 | 易 | ⬆️ 显著 |
+| 指标             | 修改前 | 修改后 | 提升    |
+| ---------------- | ------ | ------ | ------- |
+| **硬编码默认值** | 1 处   | 0 处   | ⬇️ 100% |
+| **测试覆盖**     | 18 个  | 19 个  | ⬆️ 5.6% |
+| **可读性**       | 中     | 优     | ⬆️ 显著 |
+| **可调性**       | 难     | 易     | ⬆️ 显著 |
 
 ---
 
 ## 🎯 SKILL 原则符合度
 
-| 原则 | 符合度 | 体现 |
-|------|--------|------|
-| **S**ingle Responsibility | ✅ 100% | 配置文件专注配置管理 |
-| **K**nowledge Preservation | ✅ 100% | 配置值都有详细文档 |
-| **I**ndex Clarity | ✅ 100% | 配置分组清晰明确 |
-| **L**iving Document | ✅ 100% | 配置可动态调整 |
-| **L**earning Oriented | ✅ 100% | 新人一看就懂 |
+| 原则                       | 符合度  | 体现                 |
+| -------------------------- | ------- | -------------------- |
+| **S**ingle Responsibility  | ✅ 100% | 配置文件专注配置管理 |
+| **K**nowledge Preservation | ✅ 100% | 配置值都有详细文档   |
+| **I**ndex Clarity          | ✅ 100% | 配置分组清晰明确     |
+| **L**iving Document        | ✅ 100% | 配置可动态调整       |
+| **L**earning Oriented      | ✅ 100% | 新人一看就懂         |
 
 **综合评分：** ⭐⭐⭐⭐⭐ **100/100**
 
@@ -381,13 +377,13 @@ const getPriority = (p: string) =>
 
 ### **质量检查**
 
-| 检查项 | 状态 | 说明 |
-|--------|------|------|
-| **单一职责** | ✅ | 配置文件职责单一 |
-| **知识沉淀** | ✅ | 配置即文档 |
-| **索引清晰** | ✅ | 分类明确易查找 |
-| **活文档** | ✅ | 可随时调整 |
-| **面向学习** | ✅ | 新人友好 |
+| 检查项       | 状态 | 说明             |
+| ------------ | ---- | ---------------- |
+| **单一职责** | ✅   | 配置文件职责单一 |
+| **知识沉淀** | ✅   | 配置即文档       |
+| **索引清晰** | ✅   | 分类明确易查找   |
+| **活文档**   | ✅   | 可随时调整       |
+| **面向学习** | ✅   | 新人友好         |
 
 **SKILL 符合度：** ✅ 100%
 
@@ -449,19 +445,19 @@ PROPERTY_TYPE_PRIORITY: {
 ```typescript
 export function validateSchedulingConfig(): void {
   const errors: string[] = [];
-  
+
   // ... 现有验证
-  
+
   // 新增：验证优先级合理性
   const priorities = COST_OPTIMIZATION_CONFIG;
   if (priorities.DEFAULT_PROPERTY_PRIORITY < 100) {
     errors.push('默认优先级应该大于已配置的优先级');
   }
-  
+
   if (priorities.DEFAULT_PROPERTY_PRIORITY > 9999) {
     errors.push('默认优先级过大，可能配置错误');
   }
-  
+
   // 抛出异常
   if (errors.length > 0) {
     throw new Error(`配置验证失败:\n${errors.join('\n')}`);
@@ -484,17 +480,14 @@ export function validateSchedulingConfig(): void {
    - Step 1: 并发数、预估天数、服务质量分
    - Step 2: 档期默认值（仓库/车队）
    - Step 3: 优先级默认值
-   
 2. 配置项清单
    - 已提取：11 处魔法数字
    - 配置文件：203 行
    - 测试文件：185 行
-   
 3. 最佳实践总结
    - 小步快跑策略
    - 测试先行原则
    - SKILL 规范遵循
-   
 4. 后续优化建议
    - Phase 2: 服务拆分
    - 长期：数据库动态配置
@@ -513,7 +506,7 @@ export function validateSchedulingConfig(): void {
 ```typescript
 // 方法：编辑 scheduling.config.ts
 export const COST_OPTIMIZATION_CONFIG = {
-  DEFAULT_PROPERTY_PRIORITY: 1999  // 从 999 改为 1999
+  DEFAULT_PROPERTY_PRIORITY: 1999 // 从 999 改为 1999
 };
 
 // 重启应用即可生效
@@ -531,7 +524,7 @@ export const COST_OPTIMIZATION_CONFIG = {
 // 3. 保证质量（自有仓库可控性强）
 
 // 优先级规则：
-自营仓 (1) > 平台仓 (2) > 第三方仓 (3) > 未配置 (999)
+自营仓(1) > 平台仓(2) > 第三方仓(3) > 未配置(999);
 
 // 这样可以在成本优化时自动选择更优的仓库
 ```
@@ -559,13 +552,14 @@ export const COST_OPTIMIZATION_CONFIG = {
 
 ### **Phase 1 进度总览**
 
-| Step | 内容 | 提取数量 | 耗时 |
-|------|------|----------|------|
-| **Step 1** | 并发数、预估天数、服务质量分 | 3 处 | 100 分钟 |
-| **Step 2** | 档期默认值（仓库/车队） | 4 处 | 45 分钟 |
-| **Step 3** | 优先级默认值 | 1 处 | 15 分钟 |
+| Step       | 内容                         | 提取数量 | 耗时     |
+| ---------- | ---------------------------- | -------- | -------- |
+| **Step 1** | 并发数、预估天数、服务质量分 | 3 处     | 100 分钟 |
+| **Step 2** | 档期默认值（仓库/车队）      | 4 处     | 45 分钟  |
+| **Step 3** | 优先级默认值                 | 1 处     | 15 分钟  |
 
 **累计：**
+
 - ✅ 提取魔法数字：**8 处**
 - ✅ 配置文件：**203 行**
 - ✅ 测试文件：**185 行**（19 个测试）
@@ -578,7 +572,7 @@ export const COST_OPTIMIZATION_CONFIG = {
 **可读性：** ⭐⭐⭐⭐⭐  
 **可维护性：** ⭐⭐⭐⭐⭐  
 **可调性：** ⭐⭐⭐⭐⭐  
-**一致性：** ⭐⭐⭐⭐⭐  
+**一致性：** ⭐⭐⭐⭐⭐
 
 ---
 

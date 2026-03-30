@@ -23,13 +23,13 @@
 
 **包含配置项：**
 
-| 配置类别 | 配置项数量 | 说明 |
-|----------|------------|------|
-| **并发控制** | 2 | 批量操作、API 请求并发数 |
-| **日期计算** | 3 | 预估天数、免费期基准等 |
-| **成本优化** | 5 | 服务质量分、费率标准等 |
-| **档期管理** | 3 | 预警阈值、超订比例等 |
-| **距离矩阵** | 1 | 港口 - 仓库距离映射 |
+| 配置类别     | 配置项数量 | 说明                     |
+| ------------ | ---------- | ------------------------ |
+| **并发控制** | 2          | 批量操作、API 请求并发数 |
+| **日期计算** | 3          | 预估天数、免费期基准等   |
+| **成本优化** | 5          | 服务质量分、费率标准等   |
+| **档期管理** | 3          | 预警阈值、超订比例等     |
+| **距离矩阵** | 1          | 港口 - 仓库距离映射      |
 
 **总计：** 14 个配置项
 
@@ -56,14 +56,15 @@
 
 **替换记录：**
 
-| 行号 | 原代码 | 新代码 | 配置项 |
-|------|--------|--------|--------|
-| 32 | （新增导入） | `import { CONCURRENCY_CONFIG, DATE_CALCULATION_CONFIG, COST_OPTIMIZATION_CONFIG }` | - |
-| 178 | `const CONCURRENCY = 5;` | `CONCURRENCY_CONFIG.BATCH_OPERATIONS` | 并发数 |
-| 1895 | `const estimatedYardDays = 2;` | `DATE_CALCULATION_CONFIG.DEFAULT_ESTIMATED_YARD_DAYS` | 预估天数 |
-| 1951 | `const serviceQualityBonus = 5;` | `COST_OPTIMIZATION_CONFIG.BASE_SERVICE_QUALITY_SCORE` | 服务质量分 |
+| 行号 | 原代码                           | 新代码                                                                             | 配置项     |
+| ---- | -------------------------------- | ---------------------------------------------------------------------------------- | ---------- |
+| 32   | （新增导入）                     | `import { CONCURRENCY_CONFIG, DATE_CALCULATION_CONFIG, COST_OPTIMIZATION_CONFIG }` | -          |
+| 178  | `const CONCURRENCY = 5;`         | `CONCURRENCY_CONFIG.BATCH_OPERATIONS`                                              | 并发数     |
+| 1895 | `const estimatedYardDays = 2;`   | `DATE_CALCULATION_CONFIG.DEFAULT_ESTIMATED_YARD_DAYS`                              | 预估天数   |
+| 1951 | `const serviceQualityBonus = 5;` | `COST_OPTIMIZATION_CONFIG.BASE_SERVICE_QUALITY_SCORE`                              | 服务质量分 |
 
 **重构统计：**
+
 - ✅ 替换魔法数字：3 处
 - ✅ 新增导入：1 行
 - ✅ 改进注释：3 处
@@ -212,7 +213,7 @@ Tests:       15 passed
 
 ```typescript
 // 修改前：硬编码
-const CONCURRENCY = 5;  // 为什么是 5？不知道
+const CONCURRENCY = 5; // 为什么是 5？不知道
 
 // 修改后：配置化
 const CONCURRENCY = CONCURRENCY_CONFIG.BATCH_OPERATIONS; // 5（可配置）
@@ -226,12 +227,12 @@ const CONCURRENCY = CONCURRENCY_CONFIG.BATCH_OPERATIONS; // 5（可配置）
 
 ### **可维护性提升**
 
-| 指标 | 修改前 | 修改后 | 提升 |
-|------|--------|--------|------|
-| **魔法数字** | 3 处 | 0 处 | ⬇️ 100% |
-| **配置集中度** | 分散 | 集中 | ⬆️ 显著 |
-| **可读性** | 差 | 优 | ⬆️ 显著 |
-| **可调性** | 难 | 易 | ⬆️ 显著 |
+| 指标           | 修改前 | 修改后 | 提升    |
+| -------------- | ------ | ------ | ------- |
+| **魔法数字**   | 3 处   | 0 处   | ⬇️ 100% |
+| **配置集中度** | 分散   | 集中   | ⬆️ 显著 |
+| **可读性**     | 差     | 优     | ⬆️ 显著 |
+| **可调性**     | 难     | 易     | ⬆️ 显著 |
 
 ---
 
@@ -240,12 +241,13 @@ const CONCURRENCY = CONCURRENCY_CONFIG.BATCH_OPERATIONS; // 5（可配置）
 #### **修改前**
 
 ```typescript
-const CONCURRENCY = 5;          // 这是什么？
-const estimatedYardDays = 2;    // 为什么是 2？
-const serviceQualityBonus = 5;  // 怎么又是 5？
+const CONCURRENCY = 5; // 这是什么？
+const estimatedYardDays = 2; // 为什么是 2？
+const serviceQualityBonus = 5; // 怎么又是 5？
 ```
 
 **问题：**
+
 - ❌ 含义不明确
 - ❌ 难以调整
 - ❌ 容易出错
@@ -255,12 +257,13 @@ const serviceQualityBonus = 5;  // 怎么又是 5？
 #### **修改后**
 
 ```typescript
-const CONCURRENCY = CONCURRENCY_CONFIG.BATCH_OPERATIONS;           // 批量操作并发数
+const CONCURRENCY = CONCURRENCY_CONFIG.BATCH_OPERATIONS; // 批量操作并发数
 const estimatedYardDays = DATE_CALCULATION_CONFIG.DEFAULT_ESTIMATED_YARD_DAYS; // 默认预估场站天数
 const serviceQualityBonus = COST_OPTIMIZATION_CONFIG.BASE_SERVICE_QUALITY_SCORE; // 基础服务质量分
 ```
 
 **优点：**
+
 - ✅ 含义清晰（看名字就知道用途）
 - ✅ 易于调整（只需改配置文件）
 - ✅ 类型安全（TypeScript 检查）
@@ -282,13 +285,13 @@ const serviceQualityBonus = COST_OPTIMIZATION_CONFIG.BASE_SERVICE_QUALITY_SCORE;
 
 ### **质量检查**
 
-| 检查项 | 状态 | 说明 |
-|--------|------|------|
-| **单一职责** | ✅ | 配置文件只负责配置管理 |
-| **知识沉淀** | ✅ | 配置值都有文档说明 |
-| **索引清晰** | ✅ | 配置分组明确 |
-| **活文档** | ✅ | 配置可动态调整 |
-| **面向学习** | ✅ | 新人一看就懂 |
+| 检查项       | 状态 | 说明                   |
+| ------------ | ---- | ---------------------- |
+| **单一职责** | ✅   | 配置文件只负责配置管理 |
+| **知识沉淀** | ✅   | 配置值都有文档说明     |
+| **索引清晰** | ✅   | 配置分组明确           |
+| **活文档**   | ✅   | 配置可动态调整         |
+| **面向学习** | ✅   | 新人一看就懂           |
 
 **SKILL 符合度：** ✅ 100%
 
@@ -299,10 +302,11 @@ const serviceQualityBonus = COST_OPTIMIZATION_CONFIG.BASE_SERVICE_QUALITY_SCORE;
 ### **已知限制**
 
 1. **距离矩阵仍需改进**
+
    ```typescript
    // 当前：配置文件中硬编码
    export const DISTANCE_MATRIX = { USLAX: {...} };
-   
+
    // TODO: 应从数据库读取
    // 表名：dict_port_warehouse_distance
    ```
@@ -384,7 +388,7 @@ export const CONCURRENCY_CONFIG = {
 ```typescript
 // 方法 1: 直接修改配置文件（推荐）
 export const CONCURRENCY_CONFIG = {
-  BATCH_OPERATIONS: 10  // 从 5 改为 10
+  BATCH_OPERATIONS: 10 // 从 5 改为 10
 };
 
 // 方法 2: 使用环境变量（TODO）
@@ -439,7 +443,7 @@ it('NEW_SETTING 应该有效', () => {
 **可维护性：** ⭐⭐⭐⭐⭐  
 **可读性：** ⭐⭐⭐⭐⭐  
 **可调性：** ⭐⭐⭐⭐⭐  
-**可靠性：** ⭐⭐⭐⭐⭐  
+**可靠性：** ⭐⭐⭐⭐⭐
 
 ---
 
@@ -456,13 +460,13 @@ it('NEW_SETTING 应该有效', () => {
 
 ```markdown
 Step 1: 创建配置文件
-  ↓
+↓
 Step 2: 编写单元测试
-  ↓
+↓
 Step 3: 小步替换魔法数字
-  ↓
+↓
 Step 4: 验证功能一致性
-  ↓
+↓
 Step 5: 提交并文档化
 ```
 

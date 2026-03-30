@@ -4,12 +4,12 @@
  */
 
 import {
-  SCHEDULING_CONFIG,
   CONCURRENCY_CONFIG,
-  DATE_CALCULATION_CONFIG,
   COST_OPTIMIZATION_CONFIG,
-  OCCUPANCY_CONFIG,
+  DATE_CALCULATION_CONFIG,
   DISTANCE_MATRIX,
+  OCCUPANCY_CONFIG,
+  SCHEDULING_CONFIG,
   validateSchedulingConfig
 } from '../../src/config/scheduling.config';
 
@@ -65,8 +65,8 @@ describe('SchedulingConfig', () => {
 
     it('DEFAULT_PROPERTY_PRIORITY 应该是合理的默认值', () => {
       const priority = COST_OPTIMIZATION_CONFIG.DEFAULT_PROPERTY_PRIORITY;
-      expect(priority).toBeGreaterThanOrEqual(100);  // 应该大于已配置的优先级
-      expect(priority).toBeLessThanOrEqual(9999);    // 合理上限
+      expect(priority).toBeGreaterThanOrEqual(100); // 应该大于已配置的优先级
+      expect(priority).toBeLessThanOrEqual(9999); // 合理上限
       expect(Number.isInteger(priority)).toBe(true);
     });
   });
@@ -121,26 +121,26 @@ describe('SchedulingConfig', () => {
   describe('DISTANCE_MATRIX', () => {
     it('应该包含主要港口', () => {
       const expectedPorts = ['USLAX', 'USLGB', 'USOAK'];
-      expectedPorts.forEach(port => {
+      expectedPorts.forEach((port) => {
         expect(DISTANCE_MATRIX[port]).toBeDefined();
       });
     });
 
     it('每个港口应该有仓库映射', () => {
-      Object.keys(DISTANCE_MATRIX).forEach(port => {
+      Object.keys(DISTANCE_MATRIX).forEach((port) => {
         const warehouses = DISTANCE_MATRIX[port];
         expect(Object.keys(warehouses).length).toBeGreaterThan(0);
-        
+
         // 验证所有距离都是正数
-        Object.values(warehouses).forEach(distance => {
+        Object.values(warehouses).forEach((distance) => {
           expect(distance).toBeGreaterThan(0);
         });
       });
     });
 
     it('距离应该合理（不超过 500 英里）', () => {
-      Object.values(DISTANCE_MATRIX).forEach(portDistances => {
-        Object.values(portDistances).forEach(distance => {
+      Object.values(DISTANCE_MATRIX).forEach((portDistances) => {
+        Object.values(portDistances).forEach((distance) => {
           expect(distance).toBeLessThan(500);
         });
       });
@@ -156,7 +156,7 @@ describe('SchedulingConfig', () => {
     it('应该捕获无效的并发数', () => {
       // 临时修改配置（使用 spy）
       const originalValue = CONCURRENCY_CONFIG.BATCH_OPERATIONS;
-      
+
       // 注意：这是只读配置，实际测试中不会真的修改
       // 这里只是演示验证逻辑
       expect(originalValue).toBeGreaterThan(0);
