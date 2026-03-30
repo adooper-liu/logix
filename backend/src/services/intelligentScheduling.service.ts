@@ -35,9 +35,15 @@ import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { normalizeCountryCode } from '../utils/countryCode';
 import * as dateTimeUtils from '../utils/dateTimeUtils';
 import { logger } from '../utils/logger';
+import { ContainerFilterService } from './ContainerFilterService';
 import { ContainerStatusService } from './containerStatus.service';
+import { CostEstimationService } from './CostEstimationService';
 import { DemurrageService } from './demurrage.service';
+import { OccupancyCalculator } from './OccupancyCalculator';
 import { SchedulingCostOptimizerService } from './schedulingCostOptimizer.service';
+import { SchedulingSorter } from './SchedulingSorter';
+import { TruckingSelectorService } from './TruckingSelectorService';
+import { WarehouseSelectorService } from './WarehouseSelectorService';
 
 /**
  * 批量优化结果接口
@@ -158,6 +164,27 @@ export class IntelligentSchedulingService {
   // ✅ Task 2.1: 新增成本优化服务
   private costOptimizerService = new SchedulingCostOptimizerService();
 
+  // ✅ Phase 3: 新增独立服务实例
+  private containerFilterService = new ContainerFilterService();
+  private schedulingSorter = new SchedulingSorter();
+  private warehouseSelectorService = new WarehouseSelectorService(
+    AppDataSource.getRepository(Warehouse),
+    AppDataSource.getRepository(ExtWarehouseDailyOccupancy),
+    AppDataSource.getRepository(WarehouseTruckingMapping),
+    AppDataSource.getRepository(TruckingCompany)
+  );
+  private truckingSelectorService = new TruckingSelectorService(
+    AppDataSource.getRepository(TruckingCompany),
+    AppDataSource.getRepository(TruckingPortMapping),
+    AppDataSource.getRepository(WarehouseTruckingMapping),
+    AppDataSource.getRepository(ExtTruckingSlotOccupancy)
+  );
+  private occupancyCalculator = new OccupancyCalculator(
+    AppDataSource.getRepository(ExtWarehouseDailyOccupancy),
+    AppDataSource.getRepository(ExtTruckingSlotOccupancy)
+  );
+  private costEstimationService = new CostEstimationService();
+
   /**
    * 批量排产
    * 对 schedule_status = initial 的货柜进行智能排产
@@ -171,7 +198,8 @@ export class IntelligentSchedulingService {
       logger.info(`[IntelligentScheduling] Found ${containers.length} containers to schedule`);
 
       // 2. 按清关可放行日排序（先到先得，使用 DB 已有 lastFreeDate）
-      const sortedContainers = this.sortByClearanceDate(containers);
+      // ✅ Phase 3: 使用 SchedulingSorter 服务
+      const sortedContainers = this.schedulingSorter.sortByClearanceDate(containers);
 
       // 分步排产：limit/skip
       const skip = Math.max(0, request.skip ?? 0);
@@ -531,8 +559,9 @@ export class IntelligentSchedulingService {
       }
 
       // 4. 确定候选仓库（根据该国分公司 → 国家代码，见 12-国家概念统一约定.md）
+      // ✅ Phase 3: 使用 WarehouseSelectorService
       const countryCode = await this.resolveCountryCode(container.replenishmentOrders?.[0] as any);
-      const warehouses = await this.getCandidateWarehouses(countryCode, destPo.portCode);
+      const warehouses = await this.warehouseSelectorService.getCandidateWarehouses(countryCode, destPo.portCode);
       if (warehouses.length === 0) {
         return {
           containerNumber: container.containerNumber,
@@ -559,12 +588,13 @@ export class IntelligentSchedulingService {
       }
 
       // 6. 先选择车队（以便根据 has_yard 决定卸柜方式）
-      const truckingCompany = await this.selectTruckingCompany(
-        warehouse.warehouseCode,
-        destPo.portCode,
-        plannedPickupDate,
-        warehouse.country
-      );
+      // ✅ Phase 3: 使用 TruckingSelectorService
+      const truckingCompany = await this.truckingSelectorService.selectTruckingCompany({
+        warehouseCode: warehouse.warehouseCode,
+        portCode: destPo.portCode,
+        countryCode: warehouse.country,
+        plannedDate: plannedPickupDate
+      });
 
       if (!truckingCompany) {
         return {
@@ -778,15 +808,17 @@ export class IntelligentSchedulingService {
         }
 
         // 扣减仓库日产能
-        await this.decrementWarehouseOccupancy(warehouse.warehouseCode, unloadDate);
+        // ✅ Phase 3: 使用 OccupancyCalculator
+        await this.occupancyCalculator.decrementWarehouseOccupancy(warehouse.warehouseCode, unloadDate);
 
         // 扣减拖车档期（送柜）
-        await this.decrementTruckingOccupancy(
-          truckingCompany.companyCode,
-          plannedPickupDate,
-          destPo.portCode,
-          warehouse.warehouseCode
-        );
+        // ✅ Phase 3: 使用 OccupancyCalculator
+        await this.occupancyCalculator.decrementTruckingOccupancy({
+          truckingCompanyId: truckingCompany.companyCode,
+          date: plannedPickupDate,
+          portCode: destPo.portCode,
+          warehouseCode: warehouse.warehouseCode
+        });
 
         // 扣减还箱档期（Drop off 模式需要）
         if (unloadMode === 'Drop off') {
@@ -2044,8 +2076,9 @@ export class IntelligentSchedulingService {
       }
 
       // 2. 验证仓库是否在映射关系中（确保有车队服务）
+      // ✅ Phase 3: 使用 WarehouseSelectorService
       const countryCode = await this.resolveCountryCode(container.replenishmentOrders?.[0]);
-      const candidateWarehouses = await this.getCandidateWarehouses(countryCode, destPo.portCode);
+      const candidateWarehouses = await this.warehouseSelectorService.getCandidateWarehouses(countryCode, destPo.portCode);
 
       const isWarehouseInMapping = candidateWarehouses.some(
         (w) => w.warehouseCode === designatedWarehouseCode
@@ -2105,12 +2138,13 @@ export class IntelligentSchedulingService {
       }
 
       // 5. 选择车队（基于仓库和港口）
-      const truckingCompany = await this.selectTruckingCompany(
-        designatedWarehouseCode,
-        destPo.portCode,
-        plannedUnloadDate,
-        warehouse.country
-      );
+      // ✅ Phase 3: 使用 TruckingSelectorService
+      const truckingCompany = await this.truckingSelectorService.selectTruckingCompany({
+        warehouseCode: designatedWarehouseCode,
+        portCode: destPo.portCode,
+        countryCode: warehouse.country,
+        plannedDate: plannedUnloadDate
+      });
 
       if (!truckingCompany) {
         return {

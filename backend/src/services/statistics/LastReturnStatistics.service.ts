@@ -57,6 +57,7 @@ export class LastReturnStatisticsService {
    * 已过期（最晚还箱日�?< 今天�?   */
   async getReturnExpiredCount(today: Date, startDate?: string, endDate?: string): Promise<number> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
+    ContainerQueryBuilder.addCountryFilters(query);
     this.filterTargetSet(query);
     this.joinEmptyReturn(query);
     query.andWhere('er.last_return_date IS NOT NULL');
@@ -70,6 +71,7 @@ export class LastReturnStatisticsService {
    * 紧急（今天�?天内过期�?   */
   async getReturnUrgentCount(today: Date, threeDaysLater: Date, startDate?: string, endDate?: string): Promise<number> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
+    ContainerQueryBuilder.addCountryFilters(query);
     this.filterTargetSet(query);
     this.joinEmptyReturn(query);
     query.andWhere('er.last_return_date IS NOT NULL');
@@ -84,6 +86,7 @@ export class LastReturnStatisticsService {
    * 警告�?天内�?天内过期�?   */
   async getReturnWarningCount(today: Date, threeDaysLater: Date, sevenDaysLater: Date, startDate?: string, endDate?: string): Promise<number> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
+    ContainerQueryBuilder.addCountryFilters(query);
     this.filterTargetSet(query);
     this.joinEmptyReturn(query);
     query.andWhere('er.last_return_date IS NOT NULL');
@@ -99,6 +102,7 @@ export class LastReturnStatisticsService {
    */
   async getReturnNormalCount(today: Date, sevenDaysLater: Date, startDate?: string, endDate?: string): Promise<number> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
+    ContainerQueryBuilder.addCountryFilters(query);
     this.filterTargetSet(query);
     this.joinEmptyReturn(query);
     query.andWhere('er.last_return_date IS NOT NULL');
@@ -112,6 +116,7 @@ export class LastReturnStatisticsService {
    * 无最晚还箱日�?   */
   async getNoLastReturnDateCount(startDate?: string, endDate?: string): Promise<number> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
+    ContainerQueryBuilder.addCountryFilters(query);
     this.filterTargetSet(query);
     this.joinEmptyReturn(query);
     query.andWhere('er.last_return_date IS NULL');
@@ -178,6 +183,7 @@ export class LastReturnStatisticsService {
 
   private async getContainersByReturnExpired(today: Date, startDate?: string, endDate?: string): Promise<Container[]> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
+    ContainerQueryBuilder.addCountryFilters(query);
     this.filterTargetSet(query);
     this.joinEmptyReturn(query);
     query.andWhere('er.last_return_date IS NOT NULL');
@@ -188,6 +194,7 @@ export class LastReturnStatisticsService {
 
   private async getContainersByReturnUrgent(today: Date, threeDaysLater: Date, startDate?: string, endDate?: string): Promise<Container[]> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
+    ContainerQueryBuilder.addCountryFilters(query);
     this.filterTargetSet(query);
     this.joinEmptyReturn(query);
     query.andWhere('er.last_return_date IS NOT NULL');
@@ -199,6 +206,7 @@ export class LastReturnStatisticsService {
 
   private async getContainersByReturnWarning(today: Date, threeDaysLater: Date, sevenDaysLater: Date, startDate?: string, endDate?: string): Promise<Container[]> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
+    ContainerQueryBuilder.addCountryFilters(query);
     this.filterTargetSet(query);
     this.joinEmptyReturn(query);
     query.andWhere('er.last_return_date IS NOT NULL');
@@ -210,6 +218,7 @@ export class LastReturnStatisticsService {
 
   private async getContainersByReturnNormal(today: Date, sevenDaysLater: Date, startDate?: string, endDate?: string): Promise<Container[]> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
+    ContainerQueryBuilder.addCountryFilters(query);
     this.filterTargetSet(query);
     this.joinEmptyReturn(query);
     query.andWhere('er.last_return_date IS NOT NULL');
@@ -220,6 +229,7 @@ export class LastReturnStatisticsService {
 
   private async getContainersByNoLastReturnDate(startDate?: string, endDate?: string): Promise<Container[]> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
+    ContainerQueryBuilder.addCountryFilters(query);
     this.filterTargetSet(query);
     this.joinEmptyReturn(query);
     query.andWhere('er.last_return_date IS NULL');

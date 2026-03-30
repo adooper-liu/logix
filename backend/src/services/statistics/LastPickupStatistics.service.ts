@@ -19,6 +19,8 @@ import { TruckingTransport } from '../../entities/TruckingTransport';
 import { DateFilterBuilder } from './common/DateFilterBuilder';
 import { getDateRangeSubqueryRaw } from './common/DateRangeSubquery';
 import { LastPickupSubqueryTemplates } from './LastPickupSubqueryTemplates';
+import { getScopedCountryCode } from '../../utils/requestContext';
+import { normalizeCountryCode } from '../../utils/countryCode';
 
 export class LastPickupStatisticsService {
   constructor(
@@ -63,18 +65,34 @@ export class LastPickupStatisticsService {
 
   /**
    * 统计与查询共用：按条件子查询 + 可选出运日期过滤，返回柜号列表（同一套 SQL，避免重复）
+   * 支持国家过滤：自动从请求上下文读取国家代码
    */
   private async runSubqueryForCondition(
     innerSql: string,
     startDate?: string,
     endDate?: string
   ): Promise<string[]> {
+    // 获取国家过滤
+    const rawCountryCode = getScopedCountryCode();
+    const countryCode = rawCountryCode ? normalizeCountryCode(rawCountryCode) : undefined;
+
     let sql: string;
     let params: any[] = [];
     if (startDate && endDate) {
-      const { sql: dateSql, params: dateParams } = getDateRangeSubqueryRaw(startDate, endDate);
+      const { sql: dateSql, params: dateParams } = getDateRangeSubqueryRaw(startDate, endDate, countryCode);
       sql = `SELECT DISTINCT t.container_number FROM (${innerSql}) t WHERE t.container_number IN (${dateSql})`;
       params = dateParams;
+    } else if (countryCode) {
+      // 只有国家过滤，无日期过滤
+      sql = `SELECT DISTINCT t.container_number FROM (${innerSql}) t
+INNER JOIN biz_replenishment_orders ro ON t.container_number = ro.container_number
+INNER JOIN biz_customers cust ON (
+  (ro.sell_to_country IS NOT NULL AND LOWER(TRIM(ro.sell_to_country)) = LOWER(TRIM(cust.customer_name)))
+  OR (ro.customer_name IS NOT NULL AND LOWER(TRIM(ro.customer_name)) = LOWER(TRIM(cust.customer_name)))
+  OR (ro.customer_code IS NOT NULL AND LOWER(TRIM(ro.customer_code)) = LOWER(TRIM(cust.customer_code)))
+)
+WHERE cust.country = $1`;
+      params = [countryCode];
     } else {
       sql = `SELECT DISTINCT t.container_number FROM (${innerSql}) t`;
     }
@@ -85,9 +103,22 @@ export class LastPickupStatisticsService {
   /** 由柜号列表取 Container 实体（统计与查询共用） */
   private async getContainersByNumbers(containerNumbers: string[]): Promise<Container[]> {
     if (containerNumbers.length === 0) return [];
-    return this.containerRepository.createQueryBuilder('container')
-      .where('container.containerNumber IN (:...containerNumbers)', { containerNumbers })
-      .getMany();
+    // 获取国家过滤
+    const rawCountryCode = getScopedCountryCode();
+    const countryCode = rawCountryCode ? normalizeCountryCode(rawCountryCode) : undefined;
+
+    const qb = this.containerRepository.createQueryBuilder('container')
+      .where('container.containerNumber IN (:...containerNumbers)', { containerNumbers });
+
+    // 添加国家过滤
+    if (countryCode) {
+      qb.leftJoin('container.replenishmentOrders', 'order')
+        .leftJoin('biz_customers', 'cust',
+          '(order.sellToCountry IS NOT NULL AND LOWER(TRIM(cust.customerName)) = LOWER(TRIM(order.sellToCountry))) OR (order.customerName IS NOT NULL AND LOWER(TRIM(cust.customerName)) = LOWER(TRIM(order.customerName))) OR (order.customerCode IS NOT NULL AND LOWER(TRIM(cust.customerCode)) = LOWER(TRIM(order.customerCode)))')
+        .andWhere('cust.country = :countryCode', { countryCode });
+    }
+
+    return qb.getMany();
   }
 
   /**

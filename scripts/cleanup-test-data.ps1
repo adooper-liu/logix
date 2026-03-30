@@ -64,7 +64,7 @@ param(
     [string]$Database = "logix",
 
     [Parameter(HelpMessage = "数据库主机")]
-    [string]$Host = "localhost",
+    [string]$DbHost = "localhost",
 
     [Parameter(HelpMessage = "数据库端口")]
     [int]$Port = 5432,
@@ -156,10 +156,10 @@ function Test-DatabaseConnection {
     Write-Info "验证数据库连接..."
 
     $env:PGPASSWORD = $Password
-    $connectionString = "postgresql://$Username@$Host`:$Port/$Database"
+    $connectionString = "postgresql://$Username@$DbHost`:$Port/$Database"
 
     try {
-        $result = psql -h $Host -p $Port -U $Username -d $Database -c "SELECT 1 as connected;" 2>&1
+        $result = psql -h $DbHost -p $Port -U $Username -d $Database -c "SELECT 1 as connected;" 2>&1
         if ($LASTEXITCODE -ne 0) {
             throw "连接失败"
         }
@@ -210,7 +210,7 @@ function Show-Preview {
 
     foreach ($table in $tables) {
         try {
-            $count = psql -h $Host -p $Port -U $Username -d $Database -t -c "SELECT COUNT(*) FROM $($table.Name);" 2>$null
+            $count = psql -h $DbHost -p $Port -U $Username -d $Database -t -c "SELECT COUNT(*) FROM $($table.Name);" 2>$null
             $count = $count.Trim()
             if ($count -match '^\d+$') {
                 $totalRecords += [int]$count
@@ -221,3 +221,5 @@ function Show-Preview {
         catch {
             Write-Host ($table.Name.PadRight(40) + "N/A".PadRight(12) + $table.Desc) -ForegroundColor $ColorError
         }
+    }
+}
