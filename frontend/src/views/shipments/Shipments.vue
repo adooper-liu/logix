@@ -1,7 +1,6 @@
 <script setup lang="ts">
-import CountdownCard from '@/components/CountdownCard.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
-import SchedulingHistoryCard from '@/components/SchedulingHistoryCard.vue'
+import CountdownCard from '@/components/CountdownCard.vue'
 import { useContainerCountdown } from '@/composables/useContainerCountdown'
 import { useLogisticsStatus } from '@/composables/useLogisticsStatus'
 import { useShipmentsExport } from '@/composables/useShipmentsExport'
@@ -1526,16 +1525,31 @@ export default {
                       )
                     "
                   >
-                    {{ row.truckingTransports?.[0]?.plannedDeliveryDate ? formatDate(row.truckingTransports[0].plannedDeliveryDate) : '-' }}
+                    {{
+                      row.truckingTransports?.[0]?.plannedDeliveryDate
+                        ? formatDate(row.truckingTransports[0].plannedDeliveryDate)
+                        : '-'
+                    }}
                   </span>
                   <span class="date-label">pla</span>
                 </div>
                 <div class="date-item">
                   <span
                     class="date-text"
-                    :class="getDateColorClass(row.truckingTransports?.[0]?.deliveryDate, null, 'delivery', null)"
+                    :class="
+                      getDateColorClass(
+                        row.truckingTransports?.[0]?.deliveryDate,
+                        null,
+                        'delivery',
+                        null
+                      )
+                    "
                   >
-                    {{ row.truckingTransports?.[0]?.deliveryDate ? formatDate(row.truckingTransports[0].deliveryDate) : '-' }}
+                    {{
+                      row.truckingTransports?.[0]?.deliveryDate
+                        ? formatDate(row.truckingTransports[0].deliveryDate)
+                        : '-'
+                    }}
                   </span>
                   <span class="date-label">act</span>
                 </div>
@@ -1564,16 +1578,31 @@ export default {
                       )
                     "
                   >
-                    {{ row.warehouseOperations?.[0]?.plannedUnloadDate ? formatDate(row.warehouseOperations[0].plannedUnloadDate) : '-' }}
+                    {{
+                      row.warehouseOperations?.[0]?.plannedUnloadDate
+                        ? formatDate(row.warehouseOperations[0].plannedUnloadDate)
+                        : '-'
+                    }}
                   </span>
                   <span class="date-label">pla</span>
                 </div>
                 <div class="date-item">
                   <span
                     class="date-text"
-                    :class="getDateColorClass(row.warehouseOperations?.[0]?.unloadDate, null, 'unload', null)"
+                    :class="
+                      getDateColorClass(
+                        row.warehouseOperations?.[0]?.unloadDate,
+                        null,
+                        'unload',
+                        null
+                      )
+                    "
                   >
-                    {{ row.warehouseOperations?.[0]?.unloadDate ? formatDate(row.warehouseOperations[0].unloadDate) : '-' }}
+                    {{
+                      row.warehouseOperations?.[0]?.unloadDate
+                        ? formatDate(row.warehouseOperations[0].unloadDate)
+                        : '-'
+                    }}
                   </span>
                   <span class="date-label">act</span>
                 </div>
@@ -1680,7 +1709,7 @@ export default {
                 >
                   📋
                 </el-button>
-                            
+
                 <el-button
                   size="small"
                   type="primary"

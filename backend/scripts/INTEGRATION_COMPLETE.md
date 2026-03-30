@@ -5,6 +5,7 @@
 ### 1. 数据库层（Database Layer）
 
 #### 文件：`backend/scripts/create_scheduling_history_table.sql`
+
 - ✅ 创建 `hist_scheduling_records` 表（190 行）
 - ✅ 创建自动递增版本号函数 `increment_scheduling_version()`
 - ✅ 创建触发器 `trg_increment_scheduling_version`
@@ -12,6 +13,7 @@
 - ✅ 自动标记旧记录为 `SUPERSEDED`
 
 **核心特性：**
+
 ```sql
 -- 自动递增版本号
 CREATE TRIGGER trg_increment_scheduling_version
@@ -30,12 +32,14 @@ WHERE container_number = NEW.container_number
 ### 2. 实体层（Entity Layer）
 
 #### 文件：`backend/src/entities/SchedulingHistory.ts`
+
 - ✅ TypeORM 实体定义（137 行）
 - ✅ 所有字段映射（13 个字段）
 - ✅ 唯一约束：`(container_number, scheduling_version)`
 - ✅ JSONB 字段存储备选方案
 
 **关键字段：**
+
 ```typescript
 @Entity('hist_scheduling_records')
 @Unique(['containerNumber', 'schedulingVersion'])
@@ -43,18 +47,18 @@ export class SchedulingHistory {
   // 基本信息
   containerNumber: string;
   schedulingVersion: number; // 自动递增
-  
+
   // 日期信息
   plannedPickupDate?: Date;
   plannedDeliveryDate?: Date;
   plannedUnloadDate?: Date;
   plannedReturnDate?: Date;
-  
+
   // 费用信息
   totalCost?: number;
   demurrageCost?: number;
   detentionCost?: number;
-  
+
   // 审计信息
   operatedBy?: string;
   operatedAt: Date;
@@ -71,6 +75,7 @@ export class SchedulingHistory {
 **新增方法：**
 
 ##### 1️⃣ 查询历史记录（第 2523-2564 行）
+
 ```typescript
 getSchedulingHistory = async (req: Request, res: Response)
 // GET /api/v1/scheduling/history/:containerNumber
@@ -78,6 +83,7 @@ getSchedulingHistory = async (req: Request, res: Response)
 ```
 
 ##### 2️⃣ 查询最新记录（第 2566-2599 行）
+
 ```typescript
 getLatestSchedulingHistory = async (req: Request, res: Response)
 // GET /api/v1/scheduling/history/latest
@@ -85,6 +91,7 @@ getLatestSchedulingHistory = async (req: Request, res: Response)
 ```
 
 ##### 3️⃣ 数据转换辅助方法（第 2601-2644 行）
+
 ```typescript
 private buildHistoryDataFromPreview(preview: any): any
 // 从预览结果构建历史记录数据
@@ -92,6 +99,7 @@ private buildHistoryDataFromPreview(preview: any): any
 ```
 
 ##### 4️⃣ 保存历史记录方法（第 2646-2710 行）
+
 ```typescript
 private async saveSchedulingHistory(
   containerNumber: string,
@@ -104,6 +112,7 @@ private async saveSchedulingHistory(
 ```
 
 **集成点：savePreviewResults 方法（第 2296-2304 行）**
+
 ```typescript
 // ✅ 新增：保存排产历史记录
 const historyData = this.buildHistoryDataFromPreview(preview);
@@ -122,6 +131,7 @@ await this.saveSchedulingHistory(
 #### 文件：`backend/src/routes/scheduling.routes.ts`
 
 **新增路由：**
+
 ```typescript
 // 排产历史记录查询
 router.get('/history/:containerNumber', controller.getSchedulingHistory);
@@ -133,11 +143,13 @@ router.get('/history/latest', controller.getLatestSchedulingHistory);
 ### 5. 测试与部署工具
 
 #### 文件：`backend/scripts/test-scheduling-history.ts`
+
 - ✅ 完整集成测试脚本（160 行）
 - ✅ 6 个测试场景验证
 - ✅ 自动清理测试数据
 
 **测试场景：**
+
 1. 创建第一条历史记录
 2. 验证版本号自动递增
 3. 查询单柜历史
@@ -146,6 +158,7 @@ router.get('/history/latest', controller.getLatestSchedulingHistory);
 6. SQL 查询最新记录
 
 #### 文件：`backend/scripts/deploy-scheduling-history.ps1`
+
 - ✅ 一键部署脚本（129 行）
 - ✅ 自动执行 SQL 迁移
 - ✅ 编译 TypeScript
@@ -158,26 +171,29 @@ router.get('/history/latest', controller.getLatestSchedulingHistory);
 
 ### 核心能力
 
-| 功能 | 状态 | API 端点 |
-|------|------|----------|
-| 保存历史记录 | ✅ 已集成 | 内部调用（确认保存时自动触发） |
-| 查询单柜历史 | ✅ 已实现 | `GET /api/v1/scheduling/history/:containerNumber` |
-| 查询最新记录 | ✅ 已实现 | `GET /api/v1/scheduling/history/latest` |
-| 版本号管理 | ✅ 自动递增 | 数据库触发器 |
-| 旧版本处理 | ✅ 自动标记 | 数据库触发器 |
-| 备选方案存储 | ✅ JSONB | `alternative_solutions` 字段 |
+| 功能         | 状态        | API 端点                                          |
+| ------------ | ----------- | ------------------------------------------------- |
+| 保存历史记录 | ✅ 已集成   | 内部调用（确认保存时自动触发）                    |
+| 查询单柜历史 | ✅ 已实现   | `GET /api/v1/scheduling/history/:containerNumber` |
+| 查询最新记录 | ✅ 已实现   | `GET /api/v1/scheduling/history/latest`           |
+| 版本号管理   | ✅ 自动递增 | 数据库触发器                                      |
+| 旧版本处理   | ✅ 自动标记 | 数据库触发器                                      |
+| 备选方案存储 | ✅ JSONB    | `alternative_solutions` 字段                      |
 
 ### 数据完整性保障
 
 ✅ **事务保护**
+
 - 历史记录保存在 `savePreviewResults` 的事务内
 - 确保与排产结果同时成功或失败
 
 ✅ **并发控制**
+
 - 数据库触发器保证版本号原子性递增
 - 避免应用层并发问题
 
 ✅ **状态追踪**
+
 - `CONFIRMED`: 当前生效的记录
 - `SUPERSEDED`: 被新版本替代的旧记录
 - `CANCELLED`: 已取消的记录
@@ -196,22 +212,26 @@ cd backend\scripts
 ### 方式二：手动部署
 
 #### 步骤 1：创建数据库表
+
 ```powershell
 docker exec -i logix-postgres psql -U postgres -d logix < backend/scripts/create_scheduling_history_table.sql
 ```
 
 #### 步骤 2：编译 TypeScript
+
 ```powershell
 cd backend
 npm run build
 ```
 
 #### 步骤 3：重启后端
+
 ```powershell
 docker restart logix-backend
 ```
 
 #### 步骤 4：运行测试
+
 ```powershell
 cd backend
 npm run ts-node scripts/test-scheduling-history.ts
@@ -222,12 +242,14 @@ npm run ts-node scripts/test-scheduling-history.ts
 ## 🧪 测试验证
 
 ### 1. 单元测试
+
 ```bash
 cd backend
 npm run ts-node scripts/test-scheduling-history.ts
 ```
 
 **预期输出：**
+
 ```
 ✅ Database connected
 
@@ -264,11 +286,13 @@ npm run ts-node scripts/test-scheduling-history.ts
 ### 2. API 测试
 
 #### 查询单柜历史
+
 ```bash
 curl http://localhost:8080/api/v1/scheduling/history/TEST001
 ```
 
 **响应示例：**
+
 ```json
 {
   "success": true,
@@ -283,7 +307,7 @@ curl http://localhost:8080/api/v1/scheduling/history/TEST001
         "containerNumber": "TEST001",
         "schedulingVersion": 2,
         "strategy": "Drop off",
-        "totalCost": 520.00,
+        "totalCost": 520.0,
         "schedulingStatus": "CONFIRMED",
         "operatedAt": "2026-03-27T10:30:00Z"
       },
@@ -292,7 +316,7 @@ curl http://localhost:8080/api/v1/scheduling/history/TEST001
         "containerNumber": "TEST001",
         "schedulingVersion": 1,
         "strategy": "Direct",
-        "totalCost": 485.50,
+        "totalCost": 485.5,
         "schedulingStatus": "SUPERSEDED",
         "operatedAt": "2026-03-27T10:00:00Z"
       }
@@ -302,6 +326,7 @@ curl http://localhost:8080/api/v1/scheduling/history/TEST001
 ```
 
 #### 批量查询最新记录
+
 ```bash
 curl "http://localhost:8080/api/v1/scheduling/history/latest?containerNumbers[]=TEST001&containerNumbers[]=TEST002"
 ```
@@ -316,42 +341,38 @@ curl "http://localhost:8080/api/v1/scheduling/history/latest?containerNumbers[]=
 
 ```vue
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import api from '@/services/api'
+import { ref, onMounted } from 'vue';
+import api from '@/services/api';
 
 const props = defineProps<{
-  containerNumber: string
-}>()
+  containerNumber: string;
+}>();
 
-const histories = ref([])
-const loading = ref(false)
+const histories = ref([]);
+const loading = ref(false);
 
 async function loadHistory() {
   try {
-    loading.value = true
-    const response = await api.get(`/scheduling/history/${props.containerNumber}`)
-    histories.value = response.data.data.records
+    loading.value = true;
+    const response = await api.get(`/scheduling/history/${props.containerNumber}`);
+    histories.value = response.data.data.records;
   } catch (error) {
-    console.error('加载历史记录失败:', error)
+    console.error('加载历史记录失败:', error);
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 onMounted(() => {
-  loadHistory()
-})
+  loadHistory();
+});
 </script>
 
 <template>
   <div class="scheduling-history">
     <h3>排产历史</h3>
-    
-    <a-table 
-      :loading="loading"
-      :data-source="histories"
-      :pagination="{ pageSize: 10 }"
-    >
+
+    <a-table :loading="loading" :data-source="histories" :pagination="{ pageSize: 10 }">
       <a-table-column key="version" title="版本" dataIndex="schedulingVersion" />
       <a-table-column key="strategy" title="策略" dataIndex="strategy" />
       <a-table-column key="cost" title="总费用" dataIndex="totalCost" />
@@ -373,8 +394,9 @@ onMounted(() => {
 ## 🔍 诊断 SQL
 
 ### 查询某货柜的所有历史
+
 ```sql
-SELECT 
+SELECT
   container_number,
   scheduling_version,
   strategy,
@@ -388,6 +410,7 @@ ORDER BY scheduling_version DESC;
 ```
 
 ### 查询所有最新有效记录
+
 ```sql
 SELECT DISTINCT ON (container_number)
   container_number,
@@ -402,8 +425,9 @@ ORDER BY container_number, scheduling_version DESC;
 ```
 
 ### 统计各版本状态
+
 ```sql
-SELECT 
+SELECT
   scheduling_status,
   COUNT(*) as count
 FROM hist_scheduling_records
@@ -415,16 +439,19 @@ GROUP BY scheduling_status;
 ## 📝 后续优化建议
 
 ### 短期优化
+
 1. ✅ ~~在 `confirmSchedule` 接口中集成历史记录保存~~ （已完成）
 2. ⏳ 添加操作日志记录（谁在什么时候做了什么操作）
 3. ⏳ 添加性能监控（查询耗时、保存成功率）
 
 ### 中期优化
+
 1. ⏳ 前端历史记录查询页面
 2. ⏳ 版本对比功能（并排显示两个版本的差异）
 3. ⏳ 回滚功能（将某个版本重新激活为 CONFIRMED）
 
 ### 长期优化
+
 1. ⏳ 数据分析报表（排产趋势、成本变化）
 2. ⏳ 机器学习模型训练（基于历史数据优化排产算法）
 3. ⏳ 归档策略（定期归档旧记录，保持查询性能）
@@ -464,9 +491,10 @@ GROUP BY scheduling_status;
 ✅ **路由配置** - RESTful API 端点  
 ✅ **测试工具** - 集成测试脚本、验证用例  
 ✅ **部署工具** - 自动化部署脚本、验证流程  
-✅ **文档体系** - 技术方案、使用指南、示例代码  
+✅ **文档体系** - 技术方案、使用指南、示例代码
 
 **核心价值：**
+
 - 🔍 **可追溯** - 每次排产决策都有完整记录
 - 📊 **可分析** - 积累数据用于优化算法
 - 🔒 **可审计** - 所有操作有迹可循

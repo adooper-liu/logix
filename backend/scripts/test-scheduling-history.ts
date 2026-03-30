@@ -32,11 +32,11 @@ async function runTests() {
       warehouseName: 'Test Warehouse',
       truckingCompanyCode: 'TC001',
       truckingCompanyName: 'Test Trucking',
-      totalCost: 485.50,
-      demurrageCost: 200.00,
-      detentionCost: 100.00,
-      storageCost: 50.00,
-      transportationCost: 135.50,
+      totalCost: 485.5,
+      demurrageCost: 200.0,
+      detentionCost: 100.0,
+      storageCost: 50.0,
+      transportationCost: 135.5,
       currency: 'USD',
       operatedBy: 'test_user',
       schedulingStatus: 'CONFIRMED'
@@ -57,7 +57,7 @@ async function runTests() {
       plannedReturnDate: new Date('2026-03-29'),
       warehouseCode: 'WH001',
       truckingCompanyCode: 'TC001',
-      totalCost: 520.00,
+      totalCost: 520.0,
       currency: 'USD',
       operatedBy: 'test_user',
       schedulingStatus: 'CONFIRMED'
@@ -65,7 +65,7 @@ async function runTests() {
 
     await historyRepo.save(history2);
     console.log(`✅ 创建成功，版本号：${history2.schedulingVersion}`);
-    
+
     // 验证版本号
     if (history2.schedulingVersion === 2) {
       console.log('✅ 版本号自动递增测试通过');
@@ -79,9 +79,9 @@ async function runTests() {
       where: { containerNumber: 'TEST001' },
       order: { schedulingVersion: 'DESC' }
     });
-    
+
     console.log(`✅ 查询到 ${histories.length} 条记录`);
-    histories.forEach(h => {
+    histories.forEach((h) => {
       console.log(`   - 版本 ${h.schedulingVersion}: ${h.strategy}, $${h.totalCost}`);
     });
 
@@ -90,7 +90,7 @@ async function runTests() {
     const oldHistory = await historyRepo.findOne({
       where: { containerNumber: 'TEST001', schedulingVersion: 1 }
     });
-    
+
     if (oldHistory?.schedulingStatus === 'SUPERSEDED') {
       console.log('✅ 旧版本自动标记为 SUPERSEDED 测试通过');
     } else {
@@ -104,7 +104,7 @@ async function runTests() {
       schedulingMode: 'MANUAL',
       strategy: 'Expedited',
       plannedPickupDate: new Date('2026-03-27'),
-      totalCost: 320.00,
+      totalCost: 320.0,
       currency: 'USD',
       operatedBy: 'another_user',
       schedulingStatus: 'CONFIRMED'
@@ -112,7 +112,7 @@ async function runTests() {
 
     await historyRepo.save(history3);
     console.log(`✅ 创建成功，版本号：${history3.schedulingVersion}`);
-    
+
     if (history3.schedulingVersion === 1) {
       console.log('✅ 不同货柜版本号重置测试通过');
     }
@@ -131,10 +131,12 @@ async function runTests() {
       WHERE scheduling_status != 'CANCELLED'
       ORDER BY container_number, scheduling_version DESC
     `);
-    
+
     console.log(`✅ 查询到 ${latestRecords.length} 个货柜的最新记录`);
     latestRecords.forEach((r: any) => {
-      console.log(`   - ${r.container_number}: v${r.scheduling_version}, ${r.strategy}, $${r.total_cost}`);
+      console.log(
+        `   - ${r.container_number}: v${r.scheduling_version}, ${r.strategy}, $${r.total_cost}`
+      );
     });
 
     // 清理测试数据
@@ -144,7 +146,6 @@ async function runTests() {
     console.log('✅ 测试数据已清理');
 
     console.log('\n🎉 所有测试完成！');
-
   } catch (error) {
     console.error('❌ 测试失败:', error);
   } finally {

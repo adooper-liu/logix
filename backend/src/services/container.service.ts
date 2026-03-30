@@ -7,10 +7,13 @@
 import { In, Repository } from 'typeorm';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
+import { AlertLevel, AlertType, ContainerAlert } from '../entities/ContainerAlert';
 import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
 import { Country } from '../entities/Country';
 import { CustomsBroker } from '../entities/CustomsBroker';
 import { EmptyReturn } from '../entities/EmptyReturn';
+import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
+import { ExtFeituoStatusEvent } from '../entities/ExtFeituoStatusEvent';
 import { Port } from '../entities/Port';
 import { PortOperation } from '../entities/PortOperation';
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
@@ -19,12 +22,9 @@ import { TruckingCompany } from '../entities/TruckingCompany';
 import { TruckingTransport } from '../entities/TruckingTransport';
 import { Warehouse } from '../entities/Warehouse';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
-import { AlertLevel, AlertType, ContainerAlert } from '../entities/ContainerAlert';
-import { ExtFeituoStatusEvent } from '../entities/ExtFeituoStatusEvent';
-import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
+import { buildGanttDerived } from '../utils/ganttDerivedBuilder';
 import { logger } from '../utils/logger';
 import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
-import { buildGanttDerived } from '../utils/ganttDerivedBuilder';
 
 interface ContainerWithStatus {
   container: Container;
@@ -70,22 +70,35 @@ export class ContainerService {
     const containerNumbers = containers.map((c) => c.containerNumber);
 
     // 批量查询所有相关数据
-    const [ordersMap, eventsMap, portOperationsMap, truckingMap, warehouseMap, emptyReturnsMap, alertsMap, customsBrokersMap, truckingCompaniesMap, warehousesMap, countriesMap, portNameMap, costBreakdownMap] =
-      await Promise.all([
-        this.batchFetchOrders(containerNumbers),
-        this.batchFetchStatusEvents(containerNumbers),
-        this.batchFetchPortOperations(containerNumbers),
-        this.batchFetchTruckingTransports(containerNumbers),
-        this.batchFetchWarehouseOperations(containerNumbers),
-        this.batchFetchEmptyReturns(containerNumbers),
-        this.batchFetchAlerts(containerNumbers),
-        this.batchFetchCustomsBrokers(),
-        this.batchFetchTruckingCompanies(),
-        this.batchFetchWarehouses(),
-        this.batchFetchCountries(),
-        this.batchFetchPortNames(containerNumbers),
-        this.batchFetchCostBreakdown(containerNumbers)
-      ]);
+    const [
+      ordersMap,
+      eventsMap,
+      portOperationsMap,
+      truckingMap,
+      warehouseMap,
+      emptyReturnsMap,
+      alertsMap,
+      customsBrokersMap,
+      truckingCompaniesMap,
+      warehousesMap,
+      countriesMap,
+      portNameMap,
+      costBreakdownMap
+    ] = await Promise.all([
+      this.batchFetchOrders(containerNumbers),
+      this.batchFetchStatusEvents(containerNumbers),
+      this.batchFetchPortOperations(containerNumbers),
+      this.batchFetchTruckingTransports(containerNumbers),
+      this.batchFetchWarehouseOperations(containerNumbers),
+      this.batchFetchEmptyReturns(containerNumbers),
+      this.batchFetchAlerts(containerNumbers),
+      this.batchFetchCustomsBrokers(),
+      this.batchFetchTruckingCompanies(),
+      this.batchFetchWarehouses(),
+      this.batchFetchCountries(),
+      this.batchFetchPortNames(containerNumbers),
+      this.batchFetchCostBreakdown(containerNumbers)
+    ]);
 
     const enrichedContainers = containers.map((container) => {
       try {
@@ -126,8 +139,9 @@ export class ContainerService {
         );
 
         // 获取供应商名称（从字典表）
-        const destPortOp = portOperations.find(op => op.portType === 'destination');
-        const customsBrokerCode = destPortOp?.customsBrokerCode || latestPortOperation?.customsBrokerCode;
+        const destPortOp = portOperations.find((op) => op.portType === 'destination');
+        const customsBrokerCode =
+          destPortOp?.customsBrokerCode || latestPortOperation?.customsBrokerCode;
         const truckingCompanyId = truckingTransport?.truckingCompanyId;
         const warehouseId = warehouseOperation?.warehouseId;
         // 获取销往国家代码，用于资源缺省约定
@@ -197,8 +211,8 @@ export class ContainerService {
 
         // 获取预警信息
         const alerts = alertsMap.get(containerNumber) || [];
-        const alertCount = alerts.filter(alert => !alert.resolved).length;
-        const resolvedAlertCount = alerts.filter(alert => alert.resolved).length;
+        const alertCount = alerts.filter((alert) => !alert.resolved).length;
+        const resolvedAlertCount = alerts.filter((alert) => alert.resolved).length;
         const hasResolvedAlerts = resolvedAlertCount > 0;
         const costBreakdown = costBreakdownMap.get(containerNumber) ?? null;
 
@@ -221,7 +235,7 @@ export class ContainerService {
           logisticsStatus: latestLogisticsStatus,
           ganttDerived,
           // 预警信息
-          alerts: alerts.map(alert => ({
+          alerts: alerts.map((alert) => ({
             id: alert.id,
             type: alert.type,
             level: alert.level,
@@ -247,7 +261,9 @@ export class ContainerService {
           billOfLadingNumber:
             container.seaFreight?.mblNumber || container.seaFreight?.billOfLadingNumber || null,
           mblNumber: container.seaFreight?.mblNumber || null,
-          actualShipDate: this.toUtcDateString(orderInfo?.expectedShipDate || container.seaFreight?.shipmentDate || null),
+          actualShipDate: this.toUtcDateString(
+            orderInfo?.expectedShipDate || container.seaFreight?.shipmentDate || null
+          ),
           sellToCountry: orderInfo?.sellToCountry || null,
           countryCurrency: getCountryCurrency(),
           customerName: orderInfo?.customerName || null,
@@ -258,7 +274,9 @@ export class ContainerService {
           plannedDeliveryDate: this.toUtcDateString(truckingTransport?.plannedDeliveryDate || null),
           deliveryDate: this.toUtcDateString(truckingTransport?.deliveryDate || null),
           plannedReturnDate: this.toUtcDateString(emptyReturn?.plannedReturnDate || null),
-          lastFreeDate: this.toUtcDateString(destPortOp?.lastFreeDate ?? latestPortOperation?.lastFreeDate ?? null),
+          lastFreeDate: this.toUtcDateString(
+            destPortOp?.lastFreeDate ?? latestPortOperation?.lastFreeDate ?? null
+          ),
           lastReturnDate: this.toUtcDateString(emptyReturn?.lastReturnDate || null),
           returnTime: this.toUtcDateString(emptyReturn?.returnTime || null),
           // 供应商名称（用于甘特图三级展示）
@@ -579,8 +597,10 @@ export class ContainerService {
           id: `${po.id}-gatein`,
           statusCode: 'GATE_IN',
           occurredAt: po.gateInTime,
-          locationNameCn: po.locationNameCn || po.gateInTerminal || po.gateOutTerminal || po.portName,
-          locationNameEn: po.locationNameEn || po.gateInTerminal || po.gateOutTerminal || po.portName,
+          locationNameCn:
+            po.locationNameCn || po.gateInTerminal || po.gateOutTerminal || po.portName,
+          locationNameEn:
+            po.locationNameEn || po.gateInTerminal || po.gateOutTerminal || po.portName,
           locationCode: po.portCode,
           description: `入闸时间 - ${po.gateInTerminal || po.portName}`,
           statusType: 'ATA',
@@ -595,8 +615,10 @@ export class ContainerService {
           id: `${po.id}-gateout`,
           statusCode: 'GATE_OUT',
           occurredAt: po.gateOutTime,
-          locationNameCn: po.locationNameCn || po.gateInTerminal || po.gateOutTerminal || po.portName,
-          locationNameEn: po.locationNameEn || po.gateInTerminal || po.gateOutTerminal || po.portName,
+          locationNameCn:
+            po.locationNameCn || po.gateInTerminal || po.gateOutTerminal || po.portName,
+          locationNameEn:
+            po.locationNameEn || po.gateInTerminal || po.gateOutTerminal || po.portName,
           locationCode: po.portCode,
           description: `出闸时间 - ${po.gateOutTerminal || po.portName}`,
           statusType: 'ATD',
@@ -611,8 +633,10 @@ export class ContainerService {
           id: `${po.id}-available`,
           statusCode: 'AVAILABLE',
           occurredAt: po.availableTime,
-          locationNameCn: po.locationNameCn || po.gateInTerminal || po.gateOutTerminal || po.portName,
-          locationNameEn: po.locationNameEn || po.gateInTerminal || po.gateOutTerminal || po.portName,
+          locationNameCn:
+            po.locationNameCn || po.gateInTerminal || po.gateOutTerminal || po.portName,
+          locationNameEn:
+            po.locationNameEn || po.gateInTerminal || po.gateOutTerminal || po.portName,
           locationCode: po.portCode,
           description: `可提货时间 - ${po.portName}`,
           statusType: 'ATA',
@@ -627,8 +651,10 @@ export class ContainerService {
           id: `${po.id}-discharged`,
           statusCode: 'DISCHARGED',
           occurredAt: po.dischargedTime,
-          locationNameCn: po.locationNameCn || po.gateInTerminal || po.gateOutTerminal || po.portName,
-          locationNameEn: po.locationNameEn || po.gateInTerminal || po.gateOutTerminal || po.portName,
+          locationNameCn:
+            po.locationNameCn || po.gateInTerminal || po.gateOutTerminal || po.portName,
+          locationNameEn:
+            po.locationNameEn || po.gateInTerminal || po.gateOutTerminal || po.portName,
           locationCode: po.portCode,
           description: `放电时间 - ${po.portName}`,
           statusType: 'ATA',
@@ -1181,7 +1207,7 @@ export class ContainerService {
       const portCodes = Array.from(
         new Set(
           containers
-            .map(c => c.seaFreight?.portOfDischarge)
+            .map((c) => c.seaFreight?.portOfDischarge)
             .filter((code): code is string => !!code && String(code).trim().length > 0)
         )
       );
@@ -1189,7 +1215,7 @@ export class ContainerService {
       const ports = await this.portRepository.find({
         where: { portCode: In(portCodes) }
       });
-      return new Map(ports.map(p => [p.portCode, p.portName]));
+      return new Map(ports.map((p) => [p.portCode, p.portName]));
     } catch (error) {
       logger.warn('[batchFetchPortNames] Failed:', error);
       return new Map();
@@ -1199,7 +1225,9 @@ export class ContainerService {
   /**
    * 批量查询预警信息
    */
-  private async batchFetchAlerts(containerNumbers: string[]): Promise<Map<string, ContainerAlert[]>> {
+  private async batchFetchAlerts(
+    containerNumbers: string[]
+  ): Promise<Map<string, ContainerAlert[]>> {
     const result = new Map<string, ContainerAlert[]>();
 
     try {
@@ -1246,13 +1274,14 @@ export class ContainerService {
           const hasRolloverInDb = list.some((a) => a.type === AlertType.ROLLOVER);
           if (hasRolloverInDb) continue;
           const hasUnresolvedDumpInDb = list.some(
-            (a) => !a.resolved && (a.message.includes('甩柜') || a.message.toLowerCase().includes('dump'))
+            (a) =>
+              !a.resolved &&
+              (a.message.includes('甩柜') || a.message.toLowerCase().includes('dump'))
           );
           if (hasUnresolvedDumpInDb) continue;
           const ev = latestDumpByCn.get(cn);
           if (!ev) continue;
-          const desc =
-            ev.descriptionCn || ev.descriptionEn || ev.eventDescriptionOrigin || '甩柜';
+          const desc = ev.descriptionCn || ev.descriptionEn || ev.eventDescriptionOrigin || '甩柜';
           const synthetic = {
             id: -ev.id,
             containerNumber: cn,
@@ -1261,7 +1290,7 @@ export class ContainerService {
             message: `甩柜事件: ${desc}`,
             resolved: false,
             createdAt: ev.eventTime,
-            updatedAt: ev.eventTime,
+            updatedAt: ev.eventTime
           } as ContainerAlert;
           list.push(synthetic);
           result.set(cn, list);

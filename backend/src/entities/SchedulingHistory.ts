@@ -1,17 +1,17 @@
 /**
  * 排产历史记录实体
  * Scheduling History Record Entity
- * 
+ *
  * 用于记录每次排产确认的完整历史
  */
 
 import {
-  Entity,
-  PrimaryGeneratedColumn,
   Column,
   CreateDateColumn,
-  UpdateDateColumn,
-  Unique
+  Entity,
+  PrimaryGeneratedColumn,
+  Unique,
+  UpdateDateColumn
 } from 'typeorm';
 
 @Entity('hist_scheduling_records')
@@ -104,10 +104,22 @@ export class SchedulingHistory {
   @Column({ type: 'int', nullable: true, name: 'remaining_free_days' })
   remainingFreeDays?: number;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true, name: 'warehouse_occupancy_rate' })
+  @Column({
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    nullable: true,
+    name: 'warehouse_occupancy_rate'
+  })
   warehouseOccupancyRate?: number;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true, name: 'trucking_occupancy_rate' })
+  @Column({
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    nullable: true,
+    name: 'trucking_occupancy_rate'
+  })
   truckingOccupancyRate?: number;
 
   @Column({ type: 'jsonb', nullable: true, name: 'alternative_solutions' })

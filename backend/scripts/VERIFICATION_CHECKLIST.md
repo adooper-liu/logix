@@ -3,6 +3,7 @@
 ## 🎯 部署前检查
 
 ### 1. 文件完整性检查
+
 - [ ] `backend/scripts/create_scheduling_history_table.sql` - 数据库迁移脚本
 - [ ] `backend/src/entities/SchedulingHistory.ts` - TypeORM 实体
 - [ ] `backend/src/controllers/scheduling.controller.ts` - 控制器（已修改）
@@ -16,12 +17,14 @@
 ## 🚀 部署流程
 
 ### 方式一：一键部署（推荐）
+
 ```powershell
 cd backend\scripts
 .\deploy-scheduling-history.ps1
 ```
 
 **预期输出：**
+
 ```
 ========================================
 📋 排产历史记录功能部署
@@ -50,11 +53,13 @@ cd backend\scripts
 ### 方式二：手动部署
 
 #### Step 1: 执行 SQL 迁移
+
 ```powershell
 docker exec -i logix-postgres psql -U postgres -d logix < backend/scripts/create_scheduling_history_table.sql
 ```
 
 **验证 SQL 执行成功：**
+
 ```bash
 docker exec -it logix-postgres psql -U postgres -d logix -c "\dt hist_scheduling_records"
 docker exec -it logix-postgres psql -U postgres -d logix -c "\df increment_scheduling_version"
@@ -62,21 +67,25 @@ docker exec -it logix-postgres psql -U postgres -d logix -c "\dS trg_increment_s
 ```
 
 #### Step 2: 编译后端
+
 ```powershell
 cd backend
 npm run build
 ```
 
 **验证编译成功：**
+
 - 无 TypeScript 错误
 - `dist/` 目录生成新的 `.js` 文件
 
 #### Step 3: 重启服务
+
 ```powershell
 docker restart logix-backend
 ```
 
 **验证服务启动：**
+
 ```powershell
 docker logs logix-backend --tail 50
 ```
@@ -86,12 +95,14 @@ docker logs logix-backend --tail 50
 ## 🧪 功能测试
 
 ### Test 1: 运行集成测试
+
 ```powershell
 cd backend
 npm run ts-node scripts/test-scheduling-history.ts
 ```
 
 **预期输出（所有测试通过）：**
+
 ```
 ✅ Database connected
 
@@ -128,6 +139,7 @@ npm run ts-node scripts/test-scheduling-history.ts
 ### Test 2: API 端点测试
 
 #### 测试查询接口
+
 ```bash
 # 查询不存在的货柜（应返回空数组）
 curl http://localhost:8080/api/v1/scheduling/history/TEST999
@@ -146,6 +158,7 @@ curl http://localhost:8080/api/v1/scheduling/history/TEST999
 ```
 
 #### 测试批量查询接口
+
 ```bash
 # 批量查询最新记录
 curl "http://localhost:8080/api/v1/scheduling/history/latest"
@@ -162,38 +175,40 @@ curl "http://localhost:8080/api/v1/scheduling/history/latest"
 ## 🔍 数据库验证
 
 ### 验证 1: 表结构
+
 ```sql
 \d hist_scheduling_records
 ```
 
 **预期输出：**
+
 ```
                                         Table "public.hist_scheduling_records"
-         Column          |            Type             | Collation | Nullable |                Default                
+         Column          |            Type             | Collation | Nullable |                Default
 -------------------------+-----------------------------+-----------+----------+---------------------------------------
  id                      | integer                     |           | not null | nextval('hist_scheduling_records_id_seq'::regclass)
- container_number        | character varying(50)       |           | not null | 
+ container_number        | character varying(50)       |           | not null |
  scheduling_version      | integer                     |           | not null | 1
- scheduling_mode         | character varying(20)       |           | not null | 
- strategy                | character varying(20)       |           | not null | 
- planned_pickup_date     | date                        |           |          | 
- planned_delivery_date   | date                        |           |          | 
- planned_unload_date     | date                        |           |          | 
- planned_return_date     | date                        |           |          | 
- warehouse_code          | character varying(50)       |           |          | 
- trucking_company_code   | character varying(50)       |           |          | 
- total_cost              | numeric(12,2)               |           |          | 
- demurrage_cost          | numeric(12,2)               |           |          | 
- detention_cost          | numeric(12,2)               |           |          | 
- storage_cost            | numeric(12,2)               |           |          | 
- yard_storage_cost       | numeric(12,2)               |           |          | 
- transportation_cost     | numeric(12,2)               |           |          | 
- handling_cost           | numeric(12,2)               |           |          | 
- alternative_solutions   | jsonb                       |           |          | 
- operated_by             | character varying(50)       |           |          | 
+ scheduling_mode         | character varying(20)       |           | not null |
+ strategy                | character varying(20)       |           | not null |
+ planned_pickup_date     | date                        |           |          |
+ planned_delivery_date   | date                        |           |          |
+ planned_unload_date     | date                        |           |          |
+ planned_return_date     | date                        |           |          |
+ warehouse_code          | character varying(50)       |           |          |
+ trucking_company_code   | character varying(50)       |           |          |
+ total_cost              | numeric(12,2)               |           |          |
+ demurrage_cost          | numeric(12,2)               |           |          |
+ detention_cost          | numeric(12,2)               |           |          |
+ storage_cost            | numeric(12,2)               |           |          |
+ yard_storage_cost       | numeric(12,2)               |           |          |
+ transportation_cost     | numeric(12,2)               |           |          |
+ handling_cost           | numeric(12,2)               |           |          |
+ alternative_solutions   | jsonb                       |           |          |
+ operated_by             | character varying(50)       |           |          |
  operated_at             | timestamp without time zone |           |          | CURRENT_TIMESTAMP
- operation_type          | character varying(20)       |           |          | 
- updated_at              | timestamp without time zone |           |          | 
+ operation_type          | character varying(20)       |           |          |
+ updated_at              | timestamp without time zone |           |          |
  scheduling_status       | character varying(20)       |           |          | 'CONFIRMED'::character varying
 Indexes:
     "hist_scheduling_records_pkey" PRIMARY KEY, btree (id)
@@ -207,14 +222,15 @@ Triggers:
 ```
 
 ### 验证 2: 触发器功能
+
 ```sql
 -- 插入测试数据
 INSERT INTO hist_scheduling_records (container_number, scheduling_mode, strategy, operated_by)
 VALUES ('TEST_TRIGGER', 'AUTO', 'Direct', 'test');
 
 -- 查询版本号（应为 1）
-SELECT container_number, scheduling_version, scheduling_status 
-FROM hist_scheduling_records 
+SELECT container_number, scheduling_version, scheduling_status
+FROM hist_scheduling_records
 WHERE container_number = 'TEST_TRIGGER';
 
 -- 再次插入（版本号应自动递增为 2）
@@ -222,8 +238,8 @@ INSERT INTO hist_scheduling_records (container_number, scheduling_mode, strategy
 VALUES ('TEST_TRIGGER', 'AUTO', 'Drop off', 'test');
 
 -- 查询所有记录
-SELECT container_number, scheduling_version, scheduling_status 
-FROM hist_scheduling_records 
+SELECT container_number, scheduling_version, scheduling_status
+FROM hist_scheduling_records
 WHERE container_number = 'TEST_TRIGGER'
 ORDER BY scheduling_version;
 
@@ -232,6 +248,7 @@ DELETE FROM hist_scheduling_records WHERE container_number = 'TEST_TRIGGER';
 ```
 
 **预期结果：**
+
 ```
 container_number  | scheduling_version | scheduling_status
 ------------------+-------------------+------------------
@@ -245,6 +262,7 @@ TEST_TRIGGER      |                 1 | SUPERSEDED  ← 第一条被自动标记
 ## 📊 业务场景测试
 
 ### 场景 1: 首次排产
+
 ```sql
 -- 模拟前端调用确认保存接口
 POST /api/v1/scheduling/confirm
@@ -263,16 +281,18 @@ POST /api/v1/scheduling/confirm
 }
 
 -- 查询历史记录
-SELECT * FROM hist_scheduling_records 
+SELECT * FROM hist_scheduling_records
 WHERE container_number = 'CONTAINER001';
 ```
 
 **预期：**
+
 - 新增 1 条记录
 - `scheduling_version = 1`
 - `scheduling_status = 'CONFIRMED'`
 
 ### 场景 2: 重新排产
+
 ```sql
 -- 再次确认保存同一货柜
 POST /api/v1/scheduling/confirm
@@ -291,12 +311,13 @@ POST /api/v1/scheduling/confirm
 }
 
 -- 查询历史记录
-SELECT * FROM hist_scheduling_records 
+SELECT * FROM hist_scheduling_records
 WHERE container_number = 'CONTAINER001'
 ORDER BY scheduling_version;
 ```
 
 **预期：**
+
 - 新增 1 条记录（共 2 条）
 - 新记录 `scheduling_version = 2`, `status = 'CONFIRMED'`
 - 旧记录 `scheduling_status = 'SUPERSEDED'`
@@ -306,6 +327,7 @@ ORDER BY scheduling_version;
 ## ✅ 验收标准
 
 ### 功能性需求
+
 - [x] 每次确认保存自动生成历史记录
 - [x] 同一货柜多次排产版本号自动递增（1 → 2 → 3...）
 - [x] 新版本创建时，旧版本自动标记为 `SUPERSEDED`
@@ -314,6 +336,7 @@ ORDER BY scheduling_version;
 - [x] 历史记录保存在事务中，不影响主流程
 
 ### 非功能性需求
+
 - [x] 性能影响可接受（保存耗时增加 < 10ms）
 - [x] 不引入编译错误
 - [x] 不破坏现有功能
@@ -321,6 +344,7 @@ ORDER BY scheduling_version;
 - [x] 完整的文档说明
 
 ### 数据一致性
+
 - [x] 版本号唯一性约束生效
 - [x] 触发器正确执行
 - [x] 事务回滚时历史记录同步回滚
@@ -330,11 +354,13 @@ ORDER BY scheduling_version;
 ## 🐛 故障排查
 
 ### 问题 1: 编译错误
+
 ```
 Error: Cannot find module '../entities/SchedulingHistory'
 ```
 
 **解决方案：**
+
 ```bash
 # 检查 Entity 文件是否存在
 ls backend/src/entities/SchedulingHistory.ts
@@ -348,11 +374,13 @@ npm run build
 ```
 
 ### 问题 2: 数据库表不存在
+
 ```
 error: relation "hist_scheduling_records" does not exist
 ```
 
 **解决方案：**
+
 ```bash
 # 重新执行 SQL 迁移
 docker exec -i logix-postgres psql -U postgres -d logix < backend/scripts/create_scheduling_history_table.sql
@@ -362,6 +390,7 @@ docker exec -it logix-postgres psql -U postgres -d logix -c "\dt hist_*"
 ```
 
 ### 问题 3: 版本号不递增
+
 ```sql
 -- 检查触发器是否存在
 SELECT tgname FROM pg_trigger WHERE tgname = 'trg_increment_scheduling_version';
@@ -376,6 +405,7 @@ FOR EACH ROW EXECUTE FUNCTION increment_scheduling_version();
 ```
 
 ### 问题 4: 保存失败但不影响主流程
+
 ```typescript
 // 查看日志
 docker logs logix-backend --tail 100 | grep "saveSchedulingHistory"
@@ -389,11 +419,13 @@ docker logs logix-backend --tail 100 | grep "saveSchedulingHistory"
 ## 📈 监控指标
 
 ### 性能监控
+
 - 平均保存耗时：< 10ms
 - 查询响应时间：< 100ms
 - 触发器执行时间：< 5ms
 
 ### 业务监控
+
 - 每日新增历史记录数
 - 各状态记录占比（CONFIRMED vs SUPERSEDED）
 - 多版本货柜数量统计

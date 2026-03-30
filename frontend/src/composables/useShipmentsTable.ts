@@ -1,6 +1,6 @@
-import { ref, computed, watch } from 'vue'
 import type { PaginationParams } from '@/types'
 import type { ContainerListItem } from '@/types/container'
+import { computed, ref, watch } from 'vue'
 import { useLogisticsStatus } from './useLogisticsStatus'
 
 /**
@@ -92,7 +92,7 @@ export function useShipmentsTable() {
     try {
       const savedVisible = localStorage.getItem(STORAGE_KEY_COLUMNS)
       const savedOrder = localStorage.getItem(STORAGE_KEY_COLUMN_ORDER)
-      
+
       if (savedVisible) {
         const parsedVisible = JSON.parse(savedVisible) as Record<string, boolean>
         // 合并保存的配置和默认配置（处理新增列）
@@ -107,7 +107,7 @@ export function useShipmentsTable() {
       } else {
         columnVisible.value = { ...defaultColumnVisible }
       }
-      
+
       if (savedOrder) {
         const parsedOrder = JSON.parse(savedOrder) as string[]
         // 检查是否有新列不在保存的顺序中
@@ -309,12 +309,12 @@ export function useShipmentsTable() {
     columnSettingOpen,
     quickStatusFilter,
     alertFilter,
-    
+
     // 计算属性
     sortedVisibleColumnKeys,
     paginatedContainers,
     filteredContainers,
-    
+
     // 方法
     saveColumnVisible,
     resetColumnVisible,
@@ -329,9 +329,9 @@ export function useShipmentsTable() {
     resetSearch,
     handleCountdownFilter,
     resetFilter,
-    
+
     // 常量
     columnLabels,
-    SimplifiedStatus
+    SimplifiedStatus,
   }
 }

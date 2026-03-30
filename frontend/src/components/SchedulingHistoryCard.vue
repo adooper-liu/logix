@@ -1,11 +1,7 @@
 <template>
   <div class="scheduling-history-card">
     <!-- 触发按钮 -->
-    <a-button 
-      type="link" 
-      @click="toggleHistory"
-      :loading="loading"
-    >
+    <a-button type="link" @click="toggleHistory" :loading="loading">
       <span v-if="historyCount > 0">📋 {{ historyCount }}条历史</span>
       <span v-else>📝 查看历史</span>
     </a-button>
@@ -20,12 +16,8 @@
     >
       <!-- 加载状态 -->
       <a-spin :spinning="loading" tip="加载中...">
-        
         <!-- 空状态 -->
-        <a-empty 
-          v-if="!loading && histories.length === 0"
-          description="该货柜暂无排产历史"
-        />
+        <a-empty v-if="!loading && histories.length === 0" description="该货柜暂无排产历史" />
 
         <!-- 历史记录列表 -->
         <div v-else class="history-timeline">
@@ -37,7 +29,6 @@
             >
               <!-- 时间线卡片 -->
               <div class="timeline-item-content">
-                
                 <!-- 头部：版本号和状态 -->
                 <div class="timeline-header">
                   <div class="version-badge">
@@ -84,10 +75,16 @@
                 <div class="info-section" v-if="hasResources(record)">
                   <div class="section-title">🏭 资源安排</div>
                   <a-descriptions :column="1" size="small">
-                    <a-descriptions-item label="仓库" v-if="record.warehouseName || record.warehouseCode">
+                    <a-descriptions-item
+                      label="仓库"
+                      v-if="record.warehouseName || record.warehouseCode"
+                    >
                       {{ record.warehouseName || record.warehouseCode }}
                     </a-descriptions-item>
-                    <a-descriptions-item label="车队" v-if="record.truckingCompanyName || record.truckingCompanyCode">
+                    <a-descriptions-item
+                      label="车队"
+                      v-if="record.truckingCompanyName || record.truckingCompanyCode"
+                    >
                       {{ record.truckingCompanyName || record.truckingCompanyCode }}
                     </a-descriptions-item>
                   </a-descriptions>
@@ -101,39 +98,24 @@
                       <span>总费用：</span>
                       <span class="total-amount">${{ record.totalCost?.toFixed(2) }}</span>
                     </div>
-                    
+
                     <!-- 费用细分（展开） -->
                     <a-collapse :bordered="false" ghost>
                       <a-collapse-panel key="1" header="查看详情">
                         <a-descriptions :column="1" size="small">
-                          <a-descriptions-item 
-                            label="滞港费" 
-                            v-if="record.demurrageCost"
-                          >
+                          <a-descriptions-item label="滞港费" v-if="record.demurrageCost">
                             ${{ record.demurrageCost.toFixed(2) }}
                           </a-descriptions-item>
-                          <a-descriptions-item 
-                            label="滞箱费" 
-                            v-if="record.detentionCost"
-                          >
+                          <a-descriptions-item label="滞箱费" v-if="record.detentionCost">
                             ${{ record.detentionCost.toFixed(2) }}
                           </a-descriptions-item>
-                          <a-descriptions-item 
-                            label="堆存费" 
-                            v-if="record.storageCost"
-                          >
+                          <a-descriptions-item label="堆存费" v-if="record.storageCost">
                             ${{ record.storageCost.toFixed(2) }}
                           </a-descriptions-item>
-                          <a-descriptions-item 
-                            label="运输费" 
-                            v-if="record.transportationCost"
-                          >
+                          <a-descriptions-item label="运输费" v-if="record.transportationCost">
                             ${{ record.transportationCost.toFixed(2) }}
                           </a-descriptions-item>
-                          <a-descriptions-item 
-                            label="操作费" 
-                            v-if="record.handlingCost"
-                          >
+                          <a-descriptions-item label="操作费" v-if="record.handlingCost">
                             ${{ record.handlingCost.toFixed(2) }}
                           </a-descriptions-item>
                         </a-descriptions>
@@ -161,12 +143,14 @@
                 <!-- 备选方案 -->
                 <div class="info-section" v-if="hasAlternatives(record)">
                   <div class="section-title">
-                    💡 备选方案 
-                    <span class="sub-label">({{ record.alternativeSolutions?.length || 0 }}个)</span>
+                    💡 备选方案
+                    <span class="sub-label"
+                      >({{ record.alternativeSolutions?.length || 0 }}个)</span
+                    >
                   </div>
                   <a-collapse :bordered="false" ghost>
-                    <a-collapse-panel 
-                      v-for="(alt, altIndex) in record.alternativeSolutions" 
+                    <a-collapse-panel
+                      v-for="(alt, altIndex) in record.alternativeSolutions"
                       :key="altIndex"
                       :header="`方案 ${altIndex + 1}`"
                     >
@@ -192,80 +176,81 @@
                     </span>
                   </div>
                 </div>
-
               </div>
             </a-timeline-item>
           </a-timeline>
         </div>
-
       </a-spin>
     </a-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import api from '@/services/api';
+import api from '@/services/api'
+import { computed, ref, watch } from 'vue'
 
 interface SchedulingHistory {
-  id: number;
-  containerNumber: string;
-  schedulingVersion: number;
-  schedulingMode: 'MANUAL' | 'AUTO';
-  strategy: string;
-  plannedPickupDate?: string;
-  plannedDeliveryDate?: string;
-  plannedUnloadDate?: string;
-  plannedReturnDate?: string;
-  warehouseCode?: string;
-  warehouseName?: string;
-  truckingCompanyCode?: string;
-  truckingCompanyName?: string;
-  totalCost?: number;
-  demurrageCost?: number;
-  detentionCost?: number;
-  storageCost?: number;
-  yardStorageCost?: number;
-  transportationCost?: number;
-  handlingCost?: number;
-  lastFreeDate?: string;
-  lastReturnDate?: string;
-  remainingFreeDays?: number;
-  alternativeSolutions?: any[];
-  operatedBy?: string;
-  operatedAt: string;
-  operationType?: string;
-  schedulingStatus: 'CONFIRMED' | 'CANCELLED' | 'SUPERSEDED';
+  id: number
+  containerNumber: string
+  schedulingVersion: number
+  schedulingMode: 'MANUAL' | 'AUTO'
+  strategy: string
+  plannedPickupDate?: string
+  plannedDeliveryDate?: string
+  plannedUnloadDate?: string
+  plannedReturnDate?: string
+  warehouseCode?: string
+  warehouseName?: string
+  truckingCompanyCode?: string
+  truckingCompanyName?: string
+  totalCost?: number
+  demurrageCost?: number
+  detentionCost?: number
+  storageCost?: number
+  yardStorageCost?: number
+  transportationCost?: number
+  handlingCost?: number
+  lastFreeDate?: string
+  lastReturnDate?: string
+  remainingFreeDays?: number
+  alternativeSolutions?: any[]
+  operatedBy?: string
+  operatedAt: string
+  operationType?: string
+  schedulingStatus: 'CONFIRMED' | 'CANCELLED' | 'SUPERSEDED'
 }
 
 const props = defineProps<{
-  containerNumber: string;
-}>();
+  containerNumber: string
+}>()
 
 // 响应式数据
-const visible = ref(false);
-const loading = ref(false);
-const histories = ref<SchedulingHistory[]>([]);
+const visible = ref(false)
+const loading = ref(false)
+const histories = ref<SchedulingHistory[]>([])
 
 // 计算属性
-const historyCount = computed(() => histories.value.length);
+const historyCount = computed(() => histories.value.length)
 
 // 监听容器号变化，重新加载
-watch(() => props.containerNumber, () => {
-  if (visible.value) {
-    loadHistory();
+watch(
+  () => props.containerNumber,
+  () => {
+    if (visible.value) {
+      loadHistory()
+    }
   }
-});
+)
 
 /**
  * 切换面板显示/隐藏
  */
 async function toggleHistory() {
   if (visible.value) {
-    visible.value = false;
+    visible.value = false
   } else {
-    visible.value = true;
-    await loadHistory();
+    visible.value = true
+    await loadHistory()
   }
 }
 
@@ -274,21 +259,21 @@ async function toggleHistory() {
  */
 async function loadHistory() {
   try {
-    loading.value = true;
-    
+    loading.value = true
+
     const response = await api.get(`/scheduling/history/${props.containerNumber}`, {
       params: {
         page: 1,
-        limit: 50 // 加载更多记录
-      }
-    });
-    
-    histories.value = response.data.data.records || [];
+        limit: 50, // 加载更多记录
+      },
+    })
+
+    histories.value = response.data.data.records || []
   } catch (error: any) {
-    console.error('加载历史记录失败:', error);
-    histories.value = [];
+    console.error('加载历史记录失败:', error)
+    histories.value = []
   } finally {
-    loading.value = false;
+    loading.value = false
   }
 }
 
@@ -296,92 +281,99 @@ async function loadHistory() {
  * 格式化日期
  */
 function formatDate(dateStr?: string): string {
-  if (!dateStr) return '-';
-  const date = new Date(dateStr);
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
   return date.toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
-    day: '2-digit'
-  });
+    day: '2-digit',
+  })
 }
 
 /**
  * 格式化日期时间
  */
 function formatDateTime(dateStr?: string): string {
-  if (!dateStr) return '-';
-  const date = new Date(dateStr);
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
   return date.toLocaleString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
-    minute: '2-digit'
-  });
+    minute: '2-digit',
+  })
 }
 
 /**
  * 翻译策略
  */
 function translateStrategy(strategy?: string): string {
-  if (!strategy) return '-';
+  if (!strategy) return '-'
   const map: Record<string, string> = {
-    'Direct': '直提',
+    Direct: '直提',
     'Drop off': '甩挂',
-    'Expedited': '加急'
-  };
-  return map[strategy] || strategy;
+    Expedited: '加急',
+  }
+  return map[strategy] || strategy
 }
 
 /**
  * 翻译操作类型
  */
 function translateOperationType(type?: string): string {
-  if (!type) return '-';
+  if (!type) return '-'
   const map: Record<string, string> = {
-    'CREATE': '创建',
-    'UPDATE': '更新',
-    'CANCEL': '取消'
-  };
-  return map[type] || type;
+    CREATE: '创建',
+    UPDATE: '更新',
+    CANCEL: '取消',
+  }
+  return map[type] || type
 }
 
 /**
  * 检查是否有日期信息
  */
 function hasDates(record: SchedulingHistory): boolean {
-  return !!(record.plannedPickupDate || record.plannedDeliveryDate || 
-            record.plannedUnloadDate || record.plannedReturnDate);
+  return !!(
+    record.plannedPickupDate ||
+    record.plannedDeliveryDate ||
+    record.plannedUnloadDate ||
+    record.plannedReturnDate
+  )
 }
 
 /**
  * 检查是否有资源信息
  */
 function hasResources(record: SchedulingHistory): boolean {
-  return !!(record.warehouseName || record.warehouseCode || 
-            record.truckingCompanyName || record.truckingCompanyCode);
+  return !!(
+    record.warehouseName ||
+    record.warehouseCode ||
+    record.truckingCompanyName ||
+    record.truckingCompanyCode
+  )
 }
 
 /**
  * 检查是否有费用信息
  */
 function hasCost(record: SchedulingHistory): boolean {
-  return !!(record.totalCost || record.demurrageCost || 
-            record.detentionCost || record.storageCost);
+  return !!(record.totalCost || record.demurrageCost || record.detentionCost || record.storageCost)
 }
 
 /**
  * 检查是否有免费期信息
  */
 function hasFreeDays(record: SchedulingHistory): boolean {
-  return !!(record.lastFreeDate || record.lastReturnDate || record.remainingFreeDays);
+  return !!(record.lastFreeDate || record.lastReturnDate || record.remainingFreeDays)
 }
 
 /**
  * 检查是否有备选方案
  */
 function hasAlternatives(record: SchedulingHistory): boolean {
-  return !!(record.alternativeSolutions && record.alternativeSolutions.length > 0);
+  return !!(record.alternativeSolutions && record.alternativeSolutions.length > 0)
 }
 </script>
 
