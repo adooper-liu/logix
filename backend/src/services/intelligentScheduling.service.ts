@@ -29,6 +29,7 @@ import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { normalizeCountryCode } from '../utils/countryCode';
 import * as dateTimeUtils from '../utils/dateTimeUtils';
 import { logger } from '../utils/logger';
+import { CONCURRENCY_CONFIG, DATE_CALCULATION_CONFIG, COST_OPTIMIZATION_CONFIG, OCCUPANCY_CONFIG } from '../config/scheduling.config';
 import { ContainerStatusService } from './containerStatus.service';
 import { DemurrageService } from './demurrage.service';
 import { SchedulingCostOptimizerService } from './schedulingCostOptimizer.service';
@@ -175,7 +176,7 @@ export class IntelligentSchedulingService {
       const hasMore = skip + limit < sortedContainers.length;
 
       // 3. 仅对本批货柜做滞港费写回（避免全量写回导致首批迟迟不返回）
-      const CONCURRENCY = 5;
+      const CONCURRENCY = CONCURRENCY_CONFIG.BATCH_OPERATIONS; // 配置化：默认值为 5
       const lastFreeByCn: Record<string, Date> = {};
       try {
         const numbers = toProcess.map((c) => c.containerNumber);
@@ -994,7 +995,7 @@ export class IntelligentSchedulingService {
       warehouseMappings.filter((m) => m.isDefault).map((m) => m.warehouseCode)
     );
     const getPriority = (p: string) =>
-      IntelligentSchedulingService.PROPERTY_TYPE_PRIORITY[p] ?? 999;
+      IntelligentSchedulingService.PROPERTY_TYPE_PRIORITY[p] ?? COST_OPTIMIZATION_CONFIG.DEFAULT_PROPERTY_PRIORITY; // 配置化：默认优先级
 
     return [...warehouses].sort((a, b) => {
       const aDefault = defaultWarehouseCodes.has(a.warehouseCode) ? 0 : 1;
@@ -1063,7 +1064,7 @@ export class IntelligentSchedulingService {
         const warehouse = await AppDataSource.getRepository(Warehouse).findOne({
           where: { warehouseCode }
         });
-        const _capacity = warehouse?.dailyUnloadCapacity || 10; // 默认 10
+        const _capacity = warehouse?.dailyUnloadCapacity || OCCUPANCY_CONFIG.DEFAULT_WAREHOUSE_DAILY_CAPACITY; // 配置化：默认日卸柜能力
         return date;
       }
 
@@ -1252,7 +1253,7 @@ export class IntelligentSchedulingService {
           where: { companyCode: truckingCompanyId },
           select: ['dailyReturnCapacity', 'dailyCapacity']
         });
-        const capacity = trucking?.dailyReturnCapacity ?? trucking?.dailyCapacity ?? 20;
+        const capacity = trucking?.dailyReturnCapacity ?? trucking?.dailyCapacity ?? OCCUPANCY_CONFIG.DEFAULT_TRUCKING_RETURN_CAPACITY; // 配置化：默认日还箱能力
         if (capacity > 0) {
           return date;
         }
@@ -1518,7 +1519,7 @@ export class IntelligentSchedulingService {
         where: { companyCode: truckingCompanyId },
         select: ['dailyCapacity']
       });
-      const capacity = trucking?.dailyCapacity ?? 10;
+      const capacity = trucking?.dailyCapacity ?? OCCUPANCY_CONFIG.DEFAULT_TRUCKING_DAILY_CAPACITY; // 配置化：默认日操作能力
       await this.truckingOccupancyRepo.save({
         truckingCompanyId,
         date,
@@ -1558,8 +1559,8 @@ export class IntelligentSchedulingService {
         where: { companyCode: truckingCompanyId },
         select: ['dailyReturnCapacity', 'dailyCapacity']
       });
-      // 优先使用 daily_return_capacity，若无则使用 daily_capacity
-      const capacity = trucking?.dailyReturnCapacity ?? trucking?.dailyCapacity ?? 20;
+      // 优先使用 daily_return_capacity，若无则使用 daily_capacity（配置化）
+      const capacity = trucking?.dailyReturnCapacity ?? trucking?.dailyCapacity ?? OCCUPANCY_CONFIG.DEFAULT_TRUCKING_RETURN_CAPACITY;
 
       await repo.save({
         truckingCompanyId,
@@ -1889,9 +1890,9 @@ export class IntelligentSchedulingService {
           // 堆场操作费（一次性）
           const yardOperationFee = Number(tpMapping?.yardOperationFee || 0);
 
-          // 堆场堆存费（按 2 天估算）
+          // 堆场堆存费（按配置天数估算）
           const dailyYardRate = Number(tpMapping?.standardRate || 0);
-          const estimatedYardDays = 2;
+          const estimatedYardDays = DATE_CALCULATION_CONFIG.DEFAULT_ESTIMATED_YARD_DAYS; // 配置化：默认值为 2
           const yardStorageCost = dailyYardRate * estimatedYardDays;
 
           transportFee += yardOperationFee + yardStorageCost;
@@ -1945,9 +1946,9 @@ export class IntelligentSchedulingService {
         score += 15; // 大运力车队加分
       }
 
-      // 4. 服务质量评分（简化为固定值，后续可扩展）
+      // 4. 服务质量评分（使用配置值）
       // TODO: 可以基于准点率、投诉率等计算
-      const serviceQualityBonus = 5; // 基础服务质量分
+      const serviceQualityBonus = COST_OPTIMIZATION_CONFIG.BASE_SERVICE_QUALITY_SCORE; // 配置化：基础服务质量分
       score += serviceQualityBonus;
 
       // 确保分数在 0-100 范围内
