@@ -5,7 +5,6 @@
  * 实现规则引擎（阶段一）：先到先得 + 约束校验
  */
 
-import { In } from 'typeorm';
 import {
   CONCURRENCY_CONFIG,
   COST_OPTIMIZATION_CONFIG,
@@ -185,8 +184,10 @@ export class IntelligentSchedulingService {
 
     try {
       // ✅ 记录是否为预览模式
-      logger.info(`[IntelligentScheduling] Starting ${request.dryRun ? 'Preview' : 'Production'} scheduling for country: ${request.country}`);
-      
+      logger.info(
+        `[IntelligentScheduling] Starting ${request.dryRun ? 'Preview' : 'Production'} scheduling for country: ${request.country}`
+      );
+
       // 1. 查询待排产的货柜
       const containers = await this.getContainersToSchedule(request);
       logger.info(`[IntelligentScheduling] Found ${containers.length} containers to schedule`);
@@ -221,75 +222,91 @@ export class IntelligentSchedulingService {
                 ? s.value?.result?.calculationDates?.lastPickupDateComputed
                 : null;
             if (computed) lastFreeByCn[batch[j]] = new Date(computed);
-            
+
             // ✅ 分类提取免费天数（确保口径一致）
             if (s.status === 'fulfilled' && s.value?.result) {
               const standards = s.value.result.matchedStandards || [];
-              
+
               // ✅ 提取各类免费天数（参考 riskService.ts 标准方法）
               const isCombined = (std: any) => {
                 const code = (std.chargeTypeCode ?? '').toUpperCase();
                 const name = (std.chargeName ?? '').toLowerCase();
-                const hasDem = code.includes('DEMURRAGE') || name.includes('demurrage') || name.includes('滞港');
-                const hasDet = code.includes('DETENTION') || name.includes('detention') || name.includes('滞箱');
+                const hasDem =
+                  code.includes('DEMURRAGE') || name.includes('demurrage') || name.includes('滞港');
+                const hasDet =
+                  code.includes('DETENTION') || name.includes('detention') || name.includes('滞箱');
                 return hasDem && hasDet;
               };
-              
+
               const isDetention = (std: any) => {
                 if (isCombined(std)) return false;
                 const code = (std.chargeTypeCode ?? '').toUpperCase();
                 const name = (std.chargeName ?? '').toLowerCase();
-                return code.includes('DETENTION') || name.includes('detention') || name.includes('滞箱');
+                return (
+                  code.includes('DETENTION') || name.includes('detention') || name.includes('滞箱')
+                );
               };
-              
+
               const isStorage = (std: any) => {
                 if (isCombined(std)) return false;
                 if (isDetention(std)) return false;
                 const code = (std.chargeTypeCode ?? '').toUpperCase();
                 const name = (std.chargeName ?? '').toLowerCase();
-                return code.includes('STORAGE') || name.includes('storage') || name.includes('堆存');
+                return (
+                  code.includes('STORAGE') || name.includes('storage') || name.includes('堆存')
+                );
               };
-              
+
               const isDemurrage = (std: any) => {
                 if (isCombined(std)) return false;
                 if (isDetention(std)) return false;
                 if (isStorage(std)) return false;
                 const code = (std.chargeTypeCode ?? '').toUpperCase();
                 const name = (std.chargeName ?? '').toLowerCase();
-                return code.includes('DEMURRAGE') || name.includes('demurrage') || name.includes('滞港');
+                return (
+                  code.includes('DEMURRAGE') || name.includes('demurrage') || name.includes('滞港')
+                );
               };
-              
+
               // 根据费用类型分类提取
               const demurrageStandard = standards.find(isDemurrage);
               const storageStandard = standards.find(isStorage);
               const detentionStandard = standards.find(isDetention);
               const dndStandard = standards.find(isCombined);
-              
+
               const demurrageFreeDays = demurrageStandard?.freeDays;
               const storageFreeDays = storageStandard?.freeDays;
               const detentionFreeDays = detentionStandard?.freeDays;
               const dnDFreeDays = dndStandard?.freeDays;
-              
+
               // ✅ 调试：打印提取的免费天数
               logger.info(
                 `[IntelligentScheduling] Container ${batch[j]}: demurrage=${demurrageFreeDays} (${demurrageStandard?.chargeName}), storage=${storageFreeDays} (${storageStandard?.chargeName}), detention=${detentionFreeDays} (${detentionStandard?.chargeName}), dnd=${dnDFreeDays} (${dndStandard?.chargeName})`
               );
-              
+
               // ✅ 强制转换确保 freeDays 是数字
-              const demurrageFreeDaysNum = typeof demurrageFreeDays === 'number' ? demurrageFreeDays : undefined;
-              const storageFreeDaysNum = typeof storageFreeDays === 'number' ? storageFreeDays : undefined;
-              const detentionFreeDaysNum = typeof detentionFreeDays === 'number' ? detentionFreeDays : undefined;
+              const demurrageFreeDaysNum =
+                typeof demurrageFreeDays === 'number' ? demurrageFreeDays : undefined;
+              const storageFreeDaysNum =
+                typeof storageFreeDays === 'number' ? storageFreeDays : undefined;
+              const detentionFreeDaysNum =
+                typeof detentionFreeDays === 'number' ? detentionFreeDays : undefined;
               const dnDFreeDaysNum = typeof dnDFreeDays === 'number' ? dnDFreeDays : undefined;
-              
+
               // 提柜免费天数 = MIN(滞港，堆存，D&D)
-              const pickupFreeDaysCandidates = [demurrageFreeDaysNum, storageFreeDaysNum, dnDFreeDaysNum].filter(d => d !== undefined);
-              const pickupFreeDays = pickupFreeDaysCandidates.length > 0 
-                ? Math.min(...pickupFreeDaysCandidates)
-                : undefined;
-              
+              const pickupFreeDaysCandidates = [
+                demurrageFreeDaysNum,
+                storageFreeDaysNum,
+                dnDFreeDaysNum
+              ].filter((d) => d !== undefined);
+              const pickupFreeDays =
+                pickupFreeDaysCandidates.length > 0
+                  ? Math.min(...pickupFreeDaysCandidates)
+                  : undefined;
+
               // 还箱免费天数 = D&D 或 滞箱
               const returnFreeDays = dnDFreeDaysNum ?? detentionFreeDaysNum;
-              
+
               // 保存结果
               if (pickupFreeDays !== undefined) {
                 pickupFreeDaysByCn[batch[j]] = pickupFreeDays;
@@ -481,13 +498,15 @@ export class IntelligentSchedulingService {
       // ✅ 业务规则检查①：如果已有实际还箱日，不参与排产
       // 查询实际提柜日和实际还箱日（Container 实体未定义 OneToMany 关系，需手动查询）
       const [truckingTransport, emptyReturn] = await Promise.all([
-        this.truckingTransportRepo.findOne({ where: { containerNumber: container.containerNumber } }),
+        this.truckingTransportRepo.findOne({
+          where: { containerNumber: container.containerNumber }
+        }),
         this.emptyReturnRepo.findOne({ where: { containerNumber: container.containerNumber } })
       ]);
-      
+
       const actualPickupDate = truckingTransport?.pickupDate || null;
       const actualReturnDate = emptyReturn?.returnTime || null;
-      
+
       if (actualReturnDate) {
         logger.info(
           `[IntelligentScheduling] Skip scheduling for ${container.containerNumber}: already returned (actual return date: ${actualReturnDate.toISOString()})`
@@ -502,7 +521,7 @@ export class IntelligentSchedulingService {
           ataDestPort: ''
         };
       }
-      
+
       // ✅ 业务规则检查②：如果已有实际提柜日，锁定提/送/卸日期，只计算还箱日
       if (actualPickupDate) {
         logger.info(
@@ -685,7 +704,10 @@ export class IntelligentSchedulingService {
       // 4. 确定候选仓库（根据该国分公司 → 国家代码，见 12-国家概念统一约定.md）
       // ✅ Phase 3: 使用 WarehouseSelectorService
       const countryCode = await this.resolveCountryCode(container.replenishmentOrders?.[0] as any);
-      const warehouses = await this.warehouseSelectorService.getCandidateWarehouses(countryCode, destPo.portCode);
+      const warehouses = await this.warehouseSelectorService.getCandidateWarehouses(
+        countryCode,
+        destPo.portCode
+      );
       if (warehouses.length === 0) {
         return {
           containerNumber: container.containerNumber,
@@ -947,7 +969,10 @@ export class IntelligentSchedulingService {
 
         // 扣减仓库日产能
         // ✅ Phase 3: 使用 OccupancyCalculator
-        await this.occupancyCalculator.decrementWarehouseOccupancy(warehouse.warehouseCode, unloadDate);
+        await this.occupancyCalculator.decrementWarehouseOccupancy(
+          warehouse.warehouseCode,
+          unloadDate
+        );
 
         // 扣减拖车档期（送柜）
         // ✅ Phase 3: 使用 OccupancyCalculator
@@ -980,12 +1005,12 @@ export class IntelligentSchedulingService {
       // ✅ 获取免费天数（区分提柜和还箱）
       const pickupFreeDays = (destPo as any).pickupFreeDays ?? undefined; // 提柜免费天数
       const returnFreeDays = (destPo as any).returnFreeDays ?? undefined; // 还箱免费天数
-      
+
       // ✅ 调试日志：记录免费天数（使用 info 确保输出）
       logger.info(
         `[IntelligentScheduling] Container ${container.containerNumber}: pickupFreeDays=${pickupFreeDays}, returnFreeDays=${returnFreeDays}`
       );
-      
+
       // ✅ 调试：打印 destPo 对象，检查免费天数是否存在
       logger.info(
         `[IntelligentScheduling] Container ${container.containerNumber}: destPo.pickupFreeDays=${(destPo as any).pickupFreeDays}, destPo.returnFreeDays=${(destPo as any).returnFreeDays}`
@@ -1500,7 +1525,7 @@ export class IntelligentSchedulingService {
         transportationCost: totalCostResult.transportationCost,
         totalCost: totalCostResult.totalCost,
         currency: totalCostResult.currency,
-        items: totalCostResult.items?.map(item => ({
+        items: totalCostResult.items?.map((item) => ({
           chargeName: item.chargeName,
           chargeTypeCode: item.chargeTypeCode,
           freeDays: item.freeDays,
@@ -1916,7 +1941,10 @@ export class IntelligentSchedulingService {
       // 2. 验证仓库是否在映射关系中（确保有车队服务）
       // ✅ Phase 3: 使用 WarehouseSelectorService
       const countryCode = await this.resolveCountryCode(container.replenishmentOrders?.[0]);
-      const candidateWarehouses = await this.warehouseSelectorService.getCandidateWarehouses(countryCode, destPo.portCode);
+      const candidateWarehouses = await this.warehouseSelectorService.getCandidateWarehouses(
+        countryCode,
+        destPo.portCode
+      );
 
       const isWarehouseInMapping = candidateWarehouses.some(
         (w) => w.warehouseCode === designatedWarehouseCode

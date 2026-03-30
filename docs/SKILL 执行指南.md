@@ -15,6 +15,7 @@
 📄 [skill.md](skill.md) - 完整的 SKILL 原则规范
 
 **重点章节：**
+
 - SKILL 原则详解
 - 七步开发流程
 - 检查清单
@@ -56,6 +57,7 @@ npm run type-check
 📄 [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md)
 
 **必填内容：**
+
 - ✅ 检查清单（全部勾选）
 - ✅ SKILL 原则评估（自评分数）
 - ✅ 测试结果截图
@@ -81,6 +83,7 @@ node scripts/check-skill-compliance.js
 ```
 
 **检查内容：**
+
 - ✅ 文件行数（≤300 行）
 - ✅ 方法行数（≤50 行）
 - ✅ JSDoc 完整性
@@ -100,7 +103,7 @@ ContainerFilterService.ts
   行数：125
   函数数：3
   JSDoc: 3/3
-  
+
 SchedulingSorter.ts
   行数：188
   函数数：4
@@ -128,6 +131,7 @@ SchedulingSorter.ts
 ### **GitHub Actions CI**
 
 **自动触发条件：**
+
 - Push 到 main/develop 分支
 - 创建 Pull Request
 
@@ -171,11 +175,11 @@ SchedulingSorter.ts
 
 #### **开发前**
 
-1. **阅读 skill.md** 
+1. **阅读 skill.md**
    - 理解 SKILL 原则
    - 熟悉检查清单
-   
 2. **创建分支**
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
@@ -222,6 +226,7 @@ SchedulingSorter.ts
 ```
 
 **每步检查：**
+
 - [ ] 测试通过了吗？
 - [ ] `npm run skill:check` 通过了吗？
 - [ ] 代码符合 SKILL 吗？
@@ -232,18 +237,21 @@ SchedulingSorter.ts
 #### **开发后**
 
 1. **运行完整测试**
+
    ```bash
    npm test -- --coverage
    # 确保覆盖率 ≥ 80%
    ```
 
 2. **运行技能检查**
+
    ```bash
    npm run skill:check
    # 确保所有检查通过
    ```
 
 3. **编写执行报告**
+
    ```bash
    # 在 backend/scripts/ 目录创建报告
    # 格式参考 phase2-step*-report.md
@@ -283,12 +291,14 @@ SchedulingSorter.ts
 
 ```markdown
 ## 需求理解
+
 - [ ] 我理解了业务的真实需求吗？
 - [ ] 我知道要修改哪些文件吗？
 - [ ] 我识别了所有风险点吗？
 - [ ] 我有更简单的方案吗？
 
 ## 方案设计
+
 - [ ] 符合 SKILL 原则吗？
 - [ ] 有零破坏性变更吗？
 - [ ] 测试策略完善吗？
@@ -299,6 +309,7 @@ SchedulingSorter.ts
 
 ```markdown
 ## 每步检查
+
 - [ ] 测试通过了吗？
 - [ ] npm run skill:check 通过了吗？
 - [ ] 代码符合 SKILL 吗？
@@ -309,12 +320,14 @@ SchedulingSorter.ts
 
 ```markdown
 ## 测试验证
+
 - [ ] 所有测试通过吗？
 - [ ] 覆盖率≥80% 吗？
 - [ ] 边界条件测了吗？
 - [ ] 异常情况测了吗？
 
 ## 文档完善
+
 - [ ] JSDoc 完整吗？
 - [ ] 示例充分吗？
 - [ ] 执行报告写了吗？
@@ -325,12 +338,14 @@ SchedulingSorter.ts
 
 ```markdown
 ## 代码质量
+
 - [ ] npm run skill:check 通过
 - [ ] npm run lint 通过
 - [ ] npm run type-check 通过
 - [ ] 格式化代码
 
 ## PR 准备
+
 - [ ] 使用 PR 模板
 - [ ] 填写检查清单
 - [ ] 上传测试结果
@@ -357,12 +372,12 @@ SchedulingSorter.ts
 
 **常见错误及解决：**
 
-| 错误 | 原因 | 解决方案 |
-|------|------|----------|
+| 错误         | 原因    | 解决方案       |
+| ------------ | ------- | -------------- |
 | 文件行数过多 | >300 行 | 拆分为多个服务 |
-| 方法行数过多 | >50 行 | 提取子方法 |
-| 缺少 JSDoc | 无注释 | 添加完整 JSDoc |
-| TODO 过多 | >5 个 | 尽快实现或移除 |
+| 方法行数过多 | >50 行  | 提取子方法     |
+| 缺少 JSDoc   | 无注释  | 添加完整 JSDoc |
+| TODO 过多    | >5 个   | 尽快实现或移除 |
 
 ---
 
@@ -372,16 +387,16 @@ SchedulingSorter.ts
 
 ```typescript
 // 分层测试策略
-describe('methodName', () => {
+describe("methodName", () => {
   // Layer 1: 基本功能
-  it('should work for normal case', () => {});
-  
+  it("should work for normal case", () => {});
+
   // Layer 2: 边界条件
-  it('should handle empty input', () => {});
-  it('should handle null input', () => {});
-  
+  it("should handle empty input", () => {});
+  it("should handle null input", () => {});
+
   // Layer 3: 异常情况
-  it('should throw error for invalid input', () => {});
+  it("should throw error for invalid input", () => {});
 });
 ```
 
@@ -391,17 +406,17 @@ describe('methodName', () => {
 
 **A:** 参考模板：
 
-```typescript
+````typescript
 /**
  * 方法名称
- * 
+ *
  * 一句话描述职责
- * 
+ *
  * 详细说明（可选）
- * 
+ *
  * @param paramName - 参数说明
  * @returns 返回值说明
- * 
+ *
  * @example
  * ```typescript
  * const result = await service.method({...});
@@ -410,7 +425,7 @@ describe('methodName', () => {
 async methodName(paramName: Type): Promise<ReturnType> {
   // ...
 }
-```
+````
 
 ---
 
@@ -419,22 +434,27 @@ async methodName(paramName: Type): Promise<ReturnType> {
 **A:** 问自己这些问题：
 
 **S - 单一职责：**
+
 - 这个类只做一件事吗？
 - 能用一句话说清楚职责吗？
 
 **K - 知识沉淀：**
+
 - JSDoc 完整吗？
 - 执行报告写了吗？
 
 **I - 索引清晰：**
+
 - 命名清晰吗？
 - 接口定义完善吗？
 
 **L - 活文档：**
+
 - 测试覆盖全面吗？
 - 测试即文档吗？
 
 **L - 面向学习：**
+
 - 示例充分吗？
 - 新人能看懂吗？
 
@@ -452,6 +472,7 @@ async methodName(paramName: Type): Promise<ReturnType> {
 6. **重新提交**
 
 **常见失败原因：**
+
 - ❌ 测试覆盖率 < 80%
 - ❌ ESLint 有错误
 - ❌ TypeScript 编译失败
@@ -522,18 +543,22 @@ async processContainers() {
 # 执行报告结构
 
 ## 执行摘要
+
 - 执行时间：XX 分钟
 - 代码行数：XXX 行
 - 测试数量：XX 个
 - 通过率：XX%
 
 ## 技术方案
+
 [核心思路]
 
 ## 踩坑记录
+
 [问题 + 解决]
 
 ## 测试结果
+
 [测试覆盖]
 ```
 

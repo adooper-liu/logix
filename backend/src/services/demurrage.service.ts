@@ -360,7 +360,7 @@ function calculateSingleDemurrage(
       freeDays,
       chargeDays,
       currentDay,
-      tiers: sorted.map(t => ({
+      tiers: sorted.map((t) => ({
         fromDay: t.fromDay,
         toDay: t.toDay,
         ratePerDay: t.ratePerDay

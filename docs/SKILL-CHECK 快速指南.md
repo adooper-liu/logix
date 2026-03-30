@@ -60,7 +60,7 @@ ContainerFilterService.ts
   行数：125
   函数数：3
   JSDoc: 3/3
-  
+
 SchedulingSorter.ts
   行数：188
   函数数：4
@@ -114,19 +114,19 @@ demurrage.service.ts
 
 ### **强制检查项**
 
-| 检查项 | 标准值 | 说明 |
-|--------|--------|------|
-| **文件行数** | ≤300 行 | 单文件不得超过 300 行 |
-| **方法行数** | ≤50 行 | 单个方法不得超过 50 行 |
-| **JSDoc 完整性** | 100% | 公共函数必须有 JSDoc |
+| 检查项           | 标准值  | 说明                   |
+| ---------------- | ------- | ---------------------- |
+| **文件行数**     | ≤300 行 | 单文件不得超过 300 行  |
+| **方法行数**     | ≤50 行  | 单个方法不得超过 50 行 |
+| **JSDoc 完整性** | 100%    | 公共函数必须有 JSDoc   |
 
 ### **警告项**
 
-| 检查项 | 标准值 | 说明 |
-|--------|--------|------|
-| **函数参数** | ≤4 个 | 超过 4 个会警告 |
-| **TODO 数量** | ≤5 个 | 超过 5 个会警告 |
-| **FIXME 数量** | 0 个 | 有 FIXME 会警告 |
+| 检查项         | 标准值 | 说明            |
+| -------------- | ------ | --------------- |
+| **函数参数**   | ≤4 个  | 超过 4 个会警告 |
+| **TODO 数量**  | ≤5 个  | 超过 5 个会警告 |
+| **FIXME 数量** | 0 个   | 有 FIXME 会警告 |
 
 ---
 
@@ -172,12 +172,24 @@ export class IntelligentSchedulingService {
 }
 
 // ✅ 修改后：拆分为 6 个小文件
-export class ContainerFilterService { /* 125 行 */ }
-export class SchedulingSorter { /* 188 行 */ }
-export class WarehouseSelectorService { /* 287 行 */ }
-export class TruckingSelectorService { /* 412 行 */ }
-export class OccupancyCalculator { /* 287 行 */ }
-export class CostEstimationService { /* 207 行 */ }
+export class ContainerFilterService {
+  /* 125 行 */
+}
+export class SchedulingSorter {
+  /* 188 行 */
+}
+export class WarehouseSelectorService {
+  /* 287 行 */
+}
+export class TruckingSelectorService {
+  /* 412 行 */
+}
+export class OccupancyCalculator {
+  /* 287 行 */
+}
+export class CostEstimationService {
+  /* 207 行 */
+}
 ```
 
 ---
@@ -212,15 +224,15 @@ save(containers: Container[]): Promise<void> { /* 20 行 */ }
 
 **解决：** 添加 JSDoc 注释
 
-```typescript
+````typescript
 /**
  * 方法名称
- * 
+ *
  * 一句话描述职责
- * 
+ *
  * @param paramName - 参数说明
  * @returns 返回值说明
- * 
+ *
  * @example
  * ```typescript
  * const result = await service.method({...});
@@ -229,7 +241,7 @@ save(containers: Container[]): Promise<void> { /* 20 行 */ }
 async methodName(paramName: Type): Promise<ReturnType> {
   // ...
 }
-```
+````
 
 ---
 
@@ -306,19 +318,19 @@ GitHub Actions 会在以下情况自动运行：
 
 ### **针对大文件**
 
-| 当前行数 | 建议措施 |
-|----------|----------|
-| 300-500 行 | 尽快拆分 |
+| 当前行数    | 建议措施 |
+| ----------- | -------- |
+| 300-500 行  | 尽快拆分 |
 | 500-1000 行 | 立即拆分 |
-| >1000 行 | 紧急拆分 |
+| >1000 行    | 紧急拆分 |
 
 ### **针对长方法**
 
-| 当前行数 | 建议措施 |
-|----------|----------|
-| 50-100 行 | 考虑拆分 |
+| 当前行数   | 建议措施 |
+| ---------- | -------- |
+| 50-100 行  | 考虑拆分 |
 | 100-200 行 | 必须拆分 |
-| >200 行 | 立即拆分 |
+| >200 行    | 立即拆分 |
 
 ---
 
@@ -327,9 +339,11 @@ GitHub Actions 会在以下情况自动运行：
 ### **Phase 2 服务拆分**
 
 **拆分前：**
+
 - `intelligentScheduling.service.ts`: 2,371 行
 
 **拆分后：**
+
 - `ContainerFilterService.ts`: 125 行 ✅
 - `SchedulingSorter.ts`: 188 行 ✅
 - `WarehouseSelectorService.ts`: 287 行 ✅
@@ -367,11 +381,13 @@ npm run
 ### **IDE 集成**
 
 **VS Code:**
+
 - 安装 `ESLint` 插件
 - 安装 `Prettier` 插件
 - 设置保存时自动格式化
 
 **WebStorm:**
+
 - 启用 ESLint
 - 启用 Prettier
 - 设置 File Watcher

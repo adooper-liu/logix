@@ -2,7 +2,7 @@
 
 /**
  * SKILL 原则代码质量检查脚本
- * 
+ *
  * 功能：
  * 1. 检查文件行数（≤300 行）
  * 2. 检查方法行数（≤50 行）
@@ -61,13 +61,13 @@ async function main() {
 
   // 扫描服务文件
   const serviceFiles = scanDirectory(CONFIG.srcDir, /\.service\.ts$/);
-  
+
   console.log(`${colors.blue}正在检查 ${serviceFiles.length} 个服务文件...${colors.reset}\n`);
 
   for (const file of serviceFiles) {
     const result = await checkFile(file);
     results.files.push(result);
-    
+
     if (result.errors.length > 0 || result.warnings.length > 0) {
       results.failedFiles++;
     } else {
@@ -80,10 +80,10 @@ async function main() {
   results.stats.averageLines = Math.round(
     results.files.reduce((sum, f) => sum + f.lines, 0) / results.files.length
   );
-  
+
   // 生成报告
   printReport(results);
-  
+
   // 退出码
   process.exit(results.failedFiles > 0 ? 1 : 0);
 }
@@ -95,7 +95,7 @@ async function checkFile(filePath) {
   const content = fs.readFileSync(filePath, 'utf-8');
   const lines = content.split('\n');
   const fileName = path.basename(filePath);
-  
+
   const result = {
     file: filePath,
     fileName,
@@ -120,7 +120,7 @@ async function checkFile(filePath) {
   // 检查 2: 分析函数
   const functions = extractFunctions(content);
   result.functions = functions;
-  
+
   for (const func of functions) {
     // 检查函数行数
     if (func.lines > CONFIG.maxFunctionLines) {
@@ -130,7 +130,7 @@ async function checkFile(filePath) {
         line: func.startLine
       });
     }
-    
+
     // 检查参数数量
     if (func.parameters.length > CONFIG.maxParameters) {
       result.warnings.push({
@@ -139,7 +139,7 @@ async function checkFile(filePath) {
         line: func.startLine
       });
     }
-    
+
     // 检查 JSDoc
     if (func.hasJSDoc) {
       result.jsdocCount++;
@@ -155,7 +155,7 @@ async function checkFile(filePath) {
   // 检查 3: TODO/FIXME
   result.todoCount = (content.match(/\/\/\s*TODO/gi) || []).length;
   result.fixmeCount = (content.match(/\/\/\s*FIXME/gi) || []).length;
-  
+
   if (result.todoCount > 5) {
     result.warnings.push({
       rule: 'too-many-todos',
@@ -163,7 +163,7 @@ async function checkFile(filePath) {
       line: 1
     });
   }
-  
+
   if (result.fixmeCount > 0) {
     result.warnings.push({
       rule: 'has-fixme',
@@ -181,19 +181,20 @@ async function checkFile(filePath) {
 function extractFunctions(content) {
   const functions = [];
   const lines = content.split('\n');
-  
+
   // 简化的函数检测（实际应该用 AST 解析）
   const functionRegex = /^(?:export\s+)?(?:async\s+)?function\s+(\w+)\s*\(([^)]*)\)/gm;
-  const methodRegex = /^(?:public|private|protected)?\s*(?:async\s+)?(\w+)\s*\(([^)]*)\)\s*(?::\s*\w+)?\s*\{/gm;
-  
+  const methodRegex =
+    /^(?:public|private|protected)?\s*(?:async\s+)?(\w+)\s*\(([^)]*)\)\s*(?::\s*\w+)?\s*\{/gm;
+
   let match;
   while ((match = functionRegex.exec(content)) !== null) {
     const startLine = content.substring(0, match.index).split('\n').length;
     const endLine = findFunctionEnd(lines, startLine);
-    
+
     functions.push({
       name: match[1],
-      parameters: match[2].split(',').filter(p => p.trim()).length,
+      parameters: match[2].split(',').filter((p) => p.trim()).length,
       lines: endLine - startLine,
       startLine,
       endLine,
@@ -201,7 +202,7 @@ function extractFunctions(content) {
       isPublic: true
     });
   }
-  
+
   return functions;
 }
 
@@ -211,10 +212,10 @@ function extractFunctions(content) {
 function findFunctionEnd(lines, startLine) {
   let braceCount = 0;
   let inFunction = false;
-  
+
   for (let i = startLine - 1; i < lines.length; i++) {
     const line = lines[i];
-    
+
     for (const char of line) {
       if (char === '{') {
         braceCount++;
@@ -223,12 +224,12 @@ function findFunctionEnd(lines, startLine) {
         braceCount--;
       }
     }
-    
+
     if (inFunction && braceCount === 0) {
       return i + 1;
     }
   }
-  
+
   return lines.length;
 }
 
@@ -246,14 +247,14 @@ function hasJSDoc(lines, lineNum) {
  */
 function scanDirectory(dir, pattern) {
   const files = [];
-  
+
   try {
     const items = fs.readdirSync(dir);
-    
+
     for (const item of items) {
       const fullPath = path.join(dir, item);
       const stat = fs.statSync(fullPath);
-      
+
       if (stat.isDirectory()) {
         if (!item.startsWith('.') && item !== 'node_modules') {
           files.push(...scanDirectory(fullPath, pattern));
@@ -265,7 +266,7 @@ function scanDirectory(dir, pattern) {
   } catch (error) {
     console.error(`Error scanning ${dir}:`, error.message);
   }
-  
+
   return files;
 }
 
@@ -276,7 +277,7 @@ function printReport(results) {
   console.log(`${colors.cyan}================================${colors.reset}`);
   console.log(`${colors.cyan}检查结果${colors.reset}`);
   console.log(`${colors.cyan}================================${colors.reset}\n`);
-  
+
   // 总体统计
   console.log(`${colors.blue}总体统计:${colors.reset}`);
   console.log(`  总文件数：${results.stats.totalFiles}`);
@@ -285,31 +286,31 @@ function printReport(results) {
   console.log(`  平均行数：${results.stats.averageLines}`);
   console.log(`  TODO 数量：${results.stats.todoCount}`);
   console.log(`  FIXME 数量：${results.stats.fixmeCount}\n`);
-  
+
   // 详细结果
   for (const fileResult of results.files) {
     console.log(`${colors.yellow}${fileResult.fileName}${colors.reset}`);
     console.log(`  行数：${fileResult.lines}`);
     console.log(`  函数数：${fileResult.functions.length}`);
     console.log(`  JSDoc: ${fileResult.jsdocCount}/${fileResult.functions.length}`);
-    
+
     if (fileResult.errors.length > 0) {
       console.log(`  ${colors.red}错误:${colors.reset}`);
       for (const error of fileResult.errors) {
         console.log(`    - Line ${error.line}: ${error.message}`);
       }
     }
-    
+
     if (fileResult.warnings.length > 0) {
       console.log(`  ${colors.yellow}警告:${colors.reset}`);
       for (const warning of fileResult.warnings) {
         console.log(`    - Line ${warning.line}: ${warning.message}`);
       }
     }
-    
+
     console.log('');
   }
-  
+
   // 最终结论
   console.log(`${colors.cyan}================================${colors.reset}`);
   if (results.failedFiles === 0) {

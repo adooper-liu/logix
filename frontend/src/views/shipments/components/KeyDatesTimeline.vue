@@ -1,8 +1,8 @@
 <script setup lang="ts">
+import DurationDisplay from '@/components/common/DurationDisplay.vue'
 import { QuestionFilled } from '@element-plus/icons-vue'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import DurationDisplay from '@/components/common/DurationDisplay.vue'
 
 const router = useRouter()
 
@@ -180,7 +180,7 @@ const timelineEvents = computed((): TimelineEvent[] => {
 
   // 先按日期排序所有事件
   const sortedEvents = events.sort((a, b) => a.date.getTime() - b.date.getTime())
-  
+
   // 确保"当前"节点在最后
   const currentEvent = sortedEvents.find(event => event.label === '当前')
   if (currentEvent) {
@@ -190,7 +190,7 @@ const timelineEvents = computed((): TimelineEvent[] => {
     eventsWithoutCurrent.push(currentEvent)
     return eventsWithoutCurrent
   }
-  
+
   return sortedEvents
 })
 
@@ -220,7 +220,7 @@ const TIMELINE_NODE_ORDER = [
 
 /**
  * 根据时间线节点顺序和后一节点是否存在，判断颜色类型
- * 
+ *
  * 规则：
  * 1. 历时：当前节点和后一节点都存在 → 蓝色
  * 2. 倒计时：后一节点不存在 + 当前节点在未来 → 橙色/绿色
@@ -266,17 +266,17 @@ const getDateAlertColor = (
 
 /**
  * 判断是否有「有效」后一节点（用于历时/倒计时/超期显示）
- * 
+ *
  * ✅ 业务规则：时间线节点分为两类
- * 
+ *
  * 1. 实际业务节点：出运、ATA、卸船、实际提柜、实际还箱
  *    - 总是显示历时（蓝色）
  *    - hasNextNode = true
- * 
+ *
  * 2. 计划与预警节点：ETA、修正 ETA、最晚提柜、最晚还箱
  *    - 如果后续实际节点已发生 → 显示历时（实际 - 计划 的天数差）
  *    - 如果后续实际节点未发生 → 显示倒计时/超期
- * 
+ *
  * 判断规则：
  * - 实际业务节点：总是 hasNextNode = true
  * - 最晚提柜：检查实际提柜是否已发生
@@ -293,9 +293,9 @@ const getEffectiveHasNextNode = (
   if (actualEventLabels.includes(event.label)) {
     return true
   }
-  
+
   // ✅ 计划与预警节点：检查后续实际节点是否已发生
-  
+
   // 1. 最晚提柜：检查实际提柜是否已发生
   if (event.label === '最晚提柜') {
     const pickupDate = dates.value?.pickupDateActual
@@ -304,7 +304,7 @@ const getEffectiveHasNextNode = (
     const pickupDateObj = typeof pickupDate === 'string' ? new Date(pickupDate) : pickupDate
     return pickupDateObj < new Date()
   }
-  
+
   // 2. 最晚还箱：检查实际还箱是否已发生
   if (event.label === '最晚还箱') {
     const returnTime = dates.value?.returnTime
@@ -313,7 +313,7 @@ const getEffectiveHasNextNode = (
     const returnTimeObj = typeof returnTime === 'string' ? new Date(returnTime) : returnTime
     return returnTimeObj < new Date()
   }
-  
+
   // 3. ETA/修正 ETA：检查所有后续实际业务节点是否有已发生的
   if (event.label === 'ETA' || event.label === '修正 ETA') {
     for (let i = index + 1; i < allEvents.length; i++) {
@@ -328,7 +328,7 @@ const getEffectiveHasNextNode = (
     }
     return false
   }
-  
+
   return false
 }
 
@@ -445,7 +445,7 @@ const getNextBusinessNodeDate = (
       <router-link
         :to="{
           path: '/docs/help/时间概念说明-历时倒计时超期.md',
-          query: { from: router.currentRoute.value.fullPath }
+          query: { from: router.currentRoute.value.fullPath },
         }"
         class="help-link"
         title="历时/倒计时/超期说明"
@@ -538,7 +538,9 @@ const getNextBusinessNodeDate = (
     color: $text-secondary;
     text-decoration: none;
     border-radius: $radius-base;
-    transition: color $transition-base, background $transition-base;
+    transition:
+      color $transition-base,
+      background $transition-base;
 
     &:hover {
       color: $primary-color;
@@ -767,5 +769,4 @@ const getNextBusinessNodeDate = (
     }
   }
 }
-
 </style>

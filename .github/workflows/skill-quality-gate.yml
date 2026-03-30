@@ -10,69 +10,69 @@ jobs:
   skill-compliance-check:
     name: SKILL 原则合规检查
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
           cache-dependency-path: backend/package-lock.json
-      
+
       - name: Install dependencies
         working-directory: ./backend
         run: npm ci
-      
+
       - name: Run SKILL compliance check
         run: node scripts/check-skill-compliance.js
         working-directory: .
-      
+
       - name: Upload quality report
         uses: actions/upload-artifact@v3
         if: always()
         with:
           name: skill-quality-report
           path: skill-report.json
-  
+
   test-coverage:
     name: 测试覆盖率检查
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
           cache-dependency-path: backend/package-lock.json
-      
+
       - name: Install dependencies
         working-directory: ./backend
         run: npm ci
-      
+
       - name: Run tests with coverage
         working-directory: ./backend
         run: npm test -- --coverage --ci
-      
+
       - name: Check coverage threshold
         working-directory: ./backend
         run: |
           COVERAGE=$(cat coverage/coverage-summary.json | jq '.total.lines.pct')
           echo "测试覆盖率：$COVERAGE%"
-          
+
           if (( $(echo "$COVERAGE < 80" | bc -l) )); then
             echo "::error::测试覆盖率不足 80% (当前：$COVERAGE%)"
             exit 1
           fi
-          
+
           echo "::notice::✅ 测试覆盖率达标：$COVERAGE%"
-      
+
       - name: Upload coverage report
         uses: codecov/codecov-action@v3
         with:
@@ -80,34 +80,34 @@ jobs:
           flags: backend
           name: backend-coverage
           fail_ci_if_error: false
-  
+
   lint-and-build:
     name: Lint & Build
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: "18"
+          cache: "npm"
           cache-dependency-path: backend/package-lock.json
-      
+
       - name: Install dependencies
         working-directory: ./backend
         run: npm ci
-      
+
       - name: Run ESLint
         working-directory: ./backend
         run: npm run lint
-      
+
       - name: Run TypeScript build
         working-directory: ./backend
         run: npm run build
-      
+
       - name: Check JSDoc completeness
         working-directory: ./backend
         run: |
@@ -115,13 +115,13 @@ jobs:
           node -e "
           const fs = require('fs');
           const path = require('path');
-          
+
           const servicesDir = './src/services';
           const files = fs.readdirSync(servicesDir)
             .filter(f => f.endsWith('.service.ts') && !f.endsWith('.test.ts'));
-          
+
           let missingJSDoc = [];
-          
+
           for (const file of files) {
             const content = fs.readFileSync(path.join(servicesDir, file), 'utf-8');
             const hasClassJSDoc = /\/\*\*[\s\S]*?\*\/\s*export class/.test(content);
@@ -130,24 +130,24 @@ jobs:
               missingJSDoc.push(file);
             }
           }
-          
+
           if (missingJSDoc.length > 0) {
             console.error('❌ 以下文件缺少 JSDoc:');
             missingJSDoc.forEach(f => console.error('  -', f));
             process.exit(1);
           }
-          
+
           console.log('✅ 所有服务文件 JSDoc 完整');
           "
-  
+
   documentation-check:
     name: 文档完整性检查
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      
+
       - name: Check execution reports
         run: |
           REPORTS_DIR="./backend/scripts"
@@ -159,15 +159,15 @@ jobs:
             "phase2-step5-occupancy-calculator-report.md"
             "phase2-step6-cost-estimation-report.md"
           )
-          
+
           MISSING_REPORTS=()
-          
+
           for report in "${REQUIRED_REPORTS[@]}"; do
             if [ ! -f "$REPORTS_DIR/$report" ]; then
               MISSING_REPORTS+=("$report")
             fi
           done
-          
+
           if [ ${#MISSING_REPORTS[@]} -gt 0 ]; then
             echo "::error::缺少以下执行报告:"
             for report in "${MISSING_REPORTS[@]}"; do
@@ -175,14 +175,14 @@ jobs:
             done
             exit 1
           fi
-          
+
           echo "✅ 所有执行报告完整"
-  
+
   pr-checklist-validation:
     name: PR 检查清单验证
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    
+
     steps:
       - name: Validate PR description
         uses: actions/github-script@v6
@@ -190,42 +190,42 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
             const body = pr.body || '';
-            
+
             // 检查是否包含检查清单
             const hasChecklist = body.includes('- [ ]') || body.includes('- [x]');
-            
+
             // 检查是否有 SKILL 评估
             const hasSkillAssessment = body.includes('SKILL 原则评估');
-            
+
             // 检查是否有测试结果
             const hasTestResults = body.includes('测试结果') || body.includes('Test Results');
-            
+
             let errors = [];
-            
+
             if (!hasChecklist) {
               errors.push('PR 描述中未包含检查清单，请使用 .github/PULL_REQUEST_TEMPLATE.md 模板');
             }
-            
+
             if (!hasSkillAssessment) {
               errors.push('PR 描述中未包含 SKILL 原则评估');
             }
-            
+
             if (!hasTestResults) {
               errors.push('PR 描述中未包含测试结果');
             }
-            
+
             if (errors.length > 0) {
               core.setFailed('PR 描述不完整:\n' + errors.join('\n'));
             } else {
               console.log('✅ PR 描述完整');
             }
-  
+
   quality-gate-summary:
     name: 质量门禁总结
     runs-on: ubuntu-latest
     needs: [skill-compliance-check, test-coverage, lint-and-build, documentation-check]
     if: always()
-    
+
     steps:
       - name: Generate summary
         run: |
@@ -238,7 +238,7 @@ jobs:
           echo "| Lint & Build | ${{ needs.lint-and-build.result }} |"
           echo "| 文档完整性检查 | ${{ needs.documentation-check.result }} |"
           echo ""
-          
+
           if [[ "${{ needs.skill-compliance-check.result }}" == "success" ]] && \
              [[ "${{ needs.test-coverage.result }}" == "success" ]] && \
              [[ "${{ needs.lint-and-build.result }}" == "success" ]] && \

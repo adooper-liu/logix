@@ -413,7 +413,11 @@
                   <template #default="{ row }">
                     <el-tooltip>
                       <template #content>
-                        <div>免费天数：{{ row.pickupFreeDays !== undefined ? row.pickupFreeDays : '-' }}</div>
+                        <div>
+                          免费天数：{{
+                            row.pickupFreeDays !== undefined ? row.pickupFreeDays : '-'
+                          }}
+                        </div>
                         <div>计算逻辑：从卸柜日开始计算免费期</div>
                       </template>
                       <div
@@ -433,7 +437,11 @@
                   <template #default="{ row }">
                     <el-tooltip>
                       <template #content>
-                        <div>免费天数：{{ row.returnFreeDays !== undefined ? row.returnFreeDays : '-' }}</div>
+                        <div>
+                          免费天数：{{
+                            row.returnFreeDays !== undefined ? row.returnFreeDays : '-'
+                          }}
+                        </div>
                         <div>计算逻辑：从提柜日开始计算免费期</div>
                       </template>
                       <div
@@ -840,7 +848,6 @@
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import CostOptimizationPanel from '@/components/CostOptimizationPanel.vue'
 import { useSchedulingFlow } from '@/composables/useSchedulingFlow'
-import { useResourceCapacity } from '@/composables/useResourceCapacity'
 import api from '@/services/api'
 import { containerService } from '@/services/container'
 import { useAppStore } from '@/store/app'
@@ -1426,18 +1433,15 @@ const isWeekend = (dateStr: string): boolean => {
 const BATCH_SIZE = 3
 
 // ✅ 使用 Composable 统一管理排产流程
-const {
-  scheduling,
-  handleBatchSchedule: executeSchedulingFlow,
-} = useSchedulingFlow({
+const { scheduling, handleBatchSchedule: executeSchedulingFlow } = useSchedulingFlow({
   onLog: addLog,
-  onProgress: (progress) => {
+  onProgress: progress => {
     console.log('[排产进度]', progress)
   },
-  onSuccess: (result) => {
+  onSuccess: result => {
     console.log('[排产成功]', result)
   },
-  onError: (error) => {
+  onError: error => {
     console.error('[排产错误]', error)
   },
 })
@@ -1730,9 +1734,7 @@ const handlePreviewSchedule = async () => {
           addLog(`  - 卸柜方式：${r.plannedData.unloadModePlan || '-'}`)
           if (r.estimatedCosts) {
             addLog(`  - 预估费用：$${r.estimatedCosts.totalCost?.toString() || '0.00'}`)
-            addLog(
-              `    • 运输费：$${r.estimatedCosts.transportationCost?.toString() || '0.00'}`
-            )
+            addLog(`    • 运输费：$${r.estimatedCosts.transportationCost?.toString() || '0.00'}`)
             addLog(`    • 卸货费：$${r.estimatedCosts.handlingCost?.toString() || '0.00'}`)
             addLog(`    • 仓储费：$${r.estimatedCosts.storageCost?.toString() || '0.00'}`)
             addLog(`    • 其他：$${r.estimatedCosts.otherCost?.toString() || '0.00'}`)

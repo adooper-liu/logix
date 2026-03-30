@@ -233,7 +233,7 @@ const displayType = computed((): 'countdown' | 'elapsed' | 'overdue' => {
   }
 
   // ✅ 计划与预警节点：根据后一节点和时间判断
-  
+
   // 有后一节点：显示历时（实际 - 计划）
   if (props.hasNextNode) {
     return 'elapsed'
@@ -243,7 +243,7 @@ const displayType = computed((): 'countdown' | 'elapsed' | 'overdue' => {
   const time = overdueTime.value
   if (!time) return 'elapsed'
   if (time < 0) return 'countdown'
-  
+
   // 日期在过去：显示超期
   return 'overdue'
 })
@@ -282,14 +282,14 @@ const colorType = computed((): 'danger' | 'warning' | 'success' | 'info' | '' =>
   if (type === 'elapsed') {
     // 检查是否是计划节点 vs 实际节点的对比
     const planWarningLabels = ['ETA', '修正 ETA', '最晚提柜', '最晚还箱']
-    
+
     // 如果当前是计划节点，且有 nextDate（实际节点），根据差值正负判断颜色
     if (planWarningLabels.includes(props.label || '') && nextDateObj.value) {
       const date = dateObj.value
       const nextDate = nextDateObj.value
       if (!date) return 'info' // 安全检查
       const diffDays = Math.floor((nextDate.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
-      
+
       if (diffDays > 0) {
         // 实际超期 → 橙色警告
         return 'warning'

@@ -31,12 +31,14 @@
    - **但是没有返回顶层的 `freeDays` 字段**
 
 2. **前端期望的数据结构**
+
    ```typescript
    // 前端 tooltip 代码期望的字段
    <div>免费天数：{{ row.freeDays !== undefined ? row.freeDays : '-' }}</div>
    ```
 
 3. **实际返回的数据结构**
+
    ```typescript
    // 后端实际返回
    {
@@ -69,11 +71,13 @@
 ### **方案选择**
 
 **方案 A：后端修改（推荐）**
+
 - 在返回结果中添加 `freeDays` 字段
 - 前端无需修改
 - 数据结构更清晰
 
 **方案 B：前端修改**
+
 - 从 `matchedStandards[0].freeDays` 获取
 - 需要修改前端代码
 - 数据结构不够直观
@@ -119,9 +123,7 @@ export interface ScheduleResult {
 // 计算还箱免费天数（动态计算：最晚还箱日 - 提柜日）
 const freeDaysRemaining =
   lastReturnDate && plannedPickupDate
-    ? Math.floor(
-        (lastReturnDate.getTime() - plannedPickupDate.getTime()) / (1000 * 60 * 60 * 24)
-      )
+    ? Math.floor((lastReturnDate.getTime() - plannedPickupDate.getTime()) / (1000 * 60 * 60 * 24))
     : undefined;
 
 // ✅ 新增：获取免费天数（从滞港费标准）
@@ -180,12 +182,12 @@ return {
 
 ## 📊 修改统计
 
-| 文件 | 修改内容 | 行数变化 |
-|------|----------|----------|
-| `intelligentScheduling.service.ts` | 添加 `freeDays` 字段到接口 | +1 |
-| `intelligentScheduling.service.ts` | 智能模式提取 `freeDays` | +4 |
-| `intelligentScheduling.service.ts` | 手工模式提取 `freeDays` | +8 |
-| **合计** | **3 处修改** | **+13 行** |
+| 文件                               | 修改内容                   | 行数变化   |
+| ---------------------------------- | -------------------------- | ---------- |
+| `intelligentScheduling.service.ts` | 添加 `freeDays` 字段到接口 | +1         |
+| `intelligentScheduling.service.ts` | 智能模式提取 `freeDays`    | +4         |
+| `intelligentScheduling.service.ts` | 手工模式提取 `freeDays`    | +8         |
+| **合计**                           | **3 处修改**               | **+13 行** |
 
 ---
 
@@ -209,6 +211,7 @@ npm test -- intelligentScheduling
 ```
 
 **结果：** ✅ 测试通过
+
 ```
 PASS  src/services/intelligentScheduling.service.test.ts
 Test Suites: 1 passed, 1 total
@@ -268,10 +271,10 @@ IntelligentSchedulingService
 
 ### **2. 字段含义对比**
 
-| 字段名 | 含义 | 来源 | 用途 |
-|--------|------|------|------|
-| **`freeDays`** | 免费天数（来自滞港费标准） | `ext_demurrage_standards` | 最晚提柜日计算 |
-| **`freeDaysRemaining`** | 还箱免费天数（动态计算） | `最晚还箱日 - 提柜日` | 最晚还箱日计算 |
+| 字段名                  | 含义                       | 来源                      | 用途           |
+| ----------------------- | -------------------------- | ------------------------- | -------------- |
+| **`freeDays`**          | 免费天数（来自滞港费标准） | `ext_demurrage_standards` | 最晚提柜日计算 |
+| **`freeDaysRemaining`** | 还箱免费天数（动态计算）   | `最晚还箱日 - 提柜日`     | 最晚还箱日计算 |
 
 **示例：**
 
@@ -280,7 +283,7 @@ IntelligentSchedulingService
   // 最晚提柜日相关
   lastFreeDate: '2026-03-28',
   freeDays: 7,  // 来自滞港费标准表
-  
+
   // 最晚还箱日相关
   lastReturnDate: '2026-04-04',
   freeDaysRemaining: 7  // 动态计算：2026-04-04 - 2026-03-28 = 7 天
@@ -310,11 +313,13 @@ const freeDays = (destPo as any).freeDays ?? undefined;
 **问题：** 数据在传递过程中丢失
 
 **原因：**
+
 - 后端有多个数据源
 - `matchedStandards[0].freeDays` 存在
 - 但返回结果中没有提取到顶层
 
 **解决：**
+
 - 明确数据流向
 - 在返回结果中添加字段
 - 确保前后端数据结构一致
@@ -326,11 +331,13 @@ const freeDays = (destPo as any).freeDays ?? undefined;
 **问题：** `freeDays` 和 `freeDaysRemaining` 容易混淆
 
 **原因：**
+
 - 命名相似
 - 来源不同
 - 用途不同
 
 **解决：**
+
 - 明确命名：
   - `freeDays`：来自标准表
   - `freeDaysRemaining`：动态计算剩余
@@ -345,7 +352,7 @@ const freeDays = (destPo as any).freeDays ?? undefined;
 ```typescript
 // ✅ 先定义接口
 export interface ScheduleResult {
-  freeDays?: number;  // 明确字段
+  freeDays?: number; // 明确字段
   freeDaysRemaining?: number;
 }
 

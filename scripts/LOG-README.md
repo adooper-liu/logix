@@ -7,6 +7,7 @@ d:\Gihub\logix\backend\logs\
 ```
 
 主要日志文件：
+
 - `app.log` - 应用主日志（所有级别的日志）
 - `error.log` - 错误日志（仅 error 级别）
 - `daily/*.log` - 按日期分割的日志文件
@@ -23,6 +24,7 @@ d:\Gihub\logix\backend\logs\
 ```
 
 **功能**：
+
 - ✅ 自动检查日志文件
 - ✅ 显示最近的错误
 - ✅ 提取免费天数相关日志
@@ -47,6 +49,7 @@ d:\Gihub\logix\backend\logs\
 ```
 
 **快捷键**：
+
 - `Ctrl+C` - 停止跟踪
 
 ---
@@ -68,15 +71,15 @@ d:\Gihub\logix\backend\logs\
 
 ## 🔍 常用关键字
 
-| 关键字 | 用途 |
-|--------|------|
-| `pickupFreeDays` | 提柜免费天数 |
-| `returnFreeDays` | 还箱免费天数 |
-| `matched.*standards` | 匹配的滞港费标准 |
-| `IntelligentScheduling` | 智能排产系统 |
-| `Demurrage` | 滞港费计算 |
-| `"level":"error"` | 错误日志 |
-| `scheduleSingleContainer` | 单柜排产逻辑 |
+| 关键字                    | 用途             |
+| ------------------------- | ---------------- |
+| `pickupFreeDays`          | 提柜免费天数     |
+| `returnFreeDays`          | 还箱免费天数     |
+| `matched.*standards`      | 匹配的滞港费标准 |
+| `IntelligentScheduling`   | 智能排产系统     |
+| `Demurrage`               | 滞港费计算       |
+| `"level":"error"`         | 错误日志         |
+| `scheduleSingleContainer` | 单柜排产逻辑     |
 
 ---
 
@@ -113,14 +116,14 @@ Get-Content logs\error.log -Tail 50
 
 ```powershell
 # 使用正则表达式搜索
-Get-Content logs\*.log -Tail 1000 | 
+Get-Content logs\*.log -Tail 1000 |
     Select-String "pickupFreeDays=\d+" -AllMatches
 
 # 统计错误数量
 (Get-Content logs\*.log | Select-String '"level":"error"').Count
 
 # 查看特定时间段的日志
-Get-ChildItem logs\daily\*.log | 
+Get-ChildItem logs\daily\*.log |
     Where-Object { $_.LastWriteTime -gt (Get-Date).AddHours(-2) } |
     ForEach-Object { Get-Content $_.FullName } |
     Select-String "pickupFreeDays"
@@ -173,8 +176,9 @@ Get-Content logs\*.log | Select-String "Error:" -Context 5
    - `ERROR` - 错误信息
 
 2. **日志格式**：
+
    ```json
-   {"level":"INFO","message":"排产成功","timestamp":"2026-03-27T10:00:00Z"}
+   { "level": "INFO", "message": "排产成功", "timestamp": "2026-03-27T10:00:00Z" }
    ```
 
 3. **性能优化**：
@@ -206,6 +210,7 @@ npm run dev
 ### 问题：日志中没有相关信息
 
 可能原因：
+
 1. 后端未重新编译 → 重启后端
 2. 前端缓存未刷新 → `Ctrl+Shift+R` 强制刷新
 3. 代码路径未执行 → 确认操作步骤正确
