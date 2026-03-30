@@ -6,9 +6,11 @@
 import { Request, Response } from 'express';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
+import { EmptyReturn } from '../entities/EmptyReturn';
 import { ExtTruckingSlotOccupancy } from '../entities/ExtTruckingSlotOccupancy';
 import { ExtWarehouseDailyOccupancy } from '../entities/ExtWarehouseDailyOccupancy';
 import { PortOperation } from '../entities/PortOperation';
+import { SchedulingHistory } from '../entities/SchedulingHistory';
 import { TruckingCompany } from '../entities/TruckingCompany';
 import { TruckingTransport } from '../entities/TruckingTransport';
 import { Warehouse } from '../entities/Warehouse';
@@ -30,6 +32,7 @@ export class SchedulingController {
   private truckingTransportRepo = AppDataSource.getRepository(TruckingTransport);
   private warehouseOccupancyRepo = AppDataSource.getRepository(ExtWarehouseDailyOccupancy);
   private truckingOccupancyRepo = AppDataSource.getRepository(ExtTruckingSlotOccupancy);
+  private schedulingHistoryRepo = AppDataSource.getRepository(SchedulingHistory);
   private dateTimeUtils = new DateTimeUtils();
 
   /**
@@ -2289,6 +2292,16 @@ export class SchedulingController {
 
           // ✅ 新增：扣减资源档期
           await this.occupyCapacity(preview.plannedData, queryRunner.manager);
+          
+          // ✅ 新增：保存排产历史记录
+          // 从 preview 中提取完整信息用于历史记录
+          const historyData = this.buildHistoryDataFromPreview(preview);
+          await this.saveSchedulingHistory(
+            preview.containerNumber,
+            historyData,
+            'SYSTEM', // 或从认证信息获取：req.user?.username
+            queryRunner.manager
+          );
 
           results.push({
             containerNumber: preview.containerNumber,
@@ -2402,6 +2415,13 @@ export class SchedulingController {
   private async savePlannedDates(plannedData: any, manager: any): Promise<void> {
     const { containerNumber, warehouseId, truckingCompanyId } = plannedData;
 
+    logger.info(`[Scheduling] savePlannedDates for ${containerNumber}:`, {
+      plannedPickupDate: plannedData.plannedPickupDate,
+      plannedDeliveryDate: plannedData.plannedDeliveryDate,
+      plannedUnloadDate: plannedData.plannedUnloadDate,
+      plannedReturnDate: plannedData.plannedReturnDate
+    });
+
     // 1. 保存仓库操作（WarehouseOperation）
     let warehouseOp = await manager.findOne(WarehouseOperation, {
       where: { containerNumber }
@@ -2428,11 +2448,35 @@ export class SchedulingController {
       trucking.containerNumber = containerNumber;
     }
 
+    logger.info(`[Scheduling] Saving trucking for ${containerNumber}:`, {
+      truckingCompanyId,
+      plannedPickupDate: plannedData.plannedPickupDate,
+      plannedDeliveryDate: plannedData.plannedDeliveryDate,
+      plannedReturnDate: plannedData.plannedReturnDate
+    });
+
     trucking.truckingCompanyId = truckingCompanyId;
-    trucking.pickupDate = new Date(plannedData.plannedPickupDate);
-    trucking.returnDate = new Date(plannedData.plannedReturnDate);
+    trucking.plannedPickupDate = new Date(plannedData.plannedPickupDate);
+    trucking.plannedDeliveryDate = new Date(plannedData.plannedDeliveryDate);
+    trucking.plannedReturnDate = new Date(plannedData.plannedReturnDate);
 
     await manager.save(trucking);
+
+    // 3. 保存还空箱（EmptyReturn）
+    let emptyReturn = await manager.findOne(EmptyReturn, {
+      where: { containerNumber }
+    });
+
+    if (!emptyReturn) {
+      emptyReturn = new EmptyReturn();
+      emptyReturn.containerNumber = containerNumber;
+    }
+
+    emptyReturn.plannedReturnDate = new Date(plannedData.plannedReturnDate);
+
+    await manager.save(emptyReturn);
+    
+    logger.info(`[Scheduling] savePlannedDates completed for ${containerNumber}`);
   }
 
   /**
@@ -2484,4 +2528,203 @@ export class SchedulingController {
       }
     }
   }
+
+  /**
+   * 📋 查询排产历史记录
+   * GET /api/v1/scheduling/history/:containerNumber
+   */
+  getSchedulingHistory = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { containerNumber } = req.params;
+      const { page = 1, limit = 10, startDate, endDate } = req.query;
+
+      const query = this.schedulingHistoryRepo
+        .createQueryBuilder('history')
+        .where('history.containerNumber = :containerNumber', { containerNumber });
+
+      // 时间范围过滤
+      if (startDate) {
+        query.andWhere('history.operatedAt >= :startDate', { startDate: new Date(startDate as string) });
+      }
+      if (endDate) {
+        query.andWhere('history.operatedAt <= :endDate', { endDate: new Date(endDate as string) });
+      }
+
+      // 分页
+      const pageNum = parseInt(page as string);
+      const limitNum = parseInt(limit as string);
+      query.orderBy('history.schedulingVersion', 'DESC').skip((pageNum - 1) * limitNum).take(limitNum);
+
+      const [records, total] = await query.getManyAndCount();
+
+      res.json({
+        success: true,
+        data: {
+          containerNumber,
+          total,
+          page: pageNum,
+          limit: limitNum,
+          records
+        }
+      });
+    } catch (error: any) {
+      logger.error('[Scheduling] getSchedulingHistory error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message
+      });
+    }
+  };
+
+  /**
+   * 📋 查询所有货柜的最新排产记录
+   * GET /api/v1/scheduling/history/latest
+   */
+  getLatestSchedulingHistory = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { containerNumbers } = req.query;
+
+      let query = this.schedulingHistoryRepo
+        .createQueryBuilder('history')
+        .innerJoin(
+          (qb) =>
+            qb
+              .select('containerNumber', 'containerNumber')
+              .addSelect('MAX(schedulingVersion)', 'maxVersion')
+              .from('hist_scheduling_records', 'h')
+              .groupBy('containerNumber'),
+          'latest',
+          'history.containerNumber = latest.containerNumber AND history.schedulingVersion = latest.maxVersion'
+        );
+
+      if (Array.isArray(containerNumbers) && containerNumbers.length > 0) {
+        query.where('history.containerNumber IN (:...containerNumbers)', { containerNumbers });
+      }
+
+      const records = await query.getMany();
+
+      res.json({
+        success: true,
+        data: records
+      });
+    } catch (error: any) {
+      logger.error('[Scheduling] getLatestSchedulingHistory error:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message
+      });
+    }
+  };
+
+  /**
+   * 🔧 从预览结果构建历史记录数据（适配 savePreviewResults 的数据结构）
+   * @param preview 预览结果对象（包含 containerNumber, plannedData, costBreakdown 等）
+   * @returns 适配后的历史记录数据
+   */
+  private buildHistoryDataFromPreview(preview: any): any {
+    const plannedData = preview.plannedData || {};
+    
+    return {
+      mode: 'AUTO', // 预览模式，可根据实际情况调整
+      strategy: plannedData.strategy || preview.strategy || 'Direct',
+      
+      // 日期信息（从 plannedData 读取）
+      plannedCustomsDate: plannedData.plannedCustomsDate || preview.plannedCustomsDate,
+      plannedPickupDate: plannedData.plannedPickupDate || preview.plannedPickupDate,
+      plannedDeliveryDate: plannedData.plannedDeliveryDate || preview.plannedDeliveryDate,
+      plannedUnloadDate: plannedData.plannedUnloadDate || preview.plannedUnloadDate,
+      plannedReturnDate: plannedData.plannedReturnDate || preview.plannedReturnDate,
+      
+      // 资源信息
+      warehouseCode: plannedData.warehouseId || preview.warehouseCode,
+      warehouseName: preview.warehouseName,
+      truckingCompanyCode: plannedData.truckingCompanyId || preview.truckingCompanyCode,
+      truckingCompanyName: preview.truckingCompanyName,
+      
+      // 费用信息（从 costBreakdown 读取）
+      costBreakdown: preview.costBreakdown || preview.cost || null,
+      
+      // 免费期信息
+      lastFreeDate: plannedData.lastFreeDate || preview.lastFreeDate,
+      lastReturnDate: plannedData.lastReturnDate || preview.lastReturnDate,
+      remainingFreeDays: preview.remainingFreeDays,
+      
+      // 档期信息
+      warehouseOccupancyRate: preview.warehouseOccupancyRate,
+      truckingOccupancyRate: preview.truckingOccupancyRate,
+      
+      // 备选方案
+      alternatives: preview.alternatives || []
+    };
+  }
+
+  /**
+   * 💾 保存排产历史记录（内部方法，在确认保存时调用）
+   */
+  private async saveSchedulingHistory(
+    containerNumber: string,
+    previewResult: any,
+    operatedBy: string,
+    manager: any
+  ): Promise<void> {
+    try {
+      const history = new SchedulingHistory();
+      
+      // 基本信息
+      history.containerNumber = containerNumber;
+      history.schedulingMode = previewResult.mode || 'AUTO';
+      history.strategy = previewResult.strategy || 'Direct';
+      
+      // 日期信息
+      history.plannedCustomsDate = previewResult.plannedCustomsDate ? new Date(previewResult.plannedCustomsDate) : undefined;
+      history.plannedPickupDate = previewResult.plannedPickupDate ? new Date(previewResult.plannedPickupDate) : undefined;
+      history.plannedDeliveryDate = previewResult.plannedDeliveryDate ? new Date(previewResult.plannedDeliveryDate) : undefined;
+      history.plannedUnloadDate = previewResult.plannedUnloadDate ? new Date(previewResult.plannedUnloadDate) : undefined;
+      history.plannedReturnDate = previewResult.plannedReturnDate ? new Date(previewResult.plannedReturnDate) : undefined;
+      
+      // 资源信息
+      history.warehouseCode = previewResult.warehouseCode || undefined;
+      history.warehouseName = previewResult.warehouseName || undefined;
+      history.truckingCompanyCode = previewResult.truckingCompanyCode || undefined;
+      history.truckingCompanyName = previewResult.truckingCompanyName || undefined;
+      
+      // 费用信息
+      if (previewResult.costBreakdown) {
+        history.totalCost = previewResult.costBreakdown.totalCost || undefined;
+        history.demurrageCost = previewResult.costBreakdown.demurrageCost || undefined;
+        history.detentionCost = previewResult.costBreakdown.detentionCost || undefined;
+        history.storageCost = previewResult.costBreakdown.storageCost || undefined;
+        history.yardStorageCost = previewResult.costBreakdown.yardStorageCost || undefined;
+        history.transportationCost = previewResult.costBreakdown.transportationCost || undefined;
+        history.handlingCost = previewResult.costBreakdown.handlingCost || undefined;
+        history.currency = previewResult.costBreakdown.currency || 'USD';
+      }
+      
+      // 免费期信息
+      history.lastFreeDate = previewResult.lastFreeDate ? new Date(previewResult.lastFreeDate) : undefined;
+      history.lastReturnDate = previewResult.lastReturnDate ? new Date(previewResult.lastReturnDate) : undefined;
+      history.remainingFreeDays = previewResult.remainingFreeDays || undefined;
+      
+      // 档期信息
+      history.warehouseOccupancyRate = previewResult.warehouseOccupancyRate || undefined;
+      history.truckingOccupancyRate = previewResult.truckingOccupancyRate || undefined;
+      
+      // 备选方案
+      if (previewResult.alternatives && Array.isArray(previewResult.alternatives)) {
+        history.alternativeSolutions = previewResult.alternatives;
+      }
+      
+      // 操作信息
+      history.operatedBy = operatedBy || 'SYSTEM';
+      history.operationType = 'CREATE';
+      history.schedulingStatus = 'CONFIRMED';
+      
+      await manager.save(history);
+      
+      logger.info(`[Scheduling] Saved scheduling history for ${containerNumber}, version: ${history.schedulingVersion}`);
+    } catch (error: any) {
+      logger.error('[Scheduling] saveSchedulingHistory error:', error);
+      // 不抛出异常，避免影响主流程
+    }
+  };
 }

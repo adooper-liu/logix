@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import CountdownCard from '@/components/CountdownCard.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
+import SchedulingHistoryCard from '@/components/SchedulingHistoryCard.vue'
 import { useContainerCountdown } from '@/composables/useContainerCountdown'
 import { useLogisticsStatus } from '@/composables/useLogisticsStatus'
 import { useShipmentsExport } from '@/composables/useShipmentsExport'
@@ -52,7 +53,7 @@ const getUtcDayNumber = (input: string | Date | null | undefined): number | null
 const getDateTagType = (
   date: string | Date | null | undefined,
   _actualDate?: string | Date | null | undefined,
-  type?: 'eta' | 'pickup' | 'return' | 'shipment' | 'update',
+  type?: 'eta' | 'pickup' | 'return' | 'shipment' | 'update' | 'delivery' | 'unload',
   lastDate?: string | Date | null | undefined
 ): 'success' | 'warning' | 'danger' | 'info' => {
   if (!date) return 'info'
@@ -74,14 +75,14 @@ const getDateTagType = (
       if (diffDays <= 0) {
         return 'success' // 早于或等于最晚提柜日/还箱日为绿色
       } else if (diffDays <= 3) {
-        return 'warning' // 晚于最晚提柜日/还箱日3天内为黄色
+        return 'warning' // 晚于最晚提柜日/还箱日 3 天内为黄色
       } else {
-        return 'danger' // 晚于最晚提柜日/还箱日>3天为红色
+        return 'danger' // 晚于最晚提柜日/还箱日>3 天为红色
       }
     }
   }
 
-  // 其他日期（包括ETA、修正ETA、ATA、出运日期、更新日期等）都显示为灰色
+  // 其他日期（包括 ETA、修正 ETA、ATA、出运日期、更新日期、送仓日期、卸柜日期）都显示为灰色
   return 'info'
 }
 
@@ -89,7 +90,7 @@ const getDateTagType = (
 const getDateColorClass = (
   date: string | Date | null | undefined,
   actualDate?: string | Date | null | undefined,
-  type?: 'eta' | 'pickup' | 'return' | 'shipment' | 'update',
+  type?: 'eta' | 'pickup' | 'return' | 'shipment' | 'update' | 'delivery' | 'unload',
   lastDate?: string | Date | null | undefined
 ): string => {
   const tagType = getDateTagType(date, actualDate, type, lastDate)
@@ -462,6 +463,13 @@ const viewDetails = (container: any) => {
     return
   }
   router.push(`/shipments/${encodeURIComponent(String(id))}`)
+}
+
+// 查看排产历史记录
+const viewSchedulingHistory = (container: any) => {
+  // SchedulingHistoryCard 组件会通过 drawer 形式展示历史
+  // 这里不需要额外逻辑，点击按钮后组件会自动处理
+  console.log('查看排产历史:', container.containerNumber)
 }
 
 // 编辑集装箱
@@ -1497,6 +1505,82 @@ export default {
             </template>
           </el-table-column>
 
+          <!-- 送仓日期 -->
+          <el-table-column
+            v-else-if="key === 'plannedDeliveryDate'"
+            label="送仓日期"
+            width="180"
+            sortable="custom"
+          >
+            <template #default="{ row }">
+              <div class="delivery-dates-container">
+                <div class="date-item">
+                  <span
+                    class="date-text"
+                    :class="
+                      getDateColorClass(
+                        row.truckingTransports?.[0]?.plannedDeliveryDate,
+                        row.truckingTransports?.[0]?.deliveryDate,
+                        'delivery',
+                        null
+                      )
+                    "
+                  >
+                    {{ row.truckingTransports?.[0]?.plannedDeliveryDate ? formatDate(row.truckingTransports[0].plannedDeliveryDate) : '-' }}
+                  </span>
+                  <span class="date-label">pla</span>
+                </div>
+                <div class="date-item">
+                  <span
+                    class="date-text"
+                    :class="getDateColorClass(row.truckingTransports?.[0]?.deliveryDate, null, 'delivery', null)"
+                  >
+                    {{ row.truckingTransports?.[0]?.deliveryDate ? formatDate(row.truckingTransports[0].deliveryDate) : '-' }}
+                  </span>
+                  <span class="date-label">act</span>
+                </div>
+              </div>
+            </template>
+          </el-table-column>
+
+          <!-- 卸柜日期 -->
+          <el-table-column
+            v-else-if="key === 'plannedUnloadDate'"
+            label="卸柜日期"
+            width="180"
+            sortable="custom"
+          >
+            <template #default="{ row }">
+              <div class="unload-dates-container">
+                <div class="date-item">
+                  <span
+                    class="date-text"
+                    :class="
+                      getDateColorClass(
+                        row.warehouseOperations?.[0]?.plannedUnloadDate,
+                        row.warehouseOperations?.[0]?.unloadDate,
+                        'unload',
+                        null
+                      )
+                    "
+                  >
+                    {{ row.warehouseOperations?.[0]?.plannedUnloadDate ? formatDate(row.warehouseOperations[0].plannedUnloadDate) : '-' }}
+                  </span>
+                  <span class="date-label">pla</span>
+                </div>
+                <div class="date-item">
+                  <span
+                    class="date-text"
+                    :class="getDateColorClass(row.warehouseOperations?.[0]?.unloadDate, null, 'unload', null)"
+                  >
+                    {{ row.warehouseOperations?.[0]?.unloadDate ? formatDate(row.warehouseOperations[0].unloadDate) : '-' }}
+                  </span>
+                  <span class="date-label">act</span>
+                </div>
+              </div>
+            </template>
+          </el-table-column>
+
           <!-- 还箱日期 -->
           <el-table-column
             v-else-if="key === 'lastReturnDate'"
@@ -1585,6 +1669,18 @@ export default {
           >
             <template #default="{ row }">
               <div class="action-icons-grid">
+                <!-- 查看历史记录按钮（仅已排产的货柜显示） -->
+                <el-button
+                  v-if="row.scheduleStatus === 'issued'"
+                  size="small"
+                  type="info"
+                  circle
+                  @click="viewSchedulingHistory(row)"
+                  title="查看排产历史"
+                >
+                  📋
+                </el-button>
+                            
                 <el-button
                   size="small"
                   type="primary"
@@ -1614,7 +1710,7 @@ export default {
                   type="warning"
                   circle
                   :loading="manualLfdLoading === row.containerNumber"
-                  title="LFD手工维护"
+                  title="LFD 手工维护"
                   @click="handleManualLfdUpdate(row)"
                 >
                   <el-icon v-if="manualLfdLoading !== row.containerNumber"><Edit /></el-icon>
@@ -1769,6 +1865,8 @@ export default {
 
 .eta-ata-container,
 .pickup-dates-container,
+.delivery-dates-container,
+.unload-dates-container,
 .return-dates-container {
   text-align: right;
 

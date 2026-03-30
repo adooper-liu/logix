@@ -68,6 +68,10 @@ router.post('/batch-optimize', controller.batchOptimizeContainers); // ✅ 新�
 console.log('[Scheduling Routes] ✅ batch-optimize route registered');
 router.get('/cost-comparison/:containerNumber', controller.getCostComparison);
 
+// 排产历史记录查询
+router.get('/history/:containerNumber', controller.getSchedulingHistory);
+router.get('/history/latest', controller.getLatestSchedulingHistory);
+
 // 排产预览（不写库）- 放在最后，避免匹配其他具体路由
 router.post('/:id/schedule-preview', controller.schedulePreview);
 

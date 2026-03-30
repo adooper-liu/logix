@@ -457,6 +457,8 @@ export interface ContainerListItem {
   plannedPickupDate?: Date;
   pickupDate?: Date;
   lastFreeDate?: Date;
+  plannedDeliveryDate?: Date;
+  deliveryDate?: Date;
   lastReturnDate?: Date;
   returnTime?: Date;
   cargoDescription?: string;
@@ -467,6 +469,8 @@ export interface ContainerListItem {
     portName?: string;
   };
   portOperations?: PortOperation[];
+  warehouseOperations?: WarehouseOperation[];
+  truckingTransports?: TruckingTransport[];
 }
 
 // 类型在本文件已逐项 export，避免重复导出冲突

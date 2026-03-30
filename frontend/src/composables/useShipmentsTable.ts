@@ -65,6 +65,8 @@ export function useShipmentsTable() {
     actualShipDate: '出运日期',
     etaDestPort: '到港日期',
     lastFreeDate: '提柜日期',
+    plannedDeliveryDate: '送仓日期',
+    plannedUnloadDate: '卸柜日期',
     lastReturnDate: '还箱日期',
     cargoDescription: 'container.cargoDescription',
     lastUpdated: '最后更新',
@@ -79,15 +81,55 @@ export function useShipmentsTable() {
     Object.keys(columnLabels).map(k => [k, true])
   )
 
-  // 列顺序
+  // 响应式列配置
   const columnOrder = ref<string[]>([...defaultColumnOrder])
-
-  // 列设置弹窗
+  const columnVisible = ref<Record<string, boolean>>({ ...defaultColumnVisible })
   const columnSettingOpen = ref(false)
   const draggedColumnKey = ref<string | null>(null)
 
-  // 默认始终显示全部列
-  const columnVisible = ref<Record<string, boolean>>({ ...defaultColumnVisible })
+  // 从 localStorage 读取列设置，如果没有则使用默认值
+  const loadColumnSettings = () => {
+    try {
+      const savedVisible = localStorage.getItem(STORAGE_KEY_COLUMNS)
+      const savedOrder = localStorage.getItem(STORAGE_KEY_COLUMN_ORDER)
+      
+      if (savedVisible) {
+        const parsedVisible = JSON.parse(savedVisible) as Record<string, boolean>
+        // 合并保存的配置和默认配置（处理新增列）
+        const mergedVisible = { ...defaultColumnVisible, ...parsedVisible }
+        // 确保所有列都有默认值（包括新增的列）
+        Object.keys(defaultColumnVisible).forEach(key => {
+          if (!(key in mergedVisible)) {
+            mergedVisible[key] = defaultColumnVisible[key]
+          }
+        })
+        columnVisible.value = mergedVisible
+      } else {
+        columnVisible.value = { ...defaultColumnVisible }
+      }
+      
+      if (savedOrder) {
+        const parsedOrder = JSON.parse(savedOrder) as string[]
+        // 检查是否有新列不在保存的顺序中
+        const newColumns = defaultColumnOrder.filter(col => !parsedOrder.includes(col))
+        if (newColumns.length > 0) {
+          // 将新列添加到顺序末尾
+          columnOrder.value = [...parsedOrder, ...newColumns]
+        } else {
+          columnOrder.value = parsedOrder
+        }
+      } else {
+        columnOrder.value = [...defaultColumnOrder]
+      }
+    } catch (error) {
+      console.warn('Failed to load column settings from localStorage:', error)
+      columnVisible.value = { ...defaultColumnVisible }
+      columnOrder.value = [...defaultColumnOrder]
+    }
+  }
+
+  // 初始化时读取列设置
+  loadColumnSettings()
 
   // 保存列设置
   const saveColumnVisible = () => {

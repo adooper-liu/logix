@@ -255,6 +255,9 @@ export class ContainerService {
           // lastFreeDate 来自目的港港口操作，与 currentPortType 无关
           plannedPickupDate: this.toUtcDateString(truckingTransport?.plannedPickupDate || null),
           pickupDate: this.toUtcDateString(truckingTransport?.pickupDate || null),
+          plannedDeliveryDate: this.toUtcDateString(truckingTransport?.plannedDeliveryDate || null),
+          deliveryDate: this.toUtcDateString(truckingTransport?.deliveryDate || null),
+          plannedReturnDate: this.toUtcDateString(emptyReturn?.plannedReturnDate || null),
           lastFreeDate: this.toUtcDateString(destPortOp?.lastFreeDate ?? latestPortOperation?.lastFreeDate ?? null),
           lastReturnDate: this.toUtcDateString(emptyReturn?.lastReturnDate || null),
           returnTime: this.toUtcDateString(emptyReturn?.returnTime || null),
