@@ -101,7 +101,7 @@ description: LogiX 滞港费计算逻辑与开发规范。用于滞港费(demurr
 ## 参考文档
 
 详细业务规则请参考：
-- `frontend/public/docs/demurrage/13-DEMURRAGE_CALCULATION_LOGIC_FINAL.md`
+- `docs/07-calculation/01-滞港费计算逻辑.md`
 
 ## 常见问题排查
 

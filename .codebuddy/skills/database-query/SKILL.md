@@ -3,7 +3,9 @@ name: database-query
 description: Query and analyze PostgreSQL/TimescaleDB databases following LogiX schema. Use when writing SQL, analyzing container/port data, or debugging database issues.
 ---
 
-# Database Query
+# Database Query Skill
+
+> 💡 **提示**: 本技能专注于数据库查询。完整开发规范请参考 `logix-development` 主技能文档。
 
 ## Schema Reference
 
@@ -11,12 +13,12 @@ description: Query and analyze PostgreSQL/TimescaleDB databases following LogiX 
 
 ### 表前缀与核心表
 
-| 前缀 | 用途 | 核心表 |
-|------|------|--------|
-| dict_ | 字典 | dict_countries, dict_ports, dict_container_types, dict_customer_types, dict_warehouses |
-| biz_ | 业务 | biz_containers, biz_replenishment_orders, biz_customers, biz_container_skus |
-| process_ | 流程 | process_sea_freight, process_port_operations, process_trucking_transport, process_warehouse_operations, process_empty_return |
-| ext_ | 扩展 | ext_container_status_events, ext_container_loading_records, ext_container_charges |
+| 前缀      | 用途 | 核心表                                                                                                                       |
+| --------- | ---- | ---------------------------------------------------------------------------------------------------------------------------- |
+| dict\_    | 字典 | dict_countries, dict_ports, dict_container_types, dict_customer_types, dict_warehouses                                       |
+| biz\_     | 业务 | biz_containers, biz_replenishment_orders, biz_customers, biz_container_skus                                                  |
+| process\_ | 流程 | process_sea_freight, process_port_operations, process_trucking_transport, process_warehouse_operations, process_empty_return |
+| ext\_     | 扩展 | ext_container_status_events, ext_container_loading_records, ext_container_charges                                            |
 
 ### 关联链
 
