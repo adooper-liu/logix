@@ -3,7 +3,7 @@
  * @see backend/src/utils/dateTimeUtils.ts - adjustForWeekend()
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from '@jest/globals';
 import { adjustForWeekend, isWeekend } from '../../src/utils/dateTimeUtils';
 
 describe('DateTimeUtils - Weekend Handling', () => {
@@ -164,9 +164,8 @@ describe('DateTimeUtils - Weekend Handling', () => {
       const lastFreeDate = new Date('2026-03-28');
       const adjustedLastFreeDate = adjustForWeekend(lastFreeDate);
 
-      // 提柜日应该在调整后的 lastFreeDate 之前
-      const plannedPickupDate = new Date(adjustedLastFreeDate);
-      plannedPickupDate.setDate(plannedPickupDate.getDate() - 1);
+      // 提柜日应该在调整后的 lastFreeDate 之前（且需要顺延周末）
+      const plannedPickupDate = adjustForWeekend(new Date(adjustedLastFreeDate.getTime() - 24 * 60 * 60 * 1000));
 
       expect(plannedPickupDate.getDay()).not.toBe(6); // 不是周六
       expect(plannedPickupDate.getDay()).not.toBe(0); // 不是周日

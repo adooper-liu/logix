@@ -6,6 +6,55 @@
 import { Container } from '../entities/Container';
 import { Warehouse } from '../entities/Warehouse';
 import { SchedulingCostOptimizerService, UnloadOption } from './schedulingCostOptimizer.service';
+import { AppDataSource } from '../database';
+
+// Mock 外部依赖（数据库、日志等）
+jest.mock('../database', () => ({
+  AppDataSource: {
+    getRepository: jest.fn()
+  }
+}));
+
+jest.mock('./demurrage.service', () => {
+  return {
+    DemurrageService: jest.fn().mockImplementation(() => ({
+      calculateTotalCost: jest.fn().mockResolvedValue({
+        demurrageDays: 0,
+        detentionDays: 0,
+        storageDays: 0,
+        totalCost: 0,
+        costBreakdown: {
+          demurrageCost: 0,
+          detentionCost: 0,
+          storageCost: 0,
+          transportationCost: 0,
+          handlingCost: 0
+        }
+      }),
+      getContainerMatchParams: jest.fn().mockResolvedValue({
+        container: {},
+        portOperations: [],
+        seaFreight: null
+      })
+    }))
+  };
+});
+
+jest.mock('../utils/logger', () => ({
+  logger: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn()
+  }
+}));
+
+jest.mock('../utils/smartCalendarCapacity', () => ({
+  SmartCalendarCapacity: jest.fn().mockImplementation(() => ({
+    ensureWarehouseOccupancy: jest.fn().mockResolvedValue(true),
+    checkWarehouseAvailability: jest.fn().mockResolvedValue(true)
+  }))
+}));
 
 // 模拟容器数据
 const mockContainer: Container = {
@@ -34,9 +83,34 @@ lastFreeDate.setDate(today.getDate() + 7);
 
 describe('SchedulingCostOptimizerService', () => {
   let service: SchedulingCostOptimizerService;
+  let mockQueryBuilder: any;
+  let mockRepo: any;
 
   beforeEach(() => {
+    // 创建 Mock QueryBuilder
+    mockQueryBuilder = {
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([mockWarehouse]),
+      getOne: jest.fn().mockResolvedValue(mockWarehouse)
+    };
+
+    // 创建 Mock Repository
+    mockRepo = {
+      find: jest.fn().mockResolvedValue([mockWarehouse]),
+      findOne: jest.fn().mockResolvedValue(mockWarehouse),
+      createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder)
+    };
+
+    // 配置 Mock
+    (AppDataSource.getRepository as jest.Mock).mockReturnValue(mockRepo);
+
     service = new SchedulingCostOptimizerService();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
   });
 
   describe('getCandidateWarehouses', () => {
@@ -269,7 +343,7 @@ describe('SchedulingCostOptimizerService Performance', () => {
     const option: UnloadOption = {
       containerNumber: 'TEST1234567',
       warehouse: mockWarehouse,
-      unloadDate: pickupDate,
+      plannedPickupDate: pickupDate,
       strategy: 'Direct',
       isWithinFreePeriod: true
     };

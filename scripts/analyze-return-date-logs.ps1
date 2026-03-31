@@ -6,7 +6,7 @@
 # =====================================================
 
 param(
-    [string]$LogFile = "backend/logs/app.log",
+    [string]$LogFile = "backend/logs/combined.log",
     [switch]$Export
 )
 

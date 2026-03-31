@@ -9,7 +9,7 @@
 import type { Repository } from 'typeorm';
 import { getGroupForColumn } from '../constants/FeituoFieldGroupMapping';
 import { getCoreFieldName } from '../constants/FeiTuoStatusMapping';
-import { PICKUP_DATE_SOURCE } from '../constants/pickupDateSource';
+import { canFeituoOverwritePickupDate, PICKUP_DATE_SOURCE } from '../constants/pickupDateSource';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
 import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
@@ -32,7 +32,6 @@ import { TruckingTransport } from '../entities/TruckingTransport';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { logger } from '../utils/logger';
 import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
-import { tryApplyFeituoPickupFromGateOutEvent } from '../utils/truckingPickupFromFeituo';
 import { AlertService } from './alertService';
 import { auditLogService } from './auditLog.service';
 import { DemurrageService } from './demurrage.service';
@@ -2164,13 +2163,9 @@ export class FeituoImportService {
         status.transportMode
       );
 
-      // 非预计状态：更新核心时间字段
-      // 特殊处理：最终状态事件（如 RCVE 还箱）即使标记为预计，也应该更新
-      // 原因：这些事件代表运输链结束，标记为预计可能是数据质量问题，不应阻止更新
-      const FINAL_STATUS_CODES = ['RCVE', 'STCS', 'GTOT', 'GTIN', 'DSCH', 'BO', 'DLPT'];
-      const isFinalStatus = FINAL_STATUS_CODES.includes(status.statusCode);
-      
-      if ((!status.isEstimated || isFinalStatus) && status.occurredAt) {
+      // 只处理非预计状态的事件
+      // 预计事件 (isEstimated=true) 不代表实际发生，不应更新核心字段
+      if (!status.isEstimated && status.occurredAt) {
         await this.updateCoreFieldsFromStatus(
           containerNumber,
           status.statusCode,
@@ -2217,39 +2212,70 @@ export class FeituoImportService {
       const portType = ['transit_arrival_date', 'atd'].includes(fieldName)
         ? 'transit'
         : 'destination';
-      const po = await poRepo
+      let po = await poRepo
         .createQueryBuilder('p')
         .where('p.container_number = :cn', { cn: containerNumber })
         .andWhere('p.port_type = :pt', { pt: portType })
         .getOne();
-      if (po) {
-        const map: Record<string, keyof PortOperation> = {
-          ata: 'ataDestPort',
-          eta: 'etaDestPort',
-          gate_in_time: 'gateInTime',
-          gate_out_time: 'gateOutTime',
-          dest_port_unload_date: 'destPortUnloadDate',
-          available_time: 'availableTime',
-          transit_arrival_date: 'transitArrivalDate',
-          atd: 'atdTransit'
-        };
-        const col = map[fieldName];
-        if (col) {
-          (po as any)[col] = occurredAt;
-          await poRepo.save(po);
 
-          if (fieldName === 'gate_out_time' && col === 'gateOutTime') {
-            const tt = await ttRepo.findOne({ where: { containerNumber } });
-            const applied = tryApplyFeituoPickupFromGateOutEvent({
-              trucking: tt,
-              containerNumber,
-              eventTime: occurredAt,
-              statusCode,
-              createTrucking: () => ttRepo.create({ containerNumber })
-            });
-            if (applied.updated && applied.trucking) {
-              await ttRepo.save(applied.trucking);
-            }
+      // 🔧 BUG FIX: 如果记录不存在，创建它（而不是跳过）
+      // 场景：STCS/GTOT 等目的港事件发生时，可能 process_port_operations 只有 origin 记录
+      if (!po) {
+        po = poRepo.create({
+          containerNumber,
+          portType,
+          portSequence: portType === 'origin' ? 1 : 2 // 默认序列：起运港=1, 目的港=2
+        });
+        logger.info(
+          `[FeituoImport] 创建 ${portType} process_port_operations 记录：${containerNumber}`
+        );
+      }
+
+      const map: Record<string, keyof PortOperation> = {
+        ata: 'ataDestPort',
+        eta: 'etaDestPort',
+        gate_in_time: 'gateInTime',
+        gate_out_time: 'gateOutTime',
+        dest_port_unload_date: 'destPortUnloadDate',
+        available_time: 'availableTime',
+        transit_arrival_date: 'transitArrivalDate',
+        atd: 'atdTransit'
+      };
+      const col = map[fieldName];
+      if (col) {
+        (po as any)[col] = occurredAt;
+        await poRepo.save(po);
+        logger.info(
+          `[FeituoImport] 更新核心字段：${containerNumber} ${fieldName}=${occurredAt.toISOString()}`
+        );
+
+        // 🔧 目的港 GATE_OUT/GTOT/STCS → 强制同步 pickup_date
+        // 遵循单一数据源规范：pickup_date = gate_out_time
+        if (fieldName === 'gate_out_time' && col === 'gateOutTime') {
+          let tt = await ttRepo.findOne({ where: { containerNumber } });
+
+          if (!tt) {
+            tt = ttRepo.create({ containerNumber });
+          }
+
+          // 无条件同步（保留来源检查但记录警告）
+          const oldPickupDate = tt.pickupDate;
+          const canOverwrite = canFeituoOverwritePickupDate(tt?.pickupDateSource);
+
+          if (!canOverwrite) {
+            logger.warn(
+              `[FeituoImport] 提柜日期来源为 ${tt.pickupDateSource}，飞驼事件 ${statusCode} 无法覆盖。` +
+                `建议：以 gate_out_time 为准手动修正 pickup_date`
+            );
+          } else {
+            tt.pickupDate = occurredAt;
+            tt.pickupDateSource = PICKUP_DATE_SOURCE.FEITUO;
+            await ttRepo.save(tt);
+            logger.info(
+              `[FeituoImport] 同步提柜日期：${containerNumber} ` +
+                `gate_out_time=${occurredAt.toISOString()}, ` +
+                `pickup_date=${oldPickupDate ? oldPickupDate.toISOString() : 'null'} -> ${tt.pickupDate.toISOString()}`
+            );
           }
         }
       }

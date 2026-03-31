@@ -125,11 +125,11 @@ describe('TruckingSelectorService', () => {
 
     it('should filter by port code when provided', async () => {
       // Arrange
-      const warehouseMappings = [{ trucking_company_id: 'TRUCK001' }];
-      const portMappings = [{ trucking_company_id: 'TRUCK002' }]; // 不同的车队
+      const warehouseMappings = [{ truckingCompanyId: 'TRUCK001' }];
+      const portMappings = [{ truckingCompanyId: 'TRUCK002' }]; // 不同的车队
 
       (mockWarehouseTruckingMappingRepo.find as jest.Mock).mockResolvedValue(warehouseMappings);
-      (mockTruckingPortMappingRepo.query as jest.Mock).mockResolvedValue(portMappings);
+      (mockTruckingPortMappingRepo.find as jest.Mock).mockResolvedValue(portMappings);
 
       // Act
       const result = await service.selectTruckingCompany({

@@ -90,7 +90,7 @@ describe('WarehouseSelectorService', () => {
 
     it('should return empty array when no port mappings found', async () => {
       // Arrange
-      (mockTruckingPortMappingRepo.query as jest.Mock).mockResolvedValue([]);
+      (mockTruckingPortMappingRepo.find as jest.Mock).mockResolvedValue([]);
 
       // Act
       const result = await service.getCandidateWarehouses('US', 'USLAX');
@@ -101,10 +101,10 @@ describe('WarehouseSelectorService', () => {
 
     it('should return empty array when no warehouse mappings found', async () => {
       // Arrange
-      (mockTruckingPortMappingRepo.query as jest.Mock).mockResolvedValue([
-        { trucking_company_id: 'TRUCK001' }
+      (mockTruckingPortMappingRepo.find as jest.Mock).mockResolvedValue([
+        { truckingCompanyId: 'TRUCK001' }
       ]);
-      (mockWarehouseTruckingMappingRepo.query as jest.Mock).mockResolvedValue([]);
+      (mockWarehouseTruckingMappingRepo.find as jest.Mock).mockResolvedValue([]);
 
       // Act
       const result = await service.getCandidateWarehouses('US', 'USLAX');
@@ -115,10 +115,10 @@ describe('WarehouseSelectorService', () => {
 
     it('should return sorted warehouses when mapping chain exists', async () => {
       // Arrange
-      const portMappings = [{ trucking_company_id: 'TRUCK001' }];
+      const portMappings = [{ truckingCompanyId: 'TRUCK001' }];
       const warehouseMappings = [
-        { trucking_company_id: 'TRUCK001', warehouse_code: 'WH001', is_default: true },
-        { trucking_company_id: 'TRUCK001', warehouse_code: 'WH002', is_default: false }
+        { truckingCompanyId: 'TRUCK001', warehouseCode: 'WH001', isDefault: true },
+        { truckingCompanyId: 'TRUCK001', warehouseCode: 'WH002', isDefault: false }
       ];
 
       const warehouses = [
@@ -126,9 +126,9 @@ describe('WarehouseSelectorService', () => {
         { warehouseCode: 'WH002', propertyType: '平台仓', country: 'US', status: 'ACTIVE' }
       ] as any[];
 
-      (mockTruckingPortMappingRepo.query as jest.Mock).mockResolvedValue(portMappings);
-      (mockWarehouseTruckingMappingRepo.query as jest.Mock).mockResolvedValue(warehouseMappings);
-      (mockWarehouseRepo.query as jest.Mock).mockResolvedValue(warehouses);
+      (mockTruckingPortMappingRepo.find as jest.Mock).mockResolvedValue(portMappings);
+      (mockWarehouseTruckingMappingRepo.find as jest.Mock).mockResolvedValue(warehouseMappings);
+      (mockWarehouseRepo.find as jest.Mock).mockResolvedValue(warehouses);
 
       // Act
       const result = await service.getCandidateWarehouses('US', 'USLAX');
@@ -141,19 +141,19 @@ describe('WarehouseSelectorService', () => {
 
     it('should filter inactive warehouses', async () => {
       // Arrange
-      const portMappings = [{ trucking_company_id: 'TRUCK001' }];
+      const portMappings = [{ truckingCompanyId: 'TRUCK001' }];
       const warehouseMappings = [
-        { trucking_company_id: 'TRUCK001', warehouse_code: 'WH001' }
+        { truckingCompanyId: 'TRUCK001', warehouseCode: 'WH001' }
       ];
 
       const warehouses = [
         { warehouseCode: 'WH001', propertyType: '自营仓', country: 'US', status: 'INACTIVE' }
       ] as any[];
 
-      (mockTruckingPortMappingRepo.query as jest.Mock).mockResolvedValue(portMappings);
-      (mockWarehouseTruckingMappingRepo.query as jest.Mock).mockResolvedValue(warehouseMappings);
+      (mockTruckingPortMappingRepo.find as jest.Mock).mockResolvedValue(portMappings);
+      (mockWarehouseTruckingMappingRepo.find as jest.Mock).mockResolvedValue(warehouseMappings);
       // Mock: 查询 ACTIVE 仓库，返回空数组（因为 WH001 是 INACTIVE）
-      (mockWarehouseRepo.query as jest.Mock).mockResolvedValue([]);
+      (mockWarehouseRepo.find as jest.Mock).mockResolvedValue([]);
 
       // Act
       const result = await service.getCandidateWarehouses('US', 'USLAX');

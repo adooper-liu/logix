@@ -9,7 +9,7 @@
 set -e
 
 # 配置项
-LOG_FILE="${1:-backend/logs/app.log}"
+LOG_FILE="${1:-backend/logs/combined.log}"
 OUTPUT_DIR="backend/logs/analysis"
 
 # 颜色定义

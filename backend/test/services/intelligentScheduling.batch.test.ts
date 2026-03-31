@@ -3,8 +3,9 @@
  * @see backend/src/services/intelligentScheduling.service.ts - batchOptimizeContainers()
  */
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { AppDataSource } from '../../src/config/database';
+import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
+import { In } from 'typeorm';
+import { AppDataSource } from '../../src/database';
 import { Container } from '../../src/entities/Container';
 import { TruckingCompany } from '../../src/entities/TruckingCompany';
 import { TruckingTransport } from '../../src/entities/TruckingTransport';

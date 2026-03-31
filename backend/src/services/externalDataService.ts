@@ -32,7 +32,7 @@ import { tryApplyFeituoPickupFromGateOutEvent } from '../utils/truckingPickupFro
 import { auditLogService } from './auditLog.service';
 import { DemurrageService } from './demurrage.service';
 import { feituoSmartDateUpdater } from './feituo/FeituoSmartDateUpdater';
-import { config } from '../config/index.js';
+import { config } from '../config/index';
 
 /**
  * 内部统一结构：由飞驼 OpenAPI「集装箱综合跟踪」`data.result` 映射而来（与 Excel 轨迹管道一致）
@@ -1628,17 +1628,14 @@ export class ExternalDataService {
       return;
     }
 
-    // 最终状态事件：即使标记为预计，也应该更新核心字段
-    // 原因：这些事件代表运输链结束，标记为预计可能是数据质量问题，不应阻止更新
-    const FINAL_STATUS_CODES = ['RCVE', 'STCS', 'GTOT', 'GTIN', 'DSCH', 'BO', 'DLPT'];
-
     for (const event of feituoEvents) {
-      // 检查是否应该更新核心字段
-      // 特殊处理：最终状态事件即使 hasOccurred=false 也应该更新
-      const isFinalStatus = FINAL_STATUS_CODES.includes(event.statusCode);
-      const shouldUpdate = isFinalStatus || (event.hasOccurred !== false);
-      
-      if (!shouldUpdateCoreField(event.statusCode, shouldUpdate)) {
+      // 只处理已发生的事件 (hasOccurred=true)
+      // 预计事件 (isEstimated=true/hasOccurred=false) 不代表实际发生，不应更新核心字段
+      if (event.hasOccurred === false) {
+        continue;
+      }
+          
+      if (!shouldUpdateCoreField(event.statusCode, true)) {
         continue;
       }
 
