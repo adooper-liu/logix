@@ -3,10 +3,10 @@
  * Scheduling Cost Optimizer Service Unit Tests
  */
 
+import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
 import { Warehouse } from '../entities/Warehouse';
 import { SchedulingCostOptimizerService, UnloadOption } from './schedulingCostOptimizer.service';
-import { AppDataSource } from '../database';
 
 // Mock 外部依赖（数据库、日志等）
 jest.mock('../database', () => ({

@@ -7,6 +7,7 @@
 在昨天的开发中，我们错误地添加了"最终状态即使是预计也要更新核心字段"的逻辑，导致预计事件会覆盖实际时间字段。
 
 **错误代码**:
+
 ```typescript
 // ❌ 错误逻辑
 const FINAL_STATUS_CODES = ['RCVE', 'STCS', 'GTOT', 'GTIN', 'DSCH', 'BO', 'DLPT'];
@@ -22,12 +23,13 @@ if ((!status.isEstimated || isFinalStatus) && status.occurredAt) {
 
 通过分析 HMMU6232153 和 GAOU6195045 两个集装箱的数据，发现了根本原因:
 
-| 集装箱 | STCS 事件 | isEstimated | eventTime | dataSource |
-|--------|----------|-------------|-----------|------------|
-| HMMU6232153 | STCS | `true` | 2026-03-30 11:48 (未来) | 船公司 |
-| GAOU6195045 | STCS | `false` | 2026-03-28 07:03 (过去) | 船公司 |
+| 集装箱      | STCS 事件 | isEstimated | eventTime               | dataSource |
+| ----------- | --------- | ----------- | ----------------------- | ---------- |
+| HMMU6232153 | STCS      | `true`      | 2026-03-30 11:48 (未来) | 船公司     |
+| GAOU6195045 | STCS      | `false`     | 2026-03-28 07:03 (过去) | 船公司     |
 
 **关键发现**:
+
 - `isEstimated: true` 表示这是**预计时间**,不是实际发生
 - `isEstimated: false` 表示这是**实际发生**的事实
 - 船公司给的预计提柜时间，标记为"预计"是**合理的**
@@ -39,6 +41,7 @@ if ((!status.isEstimated || isFinalStatus) && status.occurredAt) {
 **文件**: `backend/src/services/feituoImport.service.ts:2166-2178`
 
 **修改前**:
+
 ```typescript
 // 非预计状态：更新核心时间字段
 // 特殊处理：最终状态事件（如 RCVE 还箱）即使标记为预计，也应该更新
@@ -52,6 +55,7 @@ if ((!status.isEstimated || isFinalStatus) && status.occurredAt) {
 ```
 
 **修改后**:
+
 ```typescript
 // 只处理非预计状态的事件
 // 预计事件 (isEstimated=true) 不代表实际发生，不应更新核心字段
@@ -65,6 +69,7 @@ if (!status.isEstimated && status.occurredAt) {
 **文件**: `backend/src/services/externalDataService.ts:1626-1643`
 
 **修改前**:
+
 ```typescript
 // 最终状态事件：即使标记为预计，也应该更新核心字段
 // 原因：这些事件代表运输链结束，标记为预计可能是数据质量问题，不应阻止更新
@@ -74,8 +79,8 @@ for (const event of feituoEvents) {
   // 检查是否应该更新核心字段
   // 特殊处理：最终状态事件即使 hasOccurred=false 也应该更新
   const isFinalStatus = FINAL_STATUS_CODES.includes(event.statusCode);
-  const shouldUpdate = isFinalStatus || (event.hasOccurred !== false);
-  
+  const shouldUpdate = isFinalStatus || event.hasOccurred !== false;
+
   if (!shouldUpdateCoreField(event.statusCode, shouldUpdate)) {
     continue;
   }
@@ -84,6 +89,7 @@ for (const event of feituoEvents) {
 ```
 
 **修改后**:
+
 ```typescript
 for (const event of feituoEvents) {
   // 只处理已发生的事件 (hasOccurred=true)
@@ -91,7 +97,7 @@ for (const event of feituoEvents) {
   if (event.hasOccurred === false) {
     continue;
   }
-  
+
   if (!shouldUpdateCoreField(event.statusCode, true)) {
     continue;
   }
@@ -104,6 +110,7 @@ for (const event of feituoEvents) {
 **文件**: `backend/src/services/feituoImport.service.test.ts`
 
 **修改内容**:
+
 - 将测试描述从"应该更新 RCVE 事件，即使标记为预计"改为"不应该更新 RCVE 事件，如果标记为预计"
 - 验证逻辑从 `expect(emptyReturn).toBeDefined()` 改为 `expect(emptyReturn).toBeNull()`
 - 删除"最终状态码列表验证"测试组，改为"预计事件保护规则验证"
@@ -113,15 +120,16 @@ for (const event of feituoEvents) {
 ### ✅ 正确的数据更新策略
 
 | 事件类型 | isEstimated | hasOccurred | 是否更新核心字段 |
-|---------|-------------|-------------|-----------------|
-| 实际发生 | `false` | `true` | ✅ **更新** |
-| 预计到港 | `true` | `false` | ❌ **不更新** |
-| 预计还箱 | `true` | `false` | ❌ **不更新** |
-| 预计提柜 | `true` | `false` | ❌ **不更新** |
+| -------- | ----------- | ----------- | ---------------- |
+| 实际发生 | `false`     | `true`      | ✅ **更新**      |
+| 预计到港 | `true`      | `false`     | ❌ **不更新**    |
+| 预计还箱 | `true`      | `false`     | ❌ **不更新**    |
+| 预计提柜 | `true`      | `false`     | ❌ **不更新**    |
 
 ### 📊 数据准确性保护
 
-**核心原则**: 
+**核心原则**:
+
 - ✅ 只有实际发生的事件才能更新核心时间字段
 - ✅ 预计事件不能污染实际时间字段
 - ✅ 等待 `isEstimated: false` 的实际事件到来后再更新
@@ -161,6 +169,7 @@ Excel 数据:
 ### 飞驼数据规范
 
 根据飞驼 API 文档和 Excel 导入数据格式:
+
 - `是否预计` 字段值为 `Y` 时，表示这是预测时间
 - `是否预计` 字段值为 `N` 时，表示这是实际发生时间
 
@@ -186,18 +195,18 @@ Excel 数据:
 
 ```sql
 -- 检查 HMMU6232153 的 STCS 事件
-SELECT 
+SELECT
   container_number,
   event_code,
   event_time,
   is_estimated,
   data_source
 FROM ext_feituo_status_events
-WHERE container_number = 'HMMU6232153' 
+WHERE container_number = 'HMMU6232153'
   AND event_code = 'STCS';
 
 -- 验证 gate_out_time 未更新
-SELECT 
+SELECT
   container_number,
   port_type,
   gate_out_time,

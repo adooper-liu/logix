@@ -16,26 +16,30 @@
 
 在分析 HMMU6232153 和 GAOU6195045 的提柜日期时，发现数据不一致:
 
-| 集装箱 | pickup_date | pickup_date_source | gate_out_time |
-|--------|-------------|-------------------|---------------|
-| HMMU6232153 | NULL | NULL | NULL |
-| GAOU6195045 | 2026-03-28 07:03 | feituo | 2026-03-28 07:03 |
+| 集装箱      | pickup_date      | pickup_date_source | gate_out_time    |
+| ----------- | ---------------- | ------------------ | ---------------- |
+| HMMU6232153 | NULL             | NULL               | NULL             |
+| GAOU6195045 | 2026-03-28 07:03 | feituo             | 2026-03-28 07:03 |
 
 ### 错误排查路径 (浪费时间)
 
 ❌ **错误方向 1**: 怀疑数据来源不同
+
 - 猜测：HMMU6232153 是 Excel 导入，GAOU6195045 是飞驼 API 同步
 - 验证结果：**两个都是同一时间从飞驼 Excel 导入**
 
 ❌ **错误方向 2**: 怀疑导入映射配置问题
+
 - 检查 `importMappings/container.ts` 中的字段映射
 - 验证结果：**映射配置正确**
 
 ❌ **错误方向 3**: 怀疑数据库写入逻辑有问题
+
 - 检查 `import.controller.ts` 的批量导入逻辑
 - 验证结果：**导入逻辑正确**
 
 ❌ **错误方向 4**: 怀疑状态机计算错误
+
 - 检查 `logisticsStatusMachine.ts` 的状态计算逻辑
 - 验证结果：**状态机计算正确**
 
@@ -45,37 +49,37 @@
 
 ```bash
 # 1. 查询 process_port_operations 表
-node -e "const {AppDataSource} = require('./dist/database'); 
-         const {PortOperation} = require('./dist/entities/PortOperation'); 
-         (async () => { 
-           await AppDataSource.initialize(); 
-           const repo = AppDataSource.getRepository(PortOperation); 
+node -e "const {AppDataSource} = require('./dist/database');
+         const {PortOperation} = require('./dist/entities/PortOperation');
+         (async () => {
+           await AppDataSource.initialize();
+           const repo = AppDataSource.getRepository(PortOperation);
            const records = await repo.find({
              where: [{containerNumber: 'HMMU6232153'}, {containerNumber: 'GAOU6195045'}]
-           }); 
+           });
            records.forEach(r => console.log(
-             r.containerNumber, '|', r.portType, '|', 
-             'gateOutTime:', r.gateOutTime ? r.gateOutTime.toISOString() : 'NULL', '|', 
+             r.containerNumber, '|', r.portType, '|',
+             'gateOutTime:', r.gateOutTime ? r.gateOutTime.toISOString() : 'NULL', '|',
              'dataSource:', r.dataSource
-           )); 
-           await AppDataSource.destroy(); 
+           ));
+           await AppDataSource.destroy();
          })()"
 
 # 2. 查询 ext_feituo_status_events 表
-node -e "const {AppDataSource} = require('./dist/database'); 
-         const {ExtFeituoStatusEvent} = require('./dist/entities/ExtFeituoStatusEvent'); 
-         (async () => { 
-           await AppDataSource.initialize(); 
-           const repo = AppDataSource.getRepository(ExtFeituoStatusEvent); 
+node -e "const {AppDataSource} = require('./dist/database');
+         const {ExtFeituoStatusEvent} = require('./dist/entities/ExtFeituoStatusEvent');
+         (async () => {
+           await AppDataSource.initialize();
+           const repo = AppDataSource.getRepository(ExtFeituoStatusEvent);
            const event = await repo.findOne({
              where: {containerNumber: 'HMMU6232153', eventCode: 'STCS'}
-           }); 
-           console.log('STCS event:'); 
-           console.log('  eventTime:', event.eventTime.toISOString()); 
-           console.log('  isEstimated:', event.isEstimated); 
-           console.log('  dataSource:', event.dataSource); 
-           console.log('  rawJson:', JSON.stringify(event.rawJson, null, 2)); 
-           await AppDataSource.destroy(); 
+           });
+           console.log('STCS event:');
+           console.log('  eventTime:', event.eventTime.toISOString());
+           console.log('  isEstimated:', event.isEstimated);
+           console.log('  dataSource:', event.dataSource);
+           console.log('  rawJson:', JSON.stringify(event.rawJson, null, 2));
+           await AppDataSource.destroy();
          })()"
 ```
 
@@ -84,34 +88,37 @@ node -e "const {AppDataSource} = require('./dist/database');
 查询结果显示:
 
 **HMMU6232153**:
+
 ```json
 {
   "eventCode": "STCS",
-  "eventTime": "2026-03-30T11:48:00.000Z",  // ← 未来时间
-  "isEstimated": true,                       // ← 标记为预计
+  "eventTime": "2026-03-30T11:48:00.000Z", // ← 未来时间
+  "isEstimated": true, // ← 标记为预计
   "dataSource": "船公司",
   "rawJson": {
-    "集装箱物流信息 - 状态_是否预计": "Y",     // ← Excel 中明确标记为 Y
+    "集装箱物流信息 - 状态_是否预计": "Y", // ← Excel 中明确标记为 Y
     "集装箱物流信息 - 状态_发生时间": "2026-03-30 11:48:00"
   }
 }
 ```
 
 **GAOU6195045**:
+
 ```json
 {
   "eventCode": "STCS",
-  "eventTime": "2026-03-28T07:03:00.000Z",  // ← 过去时间
-  "isEstimated": false,                      // ← 标记为实际
+  "eventTime": "2026-03-28T07:03:00.000Z", // ← 过去时间
+  "isEstimated": false, // ← 标记为实际
   "dataSource": "船公司",
   "rawJson": {
-    "集装箱物流信息 - 状态_是否预计": "N",     // ← Excel 中明确标记为 N
+    "集装箱物流信息 - 状态_是否预计": "N", // ← Excel 中明确标记为 N
     "集装箱物流信息 - 状态_发生时间": "2026-03-28 07:03:00"
   }
 }
 ```
 
-**结论**: 
+**结论**:
+
 - ✅ 两个柜子都是从飞驼 Excel 导入
 - ✅ HMMU6232153 的 STCS 事件被标记为"预计"(isEstimated=true)
 - ✅ GAOU6195045 的 STCS 事件被标记为"实际"(isEstimated=false)
@@ -125,10 +132,10 @@ node -e "const {AppDataSource} = require('./dist/database');
 
 飞驼 Excel 表一中，每个状态组都包含"是否预计"列:
 
-| 列名 | 示例值 | 含义 |
-|------|--------|------|
-| 集装箱物流信息 - 状态_是否预计 | `Y` 或 `N` | Y=预计，N=实际 |
-| 是否预计 | `Y` 或 `N` | 简称列名 |
+| 列名                            | 示例值     | 含义           |
+| ------------------------------- | ---------- | -------------- |
+| 集装箱物流信息 - 状态\_是否预计 | `Y` 或 `N` | Y=预计，N=实际 |
+| 是否预计                        | `Y` 或 `N` | 简称列名       |
 
 ### 2. 解析逻辑
 
@@ -138,23 +145,21 @@ node -e "const {AppDataSource} = require('./dist/database');
 
 ```typescript
 // 表一解析
-const isEsti = getVal(row, group, '是否预计') || getVal(row, group, '是否已发生');
+const isEsti = getVal(row, group, '是否预计') || getVal(row, group, '是否已发生')
 isEstimated: isEsti === 'Y' || isEsti === 'true'
 
 // 表二解析
-isEstimated: parseBool(
-  getVal(row, 12, '是否预计') || getVal(row, '集装箱物流信息 - 状态_是否预计')
-)
+isEstimated: parseBool(getVal(row, 12, '是否预计') || getVal(row, '集装箱物流信息 - 状态_是否预计'))
 ```
 
 **parseBool 函数** (第 490 行):
 
 ```typescript
 function parseBool(val: unknown): boolean {
-  if (!val) return false;
-  if (typeof val === 'boolean') return val;
-  const s = String(val).toLowerCase().trim();
-  return s === 'y' || s === 'yes' || s === 'true' || s === '1';
+  if (!val) return false
+  if (typeof val === 'boolean') return val
+  const s = String(val).toLowerCase().trim()
+  return s === 'y' || s === 'yes' || s === 'true' || s === '1'
 }
 ```
 
@@ -174,10 +179,10 @@ const event = eventRepo.create({
   // ...
   rawData: {
     group: status.group,
-    isEstimated: status.isEstimated,  // ← 保存原始值
+    isEstimated: status.isEstimated, // ← 保存原始值
     // ...
-  }
-});
+  },
+})
 ```
 
 ### 4. 应用逻辑
@@ -190,11 +195,7 @@ const event = eventRepo.create({
 // 只处理非预计状态的事件
 // 预计事件 (isEstimated=true) 不代表实际发生，不应更新核心字段
 if (!status.isEstimated && status.occurredAt) {
-  await this.updateCoreFieldsFromStatus(
-    containerNumber,
-    status.statusCode,
-    status.occurredAt
-  );
+  await this.updateCoreFieldsFromStatus(containerNumber, status.statusCode, status.occurredAt)
 }
 ```
 
@@ -205,11 +206,11 @@ for (const event of feituoEvents) {
   // 只处理已发生的事件 (hasOccurred=true)
   // 预计事件 (isEstimated=true/hasOccurred=false) 不代表实际发生，不应更新核心字段
   if (event.hasOccurred === false) {
-    continue;
+    continue
   }
-  
+
   if (!shouldUpdateCoreField(event.statusCode, true)) {
-    continue;
+    continue
   }
   // ... 更新核心字段
 }
@@ -229,6 +230,7 @@ if ((!status.isEstimated || isFinalStatus) && status.occurredAt) {
 ```
 
 **错误原因**:
+
 - 误以为"最终状态代表运输链结束，即使是预计也应该更新"
 - 没有理解"预计"的本质是**预测**,不是**事实**
 - 用预测数据污染了实际时间字段
@@ -239,17 +241,20 @@ if ((!status.isEstimated || isFinalStatus) && status.occurredAt) {
 
 ### 问题 1: 预计事件覆盖实际数据
 
-**现象**: 
+**现象**:
+
 - 某个柜子已经实际提柜 (`isEstimated: false`, `pickup_date: 2026-03-28`)
 - 后来又导入了一个预计提柜事件 (`isEstimated: true`, `eventTime: 2026-03-30`)
 - **错误行为**: 预计事件覆盖了实际提柜日期
 
 **后果**:
+
 - 数据准确性被破坏
 - 统计报表错误
 - 客户信任度下降
 
 **解决方案**:
+
 - ✅ 严格执行 `if (!status.isEstimated)` 检查
 - ✅ 禁止预计事件更新核心字段
 
@@ -259,13 +264,14 @@ if ((!status.isEstimated || isFinalStatus) && status.occurredAt) {
 
 ```typescript
 const statuses = [
-  { statusCode: 'ATA', occurredAt: ataTime, isEstimated: false },  // 实际到港
-  { statusCode: 'ETA', occurredAt: etaTime, isEstimated: true },   // 预计到港
-  { statusCode: 'RCVE', occurredAt: rcveTime, isEstimated: true }  // 预计还箱
-];
+  { statusCode: 'ATA', occurredAt: ataTime, isEstimated: false }, // 实际到港
+  { statusCode: 'ETA', occurredAt: etaTime, isEstimated: true }, // 预计到港
+  { statusCode: 'RCVE', occurredAt: rcveTime, isEstimated: true }, // 预计还箱
+]
 ```
 
 **正确处理**:
+
 - ✅ ATA (实际) → 更新 `process_port_operations.ata`
 - ❌ ETA (预计) → 不更新任何字段
 - ❌ RCVE (预计) → 不更新 `process_empty_return.return_time`
@@ -273,11 +279,13 @@ const statuses = [
 ### 问题 3: 数据源标识混乱
 
 **问题**:
+
 - 飞驼 API 返回的数据可能标记为"船公司"
 - Excel 导入的数据也可能来自"船公司"
 - 开发者容易混淆数据来源
 
 **解决方案**:
+
 - ✅ 统一使用 `isEstimated` 字段判断
 - ✅ 不依赖 `dataSource` 判断是否更新
 - ✅ 只认 `isEstimated: false` 的实际事件
@@ -309,6 +317,7 @@ process_trucking_transport.pickup_date
 ### 原则 3: 等待实际事件
 
 如果当前只有预计事件:
+
 - ✅ 保持核心字段为 NULL
 - ✅ 等待 `isEstimated: false` 的实际事件
 - ❌ 不用预计时间填充
@@ -324,38 +333,42 @@ process_trucking_transport.pickup_date
 ```typescript
 describe('processStatusArray - 预计事件处理', () => {
   it('不应该更新 RCVE 事件，如果标记为预计', async () => {
-    const statuses = [{
-      statusCode: 'RCVE',
-      occurredAt: rcveTime,
-      isEstimated: true  // ← 预计事件
-    }];
-    
-    await service.processStatusArray(containerNumber, statuses);
-    
+    const statuses = [
+      {
+        statusCode: 'RCVE',
+        occurredAt: rcveTime,
+        isEstimated: true, // ← 预计事件
+      },
+    ]
+
+    await service.processStatusArray(containerNumber, statuses)
+
     // 验证：未创建 EmptyReturn 记录
-    expect(emptyReturn).toBeNull();
-  });
-  
+    expect(emptyReturn).toBeNull()
+  })
+
   it('应该更新非预计的 RCVE 事件', async () => {
-    const statuses = [{
-      statusCode: 'RCVE',
-      occurredAt: rcveTime,
-      isEstimated: false  // ← 实际事件
-    }];
-    
-    await service.processStatusArray(containerNumber, statuses);
-    
+    const statuses = [
+      {
+        statusCode: 'RCVE',
+        occurredAt: rcveTime,
+        isEstimated: false, // ← 实际事件
+      },
+    ]
+
+    await service.processStatusArray(containerNumber, statuses)
+
     // 验证：已创建 EmptyReturn 记录
-    expect(emptyReturn?.returnTime).toEqual(rcveTime);
-  });
-});
+    expect(emptyReturn?.returnTime).toEqual(rcveTime)
+  })
+})
 ```
 
 ### 数据库验证
 
 ```sql
 -- 验证预计事件未更新核心字段
-SELECT 
+SELECT
   e.container_number,
   e.event_code,
   e.event_time,
@@ -363,16 +376,17 @@ SELECT
   po.gate_out_time,
   tt.pickup_date
 FROM ext_feituo_status_events e
-LEFT JOIN process_port_operations po 
+LEFT JOIN process_port_operations po
   ON e.container_number = po.container_number AND po.port_type = 'destination'
-LEFT JOIN process_trucking_transport tt 
+LEFT JOIN process_trucking_transport tt
   ON e.container_number = tt.container_number
 WHERE e.event_code IN ('STCS', 'GTOT', 'GATE_OUT')
   AND e.is_estimated = true
 ORDER BY e.container_number;
 ```
 
-**预期结果**: 
+**预期结果**:
+
 - `po.gate_out_time` 和 `tt.pickup_date` 应该为 NULL
 - 或者与实际事件的值一致 (不会被预计事件覆盖)
 
@@ -384,18 +398,21 @@ ORDER BY e.container_number;
 
 **错误假设**: "最终状态即使是预计也应该更新"
 
-**正确理解**: 
+**正确理解**:
+
 - 预计就是预测，不是事实
 - 无论什么状态码，只要标记为预计，就不应该更新实际字段
 
 ### 教训 2: 直接查询数据库
 
 **浪费时间的路径**:
+
 - 分析导入映射配置 (无关)
 - 检查状态机计算逻辑 (无关)
 - 研究 Controller 写入逻辑 (无关)
 
 **正确的路径**:
+
 - ✅ 直接查询 `ext_feituo_status_events` 看原始数据
 - ✅ 直接查询 `process_port_operations` 看实际存储
 - ✅ 对比两者的差异
@@ -403,14 +420,17 @@ ORDER BY e.container_number;
 ### 教训 3: 理解数据的业务含义
 
 **关键认知**:
+
 - `isEstimated: true` = 船公司的预测，可能会变
 - `isEstimated: false` = 实际发生的事实，不会改变
 
 **错误做法**:
+
 - 用预测数据更新实际字段
 - 认为"最终状态"就可以例外
 
 **正确做法**:
+
 - 只相信实际发生的数据
 - 等待 `isEstimated: false` 的事件
 

@@ -3,11 +3,10 @@
  * 测试文件：backend/src/services/feituoImport.service.test.ts
  */
 
-import { FeituoImportService } from './feituoImport.service';
 import { AppDataSource } from '../database';
-import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { PortOperation } from '../entities/PortOperation';
+import { FeituoImportService } from './feituoImport.service';
 
 // Mock ExcelStatusInfo
 interface ExcelStatusInfo {
@@ -123,7 +122,7 @@ describe('FeituoImportService - 方案 A: 最终状态事件特殊处理', () =>
       const portOps = await poRepo.find({ where: { containerNumber } });
 
       expect(portOps.length).toBeGreaterThan(0);
-      const destPortOp = portOps.find(po => po.portType === 'destination');
+      const destPortOp = portOps.find((po) => po.portType === 'destination');
       expect(destPortOp?.ata).toEqual(ataTime);
     });
 
@@ -158,7 +157,7 @@ describe('FeituoImportService - 方案 A: 最终状态事件特殊处理', () =>
       // 验证 ATA 已更新
       const poRepo = AppDataSource.getRepository(PortOperation);
       const portOps = await poRepo.find({ where: { containerNumber } });
-      const destPortOp = portOps.find(po => po.portType === 'destination');
+      const destPortOp = portOps.find((po) => po.portType === 'destination');
       expect(destPortOp?.ata).toEqual(ataTime);
 
       // 验证 RCVE 未更新（因为是预计事件）
@@ -172,11 +171,11 @@ describe('FeituoImportService - 方案 A: 最终状态事件特殊处理', () =>
     it('所有事件都应该遵守预计限制规则', () => {
       // 预计事件 (isEstimated=true) 不应该更新核心字段
       // 这是为了保护数据准确性，防止预测数据污染实际时间字段
-      
+
       // 所有状态码都应该遵守这个规则
       const allStatusCodes = ['RCVE', 'STCS', 'GTOT', 'GTIN', 'DSCH', 'BO', 'DLPT', 'ATA', 'ETA'];
-      
-      allStatusCodes.forEach(code => {
+
+      allStatusCodes.forEach((code) => {
         // 每个状态码如果是预计的，都不应该更新
         expect(true).toBe(true); // 逻辑验证已在代码中实现
       });

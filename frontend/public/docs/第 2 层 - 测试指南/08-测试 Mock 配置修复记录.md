@@ -5,6 +5,7 @@
 运行 `schedulingCostOptimizer.service.test.ts` 时出现多个 Mock 配置错误：
 
 **错误 1**: DemurrageService 未正确 Mock
+
 ```
 TypeError: Cannot read properties of undefined (reading 'findOne')
 at DemurrageService.getContainerMatchParams
@@ -12,6 +13,7 @@ at SchedulingCostOptimizerService.evaluateTotalCost
 ```
 
 **错误 2**: calculateTotalCost 不是函数
+
 ```
 TypeError: this.demurrageService.calculateTotalCost is not a function
 at SchedulingCostOptimizerService.evaluateTotalCost
@@ -22,6 +24,7 @@ at SchedulingCostOptimizerService.evaluateTotalCost
 ### 原因 1: 缺少必要的 Mock 配置
 
 测试文件缺少以下 Mock 配置：
+
 1. **数据库访问** - `AppDataSource.getRepository()` 返回 undefined
 2. **滞港费服务** - `DemurrageService` 需要数据库查询
 3. **日志工具** - `logger.warn()` 未 Mock
@@ -45,6 +48,7 @@ constructor() {
 ```
 
 **这意味着**:
+
 - ❌ 不能只 Mock 模块的部分导出
 - ✅ 必须 Mock 整个类的实现
 - ✅ 使用 `return { ClassName: jest.fn()... }` 格式
@@ -54,13 +58,13 @@ constructor() {
 ### 1. 添加数据库 Mock
 
 ```typescript
-import { AppDataSource } from '../database';
+import { AppDataSource } from '../database'
 
 jest.mock('../database', () => ({
   AppDataSource: {
-    getRepository: jest.fn()
-  }
-}));
+    getRepository: jest.fn(),
+  },
+}))
 
 // 在 beforeEach 中配置
 const mockQueryBuilder = {
@@ -68,21 +72,22 @@ const mockQueryBuilder = {
   where: jest.fn().mockReturnThis(),
   andWhere: jest.fn().mockReturnThis(),
   getMany: jest.fn().mockResolvedValue([mockWarehouse]),
-  getOne: jest.fn().mockResolvedValue(mockWarehouse)
-};
+  getOne: jest.fn().mockResolvedValue(mockWarehouse),
+}
 
 const mockRepo = {
   find: jest.fn().mockResolvedValue([mockWarehouse]),
   findOne: jest.fn().mockResolvedValue(mockWarehouse),
-  createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder)
-};
+  createQueryBuilder: jest.fn().mockReturnValue(mockQueryBuilder),
+}
 
-(AppDataSource.getRepository as jest.Mock).mockReturnValue(mockRepo);
+;(AppDataSource.getRepository as jest.Mock).mockReturnValue(mockRepo)
 ```
 
 ### 2. 添加滞港费服务 Mock（⚠️ 重要修正）
 
 **错误示范**（会导致 `is not a function` 错误）:
+
 ```typescript
 jest.mock('./demurrage.service', () => ({
   DemurrageService: jest.fn().mockImplementation(() => ({
@@ -92,6 +97,7 @@ jest.mock('./demurrage.service', () => ({
 ```
 
 **正确方式**（使用 return 语句包裹）:
+
 ```typescript
 jest.mock('./demurrage.service', () => {
   return {
@@ -106,20 +112,21 @@ jest.mock('./demurrage.service', () => {
           detentionCost: 0,
           storageCost: 0,
           transportationCost: 0,
-          handlingCost: 0
-        }
+          handlingCost: 0,
+        },
       }),
       getContainerMatchParams: jest.fn().mockResolvedValue({
         container: {},
         portOperations: [],
-        seaFreight: null
-      })
-    }))
-  };
-});
+        seaFreight: null,
+      }),
+    })),
+  }
+})
 ```
 
 **为什么需要 `return`?**
+
 - 当被 Mock 的类在构造函数中被 `new` 时
 - Jest 需要完整的模块导出结构
 - `return { ClassName: ... }` 确保模块导出格式正确
@@ -132,9 +139,9 @@ jest.mock('../utils/logger', () => ({
     info: jest.fn(),
     warn: jest.fn(),
     error: jest.fn(),
-    debug: jest.fn()
-  }
-}));
+    debug: jest.fn(),
+  },
+}))
 ```
 
 ### 4. 添加智能日历容量 Mock
@@ -143,17 +150,17 @@ jest.mock('../utils/logger', () => ({
 jest.mock('../utils/smartCalendarCapacity', () => ({
   SmartCalendarCapacity: jest.fn().mockImplementation(() => ({
     ensureWarehouseOccupancy: jest.fn().mockResolvedValue(true),
-    checkWarehouseAvailability: jest.fn().mockResolvedValue(true)
-  }))
-}));
+    checkWarehouseAvailability: jest.fn().mockResolvedValue(true),
+  })),
+}))
 ```
 
 ### 5. 添加清理逻辑
 
 ```typescript
 afterEach(() => {
-  jest.clearAllMocks();
-});
+  jest.clearAllMocks()
+})
 ```
 
 ## 修复后的测试结构
@@ -222,12 +229,14 @@ Tests:       22 passed, 22 total
 ### 1. Mock 的必要性
 
 **为什么需要 Mock？**
+
 - 隔离外部依赖（数据库、HTTP、文件系统）
 - 控制测试环境
 - 加快测试执行速度
 - 避免副作用
 
 **哪些需要 Mock？**
+
 - 数据库访问（TypeORM Repository）
 - HTTP 请求（axios, fetch）
 - 文件系统操作
@@ -236,41 +245,45 @@ Tests:       22 passed, 22 total
 
 ### 2. ⚠️ 重要：构造函数中直接实例化的 Mock
 
-**问题场景**: 
+**问题场景**:
 当被测试的类在构造函数中直接 `new` 了其他服务时：
 
 ```typescript
 // 被测试的类
 class MyService {
-  private otherService: OtherService;
-  
+  private otherService: OtherService
+
   constructor() {
-    this.otherService = new OtherService(); // ← 直接实例化
+    this.otherService = new OtherService() // ← 直接实例化
   }
 }
 ```
 
 **错误 Mock 方式**（会导致 `is not a function`）:
+
 ```typescript
 jest.mock('./OtherService', () => ({
   OtherService: jest.fn().mockImplementation(() => ({
-    someMethod: jest.fn()
-  }))
-}));
+    someMethod: jest.fn(),
+  })),
+}))
 ```
 
 **正确 Mock 方式**（使用 return 包裹）:
+
 ```typescript
 jest.mock('./OtherService', () => {
-  return {  // ← 必须有 return
+  return {
+    // ← 必须有 return
     OtherService: jest.fn().mockImplementation(() => ({
-      someMethod: jest.fn()
-    }))
-  };
-});
+      someMethod: jest.fn(),
+    })),
+  }
+})
 ```
 
 **原理说明**:
+
 - Jest 的 `jest.mock()` 会替换整个模块的导出
 - 当类在构造函数中被 `new` 时，Jest 需要使用 Mock 的构造函数
 - `return { ClassName: ... }` 确保模块导出的结构正确
@@ -303,8 +316,8 @@ it('should...', () => {
 // ❌ 不完整的 Mock
 const mockRepo = {
   find: jest.fn(),
-  findOne: jest.fn()
-};
+  findOne: jest.fn(),
+}
 
 // ✅ 完整的 Mock
 const mockRepo = {
@@ -316,9 +329,9 @@ const mockRepo = {
     where: jest.fn().mockReturnThis(),
     andWhere: jest.fn().mockReturnThis(),
     getMany: jest.fn().mockResolvedValue([]),
-    getOne: jest.fn().mockResolvedValue(null)
-  })
-};
+    getOne: jest.fn().mockResolvedValue(null),
+  }),
+}
 ```
 
 ### 4. 链式调用的 Mock
@@ -330,8 +343,8 @@ mockQueryBuilder = {
   leftJoinAndSelect: jest.fn().mockReturnThis(), // 返回自身以支持链式调用
   where: jest.fn().mockReturnThis(),
   andWhere: jest.fn().mockReturnThis(),
-  getMany: jest.fn().mockResolvedValue([]) // 最终返回值
-};
+  getMany: jest.fn().mockResolvedValue([]), // 最终返回值
+}
 ```
 
 ### 5. 清理 Mock 状态
@@ -339,12 +352,12 @@ mockQueryBuilder = {
 ```typescript
 // 在每个测试后清理
 afterEach(() => {
-  jest.clearAllMocks();  // 清除 Mock 调用历史
+  jest.clearAllMocks() // 清除 Mock 调用历史
   // 或
-  jest.resetAllMocks();  // 重置 Mock 实现
+  jest.resetAllMocks() // 重置 Mock 实现
   // 或
-  jest.restoreAllMocks(); // 恢复原始实现
-});
+  jest.restoreAllMocks() // 恢复原始实现
+})
 ```
 
 ## 常见错误及解决方案
@@ -352,24 +365,27 @@ afterEach(() => {
 ### 错误 1: Cannot read property 'X' of undefined
 
 **症状**:
+
 ```
 TypeError: Cannot read property 'findOne' of undefined
 ```
 
 **原因**: Mock 对象未正确配置
 
-**解决**: 
+**解决**:
+
 ```typescript
 // 确保 Mock 对象有所有必要方法
 const mock = {
   method1: jest.fn().mockReturnValue(value),
-  method2: jest.fn().mockReturnValue(value)
-};
+  method2: jest.fn().mockReturnValue(value),
+}
 ```
 
 ### 错误 2: Mock 返回值不符合预期
 
 **症状**:
+
 ```
 Expected: Array, Received: undefined
 ```
@@ -377,14 +393,16 @@ Expected: Array, Received: undefined
 **原因**: 忘记设置 Mock 返回值
 
 **解决**:
+
 ```typescript
 // 使用 mockResolvedValue 或 mockReturnValue
-mockFn.mockResolvedValue(expectedValue);
+mockFn.mockResolvedValue(expectedValue)
 ```
 
 ### 错误 3: 测试间相互污染
 
 **症状**:
+
 ```
 前一个测试的数据影响到后一个测试
 ```
@@ -392,10 +410,11 @@ mockFn.mockResolvedValue(expectedValue);
 **原因**: Mock 状态未清理
 
 **解决**:
+
 ```typescript
 afterEach(() => {
-  jest.clearAllMocks();
-});
+  jest.clearAllMocks()
+})
 ```
 
 ## 最佳实践检查清单

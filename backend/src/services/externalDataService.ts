@@ -6,33 +6,33 @@
  */
 
 import axios, { AxiosInstance } from 'axios';
-import { AppDataSource } from '../database';
-import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
-import { PortOperation } from '../entities/PortOperation';
-import { Container } from '../entities/Container';
-import { SeaFreight } from '../entities/SeaFreight';
-import { TruckingTransport } from '../entities/TruckingTransport';
-import { EmptyReturn } from '../entities/EmptyReturn';
-import { WarehouseOperation } from '../entities/WarehouseOperation';
-import { InspectionRecord } from '../entities/InspectionRecord';
-import { InspectionEvent } from '../entities/InspectionEvent';
-import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
-import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
-import { ExtFeituoPlace } from '../entities/ExtFeituoPlace';
-import { ExtFeituoStatusEvent } from '../entities/ExtFeituoStatusEvent';
-import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
-import { logger } from '../utils/logger';
+import { config } from '../config/index';
 import {
-  shouldUpdateCoreField,
   getCoreFieldName,
   getPortTypeForStatusCode,
   resolvePortOperationTimeKeyFromCoreField,
+  shouldUpdateCoreField
 } from '../constants/FeiTuoStatusMapping';
+import { AppDataSource } from '../database';
+import { Container } from '../entities/Container';
+import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
+import { EmptyReturn } from '../entities/EmptyReturn';
+import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
+import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
+import { ExtFeituoPlace } from '../entities/ExtFeituoPlace';
+import { ExtFeituoStatusEvent } from '../entities/ExtFeituoStatusEvent';
+import { InspectionEvent } from '../entities/InspectionEvent';
+import { InspectionRecord } from '../entities/InspectionRecord';
+import { PortOperation } from '../entities/PortOperation';
+import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
+import { SeaFreight } from '../entities/SeaFreight';
+import { TruckingTransport } from '../entities/TruckingTransport';
+import { WarehouseOperation } from '../entities/WarehouseOperation';
+import { logger } from '../utils/logger';
 import { tryApplyFeituoPickupFromGateOutEvent } from '../utils/truckingPickupFromFeituo';
 import { auditLogService } from './auditLog.service';
 import { DemurrageService } from './demurrage.service';
 import { feituoSmartDateUpdater } from './feituo/FeituoSmartDateUpdater';
-import { config } from '../config/index';
 
 /**
  * 内部统一结构：由飞驼 OpenAPI「集装箱综合跟踪」`data.result` 映射而来（与 Excel 轨迹管道一致）
@@ -92,16 +92,16 @@ export interface FeituoEvent {
  */
 const _STATUS_CODE_MAPPING: Record<string, string> = {
   // 飞驼状态代码映射到系统内部状态代码
-  'BO': 'shipped',           // 已装船
-  'DLPT': 'in_transit',      // 在途
-  'ARRIVE': 'at_port',       // 到港
-  'ATA': 'at_port',          // 实际到港
-  'ETA': 'in_transit',       // 预计到港
-  'GATE_IN': 'picked_up',    // 入闸
-  'GATE_OUT': 'unloaded',    // 出闸
-  'DISCHARGED': 'unloaded', // 卸货
-  'AVAIL': 'picked_up',     // 可提货
-  'EMPTY_RETURN': 'returned_empty', // 还空箱
+  BO: 'shipped', // 已装船
+  DLPT: 'in_transit', // 在途
+  ARRIVE: 'at_port', // 到港
+  ATA: 'at_port', // 实际到港
+  ETA: 'in_transit', // 预计到港
+  GATE_IN: 'picked_up', // 入闸
+  GATE_OUT: 'unloaded', // 出闸
+  DISCHARGED: 'unloaded', // 卸货
+  AVAIL: 'picked_up', // 可提货
+  EMPTY_RETURN: 'returned_empty' // 还空箱
 };
 
 /**
@@ -113,7 +113,7 @@ export enum DataSource {
   SHIP_COMPANY = 'ShipCompany',
   TERMINAL = 'Terminal',
   USER = 'User',
-  EXCEL = 'Excel',
+  EXCEL = 'Excel'
 }
 
 /**
@@ -129,13 +129,13 @@ export class ExternalDataService {
 
   // 【监控指标】同步统计
   private syncStats = {
-    totalSyncCount: 0,        // 总同步次数
-    successCount: 0,          // 成功次数
-    failedCount: 0,           // 失败次数
-    totalContainers: 0,       // 总同步货柜数
-    successContainers: 0,     // 成功货柜数
-    failedContainers: 0,      // 失败货柜数
-    lastSyncTime: null as Date | null,  // 最后同步时间
+    totalSyncCount: 0, // 总同步次数
+    successCount: 0, // 成功次数
+    failedCount: 0, // 失败次数
+    totalContainers: 0, // 总同步货柜数
+    successContainers: 0, // 成功货柜数
+    failedContainers: 0, // 失败货柜数
+    lastSyncTime: null as Date | null // 最后同步时间
   };
 
   // 数据仓库
@@ -163,8 +163,8 @@ export class ExternalDataService {
       baseURL: config.feituo.apiBaseUrl,
       timeout: config.feituo.timeout || 30000,
       headers: {
-        'Content-Type': 'application/json',
-      },
+        'Content-Type': 'application/json'
+      }
     });
 
     // 请求拦截器 - 添加日志
@@ -198,15 +198,18 @@ export class ExternalDataService {
       return f.accessToken.trim();
     }
     if (!f.clientId?.trim() || !f.clientSecret?.trim()) {
-      throw new Error('飞驼 OpenAPI 未配置：请设置 FEITUO_ACCESS_TOKEN 或 FEITUO_CLIENT_ID + FEITUO_CLIENT_SECRET');
+      throw new Error(
+        '飞驼 OpenAPI 未配置：请设置 FEITUO_ACCESS_TOKEN 或 FEITUO_CLIENT_ID + FEITUO_CLIENT_SECRET'
+      );
     }
     if (this.openApiTokenCache && this.openApiTokenCache.expiresAt > Date.now() + 60000) {
       return this.openApiTokenCache.token;
     }
-    const res = await this.apiClient.post<{ access_token?: string; expires_in?: number; message?: string }>(
-      '/auth/api/token',
-      { clientId: f.clientId.trim(), secret: f.clientSecret.trim() }
-    );
+    const res = await this.apiClient.post<{
+      access_token?: string;
+      expires_in?: number;
+      message?: string;
+    }>('/auth/api/token', { clientId: f.clientId.trim(), secret: f.clientSecret.trim() });
     const token = res.data?.access_token;
     if (!token) {
       throw new Error(res.data?.message || '获取飞驼 Token 失败');
@@ -225,12 +228,14 @@ export class ExternalDataService {
   }> {
     const container = await this.containerRepository.findOne({
       where: { containerNumber },
-      relations: ['seaFreight'],
+      relations: ['seaFreight']
     });
     const bl = container?.billOfLadingNumber ?? container?.seaFreight?.billOfLadingNumber;
     let sf = container?.seaFreight;
     if (!sf && bl) {
-      sf = (await this.seaFreightRepository.findOne({ where: { billOfLadingNumber: bl } })) ?? undefined;
+      sf =
+        (await this.seaFreightRepository.findOne({ where: { billOfLadingNumber: bl } })) ??
+        undefined;
     }
     const carrierCode = sf?.shippingCompanyId?.trim() || undefined;
     return { billNo: bl || undefined, carrierCode };
@@ -249,7 +254,7 @@ export class ExternalDataService {
       isEstimated: s.isEsti === 'Y',
       hasOccurred: s.isEsti !== 'Y',
       eventNameCn: s.descriptionCn,
-      eventNameEn: s.descriptionEn,
+      eventNameEn: s.descriptionEn
     }));
   }
 
@@ -268,7 +273,7 @@ export class ExternalDataService {
       containerNumber,
       billNo: result.billNo,
       places: result.places,
-      trackingEvents,
+      trackingEvents
     };
   }
 
@@ -285,7 +290,10 @@ export class ExternalDataService {
   /**
    * 从飞驼 OpenAPI 获取单箱：POST /application/v1/query（集装箱综合跟踪），映射为内部 FeituoTrackingData
    */
-  private async fetchOneContainerFromOpenApi(containerNumber: string, retries: number): Promise<FeituoTrackingData | null> {
+  private async fetchOneContainerFromOpenApi(
+    containerNumber: string,
+    retries: number
+  ): Promise<FeituoTrackingData | null> {
     const opts = await this.resolveFeituoQueryOptions(containerNumber);
     let lastError: unknown;
 
@@ -298,9 +306,13 @@ export class ExternalDataService {
         if (opts.portCode) body.portCode = opts.portCode;
         if (opts.isExport) body.isExport = opts.isExport;
 
-        const response = await this.apiClient.post<FeituoOpenApiResponse>('/application/v1/query', body, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const response = await this.apiClient.post<FeituoOpenApiResponse>(
+          '/application/v1/query',
+          body,
+          {
+            headers: { Authorization: `Bearer ${token}` }
+          }
+        );
 
         const sc = response.data?.statusCode;
         if (sc !== undefined && sc !== 20000) {
@@ -341,7 +353,10 @@ export class ExternalDataService {
    * @param containerNumbers 集装箱号数组
    * @param retries 单箱重试次数
    */
-  async fetchFromFeituo(containerNumbers: string[], retries: number = 3): Promise<FeituoTrackingData[]> {
+  async fetchFromFeituo(
+    containerNumbers: string[],
+    retries: number = 3
+  ): Promise<FeituoTrackingData[]> {
     if (!this.isFeituoOpenApiConfigured()) {
       throw new Error(
         '飞驼 OpenAPI 未配置：请设置 FEITUO_ACCESS_TOKEN 或 FEITUO_CLIENT_ID + FEITUO_CLIENT_SECRET（与 FeiTuoAdapter 相同），并确认 FEITUO_API_BASE_URL 指向 openapi.freightower.com'
@@ -351,7 +366,9 @@ export class ExternalDataService {
     const out: FeituoTrackingData[] = [];
     for (let i = 0; i < containerNumbers.length; i++) {
       const cn = containerNumbers[i];
-      logger.info(`[ExternalDataService] OpenAPI query 货柜 ${cn} (${i + 1}/${containerNumbers.length})`);
+      logger.info(
+        `[ExternalDataService] OpenAPI query 货柜 ${cn} (${i + 1}/${containerNumbers.length})`
+      );
       const data = await this.fetchOneContainerFromOpenApi(cn, retries);
       if (data) out.push(data);
       if (i < containerNumbers.length - 1) {
@@ -367,7 +384,7 @@ export class ExternalDataService {
    * @param ms 毫秒数
    */
   private sleep(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -385,7 +402,7 @@ export class ExternalDataService {
     const batches = this.chunkArray(containerNumbers, CONCURRENCY_LIMIT);
 
     for (const batch of batches) {
-      const promises = batch.map(containerNumber =>
+      const promises = batch.map((containerNumber) =>
         this.demurrageService.calculateForContainer(containerNumber).catch((e) => {
           logger.warn(`[ExternalDataService] 滞港费重算失败: ${containerNumber}`, e);
         })
@@ -407,7 +424,10 @@ export class ExternalDataService {
    * @param feituoData 飞驼API返回的数据
    * @param dataSource 数据源类型
    */
-  private convertFeituoToStatusEvents(feituoData: FeituoTrackingData, dataSource: DataSource = DataSource.FEITUO): ContainerStatusEvent[] {
+  private convertFeituoToStatusEvents(
+    feituoData: FeituoTrackingData,
+    dataSource: DataSource = DataSource.FEITUO
+  ): ContainerStatusEvent[] {
     const events: ContainerStatusEvent[] = [];
 
     feituoData.trackingEvents.forEach((event, _index) => {
@@ -505,8 +525,8 @@ export class ExternalDataService {
           where: {
             containerNumber: event.containerNumber,
             statusCode: event.statusCode,
-            occurredAt: event.occurredAt,
-          },
+            occurredAt: event.occurredAt
+          }
         });
 
         if (existingEvent) {
@@ -514,18 +534,21 @@ export class ExternalDataService {
           Object.assign(existingEvent, event);
           const updated = await eventRepository.save(existingEvent);
           savedEvents.push(updated);
-          logger.info(`[ExternalDataService] 更新状态事件: ${event.containerNumber} - ${event.statusCode}`);
+          logger.info(
+            `[ExternalDataService] 更新状态事件: ${event.containerNumber} - ${event.statusCode}`
+          );
         } else {
           // 创建新事件
           const saved = await eventRepository.save(event);
           savedEvents.push(saved);
-          logger.info(`[ExternalDataService] 创建状态事件: ${event.containerNumber} - ${event.statusCode}`);
+          logger.info(
+            `[ExternalDataService] 创建状态事件: ${event.containerNumber} - ${event.statusCode}`
+          );
         }
       }
 
       logger.info(`[ExternalDataService] 保存了 ${savedEvents.length} 个状态事件`);
       return savedEvents;
-
     } catch (error) {
       logger.error('[ExternalDataService] 保存状态事件失败:', error);
       throw error;
@@ -540,7 +563,7 @@ export class ExternalDataService {
       ...e,
       eventCode: e.eventCode || e.statusCode || 'UNKNOWN',
       eventTime: e.eventTime,
-      isEsti: e.isEstimated ? 'Y' : 'N',
+      isEsti: e.isEstimated ? 'Y' : 'N'
     }));
   }
 
@@ -572,21 +595,26 @@ export class ExternalDataService {
     const feituoData: FeituoTrackingData = { containerNumber, trackingEvents };
     const events = this.convertFeituoToStatusEvents(feituoData, dataSource);
 
-    const nonStandardCodes = events.filter((e) => e.statusCode === 'AVLE' || e.statusCode === 'AVAIL');
+    const nonStandardCodes = events.filter(
+      (e) => e.statusCode === 'AVLE' || e.statusCode === 'AVAIL'
+    );
     if (nonStandardCodes.length > 0) {
       logger.warn(`[ExternalDataService] 检测到非标准可提货状态码`, {
         containerNumber,
         nonStandardEvents: nonStandardCodes.map((e) => ({
           statusCode: e.statusCode,
           occurredAt: e.occurredAt,
-          location: e.locationNameEn,
+          location: e.locationNameEn
         })),
-        message: 'PCAB是飞驼官方标准码，AVLE/AVAIL为兼容码',
+        message: 'PCAB是飞驼官方标准码，AVLE/AVAIL为兼容码'
       });
     }
 
     const savedEvents = await this.saveStatusEvents(events);
-    const updatedAtaFields = await this.updatePortOperationCoreFields(containerNumber, trackingEvents);
+    const updatedAtaFields = await this.updatePortOperationCoreFields(
+      containerNumber,
+      trackingEvents
+    );
     return { savedEvents, updatedAtaFields };
   }
 
@@ -604,9 +632,11 @@ export class ExternalDataService {
       await this.recalculateLogisticsStatus(containerNumber);
     }
     if (updatedAtaFields.length > 0 && !options?.deferDemurrage) {
-      this.demurrageService.calculateForContainer(containerNumber).catch((e) =>
-        logger.warn('[ExternalDataService] demurrage recalc on ATA update failed:', e)
-      );
+      this.demurrageService
+        .calculateForContainer(containerNumber)
+        .catch((e) =>
+          logger.warn('[ExternalDataService] demurrage recalc on ATA update failed:', e)
+        );
     }
     await this.updateInspectionStatus(containerNumber, trackingEvents);
   }
@@ -625,12 +655,12 @@ export class ExternalDataService {
     const bills = [billOfLadingNumber, fallbackBl].filter((b, i, a) => b && a.indexOf(b) === i);
     let rows = await extRepo.find({
       where: bills.map((billOfLadingNumber) => ({ containerNumber, billOfLadingNumber })),
-      order: { eventTime: 'ASC' },
+      order: { eventTime: 'ASC' }
     });
     if (rows.length === 0) {
       rows = await extRepo.find({
         where: { containerNumber },
-        order: { eventTime: 'ASC' },
+        order: { eventTime: 'ASC' }
       });
     }
     if (rows.length === 0) {
@@ -640,13 +670,14 @@ export class ExternalDataService {
     const trackingEvents: FeituoEvent[] = rows.map((ext) => ({
       eventCode: ext.eventCode,
       statusCode: ext.eventCode,
-      eventTime: ext.eventTime instanceof Date ? ext.eventTime.toISOString() : String(ext.eventTime),
+      eventTime:
+        ext.eventTime instanceof Date ? ext.eventTime.toISOString() : String(ext.eventTime),
       locationCode: ext.portCode || undefined,
       locationNameEn: ext.eventPlace || undefined,
       locationNameCn: ext.eventPlace || undefined,
       terminalName: ext.terminalName || undefined,
       isEstimated: ext.isEstimated,
-      hasOccurred: !ext.isEstimated,
+      hasOccurred: !ext.isEstimated
     }));
 
     const { savedEvents, updatedAtaFields } = await this.processTrackingEventsBranch(
@@ -657,7 +688,7 @@ export class ExternalDataService {
       { persistRawToExt: false }
     );
     await this.finalizeTrackingSyncTail(containerNumber, trackingEvents, updatedAtaFields, {
-      includeRecalculate: false,
+      includeRecalculate: false
     });
     return savedEvents;
   }
@@ -667,7 +698,10 @@ export class ExternalDataService {
    * @param containerNumber 集装箱号
    * @param dataSource 数据源类型
    */
-  async syncContainerEvents(containerNumber: string, dataSource: DataSource = DataSource.FEITUO): Promise<ContainerStatusEvent[]> {
+  async syncContainerEvents(
+    containerNumber: string,
+    dataSource: DataSource = DataSource.FEITUO
+  ): Promise<ContainerStatusEvent[]> {
     try {
       logger.info(`[ExternalDataService] 开始同步货柜 ${containerNumber} 的状态事件`);
 
@@ -686,7 +720,9 @@ export class ExternalDataService {
       // 【增强功能】优先处理 places 数据（如果存在）
       // places 数据结构更完整，优先于 trackingEvents 使用
       if (feituoData.places && feituoData.places.length > 0) {
-        logger.info(`[ExternalDataService] 检测到 places 数据，优先处理 ${feituoData.places.length} 个地点`);
+        logger.info(
+          `[ExternalDataService] 检测到 places 数据，优先处理 ${feituoData.places.length} 个地点`
+        );
 
         // 【新增】先保存 places 原始数据到 ext_feituo_places
         const syncRequestId = `API_${containerNumber}_${Date.now()}`;
@@ -759,9 +795,10 @@ export class ExternalDataService {
         { includeRecalculate: true }
       );
 
-      logger.info(`[ExternalDataService] 成功同步货柜 ${containerNumber} 的 ${savedEvents.length} 个状态事件`);
+      logger.info(
+        `[ExternalDataService] 成功同步货柜 ${containerNumber} 的 ${savedEvents.length} 个状态事件`
+      );
       return savedEvents;
-
     } catch (error) {
       logger.error(`[ExternalDataService] 同步货柜 ${containerNumber} 失败:`, error);
       throw error;
@@ -819,13 +856,15 @@ export class ExternalDataService {
           firmsCode: place.firmsCode || null,
           syncRequestId,
           dataSource: 'API',
-          rawJson: place,
+          rawJson: place
         });
 
         await placeRepo.save(extPlace);
       }
 
-      logger.info(`[ExternalDataService] 保存 places 原始数据完成: ${containerNumber}, ${places.length} 条`);
+      logger.info(
+        `[ExternalDataService] 保存 places 原始数据完成: ${containerNumber}, ${places.length} 条`
+      );
     } catch (error) {
       logger.error(`[ExternalDataService] 保存 places 原始数据失败:`, error);
       // 原始数据保存失败不影响主流程，继续处理
@@ -873,13 +912,15 @@ export class ExternalDataService {
           declarationNo: s.declarationNo || null,
           syncRequestId,
           dataSource: 'API',
-          rawJson: s,
+          rawJson: s
         });
 
         await statusRepo.save(extStatus);
       }
 
-      logger.info(`[ExternalDataService] 保存 status 原始数据完成: ${containerNumber}, ${statuses.length} 条`);
+      logger.info(
+        `[ExternalDataService] 保存 status 原始数据完成: ${containerNumber}, ${statuses.length} 条`
+      );
     } catch (error) {
       logger.error(`[ExternalDataService] 保存 status 原始数据失败:`, error);
       // 原始数据保存失败不影响主流程，继续处理
@@ -1017,14 +1058,14 @@ export class ExternalDataService {
   }
 
   private static readonly ATA_RELATED_FIELDS = [
-    'ata',                    // 目的港实际到港 - 核心状态机字段
-    'dest_port_unload_date',  // 目的港卸柜日期 - 状态机使用
-    'discharged_time',        // 卸船时间 - 状态机使用
-    'transit_arrival_date',   // 中转港到港 - 状态机使用
-    'gate_in_time',           // 进港时间 - 状态机使用
-    'shipment_date',          // 出运日期 - 状态机使用
-    'return_time',            // 还箱时间 - 状态机使用
-    'available_time',         // 可提货时间 - 状态机使用
+    'ata', // 目的港实际到港 - 核心状态机字段
+    'dest_port_unload_date', // 目的港卸柜日期 - 状态机使用
+    'discharged_time', // 卸船时间 - 状态机使用
+    'transit_arrival_date', // 中转港到港 - 状态机使用
+    'gate_in_time', // 进港时间 - 状态机使用
+    'shipment_date', // 出运日期 - 状态机使用
+    'return_time', // 还箱时间 - 状态机使用
+    'available_time' // 可提货时间 - 状态机使用
   ];
 
   /**
@@ -1059,25 +1100,27 @@ export class ExternalDataService {
       const [container, truckingTransport, warehouseOperation] = await Promise.all([
         this.containerRepository.findOne({ where: { containerNumber } }),
         this.truckingTransportRepository.findOne({ where: { containerNumber } }),
-        this.warehouseOperationRepository.findOne({ where: { containerNumber } }),
+        this.warehouseOperationRepository.findOne({ where: { containerNumber } })
       ]);
 
       // 构建港口操作链信息（用于内部一致性校验）
-      const portOperationsChain = portOperations.map(po => ({
+      const portOperationsChain = portOperations.map((po) => ({
         portSequence: po.portSequence ?? 0,
         portType: po.portType as 'origin' | 'transit' | 'destination',
         ata: po.ata,
         atd: po.atd,
         eta: po.eta,
-        etd: po.etd,
+        etd: po.etd
       }));
 
       // 找到上一港信息
-      const destinationPort = portOperations.find(po => po.portType === 'destination');
+      const destinationPort = portOperations.find((po) => po.portType === 'destination');
       const previousPort = destinationPort
         ? portOperations
-            .filter(po => po.portSequence !== undefined && destinationPort.portSequence !== undefined)
-            .filter(po => (po.portSequence ?? 0) < (destinationPort.portSequence ?? 0))
+            .filter(
+              (po) => po.portSequence !== undefined && destinationPort.portSequence !== undefined
+            )
+            .filter((po) => (po.portSequence ?? 0) < (destinationPort.portSequence ?? 0))
             .sort((a, b) => (b.portSequence ?? 0) - (a.portSequence ?? 0))[0]
         : undefined;
 
@@ -1113,37 +1156,47 @@ export class ExternalDataService {
             eta: destinationPort?.eta ?? null,
             shipDate: null,
             logisticsStatus: container?.logisticsStatus ?? 'unknown',
-            portType: destinationPort?.portType as 'origin' | 'transit' | 'destination' | null ?? null,
+            portType:
+              (destinationPort?.portType as 'origin' | 'transit' | 'destination' | null) ?? null,
             portOperations: portOperationsChain,
-            previousPort: previousPort ? {
-              portSequence: previousPort.portSequence ?? 0,
-              portType: previousPort.portType as 'origin' | 'transit' | 'destination',
-              atd: previousPort.atd,
-              ata: previousPort.ata,
-            } : undefined,
-            truckingTransport: truckingTransport ? {
-              pickupDate: truckingTransport.pickupDate ?? null,
-              deliveryDate: truckingTransport.deliveryDate ?? null,
-              gateInTime: truckingTransport.gateInTime ?? null,
-            } : undefined,
-            warehouseOperation: warehouseOperation ? {
-              wmsConfirmDate: warehouseOperation.wmsConfirmDate ?? null,
-              inboundDate: warehouseOperation.inboundDate ?? null,
-            } : undefined,
+            previousPort: previousPort
+              ? {
+                  portSequence: previousPort.portSequence ?? 0,
+                  portType: previousPort.portType as 'origin' | 'transit' | 'destination',
+                  atd: previousPort.atd,
+                  ata: previousPort.ata
+                }
+              : undefined,
+            truckingTransport: truckingTransport
+              ? {
+                  pickupDate: truckingTransport.pickupDate ?? null,
+                  deliveryDate: truckingTransport.deliveryDate ?? null,
+                  gateInTime: truckingTransport.gateInTime ?? null
+                }
+              : undefined,
+            warehouseOperation: warehouseOperation
+              ? {
+                  wmsConfirmDate: warehouseOperation.wmsConfirmDate ?? null,
+                  inboundDate: warehouseOperation.inboundDate ?? null
+                }
+              : undefined
           });
 
           if (!validationResult.valid) {
-            logger.warn(`[ExternalDataService] ATA智能验证失败: ${validationResult.reason}, 跳过更新`, {
-              containerNumber,
-              newAta: event.eventTime,
-            });
+            logger.warn(
+              `[ExternalDataService] ATA智能验证失败: ${validationResult.reason}, 跳过更新`,
+              {
+                containerNumber,
+                newAta: event.eventTime
+              }
+            );
             continue; // 验证不通过，跳过更新
           }
 
           if (validationResult.warnings && validationResult.warnings.length > 0) {
             logger.warn(`[ExternalDataService] ATA智能验证警告:`, {
               containerNumber,
-              warnings: validationResult.warnings,
+              warnings: validationResult.warnings
             });
           }
         }
@@ -1156,9 +1209,13 @@ export class ExternalDataService {
 
         if (portType) {
           // 根据港口类型和地点代码查找匹配的记录
-          const matchedByLocation = portOperations.filter(po =>
-            po.portType === portType &&
-            (po.portCode === event.locationCode || po.portName === event.locationName || po.portName === event.locationNameEn || po.portName === event.locationNameCn)
+          const matchedByLocation = portOperations.filter(
+            (po) =>
+              po.portType === portType &&
+              (po.portCode === event.locationCode ||
+                po.portName === event.locationName ||
+                po.portName === event.locationNameEn ||
+                po.portName === event.locationNameCn)
           );
 
           if (matchedByLocation.length > 0) {
@@ -1168,7 +1225,7 @@ export class ExternalDataService {
             );
           } else {
             // 如果没有匹配的港口，按港口类型选择 port_sequence 最大的记录
-            const sameTypePorts = portOperations.filter(po => po.portType === portType);
+            const sameTypePorts = portOperations.filter((po) => po.portType === portType);
             if (sameTypePorts.length > 0) {
               targetPortOperation = sameTypePorts.reduce((latest, current) =>
                 (current.portSequence ?? 0) > (latest.portSequence ?? 0) ? current : latest
@@ -1194,7 +1251,11 @@ export class ExternalDataService {
         // 只有当飞驼数据更新时才更新字段
         if (!currentValue || eventTime > currentValue) {
           changedFields[coreFieldName] = {
-            old: currentValue ? (currentValue instanceof Date ? currentValue.toISOString() : currentValue) : null,
+            old: currentValue
+              ? currentValue instanceof Date
+                ? currentValue.toISOString()
+                : currentValue
+              : null,
             new: eventTime.toISOString()
           };
           (targetPortOperation as Record<keyof PortOperation, unknown>)[poTimeKey] = eventTime;
@@ -1210,7 +1271,9 @@ export class ExternalDataService {
             targetPortOperation.dataSource = 'Feituo';
           }
 
-          logger.info(`[ExternalDataService] 更新核心字段: ${containerNumber} - ${coreFieldName} = ${eventTime}`);
+          logger.info(
+            `[ExternalDataService] 更新核心字段: ${containerNumber} - ${coreFieldName} = ${eventTime}`
+          );
           updatedCount++;
 
           // 目的港 GATE_OUT/GTOT/STCS → 拖卡 pickup_date（飞驼），业务/手工来源不覆盖
@@ -1220,8 +1283,7 @@ export class ExternalDataService {
               containerNumber,
               eventTime,
               statusCode: event.statusCode,
-              createTrucking: () =>
-                this.truckingTransportRepository.create({ containerNumber })
+              createTrucking: () => this.truckingTransportRepository.create({ containerNumber })
             });
             truckingMut = applied.trucking;
             if (applied.updated) truckingPickupUpdated = true;
@@ -1232,7 +1294,9 @@ export class ExternalDataService {
       // 保存所有更新的港口操作记录
       if (updatedCount > 0) {
         await this.portOperationRepository.save(portOperations);
-        logger.info(`[ExternalDataService] 成功更新货柜 ${containerNumber} 的 ${updatedCount} 个核心字段`);
+        logger.info(
+          `[ExternalDataService] 成功更新货柜 ${containerNumber} 的 ${updatedCount} 个核心字段`
+        );
 
         // 记录数据变更日志
         await auditLogService.logChange({
@@ -1305,7 +1369,7 @@ export class ExternalDataService {
         this.seaFreightRepository.findOne({ where: { containerNumber } }),
         this.truckingTransportRepository.findOne({ where: { containerNumber } }),
         this.warehouseOperationRepository.findOne({ where: { containerNumber } }),
-        this.emptyReturnRepository.findOne({ where: { containerNumber } }),
+        this.emptyReturnRepository.findOne({ where: { containerNumber } })
       ]);
 
       // 计算新的物流状态
@@ -1318,7 +1382,8 @@ export class ExternalDataService {
         emptyReturn ?? undefined
       );
 
-      const { buildGanttDerived, ganttDerivedSemanticEqual } = await import('../utils/ganttDerivedBuilder');
+      const { buildGanttDerived, ganttDerivedSemanticEqual } =
+        await import('../utils/ganttDerivedBuilder');
       const ganttDerived = buildGanttDerived(
         portOperations,
         truckingTransport,
@@ -1339,7 +1404,9 @@ export class ExternalDataService {
         await this.containerRepository.save(container);
 
         if (statusChanged) {
-          logger.info(`[ExternalDataService] 货柜 ${containerNumber} 物流状态更新: ${oldStatus} -> ${newStatus}`);
+          logger.info(
+            `[ExternalDataService] 货柜 ${containerNumber} 物流状态更新: ${oldStatus} -> ${newStatus}`
+          );
 
           await auditLogService.logChange({
             sourceType: 'feituo_sync',
@@ -1362,9 +1429,9 @@ export class ExternalDataService {
                   hasReturnTime: !!emptyReturn?.returnTime,
                   hasWmsConfirm: !!warehouseOperation?.wmsConfirmDate,
                   hasPickupDate: !!truckingTransport?.pickupDate,
-                  hasDestAta: portOperations.some(po => po.portType === 'destination' && po.ata),
-                  hasTransitAta: portOperations.some(po => po.portType === 'transit' && po.ata),
-                  hasShipmentDate: !!seaFreight?.shipmentDate,
+                  hasDestAta: portOperations.some((po) => po.portType === 'destination' && po.ata),
+                  hasTransitAta: portOperations.some((po) => po.portType === 'transit' && po.ata),
+                  hasShipmentDate: !!seaFreight?.shipmentDate
                 }
               },
               ...(ganttChanged
@@ -1395,7 +1462,6 @@ export class ExternalDataService {
           });
         }
       }
-
     } catch (error) {
       logger.error(`[ExternalDataService] 重新计算物流状态失败:`, error);
       // 不抛出错误,避免影响主流程
@@ -1408,7 +1474,10 @@ export class ExternalDataService {
    * @param containerNumbers 集装箱号数组
    * @param dataSource 数据源类型
    */
-  async syncBatchContainerEvents(containerNumbers: string[], dataSource: DataSource = DataSource.FEITUO): Promise<{ success: string[]; failed: { containerNumber: string; error: string }[] }> {
+  async syncBatchContainerEvents(
+    containerNumbers: string[],
+    dataSource: DataSource = DataSource.FEITUO
+  ): Promise<{ success: string[]; failed: { containerNumber: string; error: string }[] }> {
     logger.info(`[ExternalDataService] 开始批量同步 ${containerNumbers.length} 个货柜的状态事件`);
 
     // 【监控】记录同步开始
@@ -1416,7 +1485,7 @@ export class ExternalDataService {
 
     const result = {
       success: [] as string[],
-      failed: [] as { containerNumber: string; error: string }[],
+      failed: [] as { containerNumber: string; error: string }[]
     };
 
     try {
@@ -1462,15 +1531,17 @@ export class ExternalDataService {
             });
 
             // 控制并发数量
-            const processed = await this.processWithConcurrencyLimit(processPromises, this.MAX_CONCURRENT_REQUESTS);
+            const processed = await this.processWithConcurrencyLimit(
+              processPromises,
+              this.MAX_CONCURRENT_REQUESTS
+            );
             result.success.push(...processed);
-
           } catch (error: any) {
             // 整批失败，标记所有货柜为失败
-            batch.forEach(containerNumber => {
+            batch.forEach((containerNumber) => {
               result.failed.push({
                 containerNumber,
-                error: error.message || '批次处理失败',
+                error: error.message || '批次处理失败'
               });
             });
             logger.error(`[ExternalDataService] 批次处理失败:`, error);
@@ -1484,10 +1555,11 @@ export class ExternalDataService {
 
         // 【优化】批次处理完成后，统一触发滞港费重算
         if (containersNeedingDemurrageRecalc.length > 0) {
-          logger.info(`[ExternalDataService] 批次处理完成，统一重算 ${containersNeedingDemurrageRecalc.length} 个货柜的滞港费`);
+          logger.info(
+            `[ExternalDataService] 批次处理完成，统一重算 ${containersNeedingDemurrageRecalc.length} 个货柜的滞港费`
+          );
           await this.batchRecalculateDemurrage(containersNeedingDemurrageRecalc);
         }
-
       } else {
         // 超过50个货柜，使用逐个请求的方式(避免单次请求过大)
         for (const containerNumber of containerNumbers) {
@@ -1497,7 +1569,7 @@ export class ExternalDataService {
           } catch (error: any) {
             result.failed.push({
               containerNumber,
-              error: error.message || '未知错误',
+              error: error.message || '未知错误'
             });
             logger.error(`[ExternalDataService] 同步货柜 ${containerNumber} 失败:`, error);
           }
@@ -1506,7 +1578,6 @@ export class ExternalDataService {
           await this.sleep(this.REQUEST_DELAY_MS);
         }
       }
-
     } catch (error: any) {
       logger.error('[ExternalDataService] 批量同步失败:', error);
       // 【监控】记录同步失败
@@ -1520,7 +1591,9 @@ export class ExternalDataService {
       this.recordSyncFailed(result.failed.length);
     }
 
-    logger.info(`[ExternalDataService] 批量同步完成: 成功 ${result.success.length}, 失败 ${result.failed.length}`);
+    logger.info(
+      `[ExternalDataService] 批量同步完成: 成功 ${result.success.length}, 失败 ${result.failed.length}`
+    );
     return result;
   }
 
@@ -1542,7 +1615,10 @@ export class ExternalDataService {
    * @param promises Promise数组
    * @param concurrencyLimit 并发限制
    */
-  private async processWithConcurrencyLimit<T>(promises: (() => Promise<T>)[], concurrencyLimit: number): Promise<T[]> {
+  private async processWithConcurrencyLimit<T>(
+    promises: (() => Promise<T>)[],
+    concurrencyLimit: number
+  ): Promise<T[]> {
     const results: T[] = [];
     const executing: Promise<void>[] = [];
 
@@ -1550,10 +1626,12 @@ export class ExternalDataService {
       const promise = promiseFunc();
 
       results.push(
-        promise.then((value) => value).catch((error) => {
-          // 忽略错误，让调用方处理
-          throw error;
-        })
+        promise
+          .then((value) => value)
+          .catch((error) => {
+            // 忽略错误，让调用方处理
+            throw error;
+          })
       );
 
       const executingPromise = promise.finally(() => {
@@ -1577,8 +1655,14 @@ export class ExternalDataService {
    * @param endDate 结束日期
    * @param dataSource 数据源类型
    */
-  async syncEventsByDateRange(startDate: Date, endDate: Date, _dataSource: DataSource = DataSource.FEITUO): Promise<number> {
-    logger.info(`[ExternalDataService] 按时间段同步状态事件: ${startDate.toISOString()} - ${endDate.toISOString()}`);
+  async syncEventsByDateRange(
+    startDate: Date,
+    endDate: Date,
+    _dataSource: DataSource = DataSource.FEITUO
+  ): Promise<number> {
+    logger.info(
+      `[ExternalDataService] 按时间段同步状态事件: ${startDate.toISOString()} - ${endDate.toISOString()}`
+    );
 
     // 获取在时间段内活跃的货柜（可结合 Container 等表查询）
     // TODO: 实现具体的按时间段同步逻辑
@@ -1601,14 +1685,13 @@ export class ExternalDataService {
         .where('event.isEstimated = :isEstimated', { isEstimated: true })
         .andWhere('event.occurredAt < :cutoffDate', { cutoffDate })
         .andWhere('event.dataSource IN (:...dataSources)', {
-          dataSources: [DataSource.FEITUO, DataSource.AIS],
+          dataSources: [DataSource.FEITUO, DataSource.AIS]
         })
         .delete()
         .execute();
 
       logger.info(`[ExternalDataService] 清理了 ${result.affected || 0} 个过期的预计状态事件`);
       return result.affected || 0;
-
     } catch (error) {
       logger.error('[ExternalDataService] 清理过期状态事件失败:', error);
       throw error;
@@ -1623,7 +1706,10 @@ export class ExternalDataService {
    * @param containerNumber 集装箱号
    * @param feituoEvents 飞驼事件数组
    */
-  private async updateSpecialCoreFields(containerNumber: string, feituoEvents: FeituoEvent[]): Promise<void> {
+  private async updateSpecialCoreFields(
+    containerNumber: string,
+    feituoEvents: FeituoEvent[]
+  ): Promise<void> {
     if (!feituoEvents || feituoEvents.length === 0) {
       return;
     }
@@ -1634,7 +1720,7 @@ export class ExternalDataService {
       if (event.hasOccurred === false) {
         continue;
       }
-          
+
       if (!shouldUpdateCoreField(event.statusCode, true)) {
         continue;
       }
@@ -1649,7 +1735,9 @@ export class ExternalDataService {
       // 处理 return_time（还箱时间）- 写 process_empty_return 表
       if (coreFieldName === 'return_time') {
         try {
-          let emptyReturn = await this.emptyReturnRepository.findOne({ where: { containerNumber } });
+          let emptyReturn = await this.emptyReturnRepository.findOne({
+            where: { containerNumber }
+          });
           if (!emptyReturn) {
             emptyReturn = this.emptyReturnRepository.create({ containerNumber });
           }
@@ -1668,15 +1756,19 @@ export class ExternalDataService {
           // 先从 Container 获取关联的 SeaFreight
           const container = await this.containerRepository.findOne({
             where: { containerNumber },
-            relations: ['seaFreight'],
+            relations: ['seaFreight']
           });
           const bl = container?.seaFreight?.billOfLadingNumber;
           if (bl) {
-            const seaFreight = await this.seaFreightRepository.findOne({ where: { billOfLadingNumber: bl } });
+            const seaFreight = await this.seaFreightRepository.findOne({
+              where: { billOfLadingNumber: bl }
+            });
             if (seaFreight) {
               seaFreight.shipmentDate = eventTime;
               await this.seaFreightRepository.save(seaFreight);
-              logger.info(`[ExternalDataService] 写回 shipment_date: ${containerNumber} = ${eventTime}`);
+              logger.info(
+                `[ExternalDataService] 写回 shipment_date: ${containerNumber} = ${eventTime}`
+              );
             }
           }
         } catch (err) {
@@ -1702,7 +1794,10 @@ export class ExternalDataService {
    * @param containerNumber 集装箱号
    * @param feituoEvents 飞驼事件数组
    */
-  private async updateInspectionStatus(containerNumber: string, feituoEvents: FeituoEvent[]): Promise<void> {
+  private async updateInspectionStatus(
+    containerNumber: string,
+    feituoEvents: FeituoEvent[]
+  ): Promise<void> {
     if (!feituoEvents || feituoEvents.length === 0) {
       return;
     }
@@ -1711,7 +1806,7 @@ export class ExternalDataService {
     const INSPECTION_STATUS_CODES = ['CUIP', 'CPI', 'CPI_I'];
 
     // 获取查验相关的事件
-    const inspectionEvents = feituoEvents.filter(event =>
+    const inspectionEvents = feituoEvents.filter((event) =>
       INSPECTION_STATUS_CODES.includes(event.statusCode)
     );
 
@@ -1728,7 +1823,7 @@ export class ExternalDataService {
     try {
       // 获取货柜
       const container = await this.containerRepository.findOne({
-        where: { containerNumber },
+        where: { containerNumber }
       });
 
       if (!container) {
@@ -1745,7 +1840,7 @@ export class ExternalDataService {
 
       // 查找或创建查验记录
       let inspectionRecord = await this.inspectionRecordRepository.findOne({
-        where: { containerNumber },
+        where: { containerNumber }
       });
 
       if (!inspectionRecord) {
@@ -1756,7 +1851,7 @@ export class ExternalDataService {
           latestStatus: '查验中',
           customsClearanceStatus: '查验中',
           dataSource: 'FeituoAPI',
-          remarks: `飞驼自动触发查验，状态码: ${inspectionEvents.map(e => e.statusCode).join(',')}`,
+          remarks: `飞驼自动触发查验，状态码: ${inspectionEvents.map((e) => e.statusCode).join(',')}`
         });
         await this.inspectionRecordRepository.save(inspectionRecord);
         logger.info(`[ExternalDataService] 创建查验记录: ${containerNumber}`);
@@ -1770,7 +1865,7 @@ export class ExternalDataService {
           inspectionRecord.customsClearanceStatus = '查验中';
         }
         inspectionRecord.dataSource = 'FeituoAPI';
-        inspectionRecord.remarks = `飞驼自动触发更新，状态码: ${inspectionEvents.map(e => e.statusCode).join(',')}`;
+        inspectionRecord.remarks = `飞驼自动触发更新，状态码: ${inspectionEvents.map((e) => e.statusCode).join(',')}`;
         await this.inspectionRecordRepository.save(inspectionRecord);
         logger.info(`[ExternalDataService] 更新查验记录: ${containerNumber}`);
       }
@@ -1780,19 +1875,25 @@ export class ExternalDataService {
         const eventStatusMap: Record<string, string> = {
           CUIP: '海关滞留 - 待清关检查',
           CPI: '出口报关查验',
-          CPI_I: '进口报关查验',
+          CPI_I: '进口报关查验'
         };
 
         const event = this.inspectionEventRepository.create({
           inspectionRecordId: inspectionRecord.id,
           eventDate: new Date(firstInspectionEvent.eventTime),
-          eventStatus: eventStatusMap[firstInspectionEvent.statusCode] || `飞驼状态码: ${firstInspectionEvent.statusCode}`,
+          eventStatus:
+            eventStatusMap[firstInspectionEvent.statusCode] ||
+            `飞驼状态码: ${firstInspectionEvent.statusCode}`
         });
         await this.inspectionEventRepository.save(event);
-        logger.info(`[ExternalDataService] 添加查验事件: ${containerNumber}, 状态: ${event.eventStatus}`);
+        logger.info(
+          `[ExternalDataService] 添加查验事件: ${containerNumber}, 状态: ${event.eventStatus}`
+        );
       }
 
-      logger.info(`[ExternalDataService] 自动标记货柜为查验状态: ${containerNumber}, 状态码: ${inspectionEvents.map(e => e.statusCode).join(',')}`);
+      logger.info(
+        `[ExternalDataService] 自动标记货柜为查验状态: ${containerNumber}, 状态码: ${inspectionEvents.map((e) => e.statusCode).join(',')}`
+      );
     } catch (err) {
       logger.warn(`[ExternalDataService] 自动标记查验状态失败:`, err);
     }
@@ -1807,12 +1908,14 @@ export class ExternalDataService {
   getSyncStats() {
     return {
       ...this.syncStats,
-      successRate: this.syncStats.totalSyncCount > 0
-        ? `${((this.syncStats.successCount / this.syncStats.totalSyncCount) * 100).toFixed(2)  }%`
-        : '0%',
-      containerSuccessRate: this.syncStats.totalContainers > 0
-        ? `${((this.syncStats.successContainers / this.syncStats.totalContainers) * 100).toFixed(2)  }%`
-        : '0%',
+      successRate:
+        this.syncStats.totalSyncCount > 0
+          ? `${((this.syncStats.successCount / this.syncStats.totalSyncCount) * 100).toFixed(2)}%`
+          : '0%',
+      containerSuccessRate:
+        this.syncStats.totalContainers > 0
+          ? `${((this.syncStats.successContainers / this.syncStats.totalContainers) * 100).toFixed(2)}%`
+          : '0%'
     };
   }
 
@@ -1855,7 +1958,7 @@ export class ExternalDataService {
       totalContainers: 0,
       successContainers: 0,
       failedContainers: 0,
-      lastSyncTime: null,
+      lastSyncTime: null
     };
   }
 }

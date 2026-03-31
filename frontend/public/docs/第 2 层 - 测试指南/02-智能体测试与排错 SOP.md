@@ -5,6 +5,7 @@
 ### 1.1 测试优先原则
 
 **强制要求**:
+
 - 任何代码修改前必须先理解现有测试
 - 新增功能必须同步新增测试
 - 修复 bug 必须先复现问题（写失败的测试）
@@ -13,6 +14,7 @@
 ### 1.2 排错方法论
 
 **三层诊断法**:
+
 1. **现象层**: What/When/Where/Who/Impact
 2. **根因层**: 直接原因 -> 间接原因 -> 系统性原因
 3. **解决层**: 临时方案 -> 永久修复 -> 预防措施
@@ -31,7 +33,7 @@ cd backend
 npm run test
 
 # 前端单元测试
-cd frontend  
+cd frontend
 npm run test:unit
 
 # 前端 E2E 测试
@@ -39,6 +41,7 @@ npm run test:e2e
 ```
 
 **检查清单**:
+
 - [ ] 目标模块是否已有单元测试
 - [ ] 测试覆盖率是否达标（核心逻辑≥80%）
 - [ ] 是否有集成测试/E2E 测试
@@ -46,12 +49,12 @@ npm run test:e2e
 
 #### 步骤 2: 确定测试策略
 
-| 修改类型 | 测试要求 |
-|---------|---------|
-| Bug 修复 | 必须先写复现问题的失败测试 |
-| 新功能 | 先写测试用例（TDD），再实现功能 |
-| 重构 | 确保现有测试全部通过，必要时补充测试 |
-| 性能优化 | 必须有性能基准测试和对比测试 |
+| 修改类型 | 测试要求                             |
+| -------- | ------------------------------------ |
+| Bug 修复 | 必须先写复现问题的失败测试           |
+| 新功能   | 先写测试用例（TDD），再实现功能      |
+| 重构     | 确保现有测试全部通过，必要时补充测试 |
+| 性能优化 | 必须有性能基准测试和对比测试         |
 
 ### 2.2 测试编写规范
 
@@ -60,6 +63,7 @@ npm run test:e2e
 **文件命名**: `*.test.ts` 或 `*.spec.ts`
 
 **目录结构**:
+
 ```
 backend/src/
 ├── services/
@@ -145,6 +149,7 @@ describe('[ServiceName]', () => {
 ```
 
 **关键要点**:
+
 - 使用 `beforeEach` 初始化 Mock 对象
 - 使用 `afterEach` 清理 Mock
 - 测试命名清晰：`should + 预期行为`
@@ -203,7 +208,7 @@ describe('use[Name]', () => {
   it('should [预期行为]', async () => {
     const { [result], [method] } = use[Name]();
     await [method]();
-    
+
     expect([result].value).toHaveLength(1);
   });
 });
@@ -212,6 +217,7 @@ describe('use[Name]', () => {
 ### 2.3 测试执行顺序
 
 **优先级**:
+
 ```
 1. 单元测试（最快，隔离最好）
    ↓
@@ -221,6 +227,7 @@ describe('use[Name]', () => {
 ```
 
 **执行策略**:
+
 - 开发阶段：只运行相关单元测试
 - 提交前：运行全部单元测试 + 关键集成测试
 - CI/CD：运行完整测试套件
@@ -234,6 +241,7 @@ describe('use[Name]', () => {
 #### 第一步：信息收集（5W1H）
 
 **检查清单**:
+
 - [ ] **What**: 具体错误现象是什么
 - [ ] **When**: 何时发生（首次出现时间、频率）
 - [ ] **Where**: 在哪个环节/页面/接口出现
@@ -257,13 +265,13 @@ psql -U postgres -d logix -c "SELECT * FROM biz_containers WHERE container_numbe
 
 #### 第二步：问题分类
 
-| 类型 | 特征 | 排查方向 |
-|------|------|---------|
-| 数据问题 | 数据缺失/错误/不一致 | 数据库表结构、导入逻辑、映射关系 |
-| 逻辑问题 | 计算结果错误/状态不对 | 业务逻辑代码、算法实现 |
-| 接口问题 | API 调用失败/返回格式错误 | 路由定义、参数校验、响应处理 |
-| 前端问题 | 页面渲染错误/交互异常 | 组件逻辑、状态管理、网络请求 |
-| 性能问题 | 响应慢/超时/内存泄漏 | SQL 查询、循环嵌套、缓存策略 |
+| 类型     | 特征                      | 排查方向                         |
+| -------- | ------------------------- | -------------------------------- |
+| 数据问题 | 数据缺失/错误/不一致      | 数据库表结构、导入逻辑、映射关系 |
+| 逻辑问题 | 计算结果错误/状态不对     | 业务逻辑代码、算法实现           |
+| 接口问题 | API 调用失败/返回格式错误 | 路由定义、参数校验、响应处理     |
+| 前端问题 | 页面渲染错误/交互异常     | 组件逻辑、状态管理、网络请求     |
+| 性能问题 | 响应慢/超时/内存泄漏      | SQL 查询、循环嵌套、缓存策略     |
 
 ### 3.2 根因分析方法
 
@@ -272,18 +280,18 @@ psql -U postgres -d logix -c "SELECT * FROM biz_containers WHERE container_numbe
 **示例**: 货柜状态显示错误
 
 ```
-1. Why: 为什么状态显示错误？ 
+1. Why: 为什么状态显示错误？
    -> 因为物流状态字段值不正确
-   
+
 2. Why: 为什么字段值不正确？
    -> 因为状态更新逻辑有问题
-   
+
 3. Why: 为什么状态更新逻辑有问题？
    -> 因为状态机计算优先级错误
-   
+
 4. Why: 为什么状态机计算优先级错误？
    -> 因为还箱日算法未考虑卸柜能力检查
-   
+
 5. Why: 为什么会遗漏这个检查？
    -> 因为需求分析时未识别此边界场景
 ```
@@ -293,34 +301,40 @@ psql -U postgres -d logix -c "SELECT * FROM biz_containers WHERE container_numbe
 **适用场景**: 大型系统、多模块协作问题
 
 **步骤**:
+
 1. 确定问题范围（前端/后端/数据库）
 2. 在数据流中间点检查数据状态
 3. 根据检查结果缩小范围
 4. 重复步骤 2-3 直到定位根因
 
 **工具**:
+
 ```javascript
 // 调试脚本示例（scripts/debug-xxx.ts）
-import { AppDataSource } from '../backend/src/database';
-import { Container } from '../backend/src/entities/Container';
+import { AppDataSource } from '../backend/src/database'
+import { Container } from '../backend/src/entities/Container'
 
 async function debugProblem() {
-  await AppDataSource.initialize();
-  const repo = AppDataSource.getRepository(Container);
+  await AppDataSource.initialize()
+  const repo = AppDataSource.getRepository(Container)
 
   // 检查点 1: 数据库原始数据
-  const containers = await repo.find({ where: { /* ... */ } });
-  console.log('=== 数据库数据 ===', containers);
+  const containers = await repo.find({
+    where: {
+      /* ... */
+    },
+  })
+  console.log('=== 数据库数据 ===', containers)
 
   // 检查点 2: 业务逻辑处理后
-  const processed = applyBusinessLogic(containers);
-  console.log('=== 处理后数据 ===', processed);
+  const processed = applyBusinessLogic(containers)
+  console.log('=== 处理后数据 ===', processed)
 
   // 检查点 3: API 返回数据
-  const apiResponse = callAPI();
-  console.log('=== API 返回 ===', apiResponse);
+  const apiResponse = callAPI()
+  console.log('=== API 返回 ===', apiResponse)
 
-  await AppDataSource.destroy();
+  await AppDataSource.destroy()
 }
 ```
 
@@ -347,6 +361,7 @@ grep "countries" backend.log
 ```
 
 **修复流程**:
+
 1. 确认数据库有国家数据
 2. 确认后端 API 正常返回
 3. 确认前端请求参数正确
@@ -399,12 +414,14 @@ npm run test -- return-date.test.ts
 **位置**: `backend/scripts/` 或 `scripts/`
 
 **常用脚本**:
+
 - `debug-lastpickup.ts`: 检查最晚提柜日期计算
 - `diagnose-country-filter.js`: 诊断国家筛选问题
 - `test-statistics-fix.js`: 测试统计 API
 - `analyze-return-date-logs.ps1`: 分析还箱日日志
 
 **使用方法**:
+
 ```bash
 # TypeScript 脚本
 npx tsx backend/scripts/debug-lastpickup.ts
@@ -419,18 +436,21 @@ powershell -File scripts/analyze-return-date-logs.ps1
 #### 前端调试工具
 
 **浏览器 DevTools**:
+
 - Console: 查看日志
 - Network: 查看 API 请求
 - Application: 查看 LocalStorage/SessionStorage
 - Sources: 断点调试
 
 **Vue DevTools**:
+
 - Components: 查看组件树和状态
 - Timeline: 查看事件流
 
 #### 数据库调试
 
 **常用查询**:
+
 ```sql
 -- 检查表数据量
 SELECT COUNT(*) FROM [table_name];
@@ -443,8 +463,8 @@ LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_
 WHERE c.container_number = 'XXXXX';
 
 -- 检查字段值分布
-SELECT logistics_status, COUNT(*) 
-FROM biz_containers 
+SELECT logistics_status, COUNT(*)
+FROM biz_containers
 GROUP BY logistics_status;
 ```
 
@@ -457,6 +477,7 @@ GROUP BY logistics_status;
 **工具**: `scripts/dev-paradigm-check.ts`
 
 **使用方法**:
+
 ```bash
 # 全阶段检查
 npx ts-node --compilerOptions '{"module":"commonjs"}' scripts/dev-paradigm-check.ts
@@ -469,6 +490,7 @@ npx ts-node --compilerOptions '{"module":"commonjs"}' scripts/dev-paradigm-check
 ```
 
 **检查阶段**:
+
 - architecture: 架构分析
 - problem: 问题诊断
 - strategy: 策略选择
@@ -482,6 +504,7 @@ npx ts-node --compilerOptions '{"module":"commonjs"}' scripts/dev-paradigm-check
 **工具**: `backend/scripts/check-skill-compliance.js`
 
 **检查项**:
+
 - 单文件≤300 行
 - 单方法≤50 行
 - 参数≤4 个
@@ -489,6 +512,7 @@ npx ts-node --compilerOptions '{"module":"commonjs"}' scripts/dev-paradigm-check
 - JSDoc 完整
 
 **使用方法**:
+
 ```bash
 cd backend
 npm run skill:check
@@ -497,6 +521,7 @@ npm run skill:check
 ### 4.3 代码质量检查
 
 **命令**:
+
 ```bash
 # 后端
 cd backend
@@ -518,11 +543,13 @@ npm run validate
 ### 5.1 测试数据创建
 
 **原则**:
+
 - 使用独立测试数据库
 - 测试数据隔离（每个测试独立）
 - 可重复创建（幂等性）
 
 **SQL 脚本模板**:
+
 ```sql
 -- 创建测试数据
 INSERT INTO biz_containers (container_number, logistics_status, ...)
@@ -543,11 +570,12 @@ graph TD
     D[process_port_operations] --> E[biz_containers]
     F[biz_replenishment_orders] --> E
     G[biz_container_skus] --> E
-    
+
     style E fill:#f96,stroke:#333,stroke-width:2px
 ```
 
 **清理脚本**:
+
 ```sql
 -- 按顺序删除
 DELETE FROM ext_container_charges WHERE container_number LIKE 'TEST%';
@@ -567,12 +595,12 @@ DELETE FROM biz_containers WHERE container_number LIKE 'TEST%';
 
 ### 6.1 严重级别定义
 
-| 级别 | 定义 | 响应时间 |
-|------|------|---------|
-| P0 | 系统崩溃/数据丢失 | 立即 |
-| P1 | 核心功能不可用 | 1 小时 |
-| P2 | 部分功能受限 | 4 小时 |
-| P3 | 轻微问题/体验优化 | 24 小时 |
+| 级别 | 定义              | 响应时间 |
+| ---- | ----------------- | -------- |
+| P0   | 系统崩溃/数据丢失 | 立即     |
+| P1   | 核心功能不可用    | 1 小时   |
+| P2   | 部分功能受限      | 4 小时   |
+| P3   | 轻微问题/体验优化 | 24 小时  |
 
 ### 6.2 升级流程
 
@@ -604,24 +632,28 @@ DELETE FROM biz_containers WHERE container_number LIKE 'TEST%';
 # [问题标题]
 
 ## 现象描述
-- What: 
-- When: 
-- Where: 
-- Impact: 
+
+- What:
+- When:
+- Where:
+- Impact:
 
 ## 根因分析
-- 直接原因: 
-- 间接原因: 
-- 系统性原因: 
+
+- 直接原因:
+- 间接原因:
+- 系统性原因:
 
 ## 解决方案
-- 临时方案: 
-- 永久修复: 
-- 预防措施: 
+
+- 临时方案:
+- 永久修复:
+- 预防措施:
 
 ## 参考资料
-- 相关文档: 
-- 类似问题: 
+
+- 相关文档:
+- 类似问题:
 ```
 
 ### 7.2 知识库更新
@@ -629,6 +661,7 @@ DELETE FROM biz_containers WHERE container_number LIKE 'TEST%';
 **位置**: `frontend/public/docs/第 2 层 - 综合指南/`
 
 **触发条件**:
+
 - 解决新问题后
 - 发现现有文档错误
 - 优化工作流程后

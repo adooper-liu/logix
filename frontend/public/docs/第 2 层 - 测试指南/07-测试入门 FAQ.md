@@ -17,6 +17,7 @@ npm --version
 ```
 
 **如果不满足**:
+
 - 下载地址：https://nodejs.org/
 - 推荐使用 nvm 管理 Node 版本
 
@@ -34,6 +35,7 @@ ls node_modules | head -10
 ```
 
 **常见错误**:
+
 ```
 ❌ Error: Cannot find module 'jest'
 ✅ 解决：npm install
@@ -50,6 +52,7 @@ npm run type-check
 ```
 
 **常见错误**:
+
 ```
 ❌ error TS2551: Property 'xxx' does not exist on type 'yyy'
 ✅ 解决：修复 TypeScript 类型错误
@@ -60,12 +63,14 @@ npm run type-check
 **单元测试不需要真实数据库**（因为使用了 Mock）
 
 但建议创建 `.env` 文件:
+
 ```bash
 cd backend
 cp .env.example .env
 ```
 
 **最小配置**:
+
 ```env
 NODE_ENV=test
 DB_HOST=localhost
@@ -78,13 +83,14 @@ DB_DATABASE=logix_test
 #### 5. Jest 配置文件存在
 
 确认 `backend/jest.config.js` 存在:
+
 ```javascript
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
   // ...
-};
+}
 ```
 
 ---
@@ -129,12 +135,12 @@ backend/
 
 ### 测试类型分类
 
-| 类型 | 数量 | 位置 | 说明 |
-|------|------|------|------|
-| 单元测试 | 24 | `src/services/*.test.ts` | 服务层逻辑测试 |
-| 专项测试 | 3 | `src/tests/` | 成本优化等专项功能 |
-| 集成测试 | 1 | `tests/integration/` | 端到端流程测试 |
-| 配置测试 | 1 | `src/config/` | 配置项测试 |
+| 类型     | 数量 | 位置                     | 说明               |
+| -------- | ---- | ------------------------ | ------------------ |
+| 单元测试 | 24   | `src/services/*.test.ts` | 服务层逻辑测试     |
+| 专项测试 | 3    | `src/tests/`             | 成本优化等专项功能 |
+| 集成测试 | 1    | `tests/integration/`     | 端到端流程测试     |
+| 配置测试 | 1    | `src/config/`            | 配置项测试         |
 
 ---
 
@@ -147,19 +153,19 @@ graph TD
     A[阶段 1: 理解测试基础<br/>1-2 天] --> B[阶段 2: 服务层 Mock<br/>3-5 天]
     B --> C[阶段 3: 复杂业务逻辑<br/>1-2 周]
     C --> D[阶段 4: 集成测试<br/>2-3 天]
-    
+
     A --> A1[阅读 scheduling.config.test.ts]
     A --> A2[运行第一个测试]
     A --> A3[学习 describe/it/expect]
-    
+
     B --> B1[学习 Mock 数据库]
     B --> B2[练习 ContainerFilterService]
     B --> B3[编写简单服务测试]
-    
+
     C --> C1[研究 DemurrageDateCalculator]
     C --> C2[学习日期计算测试]
     C --> C3[覆盖边界场景]
-    
+
     D --> D1[理解集成测试]
     D --> D2[运行 E2E 测试]
     D --> D3[对比单元 vs 集成]
@@ -172,18 +178,19 @@ graph TD
 **文件**: `backend/src/config/scheduling.config.test.ts`
 
 ```typescript
-import { SchedulingConfig } from './scheduling.config';
+import { SchedulingConfig } from './scheduling.config'
 
 describe('SchedulingConfig', () => {
   it('should have correct default values', () => {
-    const config = new SchedulingConfig();
-    expect(config.maxAttempts).toBeDefined();
-    expect(config.timeout).toBeGreaterThan(0);
-  });
-});
+    const config = new SchedulingConfig()
+    expect(config.maxAttempts).toBeDefined()
+    expect(config.timeout).toBeGreaterThan(0)
+  })
+})
 ```
 
 **学习任务**:
+
 1. 读懂每个关键字的作用
 2. 运行这个测试
 3. 修改预期值观察失败
@@ -193,23 +200,25 @@ describe('SchedulingConfig', () => {
 **文件**: `backend/src/services/ContainerFilterService.test.ts`
 
 关键Mock配置:
+
 ```typescript
 // Mock 数据库
 jest.mock('../database', () => ({
   AppDataSource: {
-    getRepository: jest.fn()
-  }
-}));
+    getRepository: jest.fn(),
+  },
+}))
 
 // 创建 Mock QueryBuilder
 mockQueryBuilder = {
   leftJoinAndSelect: jest.fn().mockReturnThis(),
   where: jest.fn().mockReturnThis(),
-  getMany: jest.fn().mockResolvedValue([])
-};
+  getMany: jest.fn().mockResolvedValue([]),
+}
 ```
 
 **学习任务**:
+
 1. 理解为什么需要 Mock
 2. 练习配置不同的 Mock 返回值
 3. 验证 Mock 调用参数
@@ -219,24 +228,27 @@ mockQueryBuilder = {
 **文件**: `backend/src/services/DemurrageDateCalculator.test.ts`
 
 这是最好的学习材料，包含：
+
 - 日期计算测试（addDays, daysBetween）
 - 周末识别测试（isWeekend）
 - 工作日计算测试（addWorkingDays）
 - 边界场景覆盖
 
 **示例**:
+
 ```typescript
 it('应该跳过周末添加工作日', () => {
   // 从周一开始添加 5 个工作日
-  const monday = new Date('2026-03-09');
-  const result = calculator.addWorkingDays(monday, 5);
-  
+  const monday = new Date('2026-03-09')
+  const result = calculator.addWorkingDays(monday, 5)
+
   // Mon(1), Tue(2), Wed(3), Thu(4), Fri(5) -> 2026-03-13
-  expect(result.toISOString()).toBe('2026-03-13T00:00:00.000Z');
-});
+  expect(result.toISOString()).toBe('2026-03-13T00:00:00.000Z')
+})
 ```
 
 **学习任务**:
+
 1. 逐行阅读 286 行测试代码
 2. 理解每个测试用例的设计思路
 3. 尝试添加新的测试用例
@@ -246,44 +258,44 @@ it('应该跳过周末添加工作日', () => {
 **任务**: 为 `CostEstimationService` 编写完整测试
 
 ```typescript
-import { CostEstimationService } from './CostEstimationService';
+import { CostEstimationService } from './CostEstimationService'
 
 jest.mock('../database', () => ({
   AppDataSource: {
-    getRepository: jest.fn()
-  }
-}));
+    getRepository: jest.fn(),
+  },
+}))
 
 describe('CostEstimationService', () => {
-  let service: CostEstimationService;
+  let service: CostEstimationService
 
   beforeEach(() => {
-    service = new CostEstimationService();
-  });
+    service = new CostEstimationService()
+  })
 
   describe('calculateTotal', () => {
     it('should sum all costs', async () => {
       const costs = [
         { amount: 100, type: 'freight' },
-        { amount: 50, type: 'handling' }
-      ];
-      
-      const total = await service.calculateTotal(costs);
-      expect(total).toBe(150);
-    });
+        { amount: 50, type: 'handling' },
+      ]
+
+      const total = await service.calculateTotal(costs)
+      expect(total).toBe(150)
+    })
 
     it('should handle empty list', async () => {
-      const total = await service.calculateTotal([]);
-      expect(total).toBe(0);
-    });
+      const total = await service.calculateTotal([])
+      expect(total).toBe(0)
+    })
 
     it('should handle negative costs', async () => {
-      const costs = [{ amount: -10, type: 'discount' }];
-      const total = await service.calculateTotal(costs);
-      expect(total).toBe(-10);
-    });
-  });
-});
+      const costs = [{ amount: -10, type: 'discount' }]
+      const total = await service.calculateTotal(costs)
+      expect(total).toBe(-10)
+    })
+  })
+})
 ```
 
 ---
@@ -300,7 +312,7 @@ graph TD
     B -->|异步错误 | E[Exceeded timeout]
     B -->|断言错误 | F[Expected vs Received]
     B -->|污染错误 | G[Received length != 0]
-    
+
     C --> C1[npm run type-check]
     D --> D1[检查 Mock 配置]
     E --> E1[添加 async/await]
@@ -313,6 +325,7 @@ graph TD
 #### 错误 1: 语法错误
 
 **症状**:
+
 ```bash
 FAIL  src/services/MyService.test.ts
   ● Test suite failed to run
@@ -321,6 +334,7 @@ FAIL  src/services/MyService.test.ts
 ```
 
 **诊断步骤**:
+
 ```bash
 # 1. 运行类型检查
 npm run type-check
@@ -335,6 +349,7 @@ npm run type-check
 ```
 
 **修复示例**:
+
 ```typescript
 // ❌ 错误
 import { Service } from '../Service'  // 缺少分号
@@ -350,6 +365,7 @@ const result = service.doSomething();
 #### 错误 2: Mock 配置错误
 
 **症状**:
+
 ```bash
 TypeError: Cannot read property 'findOne' of undefined
 
@@ -360,9 +376,10 @@ TypeError: Cannot read property 'findOne' of undefined
 ```
 
 **诊断**:
+
 ```typescript
 // ❌ 错误：Mock 对象为空
-const mockRepo = {};
+const mockRepo = {}
 
 // ✅ 正确：配置所有必要方法
 const mockRepo = {
@@ -371,42 +388,45 @@ const mockRepo = {
   save: jest.fn().mockResolvedValue({}),
   createQueryBuilder: jest.fn().mockReturnValue({
     where: jest.fn().mockReturnThis(),
-    getOne: jest.fn().mockResolvedValue(null)
-  })
-};
+    getOne: jest.fn().mockResolvedValue(null),
+  }),
+}
 ```
 
 #### 错误 3: 异步超时
 
 **症状**:
+
 ```bash
 thrown: "Exceeded timeout of 5000 ms for a test."
 ```
 
 **诊断**:
+
 ```typescript
 // ❌ 错误：缺少 await
 it('should fetch data', () => {
-  service.fetchData();  // Promise 未等待
-});
+  service.fetchData() // Promise 未等待
+})
 
 // ✅ 正确：使用 async/await
 it('should fetch data', async () => {
-  const data = await service.fetchData();
-  expect(data).toBeDefined();
-});
+  const data = await service.fetchData()
+  expect(data).toBeDefined()
+})
 
 // 增加超时时间
 it('long running test', async () => {
-  jest.setTimeout(30000);
-  const data = await service.fetchLargeDataset();
-  expect(data.length).toBeGreaterThan(1000);
-});
+  jest.setTimeout(30000)
+  const data = await service.fetchLargeDataset()
+  expect(data.length).toBeGreaterThan(1000)
+})
 ```
 
 #### 错误 4: 断言失败
 
 **症状**:
+
 ```bash
 expect(received).toBe(expected)
 
@@ -419,24 +439,26 @@ Received: 4
 ```
 
 **诊断步骤**:
+
 ```typescript
 // 1. 添加调试输出
-console.log('Result:', result);
-console.log('Expected: 5');
+console.log('Result:', result)
+console.log('Expected: 5')
 
 // 2. 判断是测试错误还是代码错误
 if (result === 4) {
   // 代码正确，测试断言错误
-  expect(result).toBe(4);  // 修正断言
+  expect(result).toBe(4) // 修正断言
 } else {
   // 代码有 bug
-  throw new Error('Calculator bug!');
+  throw new Error('Calculator bug!')
 }
 ```
 
 #### 错误 5: 测试污染
 
 **症状**:
+
 ```bash
 FAIL  Service2.test.ts
   ● Service2 › should work
@@ -448,33 +470,36 @@ FAIL  Service2.test.ts
 **原因**: Service1 的测试修改了全局状态
 
 **解决**:
+
 ```typescript
 // 在 setup.ts 中自动清理
 beforeEach(() => {
-  jest.clearAllMocks();
-});
+  jest.clearAllMocks()
+})
 
 afterEach(() => {
-  jest.resetAllMocks();
-});
+  jest.resetAllMocks()
+})
 ```
 
 #### 错误 6: 环境变量缺失
 
 **症状**:
+
 ```bash
 Error: Missing required environment variable: API_KEY
 ```
 
 **解决**:
+
 ```typescript
 // 在测试开头设置
-process.env.API_KEY = 'test-key';
+process.env.API_KEY = 'test-key'
 
 // 或在 setup.ts 统一配置
 // backend/src/test/setup.ts
-process.env.NODE_ENV = 'test';
-process.env.API_KEY = 'test-key';
+process.env.NODE_ENV = 'test'
+process.env.API_KEY = 'test-key'
 // ...
 ```
 
@@ -486,22 +511,23 @@ process.env.API_KEY = 'test-key';
 
 ```typescript
 it('debug test', () => {
-  const input = { a: 1, b: 2 };
-  const result = service.calculate(input);
-  
-  console.log('=== DEBUG INFO ===');
-  console.log('Input:', input);
-  console.log('Result:', result);
-  console.log('Expected: 3');
-  console.log('==================');
-  
-  expect(result).toBe(3);
-});
+  const input = { a: 1, b: 2 }
+  const result = service.calculate(input)
+
+  console.log('=== DEBUG INFO ===')
+  console.log('Input:', input)
+  console.log('Result:', result)
+  console.log('Expected: 3')
+  console.log('==================')
+
+  expect(result).toBe(3)
+})
 ```
 
 ### 工具 2: VS Code 断点调试
 
 **launch.json 配置**:
+
 ```json
 {
   "name": "Jest Current Test",
@@ -514,6 +540,7 @@ it('debug test', () => {
 ```
 
 **使用方法**:
+
 1. 在测试文件中打断点
 2. 按 F5 启动调试
 3. 查看变量值
@@ -555,40 +582,40 @@ open coverage/index.html
 
 ### 测试命令速查
 
-| 命令 | 用途 |
-|------|------|
-| `npm run test` | 运行所有测试 |
-| `npm run test -- filename.test.ts` | 运行单个文件 |
-| `npm run test -- -t "用例名"` | 运行特定用例 |
-| `npm run test -- --coverage` | 生成覆盖率报告 |
-| `npm run test -- --bail` | 遇到失败立即停止 |
-| `npm run test -- --verbose` | 显示详细输出 |
-| `npm run type-check` | TypeScript 类型检查 |
+| 命令                               | 用途                |
+| ---------------------------------- | ------------------- |
+| `npm run test`                     | 运行所有测试        |
+| `npm run test -- filename.test.ts` | 运行单个文件        |
+| `npm run test -- -t "用例名"`      | 运行特定用例        |
+| `npm run test -- --coverage`       | 生成覆盖率报告      |
+| `npm run test -- --bail`           | 遇到失败立即停止    |
+| `npm run test -- --verbose`        | 显示详细输出        |
+| `npm run type-check`               | TypeScript 类型检查 |
 
 ### 常见断言方法
 
-| 断言 | 用途 | 示例 |
-|------|------|------|
-| `toBeDefined()` | 检查已定义 | `expect(result).toBeDefined()` |
-| `toBe()` | 严格相等 | `expect(2+2).toBe(4)` |
-| `toEqual()` | 对象相等 | `expect(obj).toEqual({a:1})` |
-| `toBeTruthy()` | 真值 | `expect(value).toBeTruthy()` |
-| `toBeFalsy()` | 假值 | `expect(null).toBeFalsy()` |
-| `toBeGreaterThan()` | 大于 | `expect(5).toBeGreaterThan(3)` |
-| `toHaveLength()` | 数组长度 | `expect(arr).toHaveLength(3)` |
-| `toContain()` | 包含元素 | `expect(arr).toContain(1)` |
-| `toThrow()` | 抛出异常 | `expect(fn).toThrow()` |
+| 断言                | 用途       | 示例                           |
+| ------------------- | ---------- | ------------------------------ |
+| `toBeDefined()`     | 检查已定义 | `expect(result).toBeDefined()` |
+| `toBe()`            | 严格相等   | `expect(2+2).toBe(4)`          |
+| `toEqual()`         | 对象相等   | `expect(obj).toEqual({a:1})`   |
+| `toBeTruthy()`      | 真值       | `expect(value).toBeTruthy()`   |
+| `toBeFalsy()`       | 假值       | `expect(null).toBeFalsy()`     |
+| `toBeGreaterThan()` | 大于       | `expect(5).toBeGreaterThan(3)` |
+| `toHaveLength()`    | 数组长度   | `expect(arr).toHaveLength(3)`  |
+| `toContain()`       | 包含元素   | `expect(arr).toContain(1)`     |
+| `toThrow()`         | 抛出异常   | `expect(fn).toThrow()`         |
 
 ### Mock 方法
 
-| 方法 | 用途 | 示例 |
-|------|------|------|
-| `jest.fn()` | 创建 Mock 函数 | `const mockFn = jest.fn()` |
-| `mockResolvedValue()` | Mock 异步返回 | `mockFn.mockResolvedValue({data})` |
-| `mockReturnValue()` | Mock 同步返回 | `mockFn.mockReturnValue(42)` |
-| `mockRejectedValue()` | Mock 抛出错误 | `mockFn.mockRejectedValue(new Error())` |
-| `mockImplementation()` | 自定义实现 | `mockFn.mockImplementation(x => x*2)` |
-| `mockReturnThis()` | 链式调用 | `builder.where().andWhere()` |
+| 方法                   | 用途           | 示例                                    |
+| ---------------------- | -------------- | --------------------------------------- |
+| `jest.fn()`            | 创建 Mock 函数 | `const mockFn = jest.fn()`              |
+| `mockResolvedValue()`  | Mock 异步返回  | `mockFn.mockResolvedValue({data})`      |
+| `mockReturnValue()`    | Mock 同步返回  | `mockFn.mockReturnValue(42)`            |
+| `mockRejectedValue()`  | Mock 抛出错误  | `mockFn.mockRejectedValue(new Error())` |
+| `mockImplementation()` | 自定义实现     | `mockFn.mockImplementation(x => x*2)`   |
+| `mockReturnThis()`     | 链式调用       | `builder.where().andWhere()`            |
 
 ---
 

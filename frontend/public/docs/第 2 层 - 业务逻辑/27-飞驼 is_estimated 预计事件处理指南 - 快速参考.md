@@ -8,14 +8,14 @@
 
 ## 📊 快速决策表
 
-| 场景 | isEstimated | 是否更新核心字段 | 理由 |
-|------|-------------|-----------------|------|
-| 实际提柜 | `false` | ✅ **更新** | 这是事实 |
-| 预计提柜 | `true` | ❌ **不更新** | 这是预测 |
-| 实际还箱 | `false` | ✅ **更新** | 这是事实 |
-| 预计还箱 | `true` | ❌ **不更新** | 这是预测 |
-| 实际到港 | `false` | ✅ **更新** | 这是事实 |
-| 预计到港 | `true` | ❌ **不更新** | 这是预测 |
+| 场景     | isEstimated | 是否更新核心字段 | 理由     |
+| -------- | ----------- | ---------------- | -------- |
+| 实际提柜 | `false`     | ✅ **更新**      | 这是事实 |
+| 预计提柜 | `true`      | ❌ **不更新**    | 这是预测 |
+| 实际还箱 | `false`     | ✅ **更新**      | 这是事实 |
+| 预计还箱 | `true`      | ❌ **不更新**    | 这是预测 |
+| 实际到港 | `false`     | ✅ **更新**      | 这是事实 |
+| 预计到港 | `true`      | ❌ **不更新**    | 这是预测 |
 
 ---
 
@@ -46,10 +46,11 @@ if ((!status.isEstimated || isFinalStatus) && status.occurredAt) {
 ### ✅ 正确的排查路径
 
 1. **直接查询数据库**
+
    ```bash
    # 查原始事件
    node -e "SELECT * FROM ext_feituo_status_events WHERE container_number='HMMU6232153'"
-   
+
    # 查核心字段
    node -e "SELECT gate_out_time FROM process_port_operations WHERE container_number='HMMU6232153'"
    ```
@@ -75,6 +76,7 @@ if ((!status.isEstimated || isFinalStatus) && status.occurredAt) {
 详细文档见：[27-飞驼 is_estimated 预计事件处理指南.md](./27-飞驼 is_estimated 预计事件处理指南.md)
 
 包含:
+
 - ✅ 问题现象与完整排查过程
 - ✅ is_estimated 的产生流程详解
 - ✅ 应用逻辑与代码实现
