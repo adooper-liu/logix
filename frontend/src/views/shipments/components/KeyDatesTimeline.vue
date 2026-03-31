@@ -67,6 +67,7 @@ const derivedDates = computed(() => {
     shipmentDate: shipmentDate ?? null,
     ataDestPort: portOp?.ataDestPort ?? c.ataDestPort ?? null,
     etaDestPort: portOp?.etaDestPort ?? seaFreight?.eta ?? c.etaDestPort ?? null,
+    revisedEtaDestPort: portOp?.revisedEtaDestPort ?? seaFreight?.revisedEta ?? null,
     dischargeDate: discharge ?? null,
     lastPickupDate: lastPickup ?? null,
     lastPickupDateComputed: null,
@@ -142,10 +143,10 @@ const timelineEvents = computed((): TimelineEvent[] => {
   add('最晚提柜', '最晚提柜日', lastPickupDate, '⏰', 'danger', {
     isComputed: isLastPickupComputed,
     isFromDb: isLastPickupFromDb,
-    calculationMode: isLastPickupComputed ? d.lastPickupDateMode : null,
+    calculationMode: isLastPickupComputed ? d.lastPickupDateMode ?? null : null,
     calculationSource: isLastPickupComputed
       ? getCalculationSourceText(
-          d.lastPickupDateMode,
+          d.lastPickupDateMode ?? undefined,
           d.ataDestPort,
           d.etaDestPort,
           d.revisedEtaDestPort,
@@ -376,7 +377,7 @@ function getNextMilestoneLabel(label: string): string | null {
  * @param dischargeDate 卸船日期
  */
 const getCalculationSourceText = (
-  mode: 'actual' | 'forecast' | null,
+  mode: 'actual' | 'forecast' | null | undefined,
   ataDestPort?: string | null,
   etaDestPort?: string | null,
   revisedEtaDestPort?: string | null,
@@ -427,12 +428,21 @@ const getNextBusinessNodeDate = (
   index: number,
   allEvents: TimelineEvent[]
 ): Date | null => {
-  // 检查所有后续节点
+  // ✅ 实际业务节点：不需要显示历时（因为已经是实际发生）
+  const actualEventLabels = ['出运', 'ATA', '卸船', '实际提柜', '实际还箱']
+  if (actualEventLabels.includes(event.label)) {
+    return null
+  }
+
+  // ✅ 计划与预警节点：查找下一个实际发生的业务节点
   for (let i = index + 1; i < allEvents.length; i++) {
     const nextEvent = allEvents[i]
     // 排除当前日期节点，只考虑实际的业务节点
     if (nextEvent.label !== '当前') {
-      return nextEvent.date
+      // ✅ 检查该节点是否已实际发生（日期在过去）
+      if (nextEvent.date < new Date()) {
+        return nextEvent.date
+      }
     }
   }
   return null
@@ -511,6 +521,7 @@ const getNextBusinessNodeDate = (
 
 <style scoped lang="scss">
 @use '@/assets/styles/variables' as *;
+@use 'sass:color';
 
 .key-dates-card {
   border-radius: 0;
@@ -710,7 +721,7 @@ const getNextBusinessNodeDate = (
 
     &.item-tag-computed {
       background: linear-gradient(135deg, rgba($warning-color, 0.15), rgba($warning-color, 0.08));
-      color: darken($warning-color, 10%);
+      color: color.adjust($warning-color, $lightness: -10%);
       border: 1px solid rgba($warning-color, 0.2);
 
       &::before {
@@ -721,7 +732,7 @@ const getNextBusinessNodeDate = (
 
     &.item-tag-db {
       background: linear-gradient(135deg, rgba($info-color, 0.15), rgba($info-color, 0.08));
-      color: darken($info-color, 10%);
+      color: color.adjust($info-color, $lightness: -10%);
       border: 1px solid rgba($info-color, 0.2);
 
       &::before {

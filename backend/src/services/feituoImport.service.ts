@@ -1473,13 +1473,17 @@ export class FeituoImportService {
       await truckRepo.save(tt);
     }
 
-    const returnTime = parseDate(getVal(row, '还箱日期'));
+    // 还箱日期：支持多种列名变体
+    const returnTime = parseDate(
+      getVal(row, '还箱日期', '还箱时间', 'Empty Return Date', 'Return Date', '还箱日期/时间')
+    );
     if (returnTime) {
       let er = await emptyRepo.findOne({ where: { containerNumber } });
       if (!er) er = emptyRepo.create({ containerNumber });
       er.returnTime = returnTime;
       er.lastReturnDate = parseDate(getVal(row, '最晚还箱日期')) || er.lastReturnDate;
       await emptyRepo.save(er);
+      logger.info(`[FeituoImport] 更新还箱日期：${containerNumber} = ${returnTime.toISOString()}`);
     }
 
     try {
@@ -2161,7 +2165,12 @@ export class FeituoImportService {
       );
 
       // 非预计状态：更新核心时间字段
-      if (!status.isEstimated && status.occurredAt) {
+      // 特殊处理：最终状态事件（如 RCVE 还箱）即使标记为预计，也应该更新
+      // 原因：这些事件代表运输链结束，标记为预计可能是数据质量问题，不应阻止更新
+      const FINAL_STATUS_CODES = ['RCVE', 'STCS', 'GTOT', 'GTIN', 'DSCH', 'BO', 'DLPT'];
+      const isFinalStatus = FINAL_STATUS_CODES.includes(status.statusCode);
+      
+      if ((!status.isEstimated || isFinalStatus) && status.occurredAt) {
         await this.updateCoreFieldsFromStatus(
           containerNumber,
           status.statusCode,

@@ -100,27 +100,23 @@ const displayText = computed(() => {
     if (props.mode === 'overdue') return getOverdueText()
   }
 
-  // 自动判断模式
-  // 优先判断：如果有后一节点（且后一节点已发生），显示历时（后一节点 - 当前节点）
-  if (props.hasNextNode) {
+  // ✅ 实际业务节点：总是显示历时（因为业务已真实发生）
+  const actualEventLabels = ['出运', 'ATA', '卸船', '实际提柜', '实际还箱']
+  if (actualEventLabels.includes(props.label || '')) {
     return getElapsedText()
   }
 
-  // 如果是当前正在进行的节点，显示超期/倒计时
-  if (props.isCurrentNode) {
-    const time = overdueTime.value
-    if (!time) return ''
-    return time < 0 ? getCountdownTextFromTime(time) : getOverdueTextFromTime(time)
+  // ✅ 计划与预警节点：根据后一节点和时间判断
+
+  // 优先判断：如果有后一节点（且后一节点已发生），显示历时（后一节点 - 当前节点）
+  if (props.hasNextNode) {
+    return getElapsedText()
   }
 
   // 无后一节点（如最晚提柜有后续节点但实际提柜未发生）：显示倒计时/超期/历时
   const time = overdueTime.value
   if (!time) return ''
   if (time < 0) return getCountdownText() // 未来：倒计时
-  // 实际还箱为业务闭环终点：历时 = 本节点 - 上一节点，非「今天 - 还箱日」的超期
-  if (props.label === '实际还箱' && prevDateObj.value) {
-    return getElapsedText()
-  }
   // 过去：显示超期（关键节点等）
   return getOverdueText() // 已超期：超期
 })

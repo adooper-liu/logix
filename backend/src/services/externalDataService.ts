@@ -1628,9 +1628,17 @@ export class ExternalDataService {
       return;
     }
 
+    // 最终状态事件：即使标记为预计，也应该更新核心字段
+    // 原因：这些事件代表运输链结束，标记为预计可能是数据质量问题，不应阻止更新
+    const FINAL_STATUS_CODES = ['RCVE', 'STCS', 'GTOT', 'GTIN', 'DSCH', 'BO', 'DLPT'];
+
     for (const event of feituoEvents) {
       // 检查是否应该更新核心字段
-      if (!shouldUpdateCoreField(event.statusCode, event.hasOccurred !== false)) {
+      // 特殊处理：最终状态事件即使 hasOccurred=false 也应该更新
+      const isFinalStatus = FINAL_STATUS_CODES.includes(event.statusCode);
+      const shouldUpdate = isFinalStatus || (event.hasOccurred !== false);
+      
+      if (!shouldUpdateCoreField(event.statusCode, shouldUpdate)) {
         continue;
       }
 

@@ -11,7 +11,7 @@
  */
 
 import { Repository, SelectQueryBuilder } from 'typeorm';
-import { AppDataSource } from '../data-source';
+import { AppDataSource } from '../database';
 import { log } from '../utils/logger';
 
 interface CostReportPeriod {
