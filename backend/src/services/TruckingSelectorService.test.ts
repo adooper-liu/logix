@@ -166,10 +166,10 @@ describe('TruckingSelectorService', () => {
         { truckingCompanyId: 'TRUCK002' }
       ] as any[];
 
-      const portMappings = [{ trucking_company_id: 'TRUCK001' }];
+      const portMappings = [{ truckingCompanyId: 'TRUCK001' }]; // 驼峰命名
 
       (mockWarehouseTruckingMappingRepo.find as jest.Mock).mockResolvedValue(warehouseMappings);
-      (mockTruckingPortMappingRepo.query as jest.Mock).mockResolvedValue(portMappings);
+      (mockTruckingPortMappingRepo.find as jest.Mock).mockResolvedValue(portMappings);
       (mockTruckingOccupancyRepo.findOne as jest.Mock).mockResolvedValue(null);
 
       // Act

@@ -1,0 +1,808 @@
+
+> logix-main-service@1.0.0 test
+> jest --runInBand
+
+FAIL test/services/intelligentScheduling.batch.test.ts
+  鈼?Console
+
+    console.log
+      鍑嗗鎵归噺浼樺寲娴嬭瘯鏁版嵁...
+
+      at prepareTestData (test/services/intelligentScheduling.batch.test.ts:129:13)
+
+    console.log
+      鉁?宸插垱寤?50 涓祴璇曡揣鏌?
+      at prepareTestData (test/services/intelligentScheduling.batch.test.ts:200:13)
+
+    console.log
+      鎵归噺浼樺寲 50 涓揣鏌滆€楁椂锛?ms
+
+      at Object.<anonymous> (test/services/intelligentScheduling.batch.test.ts:81:15)
+
+    console.log
+      娓呯悊娴嬭瘯鏁版嵁...
+
+      at cleanupTestData (test/services/intelligentScheduling.batch.test.ts:204:13)
+
+    console.warn
+      娓呯悊娴嬭瘯鏁版嵁澶辫触: TypeError: Cannot read properties of undefined (reading 'delete')
+          at cleanupTestData (D:\Gihub\logix\backend\test\services\intelligentScheduling.batch.test.ts:215:31)
+          at Object.<anonymous> (D:\Gihub\logix\backend\test\services\intelligentScheduling.batch.test.ts:29:11)
+          at Promise.finally.completed (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusHook (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:976:40)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:891:7)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+          at jestAdapter (D:\Gihub\logix\backend\node_modules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:275:16)
+          at runTest (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:343:7)
+
+      224 |       console.log('鉁?娴嬭瘯鏁版嵁宸叉竻鐞?);
+      225 |     } catch (error) {
+    > 226 |       console.warn('娓呯悊娴嬭瘯鏁版嵁澶辫触:', error);
+          |               ^
+      227 |     }
+      228 |   }
+      229 | });
+
+      at cleanupTestData (test/services/intelligentScheduling.batch.test.ts:226:15)
+      at Object.<anonymous> (test/services/intelligentScheduling.batch.test.ts:29:11)
+
+  鈼?IntelligentSchedulingService - Batch Optimization 鈥?batchOptimizeContainers() 鈥?搴旇鎴愬姛鎵归噺浼樺寲澶氫釜璐ф煖
+
+    expect(received).toBeGreaterThan(expected)
+
+    Expected: > 0
+    Received:   0
+
+      38 |
+      39 |       expect(results).toBeInstanceOf(Array);
+    > 40 |       expect(results.length).toBeGreaterThan(0);
+         |                              ^
+      41 |
+      42 |       // 楠岃瘉杩斿洖缁撴瀯
+      43 |       const firstResult = results[0];
+
+      at Object.<anonymous> (test/services/intelligentScheduling.batch.test.ts:40:30)
+
+  鈼?IntelligentSchedulingService - Batch Optimization 鈥?batchOptimizeContainers() 鈥?搴旇姝ｇ‘澶勭悊娣峰悎鍦烘櫙 (瀛樺湪 + 涓嶅瓨鍦?
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 2
+    Received:    0
+
+      62 |       const results = await service.batchOptimizeContainers(containerNumbers);
+      63 |
+    > 64 |       expect(results.length).toBeGreaterThanOrEqual(2);
+         |                              ^
+      65 |       expect(results.every((r) => r.containerNumber !== 'NON_EXISTENT_456')).toBeTruthy();
+      66 |     });
+      67 |
+
+      at Object.<anonymous> (test/services/intelligentScheduling.batch.test.ts:64:30)
+
+FAIL src/services/feituoImport.service.test.ts
+  鈼?Test suite failed to run
+
+    TypeError: Cannot read properties of undefined (reading 'request')
+
+      169 |
+      170 |     // 璇锋眰鎷︽埅鍣?- 娣诲姞鏃ュ織
+    > 171 |     this.apiClient.interceptors.request.use((config) => {
+          |                                 ^
+      172 |       logger.info(`[ExternalDataService] API璇锋眰: ${config.method?.toUpperCase()} ${config.url}`);
+      173 |       return config;
+      174 |     });
+
+      at new ExternalDataService (src/services/externalDataService.ts:171:33)
+      at Object.<anonymous> (src/services/externalDataService.ts:1967:36)
+      at Object.<anonymous> (src/services/feituoImport.service.ts:38:1)
+      at Object.<anonymous> (src/services/feituoImport.service.test.ts:9:1)
+
+PASS src/services/intelligentScheduling.service.test.ts
+PASS src/services/WarehouseSelectorService.test.ts
+PASS src/services/TruckingSelectorService.test.ts
+PASS src/services/ContainerFilterService.test.ts
+PASS src/services/schedulingCostOptimizer.service.test.ts
+  鈼?Console
+
+    console.warn
+      [CostOptimizer] Failed to check warehouse availability: TypeError: Cannot read properties of undefined (reading 'ensureWarehouseOccupancy')
+          at SchedulingCostOptimizerService.isWarehouseAvailable (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:285:53)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:132:62)
+          at Promise.finally.completed (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+          at _runTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+          at D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+          at jestAdapter (D:\Gihub\logix\backend\node_modules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:275:16)
+          at runTest (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:343:7)
+
+      307 |       return available;
+      308 |     } catch (error) {
+    > 309 |       log.warn(`[CostOptimizer] Failed to check warehouse availability:`, error);
+          |           ^
+      310 |       return true; // 鍑洪敊鏃堕粯璁ゅ彲鐢?[39m
+      311 |     }
+      312 |   }
+
+      at SchedulingCostOptimizerService.isWarehouseAvailable (src/services/schedulingCostOptimizer.service.ts:309:11)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:132:62)
+
+    console.warn
+      [CostOptimizer] Failed to check warehouse availability: TypeError: Cannot read properties of undefined (reading 'ensureWarehouseOccupancy')
+          at SchedulingCostOptimizerService.isWarehouseAvailable (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:285:53)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:138:62)
+          at Promise.finally.completed (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+          at _runTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+          at D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+          at jestAdapter (D:\Gihub\logix\backend\node_modules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:275:16)
+          at runTest (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:343:7)
+
+      307 |       return available;
+      308 |     } catch (error) {
+    > 309 |       log.warn(`[CostOptimizer] Failed to check warehouse availability:`, error);
+          |           ^
+      310 |       return true; // 鍑洪敊鏃堕粯璁ゅ彲鐢?[39m
+      311 |     }
+      312 |   }
+
+      at SchedulingCostOptimizerService.isWarehouseAvailable (src/services/schedulingCostOptimizer.service.ts:309:11)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:138:62)
+
+    console.warn
+      [CostOptimizer] Failed to check warehouse availability: TypeError: Cannot read properties of undefined (reading 'ensureWarehouseOccupancy')
+          at SchedulingCostOptimizerService.isWarehouseAvailable (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:285:53)
+          at SchedulingCostOptimizerService.generateAllFeasibleOptions (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:347:26)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:145:23)
+
+      307 |       return available;
+      308 |     } catch (error) {
+    > 309 |       log.warn(`[CostOptimizer] Failed to check warehouse availability:`, error);
+          |           ^
+      310 |       return true; // 鍑洪敊鏃堕粯璁ゅ彲鐢?[39m
+      311 |     }
+      312 |   }
+
+      at SchedulingCostOptimizerService.isWarehouseAvailable (src/services/schedulingCostOptimizer.service.ts:309:11)
+      at SchedulingCostOptimizerService.generateAllFeasibleOptions (src/services/schedulingCostOptimizer.service.ts:347:26)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:145:23)
+
+    console.warn
+      [CostOptimizer] Failed to check warehouse availability: TypeError: Cannot read properties of undefined (reading 'ensureWarehouseOccupancy')
+          at SchedulingCostOptimizerService.isWarehouseAvailable (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:285:53)
+          at SchedulingCostOptimizerService.generateAllFeasibleOptions (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:347:26)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:145:23)
+
+      307 |       return available;
+      308 |     } catch (error) {
+    > 309 |       log.warn(`[CostOptimizer] Failed to check warehouse availability:`, error);
+          |           ^
+      310 |       return true; // 鍑洪敊鏃堕粯璁ゅ彲鐢?[39m
+      311 |     }
+      312 |   }
+
+      at SchedulingCostOptimizerService.isWarehouseAvailable (src/services/schedulingCostOptimizer.service.ts:309:11)
+      at SchedulingCostOptimizerService.generateAllFeasibleOptions (src/services/schedulingCostOptimizer.service.ts:347:26)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:145:23)
+
+    console.warn
+      [CostOptimizer] Failed to check warehouse availability: TypeError: Cannot read properties of undefined (reading 'ensureWarehouseOccupancy')
+          at SchedulingCostOptimizerService.isWarehouseAvailable (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:285:53)
+          at SchedulingCostOptimizerService.generateAllFeasibleOptions (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:347:26)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:145:23)
+
+      307 |       return available;
+      308 |     } catch (error) {
+    > 309 |       log.warn(`[CostOptimizer] Failed to check warehouse availability:`, error);
+          |           ^
+      310 |       return true; // 鍑洪敊鏃堕粯璁ゅ彲鐢?[39m
+      311 |     }
+      312 |   }
+
+      at SchedulingCostOptimizerService.isWarehouseAvailable (src/services/schedulingCostOptimizer.service.ts:309:11)
+      at SchedulingCostOptimizerService.generateAllFeasibleOptions (src/services/schedulingCostOptimizer.service.ts:347:26)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:145:23)
+
+    console.warn
+      [CostOptimizer] No trucking companies with yard found for country: US
+
+      600 |
+      601 |       if (truckingCompaniesWithYard.size === 0) {
+    > 602 |         log.warn(
+          |             ^
+      603 |           `[CostOptimizer] No trucking companies with yard found for country: ${countryCode}`
+      604 |         );
+      605 |         return options; // 娌℃湁鍫嗗満杞﹂槦锛岃繑鍥炵┖鏁扮粍
+
+      at SchedulingCostOptimizerService.generateDropOffOptions (src/services/schedulingCostOptimizer.service.ts:602:13)
+      at SchedulingCostOptimizerService.generateAllFeasibleOptions (src/services/schedulingCostOptimizer.service.ts:362:28)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:145:23)
+
+    console.log
+      [CostOptimizer] Not urgent (7 days left), skipping expedited options
+
+      at SchedulingCostOptimizerService.generateExpeditedOptions (src/services/schedulingCostOptimizer.service.ts:691:13)
+
+    console.warn
+      [CostOptimizer] Failed to check warehouse availability: TypeError: Cannot read properties of undefined (reading 'ensureWarehouseOccupancy')
+          at SchedulingCostOptimizerService.isWarehouseAvailable (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:285:53)
+          at SchedulingCostOptimizerService.generateAllFeasibleOptions (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:347:26)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:156:23)
+
+      307 |       return available;
+      308 |     } catch (error) {
+    > 309 |       log.warn(`[CostOptimizer] Failed to check warehouse availability:`, error);
+          |           ^
+      310 |       return true; // 鍑洪敊鏃堕粯璁ゅ彲鐢?[39m
+      311 |     }
+      312 |   }
+
+      at SchedulingCostOptimizerService.isWarehouseAvailable (src/services/schedulingCostOptimizer.service.ts:309:11)
+      at SchedulingCostOptimizerService.generateAllFeasibleOptions (src/services/schedulingCostOptimizer.service.ts:347:26)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:156:23)
+
+    console.warn
+      [CostOptimizer] Failed to check warehouse availability: TypeError: Cannot read properties of undefined (reading 'ensureWarehouseOccupancy')
+          at SchedulingCostOptimizerService.isWarehouseAvailable (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:285:53)
+          at SchedulingCostOptimizerService.generateAllFeasibleOptions (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:347:26)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:156:23)
+
+      307 |       return available;
+      308 |     } catch (error) {
+    > 309 |       log.warn(`[CostOptimizer] Failed to check warehouse availability:`, error);
+          |           ^
+      310 |       return true; // 鍑洪敊鏃堕粯璁ゅ彲鐢?[39m
+      311 |     }
+      312 |   }
+
+      at SchedulingCostOptimizerService.isWarehouseAvailable (src/services/schedulingCostOptimizer.service.ts:309:11)
+      at SchedulingCostOptimizerService.generateAllFeasibleOptions (src/services/schedulingCostOptimizer.service.ts:347:26)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:156:23)
+
+    console.warn
+      [CostOptimizer] Failed to check warehouse availability: TypeError: Cannot read properties of undefined (reading 'ensureWarehouseOccupancy')
+          at SchedulingCostOptimizerService.isWarehouseAvailable (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:285:53)
+          at SchedulingCostOptimizerService.generateAllFeasibleOptions (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:347:26)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:156:23)
+
+      307 |       return available;
+      308 |     } catch (error) {
+    > 309 |       log.warn(`[CostOptimizer] Failed to check warehouse availability:`, error);
+          |           ^
+      310 |       return true; // 鍑洪敊鏃堕粯璁ゅ彲鐢?[39m
+      311 |     }
+      312 |   }
+
+      at SchedulingCostOptimizerService.isWarehouseAvailable (src/services/schedulingCostOptimizer.service.ts:309:11)
+      at SchedulingCostOptimizerService.generateAllFeasibleOptions (src/services/schedulingCostOptimizer.service.ts:347:26)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:156:23)
+
+    console.warn
+      [CostOptimizer] No trucking companies with yard found for country: US
+
+      600 |
+      601 |       if (truckingCompaniesWithYard.size === 0) {
+    > 602 |         log.warn(
+          |             ^
+      603 |           `[CostOptimizer] No trucking companies with yard found for country: ${countryCode}`
+      604 |         );
+      605 |         return options; // 娌℃湁鍫嗗満杞﹂槦锛岃繑鍥炵┖鏁扮粍
+
+      at SchedulingCostOptimizerService.generateDropOffOptions (src/services/schedulingCostOptimizer.service.ts:602:13)
+      at SchedulingCostOptimizerService.generateAllFeasibleOptions (src/services/schedulingCostOptimizer.service.ts:362:28)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:156:23)
+
+    console.log
+      [CostOptimizer] Not urgent (7 days left), skipping expedited options
+
+      at SchedulingCostOptimizerService.generateExpeditedOptions (src/services/schedulingCostOptimizer.service.ts:691:13)
+
+    console.warn
+      [CostOptimizer] Cost evaluation failed for TEST1234567: TypeError: this.demurrageService.calculateTotalCost is not a function
+          at SchedulingCostOptimizerService.evaluateTotalCost (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:420:59)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:176:39)
+          at Promise.finally.completed (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+          at _runTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+          at D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+          at jestAdapter (D:\Gihub\logix\backend\node_modules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:275:16)
+          at runTest (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:343:7)
+
+      513 |         breakdown.handlingCost;
+      514 |     } catch (error) {
+    > 515 |       log.warn(`[CostOptimizer] Cost evaluation failed for ${option.containerNumber}:`, error);
+          |           ^
+      516 |     }
+      517 |
+      518 |     return breakdown;
+
+      at SchedulingCostOptimizerService.evaluateTotalCost (src/services/schedulingCostOptimizer.service.ts:515:11)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:176:39)
+
+    console.warn
+      [CostOptimizer] Cost evaluation failed for TEST1234567: TypeError: this.demurrageService.calculateTotalCost is not a function
+          at SchedulingCostOptimizerService.evaluateTotalCost (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:420:59)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:195:39)
+          at Promise.finally.completed (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+          at _runTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+          at D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+          at jestAdapter (D:\Gihub\logix\backend\node_modules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:275:16)
+          at runTest (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:343:7)
+
+      513 |         breakdown.handlingCost;
+      514 |     } catch (error) {
+    > 515 |       log.warn(`[CostOptimizer] Cost evaluation failed for ${option.containerNumber}:`, error);
+          |           ^
+      516 |     }
+      517 |
+      518 |     return breakdown;
+
+      at SchedulingCostOptimizerService.evaluateTotalCost (src/services/schedulingCostOptimizer.service.ts:515:11)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:195:39)
+
+    console.warn
+      [CostOptimizer] Cost evaluation failed for TEST1234567: TypeError: this.demurrageService.calculateTotalCost is not a function
+          at SchedulingCostOptimizerService.evaluateTotalCost (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:420:59)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:209:39)
+          at Promise.finally.completed (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+          at _runTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+          at D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+          at jestAdapter (D:\Gihub\logix\backend\node_modules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:275:16)
+          at runTest (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:343:7)
+
+      513 |         breakdown.handlingCost;
+      514 |     } catch (error) {
+    > 515 |       log.warn(`[CostOptimizer] Cost evaluation failed for ${option.containerNumber}:`, error);
+          |           ^
+      516 |     }
+      517 |
+      518 |     return breakdown;
+
+      at SchedulingCostOptimizerService.evaluateTotalCost (src/services/schedulingCostOptimizer.service.ts:515:11)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:209:39)
+
+    console.warn
+      [CostOptimizer] Cost evaluation failed for TEST1234567: TypeError: this.demurrageService.calculateTotalCost is not a function
+          at SchedulingCostOptimizerService.evaluateTotalCost (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:420:59)
+          at D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:538:35
+          at Array.map (<anonymous>)
+          at SchedulingCostOptimizerService.selectBestOption (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:536:15)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:235:38)
+          at Promise.finally.completed (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+          at _runTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+          at D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+          at jestAdapter (D:\Gihub\logix\backend\node_modules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:275:16)
+          at runTest (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:343:7)
+
+      513 |         breakdown.handlingCost;
+      514 |     } catch (error) {
+    > 515 |       log.warn(`[CostOptimizer] Cost evaluation failed for ${option.containerNumber}:`, error);
+          |           ^
+      516 |     }
+      517 |
+      518 |     return breakdown;
+
+      at SchedulingCostOptimizerService.evaluateTotalCost (src/services/schedulingCostOptimizer.service.ts:515:11)
+      at src/services/schedulingCostOptimizer.service.ts:538:35
+          at Array.map (<anonymous>)
+      at SchedulingCostOptimizerService.selectBestOption (src/services/schedulingCostOptimizer.service.ts:536:15)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:235:38)
+
+    console.warn
+      [CostOptimizer] Cost evaluation failed for TEST1234567: TypeError: this.demurrageService.calculateTotalCost is not a function
+          at SchedulingCostOptimizerService.evaluateTotalCost (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:420:59)
+          at D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:538:35
+          at Array.map (<anonymous>)
+          at SchedulingCostOptimizerService.selectBestOption (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:536:15)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:235:38)
+          at Promise.finally.completed (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+          at _runTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+          at D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+          at jestAdapter (D:\Gihub\logix\backend\node_modules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:275:16)
+          at runTest (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:343:7)
+
+      513 |         breakdown.handlingCost;
+      514 |     } catch (error) {
+    > 515 |       log.warn(`[CostOptimizer] Cost evaluation failed for ${option.containerNumber}:`, error);
+          |           ^
+      516 |     }
+      517 |
+      518 |     return breakdown;
+
+      at SchedulingCostOptimizerService.evaluateTotalCost (src/services/schedulingCostOptimizer.service.ts:515:11)
+      at src/services/schedulingCostOptimizer.service.ts:538:35
+          at Array.map (<anonymous>)
+      at SchedulingCostOptimizerService.selectBestOption (src/services/schedulingCostOptimizer.service.ts:536:15)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:235:38)
+
+    console.log
+      [CostOptimizer] Selected optimal option: Strategy=Direct, PickupDate=2026-04-01, Cost=$0
+
+      at SchedulingCostOptimizerService.selectBestOption (src/services/schedulingCostOptimizer.service.ts:552:9)
+
+    console.warn
+      [CostOptimizer] No trucking companies with yard found for country: US
+
+      600 |
+      601 |       if (truckingCompaniesWithYard.size === 0) {
+    > 602 |         log.warn(
+          |             ^
+      603 |           `[CostOptimizer] No trucking companies with yard found for country: ${countryCode}`
+      604 |         );
+      605 |         return options; // 娌℃湁鍫嗗満杞﹂槦锛岃繑鍥炵┖鏁扮粍
+
+      at SchedulingCostOptimizerService.generateDropOffOptions (src/services/schedulingCostOptimizer.service.ts:602:13)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:252:23)
+
+    console.log
+      [CostOptimizer] Not urgent (7 days left), skipping expedited options
+
+      at SchedulingCostOptimizerService.generateExpeditedOptions (src/services/schedulingCostOptimizer.service.ts:691:13)
+
+    console.warn
+      [CostOptimizer] Failed to get candidate warehouses: TypeError: Cannot read properties of undefined (reading 'find')
+          at SchedulingCostOptimizerService.getCandidateWarehouses (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:189:71)
+          at SchedulingCostOptimizerService.generateAllFeasibleOptions (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:331:35)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:328:37)
+          at Promise.finally.completed (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+          at _runTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+          at D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+          at jestAdapter (D:\Gihub\logix\backend\node_modules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:275:16)
+          at runTest (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:343:7)
+
+      250 |       return warehouses;
+      251 |     } catch (error) {
+    > 252 |       log.warn(`[CostOptimizer] Failed to get candidate warehouses:`, error);
+          |           ^
+      253 |       // 鍑洪敊鏃惰繑鍥炲悓涓€鍥藉鐨勬椿璺冧粨搴撲綔涓哄悗澶?[39m
+      254 |       try {
+      255 |         return await this.warehouseRepo.find({
+
+      at SchedulingCostOptimizerService.getCandidateWarehouses (src/services/schedulingCostOptimizer.service.ts:252:11)
+      at SchedulingCostOptimizerService.generateAllFeasibleOptions (src/services/schedulingCostOptimizer.service.ts:331:35)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:328:37)
+
+    console.warn
+      [CostOptimizer] Failed to get backup warehouses: TypeError: Cannot read properties of undefined (reading 'find')
+          at SchedulingCostOptimizerService.getCandidateWarehouses (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:255:41)
+          at SchedulingCostOptimizerService.generateAllFeasibleOptions (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:331:35)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:328:37)
+          at Promise.finally.completed (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+          at _runTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+          at D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+          at jestAdapter (D:\Gihub\logix\backend\node_modules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:275:16)
+          at runTest (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:343:7)
+
+      263 |         });
+      264 |       } catch (backupError) {
+    > 265 |         log.warn(`[CostOptimizer] Failed to get backup warehouses:`, backupError);
+          |             ^
+      266 |         return [];
+      267 |       }
+      268 |     }
+
+      at SchedulingCostOptimizerService.getCandidateWarehouses (src/services/schedulingCostOptimizer.service.ts:265:13)
+      at SchedulingCostOptimizerService.generateAllFeasibleOptions (src/services/schedulingCostOptimizer.service.ts:331:35)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:328:37)
+
+    console.warn
+      [CostOptimizer] Failed to generate drop off options: TypeError: Cannot read properties of undefined (reading 'find')
+          at SchedulingCostOptimizerService.generateDropOffOptions (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:581:64)
+          at SchedulingCostOptimizerService.generateAllFeasibleOptions (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:362:39)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:328:23)
+
+      658 |       }
+      659 |     } catch (error) {
+    > 660 |       log.warn(`[CostOptimizer] Failed to generate drop off options:`, error);
+          |           ^
+      661 |     }
+      662 |
+      663 |     return options;
+
+      at SchedulingCostOptimizerService.generateDropOffOptions (src/services/schedulingCostOptimizer.service.ts:660:11)
+      at SchedulingCostOptimizerService.generateAllFeasibleOptions (src/services/schedulingCostOptimizer.service.ts:362:39)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:328:23)
+
+    console.log
+      [CostOptimizer] Not urgent (7 days left), skipping expedited options
+
+      at SchedulingCostOptimizerService.generateExpeditedOptions (src/services/schedulingCostOptimizer.service.ts:691:13)
+
+    console.log
+      Options generation time: 2ms
+
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:338:13)
+
+    console.warn
+      [CostOptimizer] Cost evaluation failed for TEST1234567: TypeError: this.demurrageService.calculateTotalCost is not a function
+          at SchedulingCostOptimizerService.evaluateTotalCost (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:420:59)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:352:19)
+          at Promise.finally.completed (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+          at _runTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+          at D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+          at jestAdapter (D:\Gihub\logix\backend\node_modules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:275:16)
+          at runTest (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:343:7)
+
+      513 |         breakdown.handlingCost;
+      514 |     } catch (error) {
+    > 515 |       log.warn(`[CostOptimizer] Cost evaluation failed for ${option.containerNumber}:`, error);
+          |           ^
+      516 |     }
+      517 |
+      518 |     return breakdown;
+
+      at SchedulingCostOptimizerService.evaluateTotalCost (src/services/schedulingCostOptimizer.service.ts:515:11)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:352:19)
+
+    console.log
+      Cost evaluation time: 0ms
+
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:356:13)
+
+    console.warn
+      [CostOptimizer] Failed to get candidate warehouses: TypeError: Cannot read properties of undefined (reading 'find')
+          at SchedulingCostOptimizerService.getCandidateWarehouses (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:189:71)
+          at SchedulingCostOptimizerService.generateAllFeasibleOptions (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:331:35)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:374:37)
+          at Promise.finally.completed (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+          at _runTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+          at D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+          at jestAdapter (D:\Gihub\logix\backend\node_modules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:275:16)
+          at runTest (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:343:7)
+
+      250 |       return warehouses;
+      251 |     } catch (error) {
+    > 252 |       log.warn(`[CostOptimizer] Failed to get candidate warehouses:`, error);
+          |           ^
+      253 |       // 鍑洪敊鏃惰繑鍥炲悓涓€鍥藉鐨勬椿璺冧粨搴撲綔涓哄悗澶?[39m
+      254 |       try {
+      255 |         return await this.warehouseRepo.find({
+
+      at SchedulingCostOptimizerService.getCandidateWarehouses (src/services/schedulingCostOptimizer.service.ts:252:11)
+      at SchedulingCostOptimizerService.generateAllFeasibleOptions (src/services/schedulingCostOptimizer.service.ts:331:35)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:374:37)
+
+    console.warn
+      [CostOptimizer] Failed to get backup warehouses: TypeError: Cannot read properties of undefined (reading 'find')
+          at SchedulingCostOptimizerService.getCandidateWarehouses (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:255:41)
+          at SchedulingCostOptimizerService.generateAllFeasibleOptions (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:331:35)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:374:37)
+          at Promise.finally.completed (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1557:28)
+          at new Promise (<anonymous>)
+          at callAsyncCircusFn (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1497:10)
+          at _callCircusTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1007:40)
+          at _runTest (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:947:3)
+          at D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:849:7
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:862:11)
+          at _runTestsForDescribeBlock (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:857:11)
+          at run (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:761:3)
+          at runAndTransformResultsToJestFormat (D:\Gihub\logix\backend\node_modules\jest-circus\build\jestAdapterInit.js:1918:21)
+          at jestAdapter (D:\Gihub\logix\backend\node_modules\jest-circus\build\runner.js:101:19)
+          at runTestInternal (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:275:16)
+          at runTest (D:\Gihub\logix\backend\node_modules\jest-runner\build\index.js:343:7)
+
+      263 |         });
+      264 |       } catch (backupError) {
+    > 265 |         log.warn(`[CostOptimizer] Failed to get backup warehouses:`, backupError);
+          |             ^
+      266 |         return [];
+      267 |       }
+      268 |     }
+
+      at SchedulingCostOptimizerService.getCandidateWarehouses (src/services/schedulingCostOptimizer.service.ts:265:13)
+      at SchedulingCostOptimizerService.generateAllFeasibleOptions (src/services/schedulingCostOptimizer.service.ts:331:35)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:374:37)
+
+    console.warn
+      [CostOptimizer] Failed to generate drop off options: TypeError: Cannot read properties of undefined (reading 'find')
+          at SchedulingCostOptimizerService.generateDropOffOptions (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:581:64)
+          at SchedulingCostOptimizerService.generateAllFeasibleOptions (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.ts:362:39)
+          at Object.<anonymous> (D:\Gihub\logix\backend\src\services\schedulingCostOptimizer.service.test.ts:374:23)
+
+      658 |       }
+      659 |     } catch (error) {
+    > 660 |       log.warn(`[CostOptimizer] Failed to generate drop off options:`, error);
+          |           ^
+      661 |     }
+      662 |
+      663 |     return options;
+
+      at SchedulingCostOptimizerService.generateDropOffOptions (src/services/schedulingCostOptimizer.service.ts:660:11)
+      at SchedulingCostOptimizerService.generateAllFeasibleOptions (src/services/schedulingCostOptimizer.service.ts:362:39)
+      at Object.<anonymous> (src/services/schedulingCostOptimizer.service.test.ts:374:23)
+
+    console.log
+      [CostOptimizer] Not urgent (7 days left), skipping expedited options
+
+      at SchedulingCostOptimizerService.generateExpeditedOptions (src/services/schedulingCostOptimizer.service.ts:691:13)
+
+PASS src/services/containerStatistics.service.test.ts
+PASS src/services/statistics/ArrivalStatistics.service.test.ts
+  鈼?Console
+
+    console.log
+      [ArrivalStatistics] getArrivedBeforeTodayNotPickedUp returned: 0
+
+      at ArrivalStatisticsService.getArrivedBeforeTodayNotPickedUp (src/services/statistics/ArrivalStatistics.service.ts:182:13)
+
+    console.log
+      [ArrivalStatistics] getArrivedBeforeTodayPickedUp returned: 0
+
+      at ArrivalStatisticsService.getArrivedBeforeTodayPickedUp (src/services/statistics/ArrivalStatistics.service.ts:238:13)
+
+PASS src/services/CustomsBrokerSelectionService.test.ts
+PASS src/services/OccupancyCalculator.test.ts
+PASS src/config/scheduling.config.test.ts
+  鈼?Console
+
+    console.log
+      [SchedulingConfig] 閰嶇疆楠岃瘉閫氳繃 鉁?
+      at validateSchedulingConfig (src/config/scheduling.config.ts:279:11)
+
+PASS src/services/DemurrageDateCalculator.test.ts
+PASS src/services/all-cost-items-validation.test.ts
+PASS src/services/phase2-storage-fee-concept.test.ts
+PASS src/services/SchedulingSorter.test.ts
+PASS src/services/DemurrageFeeCalculator.test.ts
+PASS src/services/yard-storage-fee-scenarios.test.ts
+PASS src/services/lrd-calculation-strategy.test.ts
+PASS test/utils/dateTimeUtils.weekend.test.ts
+PASS src/services/CostEstimationService.test.ts
+
+Summary of all failing tests
+FAIL test/services/intelligentScheduling.batch.test.ts
+  鈼?IntelligentSchedulingService - Batch Optimization 鈥?batchOptimizeContainers() 鈥?搴旇鎴愬姛鎵归噺浼樺寲澶氫釜璐ф煖
+
+    expect(received).toBeGreaterThan(expected)
+
+    Expected: > 0
+    Received:   0
+
+      38 |
+      39 |       expect(results).toBeInstanceOf(Array);
+    > 40 |       expect(results.length).toBeGreaterThan(0);
+         |                              ^
+      41 |
+      42 |       // 楠岃瘉杩斿洖缁撴瀯
+      43 |       const firstResult = results[0];
+
+      at Object.<anonymous> (test/services/intelligentScheduling.batch.test.ts:40:30)
+
+  鈼?IntelligentSchedulingService - Batch Optimization 鈥?batchOptimizeContainers() 鈥?搴旇姝ｇ‘澶勭悊娣峰悎鍦烘櫙 (瀛樺湪 + 涓嶅瓨鍦?
+
+    expect(received).toBeGreaterThanOrEqual(expected)
+
+    Expected: >= 2
+    Received:    0
+
+      62 |       const results = await service.batchOptimizeContainers(containerNumbers);
+      63 |
+    > 64 |       expect(results.length).toBeGreaterThanOrEqual(2);
+         |                              ^
+      65 |       expect(results.every((r) => r.containerNumber !== 'NON_EXISTENT_456')).toBeTruthy();
+      66 |     });
+      67 |
+
+      at Object.<anonymous> (test/services/intelligentScheduling.batch.test.ts:64:30)
+
+FAIL src/services/feituoImport.service.test.ts
+  鈼?Test suite failed to run
+
+    TypeError: Cannot read properties of undefined (reading 'request')
+
+      169 |
+      170 |     // 璇锋眰鎷︽埅鍣?- 娣诲姞鏃ュ織
+    > 171 |     this.apiClient.interceptors.request.use((config) => {
+          |                                 ^
+      172 |       logger.info(`[ExternalDataService] API璇锋眰: ${config.method?.toUpperCase()} ${config.url}`);
+      173 |       return config;
+      174 |     });
+
+      at new ExternalDataService (src/services/externalDataService.ts:171:33)
+      at Object.<anonymous> (src/services/externalDataService.ts:1967:36)
+      at Object.<anonymous> (src/services/feituoImport.service.ts:38:1)
+      at Object.<anonymous> (src/services/feituoImport.service.test.ts:9:1)
+
+
+Test Suites: 2 failed, 19 passed, 21 total
+Tests:       2 failed, 234 passed, 236 total
+Snapshots:   0 total
+Time:        10.839 s
+Ran all test suites.

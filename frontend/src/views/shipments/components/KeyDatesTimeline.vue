@@ -1,10 +1,6 @@
 <script setup lang="ts">
 import DurationDisplay from '@/components/common/DurationDisplay.vue'
-import { QuestionFilled } from '@element-plus/icons-vue'
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
-
-const router = useRouter()
 
 /** 滞港费计算返回的日期（优先使用） */
 interface CalculationDates {
@@ -130,17 +126,17 @@ const timelineEvents = computed((): TimelineEvent[] => {
       })
   }
 
-  add('出运', '出运日期', d.shipmentDate, '🚢', 'primary')
-  add('ETA', '目的港 ETA', d.etaDestPort, '📅', 'primary')
-  add('修正ETA', '修正 ETA', d.revisedEtaDestPort, '📝', 'primary')
-  add('ATA', '目的港 ATA', d.ataDestPort, '📍', 'primary')
-  add('卸船', '卸船日', d.dischargeDate, '🚢', 'info')
+  add('出运', '出运日期', d.shipmentDate, '', 'primary')
+  add('ETA', '目的港 ETA', d.etaDestPort, '', 'primary')
+  add('修正 ETA', '修正 ETA', d.revisedEtaDestPort, '', 'primary')
+  add('ATA', '目的港 ATA', d.ataDestPort, '', 'primary')
+  add('卸船', '卸船日', d.dischargeDate, '', 'info')
 
   // 最晚提柜日 - 添加计算来源标注
   const lastPickupDate = d.lastPickupDateComputed ?? d.lastPickupDate
   const isLastPickupComputed = !!d.lastPickupDateComputed
   const isLastPickupFromDb = !!d.lastPickupDate && !d.lastPickupDateComputed
-  add('最晚提柜', '最晚提柜日', lastPickupDate, '⏰', 'danger', {
+  add('最晚提柜', '最晚提柜日', lastPickupDate, '', 'danger', {
     isComputed: isLastPickupComputed,
     isFromDb: isLastPickupFromDb,
     calculationMode: isLastPickupComputed ? (d.lastPickupDateMode ?? null) : null,
@@ -155,13 +151,13 @@ const timelineEvents = computed((): TimelineEvent[] => {
       : null,
   })
 
-  add('实际提柜', '实际提柜日', d.pickupDateActual, '📦', 'success')
+  add('实际提柜', '实际提柜日', d.pickupDateActual, '', 'success')
 
   // 最晚还箱日 - 添加计算来源标注
   const lastReturnDate = d.lastReturnDateComputed ?? d.lastReturnDate
   const isLastReturnComputed = !!d.lastReturnDateComputed
   const isLastReturnFromDb = !!d.lastReturnDate && !d.lastReturnDateComputed
-  add('最晚还箱', '最晚还箱日', lastReturnDate, '📦', 'danger', {
+  add('最晚还箱', '最晚还箱日', lastReturnDate, '', 'danger', {
     isComputed: isLastReturnComputed,
     isFromDb: isLastReturnFromDb,
     calculationMode: isLastReturnComputed ? d.lastReturnDateMode : null,
@@ -170,29 +166,19 @@ const timelineEvents = computed((): TimelineEvent[] => {
       : null,
   })
 
-  add('实际还箱', '实际还箱日', d.returnTime, '✅', 'success')
+  add('实际还箱', '实际还箱日', d.returnTime, '', 'success')
+  
+  // 添加当前节点（日期为今天）
   events.push({
     label: '当前',
     fullLabel: '当前日期',
     date: today,
-    icon: '📆',
+    icon: '',
     type: 'info',
   })
 
-  // 先按日期排序所有事件
-  const sortedEvents = events.sort((a, b) => a.date.getTime() - b.date.getTime())
-
-  // 确保"当前"节点在最后
-  const currentEvent = sortedEvents.find(event => event.label === '当前')
-  if (currentEvent) {
-    // 移除"当前"节点
-    const eventsWithoutCurrent = sortedEvents.filter(event => event.label !== '当前')
-    // 将"当前"节点添加到最后
-    eventsWithoutCurrent.push(currentEvent)
-    return eventsWithoutCurrent
-  }
-
-  return sortedEvents
+  // 按日期排序所有事件（当前节点也参与排序）
+  return events.sort((a, b) => a.date.getTime() - b.date.getTime())
 })
 
 const formatDate = (d: string | Date | null | undefined): string => {
@@ -451,19 +437,6 @@ const getNextBusinessNodeDate = (
 
 <template>
   <el-card class="key-dates-card" shadow="never" v-if="timelineEvents.length > 0">
-    <div class="key-dates-help">
-      <router-link
-        :to="{
-          path: '/docs/help/时间概念说明-历时倒计时超期.md',
-          query: { from: router.currentRoute.value.fullPath },
-        }"
-        class="help-link"
-        title="历时/倒计时/超期说明"
-      >
-        <el-icon><QuestionFilled /></el-icon>
-      </router-link>
-    </div>
-
     <div class="timeline-horizontal">
       <div
         v-for="(event, index) in timelineEvents"
@@ -474,14 +447,10 @@ const getNextBusinessNodeDate = (
           'is-today': event.label === '当前',
         }"
       >
-        <div class="timeline-track">
-          <div class="timeline-dot" :class="getDotColor(event, index, timelineEvents)" />
-          <div class="timeline-connector" v-if="index < timelineEvents.length - 1" />
-        </div>
-        <div class="timeline-body">
+        <!-- 上方：节点名 + 计划时间 -->
+        <div class="timeline-body timeline-body-top">
           <div class="item-header">
             <div class="item-label-row">
-              <span class="item-icon">{{ event.icon }}</span>
               <span class="item-label">{{ event.label }}</span>
             </div>
             <div class="item-tags">
@@ -495,6 +464,18 @@ const getNextBusinessNodeDate = (
               <span v-else-if="event.isFromDb" class="item-tag item-tag-db">录入</span>
             </div>
           </div>
+        </div>
+        
+        <!-- 时间轴轨道（圆点 + 连接线） -->
+        <div class="timeline-track-wrapper">
+          <div class="timeline-track">
+            <div class="timeline-dot" :class="getDotColor(event, index, timelineEvents)" />
+            <div class="timeline-connector" v-if="index < timelineEvents.length - 1" />
+          </div>
+        </div>
+        
+        <!-- 下方：实际日期 + 状态 -->
+        <div class="timeline-body timeline-body-bottom">
           <div class="item-date-wrapper">
             <span class="item-date">{{ formatDate(event.date) }}</span>
           </div>
@@ -534,50 +515,27 @@ const getNextBusinessNodeDate = (
     position: relative;
   }
 
-  .key-dates-help {
-    position: absolute;
-    top: 0;
-    right: 0;
-    z-index: 2;
-  }
-
-  .help-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4px;
-    color: $text-secondary;
-    text-decoration: none;
-    border-radius: $radius-base;
-    transition:
-      color $transition-base,
-      background $transition-base;
-
-    &:hover {
-      color: $primary-color;
-      background: rgba($primary-color, 0.08);
-    }
-  }
-
   .timeline-horizontal {
     display: flex;
     flex-direction: row;
-    align-items: flex-start;
+    align-items: center;
     justify-content: center;
     gap: 8px;
     overflow-x: auto;
     width: 100%;
     box-sizing: border-box;
-    padding: 4px 32px 8px 32px;
+    padding: 12px 32px;
   }
 
   .timeline-item {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-rows: auto auto auto;
     align-items: center;
+    justify-items: center;
     flex: 0 0 auto;
     min-width: 90px;
     max-width: 120px;
+    position: relative;
 
     /* 仅淡化日期；历时/倒计时/超期由 DurationDisplay 自控色，勿对 .item-status 设 color，否则会盖住标签色 */
     &.is-expired .item-date {
@@ -590,12 +548,33 @@ const getNextBusinessNodeDate = (
     }
   }
 
+  .timeline-track-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    margin: 4px 0;
+  }
+
   .timeline-track {
     display: flex;
     align-items: center;
     width: 100%;
-    margin-bottom: 8px;
     position: relative;
+  }
+
+  .timeline-body {
+    text-align: center;
+    width: 100%;
+    
+    &.timeline-body-top {
+      margin-bottom: 6px;
+    }
+    
+    &.timeline-body-bottom {
+      margin-top: 6px;
+    }
   }
 
   .timeline-dot {
@@ -667,31 +646,20 @@ const getNextBusinessNodeDate = (
     }
   }
 
-  .timeline-body {
-    text-align: center;
-    width: 100%;
-  }
-
   .item-header {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: 4px;
-    margin-bottom: 6px;
+    margin-bottom: 0;
   }
 
   .item-label-row {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 3px;
-  }
-
-  .item-icon {
-    font-size: 12px;
-    line-height: 1;
-    filter: grayscale(0.3);
+    gap: 0;
   }
 
   .item-label {
@@ -723,29 +691,19 @@ const getNextBusinessNodeDate = (
       background: linear-gradient(135deg, rgba($warning-color, 0.15), rgba($warning-color, 0.08));
       color: color.adjust($warning-color, $lightness: -10%);
       border: 1px solid rgba($warning-color, 0.2);
-
-      &::before {
-        content: '📊';
-        font-size: 8px;
-      }
     }
 
     &.item-tag-db {
       background: linear-gradient(135deg, rgba($info-color, 0.15), rgba($info-color, 0.08));
       color: color.adjust($info-color, $lightness: -10%);
       border: 1px solid rgba($info-color, 0.2);
-
-      &::before {
-        content: '📝';
-        font-size: 8px;
-      }
     }
   }
 
   .item-date-wrapper {
     text-align: center;
     padding: 4px 8px;
-    margin-bottom: 4px;
+    margin-bottom: 6px;
     transition: all $transition-base;
 
     &:hover {

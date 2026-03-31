@@ -106,33 +106,37 @@ const demurrageSummary = computed(() => {
           {{ logisticsStatusTag.text }}
         </el-tag>
       </div>
-      <!-- 滞港费汇总 -->
+      <!-- 滞港费汇总与详细（同一行） -->
       <div
         v-if="demurrageSummary"
-        class="demurrage-inline"
-        title="滞港费"
-        @click="emit('openDemurrageTab')"
+        class="demurrage-container"
       >
-        <span class="demurrage-total">
-          {{ demurrageSummary.currency }} {{ demurrageSummary.totalAmount.toFixed(2) }}
-        </span>
-      </div>
-    </div>
-
-    <!-- 滞港费详细 -->
-    <div
-      v-if="demurrageSummary && demurrageSummary.chargeTypes.length > 0"
-      class="demurrage-details"
-    >
-      <div
-        v-for="chargeType in demurrageSummary.chargeTypes"
-        :key="chargeType.chargeType"
-        class="demurrage-type-item"
-      >
-        <span class="charge-type-name">{{ chargeType.chargeName || chargeType.chargeType }}</span>
-        <span class="charge-type-amount">
-          {{ demurrageSummary.currency }} {{ chargeType.totalAmount.toFixed(2) }}
-        </span>
+        <div
+          class="demurrage-inline"
+          title="滞港费"
+          @click="emit('openDemurrageTab')"
+        >
+          <span class="demurrage-total">
+            {{ demurrageSummary.currency }} {{ demurrageSummary.totalAmount.toFixed(2) }}
+          </span>
+        </div>
+        <!-- 滞港费详细（小标签样式） -->
+        <div
+          v-if="demurrageSummary.chargeTypes.length > 0"
+          class="demurrage-tags"
+        >
+          <el-tag
+            v-for="chargeType in demurrageSummary.chargeTypes"
+            :key="chargeType.chargeType"
+            class="demurrage-tag-item"
+            size="small"
+          >
+            <span class="charge-type-name">{{ chargeType.chargeName || chargeType.chargeType }}</span>
+            <span class="charge-type-amount">
+              {{ demurrageSummary.currency }} {{ chargeType.totalAmount.toFixed(2) }}
+            </span>
+          </el-tag>
+        </div>
       </div>
     </div>
   </el-card>
@@ -156,6 +160,14 @@ const demurrageSummary = computed(() => {
     gap: $spacing-md;
     flex-wrap: wrap;
     white-space: nowrap;
+  }
+
+  .demurrage-container {
+    display: flex;
+    align-items: center;
+    gap: $spacing-md;
+    margin-left: auto; // 靠右显示
+    flex-shrink: 0;
   }
 
   .info-item {
@@ -227,32 +239,36 @@ const demurrageSummary = computed(() => {
     }
   }
 
-  .demurrage-details {
-    display: grid;
-    gap: 4px;
-    margin-top: $spacing-sm;
-    padding: $spacing-sm $spacing-md;
-    background: rgba($warning-color, 0.06);
-    border-radius: $radius-base;
-    border: none;
+  .demurrage-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
   }
 
-  .demurrage-type-item {
-    display: flex;
+  .demurrage-tag-item {
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    padding: 4px 8px;
-    background: #fff;
-    border-radius: $radius-small;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba($warning-color, 0.08);
+    border: none;
+    border-radius: $radius-base;
     font-size: $font-size-xs;
+    transition: background $transition-base;
+
+    &:hover {
+      background: rgba($warning-color, 0.12);
+    }
 
     .charge-type-name {
       color: $text-secondary;
+      font-weight: 500;
     }
 
     .charge-type-amount {
-      font-weight: 600;
       color: $text-primary;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
     }
   }
 }

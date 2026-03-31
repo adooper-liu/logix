@@ -137,8 +137,8 @@ function buildOverdueText(nodeDate: Date, now: Date): string {
   const time = now.getTime() - nodeDate.getTime();
   const diffDays = Math.floor(time / MS_PER_DAY);
   if (diffDays <= 0) return '';
-  if (diffDays === 1) return '超期1天';
-  return `超期${diffDays}天`;
+  if (diffDays === 1) return '已超 1 天';
+  return `已超${diffDays}天`;
 }
 
 /**

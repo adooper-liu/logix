@@ -1,58 +1,58 @@
-<#
+﻿<#
 .SYNOPSIS
-    LogiX 测试数据清理工具
-    删除导入的测试数据（备货单、货柜及相关流程表、扩展表）
+    LogiX Test Data Cleanup Tool
+    Deletes imported test data (replenishment orders, containers, and related process/extension tables)
 
 .DESCRIPTION
-    该脚本连接到 PostgreSQL 数据库并执行清理脚本，删除所有测试数据。
-    支持本地开发和测试环境使用。
+    This script connects to PostgreSQL database and executes cleanup scripts to delete all test data.
+    Supports local development and testing environments.
 
 .PARAMETER Database
-    数据库名称，默认为 logix
+    Database name, default is "logix"
 
 .PARAMETER Host
-    数据库主机，默认为 localhost
+    Database host, default is "localhost"
 
 .PARAMETER Port
-    数据库端口，默认为 5432
+    Database port, default is 5432
 
 .PARAMETER Username
-    数据库用户名，默认为 postgres
+    Database username, default is "postgres"
 
 .PARAMETER Password
-    数据库密码（建议使用环境变量 LOGIX_DB_PASSWORD）
+    Database password (recommend using environment variable LOGIX_DB_PASSWORD)
 
 .PARAMETER SqlFile
-    SQL 脚本文件路径，默认为当前目录下的 cleanup-test-data.sql
+    SQL script file path, default is cleanup-test-data.sql in current directory
 
 .PARAMETER DryRun
-    仅显示将要执行的 SQL 语句，不实际执行
+    Only preview data to be deleted, do not execute
 
 .PARAMETER Force
-    跳过确认提示，直接执行
+    Skip confirmation prompt and execute directly
 
 .EXAMPLE
     .\cleanup-test-data.ps1
-    使用默认参数执行清理
+    Execute cleanup with default parameters
 
 .EXAMPLE
     .\cleanup-test-data.ps1 -Database "logix_test" -Username "admin"
-    指定数据库和用户名
+    Specify database and username
 
 .EXAMPLE
     .\cleanup-test-data.ps1 -DryRun
-    预览将要执行的 SQL 语句
+    Preview data to be deleted
 
 .EXAMPLE
     $env:LOGIX_DB_PASSWORD = "your_password"; .\cleanup-test-data.ps1 -Force
-    使用环境变量设置密码并跳过确认
+    Use environment variable for password and skip confirmation
 
 .NOTES
-    文件名: cleanup-test-data.ps1
-    作者: LogiX Team
-    版本: 1.0.1
-    创建日期: 2026-03-26
-    更新日期: 2026-03-26
+    Filename: cleanup-test-data.ps1
+    Author: LogiX Team
+    Version: 1.0.2
+    Created: 2026-03-26
+    Updated: 2026-03-31
 
 .LINK
     https://github.com/your-org/logix
@@ -60,41 +60,46 @@
 
 [CmdletBinding(SupportsShouldProcess = $true)]
 param(
-    [Parameter(HelpMessage = "数据库名称")]
+    [Parameter(HelpMessage = "Database name")]
     [string]$Database = "logix",
 
-    [Parameter(HelpMessage = "数据库主机")]
+    [Parameter(HelpMessage = "Database host")]
     [string]$DbHost = "localhost",
 
-    [Parameter(HelpMessage = "数据库端口")]
+    [Parameter(HelpMessage = "Database port")]
     [int]$Port = 5432,
 
-    [Parameter(HelpMessage = "数据库用户名")]
+    [Parameter(HelpMessage = "Database username")]
     [string]$Username = "postgres",
 
-    [Parameter(HelpMessage = "数据库密码")]
+    [Parameter(HelpMessage = "Database password")]
     [string]$Password = $env:LOGIX_DB_PASSWORD,
 
-    [Parameter(HelpMessage = "SQL 脚本文件路径")]
-    [string]$SqlFile = (Join-Path $PSScriptRoot "cleanup-test-data.sql"),
+    [Parameter(HelpMessage = "SQL script file path")]
+    [string]$SqlFile,
 
-    [Parameter(HelpMessage = "仅预览 SQL 语句")]
+    [Parameter(HelpMessage = "Preview only, do not execute")]
     [switch]$DryRun,
 
-    [Parameter(HelpMessage = "跳过确认提示")]
+    [Parameter(HelpMessage = "Skip confirmation")]
     [switch]$Force
 )
 
-# 设置错误处理
+# Set default SQL file path if not provided
+if (-not $SqlFile) {
+    $SqlFile = Join-Path $PSScriptRoot "cleanup-test-data.sql"
+}
+
+# Set error handling
 $ErrorActionPreference = "Stop"
 
-# 颜色定义
+# Color definitions
 $ColorInfo = "Cyan"
 $ColorSuccess = "Green"
 $ColorWarning = "Yellow"
 $ColorError = "Red"
 
-# 输出函数
+# Output functions
 function Write-Info {
     param([string]$Message)
     Write-Host "[INFO] $Message" -ForegroundColor $ColorInfo
@@ -115,58 +120,58 @@ function Write-Error {
     Write-Host "[ERROR] $Message" -ForegroundColor $ColorError
 }
 
-# 显示脚本信息
+# Show script banner
 function Show-Banner {
     Write-Host @"
 ╔══════════════════════════════════════════════════════════════╗
 ║                                                              ║
-║           LogiX 测试数据清理工具 v1.0.1                      ║
+║           LogiX Test Data Cleanup Tool v1.0.2                ║
 ║                                                              ║
-║   警告：此操作将删除所有测试数据，请谨慎使用！               ║
+║   WARNING: This operation will delete all test data!         ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
 "@ -ForegroundColor $ColorWarning
 }
 
-# 检查依赖
+# Check dependencies
 function Test-Dependencies {
-    Write-Info "检查依赖项..."
+    Write-Info "Checking dependencies..."
 
-    # 检查 psql 是否安装
+    # Check if psql is installed
     $psqlPath = Get-Command "psql" -ErrorAction SilentlyContinue
     if (-not $psqlPath) {
-        Write-Error "未找到 psql 命令。请确保 PostgreSQL 客户端已安装并添加到 PATH。"
-        Write-Info "下载地址: https://www.postgresql.org/download/"
+        Write-Error "psql command not found. Please install PostgreSQL client and add to PATH."
+        Write-Info "Download: https://www.postgresql.org/download/"
         exit 1
     }
 
-    Write-Success "psql 已找到: $($psqlPath.Source)"
+    Write-Success "psql found: $($psqlPath.Source)"
 
-    # 检查 SQL 文件是否存在
+    # Check if SQL file exists
     if (-not (Test-Path $SqlFile)) {
-        Write-Error "SQL 文件不存在: $SqlFile"
+        Write-Error "SQL file not found: $SqlFile"
         exit 1
     }
 
-    Write-Success "SQL 文件已找到: $SqlFile"
+    Write-Success "SQL file found: $SqlFile"
 }
 
-# 验证数据库连接
+# Verify database connection
 function Test-DatabaseConnection {
-    Write-Info "验证数据库连接..."
+    Write-Info "Verifying database connection..."
 
     $env:PGPASSWORD = $Password
-    $connectionString = "postgresql://$Username@$DbHost`:$Port/$Database"
+    $connectionString = "postgresql://$Username`:$DbHost`:$Port/$Database"
 
     try {
         $result = psql -h $DbHost -p $Port -U $Username -d $Database -c "SELECT 1 as connected;" 2>&1
         if ($LASTEXITCODE -ne 0) {
-            throw "连接失败"
+            throw "Connection failed"
         }
-        Write-Success "数据库连接成功: $connectionString"
+        Write-Success "Database connected: $connectionString"
     }
     catch {
-        Write-Error "数据库连接失败: $connectionString"
+        Write-Error "Database connection failed: $connectionString"
         Write-Error $_.Exception.Message
         exit 1
     }
@@ -175,35 +180,36 @@ function Test-DatabaseConnection {
     }
 }
 
-# 预览将要删除的数据
+# Preview data to be deleted
 function Show-Preview {
-    Write-Info "预览将要删除的数据..."
+    Write-Info "Previewing data to be deleted..."
     Write-Host ""
 
     $env:PGPASSWORD = $Password
 
     $tables = @(
-        @{Name = "ext_container_alerts"; Desc = "货柜预警"},
-        @{Name = "ext_container_status_events"; Desc = "货柜状态事件"},
-        @{Name = "ext_container_loading_records"; Desc = "货柜装载记录"},
-        @{Name = "ext_container_charges"; Desc = "货柜费用"},
-        @{Name = "ext_demurrage_records"; Desc = "滞港费记录"},
-        @{Name = "ext_feituo_status_events"; Desc = "飞托状态事件"},
-        @{Name = "ext_feituo_places"; Desc = "飞托地点"},
-        @{Name = "sys_data_change_log"; Desc = "系统数据变更日志"},
-        @{Name = "ext_trucking_return_slot_occupancy"; Desc = "车队还箱档期"},
-        @{Name = "ext_trucking_slot_occupancy"; Desc = "车队运输档期"},
-        @{Name = "ext_warehouse_daily_occupancy"; Desc = "仓库日占用"},
-        @{Name = "process_port_operations"; Desc = "港口操作"},
-        @{Name = "process_trucking_transport"; Desc = "拖卡运输"},
-        @{Name = "process_warehouse_operations"; Desc = "仓库操作"},
-        @{Name = "process_empty_return"; Desc = "还空箱"},
-        @{Name = "biz_replenishment_orders"; Desc = "备货单"},
-        @{Name = "biz_containers"; Desc = "货柜"},
-        @{Name = "process_sea_freight"; Desc = "海运"}
+        @{Name = "ext_container_alerts"; Desc = "Container alerts"},
+        @{Name = "ext_container_status_events"; Desc = "Container status events"},
+        @{Name = "ext_container_loading_records"; Desc = "Container loading records"},
+        @{Name = "ext_container_charges"; Desc = "Container charges"},
+        @{Name = "ext_demurrage_records"; Desc = "Demurrage records"},
+        @{Name = "ext_feituo_status_events"; Desc = "Feituo status events"},
+        @{Name = "ext_feituo_places"; Desc = "Feituo places"},
+        @{Name = "ext_feituo_vessels"; Desc = "Feituo vessels"},
+        @{Name = "sys_data_change_log"; Desc = "System data change log"},
+        @{Name = "ext_trucking_return_slot_occupancy"; Desc = "Trucking return slot occupancy"},
+        @{Name = "ext_trucking_slot_occupancy"; Desc = "Trucking slot occupancy"},
+        @{Name = "ext_warehouse_daily_occupancy"; Desc = "Warehouse daily occupancy"},
+        @{Name = "process_port_operations"; Desc = "Port operations"},
+        @{Name = "process_trucking_transport"; Desc = "Trucking transport"},
+        @{Name = "process_warehouse_operations"; Desc = "Warehouse operations"},
+        @{Name = "process_empty_return"; Desc = "Empty container return"},
+        @{Name = "biz_replenishment_orders"; Desc = "Replenishment orders"},
+        @{Name = "biz_containers"; Desc = "Containers"},
+        @{Name = "process_sea_freight"; Desc = "Sea freight"}
     )
 
-    Write-Host "表名                                      记录数      说明" -ForegroundColor $ColorInfo
+    Write-Host "Table Name                                Count       Description" -ForegroundColor $ColorInfo
     Write-Host "─────────────────────────────────────────────────────────────────" -ForegroundColor $ColorInfo
 
     $totalRecords = 0
@@ -222,4 +228,63 @@ function Show-Preview {
             Write-Host ($table.Name.PadRight(40) + "N/A".PadRight(12) + $table.Desc) -ForegroundColor $ColorError
         }
     }
+    
+    Write-Host ""
+    Write-Host "Total records: $totalRecords" -ForegroundColor $ColorInfo
+    Remove-Item Env:\PGPASSWORD -ErrorAction SilentlyContinue
 }
+
+# Execute SQL script
+function Invoke-SqlScript {
+    Write-Info "Executing SQL cleanup script..."
+    
+    $env:PGPASSWORD = $Password
+    
+    try {
+        $result = psql -h $DbHost -p $Port -U $Username -d $Database -f $SqlFile 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            throw "SQL execution failed: $result"
+        }
+        Write-Success "SQL script executed successfully"
+        Write-Host $result
+    }
+    catch {
+        Write-Error "SQL script execution failed"
+        Write-Error $_.Exception.Message
+        exit 1
+    }
+    finally {
+        Remove-Item Env:\PGPASSWORD -ErrorAction SilentlyContinue
+    }
+}
+
+# ==================== Main Program ====================
+
+Show-Banner
+Test-Dependencies
+
+if ($DryRun) {
+    Write-Warning "DRY RUN MODE: Preview only, no deletion will be performed"
+    Test-DatabaseConnection
+    Show-Preview
+    Write-Success "Preview completed. No data was deleted."
+    exit 0
+}
+
+Test-DatabaseConnection
+Show-Preview
+
+Write-Host ""
+if (-not $Force) {
+    $confirmation = Read-Host "Are you sure you want to delete all test data? This cannot be undone [y/N]"
+    if ($confirmation -ne 'y' -and $confirmation -ne 'Y') {
+        Write-Info "Operation cancelled"
+        exit 0
+    }
+}
+
+Invoke-SqlScript
+
+Write-Success "Test data cleanup completed!"
+Write-Info "Use the following command to verify results:"
+Write-Host "  psql -h $DbHost -p $Port -U $Username -d $Database -c `"SELECT * FROM cleanup_verification;`""

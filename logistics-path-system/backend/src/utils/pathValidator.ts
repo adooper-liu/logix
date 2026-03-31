@@ -376,6 +376,15 @@ export const validateStatusPath = (path: StatusPath): ValidationResult => {
     return { isValid: false, errors, warnings };
   }
 
+  // 检查是否所有节点都是"缺数据"状态（未出运节点除外）
+  const noDataNodes = nodes.filter(n => (n.rawData as { noData?: boolean })?.noData);
+  const isNoDataOnly = noDataNodes.length === nodes.length;
+  
+  if (isNoDataOnly) {
+    errors.push('所有节点均缺少数据，请确认货柜是否已实际出运');
+    return { isValid: false, errors, warnings };
+  }
+
   // 检查节点时间顺序
   for (let i = 1; i < nodes.length; i++) {
     const prevTime = new Date(nodes[i - 1].timestamp);

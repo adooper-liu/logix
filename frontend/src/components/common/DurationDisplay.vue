@@ -131,9 +131,9 @@ const getCountdownTextFromTime = (time: number): string => {
 
 function formatOverdueCore(days: number): string {
   if (days === 0) return ''
-  const base = days === 1 ? '超期1天' : `超期${days}天`
+  const base = days === 1 ? '已超 1 天' : `已超${days}天`
   if (props.nextMilestoneLabel) {
-    return `已${base}→${props.nextMilestoneLabel}`
+    return `${props.nextMilestoneLabel}${base}`
   }
   return base
 }
@@ -307,7 +307,7 @@ const colorType = computed((): 'danger' | 'warning' | 'success' | 'info' | '' =>
 const icon = computed(() => {
   if (!props.showIcon) return ''
 
-  if (displayType.value === 'overdue') return '⚠️'
+  // 仅倒计时显示 icon，历时和超期不显示
   if (displayType.value === 'countdown') {
     const date = dateObj.value
     if (!date) return ''
@@ -317,7 +317,7 @@ const icon = computed(() => {
     if (diffDays <= 3) return '⏰'
     return '✅'
   }
-  return '⏱️'
+  return '' // 历时和超期返回空字符串
 })
 
 // 标签样式类

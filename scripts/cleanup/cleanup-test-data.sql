@@ -10,7 +10,7 @@
 -- 删除顺序：从表 → 主表（按依赖关系倒序删除）
 -- ============================================================
 
--- 1. 删除扩展表数据（依赖货柜）
+-- 1. Delete extension table data (dependent on containers)
 DELETE FROM ext_container_alerts WHERE container_number IN (
     SELECT container_number FROM biz_containers WHERE bill_of_lading_number IS NOT NULL
 );
@@ -39,19 +39,22 @@ DELETE FROM ext_feituo_places WHERE container_number IN (
     SELECT container_number FROM biz_containers WHERE bill_of_lading_number IS NOT NULL
 );
 
--- 2. 删除系统数据变更日志（与货柜关联）
--- 注意：sys_data_change_log 使用 entity_type 和 entity_id 列
+-- Delete Feituo vessel data (test data)
+DELETE FROM ext_feituo_vessels;
+
+-- 2. Delete system data change log (associated with containers)
+-- Note: sys_data_change_log uses entity_type and entity_id columns
 DELETE FROM sys_data_change_log WHERE entity_type = 'biz_containers' AND entity_id IN (
     SELECT container_number FROM biz_containers WHERE bill_of_lading_number IS NOT NULL
 );
 
--- 3. 资源占用表说明
--- ext_trucking_return_slot_occupancy、ext_trucking_slot_occupancy、ext_warehouse_daily_occupancy
--- 这三个表是资源级（车队/仓库）的日产能聚合数据，没有 container_number 列
--- 它们记录的是整体容量占用，不需要按货柜删除
--- 如需清理，可按日期清理历史数据（如清理30天前的数据）：
+-- 3. Resource occupancy table notes
+-- ext_trucking_return_slot_occupancy, ext_trucking_slot_occupancy, ext_warehouse_daily_occupancy
+-- These three tables are resource-level (trucking/warehouse) daily capacity aggregation data without container_number column
+-- They record overall capacity occupancy and do not need to be deleted by container
+-- If cleanup is needed, clean historical data by date (e.g., data older than 30 days):
 
--- 4. 删除流程子表数据（依赖货柜）
+-- 4. Delete process sub-table data (dependent on containers)
 DELETE FROM process_port_operations WHERE container_number IN (
     SELECT container_number FROM biz_containers WHERE bill_of_lading_number IS NOT NULL
 );
@@ -68,23 +71,23 @@ DELETE FROM process_empty_return WHERE container_number IN (
     SELECT container_number FROM biz_containers WHERE bill_of_lading_number IS NOT NULL
 );
 
--- 5. 删除备货单（依赖货柜）
+-- 5. Delete replenishment orders (dependent on containers)
 DELETE FROM biz_replenishment_orders WHERE container_number IN (
     SELECT container_number FROM biz_containers WHERE bill_of_lading_number IS NOT NULL
 );
 
--- 6. 删除货柜（依赖海运表的提单号）
+-- 6. Delete containers (dependent on bill of lading number from sea freight table)
 DELETE FROM biz_containers WHERE bill_of_lading_number IS NOT NULL;
 
--- 7. 删除海运信息
+-- 7. Delete sea freight information
 DELETE FROM process_sea_freight;
 
--- 8. 删除货柜SKU（依赖货柜）
+-- 8. Delete container SKU (dependent on containers)
 DELETE FROM biz_container_skus WHERE container_number IN (
     SELECT container_number FROM biz_containers WHERE bill_of_lading_number IS NOT NULL
 );
 
--- 10. 删除查验相关扩展表（依赖货柜）
+-- 10. Delete inspection-related extension tables (dependent on containers)
 DELETE FROM ext_inspection_events WHERE container_number IN (
     SELECT container_number FROM biz_containers WHERE bill_of_lading_number IS NOT NULL
 );
@@ -97,18 +100,18 @@ DELETE FROM ext_container_hold_records WHERE container_number IN (
     SELECT container_number FROM biz_containers WHERE bill_of_lading_number IS NOT NULL
 );
 
--- 11. 删除飞驼导入相关表（测试数据）
+-- 11. Delete Feituo import-related tables (test data)
 DELETE FROM ext_feituo_import_table1;
 DELETE FROM ext_feituo_import_table2;
 DELETE FROM ext_feituo_import_batch;
 
--- 12. 删除资源占用表（按日期清理30天前的历史数据）
+-- 12. Delete resource occupancy tables (clean historical data older than 30 days by date)
 DELETE FROM ext_trucking_return_slot_occupancy WHERE occupancy_date < CURRENT_DATE - INTERVAL '30 days';
 DELETE FROM ext_trucking_slot_occupancy WHERE occupancy_date < CURRENT_DATE - INTERVAL '30 days';
 DELETE FROM ext_warehouse_daily_occupancy WHERE occupancy_date < CURRENT_DATE - INTERVAL '30 days';
 DELETE FROM ext_yard_daily_occupancy WHERE occupancy_date < CURRENT_DATE - INTERVAL '30 days';
 
--- 13. 删除流程实例（依赖货柜/备货单）
+-- 13. Delete flow instances (dependent on containers/replenishment orders)
 DELETE FROM flow_instances WHERE entity_type = 'biz_containers' AND entity_id IN (
     SELECT container_number FROM biz_containers WHERE bill_of_lading_number IS NOT NULL
 );
@@ -116,64 +119,66 @@ DELETE FROM flow_instances WHERE entity_type = 'biz_replenishment_orders' AND en
     SELECT order_number FROM biz_replenishment_orders
 );
 
--- 14. 删除流程定义（仅删除测试流程）
+-- 14. Delete flow definitions (only delete test flows)
 DELETE FROM flow_definitions WHERE flow_code LIKE 'TEST_%';
 
 -- ============================================================
--- 验证删除结果
+-- Verify deletion results
 -- ============================================================
-SELECT 'biz_replenishment_orders (备货单)' AS table_name, COUNT(*) AS record_count FROM biz_replenishment_orders
+SELECT 'biz_replenishment_orders (Replenishment Orders)' AS table_name, COUNT(*) AS record_count FROM biz_replenishment_orders
 UNION ALL
-SELECT 'biz_containers (货柜)', COUNT(*) FROM biz_containers
+SELECT 'biz_containers (Containers)', COUNT(*) FROM biz_containers
 UNION ALL
-SELECT 'process_sea_freight (海运)', COUNT(*) FROM process_sea_freight
+SELECT 'process_sea_freight (Sea Freight)', COUNT(*) FROM process_sea_freight
 UNION ALL
-SELECT 'process_port_operations (港口操作)', COUNT(*) FROM process_port_operations
+SELECT 'process_port_operations (Port Operations)', COUNT(*) FROM process_port_operations
 UNION ALL
-SELECT 'process_trucking_transport (拖卡运输)', COUNT(*) FROM process_trucking_transport
+SELECT 'process_trucking_transport (Trucking Transport)', COUNT(*) FROM process_trucking_transport
 UNION ALL
-SELECT 'process_warehouse_operations (仓库操作)', COUNT(*) FROM process_warehouse_operations
+SELECT 'process_warehouse_operations (Warehouse Operations)', COUNT(*) FROM process_warehouse_operations
 UNION ALL
-SELECT 'process_empty_return (还空箱)', COUNT(*) FROM process_empty_return
+SELECT 'process_empty_return (Empty Return)', COUNT(*) FROM process_empty_return
 UNION ALL
-SELECT 'ext_container_alerts (货柜预警)', COUNT(*) FROM ext_container_alerts
+SELECT 'ext_container_alerts (Container Alerts)', COUNT(*) FROM ext_container_alerts
 UNION ALL
-SELECT 'ext_container_status_events (货柜状态事件)', COUNT(*) FROM ext_container_status_events
+SELECT 'ext_container_status_events (Container Status Events)', COUNT(*) FROM ext_container_status_events
 UNION ALL
-SELECT 'ext_container_loading_records (货柜装载记录)', COUNT(*) FROM ext_container_loading_records
+SELECT 'ext_container_loading_records (Container Loading Records)', COUNT(*) FROM ext_container_loading_records
 UNION ALL
-SELECT 'ext_container_charges (货柜费用)', COUNT(*) FROM ext_container_charges
+SELECT 'ext_container_charges (Container Charges)', COUNT(*) FROM ext_container_charges
 UNION ALL
-SELECT 'ext_demurrage_records (滞港费记录)', COUNT(*) FROM ext_demurrage_records
+SELECT 'ext_demurrage_records (Demurrage Records)', COUNT(*) FROM ext_demurrage_records
 UNION ALL
-SELECT 'ext_feituo_status_events (飞托状态事件)', COUNT(*) FROM ext_feituo_status_events
+SELECT 'ext_feituo_status_events (Feituo Status Events)', COUNT(*) FROM ext_feituo_status_events
 UNION ALL
-SELECT 'ext_feituo_places (飞托地点)', COUNT(*) FROM ext_feituo_places
+SELECT 'ext_feituo_places (Feituo Places)', COUNT(*) FROM ext_feituo_places
 UNION ALL
-SELECT 'biz_container_skus (货柜SKU)', COUNT(*) FROM biz_container_skus
+SELECT 'ext_feituo_vessels (Feituo Vessels)', COUNT(*) FROM ext_feituo_vessels
 UNION ALL
-SELECT 'ext_container_hold_records (货柜扣留记录)', COUNT(*) FROM ext_container_hold_records
+SELECT 'biz_container_skus (Container SKUs)', COUNT(*) FROM biz_container_skus
 UNION ALL
-SELECT 'ext_inspection_events (查验事件)', COUNT(*) FROM ext_inspection_events
+SELECT 'ext_container_hold_records (Container Hold Records)', COUNT(*) FROM ext_container_hold_records
 UNION ALL
-SELECT 'ext_inspection_records (查验记录)', COUNT(*) FROM ext_inspection_records
+SELECT 'ext_inspection_events (Inspection Events)', COUNT(*) FROM ext_inspection_events
 UNION ALL
-SELECT 'ext_feituo_import_table1 (飞驼导入表1)', COUNT(*) FROM ext_feituo_import_table1
+SELECT 'ext_inspection_records (Inspection Records)', COUNT(*) FROM ext_inspection_records
 UNION ALL
-SELECT 'ext_feituo_import_table2 (飞驼导入表2)', COUNT(*) FROM ext_feituo_import_table2
+SELECT 'ext_feituo_import_table1 (Feituo Import Table 1)', COUNT(*) FROM ext_feituo_import_table1
 UNION ALL
-SELECT 'ext_feituo_import_batch (飞驼导入批次)', COUNT(*) FROM ext_feituo_import_batch
+SELECT 'ext_feituo_import_table2 (Feituo Import Table 2)', COUNT(*) FROM ext_feituo_import_table2
 UNION ALL
-SELECT 'flow_definitions (流程定义)', COUNT(*) FROM flow_definitions
+SELECT 'ext_feituo_import_batch (Feituo Import Batch)', COUNT(*) FROM ext_feituo_import_batch
 UNION ALL
-SELECT 'flow_instances (流程实例)', COUNT(*) FROM flow_instances
+SELECT 'flow_definitions (Flow Definitions)', COUNT(*) FROM flow_definitions
 UNION ALL
-SELECT 'sys_data_change_log (系统数据变更日志)', COUNT(*) FROM sys_data_change_log
+SELECT 'flow_instances (Flow Instances)', COUNT(*) FROM flow_instances
 UNION ALL
-SELECT 'ext_trucking_return_slot_occupancy (车队还箱档期)', COUNT(*) FROM ext_trucking_return_slot_occupancy
+SELECT 'sys_data_change_log (System Data Change Log)', COUNT(*) FROM sys_data_change_log
 UNION ALL
-SELECT 'ext_trucking_slot_occupancy (车队运输档期)', COUNT(*) FROM ext_trucking_slot_occupancy
+SELECT 'ext_trucking_return_slot_occupancy (Trucking Return Slot Occupancy)', COUNT(*) FROM ext_trucking_return_slot_occupancy
 UNION ALL
-SELECT 'ext_warehouse_daily_occupancy (仓库日占用)', COUNT(*) FROM ext_warehouse_daily_occupancy
+SELECT 'ext_trucking_slot_occupancy (Trucking Slot Occupancy)', COUNT(*) FROM ext_trucking_slot_occupancy
 UNION ALL
-SELECT 'ext_yard_daily_occupancy (场站日占用)', COUNT(*) FROM ext_yard_daily_occupancy;
+SELECT 'ext_warehouse_daily_occupancy (Warehouse Daily Occupancy)', COUNT(*) FROM ext_warehouse_daily_occupancy
+UNION ALL
+SELECT 'ext_yard_daily_occupancy (Yard Daily Occupancy)', COUNT(*) FROM ext_yard_daily_occupancy;

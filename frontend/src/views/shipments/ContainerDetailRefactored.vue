@@ -165,6 +165,21 @@ watch(
                   />
                 </div>
               </el-tab-pane>
+              <el-tab-pane label="预警" name="alert" lazy>
+                <div class="tab-content">
+                  <AlertTab :container-number="containerNumber" />
+                </div>
+              </el-tab-pane>
+              <el-tab-pane label="时间预测" name="time-prediction" lazy>
+                <div class="tab-content">
+                  <TimePredictionTab :container-number="containerNumber" />
+                </div>
+              </el-tab-pane>
+              <el-tab-pane label="风险评估" name="risk" lazy>
+                <div class="tab-content">
+                  <RiskCardTab :container-number="containerNumber" />
+                </div>
+              </el-tab-pane>
               <el-tab-pane :label="t('container.detail.logisticsPathMap')" name="logistics-path-map" lazy>
                 <div class="tab-content">
                   <LogisticsPathTab
@@ -226,21 +241,6 @@ watch(
               <el-tab-pane label="查验记录" name="inspection" lazy>
                 <div class="tab-content">
                   <InspectionRecord :container-number="containerNumber" />
-                </div>
-              </el-tab-pane>
-              <el-tab-pane label="预警" name="alert" lazy>
-                <div class="tab-content">
-                  <AlertTab :container-number="containerNumber" />
-                </div>
-              </el-tab-pane>
-              <el-tab-pane label="时间预测" name="time-prediction" lazy>
-                <div class="tab-content">
-                  <TimePredictionTab :container-number="containerNumber" />
-                </div>
-              </el-tab-pane>
-              <el-tab-pane label="风险评估" name="risk" lazy>
-                <div class="tab-content">
-                  <RiskCardTab :container-number="containerNumber" />
                 </div>
               </el-tab-pane>
             </el-tabs>

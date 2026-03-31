@@ -279,7 +279,8 @@ export async function getStatusPathByContainerFromDb(
     const truckRow = truckResult.rows[0];
     const returnRow = returnResult.rows[0];
 
-    const returnTs = returnRow?.return_time ?? returnRow?.last_return_date ?? null;
+    // 还箱节点必须使用实际还箱时间，不能用最晚还箱日填充
+    const returnTs = returnRow?.return_time ?? null;
     const supplement: ProcessSupplement | null =
       portRow || truckRow || returnRow
         ? {

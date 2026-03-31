@@ -8,9 +8,9 @@
       <el-alert type="warning" :title="error" show-icon />
     </div>
     <div v-else-if="path" class="path-content">
-      <!-- 超期预警 -->
+      <!-- 超期预警（仅阶段分组视图显示） -->
       <el-alert
-        v-if="path.isOverdue"
+        v-if="variant === 'grouped' && path.isOverdue"
         type="error"
         :title="t('container.logisticsPath.overdueAlert.title')"
         :description="overdueAlertText"
@@ -18,8 +18,8 @@
         class="overdue-alert"
       />
 
-      <!-- 路径验证（纯文本，无卡片） -->
-      <div v-if="validationResult" class="validation-inline-plain">
+      <!-- 路径验证（仅阶段分组视图显示，纯文本，无卡片） -->
+      <div v-if="variant === 'grouped' && validationResult" class="validation-inline-plain">
             <span
               :class="['validation-badge', validationResult.isValid ? 'valid' : 'invalid']"
             >
