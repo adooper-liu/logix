@@ -12,14 +12,7 @@
 
 ```vue
 <!-- 超期预警 -->
-<el-alert
-  v-if="path.isOverdue"
-  type="error"
-  :title="t('container.logisticsPath.overdueAlert.title')"
-  :description="overdueAlertText"
-  show-icon
-  class="overdue-alert"
-/>
+<el-alert v-if="path.isOverdue" type="error" :title="t('container.logisticsPath.overdueAlert.title')" :description="overdueAlertText" show-icon class="overdue-alert" />
 
 <!-- 路径验证（纯文本，无卡片） -->
 <div v-if="validationResult" class="validation-inline-plain">
@@ -33,14 +26,7 @@
 
 ```vue
 <!-- 超期预警（仅阶段分组视图显示） -->
-<el-alert
-  v-if="variant === 'grouped' && path.isOverdue"
-  type="error"
-  :title="t('container.logisticsPath.overdueAlert.title')"
-  :description="overdueAlertText"
-  show-icon
-  class="overdue-alert"
-/>
+<el-alert v-if="variant === 'grouped' && path.isOverdue" type="error" :title="t('container.logisticsPath.overdueAlert.title')" :description="overdueAlertText" show-icon class="overdue-alert" />
 
 <!-- 路径验证（仅阶段分组视图显示，纯文本，无卡片） -->
 <div v-if="variant === 'grouped' && validationResult" class="validation-inline-plain">
@@ -98,11 +84,13 @@
 ### 保留阶段分组视图的预警和验证
 
 **阶段分组视图仍然显示**：
+
 - ✅ 超期预警
 - ✅ 路径验证
 - ✅ 所有节点的详细信息
 
 **原因**：
+
 - 阶段分组视图用于详细分析货柜状态
 - 用户需要知道是否有延误或异常
 - 路径验证帮助识别数据完整性问题
@@ -114,16 +102,17 @@
 ```typescript
 const props = withDefaults(
   defineProps<{
-    containerNumber: string
-    billOfLadingNumber?: string
+    containerNumber: string;
+    billOfLadingNumber?: string;
     /** grouped=阶段分组；map=仅地图（由父级货柜详情独立 Tab 使用） */
-    variant?: 'grouped' | 'map'
+    variant?: "grouped" | "map";
   }>(),
-  { variant: 'grouped' }
-)
+  { variant: "grouped" },
+);
 ```
 
 **取值**：
+
 - `'grouped'`：阶段分组视图（默认），显示完整信息
 - `'map'`：地图视图，仅显示地图
 
@@ -138,6 +127,7 @@ v-if="variant === 'grouped' && validationResult"
 ```
 
 **逻辑**：
+
 - 只有当 `variant === 'grouped'` 时才显示
 - 地图视图（`variant === 'map'`）不显示
 
@@ -161,10 +151,12 @@ v-if="variant === 'grouped' && validationResult"
 ### 场景 1：物流地图视图
 
 **操作**：
+
 1. 访问货柜详情页
 2. 切换到"物流地图"标签
 
 **预期结果**：
+
 - ✅ 显示地图容器
 - ✅ 显示港口位置（如果有坐标数据）
 - ❌ 不显示超期预警
@@ -173,10 +165,12 @@ v-if="variant === 'grouped' && validationResult"
 ### 场景 2：物流路径视图（阶段分组）
 
 **操作**：
+
 1. 访问货柜详情页
 2. 切换到"物流路径"标签
 
 **预期结果**：
+
 - ✅ 显示超期预警（如果 `isOverdue === true`）
 - ✅ 显示路径验证结果
 - ✅ 显示阶段分组的节点信息

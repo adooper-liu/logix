@@ -28,6 +28,7 @@
 **修改位置**: 第 442-456 行
 
 **修改前**:
+
 ```vue
 <template>
   <el-card class="key-dates-card" shadow="never" v-if="timelineEvents.length > 0">
@@ -52,6 +53,7 @@
 ```
 
 **修改后**:
+
 ```vue
 <template>
   <el-card class="key-dates-card" shadow="never" v-if="timelineEvents.length > 0">
@@ -63,6 +65,7 @@
 ```
 
 **关键变化**:
+
 - 移除整个 `key-dates-help` 区域
 - 移除 `router-link` 跳转链接
 - 移除 `QuestionFilled` 图标
@@ -72,6 +75,7 @@
 **修改位置**: 第 522-545 行
 
 **修改前**:
+
 ```scss
 .key-dates-help {
   position: absolute;
@@ -104,6 +108,7 @@
 ```
 
 **修改后**:
+
 ```scss
 .timeline-horizontal {
   // ...
@@ -111,6 +116,7 @@
 ```
 
 **关键变化**:
+
 - 移除 `.key-dates-help` 样式
 - 移除 `.help-link` 样式
 - 保留 `.timeline-horizontal` 样式
@@ -122,6 +128,7 @@
 **修改位置**: 第 1-7 行
 
 **修改前**:
+
 ```typescript
 <script setup lang="ts">
 import DurationDisplay from '@/components/common/DurationDisplay.vue'
@@ -133,6 +140,7 @@ const router = useRouter()
 ```
 
 **修改后**:
+
 ```typescript
 <script setup lang="ts">
 import DurationDisplay from '@/components/common/DurationDisplay.vue'
@@ -140,6 +148,7 @@ import { computed } from 'vue'
 ```
 
 **关键变化**:
+
 - 移除 `QuestionFilled` 图标导入
 - 移除 `useRouter` 导入
 - 移除 `router` 实例创建
@@ -176,9 +185,9 @@ import { computed } from 'vue'
 
 ## 修改文件清单
 
-| 文件路径 | 修改类型 | 说明 |
-|---------|---------|------|
-| `frontend/src/views/shipments/components/KeyDatesTimeline.vue` | 修改 | 模板、样式、脚本 |
+| 文件路径                                                       | 修改类型 | 说明             |
+| -------------------------------------------------------------- | -------- | ---------------- |
+| `frontend/src/views/shipments/components/KeyDatesTimeline.vue` | 修改     | 模板、样式、脚本 |
 
 ## 测试场景
 

@@ -30,11 +30,11 @@ const returnTs = returnRow?.return_time ?? null;
 运行 SQL 查询：
 
 ```sql
-SELECT 
+SELECT
   container_number,
   return_time AS "实际还箱时间",
   last_return_date AS "最晚还箱日",
-  CASE 
+  CASE
     WHEN return_time IS NOT NULL THEN '应显示：已还空箱 (return_time)'
     WHEN last_return_date IS NOT NULL THEN '应显示：还箱 缺数据 (return_time 为 NULL)'
     ELSE '应显示：还箱 缺数据 (全无数据)'
@@ -57,11 +57,13 @@ npm restart
 访问任意货柜的详情页，切换到"物流路径"标签：
 
 **修复前**：
+
 - 还箱节点显示："已还空箱"
 - 日期：显示 `last_return_date` 的日期（如 2026/04/03 08:00）
 - 状态：COMPLETED（已完成）
 
 **修复后**：
+
 - 还箱节点显示："还箱 缺数据"
 - 日期：显示 "—"
 - 状态：PENDING（待完成）
@@ -71,12 +73,13 @@ npm restart
 当数据库中存在 `return_time` 时：
 
 ```sql
-UPDATE process_empty_return 
+UPDATE process_empty_return
 SET return_time = '2026-04-01 10:30:00'
 WHERE container_number = 'CXDU1919549';
 ```
 
 刷新前端后应显示：
+
 - 还箱节点显示："已还空箱"
 - 日期：2026/04/01 10:30:00
 - 状态：COMPLETED（已完成）

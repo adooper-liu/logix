@@ -1,12 +1,12 @@
 <script setup lang="ts">
+import ContainerDetailSkeleton from '@/components/common/ContainerDetailSkeleton.vue'
 import DemurrageDetailSection from '@/components/demurrage/DemurrageDetailSection.vue'
-import { ElMessage } from 'element-plus'
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useI18n } from 'vue-i18n'
 import { useContainerDetail } from '@/composables/useContainerDetail'
 import { useShipmentsExport } from '@/composables/useShipmentsExport'
-import ContainerDetailSkeleton from '@/components/common/ContainerDetailSkeleton.vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
+import AlertTab from './components/AlertTab.vue'
 import ChangeLogTab from './components/ChangeLogTab.vue'
 import ContainerHeader from './components/ContainerHeader.vue'
 import ContainerInfo from './components/ContainerInfo.vue'
@@ -16,13 +16,12 @@ import InspectionRecord from './components/InspectionRecord.vue'
 import KeyDatesTimeline from './components/KeyDatesTimeline.vue'
 import LogisticsPathTab from './components/LogisticsPathTab.vue'
 import PortOperations from './components/PortOperations.vue'
+import RiskCardTab from './components/RiskCardTab.vue'
 import ScheduleEditDialog from './components/ScheduleEditDialog.vue'
 import SeaFreightInfo from './components/SeaFreightInfo.vue'
+import TimePredictionTab from './components/TimePredictionTab.vue'
 import TruckingTransport from './components/TruckingTransport.vue'
 import WarehouseOperations from './components/WarehouseOperations.vue'
-import AlertTab from './components/AlertTab.vue'
-import TimePredictionTab from './components/TimePredictionTab.vue'
-import RiskCardTab from './components/RiskCardTab.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -48,7 +47,7 @@ const {
   destinationPortOperation,
   loadContainerDetail,
   navigateToPrevious,
-  navigateToNext
+  navigateToNext,
 } = useContainerDetail()
 
 // 使用导出功能
@@ -104,7 +103,7 @@ watch(
   <div class="container-detail-page">
     <!-- 骨架屏 -->
     <ContainerDetailSkeleton v-if="loading" />
-    
+
     <!-- 实际内容 -->
     <template v-else>
       <!-- 页面头部（物流状态并入标题区，避免悬浮标签干扰阅读） -->
@@ -127,15 +126,19 @@ watch(
         :container-number="containerNumber"
         :country="containerData?.order?.sellToCountry"
         :initial-data="{
-          plannedCustomsDate: containerData?.portOperations?.find((p: any) => p.portType === 'destination')?.plannedCustomsDate,
+          plannedCustomsDate: containerData?.portOperations?.find(
+            (p: any) => p.portType === 'destination'
+          )?.plannedCustomsDate,
           plannedPickupDate: containerData?.truckingTransports?.[0]?.plannedPickupDate,
           plannedDeliveryDate: containerData?.truckingTransports?.[0]?.plannedDeliveryDate,
           plannedUnloadDate: containerData?.warehouseOperations?.[0]?.plannedUnloadDate,
           plannedReturnDate: containerData?.emptyReturns?.[0]?.plannedReturnDate,
           truckingCompanyId: containerData?.truckingTransports?.[0]?.truckingCompanyId,
-          customsBrokerCode: containerData?.portOperations?.find((p: any) => p.portType === 'destination')?.customsBrokerCode,
+          customsBrokerCode: containerData?.portOperations?.find(
+            (p: any) => p.portType === 'destination'
+          )?.customsBrokerCode,
           warehouseId: containerData?.warehouseOperations?.[0]?.warehouseId,
-          unloadModePlan: containerData?.truckingTransports?.[0]?.unloadModePlan
+          unloadModePlan: containerData?.truckingTransports?.[0]?.unloadModePlan,
         }"
         @success="loadContainerDetail"
       />
@@ -149,7 +152,10 @@ watch(
               :demurrage-calculation="demurrageCalculation"
               @open-demurrage-tab="activeTab = 'demurrage'"
             />
-            <KeyDatesTimeline :container-data="containerData" :calculation-dates="calculationDates" />
+            <KeyDatesTimeline
+              :container-data="containerData"
+              :calculation-dates="calculationDates"
+            />
           </div>
         </section>
 
@@ -180,7 +186,11 @@ watch(
                   <RiskCardTab :container-number="containerNumber" />
                 </div>
               </el-tab-pane>
-              <el-tab-pane :label="t('container.detail.logisticsPathMap')" name="logistics-path-map" lazy>
+              <el-tab-pane
+                :label="t('container.detail.logisticsPathMap')"
+                name="logistics-path-map"
+                lazy
+              >
                 <div class="tab-content">
                   <LogisticsPathTab
                     ref="logisticsPathMapTabRef"

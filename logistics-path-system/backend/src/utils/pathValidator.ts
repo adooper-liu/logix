@@ -3,65 +3,41 @@
  * Path Validation Utilities (Backend Version)
  */
 
-import {
-  StatusPath,
-  StatusNode,
-  StandardStatus,
-  NodeStatus,
-  PathStatus,
-  ValidationResult
-} from '../types';
+import { NodeStatus, PathStatus, StandardStatus, StatusNode, StatusPath, ValidationResult } from "../types";
 
 // 状态流转规则（与前端保持一致）
 const STATUS_TRANSITIONS: Record<StandardStatus, StandardStatus[]> = {
-  [StandardStatus.NOT_SHIPPED]: [
-    StandardStatus.EMPTY_PICKED_UP,
-    StandardStatus.GATE_IN
-  ],
-  [StandardStatus.EMPTY_PICKED_UP]: [
-    StandardStatus.GATE_IN,
-    StandardStatus.CONTAINER_STUFFED,
-    StandardStatus.HOLD
-  ],
-  [StandardStatus.GATE_IN]: [
-    StandardStatus.LOADED,
-    StandardStatus.HOLD
-  ],
-  [StandardStatus.LOADED]: [
-    StandardStatus.DEPARTED,
-    StandardStatus.HOLD
-  ],
+  [StandardStatus.NOT_SHIPPED]: [StandardStatus.EMPTY_PICKED_UP, StandardStatus.GATE_IN],
+  [StandardStatus.EMPTY_PICKED_UP]: [StandardStatus.GATE_IN, StandardStatus.CONTAINER_STUFFED, StandardStatus.HOLD],
+  [StandardStatus.GATE_IN]: [StandardStatus.LOADED, StandardStatus.HOLD],
+  [StandardStatus.LOADED]: [StandardStatus.DEPARTED, StandardStatus.HOLD],
   [StandardStatus.DEPARTED]: [
     StandardStatus.SAILING,
     StandardStatus.TRANSIT_ARRIVED,
     StandardStatus.ARRIVED,
     StandardStatus.DELAYED,
-    StandardStatus.HOLD
+    StandardStatus.HOLD,
   ],
   [StandardStatus.SAILING]: [
     StandardStatus.TRANSIT_ARRIVED,
     StandardStatus.ARRIVED,
     StandardStatus.DELAYED,
     StandardStatus.CONGESTION,
-    StandardStatus.HOLD
+    StandardStatus.HOLD,
   ],
   [StandardStatus.TRANSIT_ARRIVED]: [
     StandardStatus.TRANSIT_BERTHED,
     StandardStatus.TRANSIT_DEPARTED,
     StandardStatus.ARRIVED,
     StandardStatus.DELAYED,
-    StandardStatus.HOLD
+    StandardStatus.HOLD,
   ],
-  [StandardStatus.TRANSIT_DEPARTED]: [
-    StandardStatus.ARRIVED,
-    StandardStatus.DELAYED,
-    StandardStatus.HOLD
-  ],
+  [StandardStatus.TRANSIT_DEPARTED]: [StandardStatus.ARRIVED, StandardStatus.DELAYED, StandardStatus.HOLD],
   [StandardStatus.ARRIVED]: [
     StandardStatus.DISCHARGED,
     StandardStatus.AVAILABLE,
     StandardStatus.DELAYED,
-    StandardStatus.HOLD
+    StandardStatus.HOLD,
   ],
   [StandardStatus.DISCHARGED]: [
     StandardStatus.AVAILABLE,
@@ -69,7 +45,7 @@ const STATUS_TRANSITIONS: Record<StandardStatus, StandardStatus[]> = {
     StandardStatus.CUSTOMS_HOLD,
     StandardStatus.CARRIER_HOLD,
     StandardStatus.TERMINAL_HOLD,
-    StandardStatus.HOLD
+    StandardStatus.HOLD,
   ],
   [StandardStatus.AVAILABLE]: [
     StandardStatus.GATE_OUT,
@@ -79,107 +55,62 @@ const STATUS_TRANSITIONS: Record<StandardStatus, StandardStatus[]> = {
     StandardStatus.TERMINAL_HOLD,
     StandardStatus.CHARGES_HOLD,
     StandardStatus.DETENTION,
-    StandardStatus.HOLD
+    StandardStatus.HOLD,
   ],
   [StandardStatus.GATE_OUT]: [
     StandardStatus.DELIVERY_ARRIVED,
     StandardStatus.STRIPPED,
     StandardStatus.RETURNED_EMPTY,
     StandardStatus.DELAYED,
-    StandardStatus.HOLD
+    StandardStatus.HOLD,
   ],
-  [StandardStatus.DELIVERY_ARRIVED]: [
-    StandardStatus.STRIPPED,
-    StandardStatus.RETURNED_EMPTY,
-    StandardStatus.HOLD
-  ],
-  [StandardStatus.STRIPPED]: [
-    StandardStatus.RETURNED_EMPTY,
-    StandardStatus.COMPLETED
-  ],
-  [StandardStatus.RETURNED_EMPTY]: [
-    StandardStatus.COMPLETED
-  ],
+  [StandardStatus.DELIVERY_ARRIVED]: [StandardStatus.STRIPPED, StandardStatus.RETURNED_EMPTY, StandardStatus.HOLD],
+  [StandardStatus.STRIPPED]: [StandardStatus.RETURNED_EMPTY, StandardStatus.COMPLETED],
+  [StandardStatus.RETURNED_EMPTY]: [StandardStatus.COMPLETED],
   [StandardStatus.COMPLETED]: [],
-  [StandardStatus.CUSTOMS_HOLD]: [
-    StandardStatus.AVAILABLE,
-    StandardStatus.GATE_OUT,
-    StandardStatus.DUMPED
-  ],
-  [StandardStatus.CARRIER_HOLD]: [
-    StandardStatus.AVAILABLE,
-    StandardStatus.GATE_OUT,
-    StandardStatus.DUMPED
-  ],
-  [StandardStatus.TERMINAL_HOLD]: [
-    StandardStatus.AVAILABLE,
-    StandardStatus.GATE_OUT,
-    StandardStatus.DUMPED
-  ],
-  [StandardStatus.CHARGES_HOLD]: [
-    StandardStatus.AVAILABLE,
-    StandardStatus.GATE_OUT,
-    StandardStatus.DUMPED
-  ],
-  [StandardStatus.DUMPED]: [
-    StandardStatus.RETURNED_EMPTY,
-    StandardStatus.COMPLETED
-  ],
+  [StandardStatus.CUSTOMS_HOLD]: [StandardStatus.AVAILABLE, StandardStatus.GATE_OUT, StandardStatus.DUMPED],
+  [StandardStatus.CARRIER_HOLD]: [StandardStatus.AVAILABLE, StandardStatus.GATE_OUT, StandardStatus.DUMPED],
+  [StandardStatus.TERMINAL_HOLD]: [StandardStatus.AVAILABLE, StandardStatus.GATE_OUT, StandardStatus.DUMPED],
+  [StandardStatus.CHARGES_HOLD]: [StandardStatus.AVAILABLE, StandardStatus.GATE_OUT, StandardStatus.DUMPED],
+  [StandardStatus.DUMPED]: [StandardStatus.RETURNED_EMPTY, StandardStatus.COMPLETED],
   [StandardStatus.DELAYED]: [
     StandardStatus.ARRIVED,
     StandardStatus.DISCHARGED,
     StandardStatus.AVAILABLE,
-    StandardStatus.GATE_OUT
-  ],
-  [StandardStatus.DETENTION]: [
     StandardStatus.GATE_OUT,
-    StandardStatus.RETURNED_EMPTY
   ],
-  [StandardStatus.OVERDUE]: [
-    StandardStatus.RETURNED_EMPTY,
-    StandardStatus.COMPLETED
-  ],
-  [StandardStatus.CONGESTION]: [
-    StandardStatus.ARRIVED,
-    StandardStatus.DELAYED
-  ],
+  [StandardStatus.DETENTION]: [StandardStatus.GATE_OUT, StandardStatus.RETURNED_EMPTY],
+  [StandardStatus.OVERDUE]: [StandardStatus.RETURNED_EMPTY, StandardStatus.COMPLETED],
+  [StandardStatus.CONGESTION]: [StandardStatus.ARRIVED, StandardStatus.DELAYED],
   [StandardStatus.HOLD]: [
     StandardStatus.LOADED,
     StandardStatus.DEPARTED,
     StandardStatus.ARRIVED,
     StandardStatus.AVAILABLE,
     StandardStatus.GATE_OUT,
-    StandardStatus.DUMPED
+    StandardStatus.DUMPED,
   ],
   [StandardStatus.IN_TRANSIT_TO_DEST]: [
     StandardStatus.GATE_OUT,
     StandardStatus.DELIVERY_ARRIVED,
     StandardStatus.STRIPPED,
     StandardStatus.RETURNED_EMPTY,
-    StandardStatus.HOLD
+    StandardStatus.HOLD,
   ],
-  [StandardStatus.CONTAINER_STUFFED]: [
-    StandardStatus.GATE_IN,
-    StandardStatus.LOADED,
-    StandardStatus.HOLD
-  ],
+  [StandardStatus.CONTAINER_STUFFED]: [StandardStatus.GATE_IN, StandardStatus.LOADED, StandardStatus.HOLD],
   [StandardStatus.TRANSIT_BERTHED]: [
     StandardStatus.TRANSIT_DISCHARGED,
     StandardStatus.TRANSIT_DEPARTED,
     StandardStatus.ARRIVED,
-    StandardStatus.HOLD
+    StandardStatus.HOLD,
   ],
   [StandardStatus.TRANSIT_DISCHARGED]: [
     StandardStatus.TRANSIT_LOADED,
     StandardStatus.TRANSIT_DEPARTED,
     StandardStatus.ARRIVED,
-    StandardStatus.HOLD
+    StandardStatus.HOLD,
   ],
-  [StandardStatus.TRANSIT_LOADED]: [
-    StandardStatus.TRANSIT_DEPARTED,
-    StandardStatus.ARRIVED,
-    StandardStatus.HOLD
-  ],
+  [StandardStatus.TRANSIT_LOADED]: [StandardStatus.TRANSIT_DEPARTED, StandardStatus.ARRIVED, StandardStatus.HOLD],
   [StandardStatus.RAIL_LOADED]: [StandardStatus.RAIL_DEPARTED, StandardStatus.HOLD],
   [StandardStatus.RAIL_DEPARTED]: [StandardStatus.RAIL_ARRIVED, StandardStatus.HOLD],
   [StandardStatus.RAIL_ARRIVED]: [StandardStatus.RAIL_DISCHARGED, StandardStatus.HOLD],
@@ -188,18 +119,14 @@ const STATUS_TRANSITIONS: Record<StandardStatus, StandardStatus[]> = {
   [StandardStatus.FEEDER_DEPARTED]: [StandardStatus.FEEDER_ARRIVED, StandardStatus.HOLD],
   [StandardStatus.FEEDER_ARRIVED]: [StandardStatus.FEEDER_DISCHARGED, StandardStatus.HOLD],
   [StandardStatus.FEEDER_DISCHARGED]: [StandardStatus.GATE_OUT, StandardStatus.HOLD],
-  [StandardStatus.BERTHED]: [
-    StandardStatus.DISCHARGED,
-    StandardStatus.AVAILABLE,
-    StandardStatus.HOLD
-  ],
+  [StandardStatus.BERTHED]: [StandardStatus.DISCHARGED, StandardStatus.AVAILABLE, StandardStatus.HOLD],
   [StandardStatus.UNKNOWN]: [
     StandardStatus.NOT_SHIPPED,
     StandardStatus.EMPTY_PICKED_UP,
     StandardStatus.GATE_IN,
     StandardStatus.LOADED,
-    StandardStatus.DEPARTED
-  ]
+    StandardStatus.DEPARTED,
+  ],
 };
 
 /** 状态到阶段顺序的映射（与 statusPathFromDb FULL_PATH_TEMPLATE 一致，用于排序时保持逻辑顺序） */
@@ -233,22 +160,19 @@ const STATUS_TO_STAGE_ORDER: Record<string, number> = {
   [StandardStatus.DELIVERY_ARRIVED]: 10,
   [StandardStatus.STRIPPED]: 10,
   [StandardStatus.RETURNED_EMPTY]: 11,
-  [StandardStatus.COMPLETED]: 11
+  [StandardStatus.COMPLETED]: 11,
 };
 
 function getNodeStageOrder(node: StatusNode): number {
   const fromRaw = (node.rawData as { stageOrder?: number })?.stageOrder;
-  if (typeof fromRaw === 'number') return fromRaw;
+  if (typeof fromRaw === "number") return fromRaw;
   return STATUS_TO_STAGE_ORDER[node.status] ?? 99;
 }
 
 /**
  * 验证状态转换是否合法
  */
-export const isValidTransition = (
-  fromStatus: StandardStatus,
-  toStatus: StandardStatus
-): boolean => {
+export const isValidTransition = (fromStatus: StandardStatus, toStatus: StandardStatus): boolean => {
   const validTargets = STATUS_TRANSITIONS[fromStatus] || [];
   return validTargets.includes(toStatus);
 };
@@ -256,11 +180,7 @@ export const isValidTransition = (
 /**
  * 计算节点状态
  */
-export const calculateNodeStatus = (
-  node: StatusNode,
-  index: number,
-  nodes: StatusNode[]
-): NodeStatus => {
+export const calculateNodeStatus = (node: StatusNode, index: number, nodes: StatusNode[]): NodeStatus => {
   const now = new Date();
   const nodeTime = new Date(node.timestamp);
 
@@ -304,7 +224,7 @@ const ALERT_STATUSES = [
   StandardStatus.DELAYED,
   StandardStatus.DETENTION,
   StandardStatus.OVERDUE,
-  StandardStatus.CONGESTION
+  StandardStatus.CONGESTION,
 ];
 
 export const calculateIsAlert = (status: StandardStatus): boolean => {
@@ -327,26 +247,23 @@ export const calculatePathStatus = (path: { nodes: StatusNode[] }): PathStatus =
     return PathStatus.COMPLETED;
   }
 
-  const hasHoldStatus = nodes.some(n =>
+  const hasHoldStatus = nodes.some((n) =>
     [
       StandardStatus.CUSTOMS_HOLD,
       StandardStatus.CARRIER_HOLD,
       StandardStatus.TERMINAL_HOLD,
       StandardStatus.CHARGES_HOLD,
-      StandardStatus.DUMPED
-    ].includes(n.status)
+      StandardStatus.DUMPED,
+    ].includes(n.status),
   );
   if (hasHoldStatus) {
     return PathStatus.HOLD;
   }
 
-  const hasDelayedStatus = nodes.some(n =>
-    [
-      StandardStatus.DELAYED,
-      StandardStatus.DETENTION,
-      StandardStatus.OVERDUE,
-      StandardStatus.CONGESTION
-    ].includes(n.status)
+  const hasDelayedStatus = nodes.some((n) =>
+    [StandardStatus.DELAYED, StandardStatus.DETENTION, StandardStatus.OVERDUE, StandardStatus.CONGESTION].includes(
+      n.status,
+    ),
   );
   if (hasDelayedStatus) {
     return PathStatus.DELAYED;
@@ -372,16 +289,16 @@ export const validateStatusPath = (path: StatusPath): ValidationResult => {
   const nodes = path.nodes;
 
   if (nodes.length === 0) {
-    errors.push('路径中没有任何状态节点');
+    errors.push("路径中没有任何状态节点");
     return { isValid: false, errors, warnings };
   }
 
   // 检查是否所有节点都是"缺数据"状态（未出运节点除外）
-  const noDataNodes = nodes.filter(n => (n.rawData as { noData?: boolean })?.noData);
+  const noDataNodes = nodes.filter((n) => (n.rawData as { noData?: boolean })?.noData);
   const isNoDataOnly = noDataNodes.length === nodes.length;
-  
+
   if (isNoDataOnly) {
-    errors.push('所有节点均缺少数据，请确认货柜是否已实际出运');
+    errors.push("所有节点均缺少数据，请确认货柜是否已实际出运");
     return { isValid: false, errors, warnings };
   }
 
@@ -402,22 +319,22 @@ export const validateStatusPath = (path: StatusPath): ValidationResult => {
 
     if (!isValidTransition(prevStatus, currStatus)) {
       errors.push(
-        `非法状态流转：${nodes[i - 1].description} (${prevStatus}) -> ${nodes[i].description} (${currStatus})`
+        `非法状态流转：${nodes[i - 1].description} (${prevStatus}) -> ${nodes[i].description} (${currStatus})`,
       );
     }
   }
 
   // 检查重复状态
-  const statusSequence = nodes.map(n => n.status);
+  const statusSequence = nodes.map((n) => n.status);
   const statusSet = new Set(statusSequence);
   if (statusSet.size < statusSequence.length) {
-    warnings.push('路径中存在重复的状态');
+    warnings.push("路径中存在重复的状态");
   }
 
   return {
     isValid: errors.length === 0,
     errors,
-    warnings
+    warnings,
   };
 };
 
@@ -432,7 +349,7 @@ export const processStatusPath = (rawPath: Partial<StatusPath>): StatusPath => {
     return {
       ...node,
       nodeStatus: noData ? NodeStatus.PENDING : calculateNodeStatus(node, index, nodes),
-      isAlert: noData ? false : calculateIsAlert(node.status)
+      isAlert: noData ? false : calculateIsAlert(node.status),
     };
   });
 
@@ -446,13 +363,12 @@ export const processStatusPath = (rawPath: Partial<StatusPath>): StatusPath => {
 
   const overallStatus = calculatePathStatus({
     ...rawPath,
-    nodes: processedNodes
+    nodes: processedNodes,
   });
 
   const startedAt = processedNodes.length > 0 ? new Date(processedNodes[0].timestamp) : undefined;
   const completedAt =
-    processedNodes.length > 0 &&
-    processedNodes[processedNodes.length - 1].status === StandardStatus.COMPLETED
+    processedNodes.length > 0 && processedNodes[processedNodes.length - 1].status === StandardStatus.COMPLETED
       ? new Date(processedNodes[processedNodes.length - 1].timestamp)
       : undefined;
 
@@ -461,7 +377,7 @@ export const processStatusPath = (rawPath: Partial<StatusPath>): StatusPath => {
     overallStatus,
     eta: rawPath.eta ?? undefined,
     startedAt,
-    completedAt
+    completedAt,
   } as StatusPath;
 };
 
@@ -484,8 +400,8 @@ export const calculateDelayDays = (prevNode: StatusNode, currNode: StatusNode): 
 export const getPathProgress = (path: StatusPath): number => {
   if (path.nodes.length === 0) return 0;
 
-  const completedNodes = path.nodes.filter(n => n.nodeStatus === NodeStatus.COMPLETED);
-  const inProgressNode = path.nodes.find(n => n.nodeStatus === NodeStatus.IN_PROGRESS);
+  const completedNodes = path.nodes.filter((n) => n.nodeStatus === NodeStatus.COMPLETED);
+  const inProgressNode = path.nodes.find((n) => n.nodeStatus === NodeStatus.IN_PROGRESS);
 
   let progress = (completedNodes.length / path.nodes.length) * 100;
 

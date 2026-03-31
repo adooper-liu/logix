@@ -167,7 +167,7 @@ const timelineEvents = computed((): TimelineEvent[] => {
   })
 
   add('实际还箱', '实际还箱日', d.returnTime, '', 'success')
-  
+
   // 添加当前节点（日期为今天）
   events.push({
     label: '当前',
@@ -465,7 +465,7 @@ const getNextBusinessNodeDate = (
             </div>
           </div>
         </div>
-        
+
         <!-- 时间轴轨道（圆点 + 连接线） -->
         <div class="timeline-track-wrapper">
           <div class="timeline-track">
@@ -473,7 +473,7 @@ const getNextBusinessNodeDate = (
             <div class="timeline-connector" v-if="index < timelineEvents.length - 1" />
           </div>
         </div>
-        
+
         <!-- 下方：实际日期 + 状态 -->
         <div class="timeline-body timeline-body-bottom">
           <div class="item-date-wrapper">
@@ -567,11 +567,11 @@ const getNextBusinessNodeDate = (
   .timeline-body {
     text-align: center;
     width: 100%;
-    
+
     &.timeline-body-top {
       margin-bottom: 6px;
     }
-    
+
     &.timeline-body-bottom {
       margin-top: 6px;
     }

@@ -31,6 +31,7 @@
 **修改位置**: 第 122-137 行
 
 **修改前**:
+
 ```vue
 <!-- 滞港费详细 -->
 <div
@@ -51,12 +52,10 @@
 ```
 
 **修改后**:
+
 ```vue
 <!-- 滞港费详细（小标签样式） -->
-<div
-  v-if="demurrageSummary && demurrageSummary.chargeTypes.length > 0"
-  class="demurrage-tags"
->
+<div v-if="demurrageSummary && demurrageSummary.chargeTypes.length > 0" class="demurrage-tags">
   <el-tag
     v-for="chargeType in demurrageSummary.chargeTypes"
     :key="chargeType.chargeType"
@@ -72,6 +71,7 @@
 ```
 
 **关键变化**:
+
 - 外层容器 class 从 `demurrage-inline` 改为 `demurrage-container`
 - 汇总费用改为嵌套在容器内的子元素
 - 详细费用标签也嵌套在容器内
@@ -81,6 +81,7 @@
 ### 2. 样式部分
 
 **修改前**:
+
 ```scss
 .demurrage-details {
   display: grid;
@@ -113,6 +114,7 @@
 ```
 
 **修改后**:
+
 ```scss
 .demurrage-tags {
   display: flex;
@@ -150,6 +152,7 @@
 ```
 
 **关键变化**:
+
 - 外层容器从 `grid` 布局改为 `flex` 布局，支持自动换行
 - 移除外层容器的 padding 和 background
 - 费用项使用 inline-flex，增加 gap 属性
@@ -211,9 +214,9 @@
 
 ## 修改文件清单
 
-| 文件路径 | 修改类型 | 说明 |
-|---------|---------|------|
-| `frontend/src/views/shipments/components/ContainerSummary.vue` | 修改 | 模板和样式 |
+| 文件路径                                                       | 修改类型 | 说明       |
+| -------------------------------------------------------------- | -------- | ---------- |
+| `frontend/src/views/shipments/components/ContainerSummary.vue` | 修改     | 模板和样式 |
 
 ## 测试场景
 

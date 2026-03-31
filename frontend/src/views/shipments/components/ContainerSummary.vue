@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { DemurrageCalculationResponse } from '@/services/demurrage'
-import { computed } from 'vue'
 import {
   getLogisticsStatusText,
   getLogisticsStatusType,
-  type PortType
+  type PortType,
 } from '@/utils/logisticsStatusMachine'
+import { computed } from 'vue'
 
 const emit = defineEmits<{
   openDemurrageTab: []
@@ -41,7 +41,7 @@ const logisticsStatusTag = computed(() => {
   }
   return {
     text,
-    type: tagType as 'success' | 'warning' | 'danger' | 'info'
+    type: tagType as 'success' | 'warning' | 'danger' | 'info',
   }
 })
 
@@ -98,40 +98,28 @@ const demurrageSummary = computed(() => {
       </div>
       <div class="info-item">
         <span class="label">物流状态</span>
-        <el-tag
-          :type="logisticsStatusTag.type"
-          size="small"
-          effect="light"
-        >
+        <el-tag :type="logisticsStatusTag.type" size="small" effect="light">
           {{ logisticsStatusTag.text }}
         </el-tag>
       </div>
       <!-- 滞港费汇总与详细（同一行） -->
-      <div
-        v-if="demurrageSummary"
-        class="demurrage-container"
-      >
-        <div
-          class="demurrage-inline"
-          title="滞港费"
-          @click="emit('openDemurrageTab')"
-        >
+      <div v-if="demurrageSummary" class="demurrage-container">
+        <div class="demurrage-inline" title="滞港费" @click="emit('openDemurrageTab')">
           <span class="demurrage-total">
             {{ demurrageSummary.currency }} {{ demurrageSummary.totalAmount.toFixed(2) }}
           </span>
         </div>
         <!-- 滞港费详细（小标签样式） -->
-        <div
-          v-if="demurrageSummary.chargeTypes.length > 0"
-          class="demurrage-tags"
-        >
+        <div v-if="demurrageSummary.chargeTypes.length > 0" class="demurrage-tags">
           <el-tag
             v-for="chargeType in demurrageSummary.chargeTypes"
             :key="chargeType.chargeType"
             class="demurrage-tag-item"
             size="small"
           >
-            <span class="charge-type-name">{{ chargeType.chargeName || chargeType.chargeType }}</span>
+            <span class="charge-type-name">{{
+              chargeType.chargeName || chargeType.chargeType
+            }}</span>
             <span class="charge-type-amount">
               {{ demurrageSummary.currency }} {{ chargeType.totalAmount.toFixed(2) }}
             </span>
@@ -222,7 +210,9 @@ const demurrageSummary = computed(() => {
     border: none;
     flex-shrink: 0;
     cursor: pointer;
-    transition: border-color $transition-base, background $transition-base;
+    transition:
+      border-color $transition-base,
+      background $transition-base;
 
     &:hover {
       background: rgba($warning-color, 0.12);

@@ -286,7 +286,12 @@ export function buildKeyTimeline(input: KeyTimelineBuildInput): KeyTimelineResul
       ? { label: 'ATA', milestoneKey: 'ata', date: safeDate(cd.ataDestPort)!, kind: 'primary' }
       : null,
     safeDate(cd.dischargeDate)
-      ? { label: '卸船', milestoneKey: 'discharge', date: safeDate(cd.dischargeDate)!, kind: 'info' }
+      ? {
+          label: '卸船',
+          milestoneKey: 'discharge',
+          date: safeDate(cd.dischargeDate)!,
+          kind: 'info'
+        }
       : null,
     safeDate(lastPickup)
       ? {
@@ -389,10 +394,7 @@ export function buildKeyTimeline(input: KeyTimelineBuildInput): KeyTimelineResul
 
     const displayDays =
       displayMode === 'elapsed' && ev.milestoneKey === 'return_actual' && prevMilestone
-        ? Math.max(
-            0,
-            Math.floor((ev.date.getTime() - prevMilestone.getTime()) / MS_PER_DAY)
-          )
+        ? Math.max(0, Math.floor((ev.date.getTime() - prevMilestone.getTime()) / MS_PER_DAY))
         : computeDisplayDays(displayMode, ev.date, now);
 
     nodes.push({

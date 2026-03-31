@@ -13,6 +13,7 @@ Updated `cleanup-test-data.sql` and `cleanup-test-data.ps1` to include additiona
 **SQL File**: `scripts/cleanup/cleanup-test-data.sql`
 
 Added deletion statement for Feituo vessel data:
+
 ```sql
 -- Delete Feituo vessel data (test data)
 DELETE FROM ext_feituo_vessels;
@@ -21,6 +22,7 @@ DELETE FROM ext_feituo_vessels;
 **PowerShell File**: `scripts/cleanup/cleanup-test-data.ps1`
 
 Added to preview table list:
+
 ```powershell
 @{Name = "ext_feituo_vessels"; Desc = "Feituo vessels"}
 ```
@@ -28,6 +30,7 @@ Added to preview table list:
 ### 2. Confirmed Existing Tables
 
 The following tables were already included in the cleanup script:
+
 - ✅ `sys_data_change_log` - System data change log
 - ✅ `ext_trucking_return_slot_occupancy` - Trucking return slot occupancy
 - ✅ `ext_container_alerts` - Container alerts
@@ -35,6 +38,7 @@ The following tables were already included in the cleanup script:
 ### 3. Updated Comments to English
 
 Converted all SQL comments from Chinese to English for consistency:
+
 - Section headers
 - Table descriptions
 - Notes and explanations
@@ -74,6 +78,7 @@ The deletion follows the dependency order:
 ## Verification
 
 The verification query at the end of the SQL script now includes:
+
 ```sql
 SELECT 'ext_feituo_vessels (Feituo Vessels)', COUNT(*) FROM ext_feituo_vessels
 ```
@@ -83,12 +88,14 @@ SELECT 'ext_feituo_vessels (Feituo Vessels)', COUNT(*) FROM ext_feituo_vessels
 To test the updated cleanup script:
 
 ### Preview Mode
+
 ```powershell
 cd scripts\cleanup
 .\cleanup-test-data.ps1 -DryRun
 ```
 
 ### Execute Cleanup
+
 ```powershell
 $env:LOGIX_DB_PASSWORD = "your_password"
 .\cleanup-test-data.ps1 -Force
@@ -103,6 +110,7 @@ $env:LOGIX_DB_PASSWORD = "your_password"
 ## Impact
 
 This update ensures that all test data is properly cleaned up, including:
+
 - Feituo vessel information
 - System change logs related to containers
 - Container alerts

@@ -20,46 +20,64 @@
 
       <!-- 路径验证（仅阶段分组视图显示，纯文本，无卡片） -->
       <div v-if="variant === 'grouped' && validationResult" class="validation-inline-plain">
-            <span
-              :class="['validation-badge', validationResult.isValid ? 'valid' : 'invalid']"
-            >
-              {{ validationResult.isValid ? t('container.logisticsPath.validation.passed') : t('container.logisticsPath.validation.failed') }}
-            </span>
-            <template v-if="validationResult.errors?.length">
-              <span class="validation-label">{{ t('container.logisticsPath.validation.errors') }}：</span>
-              <span class="validation-text validation-errors">{{ validationResult.errors.join('；') }}</span>
-            </template>
-            <template v-if="validationResult.warnings?.length">
-              <span class="validation-label">{{ t('container.logisticsPath.validation.warnings') }}：</span>
-              <span class="validation-text validation-warnings">{{ validationResult.warnings.join('；') }}</span>
-            </template>
-            <el-tooltip placement="top" :show-after="300">
-              <template #content>
-                <div class="validation-tooltip">
-                  <p><strong>{{ t('container.logisticsPath.validation.checks') }}：</strong></p>
-                  <ul>
-                    <li><strong>{{ t('container.logisticsPath.validation.passed') }}</strong>：{{ t('container.logisticsPath.validation.passedDescription') }}</li>
-                    <li><strong>{{ t('container.logisticsPath.validation.failed') }}</strong>：{{ t('container.logisticsPath.validation.failedDescription') }}</li>
-                  </ul>
-                  <p>{{ t('container.logisticsPath.validation.purpose') }}</p>
-                </div>
-              </template>
-              <el-icon class="validation-help-icon"><QuestionFilled /></el-icon>
-            </el-tooltip>
+        <span :class="['validation-badge', validationResult.isValid ? 'valid' : 'invalid']">
+          {{
+            validationResult.isValid
+              ? t('container.logisticsPath.validation.passed')
+              : t('container.logisticsPath.validation.failed')
+          }}
+        </span>
+        <template v-if="validationResult.errors?.length">
+          <span class="validation-label"
+            >{{ t('container.logisticsPath.validation.errors') }}：</span
+          >
+          <span class="validation-text validation-errors">{{
+            validationResult.errors.join('；')
+          }}</span>
+        </template>
+        <template v-if="validationResult.warnings?.length">
+          <span class="validation-label"
+            >{{ t('container.logisticsPath.validation.warnings') }}：</span
+          >
+          <span class="validation-text validation-warnings">{{
+            validationResult.warnings.join('；')
+          }}</span>
+        </template>
+        <el-tooltip placement="top" :show-after="300">
+          <template #content>
+            <div class="validation-tooltip">
+              <p>
+                <strong>{{ t('container.logisticsPath.validation.checks') }}：</strong>
+              </p>
+              <ul>
+                <li>
+                  <strong>{{ t('container.logisticsPath.validation.passed') }}</strong
+                  >：{{ t('container.logisticsPath.validation.passedDescription') }}
+                </li>
+                <li>
+                  <strong>{{ t('container.logisticsPath.validation.failed') }}</strong
+                  >：{{ t('container.logisticsPath.validation.failedDescription') }}
+                </li>
+              </ul>
+              <p>{{ t('container.logisticsPath.validation.purpose') }}</p>
+            </div>
+          </template>
+          <el-icon class="validation-help-icon"><QuestionFilled /></el-icon>
+        </el-tooltip>
       </div>
 
       <!-- 阶段分组：一行多列 -->
       <div v-if="variant === 'grouped'" class="path-grouped">
-        <div v-if="!(path.nodes || []).length" class="path-timeline-empty">{{ t('container.logisticsPath.noNodes') }}</div>
+        <div v-if="!(path.nodes || []).length" class="path-timeline-empty">
+          {{ t('container.logisticsPath.noNodes') }}
+        </div>
         <div v-else class="stage-grid">
-          <div
-            v-for="group in nodesByStage"
-            :key="group.stage"
-            class="stage-col"
-          >
+          <div v-for="group in nodesByStage" :key="group.stage" class="stage-col">
             <div class="stage-header">
               <span class="stage-name">{{ group.label }}</span>
-              <span class="stage-count">{{ group.nodes.length }} {{ t('container.logisticsPath.nodesCount') }}</span>
+              <span class="stage-count"
+                >{{ group.nodes.length }} {{ t('container.logisticsPath.nodesCount') }}</span
+              >
             </div>
             <div class="stage-nodes">
               <div
@@ -68,7 +86,7 @@
                 class="stage-node"
                 :class="{
                   'stage-node-no-data': isNoDataNode(item.node),
-                  'stage-node-alert': item.node.isAlert
+                  'stage-node-alert': item.node.isAlert,
                 }"
                 @click="selectedNode = item.node"
               >
@@ -79,13 +97,23 @@
                     <span v-if="item.node.isAlert" class="alert-badge">异常</span>
                   </div>
                   <div class="stage-node-meta">
-                    <span class="stage-node-time">{{ isNoDataNode(item.node) ? '—' : formatDateTime(item.node.timestamp) }}</span>
-                    <span v-if="item.node.location" class="stage-node-loc">{{ item.node.location.name }} ({{ item.node.location.code }})</span>
+                    <span class="stage-node-time">{{
+                      isNoDataNode(item.node) ? '—' : formatDateTime(item.node.timestamp)
+                    }}</span>
+                    <span v-if="item.node.location" class="stage-node-loc"
+                      >{{ item.node.location.name }} ({{ item.node.location.code }})</span
+                    >
                     <!-- 使用 NodeDurationDisplay 组件显示节点时长 -->
                     <NodeDurationDisplay
                       :timestamp="item.node.timestamp"
-                      :prev-timestamp="item.globalIndex > 0 ? path.nodes[item.globalIndex - 1]?.timestamp : null"
-                      :next-timestamp="item.globalIndex < (path.nodes?.length ?? 0) - 1 ? path.nodes[item.globalIndex + 1]?.timestamp : null"
+                      :prev-timestamp="
+                        item.globalIndex > 0 ? path.nodes[item.globalIndex - 1]?.timestamp : null
+                      "
+                      :next-timestamp="
+                        item.globalIndex < (path.nodes?.length ?? 0) - 1
+                          ? path.nodes[item.globalIndex + 1]?.timestamp
+                          : null
+                      "
                       :index="item.globalIndex"
                       :total-count="path.nodes?.length ?? 0"
                       :node-status="item.node.status"
@@ -94,7 +122,12 @@
                       :is-no-data="isNoDataNode(item.node)"
                     />
                   </div>
-                  <el-tag v-if="getNodeDataSource(item.node)" :type="getNodeDataSourceTagType(getNodeDataSource(item.node))" size="small" class="stage-ds-tag">
+                  <el-tag
+                    v-if="getNodeDataSource(item.node)"
+                    :type="getNodeDataSourceTagType(getNodeDataSource(item.node))"
+                    size="small"
+                    class="stage-ds-tag"
+                  >
                     {{ getNodeDataSourceLabel(getNodeDataSource(item.node)) }}
                   </el-tag>
                 </div>
@@ -146,42 +179,73 @@
       <!-- 8. 多柜对比（仅阶段分组 Tab；需传入 billOfLadingNumber） -->
       <div v-if="variant === 'grouped' && props.billOfLadingNumber" class="multi-container-section">
         <el-collapse>
-          <el-collapse-item :title="t('container.logisticsPath.sameBillOfLading.title')" name="compare">
+          <el-collapse-item
+            :title="t('container.logisticsPath.sameBillOfLading.title')"
+            name="compare"
+          >
             <div class="compare-header">
               <div class="compare-hint">
-                {{ t('container.logisticsPath.sameBillOfLading.currentContainer', { containerNumber: props.containerNumber, billOfLadingNumber: props.billOfLadingNumber }) }}
+                {{
+                  t('container.logisticsPath.sameBillOfLading.currentContainer', {
+                    containerNumber: props.containerNumber,
+                    billOfLadingNumber: props.billOfLadingNumber,
+                  })
+                }}
               </div>
-              <el-button 
-                type="primary" 
-                size="small" 
+              <el-button
+                type="primary"
+                size="small"
                 @click="loadContainersWithSameBillOfLading"
                 :loading="loadingSameBillOfLading"
               >
                 {{ t('container.logisticsPath.sameBillOfLading.loadButton') }}
               </el-button>
             </div>
-            
+
             <div v-if="errorSameBillOfLading" class="compare-error">
               {{ errorSameBillOfLading }}
             </div>
-            
+
             <div v-else-if="containersWithSameBillOfLading.length > 0" class="compare-list">
               <el-table :data="containersWithSameBillOfLading" border style="width: 100%">
-                <el-table-column prop="containerNumber" :label="t('container.logisticsPath.sameBillOfLading.columns.containerNumber')" width="120">
+                <el-table-column
+                  prop="containerNumber"
+                  :label="t('container.logisticsPath.sameBillOfLading.columns.containerNumber')"
+                  width="120"
+                >
                   <template #default="{ row }">
                     <router-link :to="`/shipments/${row.containerNumber}`" class="container-link">
                       {{ row.containerNumber }}
                     </router-link>
                   </template>
                 </el-table-column>
-                <el-table-column prop="logisticsStatus" :label="t('container.logisticsPath.sameBillOfLading.columns.logisticsStatus')" width="120" />
-                <el-table-column prop="actualShipDate" :label="t('container.logisticsPath.sameBillOfLading.columns.actualShipDate')" width="120" />
-                <el-table-column prop="etaDestPort" :label="t('container.logisticsPath.sameBillOfLading.columns.etaDestPort')" width="120" />
-                <el-table-column prop="ataDestPort" :label="t('container.logisticsPath.sameBillOfLading.columns.ataDestPort')" width="120" />
-                <el-table-column prop="location" :label="t('container.logisticsPath.sameBillOfLading.columns.location')" />
+                <el-table-column
+                  prop="logisticsStatus"
+                  :label="t('container.logisticsPath.sameBillOfLading.columns.logisticsStatus')"
+                  width="120"
+                />
+                <el-table-column
+                  prop="actualShipDate"
+                  :label="t('container.logisticsPath.sameBillOfLading.columns.actualShipDate')"
+                  width="120"
+                />
+                <el-table-column
+                  prop="etaDestPort"
+                  :label="t('container.logisticsPath.sameBillOfLading.columns.etaDestPort')"
+                  width="120"
+                />
+                <el-table-column
+                  prop="ataDestPort"
+                  :label="t('container.logisticsPath.sameBillOfLading.columns.ataDestPort')"
+                  width="120"
+                />
+                <el-table-column
+                  prop="location"
+                  :label="t('container.logisticsPath.sameBillOfLading.columns.location')"
+                />
               </el-table>
             </div>
-            
+
             <div v-else-if="!loadingSameBillOfLading" class="compare-empty">
               {{ t('container.logisticsPath.sameBillOfLading.emptyState') }}
             </div>
@@ -201,17 +265,26 @@
           <div class="detail-item">
             <span class="label">{{ t('container.logisticsPath.nodeDetail.status') }}：</span>
             <span class="value">{{ selectedNode.description }}</span>
-            <el-tag v-if="isNoDataNode(selectedNode)" type="info" size="small" class="detail-no-data-tag">
+            <el-tag
+              v-if="isNoDataNode(selectedNode)"
+              type="info"
+              size="small"
+              class="detail-no-data-tag"
+            >
               {{ getNoDataNodeLabel(selectedNode) }}
             </el-tag>
           </div>
           <div class="detail-item">
             <span class="label">{{ t('container.logisticsPath.nodeDetail.time') }}：</span>
-            <span class="value">{{ isNoDataNode(selectedNode) ? '—' : formatDateTime(selectedNode.timestamp) }}</span>
+            <span class="value">{{
+              isNoDataNode(selectedNode) ? '—' : formatDateTime(selectedNode.timestamp)
+            }}</span>
           </div>
           <div class="detail-item" v-if="selectedNode.location">
             <span class="label">{{ t('container.logisticsPath.nodeDetail.location') }}：</span>
-            <span class="value">{{ selectedNode.location.name }} ({{ selectedNode.location.code }})</span>
+            <span class="value"
+              >{{ selectedNode.location.name }} ({{ selectedNode.location.code }})</span
+            >
           </div>
           <div class="detail-item">
             <span class="label">{{ t('container.logisticsPath.nodeDetail.statusCode') }}：</span>
@@ -223,7 +296,11 @@
           </div>
           <div class="detail-item">
             <span class="label">{{ t('container.logisticsPath.nodeDetail.alert') }}：</span>
-            <span class="value">{{ selectedNode.isAlert ? t('container.logisticsPath.nodeDetail.yes') : t('container.logisticsPath.nodeDetail.no') }}</span>
+            <span class="value">{{
+              selectedNode.isAlert
+                ? t('container.logisticsPath.nodeDetail.yes')
+                : t('container.logisticsPath.nodeDetail.no')
+            }}</span>
           </div>
           <div v-if="getNodeDataSource(selectedNode)" class="detail-item">
             <span class="label">{{ t('container.logisticsPath.nodeDetail.dataSource') }}：</span>
@@ -231,7 +308,10 @@
               {{ getNodeDataSourceLabel(getNodeDataSource(selectedNode)) }}
             </el-tag>
           </div>
-          <div v-if="selectedNode.rawData && Object.keys(selectedNode.rawData).length > 0" class="raw-data-section">
+          <div
+            v-if="selectedNode.rawData && Object.keys(selectedNode.rawData).length > 0"
+            class="raw-data-section"
+          >
             <div class="label">{{ t('container.logisticsPath.nodeDetail.rawData') }}</div>
             <pre class="raw-data">{{ JSON.stringify(selectedNode.rawData, null, 2) }}</pre>
           </div>
@@ -243,16 +323,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
-import { useI18n } from 'vue-i18n'
+import NodeDurationDisplay from '@/components/common/NodeDurationDisplay.vue'
+import { containerService } from '@/services/container'
+import { dictService } from '@/services/dict'
+import { logisticsPathService, type StatusNode, type StatusPath } from '@/services/logisticsPath'
+import type { ContainerListItem } from '@/types/container'
 import { Loading, QuestionFilled } from '@element-plus/icons-vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { logisticsPathService, type StatusPath, type StatusNode } from '@/services/logisticsPath'
-import { dictService } from '@/services/dict'
-import { containerService } from '@/services/container'
-import NodeDurationDisplay from '@/components/common/NodeDurationDisplay.vue'
-import type { ContainerListItem } from '@/types/container'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
@@ -269,13 +349,18 @@ const loading = ref(false)
 const error = ref('')
 const path = ref<StatusPath | null>(null)
 const selectedNode = ref<StatusNode | null>(null)
-const validationResult = ref<{ isValid: boolean; errors: string[]; warnings: string[] } | null>(null)
+const validationResult = ref<{ isValid: boolean; errors: string[]; warnings: string[] } | null>(
+  null
+)
 const mapContainerRef = ref<HTMLElement | null>(null)
 let leafletMap: L.Map | null = null
 let mapResizeObserver: ResizeObserver | null = null
 
 /** dict_ports 经纬度缓存（全量只拉一次，供物流地图匹配） */
-type DictPortCoordMaps = { byCode: Record<string, [number, number]>; byNameNorm: Record<string, [number, number]> }
+type DictPortCoordMaps = {
+  byCode: Record<string, [number, number]>
+  byNameNorm: Record<string, [number, number]>
+}
 let cachedDictPortCoords: DictPortCoordMaps | null = null
 let dictPortCoordsInflight: Promise<DictPortCoordMaps> | null = null
 
@@ -291,7 +376,7 @@ const PORT_CODE_ALIASES: Record<string, string> = {
   CNSHA: 'CNSHG',
   CNSHP: 'CNSHG',
   CNQIN: 'CNQNG',
-  CNQDO: 'CNTAO'
+  CNQDO: 'CNTAO',
 }
 
 /** 生成用于匹配 dict 港口名称的若干 key（如「宁波港」→「宁波」） */
@@ -299,9 +384,7 @@ function portNameLookupKeys(displayName: string): string[] {
   const base = normalizePortNameKey(displayName)
   if (!base) return []
   const keys = new Set<string>([base])
-  const noSuffix = base
-    .replace(/(国际)?港口?$|港$|码头$|湾$|港区$/u, '')
-    .trim()
+  const noSuffix = base.replace(/(国际)?港口?$|港$|码头$|湾$|港区$/u, '').trim()
   if (noSuffix && noSuffix !== base) keys.add(noSuffix)
   return [...keys]
 }
@@ -360,7 +443,9 @@ const containersWithSameBillOfLading = ref<ContainerListItem[]>([])
 
 const showNodeDetail = computed({
   get: () => !!selectedNode.value,
-  set: (v) => { if (!v) selectedNode.value = null }
+  set: v => {
+    if (!v) selectedNode.value = null
+  },
 })
 
 const loadPath = async () => {
@@ -403,17 +488,17 @@ const loadValidation = async (pathId: string) => {
 // 加载同提单货柜列表
 const loadContainersWithSameBillOfLading = async () => {
   if (!props.billOfLadingNumber) return
-  
+
   loadingSameBillOfLading.value = true
   errorSameBillOfLading.value = ''
-  
+
   try {
     const response = await containerService.getContainers({
       page: 1,
       pageSize: 50,
-      search: props.billOfLadingNumber
+      search: props.billOfLadingNumber,
     })
-    
+
     if (response.success && response.items) {
       // 过滤掉当前货柜，只显示其他同提单的货柜
       containersWithSameBillOfLading.value = response.items.filter(
@@ -430,7 +515,7 @@ const loadContainersWithSameBillOfLading = async () => {
 
 watch(
   () => props.containerNumber,
-  (val) => {
+  val => {
     if (val) loadPath()
   },
   { immediate: true }
@@ -438,9 +523,9 @@ watch(
 
 watch(
   () => props.containerNumber,
-  (val) => {
+  val => {
     if (!val?.trim()) return
-    loadDictPortCoordsOnce().then((m) => {
+    loadDictPortCoordsOnce().then(m => {
       dictPortCoords.value = m
     })
   },
@@ -465,7 +550,7 @@ const overdueAlertText = computed(() => {
   // 有数据来源（FeituoAPI/Feituo/ProcessTable）= 真正到港
   // dataSource=null = 占位节点（未真正到港）
   const hasActualArrivalEvent = path.value.nodes?.some(
-    (n) =>
+    n =>
       (n.status === 'ARRIVED' ||
         n.status === 'BERTHED' ||
         n.status === 'DISCHARGED' ||
@@ -487,8 +572,7 @@ const overdueAlertText = computed(() => {
   return `最晚提柜日${d ? `（${d}）` : ''}已过，货柜尚未还箱，请尽快安排提柜与还箱。`
 })
 
-const isNoDataNode = (node: StatusNode): boolean =>
-  !!(node.rawData as { noData?: boolean })?.noData
+const isNoDataNode = (node: StatusNode): boolean => !!(node.rawData as { noData?: boolean })?.noData
 
 /** 无数据节点的展示文案：显示具体缺数据的节点名（如「进港 缺数据」） */
 const getNoDataNodeLabel = (node: StatusNode | null): string => {
@@ -500,12 +584,8 @@ const getNoDataNodeLabel = (node: StatusNode | null): string => {
 const durationDays = computed(() => {
   if (!path.value?.startedAt || !path.value?.nodes?.length) return null
   const firstNode = path.value.nodes[0]
-  const lastCompleted = [...path.value.nodes]
-    .reverse()
-    .find((n) => n.nodeStatus === 'COMPLETED')
-  const endTime = lastCompleted
-    ? new Date(lastCompleted.timestamp)
-    : new Date()
+  const lastCompleted = [...path.value.nodes].reverse().find(n => n.nodeStatus === 'COMPLETED')
+  const endTime = lastCompleted ? new Date(lastCompleted.timestamp) : new Date()
   const startTime = new Date(firstNode.timestamp)
   const diff = Math.abs(endTime.getTime() - startTime.getTime())
   return Math.ceil(diff / (1000 * 60 * 60 * 24))
@@ -514,8 +594,8 @@ const durationDays = computed(() => {
 /** 1. 进度条：运输进度百分比 */
 const pathProgress = computed(() => {
   if (!path.value?.nodes?.length) return 0
-  const completed = path.value.nodes.filter((n) => n.nodeStatus === 'COMPLETED')
-  const inProgress = path.value.nodes.some((n) => n.nodeStatus === 'IN_PROGRESS')
+  const completed = path.value.nodes.filter(n => n.nodeStatus === 'COMPLETED')
+  const inProgress = path.value.nodes.some(n => n.nodeStatus === 'IN_PROGRESS')
   let p = (completed.length / path.value.nodes.length) * 100
   if (inProgress) p += 5
   return Math.min(p, 100)
@@ -548,12 +628,20 @@ const STAGE_MAP: Record<string, { stage: string; label: string; order: number }>
   DELIVERY_ARRIVED: { stage: 'pickup', label: '提柜', order: 5 },
   STRIPPED: { stage: 'pickup', label: '提柜', order: 5 },
   RETURNED_EMPTY: { stage: 'return', label: '还箱', order: 6 },
-  COMPLETED: { stage: 'return', label: '还箱', order: 6 }
+  COMPLETED: { stage: 'return', label: '还箱', order: 6 },
 }
 
 const nodesByStage = computed(() => {
   if (!path.value?.nodes?.length) return []
-  const groups: Record<string, { stage: string; label: string; order: number; nodes: { node: StatusNode; globalIndex: number }[] }> = {}
+  const groups: Record<
+    string,
+    {
+      stage: string
+      label: string
+      order: number
+      nodes: { node: StatusNode; globalIndex: number }[]
+    }
+  > = {}
   path.value!.nodes.forEach((node, globalIndex) => {
     const info = STAGE_MAP[node.status] || { stage: 'other', label: '其他', order: 99 }
     const key = info.stage
@@ -578,12 +666,30 @@ const pathDataSourceSummary = computed(() => {
 
 /** 地图：内置兜底坐标（[lng, lat]）；优先使用 dict_ports 接口返回的经纬度 */
 const PORT_COORDS: Record<string, [number, number]> = {
-  CNSHG: [121.47, 31.23], CNSZX: [114.06, 22.54], CNNGB: [121.54, 29.87], CNYTN: [114.27, 22.56],
-  CNQNG: [120.38, 36.07], CNTAO: [117.20, 39.08], CNDLC: [121.61, 38.91], CNXMN: [118.09, 24.48],
-  CNGZU: [113.26, 23.13], USLAX: [-118.27, 33.74], USLGB: [-118.19, 33.75], USOAK: [-122.27, 37.80],
-  USSEA: [-122.33, 47.61], USSAV: [-81.09, 32.08], USNYC: [-74.01, 40.71], USCHI: [-87.63, 41.88],
-  SGSIN: [103.85, 1.29], JPTYO: [139.69, 35.69], KRPUS: [129.04, 35.10], HKHKG: [114.17, 22.32],
-  NLRTM: [4.48, 51.92], DEHAM: [9.93, 53.55], GBSOU: [-1.40, 50.90], BEANR: [4.42, 51.22]
+  CNSHG: [121.47, 31.23],
+  CNSZX: [114.06, 22.54],
+  CNNGB: [121.54, 29.87],
+  CNYTN: [114.27, 22.56],
+  CNQNG: [120.38, 36.07],
+  CNTAO: [117.2, 39.08],
+  CNDLC: [121.61, 38.91],
+  CNXMN: [118.09, 24.48],
+  CNGZU: [113.26, 23.13],
+  USLAX: [-118.27, 33.74],
+  USLGB: [-118.19, 33.75],
+  USOAK: [-122.27, 37.8],
+  USSEA: [-122.33, 47.61],
+  USSAV: [-81.09, 32.08],
+  USNYC: [-74.01, 40.71],
+  USCHI: [-87.63, 41.88],
+  SGSIN: [103.85, 1.29],
+  JPTYO: [139.69, 35.69],
+  KRPUS: [129.04, 35.1],
+  HKHKG: [114.17, 22.32],
+  NLRTM: [4.48, 51.92],
+  DEHAM: [9.93, 53.55],
+  GBSOU: [-1.4, 50.9],
+  BEANR: [4.42, 51.22],
 }
 
 function resolveNodePortLngLat(
@@ -628,13 +734,19 @@ function resolveNodePortLngLatWithSource(
     if (dict?.byCode[c]) return { coord: dict.byCode[c], source: 'dict', matchedWith: c }
   }
   for (const c of tryCodes) {
-    if (PORT_COORDS[c]) return { coord: [...PORT_COORDS[c]] as [number, number], source: 'builtin', matchedWith: c }
+    if (PORT_COORDS[c])
+      return { coord: [...PORT_COORDS[c]] as [number, number], source: 'builtin', matchedWith: c }
   }
   for (const c of tryCodes) {
     const fuzzy = Object.entries(PORT_COORDS).find(
       ([k]) => c.includes(k) || k.includes(c) || c.endsWith(k) || k.endsWith(c)
     )
-    if (fuzzy) return { coord: [...fuzzy[1]] as [number, number], source: 'builtin', matchedWith: `${c}~${fuzzy[0]}` }
+    if (fuzzy)
+      return {
+        coord: [...fuzzy[1]] as [number, number],
+        source: 'builtin',
+        matchedWith: `${c}~${fuzzy[0]}`,
+      }
   }
   for (const nk of portNameLookupKeys(displayName)) {
     if (dict && nk && dict.byNameNorm[nk]) {
@@ -728,17 +840,18 @@ const mapPoints = computed(() => {
 })
 
 const mapDebugRows = computed(() => {
-  if (!path.value?.nodes?.length) return [] as Array<{
-    nodeStatus: string
-    code: string
-    name: string
-    matchSource: MapMatchSource
-    matchSourceLabel: string
-    matchedWith: string
-  }>
+  if (!path.value?.nodes?.length)
+    return [] as Array<{
+      nodeStatus: string
+      code: string
+      name: string
+      matchSource: MapMatchSource
+      matchSourceLabel: string
+      matchedWith: string
+    }>
 
   const dict = dictPortCoords.value
-  return path.value.nodes.map((node) => {
+  return path.value.nodes.map(node => {
     const extracted = extractNodePortCodeAndName(node)
     const rawCoord = getRawDataLngLat(node)
 
@@ -749,7 +862,7 @@ const mapDebugRows = computed(() => {
         name: '-',
         matchSource: 'raw' as MapMatchSource,
         matchSourceLabel: 'raw 经纬度命中',
-        matchedWith: `[${rawCoord[0]}, ${rawCoord[1]}]`
+        matchedWith: `[${rawCoord[0]}, ${rawCoord[1]}]`,
       }
     }
 
@@ -760,7 +873,7 @@ const mapDebugRows = computed(() => {
         name: '-',
         matchSource: 'none' as MapMatchSource,
         matchSourceLabel: '未命中',
-        matchedWith: '-'
+        matchedWith: '-',
       }
     }
 
@@ -775,7 +888,7 @@ const mapDebugRows = computed(() => {
         name,
         matchSource: resolved.source,
         matchSourceLabel: resolved.source === 'dict' ? '字典命中' : '内置命中',
-        matchedWith: resolved.matchedWith || '-'
+        matchedWith: resolved.matchedWith || '-',
       }
     }
 
@@ -786,7 +899,7 @@ const mapDebugRows = computed(() => {
         name,
         matchSource: 'raw' as MapMatchSource,
         matchSourceLabel: 'raw 经纬度命中',
-        matchedWith: `[${rawCoord[0]}, ${rawCoord[1]}]`
+        matchedWith: `[${rawCoord[0]}, ${rawCoord[1]}]`,
       }
     }
 
@@ -796,7 +909,7 @@ const mapDebugRows = computed(() => {
       name,
       matchSource: 'none' as MapMatchSource,
       matchSourceLabel: '未命中',
-      matchedWith: '-'
+      matchedWith: '-',
     }
   })
 })
@@ -812,7 +925,9 @@ const mapLocationCandidatesCount = computed(() => {
   return count
 })
 
-const getMapMatchTagType = (source: MapMatchSource): 'success' | 'primary' | 'warning' | 'danger' => {
+const getMapMatchTagType = (
+  source: MapMatchSource
+): 'success' | 'primary' | 'warning' | 'danger' => {
   if (source === 'dict') return 'success'
   if (source === 'builtin') return 'primary'
   if (source === 'raw') return 'warning'
@@ -842,7 +957,7 @@ const createRouteMarkerIcon = (index: number) =>
     className: 'route-point-marker',
     html: `<div class="route-point-dot">${index + 1}</div>`,
     iconSize: [24, 24],
-    iconAnchor: [12, 12]
+    iconAnchor: [12, 12],
   })
 
 const initLeafletMap = () => {
@@ -868,13 +983,17 @@ const initLeafletMap = () => {
   const center = latlngs.length === 1 ? latlngs[0] : latlngs[Math.floor(latlngs.length / 2)]
   const bounds = L.latLngBounds(latlngs)
 
-  leafletMap = L.map(mapContainerRef.value, { attributionControl: true }).setView(center as [number, number], 3)
+  leafletMap = L.map(mapContainerRef.value, { attributionControl: true }).setView(
+    center as [number, number],
+    3
+  )
 
   // 底图：CartoDB Voyager（基于 OSM，兼容性更好）备选：OpenStreetMap
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
     subdomains: 'abcd',
-    maxZoom: 20
+    maxZoom: 20,
   }).addTo(leafletMap)
 
   L.polyline(latlngs, { color: '#5470c6', weight: 3, opacity: 0.8 }).addTo(leafletMap)
@@ -887,7 +1006,7 @@ const initLeafletMap = () => {
         className: 'current-position-marker',
         html: `<div class="current-position-pin"><span class="current-label">当前位置</span></div>`,
         iconSize: [60, 50],
-        iconAnchor: [30, 48]
+        iconAnchor: [30, 48],
       })
       const marker = L.marker([p.value[1], p.value[0]], { icon: currentIcon })
       marker.bindTooltip(`当前位置：${p.name}`, { permanent: false, direction: 'top' })
@@ -951,18 +1070,15 @@ const scheduleMapInit = () => {
   })
 }
 
-watch(
-  [() => path.value, () => props.variant, () => dictPortCoords.value],
-  () => {
-    nextTick(() => {
-      if (props.variant === 'map') {
-        setTimeout(scheduleMapInit, 120)
-      } else {
-        destroyLeafletMap()
-      }
-    })
-  }
-)
+watch([() => path.value, () => props.variant, () => dictPortCoords.value], () => {
+  nextTick(() => {
+    if (props.variant === 'map') {
+      setTimeout(scheduleMapInit, 120)
+    } else {
+      destroyLeafletMap()
+    }
+  })
+})
 
 onBeforeUnmount(destroyLeafletMap)
 
@@ -1011,7 +1127,7 @@ const STANDARD_DURATIONS: Record<string, number> = {
 
   // 还箱阶段（标准：24小时内完成）
   RETURNED_EMPTY: 24,
-  COMPLETED: 0
+  COMPLETED: 0,
 }
 
 /** 判断是否为当前正在进行的节点 */
@@ -1020,13 +1136,12 @@ const isCurrentNode = (node: StatusNode, index: number): boolean => {
   return node.nodeStatus === 'IN_PROGRESS' || index === path.value.nodes.length - 1
 }
 
-
 const getPathStatusLabel = (status?: string): string => {
   const LABELS: Record<string, string> = {
     ON_TIME: '准点',
     DELAYED: '延误',
     HOLD: '扣留',
-    COMPLETED: '已完成'
+    COMPLETED: '已完成',
   }
   return LABELS[status || ''] || status || '未知'
 }
@@ -1035,7 +1150,7 @@ const getNodeStatusLabel = (status?: string): string => {
   const LABELS: Record<string, string> = {
     COMPLETED: '已完成',
     IN_PROGRESS: '进行中',
-    PENDING: '未开始'
+    PENDING: '未开始',
   }
   return LABELS[status || ''] || status || '未知'
 }
@@ -1047,7 +1162,7 @@ const formatDateTime = (date: string | Date): string => {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   })
 }
 
@@ -1084,7 +1199,7 @@ const STATUS_ICONS: Record<string, string> = {
   OVERDUE: '🚨',
   CONGESTION: '🚦',
   HOLD: '⛔',
-  UNKNOWN: '❓'
+  UNKNOWN: '❓',
 }
 
 const getStatusIcon = (status: string): string => STATUS_ICONS[status] || '📍'
@@ -1101,7 +1216,7 @@ const getNodeDataSourceLabel = (ds: string | null): string => {
   const LABELS: Record<string, string> = {
     FeituoAPI: '飞驼API',
     Feituo: 'Excel导入',
-    ProcessTable: '业务系统'
+    ProcessTable: '业务系统',
   }
   return LABELS[ds] ?? ds
 }
@@ -1113,7 +1228,7 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
 </script>
 
 <style scoped lang="scss">
-@use "sass:color";
+@use 'sass:color';
 @use '@/assets/styles/variables' as *;
 
 .logistics-path-tab {
@@ -1173,7 +1288,11 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
 
 .stage-header {
   padding: $spacing-md $spacing-lg;
-  background: linear-gradient(135deg, rgba($primary-color, 0.08) 0%, rgba($primary-color, 0.04) 100%);
+  background: linear-gradient(
+    135deg,
+    rgba($primary-color, 0.08) 0%,
+    rgba($primary-color, 0.04) 100%
+  );
   font-weight: 600;
   display: flex;
   justify-content: space-between;
@@ -1304,7 +1423,8 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {
@@ -1423,8 +1543,15 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
 }
 
 @keyframes current-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.1); opacity: 0.95; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.95;
+  }
 }
 
 .map-empty {
@@ -1510,7 +1637,7 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
   color: var(--el-color-primary);
   text-decoration: none;
   transition: color $transition-base;
-  
+
   &:hover {
     color: color.adjust($primary-color, $lightness: 10%);
     text-decoration: underline;
@@ -1585,15 +1712,27 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 
   &.on_time {
-    background: linear-gradient(135deg, var(--el-color-success-light-9), var(--el-color-success-light-8));
+    background: linear-gradient(
+      135deg,
+      var(--el-color-success-light-9),
+      var(--el-color-success-light-8)
+    );
     color: var(--el-color-success-dark-2);
   }
   &.delayed {
-    background: linear-gradient(135deg, var(--el-color-warning-light-9), var(--el-color-warning-light-8));
+    background: linear-gradient(
+      135deg,
+      var(--el-color-warning-light-9),
+      var(--el-color-warning-light-8)
+    );
     color: var(--el-color-warning-dark-2);
   }
   &.hold {
-    background: linear-gradient(135deg, var(--el-color-danger-light-9), var(--el-color-danger-light-8));
+    background: linear-gradient(
+      135deg,
+      var(--el-color-danger-light-9),
+      var(--el-color-danger-light-8)
+    );
     color: var(--el-color-danger-dark-2);
   }
   &.completed {

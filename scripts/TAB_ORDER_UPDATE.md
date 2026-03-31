@@ -29,6 +29,7 @@
 ```
 
 **问题**：
+
 - 预警、时间预测、风险评估与物流路径/地图紧密相关
 - 用户需要先看预警，再看地图位置
 - 原来的顺序导致用户需要滚动很多 TAB 才能看到预警
@@ -54,6 +55,7 @@
 ```
 
 **优势**：
+
 - ✅ 预警相关 TAB 紧跟物流路径/地图
 - ✅ 用户可快速查看预警信息
 - ✅ 符合"先看风险，再看位置"的业务逻辑
@@ -121,6 +123,7 @@
 5. **物流地图**：查看货柜的地理位置和移动轨迹
 
 **设计理念**：
+
 - 从抽象到具体（路径 → 预警 → 预测 → 风险 → 地图）
 - 从时间维度到空间维度
 - 从分析到可视化
@@ -135,6 +138,7 @@
 11. **还空箱**：还箱详情
 
 **设计理念**：
+
 - 按业务流程顺序排列
 - 从海运到陆运到仓储
 
@@ -145,6 +149,7 @@
 14. **查验记录**：查验历史
 
 **设计理念**：
+
 - 费用和记录类信息放在最后
 
 ### 用户体验优化
@@ -161,6 +166,7 @@
 6. 才看到"预警"、"时间预测"、"风险评估"
 
 **问题**：
+
 - ❌ 预警信息太靠后
 - ❌ 用户容易忽略重要风险
 - ❌ 需要多次点击才能看到
@@ -177,6 +183,7 @@
 6. 需要看地图时，旁边就是"物流地图"
 
 **优势**：
+
 - ✅ 预警信息触手可及
 - ✅ 快速了解货柜风险
 - ✅ 符合"风险优先"的业务思维
@@ -185,40 +192,42 @@
 
 ### 当前顺序（修改后）
 
-| 序号 | TAB 名称 | 组件 | 说明 |
-|------|----------|------|------|
-| 1 | 物流路径 | LogisticsPathTab (grouped) | 阶段分组的物流路径 |
-| 2 | 预警 | AlertTab | 货柜预警信息 |
-| 3 | 时间预测 | TimePredictionTab | 关键节点时间预测 |
-| 4 | 风险评估 | RiskCardTab | 风险评估卡片 |
-| 5 | 物流地图 | LogisticsPathTab (map) | 地图可视化 |
-| 6 | 货柜信息 | ContainerInfo | 基本信息卡片 |
-| 7 | 海运信息 | SeaFreightInfo | 海运详情 |
-| 8 | 港口操作 | PortOperations | 港口操作详情 |
-| 9 | 拖卡运输 | TruckingTransport | 拖车运输详情 |
-| 10 | 仓库操作 | WarehouseOperations | 仓库操作详情 |
-| 11 | 还空箱 | EmptyReturn | 还箱详情 |
-| 12 | 滞港费 | DemurrageDetailSection | 滞港费明细 |
-| 13 | 变更日志 | ChangeLogTab | 操作记录 |
-| 14 | 查验记录 | InspectionRecord | 查验历史 |
+| 序号 | TAB 名称 | 组件                       | 说明               |
+| ---- | -------- | -------------------------- | ------------------ |
+| 1    | 物流路径 | LogisticsPathTab (grouped) | 阶段分组的物流路径 |
+| 2    | 预警     | AlertTab                   | 货柜预警信息       |
+| 3    | 时间预测 | TimePredictionTab          | 关键节点时间预测   |
+| 4    | 风险评估 | RiskCardTab                | 风险评估卡片       |
+| 5    | 物流地图 | LogisticsPathTab (map)     | 地图可视化         |
+| 6    | 货柜信息 | ContainerInfo              | 基本信息卡片       |
+| 7    | 海运信息 | SeaFreightInfo             | 海运详情           |
+| 8    | 港口操作 | PortOperations             | 港口操作详情       |
+| 9    | 拖卡运输 | TruckingTransport          | 拖车运输详情       |
+| 10   | 仓库操作 | WarehouseOperations        | 仓库操作详情       |
+| 11   | 还空箱   | EmptyReturn                | 还箱详情           |
+| 12   | 滞港费   | DemurrageDetailSection     | 滞港费明细         |
+| 13   | 变更日志 | ChangeLogTab               | 操作记录           |
+| 14   | 查验记录 | InspectionRecord           | 查验历史           |
 
 ### 路由映射
 
 ```typescript
 watch(
   () => route.query.tab,
-  tab => {
-    if (tab === 'demurrage') activeTab.value = 'demurrage'
-    else if (tab === 'logistics-path') activeTab.value = 'logistics-path'
-    else if (tab === 'logistics-path-map') activeTab.value = 'logistics-path-map'
-    else if (tab === 'change-log') activeTab.value = 'change-log'
-    else if (tab === 'inspection') activeTab.value = 'inspection'
-    else if (tab === 'alert') activeTab.value = 'alert'          // ← 预警
-    else if (tab === 'time-prediction') activeTab.value = 'time-prediction'  // ← 时间预测
-    else if (tab === 'risk') activeTab.value = 'risk'            // ← 风险评估
+  (tab) => {
+    if (tab === "demurrage") activeTab.value = "demurrage";
+    else if (tab === "logistics-path") activeTab.value = "logistics-path";
+    else if (tab === "logistics-path-map") activeTab.value = "logistics-path-map";
+    else if (tab === "change-log") activeTab.value = "change-log";
+    else if (tab === "inspection") activeTab.value = "inspection";
+    else if (tab === "alert")
+      activeTab.value = "alert"; // ← 预警
+    else if (tab === "time-prediction")
+      activeTab.value = "time-prediction"; // ← 时间预测
+    else if (tab === "risk") activeTab.value = "risk"; // ← 风险评估
   },
-  { immediate: true }
-)
+  { immediate: true },
+);
 ```
 
 ## 测试场景
@@ -226,9 +235,11 @@ watch(
 ### 场景 1：访问货柜详情
 
 **操作步骤**：
+
 1. 访问任意货柜详情页（如 CXDU1919549）
 
 **预期结果**：
+
 - ✅ 默认打开"物流路径"
 - ✅ 向右依次是：预警、时间预测、风险评估、物流地图
 - ✅ 预警相关 TAB 紧跟物流路径
@@ -236,18 +247,22 @@ watch(
 ### 场景 2：通过 URL 参数打开特定 TAB
 
 **操作步骤**：
+
 1. 访问 `/shipments/CXDU1919549?tab=alert`
 
 **预期结果**：
+
 - ✅ 打开"预警"标签
 - ✅ 位置：第 2 个标签
 
 ### 场景 3：通过 URL 参数打开物流地图
 
 **操作步骤**：
+
 1. 访问 `/shipments/CXDU1919549?tab=logistics-path-map`
 
 **预期结果**：
+
 - ✅ 打开"物流地图"
 - ✅ 位置：第 5 个标签（在预警、时间预测、风险评估之后）
 
