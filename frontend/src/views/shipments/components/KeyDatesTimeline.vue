@@ -143,7 +143,7 @@ const timelineEvents = computed((): TimelineEvent[] => {
   add('最晚提柜', '最晚提柜日', lastPickupDate, '⏰', 'danger', {
     isComputed: isLastPickupComputed,
     isFromDb: isLastPickupFromDb,
-    calculationMode: isLastPickupComputed ? d.lastPickupDateMode ?? null : null,
+    calculationMode: isLastPickupComputed ? (d.lastPickupDateMode ?? null) : null,
     calculationSource: isLastPickupComputed
       ? getCalculationSourceText(
           d.lastPickupDateMode ?? undefined,

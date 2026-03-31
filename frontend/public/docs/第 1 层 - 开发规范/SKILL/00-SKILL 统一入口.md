@@ -4,7 +4,7 @@
 **创建时间**: 2026-03-31  
 **最后更新**: 2026-03-31  
 **作者**: 刘志高  
-**状态**: 强制执行  
+**状态**: 强制执行
 
 ---
 
@@ -16,13 +16,13 @@ SKILL 是 LogiX 项目的业务知识沉淀单元，包含两个层面：
 
 五大核心原则指导代码开发：
 
-| 原则 | 说明 | 要求 |
-|------|------|------|
-| **S** - Single Responsibility | 单一职责 | 一个类只做一件事 |
-| **K** - Knowledge | 知识沉淀 | JSDoc、执行报告、踩坑记录 |
-| **I** - Indexed | 索引清晰 | 命名清晰、接口明确 |
-| **L** - Living | 活文档 | 测试即文档、持续更新 |
-| **L** - Learning | 面向学习 | 示例丰富、新人友好 |
+| 原则                          | 说明     | 要求                      |
+| ----------------------------- | -------- | ------------------------- |
+| **S** - Single Responsibility | 单一职责 | 一个类只做一件事          |
+| **K** - Knowledge             | 知识沉淀 | JSDoc、执行报告、踩坑记录 |
+| **I** - Indexed               | 索引清晰 | 命名清晰、接口明确        |
+| **L** - Living                | 活文档   | 测试即文档、持续更新      |
+| **L** - Learning              | 面向学习 | 示例丰富、新人友好        |
 
 ### 2. SKILL 文档（业务知识）
 
@@ -59,8 +59,8 @@ SKILL 是 LogiX 项目的业务知识沉淀单元，包含两个层面：
 **示例**：
 
 ```markdown
-错误：## 🎯 快速导航  ✅ 通过：6  ❌ 失败：0
-正确：## 快速导航   OK 通过：6  FAIL 失败：0
+错误：## 🎯 快速导航 ✅ 通过：6 ❌ 失败：0
+正确：## 快速导航 OK 通过：6 FAIL 失败：0
 ```
 
 ### 原则二：真实第一
@@ -114,7 +114,7 @@ checks:
   - no_decorative_symbols: true
   - use_plain_text: true
   - professional_style: true
-  
+
 validation:
   pattern: '[🎯📁⭐🚀📋🤖✅❌📊💡🔗🎉💪📄📌📈🔄🛠️🎊]'
   action: remove_and_warn
@@ -129,7 +129,7 @@ after_creating_document:
     - has_decorative_arrows: false
     - uses_ascii_arrows: true
     - status_markers: 'OK/FAIL'
-    
+
   if_failed:
     - auto_fix: true
     - warn_user: true
@@ -142,7 +142,7 @@ priority_order:
   1. simplicity: 简洁即美
   2. authenticity: 真实第一
   3. business_oriented: 业务导向
-  
+
 conflict_resolution:
   - if_beauty_vs_simplicity: choose_simplicity
   - if_form_vs_content: choose_content

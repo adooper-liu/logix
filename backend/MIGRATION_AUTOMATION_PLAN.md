@@ -31,12 +31,14 @@
 **核心思路**：扫描 migrations/ 目录，自动执行所有 .sql 文件
 
 **优势**：
+
 - ✅ 零遗漏：新脚本自动被发现
 - ✅ 零维护：无需手动更新列表
 - ✅ 可扩展：支持子目录分类
 - ✅ 可追溯：生成执行报告
 
 **实现**：
+
 ```powershell
 # 自动发现并执行所有迁移脚本
 $migrationFiles = Get-ChildItem -Path $MIGRATIONS_DIR -Filter *.sql -Recurse | Sort-Object Name
@@ -51,6 +53,7 @@ foreach ($file in $migrationFiles) {
 **核心思路**：维护一个迁移注册表文件
 
 **实现**：
+
 ```yaml
 # migrations/registry.yaml
 migrations:
@@ -58,7 +61,7 @@ migrations:
     category: scheduling
     executed: true
     timestamp: 2026-03-27T10:00:00Z
-    
+
   - file: 002_add_customs_broker.sql
     category: system
     executed: false
@@ -67,6 +70,7 @@ migrations:
 ### 方案三：混合方案（最佳实践）
 
 结合方案一和方案二的优点：
+
 - 自动发现新脚本
 - 记录执行历史
 - 支持增量迁移
@@ -129,6 +133,7 @@ npm run db:check-integrity
    - 执行失败 → 立即回滚
 
 2. **完整测试**
+
    ```sql
    -- 迁移脚本必须包含测试
    /**
@@ -150,6 +155,7 @@ npm run db:check-integrity
 **在迁移管理中体现**：
 
 1. **30 秒定位**
+
    ```
    migrations/
    ├── 001-050_基础迁移/
@@ -158,10 +164,11 @@ npm run db:check-integrity
    ```
 
 2. **自动文档生成**
+
    ```powershell
    # 自动生成迁移清单
    npm run db:generate-docs
-   
+
    # 输出：migrations/MANIFEST.md
    ```
 
@@ -188,13 +195,13 @@ rules:
       - has_test_cases: true
       - has_rollback: optional
       - naming_convention: "^[0-9]{3}_.*\\.sql$"
-    
+
   - name: update-documentation
     trigger: after_migration_created
     actions:
       - update_file: migrations/README.md
       - update_file: frontend/public/docs/03-database/01-表结构.md
-      - commit_message: "docs: 更新迁移文档 [auto]"
+      - commit_message: 'docs: 更新迁移文档 [auto]'
 ```
 
 #### 规则 2：执行迁移后自动验证
@@ -215,7 +222,7 @@ rules:
 ```yaml
 rules:
   - name: monthly-review
-    schedule: "0 0 1 * *"  # 每月 1 号
+    schedule: '0 0 1 * *' # 每月 1 号
     actions:
       - scan_untracked_migrations
       - check_documentation_sync
@@ -230,7 +237,7 @@ rules:
 ### 每次创建迁移时
 
 - [ ] **命名规范**
-  - [ ] 使用编号前缀（001_, 002_, ...）
+  - [ ] 使用编号前缀（001*, 002*, ...）
   - [ ] 使用下划线分隔
   - [ ] 全小写字母
 

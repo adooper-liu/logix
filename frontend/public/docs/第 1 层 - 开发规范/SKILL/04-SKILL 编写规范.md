@@ -3,7 +3,7 @@
 **版本**: v1.0  
 **创建时间**: 2026-03-31  
 **最后更新**: 2026-03-31  
-**作者**: 刘志高  
+**作者**: 刘志高
 
 ---
 
@@ -67,7 +67,7 @@
 **版本**: v1.0  
 **创建时间**: YYYY-MM-DD  
 **最后更新**: YYYY-MM-DD  
-**作者**: 姓名  
+**作者**: 姓名
 
 ## 业务场景
 
@@ -120,6 +120,7 @@
 ### 1. 标题
 
 **要求**:
+
 - 简洁明了
 - 体现核心价值
 - 包含 SKILL 编号
@@ -136,6 +137,7 @@
 ### 2. 业务场景
 
 **要求**:
+
 - 描述真实业务问题
 - 说明为什么需要这个功能
 - 包含具体场景示例
@@ -157,6 +159,7 @@
 ### 3. 核心规则
 
 **要求**:
+
 - 使用表格归纳
 - 条理清晰
 - 优先级明确
@@ -166,16 +169,17 @@
 ```markdown
 ## 核心规则
 
-| 节点类型 | 显示内容 | 计算逻辑 | 优先级 |
-|---------|---------|---------|--------|
-| 实际节点 | 历时天数 | today - actual_time | 1 |
-| 预测节点 | 倒计时天数 | estimated_time - today | 2 |
-| 超期节点 | 超期天数 | today - last_free_date | 3 |
+| 节点类型 | 显示内容   | 计算逻辑               | 优先级 |
+| -------- | ---------- | ---------------------- | ------ |
+| 实际节点 | 历时天数   | today - actual_time    | 1      |
+| 预测节点 | 倒计时天数 | estimated_time - today | 2      |
+| 超期节点 | 超期天数   | today - last_free_date | 3      |
 ```
 
 ### 4. 代码实现
 
 **要求**:
+
 - 完整可运行
 - 包含必要注释
 - 有错误处理
@@ -185,45 +189,43 @@
 ```typescript
 /**
  * 计算时间线节点的显示信息
- * 
+ *
  * @param node - 时间线节点
  * @param referenceDate - 参考日期（通常为今天）
  * @returns 显示信息对象
  */
-function calculateNodeDisplay(
-  node: TimelineNode, 
-  referenceDate: Date
-): NodeDisplayInfo {
+function calculateNodeDisplay(node: TimelineNode, referenceDate: Date): NodeDisplayInfo {
   // 1. 优先显示实际发生时间
   if (node.actualTime) {
     return {
       type: 'actual',
       days: calculateDays(node.actualTime, referenceDate),
       label: `${calculateDays(node.actualTime, referenceDate)}天`,
-    };
+    }
   }
-  
+
   // 2. 其次显示预计时间
   if (node.estimatedTime) {
     return {
       type: 'estimated',
       days: calculateDays(referenceDate, node.estimatedTime),
       label: `预计${formatDate(node.estimatedTime)}`,
-    };
+    }
   }
-  
+
   // 3. 无时间信息
   return {
     type: 'unknown',
     days: null,
     label: '待定',
-  };
+  }
 }
 ```
 
 ### 5. 显示效果
 
 **要求**:
+
 - 文字描述清晰
 - 可用截图辅助
 - 说明交互逻辑
@@ -253,13 +255,14 @@ function calculateNodeDisplay(
 ### 6. 常见错误
 
 **要求**:
+
 - 列举真实错误
 - 说明错误原因
 - 给出正确做法
 
 **示例**:
 
-```markdown
+````markdown
 ## 常见错误
 
 ### 错误 1: 同时显示历时和倒计时
@@ -267,9 +270,10 @@ function calculateNodeDisplay(
 ```typescript
 // 错误：逻辑混乱
 if (node.actualTime && node.estimatedTime) {
-  display = `${actualDays}天 (历时) / ${countdownDays}天 (倒计时)`;
+  display = `${actualDays}天 (历时) / ${countdownDays}天 (倒计时)`
 }
 ```
+````
 
 **问题**: 用户无法理解一个节点为什么有两个时间。
 
@@ -279,13 +283,14 @@ if (node.actualTime && node.estimatedTime) {
 
 ```typescript
 // 错误：直接使用 Date
-const days = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+const days = Math.floor((now - date) / (1000 * 60 * 60 * 24))
 ```
 
 **问题**: 跨时区时计算错误。
 
 **正确**: 统一使用 UTC 或指定时区。
-```
+
+````
 
 ---
 
@@ -301,21 +306,26 @@ const days = Math.floor((now - date) / (1000 * 60 * 60 * 24));
    ```markdown
    正确：步骤 1 -> 步骤 2 -> 步骤 3
    错误：步骤 1 → 步骤 2 → 步骤 3
-   ```
+````
 
 3. **状态标记用文字**
    ```markdown
-   正确：OK 通过：6  FAIL 失败：0
-   错误：✅ 通过：6  ❌ 失败：0
+   正确：OK 通过：6 FAIL 失败：0
+   错误：✅ 通过：6 ❌ 失败：0
    ```
 
 ### 代码块
 
 1. **必须标注语言**
-   ```markdown
+
+   ````markdown
    ```typescript
    // 代码内容
    ```
+   ````
+
+   ```
+
    ```
 
 2. **添加必要注释**
@@ -333,10 +343,10 @@ const days = Math.floor((now - date) / (1000 * 60 * 60 * 24));
 3. **内容简洁**
 
 ```markdown
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| id | string | 是 | 唯一标识 |
-| name | string | 是 | 名称 |
+| 字段 | 类型   | 必填 | 说明     |
+| ---- | ------ | ---- | -------- |
+| id   | string | 是   | 唯一标识 |
+| name | string | 是   | 名称     |
 ```
 
 ---

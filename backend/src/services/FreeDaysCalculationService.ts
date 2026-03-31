@@ -1,17 +1,17 @@
 /**
  * 免费天数计算服务
  * Free Days Calculation Service
- * 
+ *
  * 职责：计算提柜和还箱的免费天数
  * - 委托给 DemurrageService 计算
  * - 提取 MIN(滞港，堆存，D&D) 作为提柜免费天数
  * - 提取 D&D 或 滞箱 作为还箱免费天数
- * 
+ *
  * @since 2026-03-30 (从 IntelligentSchedulingService 拆分)
  */
 
-import { DemurrageService } from './demurrage.service';
 import { logger } from '../utils/logger';
+import { DemurrageService } from './demurrage.service';
 
 /**
  * 免费天数计算结果接口
@@ -28,29 +28,35 @@ export class FreeDaysCalculationService {
     // 注意：DemurrageService 需要多个 Repository，这里简化处理
     // 实际使用时应该通过依赖注入获取
     this.demurrageService = new DemurrageService(
-      null as any, null as any, null as any, null as any,
-      null as any, null as any, null as any, null as any
+      null as any,
+      null as any,
+      null as any,
+      null as any,
+      null as any,
+      null as any,
+      null as any,
+      null as any
     );
   }
 
   /**
    * 计算免费天数
-   * 
+   *
    * **业务规则**:
    * 1. 提柜免费天数 = MIN(滞港，堆存，D&D)
    * 2. 还箱免费天数 = D&D 或 滞箱
    * 3. 支持组合费用类型（D&D）
-   * 
+   *
    * **算法复杂度**: O(n)，n=DemurrageService 计算时间
-   * 
+   *
    * @param containerNumber 柜号
    * @returns 免费天数结果
-   * 
+   *
    * @example
    * // 示例 1：完整数据
    * const result = await calculateFreeDays('CNTR001');
    * // 返回：{ pickupFreeDays: 5, returnFreeDays: 7 }
-   * 
+   *
    * @example
    * // 示例 2：只有 D&D
    * const result = await calculateFreeDays('CNTR001');
@@ -60,7 +66,7 @@ export class FreeDaysCalculationService {
     try {
       // 1. 使用 DemurrageService 计算
       const result = await this.demurrageService.calculateForContainer(containerNumber);
-      
+
       if (!result?.result?.matchedStandards) {
         logger.warn(`[FreeDaysCalculation] No standards found for ${containerNumber}`);
         return {};
@@ -97,16 +103,16 @@ export class FreeDaysCalculationService {
 
   /**
    * 批量计算免费天数
-   * 
+   *
    * **业务场景**:
    * - 批量排产前预计算
    * - 避免重复查询数据库
-   * 
+   *
    * **算法复杂度**: O(n * m)，n=柜号数量，m=单次计算时间
-   * 
+   *
    * @param containerDataList 柜号数据列表
    * @returns 柜号到免费天数的映射
-   * 
+   *
    * @example
    * // 示例：批量计算
    * const results = await batchCalculateFreeDays([
@@ -135,7 +141,7 @@ export class FreeDaysCalculationService {
    * 根据费用类型分类
    */
   private classifyByChargeType(standards: any[]): Record<string, any[]> {
-    const result: Record<string, any[]> = {}
+    const result: Record<string, any[]> = {};
     const isCombined = (std: any) => {
       const code = (std.chargeTypeCode ?? '').toUpperCase();
       const name = (std.chargeName ?? '').toLowerCase();
@@ -197,7 +203,9 @@ export class FreeDaysCalculationService {
 
     // 过滤掉 undefined
     return Object.fromEntries(
-      Object.entries(freeDaysResult).filter(([_, value]) => value !== undefined) as Array<[string, number]>
+      Object.entries(freeDaysResult).filter(([_, value]) => value !== undefined) as Array<
+        [string, number]
+      >
     );
   }
 

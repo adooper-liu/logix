@@ -30,33 +30,36 @@
 **强制要求**：
 
 1. **文档文件使用中文命名**
-   ```
-   正确：SKILL-001-时间线标签显示规则.md
-   正确：01-状态机.md
-   错误：SKILL-001-timeline-label-rules.md（英文）
-   错误：01-status-machine.md（英文）
-   ```
+```
+
+正确：SKILL-001-时间线标签显示规则.md
+正确：01-状态机.md
+错误：SKILL-001-timeline-label-rules.md（英文）
+错误：01-status-machine.md（英文）
+
+````
 
 2. **组件文件使用 PascalCase.vue**
-   ```typescript
-   // 组件：PascalCase.vue
-   ContainerDetails.vue
-   ContainerList.vue
-   SimpleGanttChart.vue
-   
-   // 组合式函数：use + PascalCase
-   useContainerData.ts
-   useContainerStats.ts
-   
-   // 服务类：PascalCase + Service/Repository
-   ContainerService.ts
-   ContainerRepository.ts
-   
-   // 工具函数：camelCase + 功能描述
-   dateFormatter.ts
-   statusCalculator.ts
-   ```
-```
+```typescript
+// 组件：PascalCase.vue
+ContainerDetails.vue
+ContainerList.vue
+SimpleGanttChart.vue
+
+// 组合式函数：use + PascalCase
+useContainerData.ts
+useContainerStats.ts
+
+// 服务类：PascalCase + Service/Repository
+ContainerService.ts
+ContainerRepository.ts
+
+// 工具函数：camelCase + 功能描述
+dateFormatter.ts
+statusCalculator.ts
+````
+
+````
 
 **作用**: 在 SKILL 核心原则层面明确中文命名的强制要求。
 
@@ -89,24 +92,28 @@
    - SKILL-001 ~ SKILL-999
    - 按创建顺序编号
    - 编号唯一且连续
-```
+````
 
 #### 标题章节更新
 
-```markdown
+````markdown
 **要求**:
+
 - 简洁明了
 - 体现核心价值
 - 包含 SKILL 编号
-- **使用中文主题**  ← 新增
+- **使用中文主题** ← 新增
 
 **示例**:
+
 ```markdown
 正确：SKILL-001-时间线标签显示规则
 错误：关于时间线的一些显示规则说明
-错误：SKILL-001-timeline-label-rules（英文）  ← 新增
+错误：SKILL-001-timeline-label-rules（英文） ← 新增
 ```
-```
+````
+
+````
 
 #### 创建流程更新
 
@@ -118,16 +125,17 @@
 # 提取核心关键词
 # 确定 SKILL 编号
 # 使用中文命名主题  ← 新增
-```
+````
 
-### Step 2: 命名文件  ← 新增步骤
+### Step 2: 命名文件 ← 新增步骤
 
 ```bash
 # 格式：SKILL-{编号}-{中文主题}.md
 # 示例：SKILL-001-时间线标签显示规则.md
 # 禁止：SKILL-001-timeline.md（英文）
 ```
-```
+
+````
 
 ---
 
@@ -141,11 +149,11 @@ checks:
   - filename_is_chinese: true
   - no_english_filename: true
   - follows_skill_naming_pattern: true
-  
+
 validation:
   pattern: 'SKILL-\\d{3}-[\\u4e00-\\u9fa5]+\\.md'
   action: reject_and_warn
-```
+````
 
 ### 规则 2：命名质量验证
 
@@ -155,7 +163,7 @@ after_creating_document:
     - has_chinese_characters: true
     - no_english_words: true
     - follows_skill_format: true
-    
+
   if_failed:
     - auto_fix: true
     - warn_user: true
@@ -165,12 +173,11 @@ after_creating_document:
 ### 规则 3：优先级顺序
 
 ```yaml
-priority_order:
-  1. 中文命名（最高优先级）
+priority_order: 1. 中文命名（最高优先级）
   2. SKILL 格式
   3. 简洁明了
   4. 准确反映内容
-  
+
 conflict_resolution:
   - if_english_vs_chinese: choose_chinese
   - if_long_vs_short: choose_short
@@ -233,20 +240,20 @@ conflict_resolution:
 
 ### 文档类型
 
-| 文档类型 | 命名规范 | 示例 |
-|---------|---------|------|
+| 文档类型       | 命名规范                     | 示例                              |
+| -------------- | ---------------------------- | --------------------------------- |
 | **SKILL 文档** | `SKILL-{编号}-{中文主题}.md` | `SKILL-001-时间线标签显示规则.md` |
-| **业务文档** | `{编号}-{中文主题}.md` | `01-状态机.md` |
-| **临时报告** | `{中文主题}.md` | `文档整理完成报告.md` |
-| **归档文档** | `{中文主题}.md` | `业务文档中文命名完成报告.md` |
+| **业务文档**   | `{编号}-{中文主题}.md`       | `01-状态机.md`                    |
+| **临时报告**   | `{中文主题}.md`              | `文档整理完成报告.md`             |
+| **归档文档**   | `{中文主题}.md`              | `业务文档中文命名完成报告.md`     |
 
 ### 文件位置
 
-| 目录 | 命名规范 | 示例 |
-|------|---------|------|
-| `第 1 层 - 开发规范/SKILL/` | SKILL 格式 + 中文 | `SKILL-001-时间线标签显示规则.md` |
-| `第 2 层 - 业务逻辑/` | 编号 + 中文 | `01-状态机.md` |
-| `第 1 层 - 开发规范/SKILL/reports/` | 中文主题 | `文档整理报告.md` |
+| 目录                                | 命名规范          | 示例                              |
+| ----------------------------------- | ----------------- | --------------------------------- |
+| `第 1 层 - 开发规范/SKILL/`         | SKILL 格式 + 中文 | `SKILL-001-时间线标签显示规则.md` |
+| `第 2 层 - 业务逻辑/`               | 编号 + 中文       | `01-状态机.md`                    |
+| `第 1 层 - 开发规范/SKILL/reports/` | 中文主题          | `文档整理报告.md`                 |
 
 ---
 
@@ -256,6 +263,7 @@ conflict_resolution:
 
 ```markdown
 错误示例：
+
 - SKILL-001-timeline-label-rules.md
 - demurrage-calculation.md
 - document-cleanup-report.md
@@ -266,6 +274,7 @@ conflict_resolution:
 
 ```markdown
 错误示例：
+
 - SKILL-001-shijianxian-biaoqian-guize.md
 - zhuanggfei-jisuan.md
 ```
@@ -274,6 +283,7 @@ conflict_resolution:
 
 ```markdown
 错误示例：
+
 - SKILL-001-时间线 label 规则.md
 - 滞港费 calculation 逻辑.md
 ```
@@ -291,7 +301,7 @@ pre_creation_check:
   - read_skill_principles: true
   - read_skill_writing_standards: true
   - validate_filename_chinese: true
-  
+
 if_violation:
   - reject_creation: true
   - suggest_chinese_name: true
@@ -360,12 +370,12 @@ auto_fix:
 
 ### 🎯 **效果保证**
 
-| 保证 | 说明 |
-|------|------|
+| 保证         | 说明                          |
+| ------------ | ----------------------------- |
 | **规范明确** | SKILL 原则 + 编写规范双重约束 |
-| **示例清晰** | 正确 vs 错误对比明显 |
-| **强制检查** | 智能体自动验证文件名 |
-| **自动修正** | 发现错误立即建议改正 |
+| **示例清晰** | 正确 vs 错误对比明显          |
+| **强制检查** | 智能体自动验证文件名          |
+| **自动修正** | 发现错误立即建议改正          |
 
 ### 📊 **预期结果**
 
