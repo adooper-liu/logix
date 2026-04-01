@@ -444,6 +444,39 @@
         </div>
       </div>
 
+      <!-- 候选供应商区（基于映射关系） -->
+      <div v-if="tooltipContainer?.availableTruckingCompanies?.length || tooltipContainer?.availableWarehouses?.length" class="tooltip-section candidate-section">
+        <div class="tooltip-section-title">可用供应商（基于映射）</div>
+        <!-- 候选车队 -->
+        <div v-if="tooltipContainer?.availableTruckingCompanies?.length" class="candidate-group">
+          <div class="candidate-label">可用车队：</div>
+          <div class="candidate-items">
+            <span
+              v-for="(truck, idx) in tooltipContainer.availableTruckingCompanies"
+              :key="truck.truckingCompanyId"
+              class="candidate-tag"
+              :class="{ 'is-default': truck.isDefault, 'is-current': getTruckingCompanyName(tooltipContainer) === truck.truckingCompanyName }"
+            >
+              {{ truck.truckingCompanyName }}{{ truck.isDefault ? ' ⭐' : '' }}
+            </span>
+          </div>
+        </div>
+        <!-- 候选仓库 -->
+        <div v-if="tooltipContainer?.availableWarehouses?.length" class="candidate-group">
+          <div class="candidate-label">可用仓库：</div>
+          <div class="candidate-items">
+            <span
+              v-for="(wh, idx) in tooltipContainer.availableWarehouses"
+              :key="wh.warehouseCode"
+              class="candidate-tag"
+              :class="{ 'is-default': wh.isDefault, 'is-current': getWarehouseName(tooltipContainer) === wh.warehouseName }"
+            >
+              {{ wh.warehouseName }}{{ wh.isDefault ? ' ⭐' : '' }}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <!-- 预警信息 -->
       <div v-if="tooltipContainer && hasAlert(tooltipContainer)" class="tooltip-alerts">
         <div
@@ -2705,6 +2738,54 @@ export default {
 .alert-item.danger {
   background-color: #fef0f0;
   color: #f56c6c;
+}
+
+/* 候选供应商区域 */
+.candidate-section {
+  background-color: #f5f7fa;
+}
+
+.candidate-group {
+  margin-bottom: 8px;
+}
+
+.candidate-group:last-child {
+  margin-bottom: 0;
+}
+
+.candidate-label {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 4px;
+}
+
+.candidate-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.candidate-tag {
+  display: inline-block;
+  padding: 2px 8px;
+  background-color: #e4e7ed;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #606266;
+  white-space: nowrap;
+}
+
+.candidate-tag.is-default {
+  background-color: #e6f7e6;
+  color: #67c23a;
+  font-weight: 500;
+}
+
+.candidate-tag.is-current {
+  background-color: #ecf5ff;
+  color: #409eff;
+  font-weight: 500;
+  border: 1px solid #409eff;
 }
 
 /* 拖拽时仅高亮鼠标指向的单个单元格 */

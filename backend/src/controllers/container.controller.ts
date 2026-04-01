@@ -89,7 +89,9 @@ export class ContainerController {
       warehouseRepository,
       AppDataSource.getRepository(Port),
       countryRepository,
-      AppDataSource.getRepository(ExtDemurrageRecord)
+      AppDataSource.getRepository(ExtDemurrageRecord),
+      truckingPortMappingRepository,
+      warehouseTruckingMappingRepository
     );
 
     this.containerDataService = new ContainerDataService(

@@ -16,6 +16,9 @@ export class CustomsBroker {
   @Column({ type: 'varchar', length: 200, nullable: true, name: 'broker_name_en' })
   brokerNameEn?: string;
 
+  @Column({ type: 'varchar', length: 50, default: 'ACTIVE', name: 'status' })
+  status: string;
+
   @Column({ type: 'varchar', length: 100, nullable: true, name: 'country' })
   country?: string;
 

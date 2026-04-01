@@ -19,9 +19,11 @@ import { PortOperation } from '../entities/PortOperation';
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { SeaFreight } from '../entities/SeaFreight';
 import { TruckingCompany } from '../entities/TruckingCompany';
+import { TruckingPortMapping } from '../entities/TruckingPortMapping';
 import { TruckingTransport } from '../entities/TruckingTransport';
 import { Warehouse } from '../entities/Warehouse';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
+import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { buildGanttDerived } from '../utils/ganttDerivedBuilder';
 import { logger } from '../utils/logger';
 import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
@@ -56,7 +58,10 @@ export class ContainerService {
     private warehouseRepository: Repository<Warehouse>,
     private portRepository: Repository<Port>,
     private countryRepository: Repository<Country>,
-    private demurrageRecordRepository: Repository<ExtDemurrageRecord>
+    private demurrageRecordRepository: Repository<ExtDemurrageRecord>,
+    // 映射表
+    private truckingPortMappingRepository: Repository<TruckingPortMapping>,
+    private warehouseTruckingMappingRepository: Repository<WarehouseTruckingMapping>
   ) {}
 
   /**
@@ -100,6 +105,43 @@ export class ContainerService {
       this.batchFetchCostBreakdown(containerNumbers)
     ]);
 
+    // 收集目的港和国家用于查询映射表
+    const portCodesSet = new Set<string>();
+    const countriesSet = new Set<string>();
+    containers.forEach((container) => {
+      const destPort = portOperationsMap.get(container.containerNumber)?.find(
+        (op) => op.portType === 'destination'
+      );
+      if (destPort?.portCode) portCodesSet.add(destPort.portCode);
+      const order = ordersMap.get(container.containerNumber);
+      if (order?.sellToCountry) countriesSet.add(order.sellToCountry);
+    });
+
+    // 调试日志：查看收集到的目的港和国家
+    logger.info('[enrichContainersList] 收集的 portCodes:', Array.from(portCodesSet));
+    logger.info('[enrichContainersList] 收集的 countries:', Array.from(countriesSet));
+
+    // 批量查询候选车队（先查车队）
+    const truckingByPortMap = await this.batchFetchCandidateTruckingByPort(
+      Array.from(portCodesSet),
+      Array.from(countriesSet)
+    );
+
+    // 调试日志：查看查询到的车队映射
+    logger.info('[enrichContainersList] 查询到的 truckingByPortMap keys:', Array.from(truckingByPortMap.keys()));
+
+    // 收集所有候选车队ID
+    const truckingIdsSet = new Set<string>();
+    truckingByPortMap.forEach((truckings) => {
+      truckings.forEach((t) => truckingIdsSet.add(t.truckingCompanyId));
+    });
+
+    // 批量查询候选仓库（根据车队）
+    const warehousesByTruckingMap = await this.batchFetchCandidateWarehousesByTrucking(
+      Array.from(truckingIdsSet),
+      Array.from(countriesSet)
+    );
+
     const enrichedContainers = containers.map((container) => {
       try {
         const containerNumber = container.containerNumber;
@@ -108,6 +150,7 @@ export class ContainerService {
         const orderInfo = ordersMap.get(containerNumber);
         const latestEvent = eventsMap.get(containerNumber);
         const portOperations = portOperationsMap.get(containerNumber) || [];
+        const destPortOp = portOperations.find((op) => op.portType === 'destination');
         const destinationPortCode = container.seaFreight?.portOfDischarge || null;
         const destinationPortName = destinationPortCode
           ? portNameMap.get(destinationPortCode) || destinationPortCode
@@ -139,7 +182,6 @@ export class ContainerService {
         );
 
         // 获取供应商名称（从字典表）
-        const destPortOp = portOperations.find((op) => op.portType === 'destination');
         const customsBrokerCode =
           destPortOp?.customsBrokerCode || latestPortOperation?.customsBrokerCode;
         const truckingCompanyId = truckingTransport?.truckingCompanyId;
@@ -208,6 +250,39 @@ export class ContainerService {
           warehouseName: getWarehouseName(),
           returnTerminalName: getReturnTerminalName()
         };
+
+        // 获取候选供应商（基于映射关系，用于甘特图显示可用选项）
+        const destPortCode = destPortOp?.portCode || destinationPortCode;
+        const mappingKey = destPortCode && sellToCountry ? `${destPortCode}:${sellToCountry}` : null;
+
+        // 调试日志：单个货柜的映射情况
+        logger.info(`[enrichContainersList] ${containerNumber}: destPortOp.portCode=${destPortOp?.portCode}, destPortCode=${destPortCode}, sellToCountry=${sellToCountry}, mappingKey=${mappingKey}`);
+
+        // 候选车队列表（从映射表获取）
+        const availableTruckingCompanies = mappingKey
+          ? truckingByPortMap.get(mappingKey) || []
+          : [];
+
+        // 候选仓库列表（根据候选车队获取）
+        const availableWarehouses: Array<{ warehouseCode: string; warehouseName: string; truckingCompanyId: string; isDefault: boolean }> = [];
+        if (mappingKey) {
+          const truckingList = truckingByPortMap.get(mappingKey) || [];
+          const truckingIds = truckingList.map((t) => t.truckingCompanyId);
+          const truckingCountryKey = (id: string) => `${id}:${sellToCountry}`;
+          truckingIds.forEach((id) => {
+            const warehouseList = warehousesByTruckingMap.get(truckingCountryKey(id)) || [];
+            warehouseList.forEach((wh) => {
+              if (!availableWarehouses.find((w) => w.warehouseCode === wh.warehouseCode)) {
+                availableWarehouses.push(wh);
+              }
+            });
+          });
+          // 按 isDefault 排序
+          availableWarehouses.sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0));
+        }
+
+        // 调试日志：候选供应商数量
+        logger.info(`[enrichContainersList] ${containerNumber}: availableTrucking=${availableTruckingCompanies.length}, availableWarehouses=${availableWarehouses.length}`);
 
         // 获取预警信息
         const alerts = alertsMap.get(containerNumber) || [];
@@ -281,6 +356,9 @@ export class ContainerService {
           returnTime: this.toUtcDateString(emptyReturn?.returnTime || null),
           // 供应商名称（用于甘特图三级展示）
           supplierNames,
+          // 候选供应商（基于映射关系，用于甘特图显示可用选项）
+          availableTruckingCompanies,
+          availableWarehouses,
           // 关联数据（用于前端过滤与甘特图三级分组）
           portOperations,
           truckingTransports: truckingTransport ? [truckingTransport] : [],
@@ -1223,6 +1301,87 @@ export class ContainerService {
   }
 
   /**
+   * 批量查询候选车队（根据目的港和国家）
+   * 用于甘特图显示可用的车队选项
+   */
+  private async batchFetchCandidateTruckingByPort(
+    portCodes: string[],
+    countries: string[]
+  ): Promise<Map<string, Array<{ truckingCompanyId: string; truckingCompanyName: string; isDefault: boolean }>>> {
+    try {
+      if (portCodes.length === 0 || countries.length === 0) return new Map();
+      const mappings = await this.truckingPortMappingRepository.find({
+        where: {
+          portCode: In(portCodes),
+          country: In(countries),
+          isActive: true
+        }
+      });
+      const result = new Map<string, Array<{ truckingCompanyId: string; truckingCompanyName: string; isDefault: boolean }>>();
+      mappings.forEach((m) => {
+        const key = `${m.portCode}:${m.country}`;
+        if (!result.has(key)) {
+          result.set(key, []);
+        }
+        result.get(key)!.push({
+          truckingCompanyId: m.truckingCompanyId,
+          truckingCompanyName: m.truckingCompanyName || m.truckingCompanyId,
+          isDefault: m.isDefault
+        });
+      });
+      // 每个组合内按 isDefault 排序
+      result.forEach((items, key) => {
+        result.set(key, items.sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0)));
+      });
+      return result;
+    } catch (error) {
+      logger.warn('[batchFetchCandidateTruckingByPort] Failed:', error);
+      return new Map();
+    }
+  }
+
+  /**
+   * 批量查询候选仓库（根据车队列表和国家）
+   * 用于甘特图显示可用的仓库选项
+   */
+  private async batchFetchCandidateWarehousesByTrucking(
+    truckingCompanyIds: string[],
+    countries: string[]
+  ): Promise<Map<string, Array<{ warehouseCode: string; warehouseName: string; truckingCompanyId: string; isDefault: boolean }>>> {
+    try {
+      if (truckingCompanyIds.length === 0 || countries.length === 0) return new Map();
+      const mappings = await this.warehouseTruckingMappingRepository.find({
+        where: {
+          truckingCompanyId: In(truckingCompanyIds),
+          country: In(countries),
+          isActive: true
+        }
+      });
+      const result = new Map<string, Array<{ warehouseCode: string; warehouseName: string; truckingCompanyId: string; isDefault: boolean }>>();
+      mappings.forEach((m) => {
+        const key = `${m.truckingCompanyId}:${m.country}`;
+        if (!result.has(key)) {
+          result.set(key, []);
+        }
+        result.get(key)!.push({
+          warehouseCode: m.warehouseCode,
+          warehouseName: m.warehouseName || m.warehouseCode,
+          truckingCompanyId: m.truckingCompanyId,
+          isDefault: m.isDefault
+        });
+      });
+      // 每个组合内按 isDefault 排序
+      result.forEach((items, key) => {
+        result.set(key, items.sort((a, b) => (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0)));
+      });
+      return result;
+    } catch (error) {
+      logger.warn('[batchFetchCandidateWarehousesByTrucking] Failed:', error);
+      return new Map();
+    }
+  }
+
+  /**
    * 批量查询预警信息
    */
   private async batchFetchAlerts(
@@ -1407,7 +1566,9 @@ export function createContainerService(): ContainerService {
     AppDataSource.getRepository(Warehouse),
     AppDataSource.getRepository(Port),
     AppDataSource.getRepository(Country),
-    AppDataSource.getRepository(ExtDemurrageRecord)
+    AppDataSource.getRepository(ExtDemurrageRecord),
+    AppDataSource.getRepository(TruckingPortMapping),
+    AppDataSource.getRepository(WarehouseTruckingMapping)
   );
 }
 

@@ -130,7 +130,20 @@ export interface Container {
     customsBrokerName: string | null
     truckingCompanyName: string | null
     warehouseName: string | null
+    returnTerminalName?: string | null
   }
+  // 候选供应商（基于映射关系，用于甘特图显示可用选项）
+  availableTruckingCompanies?: Array<{
+    truckingCompanyId: string
+    truckingCompanyName: string
+    isDefault: boolean
+  }>
+  availableWarehouses?: Array<{
+    warehouseCode: string
+    warehouseName: string
+    truckingCompanyId: string
+    isDefault: boolean
+  }>
 }
 
 export interface ContainerFilters {
