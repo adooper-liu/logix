@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { useColors } from '@/composables/useColors'
 import { demurrageService } from '@/services/demurrage'
+import { formatCurrency } from '@/utils/currency'
 import { SimplifiedStatusText } from '@/utils/logisticsStatusMachine'
 import { ArrowUp, DArrowRight } from '@element-plus/icons-vue'
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { formatCurrency } from '@/utils/currency'
 
 const colors = useColors()
 const router = useRouter()

@@ -10,12 +10,12 @@ import DemurrageSummarySection from '@/components/demurrage/DemurrageSummarySect
 import SankeyChart from '@/components/SankeyChart.vue'
 import { containerService } from '@/services/container'
 import { demurrageService } from '@/services/demurrage'
+import { formatCurrency } from '@/utils/currency'
 import { Clock, Money, Refresh, TrendCharts } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { formatCurrency } from '@/utils/currency'
 
 const router = useRouter()
 const loading = ref(false)

@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
-import { ArrowLeft } from '@element-plus/icons-vue'
 import { demurrageService } from '@/services/demurrage'
-import { SimplifiedStatusText } from '@/utils/logisticsStatusMachine'
-import dayjs from 'dayjs'
 import { formatCurrency } from '@/utils/currency'
+import { SimplifiedStatusText } from '@/utils/logisticsStatusMachine'
+import { ArrowLeft } from '@element-plus/icons-vue'
+import dayjs from 'dayjs'
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const statusTextMap: Record<string, string> = {
   arrived_at_transit: '已到中转港',
