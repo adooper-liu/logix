@@ -13,6 +13,7 @@ import {
 } from '../config/scheduling.config';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
+import { Country } from '../entities/Country';
 import { Customer } from '../entities/Customer';
 import { CustomsBroker } from '../entities/CustomsBroker';
 import { DictSchedulingConfig } from '../entities/DictSchedulingConfig';
@@ -160,6 +161,7 @@ export class IntelligentSchedulingService {
     AppDataSource.getRepository(TruckingTransport),
     AppDataSource.getRepository(EmptyReturn),
     AppDataSource.getRepository(ReplenishmentOrder),
+    AppDataSource.getRepository(Country),
     AppDataSource.getRepository(ExtDemurrageRecord)
   );
 
@@ -598,7 +600,7 @@ export class IntelligentSchedulingService {
         );
       } else if (typeof clearanceDate === 'string') {
         // 如果是字符串，添加时间部分并解析
-        plannedCustomsDate = new Date(clearanceDate + 'T00:00:00');
+        plannedCustomsDate = new Date(`${clearanceDate}T00:00:00`);
         logger.debug(`[IntelligentScheduling] ETA/ATA is string for ${container.containerNumber}`);
       } else {
         logger.error(
@@ -667,35 +669,27 @@ export class IntelligentSchedulingService {
       // 业务场景：英国货柜的 ETA 是英国本地日期，应该用英国日期判断，而不是服务器所在时区
       const today = new Date();
       // ✅ 使用 UTC 日期字符串，忽略时区差异（只比较日期部分）
-      const todayStr =
-        today.getUTCFullYear() +
-        '-' +
-        String(today.getUTCMonth() + 1).padStart(2, '0') +
-        '-' +
-        String(today.getUTCDate()).padStart(2, '0'); // "2026-03-26"
+      const todayStr = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(
+        2,
+        '0'
+      )}-${String(today.getUTCDate()).padStart(2, '0')}`; // "2026-03-26"
 
-      const pickupDateStr =
-        plannedPickupDate.getUTCFullYear() +
-        '-' +
-        String(plannedPickupDate.getUTCMonth() + 1).padStart(2, '0') +
-        '-' +
-        String(plannedPickupDate.getUTCDate()).padStart(2, '0'); // "2026-03-26"
+      const pickupDateStr = `${plannedPickupDate.getUTCFullYear()}-${String(
+        plannedPickupDate.getUTCMonth() + 1
+      ).padStart(2, '0')}-${String(plannedPickupDate.getUTCDate()).padStart(2, '0')}`; // "2026-03-26"
 
       if (pickupDateStr <= todayStr) {
         // 提柜日是过去日期或今天，调整为明天（UTC 日期）
-        const tomorrow = new Date(todayStr + 'T00:00:00Z'); // 强制使用 UTC 时间
+        const tomorrow = new Date(`${todayStr}T00:00:00Z`); // 强制使用 UTC 时间
         tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
         plannedPickupDate = tomorrow;
         plannedCustomsDate.setTime(plannedPickupDate.getTime());
         // ✅ 修复：使用 UTC 方法计算清关日期，避免时区问题
         plannedCustomsDate.setUTCDate(plannedCustomsDate.getUTCDate() - 1); // 保持 提=清关 +1
 
-        const tomorrowStr =
-          tomorrow.getUTCFullYear() +
-          '-' +
-          String(tomorrow.getUTCMonth() + 1).padStart(2, '0') +
-          '-' +
-          String(tomorrow.getUTCDate()).padStart(2, '0');
+        const tomorrowStr = `${tomorrow.getUTCFullYear()}-${String(
+          tomorrow.getUTCMonth() + 1
+        ).padStart(2, '0')}-${String(tomorrow.getUTCDate()).padStart(2, '0')}`;
         logger.debug(
           `[IntelligentScheduling] Pickup date adjusted from ${pickupDateStr} to tomorrow (${tomorrowStr}) for ${container.containerNumber}`
         );
@@ -770,19 +764,13 @@ export class IntelligentSchedulingService {
 
       // 验证并调整：如果无堆场但提≠卸，需要调整为 Live load
       // ✅ 使用 UTC 纯日期字符串，避免时区转换
-      const pickupDayStr =
-        plannedPickupDate.getUTCFullYear() +
-        '-' +
-        String(plannedPickupDate.getUTCMonth() + 1).padStart(2, '0') +
-        '-' +
-        String(plannedPickupDate.getUTCDate()).padStart(2, '0');
+      const pickupDayStr = `${plannedPickupDate.getUTCFullYear()}-${String(
+        plannedPickupDate.getUTCMonth() + 1
+      ).padStart(2, '0')}-${String(plannedPickupDate.getUTCDate()).padStart(2, '0')}`;
       let unloadDate = plannedUnloadDate;
-      const unloadDayStr =
-        unloadDate.getUTCFullYear() +
-        '-' +
-        String(unloadDate.getUTCMonth() + 1).padStart(2, '0') +
-        '-' +
-        String(unloadDate.getUTCDate()).padStart(2, '0');
+      const unloadDayStr = `${unloadDate.getUTCFullYear()}-${String(
+        unloadDate.getUTCMonth() + 1
+      ).padStart(2, '0')}-${String(unloadDate.getUTCDate()).padStart(2, '0')}`;
 
       // ✅ 业务规则：如果已有实际提柜日，强制计划送仓日=计划卸柜日=实际提柜日
       if (actualPickupDate) {
@@ -1114,12 +1102,10 @@ export class IntelligentSchedulingService {
       date.setUTCHours(0, 0, 0, 0); // 去除时间部分，只保留日期
 
       // 使用日期字符串查询，避免时区转换问题
-      const dateStr =
-        date.getUTCFullYear() +
-        '-' +
-        String(date.getUTCMonth() + 1).padStart(2, '0') +
-        '-' +
-        String(date.getUTCDate()).padStart(2, '0');
+      const dateStr = `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(
+        2,
+        '0'
+      )}-${String(date.getUTCDate()).padStart(2, '0')}`;
 
       // 查找或创建当日占用记录
       const occupancy = await this.warehouseOccupancyRepo.findOne({
@@ -1131,11 +1117,9 @@ export class IntelligentSchedulingService {
 
       if (!occupancy) {
         // 使用仓库默认产能
-        const warehouse = await AppDataSource.getRepository(Warehouse).findOne({
+        await AppDataSource.getRepository(Warehouse).findOne({
           where: { warehouseCode }
         });
-        const capacity =
-          warehouse?.dailyUnloadCapacity || OCCUPANCY_CONFIG.DEFAULT_WAREHOUSE_DAILY_CAPACITY;
         return date;
       }
 
@@ -1911,7 +1895,7 @@ export class IntelligentSchedulingService {
     container: Container,
     destPo: PortOperation,
     designatedWarehouseCode: string,
-    request: ScheduleRequest
+    _request: ScheduleRequest
   ): Promise<ScheduleResult> {
     try {
       logger.info(
@@ -1979,8 +1963,8 @@ export class IntelligentSchedulingService {
         };
       }
 
-      let plannedCustomsDate = new Date(clearanceDate);
-      let plannedPickupDate = await this.dateCalculator.calculatePlannedPickupDate(
+      const plannedCustomsDate = new Date(clearanceDate);
+      const plannedPickupDate = await this.dateCalculator.calculatePlannedPickupDate(
         plannedCustomsDate,
         destPo.lastFreeDate
       );
@@ -2028,7 +2012,7 @@ export class IntelligentSchedulingService {
       const unloadMode = truckingCompany.hasYard ? 'Drop off' : 'Live load';
 
       // 7. 计算送仓日
-      let plannedDeliveryDate = this.dateCalculator.calculatePlannedDeliveryDate(
+      const plannedDeliveryDate = this.dateCalculator.calculatePlannedDeliveryDate(
         plannedPickupDate,
         unloadMode,
         plannedUnloadDate
@@ -2138,6 +2122,7 @@ export class IntelligentSchedulingService {
         where: { configKey: 'batch_size_limit' }
       });
       const batchSize = parseInt(config?.configValue || '50');
+      const _options = options;
 
       // 2. 分批处理
       const batches = this.chunkArray(containerNumbers, batchSize);

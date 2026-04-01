@@ -16,16 +16,12 @@ export class SnakeNamingStrategy extends DefaultNamingStrategy implements Naming
     return customName || snakeCase(className);
   }
 
-  columnName(
-    propertyName: string,
-    customName: string,
-    embeddedPrefixes: string[]
-  ): string {
+  columnName(propertyName: string, customName: string, embeddedPrefixes: string[]): string {
     return (
       customName ||
       embeddedPrefixes
         .concat(propertyName)
-        .map(prefix => snakeCase(prefix))
+        .map((prefix) => snakeCase(prefix))
         .join('_')
     );
   }
@@ -56,7 +52,10 @@ export class SnakeNamingStrategy extends DefaultNamingStrategy implements Naming
     return snakeCase(`${tableName}_${columnName || propertyName}`);
   }
 
-  classTableInheritanceParentColumnName(parentTableName: string, parentTableNameAsDefined: string): string {
+  classTableInheritanceParentColumnName(
+    parentTableName: string,
+    parentTableNameAsDefined: string
+  ): string {
     return snakeCase(`${parentTableNameAsDefined}${parentTableNameAsDefined ? '_' : ''}id`);
   }
 }

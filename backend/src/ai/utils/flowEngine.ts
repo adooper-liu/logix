@@ -47,7 +47,7 @@ export class FlowEngine {
   async initialize(): Promise<void> {
     try {
       const flows = await this.flowDefinitionRepository.find();
-      flows.forEach(flow => {
+      flows.forEach((flow) => {
         this.flowDefinitions.set(flow.id, flow as unknown as FlowDefinitionType);
       });
       logger.info(`[FlowEngine] Loaded ${flows.length} flow definitions from database`);
@@ -75,7 +75,10 @@ export class FlowEngine {
   /**
    * 创建流程实例
    */
-  async createFlowInstance(flowId: string, variables: Record<string, any> = {}): Promise<FlowInstance> {
+  async createFlowInstance(
+    flowId: string,
+    variables: Record<string, any> = {}
+  ): Promise<FlowInstance> {
     const flow = this.flowDefinitions.get(flowId);
     if (!flow) {
       throw new Error(`Flow definition not found: ${flowId}`);
@@ -83,8 +86,11 @@ export class FlowEngine {
 
     // 初始化变量
     const initializedVariables: Record<string, any> = { ...variables };
-    flow.variables?.forEach(variable => {
-      if (initializedVariables[variable.name] === undefined && variable.defaultValue !== undefined) {
+    flow.variables?.forEach((variable) => {
+      if (
+        initializedVariables[variable.name] === undefined &&
+        variable.defaultValue !== undefined
+      ) {
         initializedVariables[variable.name] = variable.defaultValue;
       }
     });
@@ -107,7 +113,9 @@ export class FlowEngine {
     try {
       const instanceEntity = this.flowInstanceRepository.create(instance);
       await this.flowInstanceRepository.save(instanceEntity);
-      logger.info(`[FlowEngine] Flow instance created and persisted: ${instance.id} for flow ${flow.name}`);
+      logger.info(
+        `[FlowEngine] Flow instance created and persisted: ${instance.id} for flow ${flow.name}`
+      );
     } catch (error) {
       logger.error(`[FlowEngine] Failed to persist flow instance: ${error}`);
     }
@@ -136,7 +144,7 @@ export class FlowEngine {
       let currentNodeId: string | null = instance.currentNodeId;
 
       while (currentNodeId) {
-        const node = flow.nodes.find(n => n.id === currentNodeId);
+        const node = flow.nodes.find((n) => n.id === currentNodeId);
         if (!node) {
           throw new Error(`Node not found: ${currentNodeId}`);
         }
@@ -278,7 +286,10 @@ export class FlowEngine {
           break;
 
         case FlowNodeType.CONTAINER_OPERATION:
-          step.output = await this.executeContainerOperationNode(node as ContainerOperationNode, instance);
+          step.output = await this.executeContainerOperationNode(
+            node as ContainerOperationNode,
+            instance
+          );
           break;
 
         default:
@@ -316,18 +327,22 @@ export class FlowEngine {
     logger.info(`[FlowEngine] Executing AI task node: ${node.name}`);
 
     const prompt = this.replaceVariables(node.properties.prompt, instance.variables);
-    const model = node.properties.model || process.env.SILICON_FLOW_MODEL || 'deepseek-ai/DeepSeek-V2-Chat';
+    const model =
+      node.properties.model || process.env.SILICON_FLOW_MODEL || 'deepseek-ai/DeepSeek-V2-Chat';
     const temperature = node.properties.temperature || 0.7;
     const maxTokens = node.properties.maxTokens || 1000;
 
-    const response = await siliconFlowAdapter.chat([
-      { role: 'system', content: 'You are a helpful assistant' },
-      { role: 'user', content: prompt }
-    ], {
-      model,
-      temperature,
-      max_tokens: maxTokens
-    });
+    const response = await siliconFlowAdapter.chat(
+      [
+        { role: 'system', content: 'You are a helpful assistant' },
+        { role: 'user', content: prompt }
+      ],
+      {
+        model,
+        temperature,
+        max_tokens: maxTokens
+      }
+    );
 
     return { aiResponse: response };
   }
@@ -357,7 +372,10 @@ export class FlowEngine {
 
     const url = this.replaceVariables(node.properties.url, instance.variables);
     const method = node.properties.method;
-    const headers = this.replaceVariablesInObject(node.properties.headers || {}, instance.variables);
+    const headers = this.replaceVariablesInObject(
+      node.properties.headers || {},
+      instance.variables
+    );
     const body = this.replaceVariablesInObject(node.properties.body || {}, instance.variables);
 
     const response = await fetch(url, {
@@ -389,7 +407,10 @@ export class FlowEngine {
     try {
       // 使用安全的方式评估条件
       const result = this.evaluateCondition(condition, instance.variables);
-      return { decision: result, nextNode: result ? node.properties.trueNext : node.properties.falseNext };
+      return {
+        decision: result,
+        nextNode: result ? node.properties.trueNext : node.properties.falseNext
+      };
     } catch (error) {
       throw new Error(`Condition evaluation failed: ${(error as Error).message}`);
     }
@@ -409,7 +430,7 @@ export class FlowEngine {
     const branchResults = [];
 
     for (const branchNodeId of node.properties.branches) {
-      const branchNode = flow.nodes.find(n => n.id === branchNodeId);
+      const branchNode = flow.nodes.find((n) => n.id === branchNodeId);
       if (branchNode) {
         const branchStep = await this.executeNode(branchNode, instance);
         // 记录执行历史
@@ -432,7 +453,7 @@ export class FlowEngine {
       throw new Error(`Flow definition not found: ${instance.flowId}`);
     }
 
-    const loopBodyNode = flow.nodes.find(n => n.id === node.properties.body);
+    const loopBodyNode = flow.nodes.find((n) => n.id === node.properties.body);
     if (!loopBodyNode) {
       throw new Error(`Loop body node not found: ${node.properties.body}`);
     }
@@ -464,7 +485,10 @@ export class FlowEngine {
   /**
    * 执行知识库查询节点
    */
-  private async executeKnowledgeQueryNode(node: KnowledgeQueryNode, instance: FlowInstance): Promise<any> {
+  private async executeKnowledgeQueryNode(
+    node: KnowledgeQueryNode,
+    instance: FlowInstance
+  ): Promise<any> {
     logger.info(`[FlowEngine] Executing knowledge query node: ${node.name}`);
 
     const query = this.replaceVariables(node.properties.query, instance.variables);
@@ -476,12 +500,18 @@ export class FlowEngine {
   /**
    * 执行排产任务节点
    */
-  private async executeSchedulingTaskNode(node: SchedulingTaskNode, instance: FlowInstance): Promise<any> {
+  private async executeSchedulingTaskNode(
+    node: SchedulingTaskNode,
+    instance: FlowInstance
+  ): Promise<any> {
     logger.info(`[FlowEngine] Executing scheduling task node: ${node.name}`);
 
-    const country = this.replaceVariables(node.properties.country || '', instance.variables) || undefined;
-    const startDate = this.replaceVariables(node.properties.startDate || '', instance.variables) || undefined;
-    const endDate = this.replaceVariables(node.properties.endDate || '', instance.variables) || undefined;
+    const country =
+      this.replaceVariables(node.properties.country || '', instance.variables) || undefined;
+    const startDate =
+      this.replaceVariables(node.properties.startDate || '', instance.variables) || undefined;
+    const endDate =
+      this.replaceVariables(node.properties.endDate || '', instance.variables) || undefined;
 
     const scheduleResponse = await intelligentSchedulingService.batchSchedule({
       country,
@@ -496,11 +526,15 @@ export class FlowEngine {
   /**
    * 执行货柜操作节点
    */
-  private async executeContainerOperationNode(node: ContainerOperationNode, instance: FlowInstance): Promise<any> {
+  private async executeContainerOperationNode(
+    node: ContainerOperationNode,
+    instance: FlowInstance
+  ): Promise<any> {
     logger.info(`[FlowEngine] Executing container operation node: ${node.name}`);
 
     const operation = this.replaceVariables(node.properties.operation, instance.variables);
-    const containerNumber = this.replaceVariables(node.properties.containerNumber || '', instance.variables) || undefined;
+    const containerNumber =
+      this.replaceVariables(node.properties.containerNumber || '', instance.variables) || undefined;
 
     // 这里可以根据操作类型执行不同的货柜操作
     // 例如：更新状态、记录操作日志等
@@ -515,7 +549,10 @@ export class FlowEngine {
     // 对于决策节点，下一个节点由决策结果决定
     if (node.type === FlowNodeType.DECISION) {
       const decisionNode = node as DecisionNode;
-      const condition = this.replaceVariables(decisionNode.properties.condition, instance.variables);
+      const condition = this.replaceVariables(
+        decisionNode.properties.condition,
+        instance.variables
+      );
       const result = this.evaluateCondition(condition, instance.variables);
       return result ? decisionNode.properties.trueNext : decisionNode.properties.falseNext;
     }
@@ -561,7 +598,7 @@ export class FlowEngine {
     if (typeof obj === 'string') {
       return this.replaceVariables(obj, variables);
     } else if (Array.isArray(obj)) {
-      return obj.map(item => this.replaceVariablesInObject(item, variables));
+      return obj.map((item) => this.replaceVariablesInObject(item, variables));
     } else if (typeof obj === 'object' && obj !== null) {
       const result: any = {};
       for (const key in obj) {
@@ -591,7 +628,7 @@ export class FlowEngine {
         .replace(/eval|Function|Object|Array|String|Number|Boolean|Date|Math|RegExp/g, '');
 
       // 使用Function构造函数安全地评估表达式
-      const evalFn = new Function(`return ${  safeCondition}`);
+      const evalFn = new Function(`return ${safeCondition}`);
       return Boolean(evalFn());
     } catch (error) {
       throw new Error(`Invalid condition: ${condition}`);

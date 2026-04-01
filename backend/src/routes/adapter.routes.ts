@@ -41,14 +41,20 @@ router.put('/:sourceType/enabled', adapterController.setAdapterEnabled.bind(adap
  * @desc    根据集装箱号获取状态节点
  * @access  Public
  */
-router.get('/container/:containerNumber/status-events', adapterController.getContainerStatusEvents.bind(adapterController));
+router.get(
+  '/container/:containerNumber/status-events',
+  adapterController.getContainerStatusEvents.bind(adapterController)
+);
 
 /**
  * @route   POST /api/v1/adapters/container/:containerNumber/sync
  * @desc    同步集装箱数据
  * @access  Private
  */
-router.post('/container/:containerNumber/sync', adapterController.syncContainerData.bind(adapterController));
+router.post(
+  '/container/:containerNumber/sync',
+  adapterController.syncContainerData.bind(adapterController)
+);
 
 /**
  * @route   POST /api/v1/adapters/:sourceType/webhook

@@ -20,18 +20,7 @@ jest.mock('./externalDataService', () => ({
   DataSource: {}
 }));
 
-import { AppDataSource } from '../database';
-import { EmptyReturn } from '../entities/EmptyReturn';
-import { PortOperation } from '../entities/PortOperation';
-import { FeituoImportService } from './feituoImport.service';
-
-// Mock ExcelStatusInfo
-interface ExcelStatusInfo {
-  statusCode: string;
-  occurredAt: Date | null;
-  isEstimated: boolean;
-  dataSource: string;
-}
+// 实际测试代码...
 
 describe('FeituoImportService - 方案 A: 最终状态事件特殊处理', () => {
   // TODO: 需要完整的 mock 环境，当前跳过集成测试

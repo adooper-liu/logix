@@ -198,11 +198,11 @@ class DemurrageService {
   constructor() {
     this.api = axios.create({
       baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1',
-      timeout: 15000
+      timeout: 15000,
     })
 
     this.api.interceptors.request.use(
-      (config) => {
+      config => {
         const token = localStorage.getItem('token')
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
@@ -213,7 +213,7 @@ class DemurrageService {
         }
         return config
       },
-      (error) => Promise.reject(error)
+      error => Promise.reject(error)
     )
   }
 
@@ -261,9 +261,7 @@ class DemurrageService {
   /**
    * 诊断滞港费匹配失败原因
    */
-  async diagnoseMatch(
-    containerNumber: string
-  ): Promise<{
+  async diagnoseMatch(containerNumber: string): Promise<{
     success: boolean
     data?: {
       containerExists: boolean
@@ -285,9 +283,7 @@ class DemurrageService {
   /**
    * 计算单柜滞港费
    */
-  async calculateForContainer(
-    containerNumber: string
-  ): Promise<DemurrageCalculationResponse> {
+  async calculateForContainer(containerNumber: string): Promise<DemurrageCalculationResponse> {
     const response = await this.api.get(
       `/demurrage/calculate/${encodeURIComponent(containerNumber)}`
     )
@@ -297,11 +293,7 @@ class DemurrageService {
   /**
    * 滞港费汇总统计（批量计算可能较慢，超时 90 秒）
    */
-  async getSummary(params?: {
-    startDate?: string
-    endDate?: string
-    limit?: number
-  }): Promise<{
+  async getSummary(params?: { startDate?: string; endDate?: string; limit?: number }): Promise<{
     success: boolean
     data?: {
       totalAmount: number
@@ -320,7 +312,7 @@ class DemurrageService {
     if (params?.limit != null) queryParams.limit = params.limit
     const response = await this.api.get('/demurrage/summary', {
       params: queryParams,
-      timeout: 90000
+      timeout: 90000,
     })
     return response.data
   }
@@ -354,7 +346,7 @@ class DemurrageService {
     if (params?.topN != null) queryParams.topN = params.topN
     const response = await this.api.get('/demurrage/top-containers', {
       params: queryParams,
-      timeout: 90000
+      timeout: 90000,
     })
     return response.data
   }

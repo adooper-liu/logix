@@ -220,27 +220,47 @@
           <div class="feature-section">
             <h2>📦 核心文档（必读）</h2>
             <div class="core-docs-grid">
-              <div class="core-doc-item" @click="loadDoc('LOGISTICS_FLOW', '/docs/02-architecture/02-物流流程完整说明.md')">
+              <div
+                class="core-doc-item"
+                @click="loadDoc('LOGISTICS_FLOW', '/docs/02-architecture/02-物流流程完整说明.md')"
+              >
                 <span class="core-doc-icon">📦</span>
                 <span>物流流程完整说明</span>
               </div>
-              <div class="core-doc-item" @click="loadDoc('LOGISTICS_STATUS_MACHINE', '/docs/05-state-machine/02-物流状态机.md')">
+              <div
+                class="core-doc-item"
+                @click="
+                  loadDoc('LOGISTICS_STATUS_MACHINE', '/docs/05-state-machine/02-物流状态机.md')
+                "
+              >
                 <span class="core-doc-icon">🔁</span>
                 <span>物流状态机</span>
               </div>
-              <div class="core-doc-item" @click="loadDoc('DEV_STANDARDS', '/docs/01-standards/02-开发标准.md')">
+              <div
+                class="core-doc-item"
+                @click="loadDoc('DEV_STANDARDS', '/docs/01-standards/02-开发标准.md')"
+              >
                 <span class="core-doc-icon">📝</span>
                 <span>开发规范</span>
               </div>
-              <div class="core-doc-item" @click="loadDoc('CORE_MAPPINGS', '/docs/09-misc/02-核心映射参考.md')">
+              <div
+                class="core-doc-item"
+                @click="loadDoc('CORE_MAPPINGS', '/docs/09-misc/02-核心映射参考.md')"
+              >
                 <span class="core-doc-icon">🔗</span>
                 <span>核心映射参考</span>
               </div>
-              <div class="core-doc-item" @click="loadDoc('DB_RELATIONS', '/docs/03-database/01-数据库主表关系.md')">
+              <div
+                class="core-doc-item"
+                @click="loadDoc('DB_RELATIONS', '/docs/03-database/01-数据库主表关系.md')"
+              >
                 <span class="core-doc-icon">🗄️</span>
                 <span>数据库主表关系</span>
               </div>
-              <div class="core-doc-item" @click="loadDoc('TIME_CONCEPTS', '/docs/help/时间概念说明-历时倒计时超期.md')">
+              <div
+                class="core-doc-item"
+                @click="loadDoc('TIME_CONCEPTS', '/docs/help/时间概念说明-历时倒计时超期.md')"
+              >
                 <span class="core-doc-icon">⏱️</span>
                 <span>时间概念说明</span>
               </div>

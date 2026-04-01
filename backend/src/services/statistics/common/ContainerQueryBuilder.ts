@@ -18,7 +18,7 @@ export class ContainerQueryBuilder {
     ALL_SHIPPED: ['shipped', 'in_transit', 'at_port', 'picked_up', 'unloaded', 'returned_empty'],
     NOT_PICKED_UP: ['not_shipped', 'shipped', 'in_transit', 'at_port'],
     PICKED_UP: ['picked_up', 'unloaded', 'returned_empty'],
-    ETA_TARGET: ['shipped', 'in_transit'],
+    ETA_TARGET: ['shipped', 'in_transit']
   };
   /* eslint-enable @typescript-eslint/naming-convention */
 
@@ -180,9 +180,7 @@ export class ContainerQueryBuilder {
   /**
    * 过滤目标集（必须是已出运状态的货柜）
    */
-  static filterTargetStatus(
-    query: SelectQueryBuilder<any>
-  ): SelectQueryBuilder<any> {
+  static filterTargetStatus(query: SelectQueryBuilder<any>): SelectQueryBuilder<any> {
     return this.filterByLogisticsStatus(query, this.STATUSES.ALL_SHIPPED);
   }
 }

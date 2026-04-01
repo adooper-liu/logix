@@ -3,9 +3,7 @@
     <!-- 空状态 -->
     <div v-if="flows.length === 0" class="empty-state">
       <el-empty description="暂无流程">
-        <el-button type="primary" :icon="Plus" @click="$emit('create')">
-          新建流程
-        </el-button>
+        <el-button type="primary" :icon="Plus" @click="$emit('create')"> 新建流程 </el-button>
       </el-empty>
     </div>
 
@@ -32,12 +30,18 @@
             <el-button text size="small" :icon="VideoPlay" @click.stop="$emit('execute', flow)">
               执行
             </el-button>
-            <el-button text size="small" type="danger" :icon="Delete" @click.stop="$emit('delete', flow)">
+            <el-button
+              text
+              size="small"
+              type="danger"
+              :icon="Delete"
+              @click.stop="$emit('delete', flow)"
+            >
               删除
             </el-button>
           </div>
         </div>
-        
+
         <div class="card-content">
           <p class="flow-description">{{ flow.description || '无描述' }}</p>
           <div class="flow-meta">

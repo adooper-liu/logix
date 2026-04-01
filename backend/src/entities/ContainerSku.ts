@@ -50,7 +50,13 @@ export class ContainerSku {
   totalValue: number; // 总价值
 
   // 重量信息
-  @Column({ type: 'decimal', precision: 8, scale: 2, nullable: true, name: 'gross_weight_per_unit' })
+  @Column({
+    type: 'decimal',
+    precision: 8,
+    scale: 2,
+    nullable: true,
+    name: 'gross_weight_per_unit'
+  })
   grossWeightPerUnit: number; // 每单位毛重
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, name: 'total_gross_weight' })

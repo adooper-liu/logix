@@ -46,8 +46,8 @@ const loadDoc = async (docPath: string) => {
     const response = await fetch(docPath, {
       method: 'GET',
       headers: {
-        'Accept': 'text/markdown; charset=utf-8, text/plain; charset=utf-8, */*'
-      }
+        Accept: 'text/markdown; charset=utf-8, text/plain; charset=utf-8, */*',
+      },
     })
 
     if (!response.ok) {

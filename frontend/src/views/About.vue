@@ -920,7 +920,9 @@ onMounted(() => {
       background: rgba($primary-color, 0.1);
       color: $primary-color;
       cursor: pointer;
-      transition: color 0.2s ease, background 0.2s ease;
+      transition:
+        color 0.2s ease,
+        background 0.2s ease;
       animation: trilogy-icon-float 2.5s ease-in-out infinite;
 
       &:hover {

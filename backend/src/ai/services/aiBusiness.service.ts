@@ -95,15 +95,17 @@ export class AIBusinessService {
         GROUP BY logistics_status
       `);
 
-      const breakdown = results[0] ? {
-        not_shipped: parseInt(results[0].not_shipped || '0'),
-        shipped: parseInt(results[0].shipped || '0'),
-        in_transit: parseInt(results[0].in_transit || '0'),
-        at_port: parseInt(results[0].at_port || '0'),
-        picked_up: parseInt(results[0].picked_up || '0'),
-        unloaded: parseInt(results[0].unloaded || '0'),
-        returned_empty: parseInt(results[0].returned_empty || '0')
-      } : {};
+      const breakdown = results[0]
+        ? {
+            not_shipped: parseInt(results[0].not_shipped || '0'),
+            shipped: parseInt(results[0].shipped || '0'),
+            in_transit: parseInt(results[0].in_transit || '0'),
+            at_port: parseInt(results[0].at_port || '0'),
+            picked_up: parseInt(results[0].picked_up || '0'),
+            unloaded: parseInt(results[0].unloaded || '0'),
+            returned_empty: parseInt(results[0].returned_empty || '0')
+          }
+        : {};
 
       return {
         success: true,
@@ -131,7 +133,8 @@ export class AIBusinessService {
         params.push(dateRange.start, dateRange.end);
       }
 
-      const results = await AppDataSource.query(`
+      const results = await AppDataSource.query(
+        `
         SELECT 
           COUNT(*) as total,
           COUNT(CASE WHEN DATE(po.ata) = CURRENT_DATE THEN 1 END) as today,
@@ -143,7 +146,9 @@ export class AIBusinessService {
         WHERE po.port_type = 'destination'
         AND po.ata IS NOT NULL
         ${dateFilter}
-      `, params);
+      `,
+        params
+      );
 
       return {
         success: true,
@@ -168,7 +173,8 @@ export class AIBusinessService {
       const in3Days = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const in7Days = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-      const results = await AppDataSource.query(`
+      const results = await AppDataSource.query(
+        `
         SELECT 
           COUNT(*) as total,
           COUNT(CASE WHEN c.eta < $1 THEN 1 END) as overdue,
@@ -179,7 +185,9 @@ export class AIBusinessService {
         LEFT JOIN process_port_operations po ON c.container_number = po.container_number
         WHERE c.logistics_status IN ('shipped', 'in_transit', 'at_port')
         AND (c.eta IS NOT NULL OR po.eta IS NOT NULL)
-      `, [today, in3Days, in7Days]);
+      `,
+        [today, in3Days, in7Days]
+      );
 
       return {
         success: true,
@@ -206,7 +214,8 @@ export class AIBusinessService {
       const in3Days = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
       const in7Days = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-      const results = await AppDataSource.query(`
+      const results = await AppDataSource.query(
+        `
         SELECT 
           COUNT(*) as total,
           COUNT(CASE WHEN po.last_free_date < $1 THEN 1 END) as expired,
@@ -221,7 +230,9 @@ export class AIBusinessService {
           WHERE po2.port_type = 'destination'
           GROUP BY po2.container_number
         )
-      `, [today, in3Days, in7Days]);
+      `,
+        [today, in3Days, in7Days]
+      );
 
       return {
         success: true,
@@ -732,7 +743,8 @@ export class AIBusinessService {
    */
   async getPendingCustomsContainers(limit: number = 10): Promise<StatisticsResult> {
     try {
-      const results = await AppDataSource.query(`
+      const results = await AppDataSource.query(
+        `
         SELECT 
           c.container_number,
           c.logistics_status,
@@ -747,7 +759,9 @@ export class AIBusinessService {
         AND (po.customs_status != 'cleared' OR po.customs_status IS NULL)
         ORDER BY po.ata ASC
         LIMIT $1
-      `, [limit]);
+      `,
+        [limit]
+      );
 
       return {
         success: true,
@@ -764,7 +778,8 @@ export class AIBusinessService {
    */
   async getDemurrageAlerts(limit: number = 10): Promise<StatisticsResult> {
     try {
-      const results = await AppDataSource.query(`
+      const results = await AppDataSource.query(
+        `
         SELECT 
           c.container_number,
           c.destination_port,
@@ -782,7 +797,9 @@ export class AIBusinessService {
         AND (cc.status != 'paid' OR cc.status IS NULL)
         ORDER BY overdue_days DESC
         LIMIT $1
-      `, [limit]);
+      `,
+        [limit]
+      );
 
       return {
         success: true,
@@ -807,7 +824,8 @@ export class AIBusinessService {
    */
   async searchContainers(keyword: string, limit: number = 10): Promise<StatisticsResult> {
     try {
-      const results = await AppDataSource.query(`
+      const results = await AppDataSource.query(
+        `
         SELECT 
           c.container_number,
           c.logistics_status,
@@ -822,7 +840,9 @@ export class AIBusinessService {
            OR o.order_number ILIKE $1
            OR c.bill_of_lading_number ILIKE $1
         LIMIT $2
-      `, [`%${keyword}%`, limit]);
+      `,
+        [`%${keyword}%`, limit]
+      );
 
       return {
         success: true,

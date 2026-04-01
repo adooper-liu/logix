@@ -61,8 +61,8 @@ const initHighlighter = async () => {
         'html',
         'css',
         'scss',
-        'ts'
-      ]
+        'ts',
+      ],
     })
     highlighterReady.value = true
     console.log('Shiki 高亮器初始化成功')
@@ -75,16 +75,19 @@ const initHighlighter = async () => {
 const htmlContent = ref('')
 
 // 监听 content 变化，重新解析
-watch(() => props.content, async (newContent) => {
-  console.log('MarkdownRenderer 接收到内容，长度:', newContent?.length)
-  console.log('内容前100字符:', newContent?.substring(0, 100))
-  if (newContent) {
-    htmlContent.value = await parseMarkdown(newContent)
+watch(
+  () => props.content,
+  async newContent => {
+    console.log('MarkdownRenderer 接收到内容，长度:', newContent?.length)
+    console.log('内容前100字符:', newContent?.substring(0, 100))
+    if (newContent) {
+      htmlContent.value = await parseMarkdown(newContent)
+    }
   }
-})
+)
 
 // 监听高亮器就绪状态，重新高亮代码
-watch(highlighterReady, async (ready) => {
+watch(highlighterReady, async ready => {
   if (ready && props.content) {
     console.log('Shiki 高亮器就绪，重新解析内容')
     htmlContent.value = await parseMarkdown(props.content)
@@ -197,7 +200,7 @@ const parseMarkdown = async (markdown: string): Promise<string> => {
         // 使用 Shiki 高亮代码
         const highlightedCode = highlighter.codeToHtml(codeBlock.code, {
           lang: codeBlock.lang,
-          theme: 'github-dark'
+          theme: 'github-dark',
         })
         return highlightedCode
       } catch (error) {
@@ -212,7 +215,7 @@ const parseMarkdown = async (markdown: string): Promise<string> => {
   })
 
   // 还原链接和图片
-  links.forEach((link) => {
+  links.forEach(link => {
     html = html.replace(link.placeholder, link.html)
   })
 
@@ -267,7 +270,10 @@ const parseMarkdown = async (markdown: string): Promise<string> => {
   html = html.replace(/(<li>[^<]*<\/li>\n?)+/g, '<ol>$&</ol>')
 
   // 处理水平线
-  html = html.replace(/^---$/gm, '<hr style="margin: 20px 0; border: none; border-top: 2px solid #e9ecef;">')
+  html = html.replace(
+    /^---$/gm,
+    '<hr style="margin: 20px 0; border: none; border-top: 2px solid #e9ecef;">'
+  )
 
   // 处理段落
   html = html.replace(/\n\n/g, '</p><p>')
@@ -281,10 +287,7 @@ const parseMarkdown = async (markdown: string): Promise<string> => {
 
 // HTML 转义
 const escapeHtml = (text: string): string => {
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 }
 
 // 解析表格行

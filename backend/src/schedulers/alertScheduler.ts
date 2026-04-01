@@ -12,15 +12,18 @@ export class AlertScheduler {
   // 启动预警检查调度器
   start(): void {
     // 每小时检查一次预警
-    this.intervalId = setInterval(async () => {
-      try {
-        logger.info('[AlertScheduler] 开始定时预警检查');
-        await this.alertService.checkAllAlerts();
-        logger.info('[AlertScheduler] 定时预警检查完成');
-      } catch (error) {
-        logger.error('[AlertScheduler] 定时预警检查失败', error);
-      }
-    }, 60 * 60 * 1000); // 1小时
+    this.intervalId = setInterval(
+      async () => {
+        try {
+          logger.info('[AlertScheduler] 开始定时预警检查');
+          await this.alertService.checkAllAlerts();
+          logger.info('[AlertScheduler] 定时预警检查完成');
+        } catch (error) {
+          logger.error('[AlertScheduler] 定时预警检查失败', error);
+        }
+      },
+      60 * 60 * 1000
+    ); // 1小时
 
     logger.info('[AlertScheduler] 预警检查调度器已启动');
   }

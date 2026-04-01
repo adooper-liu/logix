@@ -28,7 +28,10 @@ export class CostOptimizationService {
   /**
    * 评估单个方案的成本
    */
-  async evaluateCost(containerNumber: string, option: UnloadOption): Promise<{
+  async evaluateCost(
+    containerNumber: string,
+    option: UnloadOption
+  ): Promise<{
     success: boolean
     data: {
       containerNumber: string
@@ -38,7 +41,7 @@ export class CostOptimizationService {
   }> {
     const response = await api.post('/scheduling/evaluate-cost', {
       containerNumber,
-      option
+      option,
     })
     return response.data
   }
@@ -46,13 +49,16 @@ export class CostOptimizationService {
   /**
    * 对比多个方案
    */
-  async compareOptions(containerNumber: string, options: UnloadOption[]): Promise<{
+  async compareOptions(
+    containerNumber: string,
+    options: UnloadOption[]
+  ): Promise<{
     success: boolean
     data: CompareResponse
   }> {
     const response = await api.post('/scheduling/compare-options', {
       containerNumber,
-      options
+      options,
     })
     return response.data
   }

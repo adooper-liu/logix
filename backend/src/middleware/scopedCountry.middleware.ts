@@ -13,9 +13,7 @@ const HEADER_COUNTRY = 'x-country-code';
 export function scopedCountryMiddleware(req: Request, res: Response, next: NextFunction): void {
   const raw = req.get(HEADER_COUNTRY);
   const countryCode =
-    typeof raw === 'string' && raw.trim() !== ''
-      ? normalizeCountryCode(raw.trim())
-      : undefined;
+    typeof raw === 'string' && raw.trim() !== '' ? normalizeCountryCode(raw.trim()) : undefined;
 
   runWithScope({ countryCode }, () => next());
 }

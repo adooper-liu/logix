@@ -20,9 +20,7 @@ export const databaseConfig = {
   logging: process.env.NODE_ENV === 'development',
 
   // SSL配置(生产环境)
-  ssl: process.env.NODE_ENV === 'production'
-    ? { rejectUnauthorized: false }
-    : false
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
 };
 
 export const redisConfig = {

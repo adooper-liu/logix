@@ -28,7 +28,9 @@ describe('LogisticsPathTab - Duration Calculation', () => {
       // 预期：24小时归入天数，显示为 1天0小时
       const days = Math.floor(24 / 24)
       const hours = Math.round(24 % 24)
-      if (hours === 24) { hours = 0 }
+      if (hours === 24) {
+        hours = 0
+      }
       expect(days).toBe(1)
       expect(hours).toBe(0)
     })
@@ -78,8 +80,7 @@ describe('LogisticsPathTab - Duration Calculation', () => {
   describe('isCurrentNode', () => {
     it('should return true when node status is IN_PROGRESS', () => {
       const nodeStatus = 'IN_PROGRESS'
-      const isCurrent = nodeStatus === 'IN_PROGRESS' ||
-                       false // index condition placeholder
+      const isCurrent = nodeStatus === 'IN_PROGRESS' || false // index condition placeholder
       expect(isCurrent).toBe(true)
     })
 
@@ -87,8 +88,7 @@ describe('LogisticsPathTab - Duration Calculation', () => {
       const nodeStatus = 'COMPLETED'
       const nodeIndex = 9
       const totalNodes = 10
-      const isCurrent = nodeStatus === 'IN_PROGRESS' ||
-                       nodeIndex === totalNodes - 1
+      const isCurrent = nodeStatus === 'IN_PROGRESS' || nodeIndex === totalNodes - 1
       expect(isCurrent).toBe(true)
     })
 
@@ -96,8 +96,7 @@ describe('LogisticsPathTab - Duration Calculation', () => {
       const nodeStatus = 'COMPLETED'
       const nodeIndex = 5
       const totalNodes = 10
-      const isCurrent = nodeStatus === 'IN_PROGRESS' ||
-                       nodeIndex === totalNodes - 1
+      const isCurrent = nodeStatus === 'IN_PROGRESS' || nodeIndex === totalNodes - 1
       expect(isCurrent).toBe(false)
     })
   })
@@ -114,7 +113,7 @@ describe('LogisticsPathTab - Duration Calculation', () => {
         DISCHARGED: 12,
         AVAILABLE: 24,
         GATE_OUT: 12,
-        RETURNED_EMPTY: 24
+        RETURNED_EMPTY: 24,
       }
 
       // 验证配置存在

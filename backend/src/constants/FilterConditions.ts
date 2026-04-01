@@ -8,44 +8,44 @@
  */
 export const CONDITION_TO_SERVICE_MAP: Record<string, string> = {
   // 按到港维度
-  'arrivedAtDestination': 'arrival',
-  'arrivedAtTransit': 'arrival',
-  'expectedArrival': 'arrival',
-  'arrivalToday': 'arrival',
-  'arrivedBeforeTodayNotPickedUp': 'arrival',
-  'arrivedBeforeTodayPickedUp': 'arrival',
-  'arrivedBeforeTodayNoATA': 'arrival',
-  'transitOverdue': 'arrival',
-  'transitWithin3Days': 'arrival',
-  'transitWithin7Days': 'arrival',
-  'transitOver7Days': 'arrival',
-  'transitNoETA': 'arrival',
+  arrivedAtDestination: 'arrival',
+  arrivedAtTransit: 'arrival',
+  expectedArrival: 'arrival',
+  arrivalToday: 'arrival',
+  arrivedBeforeTodayNotPickedUp: 'arrival',
+  arrivedBeforeTodayPickedUp: 'arrival',
+  arrivedBeforeTodayNoATA: 'arrival',
+  transitOverdue: 'arrival',
+  transitWithin3Days: 'arrival',
+  transitWithin7Days: 'arrival',
+  transitOver7Days: 'arrival',
+  transitNoETA: 'arrival',
 
   // 按ETA维度
-  'overdue': 'eta',
-  'within3Days': 'eta',
-  'within7Days': 'eta',
-  'over7Days': 'eta',
-  'otherRecords': 'eta',
+  overdue: 'eta',
+  within3Days: 'eta',
+  within7Days: 'eta',
+  over7Days: 'eta',
+  otherRecords: 'eta',
 
   // 按提柜计划维度
-  'overduePlanned': 'plannedPickup',
-  'todayPlanned': 'plannedPickup',
-  'plannedWithin3Days': 'plannedPickup',
-  'plannedWithin7Days': 'plannedPickup',
-  'pendingArrangement': 'plannedPickup',
+  overduePlanned: 'plannedPickup',
+  todayPlanned: 'plannedPickup',
+  plannedWithin3Days: 'plannedPickup',
+  plannedWithin7Days: 'plannedPickup',
+  pendingArrangement: 'plannedPickup',
 
   // 按最晚提柜维度
-  'expired': 'lastPickup',
-  'urgent': 'lastPickup',
-  'warning': 'lastPickup',
-  'normal': 'lastPickup',
-  'noLastFreeDate': 'lastPickup',
+  expired: 'lastPickup',
+  urgent: 'lastPickup',
+  warning: 'lastPickup',
+  normal: 'lastPickup',
+  noLastFreeDate: 'lastPickup',
 
   // 按最晚还箱维度
-  'returnExpired': 'lastReturn',
-  'returnUrgent': 'lastReturn',
-  'returnWarning': 'lastReturn',
-  'returnNormal': 'lastReturn',
-  'noLastReturnDate': 'lastReturn'
+  returnExpired: 'lastReturn',
+  returnUrgent: 'lastReturn',
+  returnWarning: 'lastReturn',
+  returnNormal: 'lastReturn',
+  noLastReturnDate: 'lastReturn'
 };

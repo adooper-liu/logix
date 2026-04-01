@@ -11,8 +11,8 @@
       <!-- 方案选择 -->
       <div class="panel-section">
         <h4 class="section-title">📋 选择卸柜方案</h4>
-        <UnloadOptionSelector 
-          v-model="selectedOption" 
+        <UnloadOptionSelector
+          v-model="selectedOption"
           :options="availableOptions"
           @change="handleOptionChange"
         />
@@ -43,7 +43,10 @@
       </div>
 
       <!-- 空状态 -->
-      <el-empty v-if="!availableOptions || availableOptions.length === 0" description="暂无可用方案" />
+      <el-empty
+        v-if="!availableOptions || availableOptions.length === 0"
+        description="暂无可用方案"
+      />
     </el-card>
   </div>
 </template>
@@ -97,7 +100,7 @@ const select = () => {
   if (selectedOption.value && costBreakdown.value) {
     emit('optionSelected', {
       ...selectedOption.value,
-      totalCost: costBreakdown.value.totalCost
+      totalCost: costBreakdown.value.totalCost,
     })
   }
 }

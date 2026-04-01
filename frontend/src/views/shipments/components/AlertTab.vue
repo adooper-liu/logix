@@ -1,9 +1,7 @@
 <template>
   <div class="alert-tab">
     <div class="tab-header-row">
-      <el-button type="primary" link size="small" @click="loadAlerts">
-        刷新
-      </el-button>
+      <el-button type="primary" link size="small" @click="loadAlerts"> 刷新 </el-button>
       <el-button
         type="primary"
         link
@@ -14,12 +12,7 @@
         重新检查预警
       </el-button>
     </div>
-    <el-table
-      v-loading="loading"
-      :data="alerts"
-      style="width: 100%"
-      stripe
-    >
+    <el-table v-loading="loading" :data="alerts" style="width: 100%" stripe>
       <el-table-column prop="id" label="预警ID" width="100" />
       <el-table-column prop="type" label="预警类型" width="120">
         <template #default="{ row }">
@@ -131,7 +124,7 @@ const runContainerCheck = async () => {
   if (!props.containerNumber?.trim()) return
   runCheckLoading.value = true
   try {
-    const res = await alertApi.runCheckContainer(props.containerNumber) as {
+    const res = (await alertApi.runCheckContainer(props.containerNumber)) as {
       success?: boolean
       count?: number
       message?: string
@@ -151,7 +144,7 @@ const runContainerCheck = async () => {
 
 const handleAcknowledge = async (alertId: number) => {
   try {
-    const response = await alertApi.acknowledgeAlert(alertId, 'system') as { success?: boolean }
+    const response = (await alertApi.acknowledgeAlert(alertId, 'system')) as { success?: boolean }
     if (response?.success) {
       ElMessage.success('预警已确认')
       await loadAlerts()
@@ -165,7 +158,7 @@ const handleAcknowledge = async (alertId: number) => {
 
 const handleResolve = async (alertId: number) => {
   try {
-    const response = await alertApi.resolveAlert(alertId, 'system') as { success?: boolean }
+    const response = (await alertApi.resolveAlert(alertId, 'system')) as { success?: boolean }
     if (response?.success) {
       ElMessage.success('预警已解决')
       await loadAlerts()
@@ -189,7 +182,7 @@ const getAlertTypeTagType = (type: string): string => {
     detention: 'warning',
     rollover: 'danger',
     shipmentChange: 'warning',
-    other: 'info'
+    other: 'info',
   }
   return typeMap[type] || 'info'
 }
@@ -205,7 +198,7 @@ const formatAlertTypeLabel = (type: string): string => {
     detention: '滞箱',
     rollover: '甩柜',
     shipmentChange: '船期变更',
-    other: '其他'
+    other: '其他',
   }
   return labels[type] || type || '—'
 }
@@ -215,7 +208,7 @@ const getAlertLevelTagType = (level: string): string => {
   const levelMap: Record<string, string> = {
     critical: 'danger',
     warning: 'warning',
-    info: 'info'
+    info: 'info',
   }
   return levelMap[level?.toLowerCase?.()] || 'info'
 }
@@ -224,7 +217,7 @@ const formatAlertLevelLabel = (level: string): string => {
   const labels: Record<string, string> = {
     info: '提示',
     warning: '警告',
-    critical: '严重'
+    critical: '严重',
   }
   return labels[level?.toLowerCase?.()] || level || '—'
 }

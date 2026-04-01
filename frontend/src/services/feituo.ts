@@ -14,9 +14,9 @@ function createClient() {
   const api = axios.create({
     baseURL,
     timeout: 60000,
-    headers: { 'Content-Type': 'application/json' }
+    headers: { 'Content-Type': 'application/json' },
   })
-  api.interceptors.request.use((config) => {
+  api.interceptors.request.use(config => {
     const token = localStorage.getItem('token')
     if (token) config.headers.Authorization = `Bearer ${token}`
     const appStore = useAppStore()
@@ -54,22 +54,22 @@ export const feituoService = {
    * 同步单个货柜的飞驼数据
    */
   async syncContainer(containerNumber: string, dataSource = 'Feituo'): Promise<SyncResult> {
-    const res = await api.post<SyncResult>(`/external/sync/${encodeURIComponent(containerNumber)}`, {
-      dataSource
-    })
+    const res = await api.post<SyncResult>(
+      `/external/sync/${encodeURIComponent(containerNumber)}`,
+      {
+        dataSource,
+      }
+    )
     return res.data
   },
 
   /**
    * 批量同步货柜飞驼数据
    */
-  async syncBatch(
-    containerNumbers: string[],
-    dataSource = 'Feituo'
-  ): Promise<BatchSyncResult> {
+  async syncBatch(containerNumbers: string[], dataSource = 'Feituo'): Promise<BatchSyncResult> {
     const res = await api.post<BatchSyncResult>('/external/sync/batch', {
       containerNumbers,
-      dataSource
+      dataSource,
     })
     return res.data
   },
@@ -83,7 +83,11 @@ export const feituoService = {
     rows: Record<string, unknown>[] | unknown[][],
     fileName?: string,
     headers?: string[]
-  ): Promise<{ success: boolean; message: string; data?: { success: number; failed: number; errors: { row: number; error: string }[] } }> {
+  ): Promise<{
+    success: boolean
+    message: string
+    data?: { success: number; failed: number; errors: { row: number; error: string }[] }
+  }> {
     const res = await api.post('/import/feituo-excel', { tableType, rows, headers, fileName })
     return res.data
   },
@@ -96,7 +100,7 @@ export const feituoService = {
     limit = 50
   ): Promise<{ success: boolean; data?: unknown[]; total?: number }> {
     const res = await api.get(`/external/events/${encodeURIComponent(containerNumber)}`, {
-      params: { limit }
+      params: { limit },
     })
     return res.data
   },
@@ -141,5 +145,5 @@ export const feituoService = {
   }> {
     const res = await api.get('/external/containers', { params })
     return res.data
-  }
+  },
 }

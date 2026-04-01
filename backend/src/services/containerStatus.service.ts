@@ -135,9 +135,9 @@ export class ContainerStatusService {
                 hasReturnTime: !!emptyReturn?.returnTime,
                 hasWmsConfirm: !!warehouseOperation?.wmsConfirmDate,
                 hasPickupDate: !!truckingTransport?.pickupDate,
-                hasDestAta: portOperations.some(po => po.portType === 'destination' && po.ata),
-                hasTransitAta: portOperations.some(po => po.portType === 'transit' && po.ata),
-                hasShipmentDate: !!seaFreight?.shipmentDate,
+                hasDestAta: portOperations.some((po) => po.portType === 'destination' && po.ata),
+                hasTransitAta: portOperations.some((po) => po.portType === 'transit' && po.ata),
+                hasShipmentDate: !!seaFreight?.shipmentDate
               }
             },
             ...(ganttChanged
@@ -189,7 +189,7 @@ export class ContainerStatusService {
         relations: ['seaFreight']
       });
 
-      const containerNumbers = containers.map(c => c.containerNumber);
+      const containerNumbers = containers.map((c) => c.containerNumber);
 
       if (containerNumbers.length === 0) {
         logger.info('[StatusUpdate] 批量更新完成，无货柜需处理');
@@ -220,22 +220,22 @@ export class ContainerStatusService {
       const warehouseOperationMap = new Map<string, WarehouseOperation>();
       const emptyReturnMap = new Map<string, EmptyReturn>();
 
-      allPortOperations.forEach(po => {
+      allPortOperations.forEach((po) => {
         if (!portOperationsMap.has(po.containerNumber)) {
           portOperationsMap.set(po.containerNumber, []);
         }
         portOperationsMap.get(po.containerNumber)!.push(po);
       });
 
-      allTruckingTransports.forEach(tt => {
+      allTruckingTransports.forEach((tt) => {
         truckingTransportMap.set(tt.containerNumber, tt);
       });
 
-      allWarehouseOperations.forEach(wo => {
+      allWarehouseOperations.forEach((wo) => {
         warehouseOperationMap.set(wo.containerNumber, wo);
       });
 
-      allEmptyReturns.forEach(er => {
+      allEmptyReturns.forEach((er) => {
         emptyReturnMap.set(er.containerNumber, er);
       });
 

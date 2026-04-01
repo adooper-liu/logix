@@ -12,7 +12,7 @@ import {
   Download,
   Refresh,
   Close,
-  Check
+  Check,
 } from '@element-plus/icons-vue'
 import { knowledgeService, type KnowledgeItem } from '@/services/knowledge'
 
@@ -32,7 +32,7 @@ const editingItem = ref<Partial<KnowledgeItem>>({
   category: '',
   title: '',
   keywords: '',
-  content: ''
+  content: '',
 })
 const isEditing = ref(false)
 
@@ -52,26 +52,27 @@ const defaultCategories = [
   '数据筛选',
   '物流跟踪',
   '外部集成',
-  '数据服务'
+  '数据服务',
 ]
 
 // 筛选后的列表
 const filteredList = computed(() => {
   let list = allItems.value
-  
+
   if (selectedCategory.value) {
     list = list.filter(item => item.category === selectedCategory.value)
   }
-  
+
   if (searchKeyword.value) {
     const keyword = searchKeyword.value.toLowerCase()
-    list = list.filter(item => 
-      item.title.toLowerCase().includes(keyword) ||
-      item.content.toLowerCase().includes(keyword) ||
-      item.keywords.some(k => k.toLowerCase().includes(keyword))
+    list = list.filter(
+      item =>
+        item.title.toLowerCase().includes(keyword) ||
+        item.content.toLowerCase().includes(keyword) ||
+        item.keywords.some(k => k.toLowerCase().includes(keyword))
     )
   }
-  
+
   return list
 })
 
@@ -129,7 +130,7 @@ not_shipped → shipped → in_transit → at_port → picked_up → unloaded �
 - at_port: 已到港
 - picked_up: 已提柜
 - unloaded: 已卸柜
-- returned_empty: 已还空箱`
+- returned_empty: 已还空箱`,
   },
   {
     id: 'filter-conditions',
@@ -153,7 +154,7 @@ not_shipped → shipped → in_transit → at_port → picked_up → unloaded �
 - 已逾期：计划提柜日 < 今日
 - 今日计划：计划提柜日 = 今日
 - 3日内：今日 < 计划提柜日 ≤ 3天
-- 7日内：3天 < 计划提柜日 ≤ 7天`
+- 7日内：3天 < 计划提柜日 ≤ 7天`,
   },
   {
     id: 'demurrage-rules',
@@ -175,7 +176,7 @@ not_shipped → shipped → in_transit → at_port → picked_up → unloaded �
 
 ### 计算方式
 - 按到港：从 ETA 或 ATA 开始计算
-- 按卸船：从卸船时间开始计算`
+- 按卸船：从卸船时间开始计算`,
   },
   {
     id: 'time-concepts',
@@ -194,7 +195,7 @@ not_shipped → shipped → in_transit → at_port → picked_up → unloaded �
 - ATA: 实际到港时间
 - 计划提柜日
 - 最晚提柜日
-- 最晚还箱日`
+- 最晚还箱日`,
   },
   {
     id: 'project-overview',
@@ -216,7 +217,7 @@ not_shipped → shipped → in_transit → at_port → picked_up → unloaded �
 - **前端层**: Vue 3 + Element Plus (端口: 5173)
 - **主服务层**: Express + TypeORM (端口: 3001)
 - **物流路径微服务**: Apollo GraphQL (端口: 4000)
-- **数据层**: PostgreSQL/TimescaleDB + Redis`
+- **数据层**: PostgreSQL/TimescaleDB + Redis`,
   },
   {
     id: 'tech-stack',
@@ -236,7 +237,7 @@ not_shipped → shipped → in_transit → at_port → picked_up → unloaded �
 - ECharts 5.4.3、Apollo Client
 
 ### 微服务技术栈
-- Apollo Server 4.10+、Express 4.18+`
+- Apollo Server 4.10+、Express 4.18+`,
   },
   {
     id: 'core-features',
@@ -265,7 +266,7 @@ not_shipped → shipped → in_transit → at_port → picked_up → unloaded �
 ### 5. 统计与监控
 - 统计卡片：总集装箱数、在途数量、异常数量、已完成数量
 - 倒计时卡片：最晚提柜倒计时、最晚还箱倒计时、免费期倒计时
-- 监控系统：Prometheus + Grafana，服务健康状态，性能指标监控，实时告警`
+- 监控系统：Prometheus + Grafana，服务健康状态，性能指标监控，实时告警`,
   },
   {
     id: 'database-design',
@@ -294,7 +295,7 @@ not_shipped → shipped → in_transit → at_port → picked_up → unloaded �
 - 数据库表名：前缀 + snake_case (如 biz_containers)
 - 数据库字段：snake_case (如 container_number)
 - 实体属性：camelCase + @Column (如 containerNumber)
-- API 映射：与数据库一致`
+- API 映射：与数据库一致`,
   },
   {
     id: 'dev-standards',
@@ -325,7 +326,7 @@ not_shipped → shipped → in_transit → at_port → picked_up → unloaded �
 ### 组件拆分
 - 单一职责：一个文件只做一类事
 - 文件大小：Vue < 300 行，TS < 200 行
-- 命名体现职责：ContainerDetails, useContainerData`
+- 命名体现职责：ContainerDetails, useContainerData`,
   },
   {
     id: 'docs-system',
@@ -359,7 +360,7 @@ not_shipped → shipped → in_transit → at_port → picked_up → unloaded �
 1. **新增文档**: 先分类，再编号命名
 2. **更新文档**: 标注版本号和更新日期
 3. **删除文档**: 确认价值，整合内容
-4. **定期维护**: 每月检查临时文档`
+4. **定期维护**: 每月检查临时文档`,
   },
   {
     id: 'quick-start',
@@ -387,8 +388,8 @@ not_shipped → shipped → in_transit → at_port → picked_up → unloaded �
 ### Docker 部署
 - 使用 Docker Compose 启动完整环境：docker-compose -f docker-compose.timescaledb.yml up -d
 - 查看日志：docker-compose logs -f backend
-- 停止服务：docker-compose -f docker-compose.timescaledb.yml down`
-  }
+- 停止服务：docker-compose -f docker-compose.timescaledb.yml down`,
+  },
 ]
 
 // 打开新建弹窗
@@ -400,7 +401,7 @@ const openCreateDialog = () => {
     category: selectedCategory.value || defaultCategories[0],
     title: '',
     keywords: '',
-    content: ''
+    content: '',
   }
   dialogVisible.value = true
 }
@@ -414,7 +415,7 @@ const openEditDialog = (item: KnowledgeItem) => {
     category: item.category,
     title: item.title,
     keywords: item.keywords.join(', '),
-    content: item.content
+    content: item.content,
   }
   dialogVisible.value = true
 }
@@ -427,7 +428,10 @@ const saveItem = () => {
   }
 
   const keywords = editingItem.value.keywords
-    ? editingItem.value.keywords.split(',').map(k => k.trim()).filter(k => k)
+    ? editingItem.value.keywords
+        .split(',')
+        .map(k => k.trim())
+        .filter(k => k)
     : []
 
   const newItem: KnowledgeItem = {
@@ -435,7 +439,7 @@ const saveItem = () => {
     category: editingItem.value.category || '其他',
     title: editingItem.value.title,
     keywords,
-    content: editingItem.value.content
+    content: editingItem.value.content,
   }
 
   if (isEditing.value) {
@@ -456,50 +460,53 @@ const saveItem = () => {
 
 // 删除知识条目
 const deleteItem = (item: KnowledgeItem) => {
-  ElMessageBox.confirm(
-    `确定要删除知识条目「${item.title}」吗？`,
-    '确认删除',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(() => {
-    const index = allItems.value.findIndex(i => i.id === item.id)
-    if (index >= 0) {
-      allItems.value.splice(index, 1)
-      ElMessage.success('删除成功')
-    }
-  }).catch(() => {})
+  ElMessageBox.confirm(`确定要删除知识条目「${item.title}」吗？`, '确认删除', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  })
+    .then(() => {
+      const index = allItems.value.findIndex(i => i.id === item.id)
+      if (index >= 0) {
+        allItems.value.splice(index, 1)
+        ElMessage.success('删除成功')
+      }
+    })
+    .catch(() => {})
 }
 
 // 导出为模板代码
 const exportAsCode = () => {
   const items = filteredList.value.length > 0 ? filteredList.value : allItems.value
   const code = generateTemplateCode(items)
-  
+
   // 复制到剪贴板
-  navigator.clipboard.writeText(code).then(() => {
-    ElMessage.success('模板代码已复制到剪贴板')
-  }).catch(() => {
-    templateCode.value = code
-    templatePreview.value = true
-    ElMessage.info('请手动复制模板代码')
-  })
+  navigator.clipboard
+    .writeText(code)
+    .then(() => {
+      ElMessage.success('模板代码已复制到剪贴板')
+    })
+    .catch(() => {
+      templateCode.value = code
+      templatePreview.value = true
+      ElMessage.info('请手动复制模板代码')
+    })
 }
 
 // 生成模板代码
 const generateTemplateCode = (items: KnowledgeItem[]): string => {
-  const itemsCode = items.map(item => {
-    const keywordsArray = item.keywords.map(k => `'${k}'`).join(', ')
-    return `  {
+  const itemsCode = items
+    .map(item => {
+      const keywordsArray = item.keywords.map(k => `'${k}'`).join(', ')
+      return `  {
     id: '${item.id}',
     category: '${item.category}',
     title: '${item.title}',
     keywords: [${keywordsArray}],
     content: \`${item.content}\`
   }`
-  }).join(',\n\n')
+    })
+    .join(',\n\n')
 
   return `/**
  * AI 知识库
@@ -548,34 +555,18 @@ onMounted(() => {
         <span>知识库管理</span>
       </div>
       <div class="header-actions">
-        <el-button type="primary" :icon="Plus" @click="openCreateDialog">
-          新建知识
-        </el-button>
-        <el-button :icon="Download" @click="exportAsCode">
-          导出模板
-        </el-button>
-        <el-button :icon="Refresh" @click="loadKnowledgeItems">
-          刷新
-        </el-button>
+        <el-button type="primary" :icon="Plus" @click="openCreateDialog"> 新建知识 </el-button>
+        <el-button :icon="Download" @click="exportAsCode"> 导出模板 </el-button>
+        <el-button :icon="Refresh" @click="loadKnowledgeItems"> 刷新 </el-button>
       </div>
     </div>
 
     <!-- 筛选栏 -->
     <div class="filter-bar">
-      <el-select
-        v-model="selectedCategory"
-        placeholder="选择分类"
-        clearable
-        style="width: 200px"
-      >
-        <el-option
-          v-for="cat in categories"
-          :key="cat"
-          :label="cat"
-          :value="cat"
-        />
+      <el-select v-model="selectedCategory" placeholder="选择分类" clearable style="width: 200px">
+        <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
       </el-select>
-      
+
       <el-input
         v-model="searchKeyword"
         placeholder="搜索标题、关键词或内容..."
@@ -583,21 +574,15 @@ onMounted(() => {
         clearable
         style="width: 300px"
       />
-      
-      <span class="item-count">
-        共 {{ filteredList.length }} 条知识
-      </span>
+
+      <span class="item-count"> 共 {{ filteredList.length }} 条知识 </span>
     </div>
 
     <!-- 知识列表 -->
     <div class="knowledge-list" v-loading="loading">
       <el-empty v-if="filteredList.length === 0" description="暂无知识条目" />
-      
-      <div
-        v-for="item in filteredList"
-        :key="item.id"
-        class="knowledge-card"
-      >
+
+      <div v-for="item in filteredList" :key="item.id" class="knowledge-card">
         <div class="card-header">
           <div class="card-title-row">
             <el-tag size="small" type="info">{{ item.category }}</el-tag>
@@ -615,7 +600,7 @@ onMounted(() => {
             </el-button>
           </div>
         </div>
-        
+
         <div class="card-keywords">
           <el-tag
             v-for="kw in item.keywords"
@@ -628,7 +613,7 @@ onMounted(() => {
             {{ kw }}
           </el-tag>
         </div>
-        
+
         <div class="card-content">
           <pre>{{ item.content }}</pre>
         </div>
@@ -645,27 +630,19 @@ onMounted(() => {
       <el-form label-width="80px">
         <el-form-item label="分类" required>
           <el-select v-model="editingItem.category" placeholder="选择分类" style="width: 100%">
-            <el-option
-              v-for="cat in categories"
-              :key="cat"
-              :label="cat"
-              :value="cat"
-            />
+            <el-option v-for="cat in categories" :key="cat" :label="cat" :value="cat" />
             <el-option label="+ 新建分类" value="__new__" disabled />
           </el-select>
         </el-form-item>
-        
+
         <el-form-item label="标题" required>
           <el-input v-model="editingItem.title" placeholder="请输入标题" />
         </el-form-item>
-        
+
         <el-form-item label="关键词">
-          <el-input
-            v-model="editingItem.keywords"
-            placeholder="用逗号分隔，如：状态,流转,桑基图"
-          />
+          <el-input v-model="editingItem.keywords" placeholder="用逗号分隔，如：状态,流转,桑基图" />
         </el-form-item>
-        
+
         <el-form-item label="内容" required>
           <el-input
             v-model="editingItem.content"
@@ -675,7 +652,7 @@ onMounted(() => {
           />
         </el-form-item>
       </el-form>
-      
+
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
         <el-button type="primary" @click="saveItem">
@@ -685,23 +662,17 @@ onMounted(() => {
     </el-dialog>
 
     <!-- 模板预览弹窗 -->
-    <el-dialog
-      v-model="templatePreview"
-      title="模板代码预览"
-      width="800px"
-    >
+    <el-dialog v-model="templatePreview" title="模板代码预览" width="800px">
       <el-input
         v-model="templateCode"
         type="textarea"
         :rows="20"
         readonly
-        style="font-family: 'Consolas', monospace;"
+        style="font-family: 'Consolas', monospace"
       />
       <template #footer>
         <el-button @click="templatePreview = false">关闭</el-button>
-        <el-button type="primary" @click="copyContent(templateCode)">
-          复制代码
-        </el-button>
+        <el-button type="primary" @click="copyContent(templateCode)"> 复制代码 </el-button>
       </template>
     </el-dialog>
   </div>

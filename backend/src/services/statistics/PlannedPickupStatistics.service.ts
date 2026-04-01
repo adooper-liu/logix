@@ -27,12 +27,26 @@ export class PlannedPickupStatisticsService {
    * 使用Map代替switch，消除字符串硬编码
    * 直接使用字符串key，无需枚举
    */
-  private readonly METHOD_MAP: Record<string, (today: string, threeDaysLater: string, sevenDaysLater: string, startDate?: string, endDate?: string) => Promise<Container[]>> = {
-    'overduePlanned': (today, _three, _seven, start, end) => this.getContainersByOverduePlanned(today, start, end),
-    'todayPlanned': (today, _three, _seven, start, end) => this.getContainersByTodayPlanned(today, start, end),
-    'plannedWithin3Days': (today, three, _seven, start, end) => this.getContainersByPlannedWithin3Days(today, three, start, end),
-    'plannedWithin7Days': (today, three, seven, start, end) => this.getContainersByPlannedWithin7Days(today, three, seven, start, end),
-    'pendingArrangement': (_today, _three, _seven, start, end) => this.getContainersByPendingArrangement(start, end)
+  private readonly METHOD_MAP: Record<
+    string,
+    (
+      today: string,
+      threeDaysLater: string,
+      sevenDaysLater: string,
+      startDate?: string,
+      endDate?: string
+    ) => Promise<Container[]>
+  > = {
+    overduePlanned: (today, _three, _seven, start, end) =>
+      this.getContainersByOverduePlanned(today, start, end),
+    todayPlanned: (today, _three, _seven, start, end) =>
+      this.getContainersByTodayPlanned(today, start, end),
+    plannedWithin3Days: (today, three, _seven, start, end) =>
+      this.getContainersByPlannedWithin3Days(today, three, start, end),
+    plannedWithin7Days: (today, three, seven, start, end) =>
+      this.getContainersByPlannedWithin7Days(today, three, seven, start, end),
+    pendingArrangement: (_today, _three, _seven, start, end) =>
+      this.getContainersByPendingArrangement(start, end)
   };
 
   /**
@@ -53,7 +67,13 @@ export class PlannedPickupStatisticsService {
         this.getOverduePlanned(todayStr, startDate, endDate),
         this.getTodayPlanned(todayStr, startDate, endDate),
         this.getPlannedWithin3Days(todayStr, threeDaysLaterStr, startDate, endDate),
-        this.getPlannedWithin7Days(todayStr, threeDaysLaterStr, sevenDaysLaterStr, startDate, endDate),
+        this.getPlannedWithin7Days(
+          todayStr,
+          threeDaysLaterStr,
+          sevenDaysLaterStr,
+          startDate,
+          endDate
+        ),
         this.getPendingArrangement(startDate, endDate)
       ]);
 
@@ -90,7 +110,11 @@ export class PlannedPickupStatisticsService {
     let sql: string;
     let params: any[] = [];
     if (startDate && endDate) {
-      const { sql: dateSql, params: dateParams } = getDateRangeSubqueryRaw(startDate, endDate, countryCode);
+      const { sql: dateSql, params: dateParams } = getDateRangeSubqueryRaw(
+        startDate,
+        endDate,
+        countryCode
+      );
       sql = `SELECT DISTINCT t.container_number FROM (${innerSql}) t WHERE t.container_number IN (${dateSql})`;
       params = dateParams;
     } else if (countryCode) {
@@ -118,14 +142,18 @@ WHERE cust.country = $1`;
     const rawCountryCode = getScopedCountryCode();
     const countryCode = rawCountryCode ? normalizeCountryCode(rawCountryCode) : undefined;
 
-    const qb = this.containerRepository.createQueryBuilder('container')
+    const qb = this.containerRepository
+      .createQueryBuilder('container')
       .where('container.containerNumber IN (:...containerNumbers)', { containerNumbers });
 
     // 添加国家过滤
     if (countryCode) {
       qb.leftJoin('container.replenishmentOrders', 'order')
-        .leftJoin('biz_customers', 'cust',
-          '(order.sellToCountry IS NOT NULL AND LOWER(TRIM(cust.customerName)) = LOWER(TRIM(order.sellToCountry))) OR (order.customerName IS NOT NULL AND LOWER(TRIM(cust.customerName)) = LOWER(TRIM(order.customerName))) OR (order.customerCode IS NOT NULL AND LOWER(TRIM(cust.customerCode)) = LOWER(TRIM(order.customerCode)))')
+        .leftJoin(
+          'biz_customers',
+          'cust',
+          '(order.sellToCountry IS NOT NULL AND LOWER(TRIM(cust.customerName)) = LOWER(TRIM(order.sellToCountry))) OR (order.customerName IS NOT NULL AND LOWER(TRIM(cust.customerName)) = LOWER(TRIM(order.customerName))) OR (order.customerCode IS NOT NULL AND LOWER(TRIM(cust.customerCode)) = LOWER(TRIM(order.customerCode)))'
+        )
         .andWhere('cust.country = :countryCode', { countryCode });
     }
 
@@ -153,8 +181,16 @@ WHERE cust.country = $1`;
   /**
    * 3天内计划提柜（今天 < plannedPickupDate <= 3天）
    */
-  async getPlannedWithin3Days(today: string, threeDaysLater: string, startDate?: string, endDate?: string): Promise<number> {
-    const innerSql = PlannedPickupSubqueryTemplates.WITHIN_3_DAYS_PLANNED_SUBQUERY(today, threeDaysLater);
+  async getPlannedWithin3Days(
+    today: string,
+    threeDaysLater: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<number> {
+    const innerSql = PlannedPickupSubqueryTemplates.WITHIN_3_DAYS_PLANNED_SUBQUERY(
+      today,
+      threeDaysLater
+    );
     const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
     return containerNumbers.length;
   }
@@ -162,8 +198,18 @@ WHERE cust.country = $1`;
   /**
    * 7天内计划提柜（3天 < plannedPickupDate <= 7天）
    */
-  async getPlannedWithin7Days(today: string, threeDaysLater: string, sevenDaysLater: string, startDate?: string, endDate?: string): Promise<number> {
-    const innerSql = PlannedPickupSubqueryTemplates.WITHIN_7_DAYS_PLANNED_SUBQUERY(today, threeDaysLater, sevenDaysLater);
+  async getPlannedWithin7Days(
+    today: string,
+    threeDaysLater: string,
+    sevenDaysLater: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<number> {
+    const innerSql = PlannedPickupSubqueryTemplates.WITHIN_7_DAYS_PLANNED_SUBQUERY(
+      today,
+      threeDaysLater,
+      sevenDaysLater
+    );
     const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
     return containerNumbers.length;
   }
@@ -205,35 +251,64 @@ WHERE cust.country = $1`;
   }
 
   /** 逾期未提柜 — 与 getOverduePlanned 共用同一套 SQL */
-  private async getContainersByOverduePlanned(today: string, startDate?: string, endDate?: string): Promise<Container[]> {
+  private async getContainersByOverduePlanned(
+    today: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const innerSql = PlannedPickupSubqueryTemplates.OVERDUE_PLANNED_SUBQUERY(today);
     const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
     return this.getContainersByNumbers(containerNumbers);
   }
 
   /** 今日计划提柜 — 与 getTodayPlanned 共用同一套 SQL */
-  private async getContainersByTodayPlanned(today: string, startDate?: string, endDate?: string): Promise<Container[]> {
+  private async getContainersByTodayPlanned(
+    today: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const innerSql = PlannedPickupSubqueryTemplates.TODAY_PLANNED_SUBQUERY(today);
     const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
     return this.getContainersByNumbers(containerNumbers);
   }
 
   /** 3天内计划提柜 — 与 getPlannedWithin3Days 共用同一套 SQL */
-  private async getContainersByPlannedWithin3Days(today: string, threeDaysLater: string, startDate?: string, endDate?: string): Promise<Container[]> {
-    const innerSql = PlannedPickupSubqueryTemplates.WITHIN_3_DAYS_PLANNED_SUBQUERY(today, threeDaysLater);
+  private async getContainersByPlannedWithin3Days(
+    today: string,
+    threeDaysLater: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
+    const innerSql = PlannedPickupSubqueryTemplates.WITHIN_3_DAYS_PLANNED_SUBQUERY(
+      today,
+      threeDaysLater
+    );
     const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
     return this.getContainersByNumbers(containerNumbers);
   }
 
   /** 7天内计划提柜 — 与 getPlannedWithin7Days 共用同一套 SQL */
-  private async getContainersByPlannedWithin7Days(today: string, threeDaysLater: string, sevenDaysLater: string, startDate?: string, endDate?: string): Promise<Container[]> {
-    const innerSql = PlannedPickupSubqueryTemplates.WITHIN_7_DAYS_PLANNED_SUBQUERY(today, threeDaysLater, sevenDaysLater);
+  private async getContainersByPlannedWithin7Days(
+    today: string,
+    threeDaysLater: string,
+    sevenDaysLater: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
+    const innerSql = PlannedPickupSubqueryTemplates.WITHIN_7_DAYS_PLANNED_SUBQUERY(
+      today,
+      threeDaysLater,
+      sevenDaysLater
+    );
     const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
     return this.getContainersByNumbers(containerNumbers);
   }
 
   /** 待安排提柜 — 与 getPendingArrangement 共用同一套 SQL */
-  private async getContainersByPendingArrangement(startDate?: string, endDate?: string): Promise<Container[]> {
+  private async getContainersByPendingArrangement(
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const innerSql = PlannedPickupSubqueryTemplates.PENDING_ARRANGEMENT_SUBQUERY;
     const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
     return this.getContainersByNumbers(containerNumbers);

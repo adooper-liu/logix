@@ -1,9 +1,15 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn
+} from 'typeorm';
 
 export enum AlertLevel {
   INFO = 'info',
   WARNING = 'warning',
-  CRITICAL = 'critical',
+  CRITICAL = 'critical'
 }
 
 export enum AlertType {
@@ -16,7 +22,7 @@ export enum AlertType {
   DETENTION = 'detention',
   ROLLOVER = 'rollover',
   SHIPMENT_CHANGE = 'shipmentChange',
-  OTHER = 'other',
+  OTHER = 'other'
 }
 
 @Entity('ext_container_alerts')

@@ -15,7 +15,10 @@ import { log } from './utils/logger.js';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
 import { apiRateLimit } from './middleware/rateLimit.middleware.js';
 import { scopedCountryMiddleware } from './middleware/scopedCountry.middleware.js';
-import { dateTimeMiddleware, dateTimeResponseMiddleware } from './middleware/dateTime.middleware.js';
+import {
+  dateTimeMiddleware,
+  dateTimeResponseMiddleware
+} from './middleware/dateTime.middleware.js';
 import routes from './routes/index.js';
 import monitoringRoutes from './routes/monitoring.routes.js';
 
@@ -54,15 +57,19 @@ io.on('connection', (socket) => {
 });
 
 // 安全中间件（允许跨域页面读取 API 响应，否则前端 localhost:5173 无法读取后端 3001 的响应体）
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: 'cross-origin' }
-}));
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' }
+  })
+);
 
 // CORS 配置
-app.use(cors({
-  origin: config.cors.origin,
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: config.cors.origin,
+    credentials: true
+  })
+);
 
 // 压缩响应
 app.use(compression());

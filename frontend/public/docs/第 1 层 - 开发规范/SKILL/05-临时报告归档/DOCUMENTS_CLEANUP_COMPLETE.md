@@ -37,6 +37,7 @@
 **更新内容**:
 
 #### 删除的引用
+
 ```markdown
 ❌ [03-SKILL使用](01-standards/03-SKILL使用.md)
 ❌ [04-文档管理规范](DOC_MANAGEMENT.md)
@@ -47,6 +48,7 @@
 ```
 
 #### 新增的引用
+
 ```markdown
 ✅ [SKILL 开发规范](01-standards/SKILL/README.md) - SKILL 原则与开发流程
 ✅ [01-SKILL 原则详解](01-standards/SKILL/01-SKILL 原则.md)
@@ -122,16 +124,19 @@ frontend/public/docs/
 ### 核心改进
 
 #### 1. 统一入口
+
 - ✅ 唯一入口：`SKILL/README.md`
 - ✅ 统一规则：`skill-principles.mdc`
 - ✅ 统一风格：无 emoji、无装饰
 
 #### 2. 智能体自动遵循
+
 - ✅ alwaysApply: true 确保自动加载
 - ✅ YAML 规则明确定义检查项
 - ✅ 违规自动修复 + 警告
 
 #### 3. 简洁即美
+
 - ✅ 删除所有冗余文档
 - ✅ 删除所有 emoji 和装饰
 - ✅ 保持专业严谨风格

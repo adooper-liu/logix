@@ -23,17 +23,21 @@
           </h2>
           <!-- 带内容的章节标题 -->
           <section v-else class="magazine-section">
-            <h2
-              v-if="section.level === 'chapter'"
-              class="magazine-chapter-title"
-            >
+            <h2 v-if="section.level === 'chapter'" class="magazine-chapter-title">
               {{ section.title }}
             </h2>
             <h3 v-else class="magazine-section-title">{{ section.title }}</h3>
             <div v-if="section.content" class="magazine-content">
-              <p v-if="typeof section.content === 'string'" v-html="highlightContent(section.content)"></p>
+              <p
+                v-if="typeof section.content === 'string'"
+                v-html="highlightContent(section.content)"
+              ></p>
               <template v-else>
-                <p v-for="(para, i) in section.content" :key="i" v-html="highlightContent(para)"></p>
+                <p
+                  v-for="(para, i) in section.content"
+                  :key="i"
+                  v-html="highlightContent(para)"
+                ></p>
               </template>
             </div>
             <ul v-if="section.list" class="magazine-list">
@@ -60,10 +64,7 @@
       </div>
 
       <div v-if="chapter" class="article-footer">
-        <el-button
-          :disabled="!prevChapter"
-          @click="prevChapter && goToChapter(prevChapter.id)"
-        >
+        <el-button :disabled="!prevChapter" @click="prevChapter && goToChapter(prevChapter.id)">
           <el-icon><ArrowLeft /></el-icon>
           上一章
         </el-button>
@@ -96,17 +97,15 @@ const chapterId = computed(() => {
   return Number.isNaN(n) ? 0 : n
 })
 
-const chapter = computed(() =>
-  visionChapters.find((c) => c.id === chapterId.value)
-)
+const chapter = computed(() => visionChapters.find(c => c.id === chapterId.value))
 
 const prevChapter = computed(() => {
-  const idx = visionChapters.findIndex((c) => c.id === chapterId.value)
+  const idx = visionChapters.findIndex(c => c.id === chapterId.value)
   return idx > 0 ? visionChapters[idx - 1] : null
 })
 
 const nextChapter = computed(() => {
-  const idx = visionChapters.findIndex((c) => c.id === chapterId.value)
+  const idx = visionChapters.findIndex(c => c.id === chapterId.value)
   return idx >= 0 && idx < visionChapters.length - 1 ? visionChapters[idx + 1] : null
 })
 

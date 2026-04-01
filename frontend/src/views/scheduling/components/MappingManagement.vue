@@ -110,13 +110,15 @@ const form = ref({
   isDefault: false,
   isActive: true,
   transportFee: 0,
-  remarks: ''
+  remarks: '',
 })
 
 const loadMappings = async () => {
   loading.value = true
   try {
-    const response = await fetch(`/api/v1/warehouse-trucking-mapping?country=${props.country || appStore.scopedCountryCode || ''}`)
+    const response = await fetch(
+      `/api/v1/warehouse-trucking-mapping?country=${props.country || appStore.scopedCountryCode || ''}`
+    )
     const data = await response.json()
     if (data.success) {
       mappings.value = data.data || []
@@ -142,7 +144,7 @@ const showDialog = (row?: any) => {
       isDefault: row.is_default || false,
       isActive: row.is_active !== false,
       transportFee: row.transport_fee || 0,
-      remarks: row.remarks || ''
+      remarks: row.remarks || '',
     }
   } else {
     isEdit.value = false
@@ -157,7 +159,7 @@ const showDialog = (row?: any) => {
       isDefault: false,
       isActive: true,
       transportFee: 0,
-      remarks: ''
+      remarks: '',
     }
   }
   dialogVisible.value = true
@@ -179,7 +181,7 @@ const saveMapping = async () => {
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form.value)
+      body: JSON.stringify(form.value),
     })
 
     const data = await response.json()
@@ -200,7 +202,7 @@ const deleteMapping = async (row: any) => {
     await ElMessageBox.confirm('确定要删除该映射关系吗？', '提示', { type: 'warning' })
 
     const response = await fetch(`/api/v1/warehouse-trucking-mapping/${row.id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
     })
 
     const data = await response.json()

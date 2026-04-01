@@ -249,7 +249,7 @@ export class SchedulingController {
 
       // 查询待排产货柜数量（与 batchSchedule 口径一致）
       const containerRepo = AppDataSource.getRepository(Container);
-      let params: any[] = hasDateRange ? [String(startDate), String(endDate)] : [];
+      const params: any[] = hasDateRange ? [String(startDate), String(endDate)] : [];
       let paramIndex = hasDateRange ? 3 : 1;
 
       // 构建国家过滤条件
@@ -1753,7 +1753,7 @@ export class SchedulingController {
         }
 
         // 生成日期范围内的数据
-        let currentDate = new Date(startDate);
+        const currentDate = new Date(startDate);
         while (currentDate <= endDate) {
           const dateStr = currentDate.toISOString().split('T')[0];
           const dayOfWeek = currentDate.getDay();
@@ -1817,7 +1817,7 @@ export class SchedulingController {
         }
 
         // 生成日期范围内的数据
-        let currentDate = new Date(startDate);
+        const currentDate = new Date(startDate);
         while (currentDate <= endDate) {
           const dateStr = currentDate.toISOString().split('T')[0];
           const dayOfWeek = currentDate.getDay();
@@ -2388,12 +2388,15 @@ export class SchedulingController {
       }
 
       // 2. 查询仓库当日产能占用记录
-      const occupancy = await (manager || this.warehouseOccupancyRepo).findOne(ExtWarehouseDailyOccupancy, {
-        where: {
-          warehouseCode: plannedData.warehouseId,
-          date: plannedData.plannedUnloadDate
+      const occupancy = await (manager || this.warehouseOccupancyRepo).findOne(
+        ExtWarehouseDailyOccupancy,
+        {
+          where: {
+            warehouseCode: plannedData.warehouseId,
+            date: plannedData.plannedUnloadDate
+          }
         }
-      });
+      );
 
       // 3. 如果没有记录，说明该日期尚未排产，默认可用
       if (!occupancy) {
@@ -2417,9 +2420,12 @@ export class SchedulingController {
 
       // 5. 如果是 Drop off 模式，检查车队还箱档期
       if (plannedData.unloadMode === 'Drop off' && plannedData.plannedReturnDate) {
-        const truckingCompany = await (manager || this.truckingCompanyRepo).findOne(TruckingCompany, {
-          where: { truckingCompanyId: plannedData.truckingCompanyId }
-        });
+        const truckingCompany = await (manager || this.truckingCompanyRepo).findOne(
+          TruckingCompany,
+          {
+            where: { truckingCompanyId: plannedData.truckingCompanyId }
+          }
+        );
 
         // 只有有堆场的车队才需要检查还箱档期
         if (truckingCompany && truckingCompany.hasYard) {
@@ -2629,7 +2635,7 @@ export class SchedulingController {
     try {
       const { containerNumbers } = req.query;
 
-      let query = this.schedulingHistoryRepo
+      const query = this.schedulingHistoryRepo
         .createQueryBuilder('history')
         .innerJoin(
           (qb) =>

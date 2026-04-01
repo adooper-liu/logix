@@ -15,7 +15,7 @@ import {
   ContainerStatusNode,
   ContainerLoadingData,
   ContainerHoldData,
-  ContainerChargeData,
+  ContainerChargeData
 } from './ExternalDataAdapter.interface.js';
 import { feituoAdapter } from './FeiTuoAdapter.js';
 import { logisticsPathAdapter } from './LogisticsPathAdapter.js';
@@ -26,7 +26,7 @@ import { logisticsPathAdapter } from './LogisticsPathAdapter.js';
 enum AdapterPriority {
   PRIMARY = 'primary',
   SECONDARY = 'secondary',
-  FALLBACK = 'fallback',
+  FALLBACK = 'fallback'
 }
 
 /**
@@ -72,24 +72,27 @@ export class AdapterManager {
 
     log.info('AdapterManager Initialized:', {
       adapterCount: this.adapters.size,
-      defaultAdapter: this.defaultAdapter,
+      defaultAdapter: this.defaultAdapter
     });
   }
 
   /**
    * 注册适配器
    */
-  registerAdapter(adapter: IExternalDataAdapter, priority: AdapterPriority = AdapterPriority.FALLBACK) {
+  registerAdapter(
+    adapter: IExternalDataAdapter,
+    priority: AdapterPriority = AdapterPriority.FALLBACK
+  ) {
     this.adapters.set(adapter.sourceType, {
       adapter,
       priority,
       enabled: adapter.enabled,
-      healthy: true,
+      healthy: true
     });
     log.info('Adapter Registered:', {
       name: adapter.name,
       sourceType: adapter.sourceType,
-      priority,
+      priority
     });
   }
 
@@ -124,7 +127,11 @@ export class AdapterManager {
    * 获取健康的适配器列表（按优先级排序）
    */
   getHealthyAdapters(): IExternalDataAdapter[] {
-    const priorityOrder = [AdapterPriority.PRIMARY, AdapterPriority.SECONDARY, AdapterPriority.FALLBACK];
+    const priorityOrder = [
+      AdapterPriority.PRIMARY,
+      AdapterPriority.SECONDARY,
+      AdapterPriority.FALLBACK
+    ];
 
     return Array.from(this.adapters.values())
       .filter((reg) => reg.enabled && reg.healthy)
@@ -153,7 +160,7 @@ export class AdapterManager {
         if (!isHealthy && registration.healthy !== false) {
           log.warn('Adapter Health Check Failed:', {
             sourceType,
-            name: registration.adapter.name,
+            name: registration.adapter.name
           });
         }
       } catch (error) {
@@ -161,7 +168,7 @@ export class AdapterManager {
         registration.lastHealthCheck = new Date();
         log.error('Adapter Health Check Error:', {
           sourceType,
-          error: error instanceof Error ? error.message : 'Unknown error',
+          error: error instanceof Error ? error.message : 'Unknown error'
         });
       }
     }
@@ -220,7 +227,7 @@ export class AdapterManager {
       priority: registration.priority,
       enabled: registration.enabled,
       healthy: registration.healthy,
-      lastHealthCheck: registration.lastHealthCheck,
+      lastHealthCheck: registration.lastHealthCheck
     }));
   }
 
@@ -231,16 +238,14 @@ export class AdapterManager {
     containerNumber: string,
     sourceType?: ExternalDataSource
   ): Promise<AdapterResponse<ContainerStatusNode[]>> {
-    const adapter = sourceType
-      ? this.getAdapter(sourceType)
-      : this.getBestAdapter();
+    const adapter = sourceType ? this.getAdapter(sourceType) : this.getBestAdapter();
 
     if (!adapter) {
       return {
         success: false,
         error: 'No available adapter',
         source: this.defaultAdapter,
-        timestamp: new Date(),
+        timestamp: new Date()
       };
     }
 
@@ -264,16 +269,14 @@ export class AdapterManager {
     containerNumber: string,
     sourceType?: ExternalDataSource
   ): Promise<AdapterResponse<ContainerLoadingData[]>> {
-    const adapter = sourceType
-      ? this.getAdapter(sourceType)
-      : this.getBestAdapter();
+    const adapter = sourceType ? this.getAdapter(sourceType) : this.getBestAdapter();
 
     if (!adapter) {
       return {
         success: false,
         error: 'No available adapter',
         source: this.defaultAdapter,
-        timestamp: new Date(),
+        timestamp: new Date()
       };
     }
 
@@ -287,16 +290,14 @@ export class AdapterManager {
     containerNumber: string,
     sourceType?: ExternalDataSource
   ): Promise<AdapterResponse<ContainerHoldData[]>> {
-    const adapter = sourceType
-      ? this.getAdapter(sourceType)
-      : this.getBestAdapter();
+    const adapter = sourceType ? this.getAdapter(sourceType) : this.getBestAdapter();
 
     if (!adapter) {
       return {
         success: false,
         error: 'No available adapter',
         source: this.defaultAdapter,
-        timestamp: new Date(),
+        timestamp: new Date()
       };
     }
 
@@ -310,16 +311,14 @@ export class AdapterManager {
     containerNumber: string,
     sourceType?: ExternalDataSource
   ): Promise<AdapterResponse<ContainerChargeData[]>> {
-    const adapter = sourceType
-      ? this.getAdapter(sourceType)
-      : this.getBestAdapter();
+    const adapter = sourceType ? this.getAdapter(sourceType) : this.getBestAdapter();
 
     if (!adapter) {
       return {
         success: false,
         error: 'No available adapter',
         source: this.defaultAdapter,
-        timestamp: new Date(),
+        timestamp: new Date()
       };
     }
 
@@ -333,16 +332,14 @@ export class AdapterManager {
     containerNumber: string,
     sourceType?: ExternalDataSource
   ): Promise<AdapterResponse<boolean>> {
-    const adapter = sourceType
-      ? this.getAdapter(sourceType)
-      : this.getBestAdapter();
+    const adapter = sourceType ? this.getAdapter(sourceType) : this.getBestAdapter();
 
     if (!adapter) {
       return {
         success: false,
         error: 'No available adapter',
         source: this.defaultAdapter,
-        timestamp: new Date(),
+        timestamp: new Date()
       };
     }
 
@@ -363,7 +360,7 @@ export class AdapterManager {
         success: false,
         error: `Adapter not found: ${sourceType}`,
         source: sourceType,
-        timestamp: new Date(),
+        timestamp: new Date()
       };
     }
 

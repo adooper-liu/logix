@@ -38,7 +38,9 @@ export class SchedulingDateCalculator {
   async calculatePlannedPickupDate(customsDate: Date, lastFreeDate?: Date): Promise<Date> {
     // 验证输入日期
     if (!customsDate || isNaN(customsDate.getTime())) {
-      logger.warn('[SchedulingDateCalculator] Invalid customsDate passed to calculatePlannedPickupDate');
+      logger.warn(
+        '[SchedulingDateCalculator] Invalid customsDate passed to calculatePlannedPickupDate'
+      );
       return new Date(); // 返回今天作为默认值
     }
 
@@ -96,7 +98,7 @@ export class SchedulingDateCalculator {
     unloadMode: string,
     truckingCompanyId: string,
     lastReturnDate?: Date,
-    plannedPickupDate?: Date
+    _plannedPickupDate?: Date
   ): Promise<ReturnDateResult> {
     const returnDateOnly = new Date(unloadDate);
     returnDateOnly.setUTCHours(0, 0, 0, 0);

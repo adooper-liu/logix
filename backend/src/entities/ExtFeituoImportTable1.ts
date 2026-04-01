@@ -2,7 +2,14 @@
  * 飞驼导入表一实体（船公司订阅维度）
  */
 
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn
+} from 'typeorm';
 import { ExtFeituoImportBatch } from './ExtFeituoImportBatch';
 
 @Entity('ext_feituo_import_table1')

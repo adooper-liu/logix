@@ -269,9 +269,7 @@ export class AlertService {
     }
 
     const pickupDate = new Date(trucking.pickupDate);
-    const daysSincePickup = Math.ceil(
-      (Date.now() - pickupDate.getTime()) / (1000 * 60 * 60 * 24)
-    );
+    const daysSincePickup = Math.ceil((Date.now() - pickupDate.getTime()) / (1000 * 60 * 60 * 24));
 
     if (daysSincePickup > 3) {
       alerts.push(
@@ -528,7 +526,9 @@ export class AlertService {
           eventCode: event.eventCode
         });
         return (
-          description.includes('甩柜') || description.includes('dumped') || event.eventCode === 'DUMP'
+          description.includes('甩柜') ||
+          description.includes('dumped') ||
+          event.eventCode === 'DUMP'
         );
       });
 

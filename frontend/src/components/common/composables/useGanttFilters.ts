@@ -4,7 +4,14 @@ import { getRemainingTime } from './useGanttHelpers'
 
 /** 是否已到中转港（与后端 excludeContainersArrivedAtTransit 一致：存在 transit 且 ata/gate_in/transit_arrival 有值） */
 function hasArrivedAtTransit(container: ContainerItem): boolean {
-  const ops = container.portOperations as Array<{ portType?: string; ataDestPort?: unknown; gateInTime?: unknown; transitArrivalDate?: unknown }> | undefined
+  const ops = container.portOperations as
+    | Array<{
+        portType?: string
+        ataDestPort?: unknown
+        gateInTime?: unknown
+        transitArrivalDate?: unknown
+      }>
+    | undefined
   if (!ops?.length) return false
   return ops.some(
     po =>
@@ -33,9 +40,13 @@ export const getArrivalSubset = (
       }
 
       // 中转港相关分组
-      if (groupLabel === '中转港已逾期' || groupLabel === '中转港3日内到港' ||
-          groupLabel === '中转港7日内到港' || groupLabel === '中转港7日后到港' ||
-          groupLabel === '中转港无ETA') {
+      if (
+        groupLabel === '中转港已逾期' ||
+        groupLabel === '中转港3日内到港' ||
+        groupLabel === '中转港7日内到港' ||
+        groupLabel === '中转港7日后到港' ||
+        groupLabel === '中转港无ETA'
+      ) {
         if (!hasArrivedAtTransit(container)) return false
         if (!etaDate) return groupLabel === '中转港无ETA'
 
@@ -235,7 +246,9 @@ export const getPickupSubset = (
 // 从货柜上取最晚提柜日：列表接口只返回扁平 lastFreeDate，详情接口有 portOperations
 function getLastFreeDateFromContainer(container: ContainerItem): Date | null {
   if (container.lastFreeDate) return new Date(container.lastFreeDate)
-  const portOps = container.portOperations as Array<{ portType?: string; lastFreeDate?: unknown }> | undefined
+  const portOps = container.portOperations as
+    | Array<{ portType?: string; lastFreeDate?: unknown }>
+    | undefined
   if (portOps?.length) {
     const dest = portOps.find(op => op.portType === 'destination')
     if (dest?.lastFreeDate) return new Date(dest.lastFreeDate as string | Date)
@@ -421,12 +434,16 @@ export const getGroupContainers = (groupSubset: ContainerItem[], date: Date): Co
     }
     const isMatch = dayjs(item.extractedDate).isSame(targetDate, 'day')
     if (!isMatch) {
-      console.log(`[Gantt Debug] Container ${item.containerNumber}: extractedDate=${dayjs(item.extractedDate).format('YYYY-MM-DD')}, targetDate=${dayjs(targetDate).format('YYYY-MM-DD')}`)
+      console.log(
+        `[Gantt Debug] Container ${item.containerNumber}: extractedDate=${dayjs(item.extractedDate).format('YYYY-MM-DD')}, targetDate=${dayjs(targetDate).format('YYYY-MM-DD')}`
+      )
     }
     return isMatch
   })
   if (filtered.length > 0) {
-    console.log(`[Gantt Debug] getGroupContainers: subset.length=${groupSubset.length}, filtered.length=${filtered.length}, targetDate=${dayjs(targetDate).format('YYYY-MM-DD')}`)
+    console.log(
+      `[Gantt Debug] getGroupContainers: subset.length=${groupSubset.length}, filtered.length=${filtered.length}, targetDate=${dayjs(targetDate).format('YYYY-MM-DD')}`
+    )
   }
   return filtered
 }

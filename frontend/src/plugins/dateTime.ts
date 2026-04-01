@@ -12,5 +12,5 @@ export default {
   install(app: App) {
     app.config.globalProperties.$dateTime = DateTimeUtils
     app.provide('dateTime', DateTimeUtils)
-  }
+  },
 }

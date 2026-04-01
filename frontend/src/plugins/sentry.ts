@@ -1,12 +1,12 @@
-import * as Sentry from '@sentry/vue';
+import * as Sentry from '@sentry/vue'
 
 export function initSentry(app: any) {
-  const dsn = import.meta.env.VITE_SENTRY_DSN;
+  const dsn = import.meta.env.VITE_SENTRY_DSN
 
   // Only initialize if DSN is provided
   if (!dsn) {
-    console.log('[Sentry] Sentry DSN 未配置，跳过初始化');
-    return;
+    console.log('[Sentry] Sentry DSN 未配置，跳过初始化')
+    return
   }
 
   Sentry.init({
@@ -33,7 +33,7 @@ export function initSentry(app: any) {
       'ResizeObserver loop limit exceeded',
       'ResizeObserver loop completed with undelivered notifications',
     ],
-  });
+  })
 
-  console.log('[Sentry] Sentry 已初始化');
+  console.log('[Sentry] Sentry 已初始化')
 }

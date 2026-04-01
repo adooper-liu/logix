@@ -77,7 +77,7 @@ export interface ContainerChargeData {
 export enum ExternalDataSource {
   FEITUO = 'feituo',
   LOGISTICS_PATH = 'logistics_path',
-  CUSTOM_API = 'custom_api',
+  CUSTOM_API = 'custom_api'
 }
 
 /**
@@ -118,12 +118,16 @@ export interface IExternalDataAdapter {
   /**
    * 根据集装箱号获取状态节点列表
    */
-  getContainerStatusEvents(containerNumber: string): Promise<AdapterResponse<ContainerStatusNode[]>>;
+  getContainerStatusEvents(
+    containerNumber: string
+  ): Promise<AdapterResponse<ContainerStatusNode[]>>;
 
   /**
    * 根据集装箱号获取装载记录
    */
-  getContainerLoadingRecords(containerNumber: string): Promise<AdapterResponse<ContainerLoadingData[]>>;
+  getContainerLoadingRecords(
+    containerNumber: string
+  ): Promise<AdapterResponse<ContainerLoadingData[]>>;
 
   /**
    * 根据集装箱号获取HOLD记录

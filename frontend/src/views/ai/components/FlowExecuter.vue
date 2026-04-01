@@ -38,7 +38,9 @@
             :closable="false"
             show-icon
           />
-          <pre v-if="result.data" class="result-json">{{ JSON.stringify(result.data, null, 2) }}</pre>
+          <pre v-if="result.data" class="result-json">{{
+            JSON.stringify(result.data, null, 2)
+          }}</pre>
           <p v-if="result.error" class="error-message">{{ result.error }}</p>
         </div>
       </div>
@@ -46,12 +48,7 @@
 
     <template #footer>
       <el-button @click="handleClose">取消</el-button>
-      <el-button
-        type="primary"
-        :icon="VideoPlay"
-        :loading="executing"
-        @click="executeFlow"
-      >
+      <el-button type="primary" :icon="VideoPlay" :loading="executing" @click="executeFlow">
         执行
       </el-button>
     </template>
@@ -76,31 +73,34 @@ const emit = defineEmits<{
 
 const visible = computed({
   get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value)
+  set: value => emit('update:modelValue', value),
 })
 
 const variablesObj = ref<Record<string, any>>({})
 const variablesText = computed({
   get: () => JSON.stringify(variablesObj.value, null, 2),
-  set: (value) => {
+  set: value => {
     try {
       variablesObj.value = JSON.parse(value)
     } catch {
       variablesObj.value = {}
     }
-  }
+  },
 })
 
 const result = ref<FlowExecutionResult | null>(null)
 const executing = ref(false)
 
-watch(() => props.modelValue, (val) => {
-  if (val) {
-    // 打开时重置结果
-    result.value = null
-    variablesObj.value = {}
+watch(
+  () => props.modelValue,
+  val => {
+    if (val) {
+      // 打开时重置结果
+      result.value = null
+      variablesObj.value = {}
+    }
   }
-})
+)
 
 const executeFlow = async () => {
   if (!props.flow) return

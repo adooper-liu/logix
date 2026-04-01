@@ -7,13 +7,13 @@ const apiClient: AxiosInstance = axios.create({
   baseURL: '/api/v1',
   timeout: 10000,
   headers: {
-    'Content-Type': 'application/json'
-  }
+    'Content-Type': 'application/json',
+  },
 })
 
 // 请求拦截器
 apiClient.interceptors.request.use(
-  (config) => {
+  config => {
     const token = localStorage.getItem('token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
@@ -24,7 +24,7 @@ apiClient.interceptors.request.use(
     }
     return config
   },
-  (error) => {
+  error => {
     return Promise.reject(error)
   }
 )
@@ -34,7 +34,7 @@ apiClient.interceptors.response.use(
   (response: AxiosResponse) => {
     return response.data
   },
-  (error) => {
+  error => {
     if (error.response?.status === 401) {
       // 未授权，清除token并跳转登录
       localStorage.removeItem('token')
@@ -62,7 +62,7 @@ export const api = {
 
   delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
     return apiClient.delete(url, config)
-  }
+  },
 }
 
 export default apiClient

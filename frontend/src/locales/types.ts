@@ -9,7 +9,7 @@ export const SUPPORTED_LANGUAGES: Record<Language, { name: string; icon: string 
   'de-DE': { name: 'Deutsch', icon: '🇩🇪' },
   'fr-FR': { name: 'Français', icon: '🇫🇷' },
   'it-IT': { name: 'Italiano', icon: '🇮🇹' },
-  'es-ES': { name: 'Español', icon: '🇪🇸' }
+  'es-ES': { name: 'Español', icon: '🇪🇸' },
 }
 
 // 导出默认语言

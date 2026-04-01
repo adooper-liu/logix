@@ -2,7 +2,9 @@ import dayjs from 'dayjs'
 import type { RemainingTime } from '../types/ganttChart'
 
 // 计算倒计时时间
-export const getRemainingTime = (targetDate: string | Date | null | undefined): RemainingTime | null => {
+export const getRemainingTime = (
+  targetDate: string | Date | null | undefined
+): RemainingTime | null => {
   if (!targetDate) return null
   const target = new Date(targetDate)
   const now = new Date()
@@ -44,7 +46,11 @@ export const extractDateFromContainer = (container: any, dateField: string): Dat
   }
 
   // 从truckingTransports中提取计划提柜
-  if (dateField === 'plannedPickupDate' && container.truckingTransports && container.truckingTransports.length > 0) {
+  if (
+    dateField === 'plannedPickupDate' &&
+    container.truckingTransports &&
+    container.truckingTransports.length > 0
+  ) {
     const trucking = container.truckingTransports[0]
     if (trucking.plannedPickupDate) {
       return new Date(trucking.plannedPickupDate)
@@ -52,7 +58,11 @@ export const extractDateFromContainer = (container: any, dateField: string): Dat
   }
 
   // 从emptyReturns中提取最晚还箱
-  if (dateField === 'lastReturnDate' && container.emptyReturns && container.emptyReturns.length > 0) {
+  if (
+    dateField === 'lastReturnDate' &&
+    container.emptyReturns &&
+    container.emptyReturns.length > 0
+  ) {
     const emptyReturn = container.emptyReturns[0]
     if (emptyReturn.lastReturnDate) {
       return new Date(emptyReturn.lastReturnDate)

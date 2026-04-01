@@ -9,14 +9,10 @@ import {
   QuestionFilled,
   Refresh,
   InfoFilled,
-  Clock
+  Clock,
 } from '@element-plus/icons-vue'
 import * as echarts from 'echarts'
-import {
-  getMonitoringData,
-  refreshMonitoringData,
-  type Alert
-} from '@/api/monitoring'
+import { getMonitoringData, refreshMonitoringData, type Alert } from '@/api/monitoring'
 
 // 数据加载状态
 const loading = ref(false)
@@ -27,7 +23,7 @@ const performanceMetrics = ref({
   cpuUsage: 0,
   memoryUsage: 0,
   responseTime: 0,
-  throughput: 0
+  throughput: 0,
 })
 
 // 🚀 性能优化数据 - 看看优化了多少
@@ -36,7 +32,7 @@ const optimizationData = ref({
   apiCacheTotal: 1, // 初始化为1避免除以0
   searchRequestsSaved: 0,
   slowComponents: 0,
-  avgLoadTime: 0
+  avgLoadTime: 0,
 })
 
 // 🔔 告警信息 - 系统出问题了会告诉你
@@ -48,14 +44,14 @@ const serviceHealth = ref({
   database: 100,
   redis: 100,
   feituoAdapter: 100,
-  logisticsAdapter: 100
+  logisticsAdapter: 100,
 })
 
 // 📈 性能趋势数据
 const performanceTrend = ref({
   timestamps: [] as string[],
   cpuUsage: [] as number[],
-  memoryUsage: [] as number[]
+  memoryUsage: [] as number[],
 })
 
 // 📊 计算属性：计算一些有用的数据
@@ -63,7 +59,9 @@ const cacheHitRate = computed(() => {
   if (optimizationData.value.apiCacheTotal === 0) {
     return 0
   }
-  return Math.round((optimizationData.value.apiCacheHits / optimizationData.value.apiCacheTotal) * 100)
+  return Math.round(
+    (optimizationData.value.apiCacheHits / optimizationData.value.apiCacheTotal) * 100
+  )
 })
 
 const optimizationScore = computed(() => {
@@ -71,7 +69,7 @@ const optimizationScore = computed(() => {
   const cacheScore = cacheHitRate.value
   const searchScore = Math.min(100, (optimizationData.value.searchRequestsSaved / 100) * 100)
   const loadScore = Math.max(0, 100 - (optimizationData.value.avgLoadTime - 1) * 20)
-  return Math.round((cacheScore * 0.4 + searchScore * 0.3 + loadScore * 0.3))
+  return Math.round(cacheScore * 0.4 + searchScore * 0.3 + loadScore * 0.3)
 })
 
 // 图表实例
@@ -94,7 +92,7 @@ const updateCharts = () => {
   console.log('[Monitoring] 更新图表', {
     serviceHealth: serviceHealth.value,
     performanceTrend: performanceTrend.value,
-    optimizationData: optimizationData.value
+    optimizationData: optimizationData.value,
   })
 
   // 服务健康度图表
@@ -110,49 +108,51 @@ const updateCharts = () => {
           if (value < 80) status = '🔴 需要关注'
           else if (value < 95) status = '🟡 注意'
           return `${param.name}<br/>健康度: ${value}%<br/>状态: ${status}`
-        }
+        },
       },
       grid: {
         left: '3%',
         right: '4%',
         bottom: '3%',
-        containLabel: true
+        containLabel: true,
       },
       xAxis: {
         type: 'category',
         data: ['API服务', '数据库', 'Redis缓存', '飞驼适配器', '物流适配器'],
-        axisLabel: { interval: 0, rotate: 0 }
+        axisLabel: { interval: 0, rotate: 0 },
       },
       yAxis: {
         type: 'value',
         max: 100,
-        axisLabel: { formatter: '{value}%' }
+        axisLabel: { formatter: '{value}%' },
       },
-      series: [{
-        data: [
-          serviceHealth.value.apiService,
-          serviceHealth.value.database,
-          serviceHealth.value.redis,
-          serviceHealth.value.feituoAdapter,
-          serviceHealth.value.logisticsAdapter
-        ],
-        type: 'bar',
-        barWidth: 40,
-        itemStyle: {
-          borderRadius: [8, 8, 0, 0],
-          color: (params: any) => {
-            const value = params.value
-            if (value >= 95) return '#67C23A'  // 绿色
-            if (value >= 80) return '#E6A23C'  // 黄色
-            return '#F56C6C'                  // 红色
-          }
+      series: [
+        {
+          data: [
+            serviceHealth.value.apiService,
+            serviceHealth.value.database,
+            serviceHealth.value.redis,
+            serviceHealth.value.feituoAdapter,
+            serviceHealth.value.logisticsAdapter,
+          ],
+          type: 'bar',
+          barWidth: 40,
+          itemStyle: {
+            borderRadius: [8, 8, 0, 0],
+            color: (params: any) => {
+              const value = params.value
+              if (value >= 95) return '#67C23A' // 绿色
+              if (value >= 80) return '#E6A23C' // 黄色
+              return '#F56C6C' // 红色
+            },
+          },
+          label: {
+            show: true,
+            position: 'top',
+            formatter: '{c}%',
+          },
         },
-        label: {
-          show: true,
-          position: 'top',
-          formatter: '{c}%'
-        }
-      }]
+      ],
     }
     healthChart.setOption(healthOption)
     console.log('[Monitoring] 服务健康度图表已更新')
@@ -169,25 +169,25 @@ const updateCharts = () => {
             result += `${p.seriesName}: ${p.value}%<br/>`
           })
           return result
-        }
+        },
       },
       legend: {
         data: ['CPU使用率', '内存使用率'],
-        bottom: 0
+        bottom: 0,
       },
       grid: {
         left: '3%',
         right: '4%',
         bottom: '10%',
-        containLabel: true
+        containLabel: true,
       },
       xAxis: {
         type: 'category',
-        data: performanceTrend.value.timestamps
+        data: performanceTrend.value.timestamps,
       },
       yAxis: {
         type: 'value',
-        axisLabel: { formatter: '{value}%' }
+        axisLabel: { formatter: '{value}%' },
       },
       series: [
         {
@@ -200,9 +200,9 @@ const updateCharts = () => {
           areaStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
               { offset: 0, color: 'rgba(64, 158, 255, 0.3)' },
-              { offset: 1, color: 'rgba(64, 158, 255, 0.05)' }
-            ])
-          }
+              { offset: 1, color: 'rgba(64, 158, 255, 0.05)' },
+            ]),
+          },
         },
         {
           name: '内存使用率',
@@ -214,17 +214,17 @@ const updateCharts = () => {
           areaStyle: {
             color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
               { offset: 0, color: 'rgba(230, 162, 60, 0.3)' },
-              { offset: 1, color: 'rgba(230, 162, 60, 0.05)' }
-            ])
-          }
-        }
-      ]
+              { offset: 1, color: 'rgba(230, 162, 60, 0.05)' },
+            ]),
+          },
+        },
+      ],
     }
     performanceChart.setOption(performanceOption)
     console.log('[Monitoring] 性能趋势图表已更新', {
       timestamps: performanceTrend.value.timestamps,
       cpuUsage: performanceTrend.value.cpuUsage,
-      memoryUsage: performanceTrend.value.memoryUsage
+      memoryUsage: performanceTrend.value.memoryUsage,
     })
   }
 
@@ -233,41 +233,51 @@ const updateCharts = () => {
     const cacheOption = {
       tooltip: {
         trigger: 'item',
-        formatter: '{a} <br/>{b}: {c} ({d}%)'
+        formatter: '{a} <br/>{b}: {c} ({d}%)',
       },
       legend: {
         orient: 'vertical',
-        left: 'left'
+        left: 'left',
       },
-      series: [{
-        name: '请求来源',
-        type: 'pie',
-        radius: ['40%', '70%'],
-        avoidLabelOverlap: false,
-        itemStyle: {
-          borderRadius: 10,
-          borderColor: '#fff',
-          borderWidth: 2
-        },
-        label: {
-          show: false,
-          position: 'center'
-        },
-        emphasis: {
+      series: [
+        {
+          name: '请求来源',
+          type: 'pie',
+          radius: ['40%', '70%'],
+          avoidLabelOverlap: false,
+          itemStyle: {
+            borderRadius: 10,
+            borderColor: '#fff',
+            borderWidth: 2,
+          },
           label: {
-            show: true,
-            fontSize: 20,
-            fontWeight: 'bold'
-          }
+            show: false,
+            position: 'center',
+          },
+          emphasis: {
+            label: {
+              show: true,
+              fontSize: 20,
+              fontWeight: 'bold',
+            },
+          },
+          labelLine: {
+            show: false,
+          },
+          data: [
+            {
+              value: optimizationData.value.apiCacheHits,
+              name: '🚀 缓存命中（超快）',
+              itemStyle: { color: '#67C23A' },
+            },
+            {
+              value: optimizationData.value.apiCacheTotal - optimizationData.value.apiCacheHits,
+              name: '🌐 需要请求（较慢）',
+              itemStyle: { color: '#E6A23C' },
+            },
+          ],
         },
-        labelLine: {
-          show: false
-        },
-        data: [
-          { value: optimizationData.value.apiCacheHits, name: '🚀 缓存命中（超快）', itemStyle: { color: '#67C23A' } },
-          { value: optimizationData.value.apiCacheTotal - optimizationData.value.apiCacheHits, name: '🌐 需要请求（较慢）', itemStyle: { color: '#E6A23C' } }
-        ]
-      }]
+      ],
     }
     cacheChart.setOption(cacheOption)
     console.log('[Monitoring] 缓存效果图表已更新')
@@ -445,7 +455,10 @@ onUnmounted(() => {
         <div class="score-details">
           <div class="score-item">
             <span class="score-label">📊 缓存命中率</span>
-            <el-progress :percentage="cacheHitRate" :color="cacheHitRate > 50 ? '#67C23A' : '#E6A23C'" />
+            <el-progress
+              :percentage="cacheHitRate"
+              :color="cacheHitRate > 50 ? '#67C23A' : '#E6A23C'"
+            />
             <span class="score-hint">{{ cacheHitRate }}% - 50%以上才算好</span>
           </div>
           <div class="score-item">
@@ -455,7 +468,10 @@ onUnmounted(() => {
           </div>
           <div class="score-item">
             <span class="score-label">⚡ 平均加载时间</span>
-            <div class="score-number" :class="optimizationData.avgLoadTime < 2 ? 'good' : 'warning'">
+            <div
+              class="score-number"
+              :class="optimizationData.avgLoadTime < 2 ? 'good' : 'warning'"
+            >
               {{ optimizationData.avgLoadTime }} 秒
             </div>
             <span class="score-hint">2秒以内才算快</span>
@@ -476,7 +492,10 @@ onUnmounted(() => {
       <!-- CPU使用率 -->
       <el-card class="metric-card" :class="performanceMetrics.cpuUsage > 80 ? 'warning' : ''">
         <div class="metric-content">
-          <div class="metric-icon" :class="performanceMetrics.cpuUsage > 80 ? 'warning' : 'success'">
+          <div
+            class="metric-icon"
+            :class="performanceMetrics.cpuUsage > 80 ? 'warning' : 'success'"
+          >
             <el-icon><Monitor /></el-icon>
           </div>
           <div class="metric-info">
@@ -493,7 +512,10 @@ onUnmounted(() => {
       <!-- 内存使用率 -->
       <el-card class="metric-card" :class="performanceMetrics.memoryUsage > 85 ? 'warning' : ''">
         <div class="metric-content">
-          <div class="metric-icon" :class="performanceMetrics.memoryUsage > 85 ? 'warning' : 'success'">
+          <div
+            class="metric-icon"
+            :class="performanceMetrics.memoryUsage > 85 ? 'warning' : 'success'"
+          >
             <el-icon><SuccessFilled /></el-icon>
           </div>
           <div class="metric-info">
@@ -510,7 +532,10 @@ onUnmounted(() => {
       <!-- 响应时间 -->
       <el-card class="metric-card" :class="performanceMetrics.responseTime > 500 ? 'warning' : ''">
         <div class="metric-content">
-          <div class="metric-icon" :class="performanceMetrics.responseTime > 500 ? 'warning' : 'success'">
+          <div
+            class="metric-icon"
+            :class="performanceMetrics.responseTime > 500 ? 'warning' : 'success'"
+          >
             <el-icon><Clock /></el-icon>
           </div>
           <div class="metric-info">
@@ -554,7 +579,7 @@ onUnmounted(() => {
             </div>
           </div>
         </template>
-        <div id="health-chart" style="height: 300px;"></div>
+        <div id="health-chart" style="height: 300px"></div>
         <div class="chart-legend">
           <div class="legend-item"><span class="dot green"></span>95%以上 = 🟢 正常</div>
           <div class="legend-item"><span class="dot yellow"></span>80-95% = 🟡 注意</div>
@@ -574,7 +599,7 @@ onUnmounted(() => {
             </div>
           </div>
         </template>
-        <div id="performance-chart" style="height: 300px;"></div>
+        <div id="performance-chart" style="height: 300px"></div>
         <div class="chart-legend">
           <div class="legend-item"><span class="line blue"></span>CPU使用率</div>
           <div class="legend-item"><span class="line yellow"></span>内存使用率</div>
@@ -616,7 +641,7 @@ onUnmounted(() => {
             💡 缓存就是把数据暂时存在浏览器里，下次直接取，不用再去问服务器，超快！
           </div>
         </div>
-        <div id="cache-chart" style="height: 200px;"></div>
+        <div id="cache-chart" style="height: 200px"></div>
       </el-card>
 
       <!-- 搜索优化 -->
@@ -637,7 +662,8 @@ onUnmounted(() => {
             <span class="stat-value">500毫秒</span>
           </div>
           <div class="search-explanation">
-            💡 搜索防抖就是你打字的时候，系统不会马上查，而是等你停500毫秒再查，避免你打每一个字都查一次。
+            💡
+            搜索防抖就是你打字的时候，系统不会马上查，而是等你停500毫秒再查，避免你打每一个字都查一次。
           </div>
         </div>
       </el-card>
@@ -673,8 +699,23 @@ onUnmounted(() => {
           <div class="alert-content">
             <div class="alert-header">
               <span class="alert-message">{{ alert.message }}</span>
-              <el-tag :type="alert.level === 'error' ? 'danger' : alert.level === 'warning' ? 'warning' : 'info'" size="small">
-                {{ alert.level === 'error' ? '🔴 严重' : alert.level === 'warning' ? '🟡 警告' : '🔵 提示' }}
+              <el-tag
+                :type="
+                  alert.level === 'error'
+                    ? 'danger'
+                    : alert.level === 'warning'
+                      ? 'warning'
+                      : 'info'
+                "
+                size="small"
+              >
+                {{
+                  alert.level === 'error'
+                    ? '🔴 严重'
+                    : alert.level === 'warning'
+                      ? '🟡 警告'
+                      : '🔵 提示'
+                }}
               </el-tag>
             </div>
             <div class="alert-details">
@@ -896,7 +937,8 @@ onUnmounted(() => {
   }
 
   @keyframes pulse {
-    0%, 100% {
+    0%,
+    100% {
       box-shadow: 0 0 0 0 rgba(230, 162, 60, 0.4);
     }
     50% {
@@ -920,10 +962,18 @@ onUnmounted(() => {
       color: white;
       flex-shrink: 0;
 
-      &.primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-      &.success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-      &.warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-      &.info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+      &.primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+      &.success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      }
+      &.warning {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      }
+      &.info {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+      }
     }
 
     .metric-info {
@@ -1001,9 +1051,15 @@ onUnmounted(() => {
         height: 12px;
         border-radius: 50%;
 
-        &.green { background: #67C23A; }
-        &.yellow { background: #E6A23C; }
-        &.red { background: #F56C6C; }
+        &.green {
+          background: #67c23a;
+        }
+        &.yellow {
+          background: #e6a23c;
+        }
+        &.red {
+          background: #f56c6c;
+        }
       }
 
       .line {
@@ -1011,8 +1067,12 @@ onUnmounted(() => {
         height: 3px;
         border-radius: 2px;
 
-        &.blue { background: #409EFF; }
-        &.yellow { background: #E6A23C; }
+        &.blue {
+          background: #409eff;
+        }
+        &.yellow {
+          background: #e6a23c;
+        }
       }
     }
   }
@@ -1034,11 +1094,13 @@ onUnmounted(() => {
     font-size: 16px;
   }
 
-  .cache-info, .search-info {
+  .cache-info,
+  .search-info {
     margin-bottom: 20px;
   }
 
-  .cache-stat, .search-stat {
+  .cache-stat,
+  .search-stat {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1059,16 +1121,21 @@ onUnmounted(() => {
       font-size: 18px;
       font-weight: 600;
 
-      &.green { color: $success-color; }
-      &.yellow { color: $warning-color; }
+      &.green {
+        color: $success-color;
+      }
+      &.yellow {
+        color: $warning-color;
+      }
     }
   }
 
-  .cache-explanation, .search-explanation {
+  .cache-explanation,
+  .search-explanation {
     margin-top: 16px;
     padding: 12px;
     background: #f0f9ff;
-    border-left: 4px solid #409EFF;
+    border-left: 4px solid #409eff;
     border-radius: 4px;
     font-size: 14px;
     color: $text-primary;
@@ -1113,12 +1180,12 @@ onUnmounted(() => {
 
       &.alert-error {
         background: #fef0f0;
-        border-left-color: #F56C6C;
+        border-left-color: #f56c6c;
       }
 
       &.alert-warning {
         background: #fdf6ec;
-        border-left-color: #E6A23C;
+        border-left-color: #e6a23c;
       }
 
       &.alert-info {
@@ -1132,10 +1199,18 @@ onUnmounted(() => {
         flex-shrink: 0;
 
         .el-icon {
-          &.error { color: #F56C6C; }
-          &.warning { color: #E6A23C; }
-          &.success { color: #67C23A; }
-          &.info { color: #909399; }
+          &.error {
+            color: #f56c6c;
+          }
+          &.warning {
+            color: #e6a23c;
+          }
+          &.success {
+            color: #67c23a;
+          }
+          &.info {
+            color: #909399;
+          }
         }
       }
 
@@ -1161,7 +1236,8 @@ onUnmounted(() => {
           flex-wrap: wrap;
           font-size: 13px;
 
-          .alert-time, .alert-advice {
+          .alert-time,
+          .alert-advice {
             display: flex;
             align-items: center;
             gap: 4px;

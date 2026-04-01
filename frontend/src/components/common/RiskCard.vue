@@ -32,13 +32,16 @@
             </el-tag>
           </div>
         </div>
-        
+
         <div v-if="riskAssessment.recommendation" class="risk-recommendation">
           <h4>建议</h4>
           <p>{{ riskAssessment.recommendation }}</p>
         </div>
-        
-        <div v-if="riskAssessment.riskFactors && riskAssessment.riskFactors.length > 0" class="risk-factors">
+
+        <div
+          v-if="riskAssessment.riskFactors && riskAssessment.riskFactors.length > 0"
+          class="risk-factors"
+        >
           <h4>风险因素</h4>
           <el-table :data="riskAssessment.riskFactors" size="small">
             <el-table-column prop="factor" label="因素" width="120" />
@@ -52,7 +55,7 @@
             <el-table-column prop="description" label="描述" />
           </el-table>
         </div>
-        
+
         <div class="risk-meta">
           <span class="update-time">
             更新时间: {{ formatDateToLocal(riskAssessment.updatedAt) }}
@@ -64,68 +67,72 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
-import { riskApi } from '@/services/risk';
-import { Refresh, Loading, InfoFilled } from '@element-plus/icons-vue';
-import { formatDateToLocal } from '@/utils/dateTimeUtils';
+import { ref, watch } from 'vue'
+import { riskApi } from '@/services/risk'
+import { Refresh, Loading, InfoFilled } from '@element-plus/icons-vue'
+import { formatDateToLocal } from '@/utils/dateTimeUtils'
 
 const props = defineProps<{
-  containerNumber: string;
-}>();
+  containerNumber: string
+}>()
 
-const riskAssessment = ref<any>(null);
-const loading = ref(false);
+const riskAssessment = ref<any>(null)
+const loading = ref(false)
 
 const getRiskLevelText = (level: string) => {
   const levelMap: Record<string, string> = {
     low: '低风险',
     medium: '中风险',
     high: '高风险',
-    critical: '紧急'
-  };
-  return levelMap[level] || level;
-};
+    critical: '紧急',
+  }
+  return levelMap[level] || level
+}
 
 const getRiskLevelType = (level: string) => {
   const typeMap: Record<string, string> = {
     low: 'success',
     medium: 'warning',
     high: 'danger',
-    critical: 'danger'
-  };
-  return typeMap[level] || 'info';
-};
+    critical: 'danger',
+  }
+  return typeMap[level] || 'info'
+}
 
 const getRiskLevelClass = (level: string) => {
-  return `level-${level}`;
-};
+  return `level-${level}`
+}
 
 const getFactorScoreClass = (score: number) => {
-  if (score >= 70) return 'score-high';
-  if (score >= 40) return 'score-medium';
-  return 'score-low';
-};
+  if (score >= 70) return 'score-high'
+  if (score >= 40) return 'score-medium'
+  return 'score-low'
+}
 
 const refreshRisk = async () => {
-  if (!props.containerNumber) return;
+  if (!props.containerNumber) return
 
-  loading.value = true;
+  loading.value = true
   try {
-    const response = await riskApi.getContainerRisk(props.containerNumber);
-    riskAssessment.value = response.data;
+    const response = await riskApi.getContainerRisk(props.containerNumber)
+    riskAssessment.value = response.data
   } catch (error) {
-    console.error('获取风险评估失败:', error);
+    console.error('获取风险评估失败:', error)
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
 // 监听containerNumber变化，自动刷新评估
-watch(() => props.containerNumber, (newContainerNumber) => {
-  if (newContainerNumber) {
-    refreshRisk();
-  }
-}, { immediate: true });
+watch(
+  () => props.containerNumber,
+  newContainerNumber => {
+    if (newContainerNumber) {
+      refreshRisk()
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped lang="scss">
@@ -155,7 +162,8 @@ watch(() => props.containerNumber, (newContainerNumber) => {
   .risk-card-content {
     padding: $spacing-md;
 
-    .loading, .empty {
+    .loading,
+    .empty {
       display: flex;
       flex-direction: column;
       align-items: center;

@@ -34,7 +34,7 @@ const form = reactive({
   calculation_basis: '按卸船',
   rate_per_day: 0,
   currency: 'USD',
-  charge_name: '滞港费'
+  charge_name: '滞港费',
 })
 
 async function loadDicts() {
@@ -44,7 +44,7 @@ async function loadDicts() {
       dictService.getPorts(),
       dictService.getShippingCompanies(),
       dictService.getFreightForwarders(),
-      dictService.getOverseasCompanies()
+      dictService.getOverseasCompanies(),
     ])
     ports.value = pRes.data || []
     shippingCompanies.value = sRes.data || []
@@ -78,7 +78,12 @@ function onOverseasChange(code: string) {
 }
 
 async function submit() {
-  if (!form.foreign_company_code || !form.destination_port_code || !form.shipping_company_code || !form.origin_forwarder_code) {
+  if (
+    !form.foreign_company_code ||
+    !form.destination_port_code ||
+    !form.shipping_company_code ||
+    !form.origin_forwarder_code
+  ) {
     ElMessage.warning('请填写客户、目的港、船公司、货代（从字典选择）')
     return
   }
@@ -105,7 +110,7 @@ async function submit() {
       calculation_basis: form.calculation_basis,
       rate_per_day: form.rate_per_day,
       currency: form.currency,
-      charge_name: form.charge_name
+      charge_name: form.charge_name,
     })
     if (res.success) {
       ElMessage.success('创建成功')
@@ -266,9 +271,7 @@ onMounted(() => {
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" :loading="submitting" @click="submit">
-            保存
-          </el-button>
+          <el-button type="primary" :loading="submitting" @click="submit"> 保存 </el-button>
           <el-button @click="goBack">取消</el-button>
         </el-form-item>
       </el-form>

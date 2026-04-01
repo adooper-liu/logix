@@ -14,7 +14,7 @@ import {
   ContainerStatusNode,
   ContainerLoadingData,
   ContainerHoldData,
-  ContainerChargeData,
+  ContainerChargeData
 } from './ExternalDataAdapter.interface.js';
 
 /**
@@ -38,7 +38,7 @@ export class LogisticsPathAdapter implements IExternalDataAdapter {
       return health.status === 'ok';
     } catch (error) {
       log.error('Logistics Path Health Check Failed:', {
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
       return false;
     }
@@ -75,21 +75,21 @@ export class LogisticsPathAdapter implements IExternalDataAdapter {
         longitude: undefined,
         timezone: undefined,
         dataSource: 'LOGISTICS_PATH',
-        isFinal: node.nodeStatus === 'COMPLETED',
+        isFinal: node.nodeStatus === 'COMPLETED'
       }));
 
       return {
         success: true,
         data: events,
         source: this.sourceType,
-        timestamp: new Date(),
+        timestamp: new Date()
       };
     } catch (error) {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
         source: this.sourceType,
-        timestamp: new Date(),
+        timestamp: new Date()
       };
     }
   }
@@ -105,7 +105,7 @@ export class LogisticsPathAdapter implements IExternalDataAdapter {
       success: true,
       data: [],
       source: this.sourceType,
-      timestamp: new Date(),
+      timestamp: new Date()
     };
   }
 
@@ -120,7 +120,7 @@ export class LogisticsPathAdapter implements IExternalDataAdapter {
       success: true,
       data: [],
       source: this.sourceType,
-      timestamp: new Date(),
+      timestamp: new Date()
     };
   }
 
@@ -135,7 +135,7 @@ export class LogisticsPathAdapter implements IExternalDataAdapter {
       success: true,
       data: [],
       source: this.sourceType,
-      timestamp: new Date(),
+      timestamp: new Date()
     };
   }
 
@@ -154,21 +154,21 @@ export class LogisticsPathAdapter implements IExternalDataAdapter {
       log.info('Logistics Path Data Sync Completed:', {
         containerNumber,
         nodesCount: path.nodes.length,
-        overallStatus: path.overallStatus,
+        overallStatus: path.overallStatus
       });
 
       return {
         success: true,
         data: true,
         source: this.sourceType,
-        timestamp: new Date(),
+        timestamp: new Date()
       };
     } catch (error) {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
         source: this.sourceType,
-        timestamp: new Date(),
+        timestamp: new Date()
       };
     }
   }
@@ -180,7 +180,7 @@ export class LogisticsPathAdapter implements IExternalDataAdapter {
     try {
       log.info('Logistics Path Webhook Received:', {
         eventType: payload.eventType,
-        data: payload.data,
+        data: payload.data
       });
 
       // TODO: 根据webhook事件类型处理数据
@@ -189,14 +189,14 @@ export class LogisticsPathAdapter implements IExternalDataAdapter {
         success: true,
         data: true,
         source: this.sourceType,
-        timestamp: new Date(),
+        timestamp: new Date()
       };
     } catch (error) {
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
         source: this.sourceType,
-        timestamp: new Date(),
+        timestamp: new Date()
       };
     }
   }
@@ -211,7 +211,7 @@ export class LogisticsPathAdapter implements IExternalDataAdapter {
       AT_PORT: '已到港',
       PICKED_UP: '已提柜',
       UNLOADED: '已卸柜',
-      RETURNED_EMPTY: '已还箱',
+      RETURNED_EMPTY: '已还箱'
     };
     return statusMap[status] || status;
   }

@@ -49,7 +49,9 @@ function toIsoDateString(d: Date | undefined | null): string | null {
   return x.toISOString().slice(0, 10);
 }
 
-function getDestinationPortOp(portOperations: PortOperation[] | undefined): PortOperation | undefined {
+function getDestinationPortOp(
+  portOperations: PortOperation[] | undefined
+): PortOperation | undefined {
   return portOperations?.find((op) => op.portType === 'destination');
 }
 
@@ -91,9 +93,7 @@ function getNodeDisplayDates(
         return {
           actualDate: toIsoDateString(t.deliveryDate),
           plannedDate:
-            toIsoDateString(t.plannedDeliveryDate) ??
-            toIsoDateString(t.plannedPickupDate) ??
-            null
+            toIsoDateString(t.plannedDeliveryDate) ?? toIsoDateString(t.plannedPickupDate) ?? null
         };
       }
       if (t.plannedDeliveryDate) {

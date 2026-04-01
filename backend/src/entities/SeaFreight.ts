@@ -127,7 +127,13 @@ export class SeaFreight {
   @Column({ type: 'varchar', length: 10, nullable: true, name: 'freight_currency' })
   freightCurrency?: string; // 海运费币种 (USD/CNY/EUR等)
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true, name: 'standard_freight_amount' })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    name: 'standard_freight_amount'
+  })
   standardFreightAmount?: number; // 标准海运费金额
 
   // 飞驼字段 - 船舶详细信息

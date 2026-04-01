@@ -7,18 +7,11 @@
       </div>
     </template>
     <div class="log-container" ref="logContainerRef">
-      <div
-        v-for="(log, index) in logs"
-        :key="index"
-        class="log-item"
-        :class="log.type"
-      >
+      <div v-for="(log, index) in logs" :key="index" class="log-item" :class="log.type">
         <span class="log-time">{{ log.time }}</span>
         <span class="log-message">{{ log.message }}</span>
       </div>
-      <div v-if="logs.length === 0" class="log-empty">
-        暂无日志
-      </div>
+      <div v-if="logs.length === 0" class="log-empty">暂无日志</div>
     </div>
   </el-card>
 </template>
@@ -41,12 +34,15 @@ const props = defineProps<{
 const logContainerRef = ref<HTMLElement>()
 
 // 自动滚动到底部
-watch(() => props.logs?.length, async () => {
-  await nextTick()
-  if (logContainerRef.value) {
-    logContainerRef.value.scrollTop = logContainerRef.value.scrollHeight
+watch(
+  () => props.logs?.length,
+  async () => {
+    await nextTick()
+    if (logContainerRef.value) {
+      logContainerRef.value.scrollTop = logContainerRef.value.scrollHeight
+    }
   }
-})
+)
 
 // 清空日志
 const clearLogs = () => {

@@ -45,7 +45,7 @@ export default {
     all: 'Todos',
     more: 'Más',
     expand: 'Expandir',
-    collapse: 'Contraer'
+    collapse: 'Contraer',
   },
 
   // ========== Navegación ==========
@@ -64,7 +64,7 @@ export default {
     help: 'Ayuda',
     about: 'Acerca de',
     personalCenter: 'Centro personal',
-    logout: 'Cerrar sesión'
+    logout: 'Cerrar sesión',
   },
 
   // ========== Usuario ==========
@@ -81,7 +81,7 @@ export default {
     logoutSuccess: 'Cierre de sesión exitoso',
     pleaseLogin: 'Inicie sesión primero',
     rememberMe: 'Recordarme',
-    forgotPassword: '¿Olvidaste tu contraseña?'
+    forgotPassword: '¿Olvidaste tu contraseña?',
   },
 
   // ========== Contenedor ==========
@@ -101,7 +101,7 @@ export default {
       atPort: 'En puerto',
       pickedUp: 'Recogido',
       unloaded: 'Descargado',
-      returnedEmpty: 'Devuelto vacío'
+      returnedEmpty: 'Devuelto vacío',
     },
     // Tipos de contenedores
     types: {
@@ -114,8 +114,8 @@ export default {
       '20OT': '20 pies open top',
       '40OT': '40 pies open top',
       '20FR': '20 pies flat rack',
-      '40FR': '40 pies flat rack'
-    }
+      '40FR': '40 pies flat rack',
+    },
   },
 
   // ========== Pedido ==========
@@ -138,8 +138,8 @@ export default {
       pending: 'Pendiente',
       processing: 'Procesando',
       completed: 'Completado',
-      cancelled: 'Cancelado'
-    }
+      cancelled: 'Cancelado',
+    },
   },
 
   // ========== Puerto ==========
@@ -155,8 +155,8 @@ export default {
     types: {
       origin: 'Puerto de origen',
       transit: 'Puerto de transbordo',
-      destination: 'Puerto de destino'
-    }
+      destination: 'Puerto de destino',
+    },
   },
 
   // ========== Demurrage ==========
@@ -171,12 +171,12 @@ export default {
     // Base de cálculo
     basis: {
       byArrival: 'Por llegada',
-      byUnloading: 'Por descarga'
+      byUnloading: 'Por descarga',
     },
     // Base de días gratuitos
     freeDaysBasisTypes: {
       naturalDay: 'Día natural',
-      workingDay: 'Día hábil'
+      workingDay: 'Día hábil',
     },
     // Tipos de tarifa
     chargeTypes: {
@@ -184,8 +184,8 @@ export default {
       storage: 'Almacenamiento',
       detention: 'Retención',
       demurrageDetention: 'Demora y retención',
-      storageSurcharge: 'Recargo de almacenamiento'
-    }
+      storageSurcharge: 'Recargo de almacenamiento',
+    },
   },
 
   // ========== Monitoreo ==========
@@ -206,7 +206,7 @@ export default {
     healthy: 'Saludable',
     unhealthy: 'Poco saludable',
     warning: 'Advertencia',
-    critical: 'Crítico'
+    critical: 'Crítico',
   },
 
   // ========== Configuración ==========
@@ -222,7 +222,7 @@ export default {
     languageTip: 'Selecciona tu idioma preferido',
     themeTip: 'Elige tu tema de interfaz',
     notificationTip: 'Gestiona tus preferencias de notificación',
-    securityTip: 'Gestiona tu configuración de seguridad'
+    securityTip: 'Gestiona tu configuración de seguridad',
   },
 
   // ========== Ayuda ==========
@@ -235,7 +235,7 @@ export default {
     searchDoc: 'Buscar en documentación',
     noResults: 'No se encontraron resultados',
     recentlyViewed: 'Vistos recientemente',
-    popularTopics: 'Temas populares'
+    popularTopics: 'Temas populares',
   },
 
   // ========== Acerca de ==========
@@ -248,7 +248,7 @@ export default {
     privacyPolicy: 'Política de privacidad',
     contactUs: 'Contáctanos',
     website: 'Sitio web',
-    github: 'GitHub'
+    github: 'GitHub',
   },
 
   // ========== Validación ==========
@@ -261,7 +261,7 @@ export default {
     pattern: 'Formato inválido',
     range: 'El valor debe estar entre {min} y {max}',
     numeric: 'Por favor ingresa un número válido',
-    url: 'Por favor ingresa una URL válida'
+    url: 'Por favor ingresa una URL válida',
   },
 
   // ========== Tiempo ==========
@@ -280,7 +280,7 @@ export default {
     justNow: 'Justo ahora',
     dateFormat: 'DD/MM/YYYY',
     dateTimeFormat: 'DD/MM/YYYY HH:mm:ss',
-    timeFormat: 'HH:mm:ss'
+    timeFormat: 'HH:mm:ss',
   },
 
   // ========== Error ==========
@@ -293,6 +293,6 @@ export default {
     timeout: 'Tiempo de espera agotado',
     unknown: 'Error desconocido',
     retry: 'Reintentar',
-    contactAdmin: 'Contactar administrador'
-  }
+    contactAdmin: 'Contactar administrador',
+  },
 }

@@ -22,7 +22,8 @@ export class WarehouseTruckingMappingController {
 
       if (country) {
         const countryCode = String(country).trim().toUpperCase();
-        const aliases = countryCode === 'GB' ? ['GB', 'UK'] : countryCode === 'UK' ? ['UK', 'GB'] : [countryCode];
+        const aliases =
+          countryCode === 'GB' ? ['GB', 'UK'] : countryCode === 'UK' ? ['UK', 'GB'] : [countryCode];
 
         const aliasPlaceholders = aliases.map(() => `$${paramIndex++}`).join(', ');
         const prefixPlaceholders = aliases.map(() => `$${paramIndex++}`).join(', ');

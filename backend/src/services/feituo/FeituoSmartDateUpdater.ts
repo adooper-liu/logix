@@ -52,28 +52,28 @@ export interface ATAValidationParams {
   portOperations?: {
     portSequence: number;
     portType: 'origin' | 'transit' | 'destination';
-    ata: Date | null;  // 本港ATA
-    atd: Date | null;  // 本港ATD
-    eta: Date | null;  // 本港ETA
-    etd: Date | null;  // 本港ETD
+    ata: Date | null; // 本港ATA
+    atd: Date | null; // 本港ATD
+    eta: Date | null; // 本港ETA
+    etd: Date | null; // 本港ETD
   }[];
   // 上一港信息
   previousPort?: {
     portSequence: number;
     portType: 'origin' | 'transit' | 'destination';
     atd: Date | null; // 上一港ATD
-    ata: Date | null;  // 上一港ATA
+    ata: Date | null; // 上一港ATA
   };
   // 拖卡运输信息（用于一致性校验）
   truckingTransport?: {
-    pickupDate: Date | null;  // 提柜日期
-    deliveryDate: Date | null;  // 送仓日期
-    gateInTime: Date | null;  // 进闸时间
+    pickupDate: Date | null; // 提柜日期
+    deliveryDate: Date | null; // 送仓日期
+    gateInTime: Date | null; // 进闸时间
   };
   // 仓库操作信息（用于一致性校验）
   warehouseOperation?: {
-    wmsConfirmDate: Date | null;  // WMS确认日期
-    inboundDate: Date | null;  // 入库日期
+    wmsConfirmDate: Date | null; // WMS确认日期
+    inboundDate: Date | null; // 入库日期
   };
 }
 
@@ -85,12 +85,12 @@ export interface ETAValidationParams {
   logisticsStatus: string;
   // 拖卡运输信息（用于一致性校验）
   truckingTransport?: {
-    pickupDate: Date | null;  // 计划提柜日
-    plannedDeliveryDate: Date | null;  // 计划送仓日
+    pickupDate: Date | null; // 计划提柜日
+    plannedDeliveryDate: Date | null; // 计划送仓日
   };
   // 仓库信息（用于可用性校验）
   warehouseOperation?: {
-    plannedUnloadDate: Date | null;  // 计划卸柜日
+    plannedUnloadDate: Date | null; // 计划卸柜日
   };
 }
 
@@ -107,51 +107,51 @@ export interface ETAValidationParams {
  */
 export const STATUS_CODE_PRIORITY: Record<string, number> = {
   // ===== 最终状态（最高优先级 80-100）=====
-  'RCVE': 100, // 还箱 - 运输结束
-  'STCS': 95,  // 出闸 - 提货完成
+  RCVE: 100, // 还箱 - 运输结束
+  STCS: 95, // 出闸 - 提货完成
 
   // ===== 关键节点（60-80）=====
-  'LOBD': 80,  // 装船 - 海运开始
-  'DSCH': 80,  // 卸船 - 海运结束/火车开始
-  'PASS': 78,  // 海关放行 - 通关完成
-  'AVLE': 75,  // 可提柜 - 待提货
+  LOBD: 80, // 装船 - 海运开始
+  DSCH: 80, // 卸船 - 海运结束/火车开始
+  PASS: 78, // 海关放行 - 通关完成
+  AVLE: 75, // 可提柜 - 待提货
 
   // ===== 火车/海铁联运专用 =====
-  'IRDS': 73, // 火车卸箱 - 火车运输结束
-  'IRAR': 72, // 火车到站
-  'IRDP': 70, // 火车离站
-  'IRLB': 65, // 火车装箱
-  'PLFD': 68, // 铁路免柜期/最后免费日
-  'RTNT': 90, // 铁路还箱（等同于RCVE）
+  IRDS: 73, // 火车卸箱 - 火车运输结束
+  IRAR: 72, // 火车到站
+  IRDP: 70, // 火车离站
+  IRLB: 65, // 火车装箱
+  PLFD: 68, // 铁路免柜期/最后免费日
+  RTNT: 90, // 铁路还箱（等同于RCVE）
 
   // ===== 运输状态（40-60）=====
-  'DLPT': 60, // 卸船（码头）
-  'BDAR': 58, // 靠泊
-  'ARRI': 55, // 到港
-  'DEPA': 50, // 离港
+  DLPT: 60, // 卸船（码头）
+  BDAR: 58, // 靠泊
+  ARRI: 55, // 到港
+  DEPA: 50, // 离港
 
   // ===== 场站操作（30-45）=====
-  'GITM': 45, // 进闸
-  'DISC': 42, // 卸船（集装箱）
-  'LOAD': 40, // 装船（集装箱）
-  'GTOT': 38, // 提柜
-  'GTIN': 36, // 进柜
+  GITM: 45, // 进闸
+  DISC: 42, // 卸船（集装箱）
+  LOAD: 40, // 装船（集装箱）
+  GTOT: 38, // 提柜
+  GTIN: 36, // 进柜
 
   // ===== 驳船专用 =====
-  'FDDP': 55, // 驳船卸货
-  'FDLB': 50, // 驳船装货
-  'FDBA': 48, // 驳船靠泊
-  'STSP': 45, // 驳船启航
+  FDDP: 55, // 驳船卸货
+  FDLB: 50, // 驳船装货
+  FDBA: 48, // 驳船靠泊
+  STSP: 45, // 驳船启航
 
   // ===== 中转操作 =====
-  'TSDP': 52, // 中转卸货
-  'TSBA': 48, // 中转开始
+  TSDP: 52, // 中转卸货
+  TSBA: 48, // 中转开始
 
   // ===== 码头操作 =====
-  'POCA': 46, // 泊位
-  'CUIP': 35, // 查验开始
-  'CPI': 38,  // 查验中
-  'CPI_I': 40 // 查验完成
+  POCA: 46, // 泊位
+  CUIP: 35, // 查验开始
+  CPI: 38, // 查验中
+  CPI_I: 40 // 查验完成
 };
 
 export class FeituoSmartDateUpdater {
@@ -191,10 +191,14 @@ export class FeituoSmartDateUpdater {
    * @param portType 可选：按港口类型过滤
    * @returns 最新的港口操作记录
    */
-  findLatestPortOperation<T extends { statusCode?: string | null; statusOccurredAt?: Date | null; portSequence?: number; portType?: string | null }>(
-    portOps: T[],
-    portType?: 'origin' | 'transit' | 'destination'
-  ): T | null {
+  findLatestPortOperation<
+    T extends {
+      statusCode?: string | null;
+      statusOccurredAt?: Date | null;
+      portSequence?: number;
+      portType?: string | null;
+    }
+  >(portOps: T[], portType?: 'origin' | 'transit' | 'destination'): T | null {
     if (!portOps || portOps.length === 0) {
       return null;
     }
@@ -202,21 +206,21 @@ export class FeituoSmartDateUpdater {
     // 第0层：数据清洗 - 过滤不合理数据
     const cleaned = this.cleanPortOperationRecords(portOps);
     if (cleaned.length === 0) {
-      logger.debug(`[FeituoSmartDateUpdater] findLatestPortOperation: all records filtered by data cleaning`);
+      logger.debug(
+        `[FeituoSmartDateUpdater] findLatestPortOperation: all records filtered by data cleaning`
+      );
       return null;
     }
 
     // 按港口类型过滤
-    const filtered = portType
-      ? cleaned.filter(po => po.portType === portType)
-      : cleaned;
+    const filtered = portType ? cleaned.filter((po) => po.portType === portType) : cleaned;
 
     if (filtered.length === 0) {
       return null;
     }
 
     // 特殊规则：如果存在最终状态，优先在最终状态中选择
-    const finalRecords = filtered.filter(r =>
+    const finalRecords = filtered.filter((r) =>
       this.FINAL_STATUS_CODES.includes(r.statusCode || '')
     );
 
@@ -231,39 +235,43 @@ export class FeituoSmartDateUpdater {
         return timeB - timeA;
       });
 
-      logger.debug(`[FeituoSmartDateUpdater] findLatestPortOperation: selected final status - portSequence=${sorted[0].portSequence}, statusCode=${sorted[0].statusCode}`);
+      logger.debug(
+        `[FeituoSmartDateUpdater] findLatestPortOperation: selected final status - portSequence=${sorted[0].portSequence}, statusCode=${sorted[0].statusCode}`
+      );
       return sorted[0];
     }
 
     // 常规规则：港口顺序 → 状态优先级 → 时间戳
 
     // 阶段1: 按港口顺序倒序（port_sequence大的优先）
-    const sortedBySequence = [...filtered].sort((a, b) =>
-      (b.portSequence ?? 0) - (a.portSequence ?? 0)
+    const sortedBySequence = [...filtered].sort(
+      (a, b) => (b.portSequence ?? 0) - (a.portSequence ?? 0)
     );
 
     const maxSequence = sortedBySequence[0].portSequence ?? 0;
-    const samePortRecords = sortedBySequence.filter(r =>
-      (r.portSequence ?? 0) === maxSequence
-    );
+    const samePortRecords = sortedBySequence.filter((r) => (r.portSequence ?? 0) === maxSequence);
 
     if (samePortRecords.length === 1) {
-      logger.debug(`[FeituoSmartDateUpdater] findLatestPortOperation: selected by port sequence - portSequence=${samePortRecords[0].portSequence}, statusCode=${samePortRecords[0].statusCode}`);
+      logger.debug(
+        `[FeituoSmartDateUpdater] findLatestPortOperation: selected by port sequence - portSequence=${samePortRecords[0].portSequence}, statusCode=${samePortRecords[0].statusCode}`
+      );
       return samePortRecords[0];
     }
 
     // 阶段2: 同港口内按状态码优先级倒序
-    const sortedByStatus = [...samePortRecords].sort((a, b) =>
-      this.getStatusCodePriority(b.statusCode) - this.getStatusCodePriority(a.statusCode)
+    const sortedByStatus = [...samePortRecords].sort(
+      (a, b) => this.getStatusCodePriority(b.statusCode) - this.getStatusCodePriority(a.statusCode)
     );
 
     const maxStatusPriority = this.getStatusCodePriority(sortedByStatus[0].statusCode);
-    const sameStatusRecords = sortedByStatus.filter(r =>
-      this.getStatusCodePriority(r.statusCode) === maxStatusPriority
+    const sameStatusRecords = sortedByStatus.filter(
+      (r) => this.getStatusCodePriority(r.statusCode) === maxStatusPriority
     );
 
     if (sameStatusRecords.length === 1) {
-      logger.debug(`[FeituoSmartDateUpdater] findLatestPortOperation: selected by status priority - portSequence=${sameStatusRecords[0].portSequence}, statusCode=${sameStatusRecords[0].statusCode}`);
+      logger.debug(
+        `[FeituoSmartDateUpdater] findLatestPortOperation: selected by status priority - portSequence=${sameStatusRecords[0].portSequence}, statusCode=${sameStatusRecords[0].statusCode}`
+      );
       return sameStatusRecords[0];
     }
 
@@ -276,7 +284,9 @@ export class FeituoSmartDateUpdater {
 
     const latest = sortedByTime[0];
 
-    logger.debug(`[FeituoSmartDateUpdater] findLatestPortOperation: selected by timestamp - portSequence=${latest.portSequence}, statusCode=${latest.statusCode}, time=${latest.statusOccurredAt}`);
+    logger.debug(
+      `[FeituoSmartDateUpdater] findLatestPortOperation: selected by timestamp - portSequence=${latest.portSequence}, statusCode=${latest.statusCode}, time=${latest.statusOccurredAt}`
+    );
 
     return latest;
   }
@@ -291,9 +301,9 @@ export class FeituoSmartDateUpdater {
    * @param records 港口操作记录数组
    * @returns 清洗后的记录
    */
-  private cleanPortOperationRecords<T extends { statusCode?: string | null; statusOccurredAt?: Date | null; portSequence?: number }>(
-    records: T[]
-  ): T[] {
+  private cleanPortOperationRecords<
+    T extends { statusCode?: string | null; statusOccurredAt?: Date | null; portSequence?: number }
+  >(records: T[]): T[] {
     if (!records || records.length === 0) {
       return [];
     }
@@ -317,7 +327,7 @@ export class FeituoSmartDateUpdater {
 
     // 如果有还箱记录，过滤掉还箱之后的无效记录
     if (hasReturn && returnTime) {
-      const filtered = records.filter(record => {
+      const filtered = records.filter((record) => {
         if (returnStatusCodes.includes(record.statusCode || '')) {
           return true; // 保留还箱记录本身
         }
@@ -325,7 +335,9 @@ export class FeituoSmartDateUpdater {
           const recordTime = new Date(record.statusOccurredAt).getTime();
           // 还箱后的记录（时间戳相同或更晚）应被过滤
           if (recordTime >= returnTime) {
-            logger.debug(`[FeituoSmartDateUpdater] cleanPortOperationRecords: filtered record with statusCode=${record.statusCode}, time=${record.statusOccurredAt} (after return)`);
+            logger.debug(
+              `[FeituoSmartDateUpdater] cleanPortOperationRecords: filtered record with statusCode=${record.statusCode}, time=${record.statusOccurredAt} (after return)`
+            );
             return false;
           }
         }
@@ -337,12 +349,14 @@ export class FeituoSmartDateUpdater {
     // 规则2: 过滤时间戳为未来的记录（允许少量误差）
     const now = Date.now();
     const oneDayMs = 24 * 60 * 60 * 1000;
-    return records.filter(record => {
+    return records.filter((record) => {
       if (record.statusOccurredAt) {
         const recordTime = new Date(record.statusOccurredAt).getTime();
         // 未来超过1天的记录可能是错误数据
         if (recordTime > now + oneDayMs) {
-          logger.debug(`[FeituoSmartDateUpdater] cleanPortOperationRecords: filtered future record with statusCode=${record.statusCode}, time=${record.statusOccurredAt}`);
+          logger.debug(
+            `[FeituoSmartDateUpdater] cleanPortOperationRecords: filtered future record with statusCode=${record.statusCode}, time=${record.statusOccurredAt}`
+          );
           return false;
         }
       }
@@ -416,14 +430,10 @@ export class FeituoSmartDateUpdater {
         .getMany();
 
       const seaFreight = container.seaFreight;
-      const destPo = portOps.find(po => po.portType === 'destination');
+      const destPo = portOps.find((po) => po.portType === 'destination');
 
       // 获取当前物流状态
-      const statusResult = calculateLogisticsStatus(
-        container,
-        portOps,
-        seaFreight ?? undefined
-      );
+      const statusResult = calculateLogisticsStatus(container, portOps, seaFreight ?? undefined);
       const currentStatus = statusResult.status;
 
       // 2. 根据状态决定更新策略
@@ -439,7 +449,12 @@ export class FeituoSmartDateUpdater {
         case 'in_transit':
           // 在途：ETA可以更新，ATA不更新
           if (newEta) {
-            const validation = this.validateETA(newEta, newAta, seaFreight?.shipmentDate || null, currentStatus);
+            const validation = this.validateETA(
+              newEta,
+              newAta,
+              seaFreight?.shipmentDate || null,
+              currentStatus
+            );
             // 硬错误才阻断
             if (!validation.valid) {
               return { updated: false, reason: `ETA validation failed: ${validation.reason}` };
@@ -466,7 +481,12 @@ export class FeituoSmartDateUpdater {
             // ATA已确定，ETA应该 <= ATA
             if (newEta > destPo.ataDestPort) {
               // ETA晚于ATA，需要验证
-              const validation = this.validateETA(newEta, destPo.ataDestPort, seaFreight?.shipmentDate || null, currentStatus);
+              const validation = this.validateETA(
+                newEta,
+                destPo.ataDestPort,
+                seaFreight?.shipmentDate || null,
+                currentStatus
+              );
               if (!validation.valid) {
                 return { updated: false, reason: `ETA validation failed: ${validation.reason}` };
               }
@@ -522,14 +542,23 @@ export class FeituoSmartDateUpdater {
    * D. 关联校验：ETA与拖卡运输/仓库操作的关联性
    */
   validateETA(params: ETAValidationParams): ETAValidationResult {
-    const { eta, ata, shipDate, logisticsStatus: _logisticsStatus, truckingTransport, warehouseOperation } = params;
+    const {
+      eta,
+      ata,
+      shipDate,
+      logisticsStatus: _logisticsStatus,
+      truckingTransport,
+      warehouseOperation
+    } = params;
     const warnings: string[] = [];
 
     // ==================== A. 内部一致性校验 ====================
 
     // A1. ETA不能早于出运日期
     if (shipDate && eta < shipDate) {
-      warnings.push(`ETA早于出运日期，ETA: ${eta.toISOString()}, 出运日: ${shipDate.toISOString()}`);
+      warnings.push(
+        `ETA早于出运日期，ETA: ${eta.toISOString()}, 出运日: ${shipDate.toISOString()}`
+      );
     }
 
     // ==================== B. 与ATA的合理性校验 ====================
@@ -555,7 +584,10 @@ export class FeituoSmartDateUpdater {
     // C1. 年份超出合理范围
     const currentYear = new Date().getFullYear();
     if (eta.getFullYear() < 2000 || eta.getFullYear() > currentYear + 2) {
-      return { valid: false, reason: `ETA年份${eta.getFullYear()}超出有效范围(2000-${currentYear + 2})` };
+      return {
+        valid: false,
+        reason: `ETA年份${eta.getFullYear()}超出有效范围(2000-${currentYear + 2})`
+      };
     }
 
     // ==================== D. 关联校验：ETA与拖卡运输/仓库操作的关联性 ====================
@@ -564,7 +596,9 @@ export class FeituoSmartDateUpdater {
     // 正常流程：ETA → ATA → 提柜(pickupDate)
     // 如果已有计划提柜日，ETA应该早于提柜日
     if (truckingTransport?.pickupDate && eta > truckingTransport.pickupDate) {
-      const diffDays = Math.floor((truckingTransport.pickupDate.getTime() - eta.getTime()) / (1000 * 60 * 60 * 24));
+      const diffDays = Math.floor(
+        (truckingTransport.pickupDate.getTime() - eta.getTime()) / (1000 * 60 * 60 * 24)
+      );
       warnings.push(`ETA晚于计划提柜日${Math.abs(diffDays)}天，请确认物流计划是否需要更新`);
     }
 
@@ -572,7 +606,9 @@ export class FeituoSmartDateUpdater {
     // 正常流程：ETA → ATA → 提柜 → 送仓
     // 如果已有计划送仓日，ETA应该早于送仓日
     if (truckingTransport?.plannedDeliveryDate && eta > truckingTransport.plannedDeliveryDate) {
-      const diffDays = Math.floor((truckingTransport.plannedDeliveryDate.getTime() - eta.getTime()) / (1000 * 60 * 60 * 24));
+      const diffDays = Math.floor(
+        (truckingTransport.plannedDeliveryDate.getTime() - eta.getTime()) / (1000 * 60 * 60 * 24)
+      );
       warnings.push(`ETA晚于计划送仓日${Math.abs(diffDays)}天，请确认物流计划是否需要更新`);
     }
 
@@ -580,7 +616,9 @@ export class FeituoSmartDateUpdater {
     // 正常流程：ETA → ATA → 卸柜
     // 如果已有计划卸柜日，ETA应该早于卸柜日
     if (warehouseOperation?.plannedUnloadDate && eta > warehouseOperation.plannedUnloadDate) {
-      const diffDays = Math.floor((warehouseOperation.plannedUnloadDate.getTime() - eta.getTime()) / (1000 * 60 * 60 * 24));
+      const diffDays = Math.floor(
+        (warehouseOperation.plannedUnloadDate.getTime() - eta.getTime()) / (1000 * 60 * 60 * 24)
+      );
       warnings.push(`ETA晚于计划卸柜日${Math.abs(diffDays)}天，请确认仓库排程是否需要更新`);
     }
 
@@ -648,25 +686,21 @@ export class FeituoSmartDateUpdater {
         .getMany();
 
       const seaFreight = container.seaFreight;
-      const destPo = portOps.find(po => po.portType === 'destination');
+      const destPo = portOps.find((po) => po.portType === 'destination');
       // 多港经停：按port_sequence倒序排列，优先选择最靠后的中转港
       const transitPoList = portOps
-        .filter(po => po.portType === 'transit')
+        .filter((po) => po.portType === 'transit')
         .sort((a, b) => (b.portSequence ?? 0) - (a.portSequence ?? 0));
 
       // 获取最新到达的中转港（port_sequence最大的）
       const latestTransitPo = transitPoList.length > 0 ? transitPoList[0] : null;
 
       // 获取当前物流状态
-      const statusResult = calculateLogisticsStatus(
-        container,
-        portOps,
-        seaFreight ?? undefined
-      );
+      const statusResult = calculateLogisticsStatus(container, portOps, seaFreight ?? undefined);
       const currentStatus = statusResult.status;
 
       // 2. 构建港口操作链信息，用于内部一致性校验
-      const portOperationsForValidation = portOps.map(po => ({
+      const portOperationsForValidation = portOps.map((po) => ({
         portSequence: po.portSequence,
         portType: po.portType,
         ata: po.ataDestPort,
@@ -677,7 +711,7 @@ export class FeituoSmartDateUpdater {
 
       // 获取上一港信息（portSequence比当前小且最大的）
       const sortedAsc = [...portOps].sort((a, b) => a.portSequence - b.portSequence);
-      const currentIndex = sortedAsc.findIndex(po => po.portType === portType);
+      const currentIndex = sortedAsc.findIndex((po) => po.portType === portType);
       let previousPortForValidation = null;
       if (currentIndex > 0) {
         const previousPo = sortedAsc[currentIndex - 1];
@@ -868,7 +902,11 @@ export class FeituoSmartDateUpdater {
           break;
       }
 
-      return { updated, reason: updateReason || 'No update needed', warnings: warnings.length > 0 ? warnings : undefined };
+      return {
+        updated,
+        reason: updateReason || 'No update needed',
+        warnings: warnings.length > 0 ? warnings : undefined
+      };
     } catch (e) {
       logger.warn('[FeituoSmartDateUpdater] smartUpdateATA failed:', e);
       return { updated: false, reason: 'Error in smartUpdateATA' };
@@ -890,7 +928,17 @@ export class FeituoSmartDateUpdater {
    * D. 关联校验：ATA与拖卡运输/仓库操作的关联性
    */
   validateATA(params: ATAValidationParams): DateValidationResult {
-    const { ata, eta, shipDate, logisticsStatus, portType, portOperations, previousPort, truckingTransport, warehouseOperation } = params;
+    const {
+      ata,
+      eta,
+      shipDate,
+      logisticsStatus,
+      portType,
+      portOperations,
+      previousPort,
+      truckingTransport,
+      warehouseOperation
+    } = params;
     const warnings: string[] = [];
 
     // 规则0: 未出运状态不应有ATA（硬错误）
@@ -906,21 +954,27 @@ export class FeituoSmartDateUpdater {
 
     // A1. ATA必须晚于上一港的ATD（如果有）
     if (previousPort?.atd && ata < previousPort.atd) {
-      warnings.push(`ATA早于上一港的ATD，逻辑矛盾！ATA: ${ata.toISOString()}, 上一港ATD: ${previousPort.atd.toISOString()}`);
+      warnings.push(
+        `ATA早于上一港的ATD，逻辑矛盾！ATA: ${ata.toISOString()}, 上一港ATD: ${previousPort.atd.toISOString()}`
+      );
     }
 
     // A2. ATA不能早于同地点的ETD（同港先有离港才能有到港）
     // 查找当前港的ETD
     if (portOperations && portOperations.length > 0) {
-      const currentPort = portOperations.find(po => po.portType === portType);
+      const currentPort = portOperations.find((po) => po.portType === portType);
       if (currentPort?.etd && ata < currentPort.etd) {
-        warnings.push(`ATA早于本港ETD，逻辑矛盾！ATA: ${ata.toISOString()}, ETD: ${currentPort.etd.toISOString()}`);
+        warnings.push(
+          `ATA早于本港ETD，逻辑矛盾！ATA: ${ata.toISOString()}, ETD: ${currentPort.etd.toISOString()}`
+        );
       }
     }
 
     // A3. ATA不能早于出运日期
     if (shipDate && ata < shipDate) {
-      warnings.push(`ATA早于出运日期，ATA: ${ata.toISOString()}, 出运日: ${shipDate.toISOString()}`);
+      warnings.push(
+        `ATA早于出运日期，ATA: ${ata.toISOString()}, 出运日: ${shipDate.toISOString()}`
+      );
     }
 
     // ==================== B. 与ETA的合理性校验 ====================
@@ -945,7 +999,10 @@ export class FeituoSmartDateUpdater {
     // C1. 年份超出合理范围
     const currentYear = new Date().getFullYear();
     if (ata.getFullYear() < 2000 || ata.getFullYear() > currentYear + 1) {
-      return { valid: false, reason: `ATA年份${ata.getFullYear()}超出有效范围(2000-${currentYear + 1})` };
+      return {
+        valid: false,
+        reason: `ATA年份${ata.getFullYear()}超出有效范围(2000-${currentYear + 1})`
+      };
     }
 
     // ==================== D. 关联校验：ATA与拖卡运输/仓库操作的关联性 ====================
@@ -955,7 +1012,9 @@ export class FeituoSmartDateUpdater {
     // 如果提柜日期早于ATA，可能存在数据问题（预提柜/船边直提等特殊场景除外）
     if (portType === 'destination' && truckingTransport?.pickupDate) {
       if (truckingTransport.pickupDate < ata) {
-        const diffDays = Math.floor((ata.getTime() - truckingTransport.pickupDate.getTime()) / (1000 * 60 * 60 * 24));
+        const diffDays = Math.floor(
+          (ata.getTime() - truckingTransport.pickupDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
         // 允许1天内的差异（可能是时区或日期精度问题），超过1天则警告
         if (diffDays > 1) {
           warnings.push(`提柜日早于到港日${diffDays}天，请确认是否为预提柜或船边直提`);
@@ -968,7 +1027,9 @@ export class FeituoSmartDateUpdater {
     // 送仓日期不能早于ATA
     if (portType === 'destination' && truckingTransport?.deliveryDate) {
       if (truckingTransport.deliveryDate < ata) {
-        warnings.push(`送仓日期早于到港日期，逻辑矛盾！ATA: ${ata.toISOString()}, 送仓日: ${truckingTransport.deliveryDate.toISOString()}`);
+        warnings.push(
+          `送仓日期早于到港日期，逻辑矛盾！ATA: ${ata.toISOString()}, 送仓日: ${truckingTransport.deliveryDate.toISOString()}`
+        );
       }
     }
 
@@ -977,10 +1038,14 @@ export class FeituoSmartDateUpdater {
     // 入库日期不能早于ATA
     if (warehouseOperation) {
       if (warehouseOperation.inboundDate && warehouseOperation.inboundDate < ata) {
-        warnings.push(`入库日期早于到港日期，逻辑矛盾！ATA: ${ata.toISOString()}, 入库日: ${warehouseOperation.inboundDate.toISOString()}`);
+        warnings.push(
+          `入库日期早于到港日期，逻辑矛盾！ATA: ${ata.toISOString()}, 入库日: ${warehouseOperation.inboundDate.toISOString()}`
+        );
       }
       if (warehouseOperation.wmsConfirmDate && warehouseOperation.wmsConfirmDate < ata) {
-        warnings.push(`WMS确认日期早于到港日期，逻辑矛盾！ATA: ${ata.toISOString()}, WMS确认日: ${warehouseOperation.wmsConfirmDate.toISOString()}`);
+        warnings.push(
+          `WMS确认日期早于到港日期，逻辑矛盾！ATA: ${ata.toISOString()}, WMS确认日: ${warehouseOperation.wmsConfirmDate.toISOString()}`
+        );
       }
     }
 
@@ -1026,7 +1091,10 @@ export class FeituoSmartDateUpdater {
    * @param ataDestPort 目的港实际到达日期
    * @returns 验证结果对象
    */
-  getLFDValidationResult(lfd: Date | null | undefined, ataDestPort: Date | null | undefined): {
+  getLFDValidationResult(
+    lfd: Date | null | undefined,
+    ataDestPort: Date | null | undefined
+  ): {
     valid: boolean;
     lfd?: Date;
     ata?: Date;

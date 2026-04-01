@@ -3,9 +3,7 @@
     <!-- 头部工具栏 -->
     <div class="editor-header">
       <div class="header-left">
-        <el-button :icon="ArrowLeft" text @click="cancel">
-          返回列表
-        </el-button>
+        <el-button :icon="ArrowLeft" text @click="cancel"> 返回列表 </el-button>
         <el-divider direction="vertical" />
         <span class="page-title">
           {{ flowId ? '编辑流程' : '新建流程' }}
@@ -13,9 +11,7 @@
       </div>
       <div class="header-right">
         <el-button @click="cancel">取消</el-button>
-        <el-button type="primary" :loading="loading" @click="saveFlow">
-          保存
-        </el-button>
+        <el-button type="primary" :loading="loading" @click="saveFlow"> 保存 </el-button>
       </div>
     </div>
 
@@ -78,7 +74,12 @@
               <el-input v-model="editingFlow.name" placeholder="流程名称" />
             </el-form-item>
             <el-form-item label="描述">
-              <el-input v-model="editingFlow.description" type="textarea" :rows="2" placeholder="流程描述" />
+              <el-input
+                v-model="editingFlow.description"
+                type="textarea"
+                :rows="2"
+                placeholder="流程描述"
+              />
             </el-form-item>
             <el-form-item label="版本">
               <el-input v-model="editingFlow.version" placeholder="1.0.0" />
@@ -100,13 +101,23 @@
               <el-input v-model="selectedNode.name" placeholder="节点名称" />
             </el-form-item>
             <el-form-item label="描述">
-              <el-input v-model="selectedNode.description" type="textarea" :rows="2" placeholder="节点描述" />
+              <el-input
+                v-model="selectedNode.description"
+                type="textarea"
+                :rows="2"
+                placeholder="节点描述"
+              />
             </el-form-item>
 
             <!-- 节点特定属性 -->
             <template v-if="selectedNode.type === FlowNodeType.AI_TASK && selectedNode.properties">
               <el-form-item label="提示词">
-                <el-input v-model="selectedNode.properties.prompt" type="textarea" :rows="4" placeholder="AI提示词" />
+                <el-input
+                  v-model="selectedNode.properties.prompt"
+                  type="textarea"
+                  :rows="4"
+                  placeholder="AI提示词"
+                />
               </el-form-item>
               <el-form-item label="模型">
                 <el-select v-model="selectedNode.properties.model" style="width: 100%">
@@ -118,11 +129,18 @@
 
             <template v-if="selectedNode.type === FlowNodeType.SQL_TASK && selectedNode.properties">
               <el-form-item label="SQL语句">
-                <el-input v-model="selectedNode.properties.sql" type="textarea" :rows="4" placeholder="SQL查询语句" />
+                <el-input
+                  v-model="selectedNode.properties.sql"
+                  type="textarea"
+                  :rows="4"
+                  placeholder="SQL查询语句"
+                />
               </el-form-item>
             </template>
 
-            <template v-if="selectedNode.type === FlowNodeType.HTTP_TASK && selectedNode.properties">
+            <template
+              v-if="selectedNode.type === FlowNodeType.HTTP_TASK && selectedNode.properties"
+            >
               <el-form-item label="URL">
                 <el-input v-model="selectedNode.properties.url" placeholder="请求URL" />
               </el-form-item>
@@ -135,13 +153,21 @@
                 </el-select>
               </el-form-item>
               <el-form-item label="请求体">
-                <el-input v-model="selectedNode.properties.body" type="textarea" :rows="3" placeholder="JSON格式" />
+                <el-input
+                  v-model="selectedNode.properties.body"
+                  type="textarea"
+                  :rows="3"
+                  placeholder="JSON格式"
+                />
               </el-form-item>
             </template>
 
             <template v-if="selectedNode.type === FlowNodeType.DECISION && selectedNode.properties">
               <el-form-item label="条件表达式">
-                <el-input v-model="selectedNode.properties.condition" placeholder="如: ${count} > 10" />
+                <el-input
+                  v-model="selectedNode.properties.condition"
+                  placeholder="如: ${count} > 10"
+                />
               </el-form-item>
             </template>
           </el-form>
@@ -164,7 +190,7 @@ import {
   RefreshLeft,
   RefreshRight,
   Grid,
-  View
+  View,
 } from '@element-plus/icons-vue'
 import { flowService, type FlowDefinition, type FlowNode, FlowNodeType } from '@/services/flow'
 import LogicFlow from '@logicflow/core'
@@ -175,7 +201,6 @@ import '@logicflow/extension/lib/style/index.css'
 
 // 路由参数
 const route = useRoute()
- 
 
 // 流程ID（URL参数）- 过滤无效值
 const flowId = computed(() => {
@@ -194,7 +219,7 @@ const editingFlow = ref<FlowDefinition>({
   updatedAt: new Date().toISOString(),
   nodes: [],
   startNodeId: '',
-  variables: []
+  variables: [],
 })
 const selectedNode = ref<FlowNode | null>(null)
 const loading = ref(false)
@@ -215,7 +240,7 @@ const nodeTypeOptions = [
   { value: FlowNodeType.LOOP, label: '循环', color: '#1abc9c', icon: 'Refresh' },
   { value: FlowNodeType.KNOWLEDGE_QUERY, label: '知识库查询', color: '#f39c12', icon: 'Search' },
   { value: FlowNodeType.SCHEDULING_TASK, label: '排产任务', color: '#e67e22', icon: 'Calendar' },
-  { value: FlowNodeType.CONTAINER_OPERATION, label: '货柜操作', color: '#34495e', icon: 'Box' }
+  { value: FlowNodeType.CONTAINER_OPERATION, label: '货柜操作', color: '#34495e', icon: 'Box' },
 ]
 
 // 初始化 LogicFlow
@@ -228,25 +253,25 @@ const initLogicFlow = () => {
     grid: {
       size: 20,
       visible: true,
-      type: 'dot' // 'dot' | 'mesh'
+      type: 'dot', // 'dot' | 'mesh'
     },
     background: {
-      color: '#f8f9fa'
+      color: '#f8f9fa',
     },
     keyboard: {
-      enabled: true
+      enabled: true,
     },
     history: {
-      enabled: true // 启用撤销/重做
+      enabled: true, // 启用撤销/重做
     },
     snapline: true, // 对齐线
     // 节点默认配置
     nodeText: {
-      overflowMode: 'autoWrap'
+      overflowMode: 'autoWrap',
     },
     edgeText: {
-      overflowMode: 'autoWrap'
-    }
+      overflowMode: 'autoWrap',
+    },
   }
 
   // 创建实例
@@ -262,14 +287,14 @@ const initLogicFlow = () => {
   lf.value.setTheme({
     node: {
       strokeWidth: 2,
-      stroke: '#666'
+      stroke: '#666',
     },
     edge: {
       strokeWidth: 2,
       stroke: '#999',
       hoverStroke: '#333',
-      selectedStroke: '#409eff'
-    }
+      selectedStroke: '#409eff',
+    },
   })
 
   // 事件监听
@@ -300,7 +325,7 @@ const initLogicFlow = () => {
       name: data.text || '新节点',
       description: '',
       next: '',
-      properties: data.properties || {}
+      properties: data.properties || {},
     }
     editingFlow.value.nodes.push(newNode)
 
@@ -355,8 +380,8 @@ const addNodeAtCenter = () => {
       type: type,
       name: option.label,
       description: '',
-      ...getDefaultProperties(type)
-    }
+      ...getDefaultProperties(type),
+    },
   }
 
   lf.value.addNode(nodeConfig)
@@ -429,8 +454,8 @@ const syncToLogicFlow = () => {
         type: node.type,
         name: node.name,
         description: node.description,
-        ...node.properties
-      }
+        ...node.properties,
+      },
     }
 
     // 设置颜色
@@ -438,7 +463,7 @@ const syncToLogicFlow = () => {
       nodeConfig.style = {
         fill: option.color + '20',
         stroke: option.color,
-        strokeWidth: 2
+        strokeWidth: 2,
       }
     }
 
@@ -447,7 +472,7 @@ const syncToLogicFlow = () => {
       nodeConfig.style = {
         ...nodeConfig.style,
         fill: '#67c23a20',
-        stroke: '#67c23a'
+        stroke: '#67c23a',
       }
     }
 
@@ -460,7 +485,7 @@ const syncToLogicFlow = () => {
         type: 'polyline',
         sourceNodeId: node.id,
         targetNodeId: node.next,
-        text: '下一步'
+        text: '下一步',
       }
       graphData.edges!.push(edge)
     }
@@ -486,7 +511,7 @@ const syncFromLogicFlow = () => {
       name: node.text || node.properties?.name || '节点',
       description: node.properties?.description || '',
       next: '',
-      properties: node.properties || {}
+      properties: node.properties || {},
     }
     editingFlow.value.nodes.push(flowNode)
   })
@@ -570,15 +595,19 @@ onUnmounted(() => {
 })
 
 // 监听 selectedNode 变化（与 editingFlow.nodes 同引用）
-watch(() => selectedNode.value, (newNode) => {
-  if (!newNode?.id || !lf.value) return
+watch(
+  () => selectedNode.value,
+  newNode => {
+    if (!newNode?.id || !lf.value) return
 
-  // 更新节点文本
-  const lfNode = lf.value.getNodeModelById(newNode.id)
-  if (lfNode && lfNode.text !== newNode.name) {
-    lfNode.setText(newNode.name)
-  }
-}, { deep: true })
+    // 更新节点文本
+    const lfNode = lf.value.getNodeModelById(newNode.id)
+    if (lfNode && lfNode.text !== newNode.name) {
+      lfNode.setText(newNode.name)
+    }
+  },
+  { deep: true }
+)
 </script>
 
 <style scoped>

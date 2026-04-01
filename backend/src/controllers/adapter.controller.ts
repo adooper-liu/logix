@@ -22,14 +22,16 @@ export class AdapterController {
       res.json({
         success: true,
         data: status,
-        timestamp: new Date(),
+        timestamp: new Date()
       });
     } catch (error) {
-      log.error('Get Adapter Status Error:', { error: error instanceof Error ? error.message : error });
+      log.error('Get Adapter Status Error:', {
+        error: error instanceof Error ? error.message : error
+      });
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date(),
+        timestamp: new Date()
       });
     }
   }
@@ -44,14 +46,16 @@ export class AdapterController {
       res.json({
         success: true,
         data: status,
-        timestamp: new Date(),
+        timestamp: new Date()
       });
     } catch (error) {
-      log.error('Adapter Health Check Error:', { error: error instanceof Error ? error.message : error });
+      log.error('Adapter Health Check Error:', {
+        error: error instanceof Error ? error.message : error
+      });
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date(),
+        timestamp: new Date()
       });
     }
   }
@@ -67,7 +71,7 @@ export class AdapterController {
         return res.status(400).json({
           success: false,
           error: 'sourceType is required',
-          timestamp: new Date(),
+          timestamp: new Date()
         });
       }
 
@@ -75,14 +79,16 @@ export class AdapterController {
       res.json({
         success: true,
         data: { defaultAdapter: sourceType },
-        timestamp: new Date(),
+        timestamp: new Date()
       });
     } catch (error) {
-      log.error('Set Default Adapter Error:', { error: error instanceof Error ? error.message : error });
+      log.error('Set Default Adapter Error:', {
+        error: error instanceof Error ? error.message : error
+      });
       res.status(400).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date(),
+        timestamp: new Date()
       });
     }
   }
@@ -99,7 +105,7 @@ export class AdapterController {
         return res.status(400).json({
           success: false,
           error: 'sourceType and enabled are required',
-          timestamp: new Date(),
+          timestamp: new Date()
         });
       }
 
@@ -107,14 +113,16 @@ export class AdapterController {
       res.json({
         success: true,
         data: { sourceType, enabled },
-        timestamp: new Date(),
+        timestamp: new Date()
       });
     } catch (error) {
-      log.error('Set Adapter Enabled Error:', { error: error instanceof Error ? error.message : error });
+      log.error('Set Adapter Enabled Error:', {
+        error: error instanceof Error ? error.message : error
+      });
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date(),
+        timestamp: new Date()
       });
     }
   }
@@ -131,7 +139,7 @@ export class AdapterController {
         return res.status(400).json({
           success: false,
           error: 'containerNumber is required',
-          timestamp: new Date(),
+          timestamp: new Date()
         });
       }
 
@@ -145,22 +153,24 @@ export class AdapterController {
           success: true,
           data: result.data,
           source: result.source,
-          timestamp: result.timestamp,
+          timestamp: result.timestamp
         });
       } else {
         res.status(400).json({
           success: false,
           error: result.error,
           source: result.source,
-          timestamp: result.timestamp,
+          timestamp: result.timestamp
         });
       }
     } catch (error) {
-      log.error('Get Container Status Events Error:', { error: error instanceof Error ? error.message : error });
+      log.error('Get Container Status Events Error:', {
+        error: error instanceof Error ? error.message : error
+      });
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date(),
+        timestamp: new Date()
       });
     }
   }
@@ -177,7 +187,7 @@ export class AdapterController {
         return res.status(400).json({
           success: false,
           error: 'containerNumber is required',
-          timestamp: new Date(),
+          timestamp: new Date()
         });
       }
 
@@ -191,22 +201,24 @@ export class AdapterController {
           success: true,
           data: result.data,
           source: result.source,
-          timestamp: result.timestamp,
+          timestamp: result.timestamp
         });
       } else {
         res.status(400).json({
           success: false,
           error: result.error,
           source: result.source,
-          timestamp: result.timestamp,
+          timestamp: result.timestamp
         });
       }
     } catch (error) {
-      log.error('Sync Container Data Error:', { error: error instanceof Error ? error.message : error });
+      log.error('Sync Container Data Error:', {
+        error: error instanceof Error ? error.message : error
+      });
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date(),
+        timestamp: new Date()
       });
     }
   }
@@ -223,7 +235,7 @@ export class AdapterController {
         return res.status(400).json({
           success: false,
           error: 'sourceType is required',
-          timestamp: new Date(),
+          timestamp: new Date()
         });
       }
 
@@ -233,13 +245,13 @@ export class AdapterController {
         res.json({
           success: true,
           data: result.data,
-          timestamp: result.timestamp,
+          timestamp: result.timestamp
         });
       } else {
         res.status(400).json({
           success: false,
           error: result.error,
-          timestamp: result.timestamp,
+          timestamp: result.timestamp
         });
       }
     } catch (error) {
@@ -247,7 +259,7 @@ export class AdapterController {
       res.status(500).json({
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
-        timestamp: new Date(),
+        timestamp: new Date()
       });
     }
   }

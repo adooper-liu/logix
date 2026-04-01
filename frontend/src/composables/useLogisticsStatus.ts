@@ -1,5 +1,9 @@
 import type { ContainerListItem } from '@/types/container'
-import { SimplifiedStatus, getLogisticsStatusText, getLogisticsStatusType } from '@/utils/logisticsStatusMachine'
+import {
+  SimplifiedStatus,
+  getLogisticsStatusText,
+  getLogisticsStatusType,
+} from '@/utils/logisticsStatusMachine'
 
 /**
  * 物流状态相关的组合式函数
@@ -79,15 +83,20 @@ export function useLogisticsStatus() {
     if (statusFilters.length === 0) return containers
 
     const set = new Set(statusFilters)
-    return containers.filter((row) => {
+    return containers.filter(row => {
       // 处理特殊状态值
       if (set.has('arrived_at_transit')) {
-        return row.logisticsStatus === SimplifiedStatus.AT_PORT && 
-               (row.currentPortType === 'transit' || row.latestPortOperation?.portType === 'transit')
+        return (
+          row.logisticsStatus === SimplifiedStatus.AT_PORT &&
+          (row.currentPortType === 'transit' || row.latestPortOperation?.portType === 'transit')
+        )
       }
       if (set.has('arrived_at_destination')) {
-        return row.logisticsStatus === SimplifiedStatus.AT_PORT && 
-               (row.currentPortType === 'destination' || row.latestPortOperation?.portType === 'destination')
+        return (
+          row.logisticsStatus === SimplifiedStatus.AT_PORT &&
+          (row.currentPortType === 'destination' ||
+            row.latestPortOperation?.portType === 'destination')
+        )
       }
       // 处理普通状态值
       return set.has(row.logisticsStatus)
@@ -100,6 +109,6 @@ export function useLogisticsStatus() {
     isShippedButNotArrived,
     isNotPickedUp,
     filterContainersByStatus,
-    SimplifiedStatus
+    SimplifiedStatus,
   }
 }

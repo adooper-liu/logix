@@ -6,28 +6,24 @@ const props = defineProps<{
 }>()
 
 // 备货单号：优先顶层，否则从 order/allOrders 取
-const orderNumber = computed(() =>
-  (props.containerData?.orderNumber ??
-   props.containerData?.order?.orderNumber ??
-   props.containerData?.allOrders?.[0]?.orderNumber) || '-'
+const orderNumber = computed(
+  () =>
+    (props.containerData?.orderNumber ??
+      props.containerData?.order?.orderNumber ??
+      props.containerData?.allOrders?.[0]?.orderNumber) ||
+    '-'
 )
 
 // 货物汇总：优先 summary 合计，否则用容器自身
-const grossWeight = computed(() =>
-  props.containerData?.summary?.totalGrossWeight ??
-  props.containerData?.grossWeight
+const grossWeight = computed(
+  () => props.containerData?.summary?.totalGrossWeight ?? props.containerData?.grossWeight
 )
-const cbm = computed(() =>
-  props.containerData?.summary?.totalCbm ??
-  props.containerData?.cbm
+const cbm = computed(() => props.containerData?.summary?.totalCbm ?? props.containerData?.cbm)
+const packages = computed(
+  () => props.containerData?.summary?.totalBoxes ?? props.containerData?.packages
 )
-const packages = computed(() =>
-  props.containerData?.summary?.totalBoxes ??
-  props.containerData?.packages
-)
-const shipmentTotalValue = computed(() =>
-  props.containerData?.shipmentTotalValue ??
-  props.containerData?.summary?.shipmentTotalValue
+const shipmentTotalValue = computed(
+  () => props.containerData?.shipmentTotalValue ?? props.containerData?.summary?.shipmentTotalValue
 )
 </script>
 
@@ -35,7 +31,7 @@ const shipmentTotalValue = computed(() =>
   <div class="container-info-section">
     <div v-if="containerData" class="info-cards">
       <!-- 货柜信息卡片 -->
-      <div class="info-card" style="--accent-color: #409EFF">
+      <div class="info-card" style="--accent-color: #409eff">
         <div class="info-card-header">
           <span class="info-card-icon">📦</span>
           <span class="info-card-title">货柜信息</span>
@@ -59,19 +55,27 @@ const shipmentTotalValue = computed(() =>
           </div>
           <div class="field-item">
             <span class="field-label">箱皮重</span>
-            <span class="field-value">{{ containerData.tareWeight != null ? containerData.tareWeight + ' KG' : '-' }}</span>
+            <span class="field-value">{{
+              containerData.tareWeight != null ? containerData.tareWeight + ' KG' : '-'
+            }}</span>
           </div>
           <div class="field-item">
             <span class="field-label">箱总重</span>
-            <span class="field-value">{{ containerData.totalWeight != null ? containerData.totalWeight + ' KG' : '-' }}</span>
+            <span class="field-value">{{
+              containerData.totalWeight != null ? containerData.totalWeight + ' KG' : '-'
+            }}</span>
           </div>
           <div class="field-item">
             <span class="field-label">超限长度</span>
-            <span class="field-value">{{ containerData.overLength != null ? containerData.overLength + ' m' : '-' }}</span>
+            <span class="field-value">{{
+              containerData.overLength != null ? containerData.overLength + ' m' : '-'
+            }}</span>
           </div>
           <div class="field-item">
             <span class="field-label">超高</span>
-            <span class="field-value">{{ containerData.overHeight != null ? containerData.overHeight + ' m' : '-' }}</span>
+            <span class="field-value">{{
+              containerData.overHeight != null ? containerData.overHeight + ' m' : '-'
+            }}</span>
           </div>
           <div class="field-item field-item-full">
             <span class="field-label">备注</span>
@@ -81,7 +85,7 @@ const shipmentTotalValue = computed(() =>
       </div>
 
       <!-- 货物汇总卡片 -->
-      <div class="info-card" style="--accent-color: #67C23A">
+      <div class="info-card" style="--accent-color: #67c23a">
         <div class="info-card-header">
           <span class="info-card-icon">📊</span>
           <span class="info-card-title">货物汇总</span>
@@ -101,7 +105,9 @@ const shipmentTotalValue = computed(() =>
           </div>
           <div class="field-item">
             <span class="field-label">出运总价</span>
-            <span class="field-value">{{ shipmentTotalValue != null ? '$' + shipmentTotalValue : '-' }}</span>
+            <span class="field-value">{{
+              shipmentTotalValue != null ? '$' + shipmentTotalValue : '-'
+            }}</span>
           </div>
         </div>
       </div>
@@ -196,11 +202,11 @@ const shipmentTotalValue = computed(() =>
     font-size: $font-size-xs;
   }
 
-.field-value {
-  color: $text-regular;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+  .field-value {
+    color: $text-regular;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 @media (max-width: 768px) {

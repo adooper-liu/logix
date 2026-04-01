@@ -11,7 +11,7 @@ export class CostController {
     const result = await this.costService.calculateContainerCosts(containerNumber);
     return {
       success: true,
-      data: result,
+      data: result
     };
   }
 
@@ -21,7 +21,7 @@ export class CostController {
     const results = await this.costService.calculateMultipleContainersCosts(containerNumbers);
     return {
       success: true,
-      data: results,
+      data: results
     };
   }
 
@@ -31,19 +31,19 @@ export class CostController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
     @Query('costType') costType?: string,
-    @Query('containerNumbers') containerNumbers?: string,
+    @Query('containerNumbers') containerNumbers?: string
   ) {
     const filters = {
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
       costType: costType as CostType,
-      containerNumbers: containerNumbers ? containerNumbers.split(',') : undefined,
+      containerNumbers: containerNumbers ? containerNumbers.split(',') : undefined
     };
 
     const summary = await this.costService.getCostSummary(filters);
     return {
       success: true,
-      data: summary,
+      data: summary
     };
   }
 }

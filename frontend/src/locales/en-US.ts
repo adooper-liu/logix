@@ -45,7 +45,7 @@ export default {
     all: 'All',
     more: 'More',
     expand: 'Expand',
-    collapse: 'Collapse'
+    collapse: 'Collapse',
   },
 
   // ========== Navigation ==========
@@ -64,7 +64,7 @@ export default {
     help: 'Help',
     about: 'About',
     personalCenter: 'Personal Center',
-    logout: 'Logout'
+    logout: 'Logout',
   },
 
   // ========== User ==========
@@ -81,7 +81,7 @@ export default {
     logoutSuccess: 'Logout successful',
     pleaseLogin: 'Please login first',
     rememberMe: 'Remember me',
-    forgotPassword: 'Forgot password?'
+    forgotPassword: 'Forgot password?',
   },
 
   // ========== Container ==========
@@ -101,7 +101,7 @@ export default {
       atPort: 'At Port',
       pickedUp: 'Picked Up',
       unloaded: 'Unloaded',
-      returnedEmpty: 'Returned Empty'
+      returnedEmpty: 'Returned Empty',
     },
     // Container Types
     types: {
@@ -114,19 +114,20 @@ export default {
       '20OT': '20ft Open Top',
       '40OT': '40ft Open Top',
       '20FR': '20ft Flat Rack',
-      '40FR': '40ft Flat Rack'
+      '40FR': '40ft Flat Rack',
     },
     detail: {
       logisticsPath: 'Logistics path',
-      logisticsPathMap: 'Logistics map'
+      logisticsPathMap: 'Logistics map',
     },
     shipmentsList: {
       singleFreeDateWriteBack: 'Update free dates',
       singleFreeDateWriteBackSuccess: 'Free dates saved',
-      singleFreeDateWriteBackSkipped: 'Calculated but nothing written (conditions not met or manual override)',
+      singleFreeDateWriteBackSkipped:
+        'Calculated but nothing written (conditions not met or manual override)',
       singleFreeDateWriteBackFailed: 'Free date update failed',
-      singleFreeDateWriteBackNoContainer: 'Container number is missing'
-    }
+      singleFreeDateWriteBackNoContainer: 'Container number is missing',
+    },
   },
 
   // ========== Order ==========
@@ -149,8 +150,8 @@ export default {
       pending: 'Pending',
       processing: 'Processing',
       completed: 'Completed',
-      cancelled: 'Cancelled'
-    }
+      cancelled: 'Cancelled',
+    },
   },
 
   // ========== Port ==========
@@ -166,8 +167,8 @@ export default {
     types: {
       origin: 'Origin Port',
       transit: 'Transit Port',
-      destination: 'Destination Port'
-    }
+      destination: 'Destination Port',
+    },
   },
 
   // ========== Demurrage ==========
@@ -182,12 +183,12 @@ export default {
     // Calculation Basis
     basis: {
       byArrival: 'By Arrival',
-      byUnloading: 'By Unloading'
+      byUnloading: 'By Unloading',
     },
     // Free Days Basis Types
     freeDaysBasisTypes: {
       naturalDay: 'Natural Day',
-      workingDay: 'Working Day'
+      workingDay: 'Working Day',
     },
     // Charge Types
     chargeTypes: {
@@ -195,8 +196,8 @@ export default {
       storage: 'Storage',
       detention: 'Detention',
       demurrageDetention: 'Demurrage & Detention',
-      storageSurcharge: 'Storage Surcharge'
-    }
+      storageSurcharge: 'Storage Surcharge',
+    },
   },
 
   // ========== Monitoring ==========
@@ -217,7 +218,7 @@ export default {
     healthy: 'Healthy',
     unhealthy: 'Unhealthy',
     warning: 'Warning',
-    critical: 'Critical'
+    critical: 'Critical',
   },
 
   // ========== Settings ==========
@@ -233,7 +234,7 @@ export default {
     languageTip: 'Select your preferred language',
     themeTip: 'Choose your interface theme',
     notificationTip: 'Manage notification preferences',
-    securityTip: 'Manage account security settings'
+    securityTip: 'Manage account security settings',
   },
 
   // ========== Help ==========
@@ -246,7 +247,7 @@ export default {
     searchDoc: 'Search Documentation',
     noResults: 'No results found',
     recentlyViewed: 'Recently Viewed',
-    popularTopics: 'Popular Topics'
+    popularTopics: 'Popular Topics',
   },
 
   // ========== About ==========
@@ -259,7 +260,7 @@ export default {
     privacyPolicy: 'Privacy Policy',
     contactUs: 'Contact Us',
     website: 'Website',
-    github: 'GitHub'
+    github: 'GitHub',
   },
 
   // ========== Validation ==========
@@ -272,7 +273,7 @@ export default {
     pattern: 'Invalid format',
     range: 'Value must be between {min} and {max}',
     numeric: 'Please enter a valid number',
-    url: 'Please enter a valid URL'
+    url: 'Please enter a valid URL',
   },
 
   // ========== Time ==========
@@ -291,7 +292,7 @@ export default {
     justNow: 'Just now',
     dateFormat: 'YYYY-MM-DD',
     dateTimeFormat: 'YYYY-MM-DD HH:mm:ss',
-    timeFormat: 'HH:mm:ss'
+    timeFormat: 'HH:mm:ss',
   },
 
   // ========== Error ==========
@@ -304,6 +305,6 @@ export default {
     timeout: 'Request timeout',
     unknown: 'Unknown error',
     retry: 'Retry',
-    contactAdmin: 'Contact administrator'
-  }
+    contactAdmin: 'Contact administrator',
+  },
 }

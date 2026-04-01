@@ -11,7 +11,7 @@ export {
   ContainerStatusNode,
   ContainerLoadingData,
   ContainerHoldData,
-  ContainerChargeData,
+  ContainerChargeData
 } from './ExternalDataAdapter.interface.js';
 
 // 适配器实现

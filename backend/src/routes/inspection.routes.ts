@@ -45,7 +45,7 @@ router.post('/event', async (req: Request, res: Response) => {
     const { inspectionRecordId, eventDate, eventStatus } = req.body;
     const result = await service.addEvent(inspectionRecordId, {
       eventDate: new Date(eventDate),
-      eventStatus,
+      eventStatus
     });
     res.json({ success: true, data: result });
   } catch (error: any) {

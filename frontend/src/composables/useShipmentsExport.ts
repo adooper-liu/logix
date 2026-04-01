@@ -161,7 +161,7 @@ export function useShipmentsExport() {
       ElMessage.warning('货柜数据不存在')
       return
     }
-    
+
     // 准备导出数据
     const rows = [
       ['字段', '值'],
@@ -192,8 +192,18 @@ export function useShipmentsExport() {
       ['实际到港', formatDate(container.ataDestPort)],
       ['\n', '\n'],
       ['港口操作', ''],
-      ['清关状态', container.customsStatus ? (customsStatusMap[container.customsStatus]?.text ?? container.customsStatus) : '-'],
-      ['最晚提柜日', formatDate(container.portOperations?.find(po => po.portType === 'destination')?.lastFreeDate)],
+      [
+        '清关状态',
+        container.customsStatus
+          ? (customsStatusMap[container.customsStatus]?.text ?? container.customsStatus)
+          : '-',
+      ],
+      [
+        '最晚提柜日',
+        formatDate(
+          container.portOperations?.find(po => po.portType === 'destination')?.lastFreeDate
+        ),
+      ],
       ['\n', '\n'],
       ['拖卡运输', ''],
       ['计划提柜日', formatDate(container.truckingTransports?.[0]?.plannedPickupDate)],
@@ -209,13 +219,21 @@ export function useShipmentsExport() {
       ['计划还箱日', formatDate(container.emptyReturns?.[0]?.plannedReturnDate)],
       ['实际还箱日', formatDate(container.emptyReturns?.[0]?.returnTime)],
     ]
-    
+
     // 转换为 CSV
-    const csv = '\uFEFF' + rows.map(row => row.map(cell => {
-      const s = cell == null ? '' : String(cell)
-      return /[,"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-    }).join(',')).join('\n')
-    
+    const csv =
+      '\uFEFF' +
+      rows
+        .map(row =>
+          row
+            .map(cell => {
+              const s = cell == null ? '' : String(cell)
+              return /[,"\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+            })
+            .join(',')
+        )
+        .join('\n')
+
     // 下载文件
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
     const url = URL.createObjectURL(blob)
@@ -224,7 +242,7 @@ export function useShipmentsExport() {
     a.download = `货柜详情-${container.containerNumber}-${dayjs().format('YYYY-MM-DD-HHmm')}.csv`
     a.click()
     URL.revokeObjectURL(url)
-    
+
     ElMessage.success('已导出货柜详情')
   }
 
@@ -236,6 +254,6 @@ export function useShipmentsExport() {
     handleExportContainerDetail,
     formatDate,
     formatShipmentDate,
-    customsStatusMap
+    customsStatusMap,
   }
 }

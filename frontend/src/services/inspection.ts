@@ -43,10 +43,13 @@ class InspectionService {
   }
 
   // 添加查验事件
-  async addInspectionEvent(inspectionRecordId: number, event: {
-    eventDate: string
-    eventStatus: string
-  }) {
+  async addInspectionEvent(
+    inspectionRecordId: number,
+    event: {
+      eventDate: string
+      eventStatus: string
+    }
+  ) {
     return api.post<InspectionEvent>('/inspection/event', {
       inspectionRecordId,
       eventDate: event.eventDate,

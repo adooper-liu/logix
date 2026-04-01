@@ -8,10 +8,7 @@ import { getScopedCountryCode } from '../../../utils/requestContext';
 import { normalizeCountryCode } from '../../../utils/countryCode';
 import { parseIsoDateOnlyForFilter } from '../../../utils/dateTimeUtils';
 import { getDateRangeSubqueryRaw as getDateRangeSubqueryRawImpl } from './DateRangeSubquery';
-import {
-  RAW_RO_CUSTOMER_JOIN_ON,
-  TYPEORM_ORDER_CUSTOMER_JOIN_ON
-} from './customerCountryMatchSql';
+import { RAW_RO_CUSTOMER_JOIN_ON, TYPEORM_ORDER_CUSTOMER_JOIN_ON } from './customerCountryMatchSql';
 
 /**
  * 日期过滤构建器
@@ -55,7 +52,9 @@ export class DateFilterBuilder {
     countryCode?: string
   ): SelectQueryBuilder<any> {
     const raw =
-      (countryCode !== undefined && countryCode !== null ? String(countryCode).trim() : getScopedCountryCode()) || '';
+      (countryCode !== undefined && countryCode !== null
+        ? String(countryCode).trim()
+        : getScopedCountryCode()) || '';
     const code = normalizeCountryCode(raw);
     if (!code) return query;
     query.leftJoin('biz_customers', 'cust', TYPEORM_ORDER_CUSTOMER_JOIN_ON);
@@ -67,9 +66,7 @@ export class DateFilterBuilder {
    * 创建基础查询（带 order 和 sf 连接）
    * 注意：由于一个货柜可能有多个备货单，使用leftJoin处理
    */
-  static createBaseQuery(
-    containerRepository: any
-  ): SelectQueryBuilder<any> {
+  static createBaseQuery(containerRepository: any): SelectQueryBuilder<any> {
     return containerRepository
       .createQueryBuilder('container')
       .leftJoin('container.replenishmentOrders', 'order')
@@ -106,7 +103,10 @@ export class DateFilterBuilder {
   /**
    * 出运日期范围子查询（raw SQL）- 委托给统一组件，避免重复实现
    */
-  static getDateRangeSubqueryRaw(startDate: string, endDate: string): { sql: string; params: any[] } {
+  static getDateRangeSubqueryRaw(
+    startDate: string,
+    endDate: string
+  ): { sql: string; params: any[] } {
     return getDateRangeSubqueryRawImpl(startDate, endDate);
   }
 
@@ -120,7 +120,9 @@ export class DateFilterBuilder {
   ): SelectQueryBuilder<any> {
     const dateParts: string[] = [];
     const dateParams: Record<string, unknown> = {};
-    const startDay = params.startDate ? parseIsoDateOnlyForFilter(String(params.startDate)) : undefined;
+    const startDay = params.startDate
+      ? parseIsoDateOnlyForFilter(String(params.startDate))
+      : undefined;
     const endDay = params.endDate ? parseIsoDateOnlyForFilter(String(params.endDate)) : undefined;
     if (startDay) {
       dateParts.push(

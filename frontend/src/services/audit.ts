@@ -33,11 +33,11 @@ class AuditService {
   constructor() {
     this.api = axios.create({
       baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1',
-      timeout: 15000
+      timeout: 15000,
     })
 
     this.api.interceptors.request.use(
-      (config) => {
+      config => {
         const token = localStorage.getItem('token')
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
@@ -48,17 +48,14 @@ class AuditService {
         }
         return config
       },
-      (error) => Promise.reject(error)
+      error => Promise.reject(error)
     )
   }
 
   /**
    * 按货柜号查询变更日志
    */
-  async getChangesByContainer(
-    containerNumber: string,
-    limit = 50
-  ): Promise<AuditChangesResponse> {
+  async getChangesByContainer(containerNumber: string, limit = 50): Promise<AuditChangesResponse> {
     const response = await this.api.get<AuditChangesResponse>(
       `/audit/changes/container/${encodeURIComponent(containerNumber)}`,
       { params: { limit } }

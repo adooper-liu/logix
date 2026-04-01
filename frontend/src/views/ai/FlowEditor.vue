@@ -2,15 +2,7 @@
 import { ref, onMounted, onUnmounted, computed, watch, nextTick, h, defineComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { 
-  Plus, 
-  ArrowLeft,
-  Check,
-  Close,
-  CirclePlus,
-  Delete,
-  SetUp
-} from '@element-plus/icons-vue'
+import { Plus, ArrowLeft, Check, Close, CirclePlus, Delete, SetUp } from '@element-plus/icons-vue'
 import { flowService, type FlowDefinition, type FlowNode, FlowNodeType } from '@/services/flow'
 import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Position, isNode, isEdge } from '@vue-flow/core'
@@ -39,13 +31,14 @@ const editingFlow = ref<FlowDefinition>({
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
   nodes: [],
-  startNodeId: ''
+  startNodeId: '',
 })
 const selectedNode = ref<FlowNode | null>(null)
 const loading = ref(false)
 
 // Vue Flow 相关状态（使用 id 参数，options 对象已废弃）
-const { nodes, edges, addNodes, updateNode, removeNodes, addEdges, setEdges, onConnect } = useVueFlow('flow-editor')
+const { nodes, edges, addNodes, updateNode, removeNodes, addEdges, setEdges, onConnect } =
+  useVueFlow('flow-editor')
 
 // 编辑器布局状态
 const editorLayout = ref<'table' | 'visual'>('visual')
@@ -73,9 +66,9 @@ const resizeFlowContainer = () => {
     const rect = flowContainerRef.value.getBoundingClientRect()
     flowContainerSize.value = {
       width: rect.width,
-      height: rect.height || 600
+      height: rect.height || 600,
     }
-    
+
     // 确保Vue Flow组件有足够的高度
     if (flowContainerSize.value.height < 400) {
       flowContainerSize.value.height = 400
@@ -88,30 +81,31 @@ const syncToVueFlow = () => {
   if (!editingFlow.value?.nodes) {
     editingFlow.value.nodes = []
   }
-  
+
   // 确保容器已经渲染完成
   if (editorLayout.value !== 'visual') {
     return
   }
-  
+
   // 构建节点（必须包含 dimensions、handleBounds、computedPosition，否则 Vue Flow 拖拽/Handle 会报错）
   const DEFAULT_NODE_WIDTH = 180
   const DEFAULT_NODE_HEIGHT = 40
-  const flowNodes = editingFlow.value?.nodes?.map((node, index) => {
-    const pos = { x: 250, y: index * 120 }
-    return {
-      id: node.id,
-      type: 'default',
-      position: pos,
-      data: { label: node.name, node },
-      sourcePosition: Position.Right,
-      targetPosition: Position.Left,
-      dimensions: { width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT },
-      handleBounds: { source: [], target: [] },
-      computedPosition: pos, // 拖拽时 getDragItems 需要，否则报 undefined.x
-    }
-  }) || []
-  
+  const flowNodes =
+    editingFlow.value?.nodes?.map((node, index) => {
+      const pos = { x: 250, y: index * 120 }
+      return {
+        id: node.id,
+        type: 'default',
+        position: pos,
+        data: { label: node.name, node },
+        sourcePosition: Position.Right,
+        targetPosition: Position.Left,
+        dimensions: { width: DEFAULT_NODE_WIDTH, height: DEFAULT_NODE_HEIGHT },
+        handleBounds: { source: [], target: [] },
+        computedPosition: pos, // 拖拽时 getDragItems 需要，否则报 undefined.x
+      }
+    }) || []
+
   // 构建边
   const flowEdges: any[] = []
   editingFlow.value?.nodes?.forEach(node => {
@@ -122,19 +116,19 @@ const syncToVueFlow = () => {
         target: node.next,
         type: 'smoothstep',
         animated: true,
-        label: '下一步'
+        label: '下一步',
       })
     }
   })
-  
+
   // 只在节点或边发生变化时才更新，避免递归更新
   const nodesChanged = JSON.stringify(nodes.value) !== JSON.stringify(flowNodes)
   const edgesChanged = JSON.stringify(edges.value) !== JSON.stringify(flowEdges)
-  
+
   if (nodesChanged) {
     nodes.value = flowNodes
   }
-  
+
   if (edgesChanged) {
     edges.value = flowEdges
   }
@@ -152,14 +146,14 @@ const syncFromVueFlow = () => {
 // 连接事件处理
 const handleConnect = (params: any) => {
   // 检查是否已存在相同的边
-  const edgeExists = edges.value.some(edge => 
-    edge.source === params.source && edge.target === params.target
+  const edgeExists = edges.value.some(
+    edge => edge.source === params.source && edge.target === params.target
   )
-  
+
   if (!edgeExists) {
     // 只在边不存在时才添加，避免重复添加导致的更新
     edges.value = [...edges.value, params]
-    
+
     // 延迟同步，避免在事件处理中立即修改状态
     nextTick(() => {
       syncFromVueFlow()
@@ -190,27 +184,31 @@ const handleEdgesChange = (changes: any) => {
 }
 
 // 监听节点属性变化，同步到Vue Flow
-watch(selectedNode, (newNode, oldNode) => {
-  if (newNode && oldNode) {
-    // 延迟同步，避免在属性编辑时立即触发更新
-    nextTick(() => {
-      // 只同步节点名称和描述，避免递归更新
-      const nodeIndex = editingFlow.value?.nodes?.findIndex(n => n.id === newNode.id)
-      if (nodeIndex !== -1 && editingFlow.value?.nodes) {
-        editingFlow.value.nodes[nodeIndex] = { ...newNode }
-        // 只有在可视化视图时才同步到Vue Flow
-        if (editorLayout.value === 'visual') {
-          syncToVueFlow()
+watch(
+  selectedNode,
+  (newNode, oldNode) => {
+    if (newNode && oldNode) {
+      // 延迟同步，避免在属性编辑时立即触发更新
+      nextTick(() => {
+        // 只同步节点名称和描述，避免递归更新
+        const nodeIndex = editingFlow.value?.nodes?.findIndex(n => n.id === newNode.id)
+        if (nodeIndex !== -1 && editingFlow.value?.nodes) {
+          editingFlow.value.nodes[nodeIndex] = { ...newNode }
+          // 只有在可视化视图时才同步到Vue Flow
+          if (editorLayout.value === 'visual') {
+            syncToVueFlow()
+          }
         }
-      }
-    })
-  }
-}, { deep: true })
+      })
+    }
+  },
+  { deep: true }
+)
 
 // 调整窗口大小
 onMounted(async () => {
   window.addEventListener('resize', resizeFlowContainer)
-  
+
   // 如果有ID，加载流程
   if (flowId.value) {
     loading.value = true
@@ -230,7 +228,7 @@ onMounted(async () => {
       loading.value = false
     }
   }
-  
+
   nextTick(() => {
     if (editorLayout.value === 'visual') {
       resizeFlowContainer()
@@ -250,24 +248,24 @@ const addNode = (type: FlowNodeType) => {
     name: nodeTypeOptions.find(opt => opt.value === type)?.label || '新节点',
     description: '',
     next: '',
-    properties: {}
+    properties: {},
   }
-  
+
   // 先添加到本地状态
   if (editingFlow.value?.nodes) {
     editingFlow.value.nodes.push(newNode)
   }
-  
+
   // 如果是第一个节点，自动设为开始节点
   if (!editingFlow.value?.startNodeId) {
     editingFlow.value.startNodeId = newNode.id
   }
-  
+
   // 然后同步到 Vue Flow（只有在可视化视图时）
   if (editorLayout.value === 'visual') {
     syncToVueFlow()
   }
-  
+
   selectedNode.value = newNode
 }
 
@@ -280,12 +278,12 @@ const deleteNode = (node: FlowNode) => {
       editingFlow.value.startNodeId = editingFlow.value.nodes[0]?.id || ''
     }
   }
-  
+
   // 然后同步到 Vue Flow（只有在可视化视图时）
   if (editorLayout.value === 'visual') {
     syncToVueFlow()
   }
-  
+
   // 如果删除的是当前选中的节点，清空选择
   if (selectedNode.value?.id === node.id) {
     selectedNode.value = null
@@ -301,17 +299,17 @@ const setAsStartNode = (node: FlowNode) => {
 const saveFlow = async () => {
   // 同步Vue Flow状态到本地
   syncFromVueFlow()
-  
+
   if (!editingFlow.value?.name) {
     ElMessage.warning('请输入流程名称')
     return
   }
-  
+
   if (!editingFlow.value?.startNodeId) {
     ElMessage.warning('请设置开始节点')
     return
   }
-  
+
   loading.value = true
   try {
     let res
@@ -320,7 +318,7 @@ const saveFlow = async () => {
     } else {
       res = await flowService.createFlow(editingFlow.value)
     }
-    
+
     if (res.success) {
       ElMessage.success('流程保存成功')
       // 通知父窗口并关闭
@@ -341,10 +339,12 @@ const cancel = () => {
   ElMessageBox.confirm('确定要关闭编辑器吗？未保存的更改将丢失。', '确认关闭', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
-    type: 'warning'
-  }).then(() => {
-    window.close()
-  }).catch(() => {})
+    type: 'warning',
+  })
+    .then(() => {
+      window.close()
+    })
+    .catch(() => {})
 }
 </script>
 
@@ -353,9 +353,7 @@ const cancel = () => {
     <!-- 头部工具栏 -->
     <div class="editor-header">
       <div class="header-left">
-        <el-button :icon="ArrowLeft" text @click="cancel">
-          返回列表
-        </el-button>
+        <el-button :icon="ArrowLeft" text @click="cancel"> 返回列表 </el-button>
         <el-divider direction="vertical" />
         <span class="page-title">
           {{ flowId ? '编辑流程' : '新建流程' }}
@@ -363,9 +361,7 @@ const cancel = () => {
       </div>
       <div class="header-right">
         <el-button @click="cancel">取消</el-button>
-        <el-button type="primary" :loading="loading" @click="saveFlow">
-          保存
-        </el-button>
+        <el-button type="primary" :loading="loading" @click="saveFlow"> 保存 </el-button>
       </div>
     </div>
 
@@ -395,20 +391,22 @@ const cancel = () => {
       <div class="canvas-panel">
         <div class="canvas-toolbar">
           <el-button-group>
-            <el-button 
+            <el-button
               :type="editorLayout === 'table' ? 'primary' : 'default'"
               @click="editorLayout = 'table'"
             >
               表格视图
             </el-button>
-            <el-button 
+            <el-button
               :type="editorLayout === 'visual' ? 'primary' : 'default'"
-              @click="() => {
-                editorLayout = 'visual'
-                nextTick(() => {
-                  resizeFlowContainer()
-                })
-              }"
+              @click="
+                () => {
+                  editorLayout = 'visual'
+                  nextTick(() => {
+                    resizeFlowContainer()
+                  })
+                }
+              "
             >
               可视化视图
             </el-button>
@@ -421,7 +419,10 @@ const cancel = () => {
             <el-table-column prop="name" label="节点名称" />
             <el-table-column prop="type" label="类型">
               <template #default="{ row }">
-                <el-tag :color="nodeTypeOptions.find(o => o.value === row.type)?.color" effect="dark">
+                <el-tag
+                  :color="nodeTypeOptions.find(o => o.value === row.type)?.color"
+                  effect="dark"
+                >
                   {{ nodeTypeOptions.find(o => o.value === row.type)?.label }}
                 </el-tag>
               </template>
@@ -429,10 +430,10 @@ const cancel = () => {
             <el-table-column prop="description" label="描述" />
             <el-table-column label="操作" width="180">
               <template #default="{ row }">
-                <el-button 
+                <el-button
                   v-if="editingFlow?.startNodeId !== row.id"
-                  size="small" 
-                  text 
+                  size="small"
+                  text
                   @click="setAsStartNode(row)"
                 >
                   设为开始
@@ -447,7 +448,8 @@ const cancel = () => {
 
         <!-- 可视化视图 -->
         <div v-show="editorLayout === 'visual'" class="visual-view" ref="flowContainerRef">
-          <VueFlow id="flow-editor"
+          <VueFlow
+            id="flow-editor"
             :nodes="nodes"
             :edges="edges"
             :min-zoom="0.3"
@@ -456,12 +458,14 @@ const cancel = () => {
             @connect="handleConnect"
             @nodes-change="handleNodesChange"
             @edges-change="handleEdgesChange"
-            @node-click="(event) => {
-              const flowNode = editingFlow.value?.nodes?.find(n => n.id === event.node?.id)
-              if (flowNode) {
-                selectedNode.value = flowNode
+            @node-click="
+              event => {
+                const flowNode = editingFlow.value?.nodes?.find(n => n.id === event.node?.id)
+                if (flowNode) {
+                  selectedNode.value = flowNode
+                }
               }
-            }"
+            "
           >
             <Controls position="top-right" />
             <Background color="#f8f9fa" gap="20" />
@@ -475,7 +479,7 @@ const cancel = () => {
           <el-icon><SetUp /></el-icon>
           <span>属性编辑</span>
         </div>
-        
+
         <!-- 流程基本信息 -->
         <div class="property-section">
           <div class="section-title">流程信息</div>
@@ -515,9 +519,7 @@ const cancel = () => {
           </el-form>
         </div>
 
-        <div v-else class="empty-tip">
-          请选择一个节点进行编辑
-        </div>
+        <div v-else class="empty-tip">请选择一个节点进行编辑</div>
       </div>
     </div>
   </div>

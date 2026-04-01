@@ -2,7 +2,14 @@
  * 飞驼导入表二实体（码头港区维度）
  */
 
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn
+} from 'typeorm';
 import { ExtFeituoImportBatch } from './ExtFeituoImportBatch';
 
 @Entity('ext_feituo_import_table2')

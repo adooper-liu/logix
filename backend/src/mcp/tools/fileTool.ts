@@ -23,7 +23,7 @@ const ALLOWED_DIRS = [
   PROJECT_ROOT,
   path.join(PROJECT_ROOT, 'backend'),
   path.join(PROJECT_ROOT, 'frontend'),
-  path.join(PROJECT_ROOT, 'shared'),
+  path.join(PROJECT_ROOT, 'shared')
 ];
 
 /**
@@ -47,13 +47,15 @@ function isPathAllowed(filePath: string): boolean {
 export const fileTool = {
   definition: {
     name: 'read_file',
-    description: '读取项目文件内容。安全限制：只能读取 backend/、frontend/、shared/ 目录下的文件，不能读取配置中的敏感信息。',
+    description:
+      '读取项目文件内容。安全限制：只能读取 backend/、frontend/、shared/ 目录下的文件，不能读取配置中的敏感信息。',
     inputSchema: {
       type: 'object',
       properties: {
         filePath: {
           type: 'string',
-          description: '要读取的文件路径，例如：backend/src/services/container.service.ts 或 frontend/src/views/Shipments.vue'
+          description:
+            '要读取的文件路径，例如：backend/src/services/container.service.ts 或 frontend/src/views/Shipments.vue'
         },
         limit: {
           type: 'number',

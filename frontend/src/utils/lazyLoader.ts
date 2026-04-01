@@ -24,7 +24,7 @@ const DefaultLoadingComponent = {
     <div class="lazy-loading">
       <el-skeleton :rows="5" animated />
     </div>
-  `
+  `,
 }
 
 /**
@@ -39,7 +39,7 @@ const DefaultErrorComponent = {
         </template>
       </el-result>
     </div>
-  `
+  `,
 }
 
 /**
@@ -57,13 +57,13 @@ export function createLazyComponent(
     errorComponent: DefaultErrorComponent,
     delay: 200,
     timeout: 10000,
-    suspensible: true
+    suspensible: true,
   }
 
   return defineAsyncComponent({
     loader,
     ...defaultOptions,
-    ...options
+    ...options,
   })
 }
 
@@ -81,8 +81,8 @@ export function preloadComponent(loader: AsyncComponentLoader): Promise<void> {
 export const lazyLoadDirective = {
   mounted(el: HTMLImageElement, binding: any) {
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
+      entries => {
+        entries.forEach(entry => {
           if (entry.isIntersecting) {
             const img = entry.target as HTMLImageElement
             img.src = binding.value
@@ -92,7 +92,7 @@ export const lazyLoadDirective = {
         })
       },
       {
-        rootMargin: '50px 0px'
+        rootMargin: '50px 0px',
       }
     )
 
@@ -101,7 +101,8 @@ export const lazyLoadDirective = {
     observer.observe(el)
 
     // 初始显示占位符
-    el.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNmNWY1ZjUiLz48L3N2Zz4='
+    el.src =
+      'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNmNWY1ZjUiLz48L3N2Zz4='
   },
 
   unmounted(el: HTMLImageElement) {
@@ -109,16 +110,14 @@ export const lazyLoadDirective = {
     if (observer) {
       observer.disconnect()
     }
-  }
+  },
 }
 
 /**
  * 批量预加载组件
  * @param loaders 组件加载器数组
  */
-export async function preloadComponents(
-  loaders: AsyncComponentLoader[]
-): Promise<void> {
+export async function preloadComponents(loaders: AsyncComponentLoader[]): Promise<void> {
   await Promise.all(loaders.map(loader => preloadComponent(loader)))
 }
 
@@ -131,7 +130,7 @@ export function preloadResources(
   urls: string[],
   type: 'image' | 'script' | 'style' = 'image'
 ): Promise<void[]> {
-  const promises = urls.map((url) => {
+  const promises = urls.map(url => {
     return new Promise<void>((resolve, reject) => {
       if (type === 'image') {
         const img = new Image()
@@ -163,12 +162,9 @@ export function preloadResources(
  * @param criticalUrls 关键资源URL
  * @param lazyUrls 懒加载资源URL
  */
-export function loadCriticalResources(
-  criticalUrls: string[],
-  lazyUrls: string[] = []
-): void {
+export function loadCriticalResources(criticalUrls: string[], lazyUrls: string[] = []): void {
   // 立即加载关键资源
-  criticalUrls.forEach((url) => {
+  criticalUrls.forEach(url => {
     const link = document.createElement('link')
     link.rel = 'preload'
     link.as = 'script'
@@ -178,8 +174,8 @@ export function loadCriticalResources(
 
   // 预加载懒加载资源
   if ('requestIdleCallback' in window) {
-    (window as any).requestIdleCallback(() => {
-      lazyUrls.forEach((url) => {
+    ;(window as any).requestIdleCallback(() => {
+      lazyUrls.forEach(url => {
         const link = document.createElement('link')
         link.rel = 'prefetch'
         link.href = url
@@ -216,7 +212,7 @@ export const LazyComponents = {
   About: () => import('@/views/About.vue'),
 
   // 认证相关
-  Login: () => import('@/views/Login.vue')
+  Login: () => import('@/views/Login.vue'),
 }
 
 /**

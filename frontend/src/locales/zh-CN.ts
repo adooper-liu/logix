@@ -153,12 +153,12 @@ export default {
       loading: '加载物流路径中...',
       viewModes: {
         grouped: '阶段分组',
-        map: '地图'
+        map: '地图',
       },
       durationExplanation: '历时/超期说明',
       refresh: '刷新',
       overdueAlert: {
-        title: '超期预警'
+        title: '超期预警',
       },
       validation: {
         passed: '✅ 路径验证通过',
@@ -168,11 +168,12 @@ export default {
         checks: '路径验证检查',
         passedDescription: '各节点状态流转符合物流逻辑（如 装船→离港→航行→抵港→卸船→提柜→还箱）',
         failedDescription: '存在非法流转（如 装船 直接跳到 还箱，中间缺少抵港、卸船等）',
-        purpose: '用于发现飞驼/Excel 等外部数据中的异常或缺失节点。'
+        purpose: '用于发现飞驼/Excel 等外部数据中的异常或缺失节点。',
       },
       noNodes: '暂无路径节点数据',
       nodesCount: '个节点',
-      noPortCoordinates: '暂无港口坐标数据（请在字典管理中为港口维护经纬度，或检查节点 location 与港口代码是否一致）',
+      noPortCoordinates:
+        '暂无港口坐标数据（请在字典管理中为港口维护经纬度，或检查节点 location 与港口代码是否一致）',
       noPortLocationData: '暂无可用于绘图的位置数据（请检查状态事件是否包含 location/发生地字段）',
       sameBillOfLading: {
         title: '同提单货柜对比',
@@ -184,12 +185,12 @@ export default {
           actualShipDate: '出运日期',
           etaDestPort: '预计到港',
           ataDestPort: '实际到港',
-          location: '当前位置'
+          location: '当前位置',
         },
         emptyState: '点击「加载同提单货柜」按钮查看同提单的其他货柜',
         errors: {
-          loadFailed: '加载同提单货柜失败'
-        }
+          loadFailed: '加载同提单货柜失败',
+        },
       },
       nodeDetail: {
         title: '节点详情',
@@ -202,21 +203,21 @@ export default {
         dataSource: '数据来源',
         rawData: '原始数据',
         yes: '是',
-        no: '否'
+        no: '否',
       },
       noPathData: '暂无物流路径数据',
       errors: {
         loadFailed: '获取物流路径失败',
         requestFailed: '请求失败',
-        serviceUnavailable: '物流路径微服务不可用，请确认已启动 logistics-path-system（端口 4000）'
-      }
+        serviceUnavailable: '物流路径微服务不可用，请确认已启动 logistics-path-system（端口 4000）',
+      },
     },
     shipmentsList: {
       singleFreeDateWriteBack: '单柜免费日更新',
       singleFreeDateWriteBackSuccess: '免费日已写回',
       singleFreeDateWriteBackSkipped: '已计算但未写回（条件不满足或已手工维护）',
       singleFreeDateWriteBackFailed: '免费日更新失败',
-      singleFreeDateWriteBackNoContainer: '缺少柜号'
+      singleFreeDateWriteBackNoContainer: '缺少柜号',
     },
   },
 

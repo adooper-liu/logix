@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  UpdateDateColumn,
+  OneToMany
+} from 'typeorm';
 import { InspectionEvent } from './InspectionEvent';
 
 @Entity('ext_inspection_records')
@@ -69,6 +76,6 @@ export class InspectionRecord {
   @Column({ name: 'data_source', type: 'varchar', length: 20, nullable: true })
   dataSource: string;
 
-  @OneToMany(() => InspectionEvent, event => event.inspectionRecord)
+  @OneToMany(() => InspectionEvent, (event) => event.inspectionRecord)
   events: InspectionEvent[];
 }

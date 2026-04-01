@@ -247,11 +247,7 @@ const handleFileChange = async (file: any) => {
           row['trucking_company_name'] ||
           row['trucking_company'] ||
           ''
-        const transportFee =
-          row['拖卡费'] ||
-          row['transport_fee'] ||
-          row['运输费'] ||
-          0
+        const transportFee = row['拖卡费'] || row['transport_fee'] || row['运输费'] || 0
 
         const record = {
           country: row['国家'] || row['country'] || '',
@@ -429,7 +425,7 @@ const handleExportTemplate = () => {
       '仓库.代码': 'CA-S003',
       '仓库.仓库名称': 'Oshawa',
       车队: 'S AND R TRUCKING',
-      拖卡费: 120.00,
+      拖卡费: 120.0,
     },
   ]
   const ws = XLSX.utils.json_to_sheet(templateData)
@@ -608,7 +604,12 @@ onMounted(() => {
           <el-switch v-model="formData.isActive" />
         </el-form-item>
         <el-form-item label="拖卡费">
-          <el-input-number v-model="formData.transportFee" :min="0" :step="0.01" style="width: 100%" />
+          <el-input-number
+            v-model="formData.transportFee"
+            :min="0"
+            :step="0.01"
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="formData.remarks" type="textarea" :rows="2" />

@@ -79,7 +79,11 @@ export class LastPickupStatisticsService {
     let sql: string;
     let params: any[] = [];
     if (startDate && endDate) {
-      const { sql: dateSql, params: dateParams } = getDateRangeSubqueryRaw(startDate, endDate, countryCode);
+      const { sql: dateSql, params: dateParams } = getDateRangeSubqueryRaw(
+        startDate,
+        endDate,
+        countryCode
+      );
       sql = `SELECT DISTINCT t.container_number FROM (${innerSql}) t WHERE t.container_number IN (${dateSql})`;
       params = dateParams;
     } else if (countryCode) {
@@ -107,14 +111,18 @@ WHERE cust.country = $1`;
     const rawCountryCode = getScopedCountryCode();
     const countryCode = rawCountryCode ? normalizeCountryCode(rawCountryCode) : undefined;
 
-    const qb = this.containerRepository.createQueryBuilder('container')
+    const qb = this.containerRepository
+      .createQueryBuilder('container')
       .where('container.containerNumber IN (:...containerNumbers)', { containerNumbers });
 
     // 添加国家过滤
     if (countryCode) {
       qb.leftJoin('container.replenishmentOrders', 'order')
-        .leftJoin('biz_customers', 'cust',
-          '(order.sellToCountry IS NOT NULL AND LOWER(TRIM(cust.customerName)) = LOWER(TRIM(order.sellToCountry))) OR (order.customerName IS NOT NULL AND LOWER(TRIM(cust.customerName)) = LOWER(TRIM(order.customerName))) OR (order.customerCode IS NOT NULL AND LOWER(TRIM(cust.customerCode)) = LOWER(TRIM(order.customerCode)))')
+        .leftJoin(
+          'biz_customers',
+          'cust',
+          '(order.sellToCountry IS NOT NULL AND LOWER(TRIM(cust.customerName)) = LOWER(TRIM(order.sellToCountry))) OR (order.customerName IS NOT NULL AND LOWER(TRIM(cust.customerName)) = LOWER(TRIM(order.customerName))) OR (order.customerCode IS NOT NULL AND LOWER(TRIM(cust.customerCode)) = LOWER(TRIM(order.customerCode)))'
+        )
         .andWhere('cust.country = :countryCode', { countryCode });
     }
 
@@ -133,7 +141,12 @@ WHERE cust.country = $1`;
   /**
    * 即将超时（今天 <= last_free_date <= 3天）
    */
-  async getUrgentCount(today: string, threeDaysLater: string, startDate?: string, endDate?: string): Promise<number> {
+  async getUrgentCount(
+    today: string,
+    threeDaysLater: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<number> {
     const innerSql = LastPickupSubqueryTemplates.URGENT_SUBQUERY(today, threeDaysLater);
     const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
     return containerNumbers.length;
@@ -142,8 +155,18 @@ WHERE cust.country = $1`;
   /**
    * 预警（3天 < last_free_date <= 7天）
    */
-  async getWarningCount(today: string, threeDaysLater: string, sevenDaysLater: string, startDate?: string, endDate?: string): Promise<number> {
-    const innerSql = LastPickupSubqueryTemplates.WARNING_SUBQUERY(today, threeDaysLater, sevenDaysLater);
+  async getWarningCount(
+    today: string,
+    threeDaysLater: string,
+    sevenDaysLater: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<number> {
+    const innerSql = LastPickupSubqueryTemplates.WARNING_SUBQUERY(
+      today,
+      threeDaysLater,
+      sevenDaysLater
+    );
     const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
     return containerNumbers.length;
   }
@@ -151,7 +174,11 @@ WHERE cust.country = $1`;
   /**
    * 时间充裕（last_free_date > 7天）
    */
-  async getNormalCount(sevenDaysLater: string, startDate?: string, endDate?: string): Promise<number> {
+  async getNormalCount(
+    sevenDaysLater: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<number> {
     const innerSql = LastPickupSubqueryTemplates.NORMAL_SUBQUERY(sevenDaysLater);
     const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
     return containerNumbers.length;
@@ -188,7 +215,13 @@ WHERE cust.country = $1`;
       case 'urgent':
         return this.getContainersByUrgent(todayStr, threeDaysLaterStr, startDate, endDate);
       case 'warning':
-        return this.getContainersByWarning(todayStr, threeDaysLaterStr, sevenDaysLaterStr, startDate, endDate);
+        return this.getContainersByWarning(
+          todayStr,
+          threeDaysLaterStr,
+          sevenDaysLaterStr,
+          startDate,
+          endDate
+        );
       case 'normal':
         return this.getContainersByNormal(sevenDaysLaterStr, startDate, endDate);
       case 'noLastFreeDate':
@@ -201,7 +234,11 @@ WHERE cust.country = $1`;
   /**
    * 已超时（last_free_date < 今天）— 与 getExpiredCount 共用同一套 SQL
    */
-  private async getContainersByExpired(today: string, startDate?: string, endDate?: string): Promise<Container[]> {
+  private async getContainersByExpired(
+    today: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const innerSql = LastPickupSubqueryTemplates.EXPIRED_SUBQUERY(today);
     const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
     return this.getContainersByNumbers(containerNumbers);
@@ -210,7 +247,12 @@ WHERE cust.country = $1`;
   /**
    * 即将超时（今天 <= last_free_date <= 3天）— 与 getUrgentCount 共用同一套 SQL
    */
-  private async getContainersByUrgent(today: string, threeDaysLater: string, startDate?: string, endDate?: string): Promise<Container[]> {
+  private async getContainersByUrgent(
+    today: string,
+    threeDaysLater: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const innerSql = LastPickupSubqueryTemplates.URGENT_SUBQUERY(today, threeDaysLater);
     const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
     return this.getContainersByNumbers(containerNumbers);
@@ -219,8 +261,18 @@ WHERE cust.country = $1`;
   /**
    * 预警（3天 < last_free_date <= 7天）— 与 getWarningCount 共用同一套 SQL
    */
-  private async getContainersByWarning(today: string, threeDaysLater: string, sevenDaysLater: string, startDate?: string, endDate?: string): Promise<Container[]> {
-    const innerSql = LastPickupSubqueryTemplates.WARNING_SUBQUERY(today, threeDaysLater, sevenDaysLater);
+  private async getContainersByWarning(
+    today: string,
+    threeDaysLater: string,
+    sevenDaysLater: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
+    const innerSql = LastPickupSubqueryTemplates.WARNING_SUBQUERY(
+      today,
+      threeDaysLater,
+      sevenDaysLater
+    );
     const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
     return this.getContainersByNumbers(containerNumbers);
   }
@@ -228,7 +280,11 @@ WHERE cust.country = $1`;
   /**
    * 时间充裕（last_free_date > 7天）— 与 getNormalCount 共用同一套 SQL
    */
-  private async getContainersByNormal(sevenDaysLater: string, startDate?: string, endDate?: string): Promise<Container[]> {
+  private async getContainersByNormal(
+    sevenDaysLater: string,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const innerSql = LastPickupSubqueryTemplates.NORMAL_SUBQUERY(sevenDaysLater);
     const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
     return this.getContainersByNumbers(containerNumbers);
@@ -237,7 +293,10 @@ WHERE cust.country = $1`;
   /**
    * 最晚提柜日为空（last_free_date IS NULL）— 与 getNoLastFreeDateCount 共用同一套 SQL
    */
-  private async getContainersByNoLastFreeDate(startDate?: string, endDate?: string): Promise<Container[]> {
+  private async getContainersByNoLastFreeDate(
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const innerSql = LastPickupSubqueryTemplates.NO_LAST_FREE_DATE_SUBQUERY;
     const containerNumbers = await this.runSubqueryForCondition(innerSql, startDate, endDate);
     return this.getContainersByNumbers(containerNumbers);

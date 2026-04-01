@@ -58,7 +58,11 @@ export class LastPickupSubqueryTemplates {
   /**
    * 预警（3天后 <= last_free_date < 7天后）
    */
-  static readonly WARNING_SUBQUERY = (today: string, threeDaysLater: string, sevenDaysLater: string) => `
+  static readonly WARNING_SUBQUERY = (
+    today: string,
+    threeDaysLater: string,
+    sevenDaysLater: string
+  ) => `
     SELECT container_number
     FROM (${LastPickupSubqueryTemplates.TARGET_SET_SUBQUERY}) t
     WHERE last_free_date IS NOT NULL
@@ -133,7 +137,11 @@ export class LastPickupSubqueryTemplates {
   /**
    * 主分组组合（有lastFreeDate的货柜）
    */
-  static readonly WITH_LAST_FREE_DATE_SUBQUERY = (today: string, threeDaysLater: string, sevenDaysLater: string) => `
+  static readonly WITH_LAST_FREE_DATE_SUBQUERY = (
+    today: string,
+    threeDaysLater: string,
+    sevenDaysLater: string
+  ) => `
     ${LastPickupSubqueryTemplates.EXPIRED_SUBQUERY(today)}
     UNION
     ${LastPickupSubqueryTemplates.URGENT_SUBQUERY(today, threeDaysLater)}
@@ -146,7 +154,11 @@ export class LastPickupSubqueryTemplates {
   /**
    * 主分组组合（全部货柜）
    */
-  static readonly ALL_CONTAINERS_SUBQUERY = (today: string, threeDaysLater: string, sevenDaysLater: string) => `
+  static readonly ALL_CONTAINERS_SUBQUERY = (
+    today: string,
+    threeDaysLater: string,
+    sevenDaysLater: string
+  ) => `
     ${LastPickupSubqueryTemplates.WITH_LAST_FREE_DATE_SUBQUERY(today, threeDaysLater, sevenDaysLater)}
     UNION
     ${LastPickupSubqueryTemplates.NO_LAST_FREE_DATE_SUBQUERY}

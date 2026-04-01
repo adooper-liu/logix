@@ -31,10 +31,18 @@
           <el-table-column prop="plannedData" label="计划日期">
             <template #default="{ row }">
               <div v-if="row.plannedData" class="planned-dates">
-                <span v-if="row.plannedData.plannedPickupDate">提柜: {{ row.plannedData.plannedPickupDate }}</span>
-                <span v-if="row.plannedData.plannedDeliveryDate">送仓: {{ row.plannedData.plannedDeliveryDate }}</span>
-                <span v-if="row.plannedData.plannedUnloadDate">卸柜: {{ row.plannedData.plannedUnloadDate }}</span>
-                <span v-if="row.plannedData.plannedReturnDate">还箱: {{ row.plannedData.plannedReturnDate }}</span>
+                <span v-if="row.plannedData.plannedPickupDate"
+                  >提柜: {{ row.plannedData.plannedPickupDate }}</span
+                >
+                <span v-if="row.plannedData.plannedDeliveryDate"
+                  >送仓: {{ row.plannedData.plannedDeliveryDate }}</span
+                >
+                <span v-if="row.plannedData.plannedUnloadDate"
+                  >卸柜: {{ row.plannedData.plannedUnloadDate }}</span
+                >
+                <span v-if="row.plannedData.plannedReturnDate"
+                  >还箱: {{ row.plannedData.plannedReturnDate }}</span
+                >
               </div>
               <span v-else>-</span>
             </template>
@@ -49,10 +57,18 @@
           <el-table-column prop="plannedData" label="计划日期">
             <template #default="{ row }">
               <div v-if="row.plannedData" class="planned-dates">
-                <span v-if="row.plannedData.plannedPickupDate">提柜: {{ row.plannedData.plannedPickupDate }}</span>
-                <span v-if="row.plannedData.plannedDeliveryDate">送仓: {{ row.plannedData.plannedDeliveryDate }}</span>
-                <span v-if="row.plannedData.plannedUnloadDate">卸柜: {{ row.plannedData.plannedUnloadDate }}</span>
-                <span v-if="row.plannedData.plannedReturnDate">还箱: {{ row.plannedData.plannedReturnDate }}</span>
+                <span v-if="row.plannedData.plannedPickupDate"
+                  >提柜: {{ row.plannedData.plannedPickupDate }}</span
+                >
+                <span v-if="row.plannedData.plannedDeliveryDate"
+                  >送仓: {{ row.plannedData.plannedDeliveryDate }}</span
+                >
+                <span v-if="row.plannedData.plannedUnloadDate"
+                  >卸柜: {{ row.plannedData.plannedUnloadDate }}</span
+                >
+                <span v-if="row.plannedData.plannedReturnDate"
+                  >还箱: {{ row.plannedData.plannedReturnDate }}</span
+                >
               </div>
             </template>
           </el-table-column>
@@ -109,7 +125,18 @@ const failedResults = computed(() => {
 const exportResults = () => {
   if (!props.result?.results) return
 
-  const headers = ['柜号', '状态', '目的港', '仓库', 'ETA', 'ATA', '计划提柜日', '计划送仓日', '计划还箱日', '消息']
+  const headers = [
+    '柜号',
+    '状态',
+    '目的港',
+    '仓库',
+    'ETA',
+    'ATA',
+    '计划提柜日',
+    '计划送仓日',
+    '计划还箱日',
+    '消息',
+  ]
   const rows = props.result.results.map((r: any) => [
     r.containerNumber,
     r.success ? '成功' : '失败',
@@ -120,7 +147,7 @@ const exportResults = () => {
     r.plannedData?.plannedPickupDate || '-',
     r.plannedData?.plannedDeliveryDate || '-',
     r.plannedData?.plannedReturnDate || '-',
-    r.message || '-'
+    r.message || '-',
   ])
 
   const csvContent = [headers, ...rows].map(row => row.join(',')).join('\n')

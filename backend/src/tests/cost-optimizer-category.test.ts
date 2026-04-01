@@ -40,7 +40,6 @@ describe('SchedulingCostOptimizerService - Category Logic', () => {
   describe('generateSearchRange - 搜索范围生成（可以直接测试）', () => {
     it('应该为原计划超期的情况生成 forward 搜索日期', async () => {
       // 场景：原计划超期，应该使用 forward 策略
-      const today = new Date('2026-03-27');
       const lastFreeDate = new Date('2026-03-27');
       const basePickupDate = new Date('2026-03-28');
 
@@ -66,7 +65,6 @@ describe('SchedulingCostOptimizerService - Category Logic', () => {
 
     it('应该为免费期内的情况生成 backward 搜索日期', async () => {
       // 场景：真正的免费期内
-      const today = new Date('2026-03-27');
       const lastFreeDate = new Date('2026-03-30');
       const basePickupDate = new Date('2026-03-28');
 
@@ -91,7 +89,6 @@ describe('SchedulingCostOptimizerService - Category Logic', () => {
     });
 
     it('应该过滤掉早于原计划的日期（免费期内）', async () => {
-      const today = new Date('2026-03-27');
       const lastFreeDate = new Date('2026-03-30');
       const basePickupDate = new Date('2026-03-28');
 

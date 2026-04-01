@@ -30,9 +30,7 @@ import {
   PlaceType,
   PlaceProcessingResult
 } from '../interfaces/FeituoPlaces.interface';
-import {
-  shouldUpdateCoreField
-} from '../constants/FeiTuoStatusMapping';
+import { shouldUpdateCoreField } from '../constants/FeiTuoStatusMapping';
 
 /**
  * 飞驼Places处理器类
@@ -103,18 +101,12 @@ export class FeituoPlacesProcessor {
       }
 
       // 按 sequence 排序 places
-      const sortedPlaces = [...places].sort((a, b) =>
-        (a.sequence ?? 0) - (b.sequence ?? 0)
-      );
+      const sortedPlaces = [...places].sort((a, b) => (a.sequence ?? 0) - (b.sequence ?? 0));
 
       // 处理每个 place
       for (const place of sortedPlaces) {
         try {
-          const processingResult = await this.processSinglePlace(
-            containerNumber,
-            place,
-            billNo
-          );
+          const processingResult = await this.processSinglePlace(containerNumber, place, billNo);
 
           if (processingResult.success) {
             result.successCount++;
@@ -189,18 +181,10 @@ export class FeituoPlacesProcessor {
       }
 
       // 查找或创建港口操作记录
-      let portOperation = await this.findOrCreatePortOperation(
-        containerNumber,
-        place,
-        portType
-      );
+      let portOperation = await this.findOrCreatePortOperation(containerNumber, place, portType);
 
       // 更新港口操作记录的核心字段
-      portOperation = await this.updatePortOperationFields(
-        portOperation,
-        place,
-        portType
-      );
+      portOperation = await this.updatePortOperationFields(portOperation, place, portType);
 
       // 生成状态事件
       const statusEvents = await this.generateStatusEvents(
@@ -231,10 +215,10 @@ export class FeituoPlacesProcessor {
   private determinePortType(place: FeituoPlace): string | null {
     // 根据 place.type 确定港口类型
     const typeMap: Record<PlaceType, string> = {
-      'PRE': null,  // 收货地，不创建港口操作记录
-      'POL': 'origin',
-      'POD': 'destination',
-      'PDE': null   // 交货地，不创建港口操作记录
+      PRE: null, // 收货地，不创建港口操作记录
+      POL: 'origin',
+      POD: 'destination',
+      PDE: null // 交货地，不创建港口操作记录
     };
 
     return typeMap[place.type] ?? null;
@@ -469,7 +453,7 @@ export class FeituoPlacesProcessor {
     });
 
     // 检查sequence重复
-    const sequences = places.map(p => p.sequence).filter(s => s !== undefined);
+    const sequences = places.map((p) => p.sequence).filter((s) => s !== undefined);
     const uniqueSequences = new Set(sequences);
     if (sequences.length !== uniqueSequences.size) {
       warnings.push('存在重复的sequence值');

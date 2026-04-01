@@ -141,7 +141,6 @@ export class FreeDaysCalculationService {
    * 根据费用类型分类
    */
   private classifyByChargeType(standards: any[]): Record<string, any[]> {
-    const result: Record<string, any[]> = {};
     const isCombined = (std: any) => {
       const code = (std.chargeTypeCode ?? '').toUpperCase();
       const name = (std.chargeName ?? '').toLowerCase();

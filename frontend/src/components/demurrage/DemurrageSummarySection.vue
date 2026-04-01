@@ -5,6 +5,7 @@ import { SimplifiedStatusText } from '@/utils/logisticsStatusMachine'
 import { ArrowUp, DArrowRight } from '@element-plus/icons-vue'
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { formatCurrency } from '@/utils/currency'
 
 const colors = useColors()
 const router = useRouter()
@@ -44,9 +45,9 @@ const topContainers = ref<
 const statusTextMap: Record<string, string> = {
   arrived_at_transit: '已到中转港',
   arrived_at_destination: '已到目的港',
-  ...SimplifiedStatusText
+  ...SimplifiedStatusText,
 }
-const getStatusText = (status?: string) => (status ? (statusTextMap[status] || status) : '-')
+const getStatusText = (status?: string) => (status ? statusTextMap[status] || status : '-')
 
 const loadData = async () => {
   loading.value = true
@@ -100,7 +101,12 @@ const goToMoreContainers = () => {
 }
 
 const formatAmount = (amount: number, currency: string) => {
-  return `${currency} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return formatCurrency(amount, currency, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    showSymbol: false,
+    showCode: true,
+  })
 }
 
 const formatDate = (d: string | null) => {
@@ -134,12 +140,7 @@ defineExpose({ reload: loadData })
       <div class="section-header">
         <span class="section-title">滞港费</span>
         <span class="section-desc">按出运日期范围内货柜计算，与页面顶部日期一致</span>
-        <el-button
-          type="primary"
-          link
-          class="collapse-btn"
-          @click="emit('collapse')"
-        >
+        <el-button type="primary" link class="collapse-btn" @click="emit('collapse')">
           <el-icon><ArrowUp /></el-icon>
           收起
         </el-button>
@@ -165,11 +166,7 @@ defineExpose({ reload: loadData })
         <span class="by-port-title">按港口</span>
       </div>
       <div class="by-port-grid">
-        <div
-          v-for="row in summary.byPort"
-          :key="row.port"
-          class="by-port-card"
-        >
+        <div v-for="row in summary.byPort" :key="row.port" class="by-port-card">
           <div class="by-port-name">{{ row.port }}</div>
           <div class="by-port-amount">{{ formatAmount(row.totalAmount, summary.currency) }}</div>
           <div class="by-port-meta">{{ row.containerCount }} 柜</div>
@@ -214,7 +211,9 @@ defineExpose({ reload: loadData })
             <div class="top-card-amount">{{ formatAmount(row.totalAmount, row.currency) }}</div>
           </div>
           <div class="top-card-meta">
-            <span v-if="row.logisticsStatus" class="meta-item meta-status">{{ getStatusText(row.logisticsStatus) }}</span>
+            <span v-if="row.logisticsStatus" class="meta-item meta-status">{{
+              getStatusText(row.logisticsStatus)
+            }}</span>
             <span v-if="row.destinationPort" class="meta-item">{{ row.destinationPort }}</span>
             <span class="meta-item">计费 {{ row.chargeDays }} 天</span>
             <span class="meta-item">{{ formatDate(row.lastFreeDate) }}</span>

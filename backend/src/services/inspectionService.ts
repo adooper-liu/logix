@@ -10,7 +10,7 @@ export class InspectionService {
     @InjectRepository(InspectionRecord)
     private inspectionRecordRepository: Repository<InspectionRecord>,
     @InjectRepository(InspectionEvent)
-    private inspectionEventRepository: Repository<InspectionEvent>,
+    private inspectionEventRepository: Repository<InspectionEvent>
   ) {}
 
   // 根据柜号获取查验记录
@@ -20,9 +20,9 @@ export class InspectionService {
       relations: ['events'],
       order: {
         events: {
-          eventDate: 'ASC',
-        },
-      },
+          eventDate: 'ASC'
+        }
+      }
     });
   }
 
@@ -42,14 +42,17 @@ export class InspectionService {
   }
 
   // 添加查验事件
-  async addEvent(inspectionRecordId: number, event: {
-    eventDate: Date;
-    eventStatus: string;
-  }): Promise<InspectionEvent> {
+  async addEvent(
+    inspectionRecordId: number,
+    event: {
+      eventDate: Date;
+      eventStatus: string;
+    }
+  ): Promise<InspectionEvent> {
     const newEvent = this.inspectionEventRepository.create({
       inspectionRecordId,
       eventDate: event.eventDate,
-      eventStatus: event.eventStatus,
+      eventStatus: event.eventStatus
     });
     return this.inspectionEventRepository.save(newEvent);
   }
@@ -76,7 +79,9 @@ export class InspectionService {
         query.andWhere('record.created_at <= :endDate', { endDate: filters.endDate });
       }
       if (filters.customsClearanceStatus) {
-        query.andWhere('record.customs_clearance_status = :status', { status: filters.customsClearanceStatus });
+        query.andWhere('record.customs_clearance_status = :status', {
+          status: filters.customsClearanceStatus
+        });
       }
     }
 

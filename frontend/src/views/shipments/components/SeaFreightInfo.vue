@@ -41,7 +41,7 @@ const formatDateOnly = (date: Date | string | undefined): string => {
         v-for="(sf, index) in seaFreights"
         :key="index"
         class="info-card"
-        style="--accent-color: #409EFF"
+        style="--accent-color: #409eff"
       >
         <div class="info-card-header">
           <span class="info-card-icon">🚢</span>
@@ -90,11 +90,15 @@ const formatDateOnly = (date: Date | string | undefined): string => {
           </div>
           <div class="field-item">
             <span class="field-label">预计到港</span>
-            <span class="field-value">{{ formatDateOnly(sf.eta || destinationPortOperation?.eta) }}</span>
+            <span class="field-value">{{
+              formatDateOnly(sf.eta || destinationPortOperation?.eta)
+            }}</span>
           </div>
           <div class="field-item">
             <span class="field-label">实际到港</span>
-            <span class="field-value highlight">{{ formatDateOnly(sf.ata || destinationPortOperation?.ata) }}</span>
+            <span class="field-value highlight">{{
+              formatDateOnly(sf.ata || destinationPortOperation?.ata)
+            }}</span>
           </div>
           <div class="field-item">
             <span class="field-label">货代公司</span>

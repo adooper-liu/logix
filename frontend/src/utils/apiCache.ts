@@ -27,7 +27,7 @@ export interface CacheConfig {
  */
 const DEFAULT_CONFIG: Required<CacheConfig> = {
   ttl: 5 * 60 * 1000, // 5分钟
-  enabled: true
+  enabled: true,
 }
 
 /**
@@ -63,7 +63,7 @@ export class ApiCache {
     const cacheItem: CacheItem<T> = {
       data,
       timestamp: Date.now(),
-      expires: cacheConfig.ttl
+      expires: cacheConfig.ttl,
     }
 
     // 内存缓存
@@ -72,10 +72,13 @@ export class ApiCache {
     // 持久化缓存（仅存储数据，不存储元数据）
     try {
       const storageKey = `${STORAGE_PREFIX}${key}`
-      localStorage.setItem(storageKey, JSON.stringify({
-        data,
-        expires: Date.now() + cacheConfig.ttl
-      }))
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify({
+          data,
+          expires: Date.now() + cacheConfig.ttl,
+        })
+      )
     } catch (error) {
       console.warn('LocalStorage缓存写入失败:', error)
     }
@@ -110,7 +113,7 @@ export class ApiCache {
           memoryCache.set(key, {
             data: parsed.data,
             timestamp: Date.now(),
-            expires: parsed.expires - Date.now()
+            expires: parsed.expires - Date.now(),
           })
           return parsed.data as T
         } else {
@@ -204,7 +207,7 @@ export class ApiCache {
 
     return {
       memorySize: memoryCache.size,
-      storageSize
+      storageSize,
     }
   }
 }
@@ -220,7 +223,7 @@ export const createApiCache = (config?: CacheConfig): ApiCache => {
  * 默认全局缓存实例
  */
 export const globalApiCache = createApiCache({
-  ttl: 5 * 60 * 1000 // 5分钟
+  ttl: 5 * 60 * 1000, // 5分钟
 })
 
 /**
@@ -327,6 +330,6 @@ export function useApiCache(config?: CacheConfig) {
     error,
     fetchData,
     clearCache,
-    refreshData
+    refreshData,
   }
 }

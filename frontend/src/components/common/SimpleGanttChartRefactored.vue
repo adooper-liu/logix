@@ -50,7 +50,16 @@
 
     <!-- 独立表格主体 -->
     <div v-if="viewMode === 'independent'" class="gantt-body" v-loading="loading">
-      <div class="gantt-body-scroll">
+      <!-- 性能提示：数据量大时显示提示 -->
+      <div v-if="finalFilteredContainers.length > 200" class="performance-hint">
+        <el-icon><info-filled /></el-icon>
+        数据量较大 ({{ finalFilteredContainers.length }} 条)，建议使用筛选功能缩小范围
+      </div>
+      <div
+        class="gantt-body-scroll"
+        :class="{ 'scrolling-fast': isScrollingFast }"
+        @scroll="handleScroll"
+      >
         <!-- 时间轴头部 -->
         <div class="gantt-header-row">
           <div class="tree-column-header">
@@ -134,7 +143,8 @@
                       class="container-dot"
                       :class="{
                         clickable: true,
-                        'is-dragging': draggingContainer?.containerNumber === container.containerNumber,
+                        'is-dragging':
+                          draggingContainer?.containerNumber === container.containerNumber,
                         'has-warning': hasAlert(container),
                         'main-task': getNodeDisplayType(container, '清关') === 'main',
                         'dashed-task': getNodeDisplayType(container, '清关') === 'dashed',
@@ -173,7 +183,8 @@
                       class="container-dot"
                       :class="{
                         clickable: true,
-                        'is-dragging': draggingContainer?.containerNumber === container.containerNumber,
+                        'is-dragging':
+                          draggingContainer?.containerNumber === container.containerNumber,
                         'has-warning': hasAlert(container),
                         'main-task': getNodeDisplayType(container, '清关') === 'main',
                         'dashed-task': getNodeDisplayType(container, '清关') === 'dashed',
@@ -226,8 +237,7 @@
                   v-if="!isGroupCollapsed(port + '-' + node)"
                   class="dates-column node-dates"
                   :style="{ height: getNodeRowHeight(suppliersByNode) }"
-                >
-                </div>
+                ></div>
               </div>
 
               <!-- 三级：供应商行（嵌套在第二级内，展开节点时显示） -->
@@ -269,10 +279,10 @@
                       :key="date.getTime()"
                       class="date-cell"
                       :data-date-index="index"
-                  :class="{
-                    'is-weekend': isWeekend(date),
-                    'is-today': isToday(date),
-                  }"
+                      :class="{
+                        'is-weekend': isWeekend(date),
+                        'is-today': isToday(date),
+                      }"
                       :style="{ width: getDateCellWidth(date) }"
                       @dragover.prevent="handleDragOver($event)"
                       @drop="handleDrop(date)"
@@ -320,6 +330,7 @@
     </div>
 
     <!-- Tooltip -->
+    <!-- 增强版 Tooltip：包含完整物流信息 -->
     <div
       v-if="tooltipVisible"
       class="gantt-tooltip"
@@ -328,23 +339,60 @@
         top: tooltipPosition.y + 'px',
       }"
     >
-      <div class="tooltip-title">{{ tooltipContainer?.containerNumber }}</div>
-      <div class="tooltip-content">
+      <!-- 标题区：柜号 + 状态颜色指示 -->
+      <div class="tooltip-title">
+        <span class="tooltip-title-text">{{ tooltipContainer?.containerNumber }}</span>
+        <span
+          class="tooltip-status-badge"
+          :style="{ backgroundColor: getStatusColor(tooltipContainer?.logisticsStatus) }"
+        >
+          {{ tooltipContainer?.logisticsStatus }}
+        </span>
+      </div>
+
+      <!-- 基本信息区 -->
+      <div class="tooltip-section">
         <div class="tooltip-row">
-          <span class="label">物流状态：</span>
-          <span class="value">{{ tooltipContainer?.logisticsStatus }}</span>
+          <span class="label">备货单：</span>
+          <span class="value">{{ tooltipContainer?.orderNumber || '-' }}</span>
         </div>
         <div class="tooltip-row">
           <span class="label">目的港：</span>
-          <span class="value">{{ tooltipContainer?.destinationPort }}</span>
+          <span class="value">{{ tooltipContainer?.destinationPort || '-' }}</span>
         </div>
         <div class="tooltip-row">
-          <span class="label">预计到港：</span>
-          <span class="value">{{ formatDate(tooltipContainer?.etaDestPort) }}</span>
+          <span class="label">船名/航次：</span>
+          <span class="value">
+            {{ tooltipContainer?.seaFreight?.vesselName || '-' }}/{{ tooltipContainer?.seaFreight?.voyageNumber || '-' }}
+          </span>
+        </div>
+      </div>
+
+      <!-- 到港信息区 -->
+      <div class="tooltip-section">
+        <div class="tooltip-section-title">到港信息</div>
+        <div class="tooltip-row">
+          <span class="label">ETA：</span>
+          <span class="value" :class="{ 'is-warning': isEtaApproaching(tooltipContainer) }">
+            {{ formatDate(tooltipContainer?.etaDestPort) }}
+          </span>
         </div>
         <div class="tooltip-row" v-if="tooltipContainer?.ataDestPort">
-          <span class="label">实际到港：</span>
-          <span class="value">{{ formatDate(tooltipContainer?.ataDestPort) }}</span>
+          <span class="label">ATA：</span>
+          <span class="value is-arrived">{{ formatDate(tooltipContainer?.ataDestPort) }}</span>
+        </div>
+        <div class="tooltip-row" v-if="tooltipContainer?.etaCorrection">
+          <span class="label">修正ETA：</span>
+          <span class="value is-corrected">{{ formatDate(tooltipContainer?.etaCorrection) }}</span>
+        </div>
+      </div>
+
+      <!-- 计划日期区 -->
+      <div class="tooltip-section">
+        <div class="tooltip-section-title">计划日期</div>
+        <div class="tooltip-row">
+          <span class="label">计划清关：</span>
+          <span class="value">{{ formatDate(getPlannedCustomsDate(tooltipContainer)) }}</span>
         </div>
         <div class="tooltip-row">
           <span class="label">计划提柜：</span>
@@ -362,27 +410,50 @@
           <span class="label">计划还箱：</span>
           <span class="value">{{ formatDate(getPlannedReturnDate(tooltipContainer)) }}</span>
         </div>
+      </div>
+
+      <!-- 关键日期区 -->
+      <div class="tooltip-section critical-section">
+        <div class="tooltip-section-title">关键日期</div>
         <div class="tooltip-row">
           <span class="label">最晚提柜：</span>
           <span class="value" :class="getTooltipDateClass(tooltipContainer)">
-            {{ formatDate(getLastFreeDate(tooltipContainer)) }}
-            <el-icon v-if="hasAlert(tooltipContainer!)" class="alert-icon">
-              <warning />
-            </el-icon>
+            {{ formatDate(getLastFreeDate(tooltipContainer)) || '-' }}
           </span>
         </div>
+        <div class="tooltip-row">
+          <span class="label">最晚还箱：</span>
+          <span class="value">{{ formatDate(getLastReturnDate(tooltipContainer)) }}</span>
+        </div>
+      </div>
 
-        <!-- 预警信息 -->
-        <div v-if="tooltipContainer && hasAlert(tooltipContainer)" class="tooltip-alerts">
-          <div
-            v-for="alert in getContainerAlerts(tooltipContainer)"
-            :key="alert.id"
-            class="alert-item"
-            :class="alert.level"
-          >
-            <el-icon><warning /></el-icon>
-            <span>{{ alert.message }}</span>
-          </div>
+      <!-- 供应商信息区 -->
+      <div class="tooltip-section">
+        <div class="tooltip-section-title">执行方</div>
+        <div class="tooltip-row">
+          <span class="label">清关行：</span>
+          <span class="value">{{ getCustomsBrokerName(tooltipContainer) || '-' }}</span>
+        </div>
+        <div class="tooltip-row">
+          <span class="label">拖车公司：</span>
+          <span class="value">{{ getTruckingCompanyName(tooltipContainer) || '-' }}</span>
+        </div>
+        <div class="tooltip-row">
+          <span class="label">仓库：</span>
+          <span class="value">{{ getWarehouseName(tooltipContainer) || '-' }}</span>
+        </div>
+      </div>
+
+      <!-- 预警信息 -->
+      <div v-if="tooltipContainer && hasAlert(tooltipContainer)" class="tooltip-alerts">
+        <div
+          v-for="alert in getContainerAlerts(tooltipContainer)"
+          :key="alert.id"
+          class="alert-item"
+          :class="alert.level"
+        >
+          <el-icon><warning /></el-icon>
+          <span>{{ alert.message }}</span>
         </div>
       </div>
     </div>
@@ -459,10 +530,10 @@
                 :key="date.getTime()"
                 class="date-cell"
                 :data-date-index="index"
-                  :class="{
-                    'is-weekend': isWeekend(date),
-                    'is-today': isToday(date),
-                  }"
+                :class="{
+                  'is-weekend': isWeekend(date),
+                  'is-today': isToday(date),
+                }"
                 :style="{ width: getDateCellWidth(date) }"
                 @dragover.prevent="handleDragOver($event)"
                 @drop="handleDrop(date)"
@@ -474,7 +545,8 @@
                     class="container-dot"
                     :class="{
                       clickable: true,
-                      'is-dragging': draggingContainer?.containerNumber === container.containerNumber,
+                      'is-dragging':
+                        draggingContainer?.containerNumber === container.containerNumber,
                       'has-warning': hasAlert(container),
                       'main-task': getNodeDisplayType(container, '清关') === 'main',
                       'dashed-task': getNodeDisplayType(container, '清关') === 'dashed',
@@ -524,22 +596,27 @@
                     :key="date.getTime()"
                     class="date-cell"
                     :data-date-index="index"
-                  :class="{
-                    'is-weekend': isWeekend(date),
-                    'is-today': isToday(date),
-                  }"
+                    :class="{
+                      'is-weekend': isWeekend(date),
+                      'is-today': isToday(date),
+                    }"
                     :style="{ width: getDateCellWidth(date) }"
                     @dragover.prevent="handleDragOver($event)"
                     @drop="handleDrop(date)"
                   >
                     <div class="dots-container">
                       <div
-                        v-for="container in getContainersByDateAndSupplier(date, containersBySupplier, node)"
+                        v-for="container in getContainersByDateAndSupplier(
+                          date,
+                          containersBySupplier,
+                          node
+                        )"
                         :key="container.containerNumber"
                         class="container-dot"
                         :class="{
                           clickable: true,
-                          'is-dragging': draggingContainer?.containerNumber === container.containerNumber,
+                          'is-dragging':
+                            draggingContainer?.containerNumber === container.containerNumber,
                           'has-warning': hasAlert(container),
                           'main-task': getNodeDisplayType(container, node as string) === 'main',
                           'dashed-task': getNodeDisplayType(container, node as string) === 'dashed',
@@ -560,10 +637,18 @@
                       <template v-if="supplier && supplier !== '未指定'">
                         <span
                           class="resource-stat-item"
-                          :style="{ color: getOccupancyStatusColor(getWarehouseOccupancy(date, supplier)?.status || 'normal') }"
+                          :style="{
+                            color: getOccupancyStatusColor(
+                              getWarehouseOccupancy(date, supplier)?.status || 'normal'
+                            ),
+                          }"
                         >
-                          {{ getWarehouseOccupancy(date, supplier)?.planned_count || 0 }}/{{ getWarehouseOccupancy(date, supplier)?.capacity || '-' }}
-                          <span v-if="getWarehouseOccupancy(date, supplier)?.remaining !== undefined">
+                          {{ getWarehouseOccupancy(date, supplier)?.planned_count || 0 }}/{{
+                            getWarehouseOccupancy(date, supplier)?.capacity || '-'
+                          }}
+                          <span
+                            v-if="getWarehouseOccupancy(date, supplier)?.remaining !== undefined"
+                          >
                             (余{{ getWarehouseOccupancy(date, supplier).remaining }})
                           </span>
                         </span>
@@ -629,7 +714,7 @@
 <script setup lang="ts">
 import { dictService } from '@/services/dict'
 import type { Container } from '@/types/container'
-import { ArrowDown, ArrowRight, ArrowUp, Check, Warning } from '@element-plus/icons-vue'
+import { ArrowDown, ArrowRight, ArrowUp, Check, InfoFilled, Warning } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
@@ -745,29 +830,54 @@ const getNodePlannedDate = (container: any, nodeName: string): Date | null => {
 
   switch (nodeName) {
     case '清关':
+      // 实际清关 > 计划清关 > ATA > ETA修正 > ETA原始
       if (destPortOp?.actualCustomsDate) return new Date(destPortOp.actualCustomsDate)
       if (destPortOp?.plannedCustomsDate) return new Date(destPortOp.plannedCustomsDate)
       if (destPortOp?.ataDestPort) return new Date(destPortOp.ataDestPort)
+      if (destPortOp?.etaCorrection) return new Date(destPortOp.etaCorrection)
       if (destPortOp?.etaDestPort) return new Date(destPortOp.etaDestPort)
       if (container.ataDestPort) return new Date(container.ataDestPort)
+      if (container.etaCorrection) return new Date(container.etaCorrection)
       if (container.etaDestPort) return new Date(container.etaDestPort)
       return null
     case '提柜':
+      // 实际送仓 > 计划送仓 > 实际提柜 > 计划提柜
       if (trucking?.deliveryDate) return new Date(trucking.deliveryDate)
       if (trucking?.plannedDeliveryDate) return new Date(trucking.plannedDeliveryDate)
       if (trucking?.pickupDate) return new Date(trucking.pickupDate)
       if (trucking?.plannedPickupDate) return new Date(trucking.plannedPickupDate)
+      // 备选：基于卸柜日（到港后1天）
+      if (warehouseOp?.actualUnloadDate) {
+        const date = new Date(warehouseOp.actualUnloadDate)
+        date.setDate(date.getDate() + 1)
+        return date
+      }
+      if (warehouseOp?.plannedUnloadDate) {
+        const date = new Date(warehouseOp.plannedUnloadDate)
+        date.setDate(date.getDate() + 1)
+        return date
+      }
       return null
     case '卸柜':
-      if (warehouseOp?.unloadDate) return new Date(warehouseOp.unloadDate)
+      // 实际卸柜 > 计划卸柜
+      if (warehouseOp?.actualUnloadDate) return new Date(warehouseOp.actualUnloadDate)
       if (warehouseOp?.plannedUnloadDate) return new Date(warehouseOp.plannedUnloadDate)
+      if (warehouseOp?.unloadDate) return new Date(warehouseOp.unloadDate)
       return null
     case '还箱':
+      // 实际还箱 > 最晚还箱 > 计划还箱
       if (emptyReturn?.returnTime) return new Date(emptyReturn.returnTime)
       if (emptyReturn?.lastReturnDate) return new Date(emptyReturn.lastReturnDate)
       if (emptyReturn?.plannedReturnDate) return new Date(emptyReturn.plannedReturnDate)
+      // 备选：最晚提柜日 + 7天
+      if (destPortOp?.lastFreeDate) {
+        const date = new Date(destPortOp.lastFreeDate)
+        date.setDate(date.getDate() + 7)
+        return date
+      }
       return null
     case '查验':
+      // 与清关使用相同日期来源
       if (destPortOp?.actualCustomsDate) return new Date(destPortOp.actualCustomsDate)
       if (destPortOp?.plannedCustomsDate) return new Date(destPortOp.plannedCustomsDate)
       return null
@@ -777,11 +887,7 @@ const getNodePlannedDate = (container: any, nodeName: string): Date | null => {
 }
 
 /** 根据日期、供应商货柜列表、节点名筛选该日期格应显示的货柜 */
-const getContainersByDateAndSupplier = (
-  date: Date,
-  containers: any[],
-  nodeName: string
-): any[] => {
+const getContainersByDateAndSupplier = (date: Date, containers: any[], nodeName: string): any[] => {
   const dateStr = dayjs(date).format('YYYY-MM-DD')
   return containers.filter(container => {
     const plannedDate = getNodePlannedDate(container, nodeName)
@@ -831,7 +937,7 @@ const loadSupplierDicts = async () => {
     const [cbRes, tcRes, whRes] = await Promise.all([
       dictService.getCustomsBrokers(),
       dictService.getTruckingCompanies(),
-      dictService.getWarehouses()
+      dictService.getWarehouses(),
     ])
     if (cbRes.success && cbRes.data) {
       const m = new Map<string, string>()
@@ -860,12 +966,14 @@ const loadSupplierDicts = async () => {
 }
 
 /** 三级显示名称（按节点类型从字典查名称，查不到则显示原值；优先用后端已解析的 supplierNames） */
-const getSupplierDisplayName = (
-  node: string,
-  codeOrName: string,
-  containers?: any[]
-): string => {
-  if (!codeOrName || codeOrName === '未指定' || codeOrName === '未指定供应商' || codeOrName === '未指定清关公司') return codeOrName
+const getSupplierDisplayName = (node: string, codeOrName: string, containers?: any[]): string => {
+  if (
+    !codeOrName ||
+    codeOrName === '未指定' ||
+    codeOrName === '未指定供应商' ||
+    codeOrName === '未指定清关公司'
+  )
+    return codeOrName
   switch (node) {
     case '清关':
     case '查验': {
@@ -1000,6 +1108,13 @@ const isToday = (date: Date): boolean => {
   return today.getTime() === compareDate.getTime()
 }
 
+// 每列最小宽度（无货柜时的默认宽度）
+const MIN_DATE_CELL_WIDTH = 40
+// 每个货柜点占用的宽度
+const CONTAINER_DOT_WIDTH = 14
+// 每行最大货柜数量（超过则换行）
+const MAX_CONTAINERS_PER_ROW = 15
+
 // 缓存每个日期的货柜数量（避免重复计算）
 const dateContainerCounts = computed(() => {
   const counts: Map<string, number> = new Map()
@@ -1015,19 +1130,27 @@ const dateContainerCounts = computed(() => {
   return counts
 })
 
-// 缓存每个日期格子的宽度
+// 缓存每个日期格子的宽度（根据货柜数量动态调整）
 const dateCellWidths = computed(() => {
   const widths: Map<string, string> = new Map()
   for (const date of dateRange.value) {
     const dateStr = dayjs(date).format('YYYY-MM-DD')
     const maxCount = dateContainerCounts.value.get(dateStr) || 0
+    const isTodayCell = isToday(date)
+    const isWeekendCell = isWeekend(date)
 
     if (maxCount === 0) {
-      widths.set(dateStr, `${MIN_COL_WIDTH}px`)
+      // 无货柜时使用最小宽度
+      widths.set(dateStr, `${MIN_DATE_CELL_WIDTH}px`)
     } else {
-      const columnsNeeded = Math.ceil(maxCount / CONTAINERS_PER_ROW)
-      const columnWidth = 13
-      const width = Math.max(columnsNeeded * columnWidth, MIN_COL_WIDTH)
+      // 计算所需列数
+      const columnsNeeded = Math.ceil(maxCount / MAX_CONTAINERS_PER_ROW)
+      // 计算基础宽度：列数 * 每列宽度 + 内边距
+      const baseWidth = columnsNeeded * CONTAINER_DOT_WIDTH + 8
+      // 今天和周末适当加宽
+      const extraPadding = (isTodayCell || isWeekendCell) ? 10 : 0
+      // 取最大值
+      const width = Math.max(baseWidth + extraPadding, MIN_DATE_CELL_WIDTH)
       widths.set(dateStr, `${width}px`)
     }
   }
@@ -1168,29 +1291,88 @@ const portList = computed(() => {
   return Object.keys(finalGroupedByPort.value).filter(port => port !== '未指定')
 })
 
-// 辅助方法：获取计划提柜日期
+// 辅助方法：获取实际/计划提柜日期（优先显示实际日期）
 const getPlannedPickupDate = (container: any) => {
-  return container?.truckingTransports?.[0]?.plannedPickupDate
+  const trucking = container?.truckingTransports?.[0]
+  // 优先显示实际日期
+  if (trucking?.pickupDate) return trucking.pickupDate
+  if (trucking?.deliveryDate) return trucking.deliveryDate
+  // 回退到计划日期
+  if (trucking?.plannedDeliveryDate) return trucking.plannedDeliveryDate
+  if (trucking?.plannedPickupDate) return trucking.plannedPickupDate
+  return null
 }
 
-// 辅助方法：获取计划送仓日期
+// 辅助方法：获取实际/计划送仓日期
 const getPlannedDeliveryDate = (container: any) => {
-  return container?.truckingTransports?.[0]?.plannedDeliveryDate
+  const trucking = container?.truckingTransports?.[0]
+  if (trucking?.deliveryDate) return trucking.deliveryDate
+  if (trucking?.plannedDeliveryDate) return trucking.plannedDeliveryDate
+  return null
 }
 
-// 辅助方法：获取计划卸柜日期
+// 辅助方法：获取实际/计划卸柜日期
 const getPlannedUnloadDate = (container: any) => {
-  return container?.warehouseOperations?.[0]?.plannedUnloadDate
+  const warehouseOp = container?.warehouseOperations?.[0]
+  if (warehouseOp?.actualUnloadDate) return warehouseOp.actualUnloadDate
+  if (warehouseOp?.unloadDate) return warehouseOp.unloadDate
+  if (warehouseOp?.plannedUnloadDate) return warehouseOp.plannedUnloadDate
+  return null
 }
 
-// 辅助方法：获取计划还箱日期
+// 辅助方法：获取实际/计划还箱日期
 const getPlannedReturnDate = (container: any) => {
-  return container?.emptyReturns?.[0]?.plannedReturnDate
+  const emptyReturn = container?.emptyReturns?.[0]
+  if (emptyReturn?.returnTime) return emptyReturn.returnTime
+  if (emptyReturn?.plannedReturnDate) return emptyReturn.plannedReturnDate
+  return null
 }
 
 // 辅助方法：获取最晚提柜日期
 const getLastFreeDate = (container: any) => {
   return container?.portOperations?.find((op: any) => op.portType === 'destination')?.lastFreeDate
+}
+
+// 辅助方法：获取最晚还箱日期
+const getLastReturnDate = (container: any) => {
+  return container?.emptyReturns?.[0]?.lastReturnDate
+}
+
+// 辅助方法：获取计划清关日期
+const getPlannedCustomsDate = (container: any) => {
+  const destPortOp = container?.portOperations?.find((op: any) => op.portType === 'destination')
+  return destPortOp?.plannedCustomsDate
+}
+
+// 辅助方法：获取清关行名称
+const getCustomsBrokerName = (container: any) => {
+  const destPortOp = container?.portOperations?.find((op: any) => op.portType === 'destination')
+  const brokerCode = destPortOp?.customsBrokerCode || destPortOp?.customsBroker
+  if (!brokerCode) return null
+  return customsBrokerMap.value.get(brokerCode) || brokerCode
+}
+
+// 辅助方法：获取拖车公司名称
+const getTruckingCompanyName = (container: any) => {
+  const trucking = container?.truckingTransports?.[0]
+  const companyCode = trucking?.truckingCompanyId || trucking?.carrierCompany
+  if (!companyCode) return null
+  return truckingCompanyMap.value.get(companyCode) || companyCode
+}
+
+// 辅助方法：获取仓库名称
+const getWarehouseName = (container: any) => {
+  const warehouseOp = container?.warehouseOperations?.[0]
+  const warehouseCode = warehouseOp?.warehouseId || warehouseOp?.actualWarehouse || warehouseOp?.plannedWarehouse
+  if (!warehouseCode) return null
+  return warehouseMap.value.get(warehouseCode) || warehouseCode
+}
+
+// 辅助方法：判断ETA是否即将到达（3天内）
+const isEtaApproaching = (container: any) => {
+  if (!container?.etaDestPort) return false
+  const daysUntilEta = dayjs(container.etaDestPort).diff(dayjs(), 'day')
+  return daysUntilEta >= 0 && daysUntilEta <= 3
 }
 
 // 辅助方法：获取最晚提柜日期的样式类
@@ -1437,12 +1619,12 @@ const loadWarehouseOccupancy = async () => {
   try {
     const startDate = dayjs(displayRange.value[0]).format('YYYY-MM-DD')
     const endDate = dayjs(displayRange.value[1]).format('YYYY-MM-DD')
-    
+
     const response = await fetch(
       `/api/v1/scheduling/resources/occupancy/warehouse?startDate=${startDate}&endDate=${endDate}`
     )
     const result = await response.json()
-    
+
     if (result.success && result.data) {
       // 转换为以日期+仓库代码为key的Map
       const occupancyMap: Record<string, any> = {}
@@ -1467,9 +1649,12 @@ const getWarehouseOccupancy = (date: Date, warehouseCode: string): any => {
 // 获取资源状态颜色
 const getOccupancyStatusColor = (status: string): string => {
   switch (status) {
-    case 'full': return '#f56c6c'  // 红色-满
-    case 'warning': return '#e6a23c' // 橙色-预警
-    default: return '#67c23a'  // 绿色-正常
+    case 'full':
+      return '#f56c6c' // 红色-满
+    case 'warning':
+      return '#e6a23c' // 橙色-预警
+    default:
+      return '#67c23a' // 绿色-正常
   }
 }
 
@@ -1585,6 +1770,37 @@ const finalGroupedByPort = computed(() => {
 
   return groups
 })
+
+// ========== 性能优化 ==========
+/** 滚动节流：避免快速滚动时频繁触发渲染 */
+let scrollRAFId = 0
+let lastScrollTop = 0
+const isScrollingFast = ref(false)
+
+const handleScroll = (event: Event) => {
+  const target = event.target as HTMLElement
+  const scrollTop = target.scrollTop
+  const scrollLeft = target.scrollLeft
+
+  // 判断是否快速滚动
+  const delta = Math.abs(scrollTop - lastScrollTop)
+  if (delta > 30) {
+    isScrollingFast.value = true
+    if (scrollRAFId) cancelAnimationFrame(scrollRAFId)
+    scrollRAFId = requestAnimationFrame(() => {
+      setTimeout(() => {
+        isScrollingFast.value = false
+      }, 150)
+    })
+  }
+  lastScrollTop = scrollTop
+
+  // 同步表头滚动
+  const headerEl = document.querySelector('.gantt-header-row') as HTMLElement
+  if (headerEl && headerEl.scrollLeft !== scrollLeft) {
+    headerEl.scrollLeft = scrollLeft
+  }
+}
 
 // ========== 货柜节点状态计算 ==========
 
@@ -1710,7 +1926,8 @@ const calculateNodeStatus = (container: any): ContainerNodeStatus => {
 
   // 4. 判断卸柜状态（使用 warehouseId 优先，其次 actualWarehouse/plannedWarehouse）
   const unloadOp = container.warehouseOperations?.[0]
-  const unloadSupplier = unloadOp?.warehouseId || unloadOp?.actualWarehouse || unloadOp?.plannedWarehouse
+  const unloadSupplier =
+    unloadOp?.warehouseId || unloadOp?.actualWarehouse || unloadOp?.plannedWarehouse
   if (unloadSupplier) {
     nodes.卸柜.supplier = unloadSupplier
     // 优先级：unloadDate > plannedUnloadDate
@@ -1933,7 +2150,8 @@ const getDisplayItems = (container: any): GanttDisplayItem[] => {
 
     if (nodeName === '清关') {
       const hasPlannedPickup = container.truckingTransports?.[0]?.plannedPickupDate
-      const hasCustomsBroker = node.supplier && node.supplier !== '未指定' && node.supplier !== '未指定清关公司'
+      const hasCustomsBroker =
+        node.supplier && node.supplier !== '未指定' && node.supplier !== '未指定清关公司'
       if (!hasPlannedPickup && !hasCustomsBroker) {
         return
       }
@@ -2282,6 +2500,27 @@ export default {
   color: #909399;
 }
 
+/* 性能提示 */
+.performance-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #fdf6ec;
+  border-bottom: 1px solid #f5e6d3;
+  font-size: 12px;
+  color: #e6a23c;
+}
+
+.performance-hint .el-icon {
+  flex-shrink: 0;
+}
+
+/* 快速滚动时隐藏 tooltip 优化性能 */
+.gantt-body-scroll.scrolling-fast .gantt-tooltip {
+  display: none;
+}
+
 .simple-gantt-chart {
   padding: 20px;
   background: #fff;
@@ -2327,26 +2566,64 @@ export default {
   position: relative;
 }
 
-/* Tooltip */
+/* Tooltip 增强版 */
 .gantt-tooltip {
   position: fixed;
   background: #fff;
   border: 1px solid #e4e7ed;
-  border-radius: 4px;
-  padding: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
   z-index: 1000;
-  min-width: 200px;
+  min-width: 280px;
+  max-width: 340px;
   pointer-events: none;
+  overflow: hidden;
 }
 
 .tooltip-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  border-bottom: 1px solid #e4e7ed;
+}
+
+.tooltip-title-text {
   font-size: 14px;
   font-weight: bold;
   color: #303133;
-  margin-bottom: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e4e7ed;
+}
+
+.tooltip-status-badge {
+  font-size: 11px;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+
+.tooltip-section {
+  padding: 10px 14px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.tooltip-section:last-child {
+  border-bottom: none;
+}
+
+.tooltip-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #909399;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+
+.tooltip-section.critical-section {
+  background: #fffbf0;
 }
 
 .tooltip-content {
@@ -2355,20 +2632,28 @@ export default {
 
 .tooltip-row {
   display: flex;
-  margin-bottom: 6px;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  align-items: center;
+}
+
+.tooltip-row:last-child {
+  margin-bottom: 0;
 }
 
 .tooltip-row .label {
   color: #909399;
-  min-width: 70px;
+  font-size: 12px;
 }
 
 .tooltip-row .value {
   color: #303133;
   font-weight: 500;
+  font-size: 12px;
   display: flex;
   align-items: center;
   gap: 4px;
+  text-align: right;
 }
 
 .tooltip-row .value.is-warning {
@@ -2379,6 +2664,16 @@ export default {
 .tooltip-row .value.is-danger {
   color: #f56c6c;
   font-weight: bold;
+}
+
+.tooltip-row .value.is-arrived {
+  color: #67c23a;
+  font-weight: 600;
+}
+
+.tooltip-row .value.is-corrected {
+  color: #409eff;
+  font-style: italic;
 }
 
 .alert-icon {
@@ -2635,7 +2930,6 @@ export default {
 .date-cell.is-today {
   background-color: #ecf5ff;
 }
-
 
 /* 日期单元格内容 */
 .date-day {

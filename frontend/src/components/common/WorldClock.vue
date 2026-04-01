@@ -27,8 +27,8 @@ const timeZoneGroups: TimeZoneGroup[] = [
       { city: '韩国', timezone: 'Asia/Seoul', label: 'KR' },
       { city: '新加坡', timezone: 'Asia/Singapore', label: 'SG' },
       { city: '阿联酋', timezone: 'Asia/Dubai', label: 'AE' },
-      { city: '印度', timezone: 'Asia/Kolkata', label: 'IN' }
-    ]
+      { city: '印度', timezone: 'Asia/Kolkata', label: 'IN' },
+    ],
   },
   {
     region: '美洲',
@@ -37,8 +37,8 @@ const timeZoneGroups: TimeZoneGroup[] = [
       { city: '美国中部', timezone: 'America/Chicago', label: 'CST' },
       { city: '美国东岸', timezone: 'America/New_York', label: 'EST' },
       { city: '加拿大', timezone: 'America/Toronto', label: 'CA' },
-      { city: '巴西', timezone: 'America/Sao_Paulo', label: 'BR' }
-    ]
+      { city: '巴西', timezone: 'America/Sao_Paulo', label: 'BR' },
+    ],
   },
   {
     region: '欧洲',
@@ -47,15 +47,13 @@ const timeZoneGroups: TimeZoneGroup[] = [
       { city: '德国', timezone: 'Europe/Berlin', label: 'DE' },
       { city: '法国', timezone: 'Europe/Paris', label: 'FR' },
       { city: '荷兰', timezone: 'Europe/Amsterdam', label: 'NL' },
-      { city: '俄罗斯', timezone: 'Europe/Moscow', label: 'RU' }
-    ]
+      { city: '俄罗斯', timezone: 'Europe/Moscow', label: 'RU' },
+    ],
   },
   {
     region: '大洋洲',
-    timeZones: [
-      { city: '澳大利亚', timezone: 'Australia/Sydney', label: 'AU' }
-    ]
-  }
+    timeZones: [{ city: '澳大利亚', timezone: 'Australia/Sydney', label: 'AU' }],
+  },
 ]
 
 const currentTime = ref(new Date())

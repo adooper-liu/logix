@@ -29,7 +29,7 @@ const icons = {
   active: Ship,
   alert: Warning,
   completed: Check,
-  danger: Warning
+  danger: Warning,
 }
 
 const emit = defineEmits<{
@@ -51,7 +51,10 @@ const handleClick = () => {
       <div class="stat-icon" :class="type">
         <component :is="icon ?? icons[type]" class="icon" />
       </div>
-      <div class="stat-info" :class="{ 'alert-info': type === 'alert', 'details-info': demurrageDetails }">
+      <div
+        class="stat-info"
+        :class="{ 'alert-info': type === 'alert', 'details-info': demurrageDetails }"
+      >
         <div class="stat-value">{{ displayValue ?? value }}</div>
         <div class="stat-label">{{ label }}</div>
         <div v-if="demurrageDetails" class="sub-details">

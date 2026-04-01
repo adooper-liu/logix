@@ -25,7 +25,7 @@ const formatDate = (date: string | Date | null | undefined): string => {
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
   })
 }
 
@@ -47,22 +47,28 @@ const groupedStatusEvents = computed(() => {
   events.forEach((event: any) => {
     if (processedIds.has(event.id)) return
 
-    const isPlanned = event.isEstimated || event.statusCode?.startsWith('E') || event.statusCode === 'ETA'
+    const isPlanned =
+      event.isEstimated || event.statusCode?.startsWith('E') || event.statusCode === 'ETA'
 
     if (isPlanned) {
       // 查找对应的实际时间（相同状态类型）
-      const matchingActual = events.find((e: any) =>
-        !processedIds.has(e.id) &&
-        !e.isEstimated &&
-        e.statusCode?.startsWith('A') &&
-        e.statusCode === event.statusCode?.replace('E', 'A')
+      const matchingActual = events.find(
+        (e: any) =>
+          !processedIds.has(e.id) &&
+          !e.isEstimated &&
+          e.statusCode?.startsWith('A') &&
+          e.statusCode === event.statusCode?.replace('E', 'A')
       )
 
       if (matchingActual) {
-        const label = event.statusType === 'ETA' ? '到港' :
-                      event.statusType === 'ATD' ? '出运' :
-                      event.statusCode === 'ETA' ? '到港' :
-                      event.locationNameCn || event.statusCode
+        const label =
+          event.statusType === 'ETA'
+            ? '到港'
+            : event.statusType === 'ATD'
+              ? '出运'
+              : event.statusCode === 'ETA'
+                ? '到港'
+                : event.locationNameCn || event.statusCode
 
         groups.push({
           label,
@@ -71,16 +77,16 @@ const groupedStatusEvents = computed(() => {
             status: event.statusCode,
             description: event.description,
             isEstimated: true,
-            dataSource: event.dataSource
+            dataSource: event.dataSource,
           },
           actual: {
             timestamp: matchingActual.occurredAt,
             status: matchingActual.statusCode,
             description: matchingActual.description,
             isEstimated: false,
-            dataSource: matchingActual.dataSource
+            dataSource: matchingActual.dataSource,
           },
-          timestamp: new Date(event.occurredAt).getTime()
+          timestamp: new Date(event.occurredAt).getTime(),
         })
         processedIds.add(event.id)
         processedIds.add(matchingActual.id)
@@ -93,9 +99,12 @@ const groupedStatusEvents = computed(() => {
     if (processedIds.has(event.id)) return
 
     if (event.isEstimated) {
-      const label = event.statusType === 'ETA' ? '到港' :
-                    event.statusType === 'ATD' ? '出运' :
-                    event.locationNameCn || event.statusCode
+      const label =
+        event.statusType === 'ETA'
+          ? '到港'
+          : event.statusType === 'ATD'
+            ? '出运'
+            : event.locationNameCn || event.statusCode
 
       groups.push({
         label,
@@ -104,17 +113,22 @@ const groupedStatusEvents = computed(() => {
           status: event.statusCode,
           description: event.description,
           isEstimated: true,
-          dataSource: event.dataSource
+          dataSource: event.dataSource,
         },
         actual: null,
-        timestamp: new Date(event.occurredAt).getTime()
+        timestamp: new Date(event.occurredAt).getTime(),
       })
     } else {
-      const label = event.statusType === 'ATA' ? '实际到港' :
-                    event.statusType === 'PICKUP' ? '提柜' :
-                    event.statusType === 'UNLOAD' ? '卸柜' :
-                    event.statusType === 'RETURN' ? '还箱' :
-                    event.locationNameCn || event.statusCode
+      const label =
+        event.statusType === 'ATA'
+          ? '实际到港'
+          : event.statusType === 'PICKUP'
+            ? '提柜'
+            : event.statusType === 'UNLOAD'
+              ? '卸柜'
+              : event.statusType === 'RETURN'
+                ? '还箱'
+                : event.locationNameCn || event.statusCode
 
       groups.push({
         label,
@@ -124,9 +138,9 @@ const groupedStatusEvents = computed(() => {
           status: event.statusCode,
           description: event.description,
           isEstimated: false,
-          dataSource: event.dataSource
+          dataSource: event.dataSource,
         },
-        timestamp: new Date(event.occurredAt).getTime()
+        timestamp: new Date(event.occurredAt).getTime(),
       })
     }
     processedIds.add(event.id)
@@ -154,11 +168,7 @@ const groupedStatusEvents = computed(() => {
       <!-- 完整的时间轴线 -->
       <div class="timeline-full-line"></div>
 
-      <div
-        v-for="(group, index) in groupedStatusEvents"
-        :key="index"
-        class="timeline-column"
-      >
+      <div v-for="(group, index) in groupedStatusEvents" :key="index" class="timeline-column">
         <!-- 上方：预计/计划时间 -->
         <div class="timeline-section timeline-top">
           <div v-if="group.planned" class="timeline-event-card planned">
@@ -175,7 +185,10 @@ const groupedStatusEvents = computed(() => {
 
         <!-- 中间：时间线节点 -->
         <div class="timeline-center">
-          <div class="timeline-dot" :class="{ 'with-planned': !!group.planned, 'with-actual': !!group.actual }"></div>
+          <div
+            class="timeline-dot"
+            :class="{ 'with-planned': !!group.planned, 'with-actual': !!group.actual }"
+          ></div>
         </div>
 
         <!-- 下方：实际时间 -->

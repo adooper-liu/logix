@@ -63,37 +63,47 @@ export class StatusDistributionService {
         result = await query.getRawMany();
       }
 
-    // 转换为对象格式
-    const distribution: Record<string, number> = {
-      not_shipped: 0,
-      shipped: 0,
-      in_transit: 0,
-      at_port: 0,
-      arrived_at_transit: 0,  // 有transit类型港口操作记录
-      arrived_at_destination: 0,  // 有destination类型港口操作记录
-      picked_up: 0,
-      unloaded: 0,
-      returned_empty: 0
-    };
+      // 转换为对象格式
+      const distribution: Record<string, number> = {
+        not_shipped: 0,
+        shipped: 0,
+        in_transit: 0,
+        at_port: 0,
+        arrived_at_transit: 0, // 有transit类型港口操作记录
+        arrived_at_destination: 0, // 有destination类型港口操作记录
+        picked_up: 0,
+        unloaded: 0,
+        returned_empty: 0
+      };
 
-    result.forEach((row: any) => {
-      const statusKey = row.status ?? row.STATUS ?? row.logistics_status ?? row.logisticsStatus;
-      const cnt = row.count ?? row.COUNT;
-      if (statusKey != null) distribution[statusKey] = parseInt(String(cnt || '0'), 10);
-    });
+      result.forEach((row: any) => {
+        const statusKey = row.status ?? row.STATUS ?? row.logistics_status ?? row.logisticsStatus;
+        const cnt = row.count ?? row.COUNT;
+        if (statusKey != null) distribution[statusKey] = parseInt(String(cnt || '0'), 10);
+      });
 
-    // 对 at_port 状态做互斥拆分，确保 arrived_at_transit + arrived_at_destination = at_port
-    const transitCount = await this.getTransitArrivalCount(startDate, endDate);
-    distribution.arrived_at_transit = transitCount;
-    distribution.arrived_at_destination = Math.max((distribution.at_port || 0) - transitCount, 0);
+      // 对 at_port 状态做互斥拆分，确保 arrived_at_transit + arrived_at_destination = at_port
+      const transitCount = await this.getTransitArrivalCount(startDate, endDate);
+      distribution.arrived_at_transit = transitCount;
+      distribution.arrived_at_destination = Math.max((distribution.at_port || 0) - transitCount, 0);
 
-    // 调试：桑基图「已到目的港」= arrived_at_destination + picked_up + unloaded + returned_empty，若只显示 173 多为 arrived_at_destination 丢失
-    if (typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production') {
-      console.log('[StatusDistributionService] arrived_at_destination(已到目的港未提)=', distribution.arrived_at_destination, '; picked_up+unloaded+returned_empty=', distribution.picked_up + distribution.unloaded + distribution.returned_empty, '; 已到目的港合计=', distribution.arrived_at_destination + distribution.picked_up + distribution.unloaded + distribution.returned_empty);
-    }
-    console.log('[StatusDistributionService] Final distribution:', distribution);
+      // 调试：桑基图「已到目的港」= arrived_at_destination + picked_up + unloaded + returned_empty，若只显示 173 多为 arrived_at_destination 丢失
+      if (typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production') {
+        console.log(
+          '[StatusDistributionService] arrived_at_destination(已到目的港未提)=',
+          distribution.arrived_at_destination,
+          '; picked_up+unloaded+returned_empty=',
+          distribution.picked_up + distribution.unloaded + distribution.returned_empty,
+          '; 已到目的港合计=',
+          distribution.arrived_at_destination +
+            distribution.picked_up +
+            distribution.unloaded +
+            distribution.returned_empty
+        );
+      }
+      console.log('[StatusDistributionService] Final distribution:', distribution);
 
-    return distribution;
+      return distribution;
     } catch (error) {
       console.error('[StatusDistributionService] Error in getDistribution:', error);
       throw error;
@@ -104,7 +114,10 @@ export class StatusDistributionService {
    * 按流程事实推导状态分布（有日期范围时使用）
    * 优先级：returned_empty > unloaded > picked_up > arrived_at_destination > arrived_at_transit > in_transit > shipped > not_shipped
    */
-  private async getDistributionByProcessFacts(startDate: string, endDate: string): Promise<Record<string, number>> {
+  private async getDistributionByProcessFacts(
+    startDate: string,
+    endDate: string
+  ): Promise<Record<string, number>> {
     const dateRange = getDateRangeSubqueryRaw(startDate, endDate);
     const sql = `
       WITH base AS (
@@ -171,7 +184,10 @@ export class StatusDistributionService {
       GROUP BY derived_status
     `;
 
-    const rows: Array<{ status: string; count: number }> = await this.containerRepository.query(sql, dateRange.params);
+    const rows: Array<{ status: string; count: number }> = await this.containerRepository.query(
+      sql,
+      dateRange.params
+    );
     const distribution: Record<string, number> = {
       not_shipped: 0,
       shipped: 0,
@@ -275,10 +291,13 @@ export class StatusDistributionService {
       WHERE derived_status = ANY($${statusParamIndex}::text[])
     `;
 
-    const rows: Array<{ container_number: string }> = await this.containerRepository.query(sql, params);
+    const rows: Array<{ container_number: string }> = await this.containerRepository.query(
+      sql,
+      params
+    );
     if (!rows.length) return [];
 
-    const containerNumbers = rows.map(r => r.container_number).filter(Boolean);
+    const containerNumbers = rows.map((r) => r.container_number).filter(Boolean);
     return this.containerRepository
       .createQueryBuilder('container')
       .where('container.containerNumber IN (:...containerNumbers)', { containerNumbers })
@@ -297,18 +316,23 @@ export class StatusDistributionService {
   private async getTransitArrivalCount(startDate?: string, endDate?: string): Promise<number> {
     try {
       const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
-      query.select('COUNT(DISTINCT container.container_number)', 'count')
+      query
+        .select('COUNT(DISTINCT container.container_number)', 'count')
         .andWhere('container.logisticsStatus = :atPortStatus', { atPortStatus: 'at_port' })
-        .andWhere(qb => {
-          const hasTransitArrival = qb.subQuery()
+        .andWhere((qb) => {
+          const hasTransitArrival = qb
+            .subQuery()
             .select('1')
             .from('process_port_operations', 'transit_po')
             .where('transit_po.container_number = container.container_number')
             .andWhere('transit_po.port_type = :transitType')
-            .andWhere('(transit_po.ata IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)')
+            .andWhere(
+              '(transit_po.ata IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)'
+            )
             .getQuery();
 
-          const noDestinationArrival = qb.subQuery()
+          const noDestinationArrival = qb
+            .subQuery()
             .select('1')
             .from('process_port_operations', 'dest_po')
             .where('dest_po.container_number = container.container_number')
@@ -344,18 +368,25 @@ export class StatusDistributionService {
    * 按状态维度：获取「已到中转港」货柜列表（与 getTransitArrivalCount 同源逻辑）
    * 条件：无还箱/WMS/提柜/目的港ATA + 有中转港 ata / gate_in_time / transit_arrival_date
    */
-  async getContainersByArrivedAtTransit(startDate?: string, endDate?: string): Promise<Container[]> {
+  async getContainersByArrivedAtTransit(
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     query.andWhere('container.logisticsStatus = :atPortStatus', { atPortStatus: 'at_port' });
-    query.andWhere(qb => {
-      const hasTransitArrival = qb.subQuery()
+    query.andWhere((qb) => {
+      const hasTransitArrival = qb
+        .subQuery()
         .select('1')
         .from('process_port_operations', 'transit_po')
         .where('transit_po.container_number = container.container_number')
         .andWhere('transit_po.port_type = :transitType')
-        .andWhere('(transit_po.ata IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)')
+        .andWhere(
+          '(transit_po.ata IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)'
+        )
         .getQuery();
-      const noDestinationArrival = qb.subQuery()
+      const noDestinationArrival = qb
+        .subQuery()
         .select('1')
         .from('process_port_operations', 'dest_po')
         .where('dest_po.container_number = container.container_number')
@@ -375,18 +406,25 @@ export class StatusDistributionService {
    * 按状态维度：获取「已到目的港」货柜列表（与 getDestinationArrivalCount 同源逻辑）
    * 条件：无还箱/WMS/提柜 + 有目的港 ATA
    */
-  async getContainersByArrivedAtDestination(startDate?: string, endDate?: string): Promise<Container[]> {
+  async getContainersByArrivedAtDestination(
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     query.andWhere('container.logisticsStatus = :atPortStatus', { atPortStatus: 'at_port' });
-    query.andWhere(qb => {
-      const hasTransitArrival = qb.subQuery()
+    query.andWhere((qb) => {
+      const hasTransitArrival = qb
+        .subQuery()
         .select('1')
         .from('process_port_operations', 'transit_po')
         .where('transit_po.container_number = container.container_number')
         .andWhere('transit_po.port_type = :transitType')
-        .andWhere('(transit_po.ata IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)')
+        .andWhere(
+          '(transit_po.ata IS NOT NULL OR transit_po.gate_in_time IS NOT NULL OR transit_po.transit_arrival_date IS NOT NULL)'
+        )
         .getQuery();
-      const noDestinationArrival = qb.subQuery()
+      const noDestinationArrival = qb
+        .subQuery()
         .select('1')
         .from('process_port_operations', 'dest_po')
         .where('dest_po.container_number = container.container_number')

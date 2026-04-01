@@ -8,18 +8,18 @@ const defaultConfig = {
   api: {
     baseUrl: 'http://localhost:3001/api/v1',
     timeout: 10000,
-    retryAttempts: 3
+    retryAttempts: 3,
   },
   adapters: {
     defaultSource: 'logistics_path',
     healthCheckInterval: 60000,
-    enableAutoFailover: true
+    enableAutoFailover: true,
   },
   notifications: {
     emailEnabled: true,
     webhookEnabled: true,
-    alertThreshold: 80
-  }
+    alertThreshold: 80,
+  },
 }
 
 // 系统配置
@@ -97,9 +97,19 @@ const testConnection = async () => {
           <section class="help-section">
             <h4>一、帮助说明</h4>
             <ul class="help-desc-list">
-              <li><strong>API 配置</strong>：前端请求后端的基地址（如开发环境 http://localhost:3001/api/v1）、请求超时时间与失败重试次数。修改后需「保存配置」；「测试连接」会请求该地址下的 /health 检查是否可达。</li>
-              <li><strong>适配器配置</strong>：默认数据源可选「物流路径微服务」或「飞驼API」，用于物流状态等数据的拉取来源；健康检查间隔与「启用自动故障转移」用于在主源不可用时切换备用源。</li>
-              <li><strong>通知配置</strong>：邮件通知、Webhook 开关及告警阈值（百分比），用于系统告警与通知策略；实际生效需后端或第三方服务支持。</li>
+              <li>
+                <strong>API 配置</strong>：前端请求后端的基地址（如开发环境
+                http://localhost:3001/api/v1）、请求超时时间与失败重试次数。修改后需「保存配置」；「测试连接」会请求该地址下的
+                /health 检查是否可达。
+              </li>
+              <li>
+                <strong>适配器配置</strong
+                >：默认数据源可选「物流路径微服务」或「飞驼API」，用于物流状态等数据的拉取来源；健康检查间隔与「启用自动故障转移」用于在主源不可用时切换备用源。
+              </li>
+              <li>
+                <strong>通知配置</strong>：邮件通知、Webhook
+                开关及告警阈值（百分比），用于系统告警与通知策略；实际生效需后端或第三方服务支持。
+              </li>
             </ul>
           </section>
           <section class="help-section">
@@ -107,23 +117,38 @@ const testConnection = async () => {
             <div class="help-scenarios">
               <div class="scenario-item">
                 <span class="scenario-label">场景 1：本地开发</span>
-                <p>API 基础 URL 填 <code>http://localhost:3001/api/v1</code>，超时 10000 ms，用「测试连接」确认后端已启动且 /health 正常。</p>
+                <p>
+                  API 基础 URL 填 <code>http://localhost:3001/api/v1</code>，超时 10000
+                  ms，用「测试连接」确认后端已启动且 /health 正常。
+                </p>
               </div>
               <div class="scenario-item">
                 <span class="scenario-label">场景 2：生产/预发环境</span>
-                <p>将 API 基础 URL 改为生产或预发域名（如 <code>https://api.yourcompany.com/api/v1</code>），适当提高超时与重试次数，保存后刷新页面使请求走新地址。</p>
+                <p>
+                  将 API 基础 URL 改为生产或预发域名（如
+                  <code>https://api.yourcompany.com/api/v1</code
+                  >），适当提高超时与重试次数，保存后刷新页面使请求走新地址。
+                </p>
               </div>
               <div class="scenario-item">
                 <span class="scenario-label">场景 3：优先使用飞驼数据</span>
-                <p>默认数据源选「飞驼API」，系统会优先从飞驼拉取状态；若飞驼不可用且开启「自动故障转移」，将自动切回「物流路径微服务」。</p>
+                <p>
+                  默认数据源选「飞驼API」，系统会优先从飞驼拉取状态；若飞驼不可用且开启「自动故障转移」，将自动切回「物流路径微服务」。
+                </p>
               </div>
               <div class="scenario-item">
                 <span class="scenario-label">场景 4：降低健康检查频率</span>
-                <p>将健康检查间隔调大（如 120000 ms），可减少对数据源的心跳请求，适合对实时性要求不高的环境。</p>
+                <p>
+                  将健康检查间隔调大（如 120000
+                  ms），可减少对数据源的心跳请求，适合对实时性要求不高的环境。
+                </p>
               </div>
               <div class="scenario-item">
                 <span class="scenario-label">场景 5：告警与通知</span>
-                <p>开启「启用邮件通知」或「启用 Webhook」，并设置告警阈值（如 80%）；当触发条件时由后端或集成服务发送告警（需后端实现）。</p>
+                <p>
+                  开启「启用邮件通知」或「启用 Webhook」，并设置告警阈值（如
+                  80%）；当触发条件时由后端或集成服务发送告警（需后端实现）。
+                </p>
               </div>
             </div>
           </section>
@@ -140,33 +165,22 @@ const testConnection = async () => {
             <span>API配置</span>
           </div>
         </template>
-        
+
         <el-form :model="systemConfig" label-width="120px">
           <el-form-item label="API基础URL">
             <el-input v-model="systemConfig.api.baseUrl" />
           </el-form-item>
-          
+
           <el-form-item label="请求超时(ms)">
-            <el-input-number 
-              v-model="systemConfig.api.timeout" 
-              :min="1000" 
-              :max="30000"
-            />
+            <el-input-number v-model="systemConfig.api.timeout" :min="1000" :max="30000" />
           </el-form-item>
-          
+
           <el-form-item label="重试次数">
-            <el-slider 
-              v-model="systemConfig.api.retryAttempts" 
-              :min="0" 
-              :max="10"
-              show-input
-            />
+            <el-slider v-model="systemConfig.api.retryAttempts" :min="0" :max="10" show-input />
           </el-form-item>
-          
+
           <el-form-item>
-            <el-button type="primary" @click="testConnection">
-              测试连接
-            </el-button>
+            <el-button type="primary" @click="testConnection"> 测试连接 </el-button>
           </el-form-item>
         </el-form>
       </el-card>
@@ -179,7 +193,7 @@ const testConnection = async () => {
             <span>适配器配置</span>
           </div>
         </template>
-        
+
         <el-form :model="systemConfig" label-width="140px">
           <el-form-item label="默认数据源">
             <el-select v-model="systemConfig.adapters.defaultSource">
@@ -187,15 +201,15 @@ const testConnection = async () => {
               <el-option label="飞驼API" value="feituo" />
             </el-select>
           </el-form-item>
-          
+
           <el-form-item label="健康检查间隔(ms)">
-            <el-input-number 
-              v-model="systemConfig.adapters.healthCheckInterval" 
-              :min="10000" 
+            <el-input-number
+              v-model="systemConfig.adapters.healthCheckInterval"
+              :min="10000"
               :max="300000"
             />
           </el-form-item>
-          
+
           <el-form-item label="启用自动故障转移">
             <el-switch v-model="systemConfig.adapters.enableAutoFailover" />
           </el-form-item>
@@ -210,20 +224,20 @@ const testConnection = async () => {
             <span>通知配置</span>
           </div>
         </template>
-        
+
         <el-form :model="systemConfig" label-width="120px">
           <el-form-item label="启用邮件通知">
             <el-switch v-model="systemConfig.notifications.emailEnabled" />
           </el-form-item>
-          
+
           <el-form-item label="启用Webhook">
             <el-switch v-model="systemConfig.notifications.webhookEnabled" />
           </el-form-item>
-          
+
           <el-form-item label="告警阈值(%)">
-            <el-slider 
-              v-model="systemConfig.notifications.alertThreshold" 
-              :min="50" 
+            <el-slider
+              v-model="systemConfig.notifications.alertThreshold"
+              :min="50"
               :max="100"
               show-input
             />
@@ -234,12 +248,8 @@ const testConnection = async () => {
 
     <!-- 操作按钮 -->
     <div class="actions">
-      <el-button type="primary" size="large" @click="saveConfig">
-        保存配置
-      </el-button>
-      <el-button size="large" @click="resetConfig">
-        重置默认
-      </el-button>
+      <el-button type="primary" size="large" @click="saveConfig"> 保存配置 </el-button>
+      <el-button size="large" @click="resetConfig"> 重置默认 </el-button>
     </div>
   </div>
 </template>
@@ -376,13 +386,13 @@ const testConnection = async () => {
     display: flex;
     align-items: center;
     font-weight: bold;
-    
+
     .el-icon {
       margin-right: 10px;
       font-size: 18px;
     }
   }
-  
+
   .el-form {
     .el-form-item {
       margin-bottom: 20px;
@@ -392,7 +402,7 @@ const testConnection = async () => {
 
 .actions {
   text-align: center;
-  
+
   .el-button {
     margin: 0 10px;
     padding: 12px 30px;
@@ -403,7 +413,7 @@ const testConnection = async () => {
   .settings-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .actions {
     .el-button {
       display: block;

@@ -1,12 +1,12 @@
 /**
  * 清关公司选择服务
  * Customs Broker Selection Service
- * 
+ *
  * 职责：根据国家和港口匹配清关公司
  * - 国家匹配
  * - 港口映射（未来扩展）
  * - 默认"未指定"策略
- * 
+ *
  * @since 2026-03-30 (从 IntelligentSchedulingService 拆分)
  */
 
@@ -24,29 +24,29 @@ export class CustomsBrokerSelectionService {
 
   /**
    * 选择清关公司
-   * 
+   *
    * **业务规则**:
    * 1. 优先根据国家匹配清关公司
    * 2. 如果没有匹配，返回"未指定"
    * 3. 支持港口映射（未来扩展）
-   * 
+   *
    * **算法复杂度**: O(n)，n=清关公司表查询时间
-   * 
+   *
    * @param countryCode 国家代码
    * @param portCode 港口代码（可选，预留扩展）
    * @returns 清关公司编码
-   * 
+   *
    * @example
    * // 示例 1：有匹配的清关公司
    * const brokerCode = await selectCustomsBroker('US', 'USLAX');
    * // 返回：'CB-US-001'
-   * 
+   *
    * @example
    * // 示例 2：无匹配
    * const brokerCode = await selectCustomsBroker('XX', 'USLAX');
    * // 返回：'UNSPECIFIED'
    */
-  async selectCustomsBroker(countryCode?: string, portCode?: string): Promise<string> {
+  async selectCustomsBroker(countryCode?: string, _portCode?: string): Promise<string> {
     try {
       // 1. 验证国家代码
       if (!countryCode) {
@@ -84,16 +84,16 @@ export class CustomsBrokerSelectionService {
 
   /**
    * 批量选择清关公司
-   * 
+   *
    * **业务场景**:
    * - 批量排产时预先分配清关公司
    * - 避免重复查询数据库
-   * 
+   *
    * **算法复杂度**: O(n * m)，n=国家列表长度，m=单次查询时间
-   * 
+   *
    * @param countryCodes 国家代码列表
    * @returns 国家代码到清关公司编码的映射
-   * 
+   *
    * @example
    * // 示例：批量选择
    * const mapping = await batchSelectCustomsBrokers(['US', 'CA', 'GB']);

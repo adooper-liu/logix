@@ -9,7 +9,7 @@ import {
   parseContainerForDemurrage,
   type DemurrageCalculationInput,
   type DemurrageCalculationResult,
-  type DemurrageTier
+  type DemurrageTier,
 } from '@/composables/useDemurrageCalculation'
 const props = withDefaults(
   defineProps<{
@@ -34,7 +34,7 @@ const props = withDefaults(
     freeDays: 0,
     ratePerDay: 0,
     currency: 'USD',
-    mode: 'full'
+    mode: 'full',
   }
 )
 
@@ -62,7 +62,7 @@ const calculationInput = computed<DemurrageCalculationInput | null>(() => {
     freeDays,
     ratePerDay: props.ratePerDay,
     tiers: props.tiers,
-    currency: props.currency
+    currency: props.currency,
   }
 })
 
@@ -80,7 +80,7 @@ function formatDate(d: Date | string | null): string {
   return date.toLocaleDateString('zh-CN', {
     year: 'numeric',
     month: '2-digit',
-    day: '2-digit'
+    day: '2-digit',
   })
 }
 </script>
@@ -127,11 +127,7 @@ function formatDate(d: Date | string | null): string {
 
         <div v-if="result.tierBreakdown?.length" class="tier-breakdown">
           <div class="tier-title">阶梯明细</div>
-          <div
-            v-for="(tier, idx) in result.tierBreakdown"
-            :key="idx"
-            class="tier-row"
-          >
+          <div v-for="(tier, idx) in result.tierBreakdown" :key="idx" class="tier-row">
             <span>第 {{ tier.fromDay }}-{{ tier.toDay }} 天</span>
             <span>{{ tier.days }} 天 × {{ tier.ratePerDay }} {{ result.currency }}/天</span>
             <span class="tier-subtotal">{{ tier.subtotal.toFixed(2) }} {{ result.currency }}</span>

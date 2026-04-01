@@ -3,13 +3,7 @@
  * Warehouse Dictionary Entity
  */
 
-import {
-  Entity,
-  PrimaryColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn
-} from 'typeorm';
+import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity('dict_warehouses')
 export class Warehouse {

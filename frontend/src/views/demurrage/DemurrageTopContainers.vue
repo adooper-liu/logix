@@ -5,13 +5,14 @@ import { ArrowLeft } from '@element-plus/icons-vue'
 import { demurrageService } from '@/services/demurrage'
 import { SimplifiedStatusText } from '@/utils/logisticsStatusMachine'
 import dayjs from 'dayjs'
+import { formatCurrency } from '@/utils/currency'
 
 const statusTextMap: Record<string, string> = {
   arrived_at_transit: '已到中转港',
   arrived_at_destination: '已到目的港',
-  ...SimplifiedStatusText
+  ...SimplifiedStatusText,
 }
-const getStatusText = (status?: string) => (status ? (statusTextMap[status] || status) : '-')
+const getStatusText = (status?: string) => (status ? statusTextMap[status] || status : '-')
 
 type ContainerItem = {
   containerNumber: string
@@ -29,7 +30,9 @@ const route = useRoute()
 const loading = ref(false)
 const containers = ref<ContainerItem[]>([])
 
-const startDate = computed(() => (route.query.startDate as string) || dayjs().startOf('year').format('YYYY-MM-DD'))
+const startDate = computed(
+  () => (route.query.startDate as string) || dayjs().startOf('year').format('YYYY-MM-DD')
+)
 const endDate = computed(() => (route.query.endDate as string) || dayjs().format('YYYY-MM-DD'))
 
 // 按目的港分组，组内保持 API 返回的费用降序
@@ -54,7 +57,7 @@ const loadData = async () => {
     const res = await demurrageService.getTopContainers({
       startDate: startDate.value,
       endDate: endDate.value,
-      topN: 100
+      topN: 100,
     })
     if (res.success && res.data?.items) {
       containers.value = res.data.items
@@ -69,25 +72,34 @@ const loadData = async () => {
 }
 
 const formatAmount = (amount: number, currency: string) => {
-  return `${currency} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return formatCurrency(amount, currency, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    showSymbol: false,
+    showCode: true,
+  })
 }
 
 const formatDate = (d: string | null) => {
   if (!d) return '-'
-  return new Date(d).toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' })
+  return new Date(d).toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
 }
 
 const goToDetail = (containerNumber: string) => {
   router.push({
     path: `/shipments/${encodeURIComponent(containerNumber)}`,
-    query: { tab: 'demurrage' }
+    query: { tab: 'demurrage' },
   })
 }
 
 const goBack = () => {
   router.push({
     path: '/shipments',
-    query: { startDate: startDate.value, endDate: endDate.value }
+    query: { startDate: startDate.value, endDate: endDate.value },
   })
 }
 
@@ -107,11 +119,7 @@ onMounted(() => loadData())
 
     <el-card v-loading="loading">
       <div v-if="containers.length > 0" class="port-groups">
-        <section
-          v-for="[portName, items] in groupedByPort"
-          :key="portName"
-          class="port-group"
-        >
+        <section v-for="[portName, items] in groupedByPort" :key="portName" class="port-group">
           <div class="port-header">
             <span class="port-name">目的港：{{ portName }}</span>
             <span class="port-count">{{ items.length }} 柜</span>

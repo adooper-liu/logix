@@ -21,14 +21,17 @@ import { logger } from '../utils/logger';
 import { snakeToCamel } from '../utils/snakeToCamel';
 
 // 字典表配置
-const DICT_CONFIG: Record<string, {
-  entity: any;
-  tableName: string;
-  primaryKey: string;
-  labelFields: string[];
-  searchableFields: string[];
-  allFields: Record<string, string>;
-}> = {
+const DICT_CONFIG: Record<
+  string,
+  {
+    entity: any;
+    tableName: string;
+    primaryKey: string;
+    labelFields: string[];
+    searchableFields: string[];
+    allFields: Record<string, string>;
+  }
+> = {
   PORT: {
     entity: Port,
     tableName: 'dict_ports',
@@ -310,7 +313,7 @@ export class DictManageController {
 
       const query: any = {};
       if (keyword && config.searchableFields.length > 0) {
-        const orConditions = config.searchableFields.map(field => ({
+        const orConditions = config.searchableFields.map((field) => ({
           [field]: require('typeorm').Like(`%${keyword}%`)
         }));
         query.where = orConditions;
@@ -398,8 +401,13 @@ export class DictManageController {
           const name = String(data.truckingCompanyName).trim();
           const truckingCompany = await AppDataSource.getRepository(TruckingCompany)
             .createQueryBuilder('tc')
-            .where('tc.company_code = :name OR LOWER(TRIM(tc.company_name)) = LOWER(:name)', { name })
-            .orWhere('tc.company_name_en IS NOT NULL AND LOWER(TRIM(tc.company_name_en)) = LOWER(:name)', { name })
+            .where('tc.company_code = :name OR LOWER(TRIM(tc.company_name)) = LOWER(:name)', {
+              name
+            })
+            .orWhere(
+              'tc.company_name_en IS NOT NULL AND LOWER(TRIM(tc.company_name_en)) = LOWER(:name)',
+              { name }
+            )
             .getOne();
           if (truckingCompany) {
             data.truckingCompanyId = truckingCompany.companyCode;
@@ -414,9 +422,10 @@ export class DictManageController {
         }
         // 必填校验：port_code 和 trucking_company_id 不能为空
         if (!data.portCode || !data.portCode.toString().trim()) {
-          const portHint = (!data.portName || !String(data.portName).trim())
-            ? '港口名称和港口代码不能同时为空，请填写港口名称或港口代码'
-            : `港口「${data.portName}」未在字典中找到，请先在「港口」字典维护或使用标准港口代码，也可在「通用字典映射」中配置名称→代码`;
+          const portHint =
+            !data.portName || !String(data.portName).trim()
+              ? '港口名称和港口代码不能同时为空，请填写港口名称或港口代码'
+              : `港口「${data.portName}」未在字典中找到，请先在「港口」字典维护或使用标准港口代码，也可在「通用字典映射」中配置名称→代码`;
           res.status(400).json({ success: false, message: portHint });
           return;
         }
@@ -430,7 +439,11 @@ export class DictManageController {
       }
 
       // 仓库-车队映射：自动补全 truckingCompanyId
-      if (type === 'WAREHOUSE_TRUCKING_MAPPING' && data.truckingCompanyName && !data.truckingCompanyId) {
+      if (
+        type === 'WAREHOUSE_TRUCKING_MAPPING' &&
+        data.truckingCompanyName &&
+        !data.truckingCompanyId
+      ) {
         const truckingCompany = await AppDataSource.getRepository(TruckingCompany)
           .createQueryBuilder('tc')
           .where('tc.companyName = :name', { name: data.truckingCompanyName })
@@ -562,7 +575,13 @@ export class DictManageController {
         field: key,
         label,
         isPrimaryKey: key === config.primaryKey,
-        isBoolean: ['isActive', 'isDefault', 'supportExport', 'supportImport', 'supportContainerOnly'].includes(key)
+        isBoolean: [
+          'isActive',
+          'isDefault',
+          'supportExport',
+          'supportImport',
+          'supportContainerOnly'
+        ].includes(key)
       }));
 
       res.json({ success: true, data: fields });
@@ -586,10 +605,10 @@ export class DictManageController {
     if (port) return port.portCode;
     // 2. 查 dict_universal_mapping（PORT 类型）
     try {
-      const rows = await AppDataSource.query(
-        'SELECT get_standard_code($1, $2) as code',
-        ['PORT', v]
-      );
+      const rows = await AppDataSource.query('SELECT get_standard_code($1, $2) as code', [
+        'PORT',
+        v
+      ]);
       const code = rows?.[0]?.code;
       return code && String(code).trim() ? String(code).trim() : null;
     } catch {
@@ -599,7 +618,13 @@ export class DictManageController {
 
   /** Excel 导入的布尔值字符串转为 boolean */
   private normalizeBooleans(data: any, config: (typeof DICT_CONFIG)[string]): any {
-    const boolFields = ['isActive', 'isDefault', 'supportExport', 'supportImport', 'supportContainerOnly'];
+    const boolFields = [
+      'isActive',
+      'isDefault',
+      'supportExport',
+      'supportImport',
+      'supportContainerOnly'
+    ];
     const result = { ...data };
     for (const key of boolFields) {
       if (!(key in config.allFields)) continue;
@@ -637,7 +662,7 @@ export class DictManageController {
   // 转换为驼峰命名
   private transformToCamelCase(obj: any): any {
     if (obj === null || obj === undefined) return obj;
-    if (Array.isArray(obj)) return obj.map(item => this.transformToCamelCase(item));
+    if (Array.isArray(obj)) return obj.map((item) => this.transformToCamelCase(item));
     if (typeof obj !== 'object') return obj;
 
     const result: any = {};
@@ -657,12 +682,12 @@ export class DictManageController {
   // 转换为下划线命名
   private transformToSnakeCase(obj: any): any {
     if (obj === null || obj === undefined) return obj;
-    if (Array.isArray(obj)) return obj.map(item => this.transformToSnakeCase(item));
+    if (Array.isArray(obj)) return obj.map((item) => this.transformToSnakeCase(item));
     if (typeof obj !== 'object') return obj;
 
     const result: any = {};
     for (const key in obj) {
-      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+      const snakeKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
       result[snakeKey] = obj[key];
     }
     return result;

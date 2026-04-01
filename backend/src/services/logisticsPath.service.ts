@@ -93,9 +93,7 @@ export class LogisticsPathService {
       });
 
       if (response.data.errors) {
-        throw new Error(
-          `GraphQL Error: ${response.data.errors.map((e) => e.message).join(', ')}`
-        );
+        throw new Error(`GraphQL Error: ${response.data.errors.map((e) => e.message).join(', ')}`);
       }
 
       if (!response.data.data) {
@@ -332,7 +330,9 @@ export class LogisticsPathService {
    */
   async healthCheck(): Promise<{ status: string; timestamp: string }> {
     try {
-      const response = await this.axiosInstance.get<{ status: string; timestamp: string }>('/health');
+      const response = await this.axiosInstance.get<{ status: string; timestamp: string }>(
+        '/health'
+      );
       return response.data;
     } catch (error) {
       throw new Error('Logistics Path service is unhealthy');

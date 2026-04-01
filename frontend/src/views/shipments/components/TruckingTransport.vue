@@ -49,7 +49,7 @@ const formatDateOnly = (date: Date | string | undefined): string => {
         v-for="(tt, index) in truckingTransports"
         :key="index"
         class="info-card"
-        style="--accent-color: #E6A23C"
+        style="--accent-color: #e6a23c"
       >
         <div class="info-card-header">
           <span class="info-card-icon">🚛</span>
@@ -117,7 +117,9 @@ const formatDateOnly = (date: Date | string | undefined): string => {
           </div>
           <div class="field-item">
             <span class="field-label">距离</span>
-            <span class="field-value">{{ tt.distanceKm != null ? tt.distanceKm + ' KM' : '-' }}</span>
+            <span class="field-value">{{
+              tt.distanceKm != null ? tt.distanceKm + ' KM' : '-'
+            }}</span>
           </div>
           <div class="field-item">
             <span class="field-label">费用</span>

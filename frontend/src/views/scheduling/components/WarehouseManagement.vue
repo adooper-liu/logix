@@ -15,9 +15,7 @@
       <el-table-column prop="truckingCompanyName" label="车队名称" min-width="150" />
       <el-table-column prop="mappingType" label="映射类型" width="90" />
       <el-table-column prop="transportFee" label="运输费" width="80">
-        <template #default="{ row }">
-          ${{ row.transportFee || 0 }}
-        </template>
+        <template #default="{ row }"> ${{ row.transportFee || 0 }} </template>
       </el-table-column>
       <el-table-column prop="isDefault" label="默认" width="60">
         <template #default="{ row }">
@@ -135,7 +133,7 @@ const form = ref({
   transportFee: 0,
   isDefault: false,
   isActive: true,
-  remarks: ''
+  remarks: '',
 })
 
 const loadWarehouses = async () => {
@@ -144,7 +142,7 @@ const loadWarehouses = async () => {
     const countryParam = resolvedCountry.value
     const query = new URLSearchParams({
       page: String(currentPage.value),
-      pageSize: String(pageSize.value)
+      pageSize: String(pageSize.value),
     })
     if (countryParam) {
       query.set('country', countryParam)
@@ -164,7 +162,7 @@ const loadWarehouses = async () => {
         transportFee: Number(item.transportFee ?? item.transport_fee ?? 0),
         isDefault: Boolean(item.isDefault ?? item.is_default),
         isActive: item.isActive ?? item.is_active ?? true,
-        remarks: item.remarks || ''
+        remarks: item.remarks || '',
       }))
 
       emptyText.value = countryParam ? `国家 ${countryParam} 暂无数据` : '未设置国家作用域'
@@ -192,7 +190,7 @@ const showDialog = (row?: any) => {
       transportFee: Number(row.transportFee ?? row.transport_fee ?? 0),
       isDefault: row.isDefault || false,
       isActive: row.isActive !== false,
-      remarks: row.remarks || ''
+      remarks: row.remarks || '',
     }
   } else {
     isEdit.value = false
@@ -207,7 +205,7 @@ const showDialog = (row?: any) => {
       transportFee: 0,
       isDefault: false,
       isActive: true,
-      remarks: ''
+      remarks: '',
     }
   }
   dialogVisible.value = true
@@ -220,7 +218,7 @@ const saveWarehouse = async () => {
   }
 
   try {
-    const url = isEdit.value 
+    const url = isEdit.value
       ? `/api/v1/warehouse-trucking-mapping/${editingId.value}`
       : '/api/v1/warehouse-trucking-mapping'
     const method = isEdit.value ? 'PUT' : 'POST'
@@ -228,7 +226,7 @@ const saveWarehouse = async () => {
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form.value)
+      body: JSON.stringify(form.value),
     })
 
     const data = await response.json()
@@ -249,7 +247,7 @@ const deleteWarehouse = async (row: any) => {
     await ElMessageBox.confirm('确定要删除该映射记录吗？', '提示', { type: 'warning' })
 
     const response = await fetch(`/api/v1/warehouse-trucking-mapping/${row.id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
     })
 
     const data = await response.json()

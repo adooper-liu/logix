@@ -4,24 +4,24 @@
  * 用于管理缓存的创建、获取和清除
  */
 
-import { withCache } from './cache';
+import { withCache } from './cache'
 
 // 缓存键前缀
-const CACHE_PREFIX = 'logix_cache_';
+const CACHE_PREFIX = 'logix_cache_'
 
 // 缓存分组
 const CACHE_GROUPS = {
   CONTAINERS: 'containers',
   STATISTICS: 'statistics',
   COUNTRIES: 'countries',
-  SCHEDULING: 'scheduling'
-};
+  SCHEDULING: 'scheduling',
+}
 
 /**
  * 生成带前缀的缓存键
  */
 export function generateCacheKey(group: string, key: string): string {
-  return `${CACHE_PREFIX}${group}:${key}`;
+  return `${CACHE_PREFIX}${group}:${key}`
 }
 
 /**
@@ -29,24 +29,24 @@ export function generateCacheKey(group: string, key: string): string {
  */
 export function clearCacheByGroup(group: string): void {
   try {
-    const keysToRemove: string[] = [];
-    
+    const keysToRemove: string[] = []
+
     // 遍历localStorage，找出指定分组的缓存
     for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
+      const key = localStorage.key(i)
       if (key && key.startsWith(`${CACHE_PREFIX}${group}:`)) {
-        keysToRemove.push(key);
+        keysToRemove.push(key)
       }
     }
-    
+
     // 清除找到的缓存
     keysToRemove.forEach(key => {
-      localStorage.removeItem(key);
-    });
-    
-    console.log(`[CacheManager] Cleared cache for group: ${group}`);
+      localStorage.removeItem(key)
+    })
+
+    console.log(`[CacheManager] Cleared cache for group: ${group}`)
   } catch (error) {
-    console.warn('[CacheManager] Failed to clear cache:', error);
+    console.warn('[CacheManager] Failed to clear cache:', error)
   }
 }
 
@@ -55,24 +55,24 @@ export function clearCacheByGroup(group: string): void {
  */
 export function clearAllCache(): void {
   try {
-    const keysToRemove: string[] = [];
-    
+    const keysToRemove: string[] = []
+
     // 遍历localStorage，找出所有logix缓存
     for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
+      const key = localStorage.key(i)
       if (key && key.startsWith(CACHE_PREFIX)) {
-        keysToRemove.push(key);
+        keysToRemove.push(key)
       }
     }
-    
+
     // 清除找到的缓存
     keysToRemove.forEach(key => {
-      localStorage.removeItem(key);
-    });
-    
-    console.log('[CacheManager] Cleared all cache');
+      localStorage.removeItem(key)
+    })
+
+    console.log('[CacheManager] Cleared all cache')
   } catch (error) {
-    console.warn('[CacheManager] Failed to clear all cache:', error);
+    console.warn('[CacheManager] Failed to clear all cache:', error)
   }
 }
 
@@ -85,11 +85,7 @@ export function createCachedFunction<T extends (...args: any[]) => Promise<any>>
   keyGenerator: (...args: Parameters<T>) => string,
   ttl: number
 ): T {
-  return withCache(
-    fn,
-    (...args) => generateCacheKey(group, keyGenerator(...args)),
-    ttl
-  );
+  return withCache(fn, (...args) => generateCacheKey(group, keyGenerator(...args)), ttl)
 }
 
 /**
@@ -98,21 +94,21 @@ export function createCachedFunction<T extends (...args: any[]) => Promise<any>>
 export const cacheManager = {
   // 清除容器相关缓存
   clearContainersCache: () => clearCacheByGroup(CACHE_GROUPS.CONTAINERS),
-  
+
   // 清除统计相关缓存
   clearStatisticsCache: () => clearCacheByGroup(CACHE_GROUPS.STATISTICS),
-  
+
   // 清除国家相关缓存
   clearCountriesCache: () => clearCacheByGroup(CACHE_GROUPS.COUNTRIES),
-  
+
   // 清除排产相关缓存
   clearSchedulingCache: () => clearCacheByGroup(CACHE_GROUPS.SCHEDULING),
-  
+
   // 清除所有缓存
   clearAll: clearAllCache,
-  
-  // 创建缓存函数
-  createCachedFunction
-};
 
-export default cacheManager;
+  // 创建缓存函数
+  createCachedFunction,
+}
+
+export default cacheManager

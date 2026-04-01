@@ -7,6 +7,7 @@
 ## 主要交互点
 
 ### 1. 🔍 搜索按钮
+
 ```
 🔍 [Shipments] 搜索按钮点击
 - searchKeyword: 搜索关键词
@@ -15,6 +16,7 @@
 ```
 
 ### 2. 🔄 重置按钮
+
 ```
 🔄 [Shipments] 重置搜索按钮点击
 - beforeKeyword: 重置前的关键词
@@ -26,6 +28,7 @@
 ```
 
 ### 3. 📅 日期范围筛选
+
 ```
 📅 [Shipments] 日期范围改变
 - value: 原始日期值
@@ -35,6 +38,7 @@
 ```
 
 ### 4. 🎯 倒计时卡片点击（重点）
+
 ```
 🎯 [Shipments] 倒计时卡片点击
 - type: 筛选类型（如"按提柜计划"）
@@ -45,11 +49,13 @@
 ```
 
 ### 5. 🔄 刷新统计数据
+
 ```
 🔄 [Shipments] 刷新统计数据按钮点击
 ```
 
 ### 6. 📄 分页改变
+
 ```
 📄 [Shipments] 分页改变
 - fromPage: 起始页
@@ -63,6 +69,7 @@
 ```
 
 ### 7. 📏 页面大小改变
+
 ```
 📏 [Shipments] 页面大小改变
 - fromPageSize: 起始大小
@@ -76,6 +83,7 @@
 ```
 
 ### 8. 👁️ 查看详情
+
 ```
 👁️ [Shipments] 查看详情按钮点击
 - containerNumber: 集装箱号
@@ -84,6 +92,7 @@
 ```
 
 ### 9. ✏️ 编辑按钮
+
 ```
 ✏️ [Shipments] 编辑按钮点击
 - containerNumber: 集装箱号
@@ -93,6 +102,7 @@
 ## 数据加载调试
 
 ### loadContainers（正常加载）
+
 ```
 📦 [Shipments] loadContainers 开始
 - page: 页码
@@ -114,6 +124,7 @@
 ```
 
 ### loadContainersByFilter（过滤加载）
+
 ```
 🎯 [Shipments] 倒计时卡片点击（触发点）
 
@@ -135,6 +146,7 @@ Loaded 46 containers from backend filter（如果是正确）
 ```
 
 ### loadStatistics（统计加载）
+
 ```
 Loading detailed statistics from backend...
 Statistics loaded: { statusDistribution, arrivalDistribution, ... }
@@ -145,6 +157,7 @@ Statistics loaded: { statusDistribution, arrivalDistribution, ... }
 ### 问题1: 点击统计卡片返回0条数据
 
 1. **查看前端日志**
+
    ```
    🎯 [Shipments] 倒计时卡片点击
    - type: "按提柜计划"
@@ -152,6 +165,7 @@ Statistics loaded: { statusDistribution, arrivalDistribution, ... }
    ```
 
 2. **查看映射日志**
+
    ```
    Loading containers by filter condition from backend:
    - filterCondition: "overduePlanned"  ← 检查是否正确映射
@@ -160,11 +174,13 @@ Statistics loaded: { statusDistribution, arrivalDistribution, ... }
    ```
 
 3. **查看后端路由日志**
+
    ```
    [ContainerStatisticsService] Route to service: plannedPickup
    ```
 
 4. **查看服务方法日志**
+
    ```
    [PlannedPickupStatisticsService] Method: getContainersByOverduePlanned
    [PlannedPickupStatisticsService] SQL result count: 0  ← 如果是0，说明SQL查询有问题
@@ -180,6 +196,7 @@ Statistics loaded: { statusDistribution, arrivalDistribution, ... }
 ### 问题2: 前端映射失败
 
 1. **检查映射日志**
+
    ```
    Loading containers by filter condition from backend:
    - filterCondition: "overdue"  ← 应该是"overduePlanned"
@@ -197,6 +214,7 @@ Statistics loaded: { statusDistribution, arrivalDistribution, ... }
 ### 问题3: 后端路由失败
 
 1. **查看路由日志**
+
    ```
    [ContainerStatisticsService] Unknown filterCondition: overduePlanned
    ```
@@ -211,6 +229,7 @@ Statistics loaded: { statusDistribution, arrivalDistribution, ... }
 ### 问题4: 服务方法未找到
 
 1. **查看服务日志**
+
    ```
    [PlannedPickupStatisticsService] Unknown filterCondition: overduePlanned
    ```

@@ -7,6 +7,7 @@
 
 import { Repository } from 'typeorm';
 import { Container } from '../entities/Container';
+import { Country } from '../entities/Country';
 import { Customer } from '../entities/Customer';
 import { DictSchedulingConfig } from '../entities/DictSchedulingConfig';
 import { EmptyReturn } from '../entities/EmptyReturn';
@@ -61,6 +62,8 @@ export interface DemurrageItemResult {
   chargeDays: number;
   amount: number;
   currency: string;
+  /** 目的港代码（用于前端显示国别货币符号） */
+  destinationPortCode?: string;
   tierBreakdown: Array<{
     fromDay: number;
     toDay: number;
@@ -487,6 +490,7 @@ export class DemurrageService {
     private truckingRepo: Repository<TruckingTransport>,
     private emptyReturnRepo: Repository<EmptyReturn>,
     private orderRepo: Repository<ReplenishmentOrder>,
+    private countryRepo: Repository<Country>,
     private recordRepo?: Repository<ExtDemurrageRecord>
   ) {}
 
@@ -530,6 +534,33 @@ export class DemurrageService {
       warehouseOperation,
       emptyReturn
     );
+  }
+
+  /**
+   * 获取货柜销往国家对应的货币代码
+   */
+  private async getContainerCurrency(containerNumber: string): Promise<string | null> {
+    try {
+      const container = await this.containerRepo.findOne({
+        where: { containerNumber },
+        relations: ['replenishmentOrders']
+      });
+      if (!container) return null;
+
+      const orders = container.replenishmentOrders || [];
+      if (orders.length === 0) return null;
+
+      const sellToCountry = orders[0].sellToCountry;
+      if (!sellToCountry) return null;
+
+      const country = await this.countryRepo.findOne({
+        where: { code: sellToCountry }
+      });
+      return country?.currency || null;
+    } catch (error) {
+      logger.warn('[getContainerCurrency] Failed:', error);
+      return null;
+    }
   }
 
   /**
@@ -1625,7 +1656,9 @@ export class DemurrageService {
     const items: DemurrageItemResult[] = [];
     const skippedItems: DemurrageSkippedItem[] = [];
     let totalAmount = 0;
-    let currency = 'USD';
+    // 获取销往国家对应的货币（默认值）
+    const defaultCurrency = (await this.getContainerCurrency(containerNumber)) || 'USD';
+    let currency = defaultCurrency;
 
     const pickupDateActual = pickupDateActualEarly;
     for (const std of standards) {
@@ -1888,7 +1921,9 @@ export class DemurrageService {
       const tiers =
         normalizeTiers(std.tiers) ??
         (Array.isArray(std.tiers) ? (std.tiers as DemurrageTierDto[]) : null);
-      const curr = std.currency ?? 'USD';
+      // 货币优先级：滞港费标准配置的货币 > 销往国家货币 > USD 兜底
+      const standardCurrency = std.currency ?? null;
+      const curr = standardCurrency || defaultCurrency || 'USD';
       currency = curr;
 
       const {
@@ -1982,6 +2017,7 @@ export class DemurrageService {
         chargeDays,
         amount,
         currency: curr,
+        destinationPortCode: params.matchParams?.destinationPortCode ?? undefined,
         tierBreakdown
       });
       totalAmount += amount;

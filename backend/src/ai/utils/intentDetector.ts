@@ -13,18 +13,18 @@ import { SiliconFlowAdapter } from '../adapters/SiliconFlowAdapter';
  */
 export enum IntentType {
   // 业务意图
-  SCHEDULING = 'scheduling',        // 排产
-  DATA_QUERY = 'data_query',        // 数据查询
+  SCHEDULING = 'scheduling', // 排产
+  DATA_QUERY = 'data_query', // 数据查询
   KNOWLEDGE_QUERY = 'knowledge_query', // 知识库查询
   REPORT_GENERATION = 'report_generation', // 报表生成
 
   // 系统意图
-  HELP = 'help',                    // 帮助
-  INFO = 'info',                    // 信息
-  ERROR = 'error',                  // 错误
+  HELP = 'help', // 帮助
+  INFO = 'info', // 信息
+  ERROR = 'error', // 错误
 
   // 其他
-  UNKNOWN = 'unknown'               // 未知
+  UNKNOWN = 'unknown' // 未知
 }
 
 /**
@@ -153,7 +153,9 @@ export class IntentDetector {
         };
       }
 
-      logger.info(`[IntentDetector] Detected intent: ${detectionResult.intent} (confidence: ${detectionResult.confidence})`);
+      logger.info(
+        `[IntentDetector] Detected intent: ${detectionResult.intent} (confidence: ${detectionResult.confidence})`
+      );
       return detectionResult;
     } catch (error: any) {
       logger.error('[IntentDetector] Error detecting intent:', error);
@@ -181,7 +183,10 @@ export class IntentDetector {
   /**
    * 增强意图检测（使用上下文）
    */
-  async detectIntentWithContext(text: string, context?: Record<string, any>): Promise<IntentDetectionResult> {
+  async detectIntentWithContext(
+    text: string,
+    context?: Record<string, any>
+  ): Promise<IntentDetectionResult> {
     // 构建包含上下文的提示
     const contextStr = context ? JSON.stringify(context) : '{}';
     const enhancedText = `Context: ${contextStr}\n\nUser input: ${text}`;

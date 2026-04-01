@@ -24,12 +24,12 @@ const initChart = () => {
   const option = {
     tooltip: {
       trigger: 'item',
-      formatter: '{b}: ${c} ({d}%)'
+      formatter: '{b}: ${c} ({d}%)',
     },
     legend: {
       orient: 'vertical',
       left: 'left',
-      data: ['滞港费', '滞箱费', '港口存储费', '运输费', '外部堆场费', '操作费']
+      data: ['滞港费', '滞箱费', '港口存储费', '运输费', '外部堆场费', '操作费'],
     },
     series: [
       {
@@ -42,20 +42,20 @@ const initChart = () => {
           { value: props.data.storageCost, name: '港口存储费' },
           { value: props.data.transportationCost, name: '运输费' },
           { value: props.data.yardStorageCost || 0, name: '外部堆场费' },
-          { value: props.data.handlingCost, name: '操作费' }
+          { value: props.data.handlingCost, name: '操作费' },
         ].filter(item => item.value > 0),
         emphasis: {
           itemStyle: {
             shadowBlur: 10,
             shadowOffsetX: 0,
-            shadowColor: 'rgba(0, 0, 0, 0.5)'
-          }
+            shadowColor: 'rgba(0, 0, 0, 0.5)',
+          },
         },
         label: {
-          formatter: '{b}: ${c}'
-        }
-      }
-    ]
+          formatter: '{b}: ${c}',
+        },
+      },
+    ],
   }
 
   chartInstance.setOption(option)

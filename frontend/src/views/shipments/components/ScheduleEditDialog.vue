@@ -25,7 +25,7 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{
   'update:visible': [value: boolean]
-  'success': []
+  success: []
 }>()
 
 const loading = ref(false)
@@ -45,7 +45,7 @@ const form = ref({
   truckingCompanyId: '',
   customsBrokerCode: '',
   warehouseId: '',
-  unloadModePlan: ''
+  unloadModePlan: '',
 })
 
 // 加载字典数据（带国家过滤）
@@ -55,7 +55,7 @@ const loadDictData = async () => {
     const [tc, cb, w] = await Promise.all([
       dictService.getTruckingCompanies(),
       dictService.getCustomsBrokers(),
-      dictService.getWarehouses()
+      dictService.getWarehouses(),
     ])
     truckingCompanies.value = tc.data || []
     customsBrokers.value = cb.data || []
@@ -64,7 +64,7 @@ const loadDictData = async () => {
     const [tc, cb, w] = await Promise.all([
       dictService.getTruckingCompanies(props.country),
       dictService.getCustomsBrokers(props.country),
-      dictService.getWarehouses(props.country)
+      dictService.getWarehouses(props.country),
     ])
     truckingCompanies.value = tc.data || []
     customsBrokers.value = cb.data || []
@@ -73,27 +73,30 @@ const loadDictData = async () => {
 }
 
 // 监听弹窗打开，初始化表单数据
-watch(() => props.visible, async (val) => {
-  if (val && props.initialData) {
-    form.value = {
-      plannedCustomsDate: props.initialData.plannedCustomsDate || '',
-      plannedPickupDate: props.initialData.plannedPickupDate || '',
-      plannedDeliveryDate: props.initialData.plannedDeliveryDate || '',
-      plannedUnloadDate: props.initialData.plannedUnloadDate || '',
-      plannedReturnDate: props.initialData.plannedReturnDate || '',
-      truckingCompanyId: props.initialData.truckingCompanyId || '',
-      customsBrokerCode: props.initialData.customsBrokerCode || '',
-      warehouseId: props.initialData.warehouseId || '',
-      unloadModePlan: props.initialData.unloadModePlan || ''
+watch(
+  () => props.visible,
+  async val => {
+    if (val && props.initialData) {
+      form.value = {
+        plannedCustomsDate: props.initialData.plannedCustomsDate || '',
+        plannedPickupDate: props.initialData.plannedPickupDate || '',
+        plannedDeliveryDate: props.initialData.plannedDeliveryDate || '',
+        plannedUnloadDate: props.initialData.plannedUnloadDate || '',
+        plannedReturnDate: props.initialData.plannedReturnDate || '',
+        truckingCompanyId: props.initialData.truckingCompanyId || '',
+        customsBrokerCode: props.initialData.customsBrokerCode || '',
+        warehouseId: props.initialData.warehouseId || '',
+        unloadModePlan: props.initialData.unloadModePlan || '',
+      }
+      // 加载字典数据
+      await loadDictData()
     }
-    // 加载字典数据
-    await loadDictData()
   }
-})
+)
 
 const dialogVisible = computed({
   get: () => props.visible,
-  set: (val) => emit('update:visible', val)
+  set: val => emit('update:visible', val),
 })
 
 const handleSubmit = async () => {
@@ -106,9 +109,11 @@ const handleSubmit = async () => {
   try {
     // 只提交有值的字段
     const scheduleData: any = {}
-    if (form.value.plannedCustomsDate) scheduleData.plannedCustomsDate = form.value.plannedCustomsDate
+    if (form.value.plannedCustomsDate)
+      scheduleData.plannedCustomsDate = form.value.plannedCustomsDate
     if (form.value.plannedPickupDate) scheduleData.plannedPickupDate = form.value.plannedPickupDate
-    if (form.value.plannedDeliveryDate) scheduleData.plannedDeliveryDate = form.value.plannedDeliveryDate
+    if (form.value.plannedDeliveryDate)
+      scheduleData.plannedDeliveryDate = form.value.plannedDeliveryDate
     if (form.value.plannedUnloadDate) scheduleData.plannedUnloadDate = form.value.plannedUnloadDate
     if (form.value.plannedReturnDate) scheduleData.plannedReturnDate = form.value.plannedReturnDate
     if (form.value.truckingCompanyId) scheduleData.truckingCompanyId = form.value.truckingCompanyId
@@ -275,9 +280,7 @@ const handleClose = () => {
 
     <template #footer>
       <el-button @click="handleClose">取消</el-button>
-      <el-button type="primary" :loading="loading" @click="handleSubmit">
-        保存
-      </el-button>
+      <el-button type="primary" :loading="loading" @click="handleSubmit"> 保存 </el-button>
     </template>
   </el-dialog>
 </template>

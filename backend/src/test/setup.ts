@@ -27,23 +27,29 @@ jest.mock('../database', () => ({
           leftJoinAndSelect: jest.fn().mockReturnThis(),
           where: jest.fn().mockReturnThis(),
           andWhere: jest.fn().mockReturnThis(),
-          getMany: jest.fn().mockResolvedValue([{
-            containerNumber: 'TEST_LIVE_001',
-            scheduleStatus: 'initial',
-            portOperations: [{
-              portType: 'destination',
-              portCode: 'CA_VAN',
-              portName: 'CA_VAN Port',
-              etaDestPort: '2026-03-20',
-              ataDestPort: '2026-03-20',
-              lastFreeDate: '2026-03-20'
-            }],
-            replenishmentOrders: [{
-              customer: {
-                country: 'CA'
-              }
-            }]
-          }])
+          getMany: jest.fn().mockResolvedValue([
+            {
+              containerNumber: 'TEST_LIVE_001',
+              scheduleStatus: 'initial',
+              portOperations: [
+                {
+                  portType: 'destination',
+                  portCode: 'CA_VAN',
+                  portName: 'CA_VAN Port',
+                  etaDestPort: '2026-03-20',
+                  ataDestPort: '2026-03-20',
+                  lastFreeDate: '2026-03-20'
+                }
+              ],
+              replenishmentOrders: [
+                {
+                  customer: {
+                    country: 'CA'
+                  }
+                }
+              ]
+            }
+          ])
         })
       };
       return baseRepo;

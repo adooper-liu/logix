@@ -12,11 +12,7 @@ import { log } from '../utils/logger.js';
  * 根据集装箱号获取物流路径
  * GET /api/v1/logistics-path/container/:containerNumber
  */
-export const getPathByContainer = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const getPathByContainer = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { containerNumber } = req.params;
 
@@ -42,11 +38,7 @@ export const getPathByContainer = async (
  * 根据提单号获取物流路径
  * GET /api/v1/logistics-path/bl/:billOfLadingNumber
  */
-export const getPathByBL = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const getPathByBL = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { billOfLadingNumber } = req.params;
 
@@ -72,11 +64,7 @@ export const getPathByBL = async (
  * 根据订舱号获取物流路径
  * GET /api/v1/logistics-path/booking/:bookingNumber
  */
-export const getPathByBooking = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const getPathByBooking = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { bookingNumber } = req.params;
 
@@ -102,20 +90,9 @@ export const getPathByBooking = async (
  * 获取物流路径列表
  * GET /api/v1/logistics-paths
  */
-export const getPaths = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const getPaths = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const {
-      first = 10,
-      after,
-      containerNumber,
-      overallStatus,
-      startDate,
-      endDate
-    } = req.query;
+    const { first = 10, after, containerNumber, overallStatus, startDate, endDate } = req.query;
 
     const filter: any = {};
     if (containerNumber) filter.containerNumber = String(containerNumber);
@@ -145,11 +122,7 @@ export const getPaths = async (
  * 验证物流路径
  * POST /api/v1/logistics-path/validate/:pathId
  */
-export const validatePath = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const validatePath = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { pathId } = req.params;
 
@@ -175,11 +148,7 @@ export const validatePath = async (
  * 同步外部数据
  * POST /api/v1/logistics-path/sync
  */
-export const syncExternalData = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const syncExternalData = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { source, data, containerNumber } = req.body;
 
@@ -189,11 +158,7 @@ export const syncExternalData = async (
 
     log.info('Syncing external data:', { source, containerNumber });
 
-    const syncedData = await logisticsPathService.syncExternalData(
-      source,
-      data,
-      containerNumber
-    );
+    const syncedData = await logisticsPathService.syncExternalData(source, data, containerNumber);
 
     res.json({
       success: true,
@@ -210,11 +175,7 @@ export const syncExternalData = async (
  * 批量同步外部数据
  * POST /api/v1/logistics-path/batch-sync
  */
-export const batchSyncExternalData = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+export const batchSyncExternalData = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { source, dataList } = req.body;
 
@@ -249,11 +210,7 @@ export const batchSyncExternalData = async (
  * 健康检查
  * GET /api/v1/logistics-path/health
  */
-export const healthCheck = async (
-  req: Request,
-  res: Response,
-  _next: NextFunction
-) => {
+export const healthCheck = async (req: Request, res: Response, _next: NextFunction) => {
   try {
     const healthData = await logisticsPathService.healthCheck();
 

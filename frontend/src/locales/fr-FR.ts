@@ -45,7 +45,7 @@ export default {
     all: 'Tout',
     more: 'Plus',
     expand: 'Développer',
-    collapse: 'Réduire'
+    collapse: 'Réduire',
   },
 
   // ========== Navigation ==========
@@ -57,19 +57,19 @@ export default {
     systemMonitoring: 'Surveillance système',
     dictMapping: 'Mappage dictionnaire',
     dictManage: 'Gestion des dictionnaires',
-    demurrageStandardsImport: "Importer les normes",
+    demurrageStandardsImport: 'Importer les normes',
     warehouseTruckingMapping: 'Mapping entrepôt-transport',
     truckingPortMapping: 'Mapping transport-port',
     settings: 'Paramètres',
     help: 'Aide',
     about: 'À propos',
     personalCenter: 'Centre personnel',
-    logout: 'Déconnexion'
+    logout: 'Déconnexion',
   },
 
   // ========== Utilisateur ==========
   user: {
-    username: 'Nom d\'utilisateur',
+    username: "Nom d'utilisateur",
     password: 'Mot de passe',
     login: 'Connexion',
     logout: 'Déconnexion',
@@ -79,9 +79,9 @@ export default {
     loginSuccess: 'Connexion réussie',
     loginFailed: 'Échec de la connexion',
     logoutSuccess: 'Déconnexion réussie',
-    pleaseLogin: 'Veuillez vous connecter d\'abord',
+    pleaseLogin: "Veuillez vous connecter d'abord",
     rememberMe: 'Se souvenir de moi',
-    forgotPassword: 'Mot de passe oublié ?'
+    forgotPassword: 'Mot de passe oublié ?',
   },
 
   // ========== Conteneur ==========
@@ -101,7 +101,7 @@ export default {
       atPort: 'Au port',
       pickedUp: 'Récupéré',
       unloaded: 'Déchargé',
-      returnedEmpty: 'Retourné vide'
+      returnedEmpty: 'Retourné vide',
     },
     // Types de conteneurs
     types: {
@@ -114,15 +114,15 @@ export default {
       '20OT': '20 pieds ouvert',
       '40OT': '40 pieds ouvert',
       '20FR': '20 pieds plateau',
-      '40FR': '40 pieds plateau'
+      '40FR': '40 pieds plateau',
     },
     shipmentsList: {
       singleFreeDateWriteBack: 'Màj dates gratuites (unité)',
       singleFreeDateWriteBackSuccess: 'Dates gratuites enregistrées',
       singleFreeDateWriteBackSkipped: 'Calculé mais rien n’a été écrit',
       singleFreeDateWriteBackFailed: 'Échec de la mise à jour',
-      singleFreeDateWriteBackNoContainer: 'Numéro de conteneur manquant'
-    }
+      singleFreeDateWriteBackNoContainer: 'Numéro de conteneur manquant',
+    },
   },
 
   // ========== Commande ==========
@@ -132,7 +132,7 @@ export default {
     customerName: 'Nom du client',
     destinationCountry: 'Pays de destination',
     orderStatus: 'Statut de la commande',
-    purchaseMode: 'Mode d\'achat',
+    purchaseMode: "Mode d'achat",
     priceTerms: 'Conditions de prix',
     totalBoxes: 'Total des caisses',
     totalVolume: 'Volume total',
@@ -145,8 +145,8 @@ export default {
       pending: 'En attente',
       processing: 'En cours',
       completed: 'Terminé',
-      cancelled: 'Annulé'
-    }
+      cancelled: 'Annulé',
+    },
   },
 
   // ========== Port ==========
@@ -160,10 +160,10 @@ export default {
     atd: 'ATD',
     // Types de ports
     types: {
-      origin: 'Port d\'origine',
+      origin: "Port d'origine",
       transit: 'Port de transit',
-      destination: 'Port de destination'
-    }
+      destination: 'Port de destination',
+    },
   },
 
   // ========== Démurrage ==========
@@ -178,12 +178,12 @@ export default {
     // Base de calcul
     basis: {
       byArrival: 'Par arrivée',
-      byUnloading: 'Par déchargement'
+      byUnloading: 'Par déchargement',
     },
     // Base des jours gratuits
     freeDaysBasisTypes: {
       naturalDay: 'Jour naturel',
-      workingDay: 'Jour ouvrable'
+      workingDay: 'Jour ouvrable',
     },
     // Types de frais
     chargeTypes: {
@@ -191,8 +191,8 @@ export default {
       storage: 'Stockage',
       detention: 'Détention',
       demurrageDetention: 'Démurrage et détention',
-      storageSurcharge: 'Supplément de stockage'
-    }
+      storageSurcharge: 'Supplément de stockage',
+    },
   },
 
   // ========== Surveillance ==========
@@ -213,7 +213,7 @@ export default {
     healthy: 'Sain',
     unhealthy: 'Malsain',
     warning: 'Avertissement',
-    critical: 'Critique'
+    critical: 'Critique',
   },
 
   // ========== Paramètres ==========
@@ -227,22 +227,22 @@ export default {
     profile: 'Profil',
     preferences: 'Préférences',
     languageTip: 'Sélectionnez votre langue préférée',
-    themeTip: 'Choisissez votre thème d\'interface',
+    themeTip: "Choisissez votre thème d'interface",
     notificationTip: 'Gérer vos préférences de notification',
-    securityTip: 'Gérer vos paramètres de sécurité'
+    securityTip: 'Gérer vos paramètres de sécurité',
   },
 
   // ========== Aide ==========
   help: {
     documentation: 'Documentation',
     quickStart: 'Démarrage rapide',
-    userGuide: 'Guide de l\'utilisateur',
+    userGuide: "Guide de l'utilisateur",
     faq: 'FAQ',
     contactSupport: 'Contacter le support',
     searchDoc: 'Rechercher dans la documentation',
     noResults: 'Aucun résultat trouvé',
     recentlyViewed: 'Récemment consulté',
-    popularTopics: 'Sujets populaires'
+    popularTopics: 'Sujets populaires',
   },
 
   // ========== À propos ==========
@@ -251,11 +251,11 @@ export default {
     version: 'Version',
     copyright: 'Copyright',
     license: 'Licence',
-    termsOfService: 'Conditions d\'utilisation',
+    termsOfService: "Conditions d'utilisation",
     privacyPolicy: 'Politique de confidentialité',
     contactUs: 'Nous contacter',
     website: 'Site web',
-    github: 'GitHub'
+    github: 'GitHub',
   },
 
   // ========== Validation ==========
@@ -268,26 +268,26 @@ export default {
     pattern: 'Format invalide',
     range: 'La valeur doit être entre {min} et {max}',
     numeric: 'Veuillez entrer un nombre valide',
-    url: 'Veuillez entrer une URL valide'
+    url: 'Veuillez entrer une URL valide',
   },
 
   // ========== Temps ==========
   time: {
-    today: 'Aujourd\'hui',
+    today: "Aujourd'hui",
     yesterday: 'Hier',
     thisWeek: 'Cette semaine',
     lastWeek: 'La semaine dernière',
     thisMonth: 'Ce mois',
     lastMonth: 'Le mois dernier',
     thisYear: 'Cette année',
-    lastYear: 'L\'année dernière',
+    lastYear: "L'année dernière",
     daysAgo: 'Il y a {days} jours',
     hoursAgo: 'Il y a {hours} heures',
     minutesAgo: 'Il y a {minutes} minutes',
-    justNow: 'À l\'instant',
+    justNow: "À l'instant",
     dateFormat: 'DD/MM/YYYY',
     dateTimeFormat: 'DD/MM/YYYY HH:mm:ss',
-    timeFormat: 'HH:mm:ss'
+    timeFormat: 'HH:mm:ss',
   },
 
   // ========== Erreur ==========
@@ -297,9 +297,9 @@ export default {
     unauthorized: 'Non autorisé, veuillez vous reconnecter',
     forbidden: 'Accès refusé',
     notFound: 'Ressource non trouvée',
-    timeout: 'Délai d\'attente dépassé',
+    timeout: "Délai d'attente dépassé",
     unknown: 'Erreur inconnue',
     retry: 'Réessayer',
-    contactAdmin: 'Contacter l\'administrateur'
-  }
+    contactAdmin: "Contacter l'administrateur",
+  },
 }

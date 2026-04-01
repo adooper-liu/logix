@@ -50,21 +50,21 @@ export function useColors() {
 
     // ========== 业务色 - 物流状态 ==========
     status: {
-      shipped: '#409EFF',          // 已出运
-      inTransit: '#409EFF',        // 在途
-      atPort: '#67C23A',            // 已到港
-      pickedUp: '#E6A23C',         // 已提柜
-      unloaded: '#909399',          // 已卸柜
-      returnedEmpty: '#909399',     // 已还箱
-      notShipped: '#909399',        // 未出运
+      shipped: '#409EFF', // 已出运
+      inTransit: '#409EFF', // 在途
+      atPort: '#67C23A', // 已到港
+      pickedUp: '#E6A23C', // 已提柜
+      unloaded: '#909399', // 已卸柜
+      returnedEmpty: '#909399', // 已还箱
+      notShipped: '#909399', // 未出运
     },
 
     // ========== 业务色 - 优先级 ==========
     priority: {
-      critical: '#F56C6C',  // 紧急
-      high: '#E6A23C',      // 高
-      medium: '#409EFF',     // 中
-      low: '#67C23A',        // 低
+      critical: '#F56C6C', // 紧急
+      high: '#E6A23C', // 高
+      medium: '#409EFF', // 中
+      low: '#67C23A', // 低
     },
 
     // ========== 颜色映射表（用于批量替换） ==========

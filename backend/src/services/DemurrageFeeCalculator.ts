@@ -1,13 +1,13 @@
 /**
  * 滞港费费用计算服务
  * Demurrage Fee Calculator Service
- * 
+ *
  * 职责：计算阶梯费率和费用汇总
  * - 阶梯费率解析与标准化
  * - 单项费用计算
  * - 多费用项汇总
  * - 费用明细拆分
- * 
+ *
  * @since 2026-03-30 (从 DemurrageService 拆分)
  */
 
@@ -19,15 +19,6 @@ export interface DemurrageTierDto {
   fromDay: number;
   toDay: number | null;
   ratePerDay: number;
-}
-
-interface ParsedTierEntry {
-  fromDay?: number;
-  toDay?: number;
-  day?: number;
-  rate: number;
-  isOpenEnded: boolean;
-  isRange: boolean;
 }
 
 /** 单项费用计算结果 */
@@ -87,22 +78,22 @@ export class DemurrageFeeCalculator {
 
   /**
    * 标准化阶梯费率格式
-   * 
+   *
    * **业务规则**:
    * 1. 支持数组格式：[{ fromDay, toDay, ratePerDay }] 或 [{ minDays, maxDays, rate }]
    * 2. 支持对象格式：{ "1": 50, "2-5": 60, "6+": 100 }
    * 3. 过滤无效数据（fromDay < 1）
-   * 
+   *
    * **算法复杂度**: O(n log n)，n=费率阶梯数（排序）
-   * 
+   *
    * @param raw 原始费率数据
    * @returns 标准化的费率数组
-   * 
+   *
    * @example
    * // 示例：数组格式
    * normalizeTiers([{ fromDay: 1, toDay: 7, ratePerDay: 50 }, { fromDay: 8, toDay: null, ratePerDay: 100 }])
    * // 返回：[{ fromDay: 1, toDay: 7, ratePerDay: 50 }, { fromDay: 8, toDay: null, ratePerDay: 100 }]
-   * 
+   *
    * @example
    * // 示例：对象格式
    * normalizeTiers({ "1-7": 50, "8+": 100 })
@@ -138,7 +129,7 @@ export class DemurrageFeeCalculator {
           const key = String(k).trim();
           const isOpenEnded = key.includes('+');
           const isRange = key.includes('-') && !isOpenEnded;
-          
+
           if (isRange) {
             // 处理 "1-7" 格式
             const [fromStr, toStr] = key.split('-');
@@ -160,7 +151,7 @@ export class DemurrageFeeCalculator {
 
       while (i < entries.length) {
         const entry = entries[i];
-        
+
         if (entry.isRange) {
           // 直接添加区间
           tiers.push({
@@ -195,18 +186,18 @@ export class DemurrageFeeCalculator {
 
   /**
    * 计算单项滞港费
-   * 
+   *
    * **业务规则**:
    * 1. 先计算免费期截止日
    * 2. 再计算计费天数
    * 3. 按阶梯费率计算费用
    * 4. 如果在免费期内，返回 0 费用
-   * 
+   *
    * **算法复杂度**: O(n log n)，n=阶梯数（排序）
-   * 
+   *
    * @param params 计算参数
    * @returns 单项费用结果
-   * 
+   *
    * @example
    * // 示例：有阶梯费率
    * calculateSingleItem({
@@ -300,7 +291,7 @@ export class DemurrageFeeCalculator {
       freeDaysBasis
     );
 
-    const { chargeDays, chargeStart } = chargePeriodResult;
+    const { chargeDays } = chargePeriodResult;
 
     if (chargeDays <= 0) {
       return {
@@ -369,15 +360,15 @@ export class DemurrageFeeCalculator {
 
   /**
    * 使用阶梯费率计算费用
-   * 
+   *
    * **业务规则**:
    * 1. 优先使用阶梯费率
    * 2. 如果没有阶梯，使用统一费率
    * 3. 计费天数从免费期后的第一天开始（currentDay = freeDays + 1）
    * 4. 每个阶梯独立计算
-   * 
+   *
    * **算法复杂度**: O(n log n)，n=阶梯数（排序 + 遍历）
-   * 
+   *
    * @param chargeDays 计费天数
    * @param freeDays 免费天数
    * @param ratePerDay 统一费率
@@ -390,7 +381,7 @@ export class DemurrageFeeCalculator {
     freeDays: number,
     ratePerDay: number,
     tiers: DemurrageTierDto[] | null | undefined,
-    currency: string
+    _currency: string
   ): {
     totalAmount: number;
     tierBreakdown: Array<{
@@ -414,7 +405,7 @@ export class DemurrageFeeCalculator {
       // 使用阶梯费率
       const sorted = [...tiers].sort((a, b) => a.fromDay - b.fromDay);
       let remainingDays = chargeDays;
-      
+
       // ✅ 关键修复：计费天数应该从免费期后的第一天开始计算
       // 例如：免费天数 7 天，计费从第 8 天开始
       let currentDay = freeDays + 1;
@@ -474,14 +465,14 @@ export class DemurrageFeeCalculator {
 
   /**
    * 汇总多个费用项
-   * 
+   *
    * **业务规则**:
    * 1. 累加所有费用项的金额
    * 2. 统一货币单位
    * 3. 分离正常计算项和跳过项
-   * 
+   *
    * **算法复杂度**: O(n)，n=费用项数量
-   * 
+   *
    * @param items 费用项列表
    * @param skippedItems 跳过项列表
    * @returns 汇总结果
@@ -491,7 +482,7 @@ export class DemurrageFeeCalculator {
     skippedItems: DemurrageSkippedItem[] = []
   ): FeeCalculationResult {
     const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
-    
+
     // 假设所有项使用相同货币（第一项的货币）
     const currency = items.length > 0 ? items[0].currency : 'USD';
 

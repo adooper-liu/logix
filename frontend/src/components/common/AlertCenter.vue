@@ -19,8 +19,8 @@
         <p>暂无预警信息</p>
       </div>
       <el-collapse v-else>
-        <el-collapse-item 
-          v-for="alert in alerts" 
+        <el-collapse-item
+          v-for="alert in alerts"
           :key="alert.id"
           :title="`${getAlertLevelText(alert.level)} - ${alert.containerNumber}`"
           :name="alert.id"
@@ -34,18 +34,18 @@
               </div>
             </div>
             <div class="alert-item-actions">
-              <el-button 
-                v-if="!alert.resolved" 
-                size="small" 
-                type="primary" 
+              <el-button
+                v-if="!alert.resolved"
+                size="small"
+                type="primary"
                 @click="acknowledgeAlert(alert.id)"
               >
                 确认
               </el-button>
-              <el-button 
-                v-if="!alert.resolved" 
-                size="small" 
-                type="success" 
+              <el-button
+                v-if="!alert.resolved"
+                size="small"
+                type="success"
                 @click="resolveAlert(alert.id)"
               >
                 解决
@@ -60,24 +60,24 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { alertApi } from '@/services/alert';
-import { useUserStore } from '@/store/user';
-import { Refresh, Loading, InfoFilled } from '@element-plus/icons-vue';
-import { formatDateToLocal } from '@/utils/dateTimeUtils';
+import { ref, onMounted } from 'vue'
+import { alertApi } from '@/services/alert'
+import { useUserStore } from '@/store/user'
+import { Refresh, Loading, InfoFilled } from '@element-plus/icons-vue'
+import { formatDateToLocal } from '@/utils/dateTimeUtils'
 
-const userStore = useUserStore();
-const alerts = ref<any[]>([]);
-const loading = ref(false);
+const userStore = useUserStore()
+const alerts = ref<any[]>([])
+const loading = ref(false)
 
 const getAlertLevelText = (level: string) => {
   const levelMap: Record<string, string> = {
     info: '信息',
     warning: '警告',
-    critical: '紧急'
-  };
-  return levelMap[level] || level;
-};
+    critical: '紧急',
+  }
+  return levelMap[level] || level
+}
 
 const getAlertTypeText = (type: string) => {
   const typeMap: Record<string, string> = {
@@ -87,46 +87,46 @@ const getAlertTypeText = (type: string) => {
     emptyReturn: '还箱',
     inspection: '查验',
     demurrage: '滞港费',
-    detention: '滞箱费'
-  };
-  return typeMap[type] || type;
-};
+    detention: '滞箱费',
+  }
+  return typeMap[type] || type
+}
 
 const refreshAlerts = async () => {
-  loading.value = true;
+  loading.value = true
   try {
-    const response = await alertApi.getAllAlerts({ resolved: false });
-    alerts.value = response.data;
+    const response = await alertApi.getAllAlerts({ resolved: false })
+    alerts.value = response.data
   } catch (error) {
-    console.error('获取预警列表失败:', error);
+    console.error('获取预警列表失败:', error)
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
 const acknowledgeAlert = async (alertId: number) => {
   try {
-    const userId = String(userStore.userInfo?.id ?? 'system');
-    await alertApi.acknowledgeAlert(alertId, userId);
-    refreshAlerts();
+    const userId = String(userStore.userInfo?.id ?? 'system')
+    await alertApi.acknowledgeAlert(alertId, userId)
+    refreshAlerts()
   } catch (error) {
-    console.error('确认预警失败:', error);
+    console.error('确认预警失败:', error)
   }
-};
+}
 
 const resolveAlert = async (alertId: number) => {
   try {
-    const userId = String(userStore.userInfo?.id ?? 'system');
-    await alertApi.resolveAlert(alertId, userId);
-    refreshAlerts();
+    const userId = String(userStore.userInfo?.id ?? 'system')
+    await alertApi.resolveAlert(alertId, userId)
+    refreshAlerts()
   } catch (error) {
-    console.error('解决预警失败:', error);
+    console.error('解决预警失败:', error)
   }
-};
+}
 
 onMounted(() => {
-  refreshAlerts();
-});
+  refreshAlerts()
+})
 </script>
 
 <style scoped lang="scss">
@@ -156,7 +156,8 @@ onMounted(() => {
   .alert-center-content {
     padding: $spacing-md;
 
-    .loading, .empty {
+    .loading,
+    .empty {
       display: flex;
       flex-direction: column;
       align-items: center;

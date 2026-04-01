@@ -144,7 +144,7 @@ export interface PlaceToPortOperationMapping {
 
   /** 操作类型对应的状态码 */
   operationToStatusCode: {
-    LOAD: string[];    // 装船状态码
+    LOAD: string[]; // 装船状态码
     DISCHARGE: string[]; // 卸船状态码
     TRANSSHIPMENT: string[]; // 中转状态码
   };

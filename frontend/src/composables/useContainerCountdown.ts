@@ -5,18 +5,27 @@ interface CountdownData {
   count: number
   urgent: number
   expired: number
-  filterItems?: { label: string; count: number; color: string; days: string; level?: number; children?: any[] }[]
+  filterItems?: {
+    label: string
+    count: number
+    color: string
+    days: string
+    level?: number
+    children?: any[]
+  }[]
 }
 
 // 倒计时计算逻辑
 // 参数：statisticsData (Ref) - 从后端API获取的统计数据，而不是完整货柜列表
-export function useContainerCountdown(statisticsData: Ref<{
-  statusDistribution?: Record<string, number>
-  arrivalDistribution?: Record<string, number>
-  pickupDistribution?: Record<string, number>
-  lastPickupDistribution?: Record<string, number>
-  returnDistribution?: Record<string, number>
-} | null>) {
+export function useContainerCountdown(
+  statisticsData: Ref<{
+    statusDistribution?: Record<string, number>
+    arrivalDistribution?: Record<string, number>
+    pickupDistribution?: Record<string, number>
+    lastPickupDistribution?: Record<string, number>
+    returnDistribution?: Record<string, number>
+  } | null>
+) {
   const currentTime = ref(new Date())
   let timer: number | null = null
 
@@ -60,8 +69,13 @@ export function useContainerCountdown(statisticsData: Ref<{
     const arrivedBeforeTodayNoATA = dist.arrivedBeforeTodayNoATA || 0
 
     // 总数 = 四个主分组之和（含到港数据缺失）
-    const count = (today + arrivedBeforeTodayNotPickedUp + arrivedBeforeTodayPickedUp) + arrivedAtTransit +
-                 (overdue + within3Days + within7Days + over7Days + other) + arrivedBeforeTodayNoATA
+    const count =
+      today +
+      arrivedBeforeTodayNotPickedUp +
+      arrivedBeforeTodayPickedUp +
+      arrivedAtTransit +
+      (overdue + within3Days + within7Days + over7Days + other) +
+      arrivedBeforeTodayNoATA
     const urgent = overdue + within3Days + transitOverdue + transitWithin3Days
     const expired = overdue + transitOverdue
 
@@ -77,9 +91,21 @@ export function useContainerCountdown(statisticsData: Ref<{
         level: 0,
         children: [
           { label: '今日到港', count: today, color: '#67c23a', days: 'arrivalToday', level: 1 },
-          { label: '之前未提柜', count: arrivedBeforeTodayNotPickedUp, color: '#909399', days: 'arrivedBeforeTodayNotPickedUp', level: 1 },
-          { label: '之前已提柜', count: arrivedBeforeTodayPickedUp, color: '#67c23a', days: 'arrivedBeforeTodayPickedUp', level: 1 }
-        ]
+          {
+            label: '之前未提柜',
+            count: arrivedBeforeTodayNotPickedUp,
+            color: '#909399',
+            days: 'arrivedBeforeTodayNotPickedUp',
+            level: 1,
+          },
+          {
+            label: '之前已提柜',
+            count: arrivedBeforeTodayPickedUp,
+            color: '#67c23a',
+            days: 'arrivedBeforeTodayPickedUp',
+            level: 1,
+          },
+        ],
       },
       // 已到中转港分组（按ETA细分）
       {
@@ -89,12 +115,36 @@ export function useContainerCountdown(statisticsData: Ref<{
         days: 'arrivedAtTransit',
         level: 0,
         children: [
-          { label: '已逾期', count: transitOverdue, color: '#f56c6c', days: 'transitOverdue', level: 1 },
-          { label: '3日内', count: transitWithin3Days, color: '#e6a23c', days: 'transitWithin3Days', level: 1 },
-          { label: '7日内', count: transitWithin7Days, color: '#409eff', days: 'transitWithin7Days', level: 1 },
-          { label: '7日后', count: transitOver7Days, color: '#67c23a', days: 'transitOver7Days', level: 1 },
-          { label: '无ETA', count: transitNoETA, color: '#909399', days: 'transitNoETA', level: 1 }
-        ]
+          {
+            label: '已逾期',
+            count: transitOverdue,
+            color: '#f56c6c',
+            days: 'transitOverdue',
+            level: 1,
+          },
+          {
+            label: '3日内',
+            count: transitWithin3Days,
+            color: '#e6a23c',
+            days: 'transitWithin3Days',
+            level: 1,
+          },
+          {
+            label: '7日内',
+            count: transitWithin7Days,
+            color: '#409eff',
+            days: 'transitWithin7Days',
+            level: 1,
+          },
+          {
+            label: '7日后',
+            count: transitOver7Days,
+            color: '#67c23a',
+            days: 'transitOver7Days',
+            level: 1,
+          },
+          { label: '无ETA', count: transitNoETA, color: '#909399', days: 'transitNoETA', level: 1 },
+        ],
       },
       // ETA分组（主数=子项之和，保证一致）
       {
@@ -108,8 +158,8 @@ export function useContainerCountdown(statisticsData: Ref<{
           { label: '3天内', count: within3Days, color: '#e6a23c', days: 'within3Days', level: 1 },
           { label: '7天内', count: within7Days, color: '#409eff', days: 'within7Days', level: 1 },
           { label: '7天后', count: over7Days, color: '#67c23a', days: 'over7Days', level: 1 },
-          { label: '其他', count: other, color: '#c0c4cc', days: 'otherRecords', level: 1 }
-        ]
+          { label: '其他', count: other, color: '#c0c4cc', days: 'otherRecords', level: 1 },
+        ],
       },
       // 到港数据缺失（目的港无ATA无ETA但状态显示已到港，修复漏失）
       {
@@ -117,8 +167,8 @@ export function useContainerCountdown(statisticsData: Ref<{
         count: arrivedBeforeTodayNoATA,
         color: '#909399',
         days: 'arrivedBeforeTodayNoATA',
-        level: 0
-      }
+        level: 0,
+      },
     ]
 
     return { count, urgent, expired, filterItems }
@@ -155,10 +205,34 @@ export function useContainerCountdown(statisticsData: Ref<{
     // 按提柜计划筛选项 - days值直接使用后端filterCondition
     const filterItems = [
       { label: '逾期未提柜', count: overdue, color: '#f56c6c', days: 'overduePlanned', level: 0 },
-      { label: '今日计划提柜', count: todayPlanned, color: '#e6a23c', days: 'todayPlanned', level: 0 },
-      { label: '3天内计划提柜', count: within3Days, color: '#409eff', days: 'plannedWithin3Days', level: 0 },
-      { label: '7天内计划提柜', count: within7Days, color: '#67c23a', days: 'plannedWithin7Days', level: 0 },
-      { label: '待安排提柜', count: pending, color: '#909399', days: 'pendingArrangement', level: 0 }
+      {
+        label: '今日计划提柜',
+        count: todayPlanned,
+        color: '#e6a23c',
+        days: 'todayPlanned',
+        level: 0,
+      },
+      {
+        label: '3天内计划提柜',
+        count: within3Days,
+        color: '#409eff',
+        days: 'plannedWithin3Days',
+        level: 0,
+      },
+      {
+        label: '7天内计划提柜',
+        count: within7Days,
+        color: '#67c23a',
+        days: 'plannedWithin7Days',
+        level: 0,
+      },
+      {
+        label: '待安排提柜',
+        count: pending,
+        color: '#909399',
+        days: 'pendingArrangement',
+        level: 0,
+      },
     ]
 
     return { count, urgent, expired, filterItems }
@@ -183,7 +257,13 @@ export function useContainerCountdown(statisticsData: Ref<{
       { label: '即将超时(1-3天)', count: urgent, color: '#e6a23c', days: 'urgent', level: 0 },
       { label: '预警(4-7天)', count: warning, color: '#409eff', days: 'warning', level: 0 },
       { label: '时间充裕(7天以上)', count: normal, color: '#67c23a', days: 'normal', level: 0 },
-      { label: '最晚提柜日为空', count: noLastFreeDate, color: '#909399', days: 'noLastFreeDate', level: 0 }
+      {
+        label: '最晚提柜日为空',
+        count: noLastFreeDate,
+        color: '#909399',
+        days: 'noLastFreeDate',
+        level: 0,
+      },
     ]
 
     return { count, urgent: urgent + expired, expired, filterItems }
@@ -219,10 +299,28 @@ export function useContainerCountdown(statisticsData: Ref<{
     // 按最晚还箱筛选项 - days值直接使用后端filterCondition
     const filterItems = [
       { label: '已逾期未还箱', count: expired, color: '#f56c6c', days: 'returnExpired', level: 0 },
-      { label: '紧急：倒计时3天内', count: urgent, color: '#e6a23c', days: 'returnUrgent', level: 0 },
-      { label: '警告：倒计时7天内', count: warning, color: '#409eff', days: 'returnWarning', level: 0 },
+      {
+        label: '紧急：倒计时3天内',
+        count: urgent,
+        color: '#e6a23c',
+        days: 'returnUrgent',
+        level: 0,
+      },
+      {
+        label: '警告：倒计时7天内',
+        count: warning,
+        color: '#409eff',
+        days: 'returnWarning',
+        level: 0,
+      },
       { label: '正常', count: normal, color: '#67c23a', days: 'returnNormal', level: 0 },
-      { label: '最后还箱日为空', count: noLastReturnDate, color: '#909399', days: 'noLastReturnDate', level: 0 }
+      {
+        label: '最后还箱日为空',
+        count: noLastReturnDate,
+        color: '#909399',
+        days: 'noLastReturnDate',
+        level: 0,
+      },
     ]
 
     return { count, urgent: urgentCount, expired: expiredCount, filterItems }
@@ -236,7 +334,7 @@ export function useContainerCountdown(statisticsData: Ref<{
     'AT_PORT',
     'PICKED_UP',
     'UNLOADED',
-    'RETURNED_EMPTY'
+    'RETURNED_EMPTY',
   ]
 
   // 计算按物流状态分类的货柜数量（使用后端统计数据）
@@ -249,19 +347,64 @@ export function useContainerCountdown(statisticsData: Ref<{
     const arrivedAtTransit = dist.arrived_at_transit || 0
     const arrivedAtDestination = dist.arrived_at_destination || 0
 
-    const itemConfig: Record<string, { label: string; count: number; color: string; days: string }> = {
-      [SimplifiedStatus.NOT_SHIPPED]: { label: '未出运', count: dist.not_shipped || 0, color: '#909399', days: SimplifiedStatus.NOT_SHIPPED },
-      [SimplifiedStatus.SHIPPED]: { label: '已出运', count: dist.shipped || 0, color: '#409eff', days: SimplifiedStatus.SHIPPED },
-      [SimplifiedStatus.AT_PORT]: { label: '已到目的港', count: arrivedAtDestination, color: '#67c23a', days: 'arrived_at_destination' },
-      [SimplifiedStatus.PICKED_UP]: { label: '已提柜', count: dist.picked_up || 0, color: '#f39c12', days: SimplifiedStatus.PICKED_UP },
-      [SimplifiedStatus.UNLOADED]: { label: '已卸柜', count: dist.unloaded || 0, color: '#3498db', days: SimplifiedStatus.UNLOADED },
-      [SimplifiedStatus.RETURNED_EMPTY]: { label: '已还箱', count: dist.returned_empty || 0, color: '#95a5a6', days: SimplifiedStatus.RETURNED_EMPTY }
+    const itemConfig: Record<
+      string,
+      { label: string; count: number; color: string; days: string }
+    > = {
+      [SimplifiedStatus.NOT_SHIPPED]: {
+        label: '未出运',
+        count: dist.not_shipped || 0,
+        color: '#909399',
+        days: SimplifiedStatus.NOT_SHIPPED,
+      },
+      [SimplifiedStatus.SHIPPED]: {
+        label: '已出运',
+        count: dist.shipped || 0,
+        color: '#409eff',
+        days: SimplifiedStatus.SHIPPED,
+      },
+      [SimplifiedStatus.AT_PORT]: {
+        label: '已到目的港',
+        count: arrivedAtDestination,
+        color: '#67c23a',
+        days: 'arrived_at_destination',
+      },
+      [SimplifiedStatus.PICKED_UP]: {
+        label: '已提柜',
+        count: dist.picked_up || 0,
+        color: '#f39c12',
+        days: SimplifiedStatus.PICKED_UP,
+      },
+      [SimplifiedStatus.UNLOADED]: {
+        label: '已卸柜',
+        count: dist.unloaded || 0,
+        color: '#3498db',
+        days: SimplifiedStatus.UNLOADED,
+      },
+      [SimplifiedStatus.RETURNED_EMPTY]: {
+        label: '已还箱',
+        count: dist.returned_empty || 0,
+        color: '#95a5a6',
+        days: SimplifiedStatus.RETURNED_EMPTY,
+      },
     }
 
     // IN_TRANSIT 不显示「在途」父级，只显示两个子细分：未到港、已到中转港
     const inTransitItems = [
-      { label: '未到港', count: inTransit, color: '#e6a23c', days: SimplifiedStatus.IN_TRANSIT, level: 0 },
-      { label: '已到中转港', count: arrivedAtTransit, color: '#909399', days: 'arrived_at_transit', level: 0 }
+      {
+        label: '未到港',
+        count: inTransit,
+        color: '#e6a23c',
+        days: SimplifiedStatus.IN_TRANSIT,
+        level: 0,
+      },
+      {
+        label: '已到中转港',
+        count: arrivedAtTransit,
+        color: '#909399',
+        days: 'arrived_at_transit',
+        level: 0,
+      },
     ]
 
     const filterItems = STATUS_DISPLAY_ORDER.flatMap(key => {
@@ -272,14 +415,19 @@ export function useContainerCountdown(statisticsData: Ref<{
     }) as CountdownData['filterItems']
 
     const count =
-      (dist.not_shipped || 0) + (dist.shipped || 0) + (inTransit + arrivedAtTransit) + arrivedAtDestination +
-      (dist.picked_up || 0) + (dist.unloaded || 0) + (dist.returned_empty || 0)
+      (dist.not_shipped || 0) +
+      (dist.shipped || 0) +
+      (inTransit + arrivedAtTransit) +
+      arrivedAtDestination +
+      (dist.picked_up || 0) +
+      (dist.unloaded || 0) +
+      (dist.returned_empty || 0)
 
     return {
       count,
       urgent: 0,
       expired: 0,
-      filterItems: filterItems || []
+      filterItems: filterItems || [],
     }
   })
 
@@ -306,6 +454,6 @@ export function useContainerCountdown(statisticsData: Ref<{
     countdownByReturn,
     countdownByStatus,
     startTimer,
-    stopTimer
+    stopTimer,
   }
 }

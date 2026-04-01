@@ -1,9 +1,7 @@
 <template>
   <div class="time-prediction-tab">
     <div class="tab-header-row">
-      <el-button type="primary" link size="small" @click="loadPrediction">
-        刷新
-      </el-button>
+      <el-button type="primary" link size="small" @click="loadPrediction"> 刷新 </el-button>
     </div>
     <div v-if="loading" class="loading-container">
       <el-skeleton :rows="8" animated />
@@ -118,7 +116,12 @@ const loadPrediction = async () => {
   loading.value = true
   try {
     const raw = await timeApi.getPrediction(props.containerNumber)
-    if (raw && typeof raw === 'object' && 'success' in raw && (raw as { success?: boolean }).success === false) {
+    if (
+      raw &&
+      typeof raw === 'object' &&
+      'success' in raw &&
+      (raw as { success?: boolean }).success === false
+    ) {
       ElMessage.error('获取时间预测信息失败')
       prediction.value = null
       return
@@ -149,7 +152,8 @@ const formatDate = (date: string | Date | null | undefined): string => {
 /** 当前状态为中文短语时的标签类型 */
 const getPredictionStatusType = (status: string | undefined): string => {
   if (!status) return 'info'
-  if (status.includes('已还箱') || status.includes('已卸柜') || status.includes('已提柜')) return 'success'
+  if (status.includes('已还箱') || status.includes('已卸柜') || status.includes('已提柜'))
+    return 'success'
   if (status.includes('到港')) return 'success'
   if (status.includes('在途')) return 'warning'
   if (status.includes('未知')) return 'info'

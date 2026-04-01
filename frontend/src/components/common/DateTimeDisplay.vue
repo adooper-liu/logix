@@ -12,20 +12,20 @@ import { formatDateToLocal, parseLocalDate } from '@/utils/dateTimeUtils'
 const props = defineProps({
   value: {
     type: [Date, String],
-    required: true
+    required: true,
   },
   format: {
     type: String,
-    default: 'datetime'
+    default: 'datetime',
   },
   className: {
     type: String,
-    default: ''
+    default: '',
   },
   emptyText: {
     type: String,
-    default: '-'
-  }
+    default: '-',
+  },
 })
 
 // 计算属性：格式化日期
@@ -33,7 +33,7 @@ const formattedDate = computed(() => {
   if (!props.value) {
     return props.emptyText
   }
-  
+
   try {
     return formatDateToLocal(props.value, props.format as any)
   } catch (error) {
@@ -47,31 +47,31 @@ const formattedDate = computed(() => {
 .date-time-display {
   font-size: 14px;
   color: #606266;
-  
+
   &.text-primary {
-    color: #409EFF;
+    color: #409eff;
   }
-  
+
   &.text-success {
-    color: #67C23A;
+    color: #67c23a;
   }
-  
+
   &.text-warning {
-    color: #E6A23C;
+    color: #e6a23c;
   }
-  
+
   &.text-danger {
-    color: #F56C6C;
+    color: #f56c6c;
   }
-  
+
   &.text-muted {
     color: #909399;
   }
-  
+
   &.text-large {
     font-size: 16px;
   }
-  
+
   &.text-small {
     font-size: 12px;
   }

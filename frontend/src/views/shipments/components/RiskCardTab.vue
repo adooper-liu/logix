@@ -1,9 +1,7 @@
 <template>
   <div class="risk-card-tab">
     <div class="tab-header-row">
-      <el-button type="primary" link size="small" @click="loadRisk">
-        刷新
-      </el-button>
+      <el-button type="primary" link size="small" @click="loadRisk"> 刷新 </el-button>
     </div>
     <div v-if="loading" class="loading-container">
       <el-skeleton :rows="8" animated />
@@ -27,10 +25,7 @@
             <span class="label">建议</span>
             <p class="recommendation">{{ riskAssessment.recommendation }}</p>
           </div>
-          <div
-            v-if="riskFactorsRows.length > 0"
-            class="risk-factors"
-          >
+          <div v-if="riskFactorsRows.length > 0" class="risk-factors">
             <h4>风险因素</h4>
             <el-table :data="riskFactorsRows" style="width: 100%" stripe>
               <el-table-column prop="factor" label="风险因素" width="120" />
@@ -41,7 +36,12 @@
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+              <el-table-column
+                prop="description"
+                label="描述"
+                min-width="200"
+                show-overflow-tooltip
+              />
             </el-table>
           </div>
         </div>
@@ -97,7 +97,12 @@ const loadRisk = async () => {
   loading.value = true
   try {
     const raw = await riskApi.getContainerRisk(props.containerNumber)
-    if (raw && typeof raw === 'object' && 'success' in raw && (raw as { success?: boolean }).success === false) {
+    if (
+      raw &&
+      typeof raw === 'object' &&
+      'success' in raw &&
+      (raw as { success?: boolean }).success === false
+    ) {
       riskAssessment.value = null
       return
     }
@@ -130,7 +135,7 @@ const formatRiskLevelLabel = (level: string | undefined): string => {
     low: '低',
     medium: '中',
     high: '高',
-    critical: '严重'
+    critical: '严重',
   }
   if (!level) return '—'
   const k = String(level).toLowerCase()

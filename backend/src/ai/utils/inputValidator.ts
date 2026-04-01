@@ -21,14 +21,23 @@ export class InputValidator {
   /**
    * 验证字符串输入
    */
-  validateString(input: any, options?: {
-    required?: boolean;
-    minLength?: number;
-    maxLength?: number;
-    pattern?: RegExp;
-    trim?: boolean;
-  }): InputValidationResult {
-    const { required = false, minLength = 0, maxLength = 1000, pattern, trim = true } = options || {};
+  validateString(
+    input: any,
+    options?: {
+      required?: boolean;
+      minLength?: number;
+      maxLength?: number;
+      pattern?: RegExp;
+      trim?: boolean;
+    }
+  ): InputValidationResult {
+    const {
+      required = false,
+      minLength = 0,
+      maxLength = 1000,
+      pattern,
+      trim = true
+    } = options || {};
 
     // 检查是否为字符串
     if (typeof input !== 'string') {
@@ -90,12 +99,15 @@ export class InputValidator {
   /**
    * 验证数字输入
    */
-  validateNumber(input: any, options?: {
-    required?: boolean;
-    min?: number;
-    max?: number;
-    integer?: boolean;
-  }): InputValidationResult {
+  validateNumber(
+    input: any,
+    options?: {
+      required?: boolean;
+      min?: number;
+      max?: number;
+      integer?: boolean;
+    }
+  ): InputValidationResult {
     const { required = false, min, max, integer = false } = options || {};
 
     // 检查是否为数字
@@ -145,12 +157,15 @@ export class InputValidator {
   /**
    * 验证数组输入
    */
-  validateArray(input: any, options?: {
-    required?: boolean;
-    minLength?: number;
-    maxLength?: number;
-    elementValidator?: (element: any) => InputValidationResult;
-  }): InputValidationResult {
+  validateArray(
+    input: any,
+    options?: {
+      required?: boolean;
+      minLength?: number;
+      maxLength?: number;
+      elementValidator?: (element: any) => InputValidationResult;
+    }
+  ): InputValidationResult {
     const { required = false, minLength = 0, maxLength = 100, elementValidator } = options || {};
 
     // 检查是否为数组
@@ -207,7 +222,10 @@ export class InputValidator {
   /**
    * 验证对象输入
    */
-  validateObject(input: any, schema?: Record<string, (value: any) => InputValidationResult>): InputValidationResult {
+  validateObject(
+    input: any,
+    schema?: Record<string, (value: any) => InputValidationResult>
+  ): InputValidationResult {
     // 检查是否为对象
     if (input === null || typeof input !== 'object') {
       return {
@@ -244,11 +262,14 @@ export class InputValidator {
   /**
    * 验证日期输入
    */
-  validateDate(input: any, options?: {
-    required?: boolean;
-    min?: Date;
-    max?: Date;
-  }): InputValidationResult {
+  validateDate(
+    input: any,
+    options?: {
+      required?: boolean;
+      min?: Date;
+      max?: Date;
+    }
+  ): InputValidationResult {
     const { required = false, min, max } = options || {};
 
     // 检查是否为日期

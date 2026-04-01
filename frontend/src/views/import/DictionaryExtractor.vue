@@ -41,33 +41,85 @@ const extractionResult = reactive<ExtractionResult>({
   ports: new Set(),
   statusCodes: new Set(),
   transportModes: new Set(),
-  rowCount: 0
+  rowCount: 0,
 })
 
 const validationResult = ref<ValidationResult | null>(null)
 
 // 已知的映射字典（用于验证）
 const KNOWN_STATUS_CODES = [
-  'RCVE', 'STSP', 'GITM', 'LOBD', 'DLPT', 'BDAR', 'POCA', 'DSCH', 'STCS',
-  'FDDP', 'FDLB', 'FDBA', 'TCHR', 'RAIL', 'AVLB', 'GTOB', 'GTIB', 'RCS',
-  'ST', 'A', 'N', 'Y', 'FCLS', 'LCLS'
+  'RCVE',
+  'STSP',
+  'GITM',
+  'LOBD',
+  'DLPT',
+  'BDAR',
+  'POCA',
+  'DSCH',
+  'STCS',
+  'FDDP',
+  'FDLB',
+  'FDBA',
+  'TCHR',
+  'RAIL',
+  'AVLB',
+  'GTOB',
+  'GTIB',
+  'RCS',
+  'ST',
+  'A',
+  'N',
+  'Y',
+  'FCLS',
+  'LCLS',
 ]
 
 const KNOWN_SHIPPING_COMPANIES = [
-  'CMA', 'YML', 'WHL', 'MSK', 'MSC', 'HPL', 'HMM', 'ONE', 'EMC', 'COSCO',
-  'OOCL', 'ZIM', 'PIL', 'APL'
+  'CMA',
+  'YML',
+  'WHL',
+  'MSK',
+  'MSC',
+  'HPL',
+  'HMM',
+  'ONE',
+  'EMC',
+  'COSCO',
+  'OOCL',
+  'ZIM',
+  'PIL',
+  'APL',
 ]
 
 const KNOWN_PORTS = [
-  'CNSHA', 'CNNGB', 'CNSHK', 'CNTAO', 'CNXMN', 'CNDLC', 'CNYTN',
-  'FRLEH', 'FRPAR', 'FRLIO', 'FRMRS', 'DEBRV', 'DEHAM', 'NLRTM',
-  'USSAV', 'USLGB', 'USLAX', 'USSEA', 'USNYC', 'USCHS',
-  'GBFXT', 'GBSOU', 'GBLGP', 'GBLIV', 'GBLON'
+  'CNSHA',
+  'CNNGB',
+  'CNSHK',
+  'CNTAO',
+  'CNXMN',
+  'CNDLC',
+  'CNYTN',
+  'FRLEH',
+  'FRPAR',
+  'FRLIO',
+  'FRMRS',
+  'DEBRV',
+  'DEHAM',
+  'NLRTM',
+  'USSAV',
+  'USLGB',
+  'USLAX',
+  'USSEA',
+  'USNYC',
+  'USCHS',
+  'GBFXT',
+  'GBSOU',
+  'GBLGP',
+  'GBLIV',
+  'GBLON',
 ]
 
-const _KNOWN_TRANSPORT_MODES = [
-  '大船', '驳船', '卡车', '铁路', '海运', '陆运', '空运', '多式联运'
-]
+const _KNOWN_TRANSPORT_MODES = ['大船', '驳船', '卡车', '铁路', '海运', '陆运', '空运', '多式联运']
 
 // ==================== 计算属性 ====================
 
@@ -111,15 +163,15 @@ const normalizeTransportMode = (value: string): string => {
   const normalized = value.trim()
   // 映射常见变体
   const modeMap: Record<string, string> = {
-    '海运': '大船',
-    '大船运输': '大船',
-    '驳船运输': '驳船',
-    '卡车运输': '卡车',
-    '公路运输': '卡车',
-    '铁路运输': '铁路',
-    '火车运输': '铁路',
-    'MULTIMODAL': '多式联运',
-    'INTERMODAL': '多式联运'
+    海运: '大船',
+    大船运输: '大船',
+    驳船运输: '驳船',
+    卡车运输: '卡车',
+    公路运输: '卡车',
+    铁路运输: '铁路',
+    火车运输: '铁路',
+    MULTIMODAL: '多式联运',
+    INTERMODAL: '多式联运',
   }
   return modeMap[normalized] || normalized
 }
@@ -151,11 +203,11 @@ const extractData = async () => {
 
   try {
     const data = await selectedFile.value.arrayBuffer()
-    
+
     // 保存原始console.error，用于临时屏蔽SheetJS内部错误
     const originalConsoleError = console.error
     const sheetjsErrors: string[] = []
-    
+
     // 临时重写console.error，捕获SheetJS的Bad uncompressed size错误
     console.error = (...args: any[]) => {
       const errorMsg = args.join(' ')
@@ -170,7 +222,7 @@ const extractData = async () => {
     // 配置SheetJS解析参数，增加错误处理
     let workbook
     try {
-      workbook = XLSX.read(data, { 
+      workbook = XLSX.read(data, {
         type: 'array',
         cellDates: true,
         cellStyles: false,
@@ -178,7 +230,7 @@ const extractData = async () => {
         sheetStubs: false,
         raw: false,
         WTF: false, // 设置为false以静默处理错误
-        dense: false // 防止密集模式导致的解析问题
+        dense: false, // 防止密集模式导致的解析问题
       })
     } catch (parseError: unknown) {
       // 恢复原始console.error
@@ -197,12 +249,12 @@ const extractData = async () => {
     if (sheetjsErrors.length > 0) {
       console.warn(`检测到 ${sheetjsErrors.length} 个Excel格式警告，尝试继续解析...`)
       console.warn('警告详情:', sheetjsErrors.slice(0, 3)) // 只显示前3个
-      
+
       // 通知用户文件可能存在格式问题，但我们正在尝试解析
       ElMessage.warning({
         message: `检测到Excel文件格式警告（${sheetjsErrors.length}个），正在尝试继续解析...`,
         duration: 5000,
-        showClose: true
+        showClose: true,
       })
     }
 
@@ -234,7 +286,7 @@ const extractData = async () => {
 
     // 第一行是表头
     const headers = jsonData[0] as string[]
-    
+
     // 清理表头（去除空格，处理null/undefined）
     const cleanHeaders = headers.map((h, index) => {
       if (!h) return `COLUMN_${index}`
@@ -244,38 +296,79 @@ const extractData = async () => {
     // 找到关键列的索引 - 优化匹配逻辑
     const shippingCompanyCol = cleanHeaders.findIndex(h => {
       const headerLower = h.toLowerCase()
-      return ['船公司', '船公司名称', '船公司.供应商全称（中）', 'shipping company', 'carrier', 'carrier code'].some(keyword => 
-        headerLower.includes(keyword.toLowerCase()) || keyword.toLowerCase().includes(headerLower)
+      return [
+        '船公司',
+        '船公司名称',
+        '船公司.供应商全称（中）',
+        'shipping company',
+        'carrier',
+        'carrier code',
+      ].some(
+        keyword =>
+          headerLower.includes(keyword.toLowerCase()) || keyword.toLowerCase().includes(headerLower)
       )
     })
-    
+
     const portCol = cleanHeaders.findIndex(h => {
       const headerLower = h.toLowerCase()
-      return ['目的港', '目的港名称', '目的港.名称', 'port of discharge', 'destination port', 'pod', 'port'].some(keyword =>
-        headerLower.includes(keyword.toLowerCase()) || keyword.toLowerCase().includes(headerLower)
+      return [
+        '目的港',
+        '目的港名称',
+        '目的港.名称',
+        'port of discharge',
+        'destination port',
+        'pod',
+        'port',
+      ].some(
+        keyword =>
+          headerLower.includes(keyword.toLowerCase()) || keyword.toLowerCase().includes(headerLower)
       )
     })
-    
+
     const statusCol = cleanHeaders.findIndex(h => {
       const headerLower = h.toLowerCase()
-      return ['状态码', 'status code', 'status', '事件代码', 'event code', 'eventcode', '事件', 'event', '代码', 'code'].some(keyword =>
-        headerLower.includes(keyword.toLowerCase()) || keyword.toLowerCase().includes(headerLower)
+      return [
+        '状态码',
+        'status code',
+        'status',
+        '事件代码',
+        'event code',
+        'eventcode',
+        '事件',
+        'event',
+        '代码',
+        'code',
+      ].some(
+        keyword =>
+          headerLower.includes(keyword.toLowerCase()) || keyword.toLowerCase().includes(headerLower)
       )
     })
-    
+
     const transportModeCol = cleanHeaders.findIndex(h => {
       const headerLower = h.toLowerCase()
-      return ['运输方式', 'transport mode', '运输模式', 'mode of transport', 'transportmode', 'mode'].some(keyword =>
-        headerLower.includes(keyword.toLowerCase()) || keyword.toLowerCase().includes(headerLower)
+      return [
+        '运输方式',
+        'transport mode',
+        '运输模式',
+        'mode of transport',
+        'transportmode',
+        'mode',
+      ].some(
+        keyword =>
+          headerLower.includes(keyword.toLowerCase()) || keyword.toLowerCase().includes(headerLower)
       )
     })
 
     console.log('表头样本:', cleanHeaders.slice(0, 10))
     console.log('找到的列索引:', {
-      shippingCompanyCol: shippingCompanyCol >= 0 ? `${shippingCompanyCol} (${cleanHeaders[shippingCompanyCol]})` : -1,
+      shippingCompanyCol:
+        shippingCompanyCol >= 0
+          ? `${shippingCompanyCol} (${cleanHeaders[shippingCompanyCol]})`
+          : -1,
       portCol: portCol >= 0 ? `${portCol} (${cleanHeaders[portCol]})` : -1,
       statusCol: statusCol >= 0 ? `${statusCol} (${cleanHeaders[statusCol]})` : -1,
-      transportModeCol: transportModeCol >= 0 ? `${transportModeCol} (${cleanHeaders[transportModeCol]})` : -1
+      transportModeCol:
+        transportModeCol >= 0 ? `${transportModeCol} (${cleanHeaders[transportModeCol]})` : -1,
     })
 
     // 检查哪些列没有找到
@@ -285,7 +378,12 @@ const extractData = async () => {
     if (statusCol === -1) missingColumns.push('状态码')
     if (transportModeCol === -1) missingColumns.push('运输方式')
 
-    if (shippingCompanyCol === -1 && portCol === -1 && statusCol === -1 && transportModeCol === -1) {
+    if (
+      shippingCompanyCol === -1 &&
+      portCol === -1 &&
+      statusCol === -1 &&
+      transportModeCol === -1
+    ) {
       ElMessage.warning('未识别到任何关键列（船公司、港口、状态码、运输方式），请检查Excel表头')
       console.warn('可用表头:', cleanHeaders.slice(0, 20)) // 只显示前20个
     } else {
@@ -294,17 +392,19 @@ const extractData = async () => {
       if (portCol >= 0) foundColumns.push(`港口: ${cleanHeaders[portCol]}`)
       if (statusCol >= 0) foundColumns.push(`状态码: ${cleanHeaders[statusCol]}`)
       if (transportModeCol >= 0) foundColumns.push(`运输模式: ${cleanHeaders[transportModeCol]}`)
-      
+
       ElMessage.success(`成功识别到 ${foundColumns.length} 个关键列: ${foundColumns.join(', ')}`)
-      
+
       // 如果有缺失的列，显示提示
       if (missingColumns.length > 0) {
         ElMessage.info({
           message: `未识别到以下列: ${missingColumns.join('、')}，仍可继续提取其他数据`,
           duration: 4000,
-          showClose: true
+          showClose: true,
         })
-        console.info(`如需提取${missingColumns.join('、')}，请检查表头是否包含: ${missingColumns.join(', ')}相关的关键词`)
+        console.info(
+          `如需提取${missingColumns.join('、')}，请检查表头是否包含: ${missingColumns.join(', ')}相关的关键词`
+        )
       }
     }
 
@@ -313,7 +413,7 @@ const extractData = async () => {
     extractionResult.rowCount = dataRows.length
 
     // 提取数据
-    dataRows.forEach((row) => {
+    dataRows.forEach(row => {
       // 提取船公司
       if (shippingCompanyCol !== -1 && row[shippingCompanyCol]) {
         const company = normalizeShippingCompany(String(row[shippingCompanyCol]))
@@ -341,24 +441,28 @@ const extractData = async () => {
 
     // 构建提取结果详情
     const extractedItems = []
-    if (extractionResult.shippingCompanies.size > 0) extractedItems.push(`${extractionResult.shippingCompanies.size} 个船公司`)
-    if (extractionResult.ports.size > 0) extractedItems.push(`${extractionResult.ports.size} 个港口`)
-    if (extractionResult.statusCodes.size > 0) extractedItems.push(`${extractionResult.statusCodes.size} 个状态码`)
-    if (extractionResult.transportModes.size > 0) extractedItems.push(`${extractionResult.transportModes.size} 种运输模式`)
-    
-    const successMsg = extractedItems.length > 0 
-      ? `成功提取 ${extractionResult.rowCount} 行数据: ${extractedItems.join('、')}`
-      : `成功解析 ${extractionResult.rowCount} 行数据，但未提取到有效内容`
-      
+    if (extractionResult.shippingCompanies.size > 0)
+      extractedItems.push(`${extractionResult.shippingCompanies.size} 个船公司`)
+    if (extractionResult.ports.size > 0)
+      extractedItems.push(`${extractionResult.ports.size} 个港口`)
+    if (extractionResult.statusCodes.size > 0)
+      extractedItems.push(`${extractionResult.statusCodes.size} 个状态码`)
+    if (extractionResult.transportModes.size > 0)
+      extractedItems.push(`${extractionResult.transportModes.size} 种运输模式`)
+
+    const successMsg =
+      extractedItems.length > 0
+        ? `成功提取 ${extractionResult.rowCount} 行数据: ${extractedItems.join('、')}`
+        : `成功解析 ${extractionResult.rowCount} 行数据，但未提取到有效内容`
+
     ElMessage.success(successMsg)
     console.log('提取结果详情:', {
       ...extractionResult,
       shippingCompanies: Array.from(extractionResult.shippingCompanies),
       ports: Array.from(extractionResult.ports),
       statusCodes: Array.from(extractionResult.statusCodes),
-      transportModes: Array.from(extractionResult.transportModes)
+      transportModes: Array.from(extractionResult.transportModes),
     })
-
   } catch (error: any) {
     console.error('解析Excel失败:', error)
     ElMessage.error(`解析Excel失败: ${error.message}`)
@@ -383,18 +487,18 @@ const validateMappings = () => {
     statusCodes: {
       mapped: statusCodes.filter(code => KNOWN_STATUS_CODES.includes(code)),
       unmapped: statusCodes.filter(code => !KNOWN_STATUS_CODES.includes(code)),
-      total: statusCodes.length
+      total: statusCodes.length,
     },
     shippingCompanies: {
       mapped: shippingCompanies.filter(company => KNOWN_SHIPPING_COMPANIES.includes(company)),
       unmapped: shippingCompanies.filter(company => !KNOWN_SHIPPING_COMPANIES.includes(company)),
-      total: shippingCompanies.length
+      total: shippingCompanies.length,
     },
     ports: {
       mapped: ports.filter(port => KNOWN_PORTS.includes(port)),
       unmapped: ports.filter(port => !KNOWN_PORTS.includes(port)),
-      total: ports.length
-    }
+      total: ports.length,
+    },
   }
 
   ElMessage.success('验证完成')
@@ -420,27 +524,27 @@ const exportAsCSV = () => {
 
 const generateCSVContent = (): string => {
   let content = '数据类型,值,数量\n'
-  
+
   // 船公司
   Array.from(extractionResult.shippingCompanies).forEach(company => {
     content += `船公司,${company},${extractionResult.shippingCompanies.size}\n`
   })
-  
+
   // 港口
   Array.from(extractionResult.ports).forEach(port => {
     content += `港口,${port},${extractionResult.ports.size}\n`
   })
-  
+
   // 状态码
   Array.from(extractionResult.statusCodes).forEach(code => {
     content += `状态码,${code},${extractionResult.statusCodes.size}\n`
   })
-  
+
   // 运输模式
   Array.from(extractionResult.transportModes).forEach(mode => {
     content += `运输模式,${mode},${extractionResult.transportModes.size}\n`
   })
-  
+
   return content
 }
 
@@ -468,33 +572,33 @@ const generateSQLContent = (): string => {
   // 船公司
   sql += '-- 船公司字典\n'
   sql += 'INSERT INTO dict_shipping_companies (company_code, company_name, status) VALUES\n'
-  const companyValues = Array.from(extractionResult.shippingCompanies).map(company => 
-    `('${company}', '${company}', 'active')`
-  ).join(',\n')
+  const companyValues = Array.from(extractionResult.shippingCompanies)
+    .map(company => `('${company}', '${company}', 'active')`)
+    .join(',\n')
   sql += companyValues + ';\n\n'
 
   // 港口
   sql += '-- 港口字典\n'
   sql += 'INSERT INTO dict_ports (port_code, port_name, port_type, status) VALUES\n'
-  const portValues = Array.from(extractionResult.ports).map(port => 
-    `('${port}', '${port}', 'seaport', 'active')`
-  ).join(',\n')
+  const portValues = Array.from(extractionResult.ports)
+    .map(port => `('${port}', '${port}', 'seaport', 'active')`)
+    .join(',\n')
   sql += portValues + ';\n\n'
 
   // 状态码
   sql += '-- 状态码字典\n'
   sql += 'INSERT INTO dict_status_codes (status_code, status_name, category, description) VALUES\n'
-  const statusValues = Array.from(extractionResult.statusCodes).map((code) => 
-    `('${code}', '${code}', 'logistics', 'Auto imported status code')`
-  ).join(',\n')
+  const statusValues = Array.from(extractionResult.statusCodes)
+    .map(code => `('${code}', '${code}', 'logistics', 'Auto imported status code')`)
+    .join(',\n')
   sql += statusValues + ';\n\n'
 
   // 运输模式
   sql += '-- 运输模式字典\n'
   sql += 'INSERT INTO dict_transport_modes (mode_code, mode_name, category) VALUES\n'
-  const modeValues = Array.from(extractionResult.transportModes).map(mode => 
-    `('${mode}', '${mode}', 'transport')`
-  ).join(',\n')
+  const modeValues = Array.from(extractionResult.transportModes)
+    .map(mode => `('${mode}', '${mode}', 'transport')`)
+    .join(',\n')
   sql += modeValues + ';\n\n'
 
   return sql
@@ -530,7 +634,7 @@ const generateValidationReport = (): string => {
     report += `- ✓ ${code}\n`
   })
   report += '\n'
-  
+
   if (result.statusCodes.unmapped.length > 0) {
     report += `**未映射** (${result.statusCodes.unmapped.length}):\n`
     result.statusCodes.unmapped.forEach(code => {
@@ -548,7 +652,7 @@ const generateValidationReport = (): string => {
     report += `- ✓ ${company}\n`
   })
   report += '\n'
-  
+
   if (result.shippingCompanies.unmapped.length > 0) {
     report += `**未映射** (${result.shippingCompanies.unmapped.length}):\n`
     result.shippingCompanies.unmapped.forEach(company => {
@@ -566,7 +670,7 @@ const generateValidationReport = (): string => {
     report += `- ✓ ${port}\n`
   })
   report += '\n'
-  
+
   if (result.ports.unmapped.length > 0) {
     report += `**未映射** (${result.ports.unmapped.length}):\n`
     result.ports.unmapped.forEach(port => {
@@ -588,9 +692,7 @@ const generateValidationReport = (): string => {
             <el-icon><Document /></el-icon>
             Excel字典数据提取工具
           </span>
-          <el-tag type="success" size="large">
-            多式联运数据验证
-          </el-tag>
+          <el-tag type="success" size="large"> 多式联运数据验证 </el-tag>
         </div>
       </template>
 
@@ -623,23 +725,14 @@ const generateValidationReport = (): string => {
         :limit="1"
       >
         <el-icon class="el-icon--upload"><Upload /></el-icon>
-        <div class="el-upload__text">
-          将飞驼Excel文件拖到此处，或<em>点击上传</em>
-        </div>
+        <div class="el-upload__text">将飞驼Excel文件拖到此处，或<em>点击上传</em></div>
         <template #tip>
-          <div class="el-upload__tip">
-            支持 .xlsx 和 .xls 格式，用于提取字典数据和验证映射
-          </div>
+          <div class="el-upload__tip">支持 .xlsx 和 .xls 格式，用于提取字典数据和验证映射</div>
         </template>
       </el-upload>
 
       <div class="action-buttons">
-        <el-button
-          type="primary"
-          :loading="loading"
-          :disabled="!selectedFile"
-          @click="extractData"
-        >
+        <el-button type="primary" :loading="loading" :disabled="!selectedFile" @click="extractData">
           <el-icon><Search /></el-icon>
           提取字典数据
         </el-button>
@@ -651,18 +744,11 @@ const generateValidationReport = (): string => {
       <template #header>
         <div class="card-header">
           <span class="section-title">2. 提取结果</span>
-          <el-tag type="info">
-            {{ extractionResult.rowCount }} 行数据
-          </el-tag>
+          <el-tag type="info"> {{ extractionResult.rowCount }} 行数据 </el-tag>
         </div>
       </template>
 
-      <el-alert
-        :title="summaryText"
-        type="success"
-        :closable="false"
-        show-icon
-      />
+      <el-alert :title="summaryText" type="success" :closable="false" show-icon />
 
       <div class="stats-grid">
         <el-card class="stat-card">
@@ -750,13 +836,7 @@ const generateValidationReport = (): string => {
         </div>
       </template>
 
-      <el-button
-        type="warning"
-        :icon="Check"
-        @click="validateMappings"
-      >
-        验证状态码映射
-      </el-button>
+      <el-button type="warning" :icon="Check" @click="validateMappings"> 验证状态码映射 </el-button>
 
       <div v-if="validationResult" class="validation-results">
         <!-- 状态码验证 -->
@@ -764,16 +844,21 @@ const generateValidationReport = (): string => {
           <template #header>
             <div class="validation-header">
               <span>状态码映射</span>
-              <el-tag 
+              <el-tag
                 :type="validationResult.statusCodes.unmapped.length === 0 ? 'success' : 'danger'"
               >
-                {{ validationResult.statusCodes.mapped.length }}/{{ validationResult.statusCodes.total }} 已映射
+                {{ validationResult.statusCodes.mapped.length }}/{{
+                  validationResult.statusCodes.total
+                }}
+                已映射
               </el-tag>
             </div>
           </template>
           <div class="validation-content">
             <div v-if="validationResult.statusCodes.mapped.length > 0" class="mapped-section">
-              <div class="section-label">✓ 已映射（{{ validationResult.statusCodes.mapped.length }}）：</div>
+              <div class="section-label">
+                ✓ 已映射（{{ validationResult.statusCodes.mapped.length }}）：
+              </div>
               <el-space wrap>
                 <el-tag
                   v-for="code in validationResult.statusCodes.mapped"
@@ -786,7 +871,9 @@ const generateValidationReport = (): string => {
               </el-space>
             </div>
             <div v-if="validationResult.statusCodes.unmapped.length > 0" class="unmapped-section">
-              <div class="section-label">✗ 未映射（{{ validationResult.statusCodes.unmapped.length }}）：</div>
+              <div class="section-label">
+                ✗ 未映射（{{ validationResult.statusCodes.unmapped.length }}）：
+              </div>
               <el-space wrap>
                 <el-tag
                   v-for="code in validationResult.statusCodes.unmapped"
@@ -813,10 +900,15 @@ const generateValidationReport = (): string => {
           <template #header>
             <div class="validation-header">
               <span>船公司映射</span>
-              <el-tag 
-                :type="validationResult.shippingCompanies.unmapped.length === 0 ? 'success' : 'warning'"
+              <el-tag
+                :type="
+                  validationResult.shippingCompanies.unmapped.length === 0 ? 'success' : 'warning'
+                "
               >
-                {{ validationResult.shippingCompanies.mapped.length }}/{{ validationResult.shippingCompanies.total }} 已映射
+                {{ validationResult.shippingCompanies.mapped.length }}/{{
+                  validationResult.shippingCompanies.total
+                }}
+                已映射
               </el-tag>
             </div>
           </template>
@@ -834,7 +926,10 @@ const generateValidationReport = (): string => {
                 </el-tag>
               </el-space>
             </div>
-            <div v-if="validationResult.shippingCompanies.unmapped.length > 0" class="unmapped-section">
+            <div
+              v-if="validationResult.shippingCompanies.unmapped.length > 0"
+              class="unmapped-section"
+            >
               <div class="section-label">✗ 未映射：</div>
               <el-space wrap>
                 <el-tag
@@ -855,9 +950,7 @@ const generateValidationReport = (): string => {
           <template #header>
             <div class="validation-header">
               <span>港口映射</span>
-              <el-tag 
-                :type="validationResult.ports.unmapped.length === 0 ? 'success' : 'info'"
-              >
+              <el-tag :type="validationResult.ports.unmapped.length === 0 ? 'success' : 'info'">
                 {{ validationResult.ports.mapped.length }}/{{ validationResult.ports.total }} 已映射
               </el-tag>
             </div>
@@ -903,21 +996,9 @@ const generateValidationReport = (): string => {
       </template>
 
       <el-space wrap>
-        <el-button
-          type="success"
-          :icon="Download"
-          @click="exportAsCSV"
-        >
-          导出为CSV
-        </el-button>
+        <el-button type="success" :icon="Download" @click="exportAsCSV"> 导出为CSV </el-button>
 
-        <el-button
-          type="primary"
-          :icon="Download"
-          @click="exportAsSQL"
-        >
-          导出为SQL
-        </el-button>
+        <el-button type="primary" :icon="Download" @click="exportAsSQL"> 导出为SQL </el-button>
 
         <el-button
           v-if="validationResult"

@@ -9,9 +9,7 @@
     <div v-if="container" class="detail-content">
       <!-- 操作按钮 -->
       <div class="detail-actions">
-        <el-button type="primary" @click="handleViewDetail">
-          查看完整详情
-        </el-button>
+        <el-button type="primary" @click="handleViewDetail"> 查看完整详情 </el-button>
         <el-button @click="handleClose">关闭</el-button>
       </div>
 
@@ -143,7 +141,7 @@ const router = useRouter()
 
 const visible = computed({
   get: () => props.visible,
-  set: (value) => emit('update:visible', value),
+  set: value => emit('update:visible', value),
 })
 
 // 格式化日期

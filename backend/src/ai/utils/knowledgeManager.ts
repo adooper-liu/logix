@@ -81,7 +81,7 @@ export class KnowledgeManager {
 
       // 创建ID映射
       const currentItemMap = new Map<string, KnowledgeItem>();
-      currentItems.forEach(item => currentItemMap.set(item.id, item));
+      currentItems.forEach((item) => currentItemMap.set(item.id, item));
 
       // 合并新条目
       const mergedItems: KnowledgeItem[] = [...currentItems];
@@ -89,7 +89,7 @@ export class KnowledgeManager {
       for (const newItem of newItems) {
         if (currentItemMap.has(newItem.id)) {
           // 更新现有条目
-          const index = mergedItems.findIndex(item => item.id === newItem.id);
+          const index = mergedItems.findIndex((item) => item.id === newItem.id);
           if (index >= 0) {
             mergedItems[index] = newItem;
           }
@@ -191,16 +191,18 @@ export class KnowledgeManager {
    * 生成知识库文件内容
    */
   private generateKnowledgeBaseContent(items: KnowledgeItem[]): string {
-    const itemsContent = items.map(item => {
-      const keywordsArray = item.keywords.map(k => `'${k}'`).join(', ');
-      return `  {
+    const itemsContent = items
+      .map((item) => {
+        const keywordsArray = item.keywords.map((k) => `'${k}'`).join(', ');
+        return `  {
     id: '${item.id}',
     category: '${item.category}',
     title: '${item.title}',
     keywords: [${keywordsArray}],
     content: \`${item.content}\`
   }`;
-    }).join(',\n\n');
+      })
+      .join(',\n\n');
 
     return `/**
  * AI 知识库
@@ -288,8 +290,8 @@ export function searchKnowledge(query: string): string[] {
             const keywordsStr = keywordsMatch[1];
             const keywords = keywordsStr
               .split(',')
-              .map(k => k.trim().replace(/^'|'$/g, ''))
-              .filter(k => k);
+              .map((k) => k.trim().replace(/^'|'$/g, ''))
+              .filter((k) => k);
 
             const content = contentMatch[1];
 
@@ -323,7 +325,7 @@ export function searchKnowledge(query: string): string[] {
     const categories = new Set<string>();
     const itemsByCategory: Record<string, number> = {};
 
-    items.forEach(item => {
+    items.forEach((item) => {
       categories.add(item.category);
       itemsByCategory[item.category] = (itemsByCategory[item.category] || 0) + 1;
     });
@@ -360,7 +362,7 @@ export function searchKnowledge(query: string): string[] {
    */
   private removeDuplicates(items: KnowledgeItem[]): KnowledgeItem[] {
     const uniqueMap = new Map<string, KnowledgeItem>();
-    items.forEach(item => uniqueMap.set(item.id, item));
+    items.forEach((item) => uniqueMap.set(item.id, item));
     return Array.from(uniqueMap.values());
   }
 }

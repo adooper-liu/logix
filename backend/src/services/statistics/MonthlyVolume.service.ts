@@ -69,12 +69,18 @@ export class MonthlyVolumeService {
           SimplifiedStatus.RETURNED_EMPTY
         ]
       })
-      .andWhere('COALESCE(order.actualShipDate, order.expectedShipDate, sf.shipmentDate) >= :yearStart', {
-        yearStart
-      })
-      .andWhere('COALESCE(order.actualShipDate, order.expectedShipDate, sf.shipmentDate) < :yearEnd', {
-        yearEnd
-      })
+      .andWhere(
+        'COALESCE(order.actualShipDate, order.expectedShipDate, sf.shipmentDate) >= :yearStart',
+        {
+          yearStart
+        }
+      )
+      .andWhere(
+        'COALESCE(order.actualShipDate, order.expectedShipDate, sf.shipmentDate) < :yearEnd',
+        {
+          yearEnd
+        }
+      )
       .getRawOne<{ count: string }>();
 
     return parseInt(result?.count ?? '0', 10);
@@ -117,12 +123,18 @@ export class MonthlyVolumeService {
           SimplifiedStatus.RETURNED_EMPTY
         ]
       })
-      .andWhere('COALESCE(order.actualShipDate, order.expectedShipDate, sf.shipmentDate) >= :monthStart', {
-        monthStart
-      })
-      .andWhere('COALESCE(order.actualShipDate, order.expectedShipDate, sf.shipmentDate) <= :monthEnd', {
-        monthEnd
-      })
+      .andWhere(
+        'COALESCE(order.actualShipDate, order.expectedShipDate, sf.shipmentDate) >= :monthStart',
+        {
+          monthStart
+        }
+      )
+      .andWhere(
+        'COALESCE(order.actualShipDate, order.expectedShipDate, sf.shipmentDate) <= :monthEnd',
+        {
+          monthEnd
+        }
+      )
       .getRawOne<{ count: string }>();
 
     return parseInt(result?.count ?? '0', 10);

@@ -72,7 +72,9 @@ export async function getMigrationStats(): Promise<{ success: boolean; data: Mig
 /**
  * 获取单个迁移脚本内容
  */
-export async function getMigrationContent(filename: string): Promise<{ success: boolean; data: { filename: string; content: string } }> {
+export async function getMigrationContent(
+  filename: string
+): Promise<{ success: boolean; data: { filename: string; content: string } }> {
   return api.get(`/v1/migrations/${encodeURIComponent(filename)}`)
 }
 

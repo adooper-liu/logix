@@ -20,7 +20,10 @@ import {
 import { DemurrageService } from './demurrage.service';
 
 /** 与 demurrage.service 一致，用于分项汇总计费天数 */
-function isCombinedDemurrageDetention(std: { chargeTypeCode?: string | null; chargeName?: string | null }): boolean {
+function isCombinedDemurrageDetention(std: {
+  chargeTypeCode?: string | null;
+  chargeName?: string | null;
+}): boolean {
   const code = (std.chargeTypeCode ?? '').toUpperCase();
   const name = (std.chargeName ?? '').toLowerCase();
   const hasDem = code.includes('DEMURRAGE') || name.includes('demurrage') || name.includes('滞港');
@@ -28,14 +31,20 @@ function isCombinedDemurrageDetention(std: { chargeTypeCode?: string | null; cha
   return hasDem && hasDet;
 }
 
-function isDetentionCharge(std: { chargeTypeCode?: string | null; chargeName?: string | null }): boolean {
+function isDetentionCharge(std: {
+  chargeTypeCode?: string | null;
+  chargeName?: string | null;
+}): boolean {
   if (isCombinedDemurrageDetention(std)) return false;
   const code = (std.chargeTypeCode ?? '').toUpperCase();
   const name = (std.chargeName ?? '').toLowerCase();
   return code.includes('DETENTION') || name.includes('detention') || name.includes('滞箱');
 }
 
-function isStorageCharge(std: { chargeTypeCode?: string | null; chargeName?: string | null }): boolean {
+function isStorageCharge(std: {
+  chargeTypeCode?: string | null;
+  chargeName?: string | null;
+}): boolean {
   if (isDetentionCharge(std)) return false;
   if (isCombinedDemurrageDetention(std)) return false;
   const code = (std.chargeTypeCode ?? '').toUpperCase();
@@ -63,7 +72,9 @@ export class RiskService {
   );
 
   // 获取货柜风险评估
-  async getContainerRiskAssessment(containerNumber: string): Promise<ContainerRiskAssessment | null> {
+  async getContainerRiskAssessment(
+    containerNumber: string
+  ): Promise<ContainerRiskAssessment | null> {
     try {
       // 加载货柜及其关联实体
       const container = await this.containerRepository.findOne({
@@ -189,14 +200,20 @@ export class RiskService {
   }
 
   // 评估查验风险
-  private assessInspectionRisk(inspection: any): { factor: string; score: number; description: string } {
+  private assessInspectionRisk(inspection: any): {
+    factor: string;
+    score: number;
+    description: string;
+  } {
     if (!inspection) {
       return { factor: '查验风险', score: 0, description: '无查验记录' };
     }
 
-    if (inspection.customsClearanceStatus &&
-        inspection.customsClearanceStatus !== '全部放行' &&
-        inspection.customsClearanceStatus !== '退运完成') {
+    if (
+      inspection.customsClearanceStatus &&
+      inspection.customsClearanceStatus !== '全部放行' &&
+      inspection.customsClearanceStatus !== '退运完成'
+    ) {
       const inspectionDate = inspection.inspectionDate || inspection.inspectionNoticeDate;
       if (inspectionDate) {
         const msPerDay = 1000 * 60 * 60 * 24;
@@ -205,9 +222,17 @@ export class RiskService {
         );
 
         if (daysSinceInspection > 7) {
-          return { factor: '查验风险', score: 80, description: `查验已持续 ${daysSinceInspection} 天，仍未完成` };
+          return {
+            factor: '查验风险',
+            score: 80,
+            description: `查验已持续 ${daysSinceInspection} 天，仍未完成`
+          };
         } else if (daysSinceInspection > 3) {
-          return { factor: '查验风险', score: 50, description: `查验已持续 ${daysSinceInspection} 天` };
+          return {
+            factor: '查验风险',
+            score: 50,
+            description: `查验已持续 ${daysSinceInspection} 天`
+          };
         }
       }
     }
@@ -238,15 +263,25 @@ export class RiskService {
     }
 
     if (container.portOperations) {
-      const destinationPort = container.portOperations.find(op => op.portType === 'destination');
+      const destinationPort = container.portOperations.find((op) => op.portType === 'destination');
       if (destinationPort?.ata) {
         const ata = new Date(destinationPort.ata);
-        const daysSinceArrival = Math.ceil((new Date().getTime() - ata.getTime()) / (1000 * 60 * 60 * 24));
+        const daysSinceArrival = Math.ceil(
+          (new Date().getTime() - ata.getTime()) / (1000 * 60 * 60 * 24)
+        );
 
         if (daysSinceArrival > 7) {
-          return { factor: '拖卡风险', score: 70, description: `已到港 ${daysSinceArrival} 天未提柜` };
+          return {
+            factor: '拖卡风险',
+            score: 70,
+            description: `已到港 ${daysSinceArrival} 天未提柜`
+          };
         } else if (daysSinceArrival > 3) {
-          return { factor: '拖卡风险', score: 40, description: `已到港 ${daysSinceArrival} 天未提柜` };
+          return {
+            factor: '拖卡风险',
+            score: 40,
+            description: `已到港 ${daysSinceArrival} 天未提柜`
+          };
         }
       }
     }
@@ -274,7 +309,9 @@ export class RiskService {
 
     if (trucking?.pickupDate) {
       const pickupDate = new Date(trucking.pickupDate);
-      const daysSincePickup = Math.ceil((new Date().getTime() - pickupDate.getTime()) / (1000 * 60 * 60 * 24));
+      const daysSincePickup = Math.ceil(
+        (new Date().getTime() - pickupDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
       const statusLabel = getSimplifiedStatusText(SimplifiedStatus.PICKED_UP);
 
       if (daysSincePickup > 5) {
@@ -313,7 +350,9 @@ export class RiskService {
     const unloadDone = warehouseOp?.unloadDate ?? warehouseOp?.unboxingTime;
     if (unloadDone) {
       const unloadingDate = new Date(unloadDone);
-      const daysSinceUnloading = Math.ceil((new Date().getTime() - unloadingDate.getTime()) / (1000 * 60 * 60 * 24));
+      const daysSinceUnloading = Math.ceil(
+        (new Date().getTime() - unloadingDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
       const statusLabel = getSimplifiedStatusText(SimplifiedStatus.UNLOADED);
 
       if (daysSinceUnloading > 7) {
@@ -336,7 +375,9 @@ export class RiskService {
       }
 
       const pickupDate = new Date(trucking.pickupDate);
-      const daysSincePickup = Math.ceil((new Date().getTime() - pickupDate.getTime()) / (1000 * 60 * 60 * 24));
+      const daysSincePickup = Math.ceil(
+        (new Date().getTime() - pickupDate.getTime()) / (1000 * 60 * 60 * 24)
+      );
 
       if (daysSincePickup > 10) {
         return {
@@ -363,7 +404,8 @@ export class RiskService {
     }
 
     try {
-      const { result, message } = await this.demurrageService.calculateForContainer(containerNumber);
+      const { result, message } =
+        await this.demurrageService.calculateForContainer(containerNumber);
 
       if (!result?.items?.length) {
         return {
@@ -419,7 +461,7 @@ export class RiskService {
       return {
         factor: '滞港/滞箱风险',
         score,
-        description: parts.length > 0 ? parts.join('；') : message ?? '无超期计费天数'
+        description: parts.length > 0 ? parts.join('；') : (message ?? '无超期计费天数')
       };
     } catch (e) {
       logger.warn('[RiskService] assessDemurrageRiskFromService failed', e);
@@ -446,23 +488,22 @@ export class RiskService {
     riskFactors: Array<{ factor: string; score: number; description: string }>,
     logistics: LogisticsStatusResult
   ): string {
-    const statusLine =
-      `当前物流状态：「${getSimplifiedStatusText(logistics.status)}」${
+    const statusLine = `当前物流状态：「${getSimplifiedStatusText(logistics.status)}」${
       logistics.reason ? ` — ${logistics.reason}` : ''
-      }。`;
+    }。`;
 
-    const highRiskFactors = riskFactors.filter(factor => factor.score > 50);
+    const highRiskFactors = riskFactors.filter((factor) => factor.score > 50);
 
     let body: string;
     switch (riskLevel) {
       case RiskLevel.CRITICAL:
-        body = `紧急：${highRiskFactors.map(f => f.description).join('；')}，请立即处理`;
+        body = `紧急：${highRiskFactors.map((f) => f.description).join('；')}，请立即处理`;
         break;
       case RiskLevel.HIGH:
-        body = `高风险：${highRiskFactors.map(f => f.description).join('；')}，请尽快处理`;
+        body = `高风险：${highRiskFactors.map((f) => f.description).join('；')}，请尽快处理`;
         break;
       case RiskLevel.MEDIUM:
-        body = `中风险：${highRiskFactors.map(f => f.description).join('；')}，请关注处理`;
+        body = `中风险：${highRiskFactors.map((f) => f.description).join('；')}，请关注处理`;
         break;
       case RiskLevel.LOW:
         body = '低风险，正常监控即可';

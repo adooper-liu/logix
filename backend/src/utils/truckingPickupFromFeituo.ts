@@ -20,7 +20,9 @@ export function tryApplyFeituoPickupFromGateOutEvent(options: {
   statusCode: string | undefined;
   createTrucking: () => TruckingTransport;
 }): { trucking: TruckingTransport | null; updated: boolean } {
-  const sc = String(options.statusCode ?? '').trim().toUpperCase();
+  const sc = String(options.statusCode ?? '')
+    .trim()
+    .toUpperCase();
   if (!sc) {
     return { trucking: options.trucking, updated: false };
   }

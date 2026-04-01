@@ -45,7 +45,7 @@ export default {
     all: 'Alle',
     more: 'Mehr',
     expand: 'Erweitern',
-    collapse: 'Zusammenklappen'
+    collapse: 'Zusammenklappen',
   },
 
   // ========== Navigation ==========
@@ -64,7 +64,7 @@ export default {
     help: 'Hilfe',
     about: 'Über',
     personalCenter: 'Persönliches Zentrum',
-    logout: 'Abmelden'
+    logout: 'Abmelden',
   },
 
   // ========== Benutzer ==========
@@ -81,7 +81,7 @@ export default {
     logoutSuccess: 'Erfolgreich abgemeldet',
     pleaseLogin: 'Bitte melden Sie sich zuerst an',
     rememberMe: 'Angemeldet bleiben',
-    forgotPassword: 'Passwort vergessen?'
+    forgotPassword: 'Passwort vergessen?',
   },
 
   // ========== Container ==========
@@ -101,7 +101,7 @@ export default {
       atPort: 'Im Hafen',
       pickedUp: 'Abgeholt',
       unloaded: 'Entladen',
-      returnedEmpty: 'Leer zurückgegeben'
+      returnedEmpty: 'Leer zurückgegeben',
     },
     // Containertypen
     types: {
@@ -114,8 +114,8 @@ export default {
       '20OT': '20ft Open Top',
       '40OT': '40ft Open Top',
       '20FR': '20ft Flat Rack',
-      '40FR': '40ft Flat Rack'
-    }
+      '40FR': '40ft Flat Rack',
+    },
   },
 
   // ========== Bestellung ==========
@@ -138,8 +138,8 @@ export default {
       pending: 'Ausstehend',
       processing: 'In Bearbeitung',
       completed: 'Abgeschlossen',
-      cancelled: 'Storniert'
-    }
+      cancelled: 'Storniert',
+    },
   },
 
   // ========== Hafen ==========
@@ -155,8 +155,8 @@ export default {
     types: {
       origin: 'Abgangshafen',
       transit: 'Transithafen',
-      destination: 'Zielhafen'
-    }
+      destination: 'Zielhafen',
+    },
   },
 
   // ========== Standgeld ==========
@@ -171,12 +171,12 @@ export default {
     // Berechnungsgrundlage
     basis: {
       byArrival: 'Nach Ankunft',
-      byUnloading: 'Nach Entladung'
+      byUnloading: 'Nach Entladung',
     },
     // Basis für kostenlose Tage
     freeDaysBasisTypes: {
       naturalDay: 'Kalendertag',
-      workingDay: 'Werktag'
+      workingDay: 'Werktag',
     },
     // Gebührentypen
     chargeTypes: {
@@ -184,8 +184,8 @@ export default {
       storage: 'Lagergebühr',
       detention: 'Containergeld',
       demurrageDetention: 'Standgeld und Containergeld',
-      storageSurcharge: 'Lagerzuschlag'
-    }
+      storageSurcharge: 'Lagerzuschlag',
+    },
   },
 
   // ========== Überwachung ==========
@@ -206,7 +206,7 @@ export default {
     healthy: 'Gesund',
     unhealthy: 'Ungesund',
     warning: 'Warnung',
-    critical: 'Kritisch'
+    critical: 'Kritisch',
   },
 
   // ========== Einstellungen ==========
@@ -222,7 +222,7 @@ export default {
     languageTip: 'Wählen Sie Ihre bevorzugte Sprache',
     themeTip: 'Wählen Sie Ihr Interface-Design',
     notificationTip: 'Verwalten Sie Ihre Benachrichtigungseinstellungen',
-    securityTip: 'Verwalten Sie Ihre Sicherheitseinstellungen'
+    securityTip: 'Verwalten Sie Ihre Sicherheitseinstellungen',
   },
 
   // ========== Hilfe ==========
@@ -235,7 +235,7 @@ export default {
     searchDoc: 'Dokumentation durchsuchen',
     noResults: 'Keine Ergebnisse gefunden',
     recentlyViewed: 'Zuletzt angesehen',
-    popularTopics: 'Beliebte Themen'
+    popularTopics: 'Beliebte Themen',
   },
 
   // ========== Über ==========
@@ -248,7 +248,7 @@ export default {
     privacyPolicy: 'Datenschutzrichtlinie',
     contactUs: 'Kontaktieren Sie uns',
     website: 'Website',
-    github: 'GitHub'
+    github: 'GitHub',
   },
 
   // ========== Validierung ==========
@@ -261,7 +261,7 @@ export default {
     pattern: 'Ungültiges Format',
     range: 'Wert muss zwischen {min} und {max} liegen',
     numeric: 'Bitte geben Sie eine gültige Zahl ein',
-    url: 'Bitte geben Sie eine gültige URL ein'
+    url: 'Bitte geben Sie eine gültige URL ein',
   },
 
   // ========== Zeit ==========
@@ -280,7 +280,7 @@ export default {
     justNow: 'Gerade eben',
     dateFormat: 'DD.MM.YYYY',
     dateTimeFormat: 'DD.MM.YYYY HH:mm:ss',
-    timeFormat: 'HH:mm:ss'
+    timeFormat: 'HH:mm:ss',
   },
 
   // ========== Fehler ==========
@@ -293,6 +293,6 @@ export default {
     timeout: 'Anfrage Zeitüberschreitung',
     unknown: 'Unbekannter Fehler',
     retry: 'Wiederholen',
-    contactAdmin: 'Wenden Sie sich an den Administrator'
-  }
+    contactAdmin: 'Wenden Sie sich an den Administrator',
+  },
 }

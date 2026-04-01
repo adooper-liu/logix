@@ -53,105 +53,109 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { timeApi } from '@/services/time';
-import { Refresh, Loading, InfoFilled, Timer, Truck, Box, Container } from '@element-plus/icons-vue';
-import { formatDate } from '@/utils/dateTimeUtils';
+import { ref, computed, watch } from 'vue'
+import { timeApi } from '@/services/time'
+import { Refresh, Loading, InfoFilled, Timer, Truck, Box, Container } from '@element-plus/icons-vue'
+import { formatDate } from '@/utils/dateTimeUtils'
 
 const props = defineProps<{
-  containerNumber: string;
-}>();
+  containerNumber: string
+}>()
 
-const prediction = ref<any>(null);
-const loading = ref(false);
+const prediction = ref<any>(null)
+const loading = ref(false)
 
 const timelineItems = computed(() => {
-  if (!prediction.value) return [];
+  if (!prediction.value) return []
 
   return [
     {
       title: '提柜',
       actualTime: prediction.value.actualTimes?.pickup,
       estimatedTime: prediction.value.estimatedTimes?.pickup,
-      type: 'primary'
+      type: 'primary',
     },
     {
       title: '卸柜',
       actualTime: prediction.value.actualTimes?.unloading,
       estimatedTime: prediction.value.estimatedTimes?.unloading,
-      type: 'warning'
+      type: 'warning',
     },
     {
       title: '还箱',
       actualTime: prediction.value.actualTimes?.return,
       estimatedTime: prediction.value.estimatedTimes?.return,
-      type: 'success'
+      type: 'success',
     },
     {
       title: '完成',
       actualTime: prediction.value.actualTimes?.return, // 完成时间与还箱时间相同
       estimatedTime: prediction.value.estimatedTimes?.completion,
-      type: 'info'
-    }
-  ];
-});
+      type: 'info',
+    },
+  ]
+})
 
 const getStatusType = (status: string) => {
   const statusMap: Record<string, string> = {
-    '已还箱': 'success',
-    '已卸柜': 'info',
-    '已提柜': 'warning',
-    '已到港': 'primary',
-    '在途': 'primary',
-    '未知': 'info'
-  };
-  return statusMap[status] || 'info';
-};
+    已还箱: 'success',
+    已卸柜: 'info',
+    已提柜: 'warning',
+    已到港: 'primary',
+    在途: 'primary',
+    未知: 'info',
+  }
+  return statusMap[status] || 'info'
+}
 
 const getItemType = (item: any) => {
-  if (item.actualTime) return item.type;
-  return 'info';
-};
+  if (item.actualTime) return item.type
+  return 'info'
+}
 
 const getItemIcon = (item: any) => {
   const iconMap: Record<string, any> = {
-    '提柜': Truck,
-    '卸柜': Box,
-    '还箱': Container,
-    '完成': Timer
-  };
-  return iconMap[item.title] || Timer;
-};
+    提柜: Truck,
+    卸柜: Box,
+    还箱: Container,
+    完成: Timer,
+  }
+  return iconMap[item.title] || Timer
+}
 
 const getItemTimestamp = (item: any) => {
   if (item.actualTime) {
-    return formatDate(item.actualTime);
+    return formatDate(item.actualTime)
   } else if (item.estimatedTime) {
-    return `预计: ${formatDate(item.estimatedTime)}`;
+    return `预计: ${formatDate(item.estimatedTime)}`
   }
-  return '';
-};
+  return ''
+}
 
 const refreshPrediction = async () => {
-  if (!props.containerNumber) return;
+  if (!props.containerNumber) return
 
-  loading.value = true;
+  loading.value = true
   try {
-    const response = await timeApi.getPrediction(props.containerNumber);
-    prediction.value = response.data;
+    const response = await timeApi.getPrediction(props.containerNumber)
+    prediction.value = response.data
   } catch (error) {
-    console.error('获取时间预测失败:', error);
+    console.error('获取时间预测失败:', error)
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 
 // 监听containerNumber变化，自动刷新预测
-watch(() => props.containerNumber, (newContainerNumber) => {
-  if (newContainerNumber) {
-    refreshPrediction();
-  }
-}, { immediate: true });
+watch(
+  () => props.containerNumber,
+  newContainerNumber => {
+    if (newContainerNumber) {
+      refreshPrediction()
+    }
+  },
+  { immediate: true }
+)
 </script>
 
 <style scoped lang="scss">
@@ -181,7 +185,8 @@ watch(() => props.containerNumber, (newContainerNumber) => {
   .timeline-content {
     padding: $spacing-md;
 
-    .loading, .empty {
+    .loading,
+    .empty {
       display: flex;
       flex-direction: column;
       align-items: center;

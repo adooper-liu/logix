@@ -45,7 +45,7 @@ export default {
     all: 'すべて',
     more: 'もっと見る',
     expand: '展開',
-    collapse: '折りたたむ'
+    collapse: '折りたたむ',
   },
 
   // ========== ナビゲーション ==========
@@ -64,7 +64,7 @@ export default {
     help: 'ヘルプ',
     about: 'について',
     personalCenter: '個人センター',
-    logout: 'ログアウト'
+    logout: 'ログアウト',
   },
 
   // ========== ユーザー ==========
@@ -81,7 +81,7 @@ export default {
     logoutSuccess: 'ログアウト成功',
     pleaseLogin: 'まずログインしてください',
     rememberMe: 'ログイン状態を保持',
-    forgotPassword: 'パスワードをお忘れですか？'
+    forgotPassword: 'パスワードをお忘れですか？',
   },
 
   // ========== コンテナ ==========
@@ -101,7 +101,7 @@ export default {
       atPort: '港到着',
       pickedUp: 'ピックアップ済み',
       unloaded: 'アンロード済み',
-      returnedEmpty: '空箱返却'
+      returnedEmpty: '空箱返却',
     },
     // コンテナタイプ
     types: {
@@ -114,8 +114,8 @@ export default {
       '20OT': '20フィートオープントップ',
       '40OT': '40フィートオープントップ',
       '20FR': '20フィートフラットラック',
-      '40FR': '40フィートフラットラック'
-    }
+      '40FR': '40フィートフラットラック',
+    },
   },
 
   // ========== 注文 ==========
@@ -138,8 +138,8 @@ export default {
       pending: '保留中',
       processing: '処理中',
       completed: '完了',
-      cancelled: 'キャンセル'
-    }
+      cancelled: 'キャンセル',
+    },
   },
 
   // ========== 港 ==========
@@ -155,8 +155,8 @@ export default {
     types: {
       origin: '出発港',
       transit: '中継港',
-      destination: '到着港'
-    }
+      destination: '到着港',
+    },
   },
 
   // ========== 滞港料 ==========
@@ -171,12 +171,12 @@ export default {
     // 計算基準
     basis: {
       byArrival: '到着基準',
-      byUnloading: '荷卸し基準'
+      byUnloading: '荷卸し基準',
     },
     // 無料期間基準
     freeDaysBasisTypes: {
       naturalDay: '自然日',
-      workingDay: '営業日'
+      workingDay: '営業日',
     },
     // 料金タイプ
     chargeTypes: {
@@ -184,8 +184,8 @@ export default {
       storage: '保管料',
       detention: '滞箱料',
       demurrageDetention: '滞港滞箱料',
-      storageSurcharge: '保管追加料'
-    }
+      storageSurcharge: '保管追加料',
+    },
   },
 
   // ========== 監視 ==========
@@ -206,7 +206,7 @@ export default {
     healthy: '正常',
     unhealthy: '異常',
     warning: '警告',
-    critical: '深刻'
+    critical: '深刻',
   },
 
   // ========== 設定 ==========
@@ -222,7 +222,7 @@ export default {
     languageTip: '優先言語を選択してください',
     themeTip: 'インターフェースのテーマを選択してください',
     notificationTip: '通知設定を管理します',
-    securityTip: 'アカウントセキュリティ設定を管理します'
+    securityTip: 'アカウントセキュリティ設定を管理します',
   },
 
   // ========== ヘルプ ==========
@@ -235,7 +235,7 @@ export default {
     searchDoc: 'ドキュメントを検索',
     noResults: '該当するドキュメントが見つかりません',
     recentlyViewed: '最近表示した項目',
-    popularTopics: '人気のトピック'
+    popularTopics: '人気のトピック',
   },
 
   // ========== について ==========
@@ -248,7 +248,7 @@ export default {
     privacyPolicy: 'プライバシーポリシー',
     contactUs: 'お問い合わせ',
     website: 'Webサイト',
-    github: 'GitHub'
+    github: 'GitHub',
   },
 
   // ========== バリデーション ==========
@@ -261,7 +261,7 @@ export default {
     pattern: '形式が正しくありません',
     range: '値は {min} から {max} の間である必要があります',
     numeric: '有効な数値を入力してください',
-    url: '有効なURLを入力してください'
+    url: '有効なURLを入力してください',
   },
 
   // ========== 時間 ==========
@@ -280,7 +280,7 @@ export default {
     justNow: 'たった今',
     dateFormat: 'YYYY-MM-DD',
     dateTimeFormat: 'YYYY-MM-DD HH:mm:ss',
-    timeFormat: 'HH:mm:ss'
+    timeFormat: 'HH:mm:ss',
   },
 
   // ========== エラー ==========
@@ -293,6 +293,6 @@ export default {
     timeout: 'リクエストがタイムアウトしました',
     unknown: '不明なエラー',
     retry: '再試行',
-    contactAdmin: '管理者に連絡してください'
-  }
+    contactAdmin: '管理者に連絡してください',
+  },
 }

@@ -14,7 +14,7 @@ const dictTypes = [
   { label: '清关公司', value: 'CUSTOMS_BROKER', icon: '📋' },
   { label: '拖车公司', value: 'TRUCKING_COMPANY', icon: '🚛' },
   { label: '仓库', value: 'WAREHOUSE', icon: '🏭' },
-  { label: '客户', value: 'CUSTOMER', icon: '👤' }
+  { label: '客户', value: 'CUSTOMER', icon: '👤' },
 ]
 
 // 当前选中的字典类型
@@ -22,7 +22,7 @@ const currentDictType = ref('PORT')
 
 // 搜索表单
 const searchForm = reactive({
-  keyword: ''
+  keyword: '',
 })
 
 // 数据表格
@@ -33,7 +33,7 @@ const loading = ref(false)
 const pagination = reactive({
   page: 1,
   pageSize: 20,
-  total: 0
+  total: 0,
 })
 
 // 弹窗控制
@@ -48,7 +48,7 @@ const formData = reactive({
   name_cn: '',
   name_en: '',
   aliases: '',
-  is_active: true
+  is_active: true,
 })
 
 // 测试查询弹窗
@@ -112,7 +112,7 @@ const handleAdd = () => {
     name_cn: '',
     name_en: '',
     aliases: '',
-    is_active: true
+    is_active: true,
   })
   dialogVisible.value = true
 }
@@ -121,7 +121,11 @@ const handleAdd = () => {
 const handleEdit = (row: any) => {
   dialogMode.value = 'edit'
   dialogTitle.value = '编辑映射'
-  const aliasesStr = Array.isArray(row.aliases) ? row.aliases.join(', ') : (row.aliases ? String(row.aliases).trim() : '')
+  const aliasesStr = Array.isArray(row.aliases)
+    ? row.aliases.join(', ')
+    : row.aliases
+      ? String(row.aliases).trim()
+      : ''
   Object.assign(formData, {
     dict_type: row.dict_type,
     target_table: row.target_table,
@@ -130,7 +134,7 @@ const handleEdit = (row: any) => {
     name_cn: row.name_cn,
     name_en: row.name_en,
     aliases: aliasesStr,
-    is_active: row.is_active
+    is_active: row.is_active,
   })
   dialogVisible.value = true
 }
@@ -144,7 +148,7 @@ const handleDelete = async (row: any) => {
       {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
-        type: 'warning'
+        type: 'warning',
       }
     )
 
@@ -186,7 +190,7 @@ const handleSave = async () => {
         name_cn: formData.name_cn,
         name_en: formData.name_en,
         aliases: aliasesArray,
-        is_active: formData.is_active
+        is_active: formData.is_active,
       })
     } else {
       result = await universalDictMappingService.updateMapping(rowId.value!, {
@@ -194,7 +198,7 @@ const handleSave = async () => {
         name_cn: formData.name_cn,
         name_en: formData.name_en,
         aliases: aliasesArray,
-        is_active: formData.is_active
+        is_active: formData.is_active,
       })
     }
     if (result?.success === false) {
@@ -220,7 +224,7 @@ const getTargetTable = (dictType: string) => {
     CUSTOMS_BROKER: 'dict_customs_brokers',
     TRUCKING_COMPANY: 'dict_trucking_companies',
     WAREHOUSE: 'dict_warehouses',
-    CUSTOMER: 'biz_customers'
+    CUSTOMER: 'biz_customers',
   }
   return tableMap[dictType] || ''
 }
@@ -236,7 +240,7 @@ const getTargetField = (dictType: string) => {
     CUSTOMS_BROKER: 'company_code',
     TRUCKING_COMPANY: 'company_code',
     WAREHOUSE: 'warehouse_code',
-    CUSTOMER: 'customer_code'
+    CUSTOMER: 'customer_code',
   }
   return fieldMap[dictType] || ''
 }
@@ -266,7 +270,10 @@ const executeTest = async () => {
 
   try {
     testResult.value = '查询中...'
-    const code = await universalDictMappingService.getStandardCodeCached(currentDictType.value, testName.value)
+    const code = await universalDictMappingService.getStandardCodeCached(
+      currentDictType.value,
+      testName.value
+    )
     if (code) {
       testResult.value = `✅ 查询成功: "${testName.value}" -> "${code}"`
     } else {
@@ -293,8 +300,7 @@ const handleDictTypeChange = async (type: string) => {
 // 当前编辑的行ID
 const rowId = computed(() => {
   const currentRow = tableData.value.find(
-    (row) =>
-      row.standard_code === formData.standard_code && row.dict_type === formData.dict_type
+    row => row.standard_code === formData.standard_code && row.dict_type === formData.dict_type
   )
   return currentRow?.id
 })
@@ -304,7 +310,7 @@ const stats = ref({
   total: 0,
   active: 0,
   inactive: 0,
-  byType: {} as Record<string, number>
+  byType: {} as Record<string, number>,
 })
 
 // 加载统计信息（后端返回 { success, data: { summary, by_type } }）
@@ -324,7 +330,7 @@ const loadStats = async () => {
       total,
       active,
       inactive: total - active,
-      byType
+      byType,
     }
   } catch (error: any) {
     console.error('加载统计信息失败:', error)
@@ -369,7 +375,10 @@ onMounted(() => {
         <div class="help-content">
           <section class="help-section">
             <h4>一、映射示例</h4>
-            <p>映射用于把「中文名称、别名、旧代码」对应到系统内的<strong>标准代码</strong>，便于 Excel 导入、查询时自动识别。</p>
+            <p>
+              映射用于把「中文名称、别名、旧代码」对应到系统内的<strong>标准代码</strong>，便于
+              Excel 导入、查询时自动识别。
+            </p>
             <div class="example-table-wrap">
               <table class="help-example-table">
                 <thead>
@@ -413,10 +422,19 @@ onMounted(() => {
             <h4>二、操作说明</h4>
             <ol class="help-steps">
               <li><strong>选择字典类型</strong>：上方标签切换港口、国家、船公司等。</li>
-              <li><strong>新增映射</strong>：点击「新增映射」，填写<strong>标准代码</strong>、<strong>中文名称</strong>（必填）；英文名称、别名可选，别名多个用英文逗号分隔。</li>
-              <li><strong>标准代码</strong>：必须与对应字典表（如 dict_ports.port_code）中已有代码一致，否则导入/查询无法关联。</li>
+              <li>
+                <strong>新增映射</strong
+                >：点击「新增映射」，填写<strong>标准代码</strong>、<strong>中文名称</strong>（必填）；英文名称、别名可选，别名多个用英文逗号分隔。
+              </li>
+              <li>
+                <strong>标准代码</strong>：必须与对应字典表（如
+                dict_ports.port_code）中已有代码一致，否则导入/查询无法关联。
+              </li>
               <li><strong>编辑 / 删除</strong>：表格右侧操作列可编辑或删除该条映射。</li>
-              <li><strong>测试查询</strong>：点击顶部「测试查询」，输入名称可检查是否能解析到标准代码。</li>
+              <li>
+                <strong>测试查询</strong
+                >：点击顶部「测试查询」，输入名称可检查是否能解析到标准代码。
+              </li>
             </ol>
           </section>
           <section class="help-section">
@@ -424,23 +442,39 @@ onMounted(() => {
             <div class="help-scenarios">
               <div class="scenario-item">
                 <span class="scenario-label">场景 1：Excel 导入目的港</span>
-                <p>Excel 中「目的港」列填写「青岛」「上海港」「宁波」。系统通过映射转为 CNQIN、CNSHA、CNNBO 写入数据库，与 dict_ports 一致，便于统计与关联。</p>
+                <p>
+                  Excel 中「目的港」列填写「青岛」「上海港」「宁波」。系统通过映射转为
+                  CNQIN、CNSHA、CNNBO 写入数据库，与 dict_ports 一致，便于统计与关联。
+                </p>
               </div>
               <div class="scenario-item">
                 <span class="scenario-label">场景 2：同一港口多种写法</span>
-                <p>中文「青岛」、繁体「青島」、英文「Qingdao」、旧代码「QIN」均可作为别名写在同一映射下，统一指向标准代码 CNQIN，导入时任一种写法都能识别。</p>
+                <p>
+                  中文「青岛」、繁体「青島」、英文「Qingdao」、旧代码「QIN」均可作为别名写在同一映射下，统一指向标准代码
+                  CNQIN，导入时任一种写法都能识别。
+                </p>
               </div>
               <div class="scenario-item">
                 <span class="scenario-label">场景 3：船公司 / 柜型筛选</span>
-                <p>列表筛选「船公司 = 马士基」时，系统用映射将「马士基」「MAERSK」解析为 MAEU 再查库；柜型「40尺高柜」「40HC」映射到 40HC，与 dict_container_types 一致。</p>
+                <p>
+                  列表筛选「船公司 = 马士基」时，系统用映射将「马士基」「MAERSK」解析为 MAEU
+                  再查库；柜型「40尺高柜」「40HC」映射到 40HC，与 dict_container_types 一致。
+                </p>
               </div>
               <div class="scenario-item">
                 <span class="scenario-label">场景 4：国家与客户类型</span>
-                <p>国家「中国」「China」「CN」映射到 CN；客户类型、货代、清关、拖车、仓库等若字典表有标准代码，在此配置名称→代码后，导入与查询即可按名称自动转换。</p>
+                <p>
+                  国家「中国」「China」「CN」映射到
+                  CN；客户类型、货代、清关、拖车、仓库等若字典表有标准代码，在此配置名称→代码后，导入与查询即可按名称自动转换。
+                </p>
               </div>
               <div class="scenario-item">
                 <span class="scenario-label">场景 5：新增港口后的配置</span>
-                <p>新港口先在「港口字典」维护标准代码（如 XMNN 厦门），再在本页「港口」类型下新增映射：标准代码 XMNN，中文名称「厦门」，别名可填「Xiamen」「廈門」，导入表格即可用「厦门」。</p>
+                <p>
+                  新港口先在「港口字典」维护标准代码（如 XMNN
+                  厦门），再在本页「港口」类型下新增映射：标准代码
+                  XMNN，中文名称「厦门」，别名可填「Xiamen」「廈門」，导入表格即可用「厦门」。
+                </p>
               </div>
             </div>
           </section>
@@ -538,14 +572,29 @@ onMounted(() => {
         <el-table-column prop="aliases" label="别名" min-width="200">
           <template #default="{ row }">
             <el-tag
-              v-for="(alias, index) in (Array.isArray(row.aliases) ? row.aliases : (row.aliases ? String(row.aliases).split(/\s*,\s*/).filter(Boolean) : []))"
+              v-for="(alias, index) in Array.isArray(row.aliases)
+                ? row.aliases
+                : row.aliases
+                  ? String(row.aliases)
+                      .split(/\s*,\s*/)
+                      .filter(Boolean)
+                  : []"
               :key="index"
               size="small"
               style="margin: 2px"
             >
               {{ alias }}
             </el-tag>
-            <span v-if="!row.aliases || (Array.isArray(row.aliases) ? row.aliases.length === 0 : !String(row.aliases).trim())" class="empty-text">-</span>
+            <span
+              v-if="
+                !row.aliases ||
+                (Array.isArray(row.aliases)
+                  ? row.aliases.length === 0
+                  : !String(row.aliases).trim())
+              "
+              class="empty-text"
+              >-</span
+            >
           </template>
         </el-table-column>
         <el-table-column prop="is_active" label="状态" width="100" align="center">
@@ -560,7 +609,9 @@ onMounted(() => {
           <template #default="{ row }">
             <el-button size="small" @click="handleEdit(row)" :icon="Edit">编辑</el-button>
             <el-button size="small" @click="handleCopy(row)" :icon="DocumentCopy">复制</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)" :icon="Delete">删除</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row)" :icon="Delete"
+              >删除</el-button
+            >
           </template>
         </el-table-column>
       </el-table>
@@ -821,7 +872,9 @@ onMounted(() => {
   align-items: center;
   gap: 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
 
   &:hover {
     transform: translateY(-2px);

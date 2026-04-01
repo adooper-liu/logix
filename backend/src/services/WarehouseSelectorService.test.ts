@@ -142,17 +142,11 @@ describe('WarehouseSelectorService', () => {
     it('should filter inactive warehouses', async () => {
       // Arrange
       const portMappings = [{ truckingCompanyId: 'TRUCK001' }];
-      const warehouseMappings = [
-        { truckingCompanyId: 'TRUCK001', warehouseCode: 'WH001' }
-      ];
-
-      const warehouses = [
-        { warehouseCode: 'WH001', propertyType: '自营仓', country: 'US', status: 'INACTIVE' }
-      ] as any[];
+      const warehouseMappings = [{ truckingCompanyId: 'TRUCK001', warehouseCode: 'WH001' }];
 
       (mockTruckingPortMappingRepo.find as jest.Mock).mockResolvedValue(portMappings);
       (mockWarehouseTruckingMappingRepo.find as jest.Mock).mockResolvedValue(warehouseMappings);
-      // Mock: 查询 ACTIVE 仓库，返回空数组（因为 WH001 是 INACTIVE）
+      // Mock: 查询 ACTIVE 仓库，返回空数组
       (mockWarehouseRepo.find as jest.Mock).mockResolvedValue([]);
 
       // Act

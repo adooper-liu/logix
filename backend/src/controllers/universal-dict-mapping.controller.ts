@@ -107,10 +107,9 @@ export class UniversalDictMappingController {
         return;
       }
 
-      const result = await AppDataSource.query(
-        'SELECT * FROM get_all_mappings_by_type($1)',
-        [dictType]
-      );
+      const result = await AppDataSource.query('SELECT * FROM get_all_mappings_by_type($1)', [
+        dictType
+      ]);
 
       res.json({
         success: true,
@@ -165,10 +164,10 @@ export class UniversalDictMappingController {
         return;
       }
 
-      const result = await AppDataSource.query(
-        'SELECT * FROM search_mappings_fuzzy($1, $2)',
-        [dictType, keyword || '']
-      );
+      const result = await AppDataSource.query('SELECT * FROM search_mappings_fuzzy($1, $2)', [
+        dictType,
+        keyword || ''
+      ]);
 
       res.json({
         success: true,
@@ -210,8 +209,13 @@ export class UniversalDictMappingController {
       }
 
       const aliasesStr = Array.isArray(aliasesRaw)
-        ? aliasesRaw.map((a: any) => String(a).trim()).filter(Boolean).join(', ')
-        : (aliasesRaw != null ? String(aliasesRaw).trim() : null);
+        ? aliasesRaw
+            .map((a: any) => String(a).trim())
+            .filter(Boolean)
+            .join(', ')
+        : aliasesRaw != null
+          ? String(aliasesRaw).trim()
+          : null;
 
       const result = await AppDataSource.query(
         `INSERT INTO dict_universal_mapping
@@ -303,7 +307,7 @@ export class UniversalDictMappingController {
         }
       }
 
-      const successCount = results.filter(r => r.success).length;
+      const successCount = results.filter((r) => r.success).length;
       const failedCount = results.length - successCount;
 
       res.json({
@@ -341,15 +345,27 @@ export class UniversalDictMappingController {
       let paramIndex = 1;
 
       const allowedFields = [
-        'standard_code', 'standard_name', 'name_cn', 'name_en',
-        'old_code', 'aliases', 'is_primary', 'is_active', 'sort_order', 'remarks'
+        'standard_code',
+        'standard_name',
+        'name_cn',
+        'name_en',
+        'old_code',
+        'aliases',
+        'is_primary',
+        'is_active',
+        'sort_order',
+        'remarks'
       ];
 
-      allowedFields.forEach(field => {
+      allowedFields.forEach((field) => {
         if (updates[field] !== undefined) {
-          const val = field === 'aliases' && Array.isArray(updates[field])
-            ? (updates[field] as string[]).map(s => String(s).trim()).filter(Boolean).join(', ')
-            : updates[field];
+          const val =
+            field === 'aliases' && Array.isArray(updates[field])
+              ? (updates[field] as string[])
+                  .map((s) => String(s).trim())
+                  .filter(Boolean)
+                  .join(', ')
+              : updates[field];
           fields.push(`${field} = $${paramIndex}`);
           values.push(val);
           paramIndex++;

@@ -3,13 +3,7 @@
  * Shipping Company Entity
  */
 
-import {
-  Entity,
-  PrimaryColumn,
-  Column,
-  CreateDateColumn,
-  UpdateDateColumn
-} from 'typeorm';
+import { Entity, PrimaryColumn, Column, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity('dict_shipping_companies')
 export class ShippingCompany {

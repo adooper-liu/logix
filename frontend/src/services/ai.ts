@@ -79,7 +79,11 @@ export interface ScheduleResult {
 // AI服务
 export const aiService = {
   // AI对话（支持自动SQL执行和智能排产）
-  async chat(message: string, context?: Record<string, any>, options?: { execute?: boolean; preview?: boolean; autoQuery?: boolean; mcpEnabled?: boolean }) {
+  async chat(
+    message: string,
+    context?: Record<string, any>,
+    options?: { execute?: boolean; preview?: boolean; autoQuery?: boolean; mcpEnabled?: boolean }
+  ) {
     return api.post<{
       success: boolean
       message?: string
@@ -180,7 +184,9 @@ export const aiService = {
   },
 
   async getStatsByArrival(start?: string, end?: string) {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/arrival', { params: { start, end } })
+    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/arrival', {
+      params: { start, end },
+    })
   },
 
   async getStatsByETA() {
@@ -204,7 +210,9 @@ export const aiService = {
   },
 
   async searchContainers(keyword: string, limit?: number) {
-    return api.get<{ success: boolean; data?: any[] }>('/v1/ai/containers/search', { params: { keyword, limit } })
+    return api.get<{ success: boolean; data?: any[] }>('/v1/ai/containers/search', {
+      params: { keyword, limit },
+    })
   },
 
   // 新增统计维度
@@ -261,12 +269,16 @@ export const aiService = {
   },
 
   async getPendingCustomsContainers(limit?: number) {
-    return api.get<{ success: boolean; data?: any[] }>('/v1/ai/containers/pending-customs', { params: { limit } })
+    return api.get<{ success: boolean; data?: any[] }>('/v1/ai/containers/pending-customs', {
+      params: { limit },
+    })
   },
 
   async getDemurrageAlerts(limit?: number) {
-    return api.get<{ success: boolean; data?: any[] }>('/v1/ai/alerts/demurrage', { params: { limit } })
-  }
+    return api.get<{ success: boolean; data?: any[] }>('/v1/ai/alerts/demurrage', {
+      params: { limit },
+    })
+  },
 }
 
 export default aiService

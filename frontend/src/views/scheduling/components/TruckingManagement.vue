@@ -15,7 +15,9 @@
       <el-table-column prop="portName" label="港口名称" min-width="120" />
       <el-table-column prop="yardCapacity" label="堆场容量" width="80">
         <template #default="{ row }">
-          <el-tag v-if="row.yardCapacity > 0" type="success" size="small">{{ row.yardCapacity }}</el-tag>
+          <el-tag v-if="row.yardCapacity > 0" type="success" size="small">{{
+            row.yardCapacity
+          }}</el-tag>
           <el-tag v-else type="info" size="small">-</el-tag>
         </template>
       </el-table-column>
@@ -26,14 +28,10 @@
         </template>
       </el-table-column>
       <el-table-column prop="yardOperationFee" label="堆场操作费" width="90">
-        <template #default="{ row }">
-          ${{ row.yardOperationFee || 0 }}
-        </template>
+        <template #default="{ row }"> ${{ row.yardOperationFee || 0 }} </template>
       </el-table-column>
       <el-table-column prop="transportFee" label="运输费" width="80">
-        <template #default="{ row }">
-          ${{ row.transportFee || 0 }}
-        </template>
+        <template #default="{ row }"> ${{ row.transportFee || 0 }} </template>
       </el-table-column>
       <el-table-column prop="mappingType" label="映射类型" width="90" />
       <el-table-column prop="isDefault" label="默认" width="60">
@@ -163,7 +161,7 @@ const form = ref({
   mappingType: 'DEFAULT',
   isDefault: false,
   isActive: true,
-  remarks: ''
+  remarks: '',
 })
 
 const loadTruckings = async () => {
@@ -172,7 +170,7 @@ const loadTruckings = async () => {
     const countryParam = resolvedCountry.value
     const query = new URLSearchParams({
       page: String(currentPage.value),
-      pageSize: String(pageSize.value)
+      pageSize: String(pageSize.value),
     })
     if (countryParam) {
       query.set('country', countryParam)
@@ -196,7 +194,7 @@ const loadTruckings = async () => {
         mappingType: item.mappingType || item.mapping_type || 'DEFAULT',
         isDefault: Boolean(item.isDefault ?? item.is_default),
         isActive: item.isActive ?? item.is_active ?? true,
-        remarks: item.remarks || ''
+        remarks: item.remarks || '',
       }))
     } else {
       ElMessage.error(data.error || '加载失败')
@@ -225,7 +223,7 @@ const showDialog = (row?: any) => {
       mappingType: row.mappingType || row.mapping_type || 'DEFAULT',
       isDefault: row.isDefault || false,
       isActive: row.isActive !== false,
-      remarks: row.remarks || ''
+      remarks: row.remarks || '',
     }
   } else {
     isEdit.value = false
@@ -243,7 +241,7 @@ const showDialog = (row?: any) => {
       mappingType: 'DEFAULT',
       isDefault: false,
       isActive: true,
-      remarks: ''
+      remarks: '',
     }
   }
   dialogVisible.value = true
@@ -264,7 +262,7 @@ const saveTrucking = async () => {
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form.value)
+      body: JSON.stringify(form.value),
     })
 
     const data = await response.json()
@@ -285,7 +283,7 @@ const deleteTrucking = async (row: any) => {
     await ElMessageBox.confirm('确定要删除该映射记录吗？', '提示', { type: 'warning' })
 
     const response = await fetch(`/api/v1/trucking-port-mapping/${row.id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
     })
 
     const data = await response.json()

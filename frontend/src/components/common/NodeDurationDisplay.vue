@@ -60,11 +60,12 @@ function buildElapsedFromPrev(current: number, prev: number, index: number) {
   return {
     days,
     hours: remainingHours,
-    text: days === 0
-      ? `${remainingHours}小时`
-      : remainingHours === 0
-        ? `${days}天`
-        : `${days}天${remainingHours}小时`
+    text:
+      days === 0
+        ? `${remainingHours}小时`
+        : remainingHours === 0
+          ? `${days}天`
+          : `${days}天${remainingHours}小时`,
   }
 }
 
@@ -121,11 +122,7 @@ const countdownOrOverdueInfo = computed(() => {
       type: 'countdown' as const,
       days,
       hours,
-      text: days === 0
-        ? `${hours}小时`
-        : hours === 0
-          ? `${days}天`
-          : `${days}天${hours}小时`
+      text: days === 0 ? `${hours}小时` : hours === 0 ? `${days}天` : `${days}天${hours}小时`,
     }
   }
 
@@ -145,11 +142,12 @@ const countdownOrOverdueInfo = computed(() => {
       type: 'elapsed' as const,
       days,
       hours: remainingHours,
-      text: days === 0
-        ? `${remainingHours}小时`
-        : remainingHours === 0
-          ? `${days}天`
-          : `${days}天${remainingHours}小时`
+      text:
+        days === 0
+          ? `${remainingHours}小时`
+          : remainingHours === 0
+            ? `${days}天`
+            : `${days}天${remainingHours}小时`,
     }
   }
 
@@ -164,11 +162,7 @@ const countdownOrOverdueInfo = computed(() => {
     type: 'overdue' as const,
     days,
     hours,
-    text: days === 0
-      ? `${hours}小时`
-      : hours === 0
-        ? `${days}天`
-        : `${days}天${hours}小时`
+    text: days === 0 ? `${hours}小时` : hours === 0 ? `${days}天` : `${days}天${hours}小时`,
   }
 })
 </script>
@@ -186,17 +180,26 @@ const countdownOrOverdueInfo = computed(() => {
     </span>
 
     <!-- 倒计时：无后一节点 + 未来日期时显示 -->
-    <span v-if="countdownOrOverdueInfo?.type === 'countdown'" class="duration-tag duration-tag--countdown">
+    <span
+      v-if="countdownOrOverdueInfo?.type === 'countdown'"
+      class="duration-tag duration-tag--countdown"
+    >
       倒计时 {{ countdownOrOverdueInfo.text }}
     </span>
 
     <!-- 超期：无后一节点 + 过去日期 + 已超过标准时显示 -->
-    <span v-if="countdownOrOverdueInfo?.type === 'overdue'" class="duration-tag duration-tag--overdue">
+    <span
+      v-if="countdownOrOverdueInfo?.type === 'overdue'"
+      class="duration-tag duration-tag--overdue"
+    >
       超期 {{ countdownOrOverdueInfo.text }}
     </span>
 
     <!-- 普通历时（未超过标准）：无后一节点 + 过去日期 + 未超过标准时显示 -->
-    <span v-if="countdownOrOverdueInfo?.type === 'elapsed'" class="duration-tag duration-tag--elapsed">
+    <span
+      v-if="countdownOrOverdueInfo?.type === 'elapsed'"
+      class="duration-tag duration-tag--elapsed"
+    >
       历时 {{ countdownOrOverdueInfo.text }}
     </span>
   </div>
@@ -243,7 +246,12 @@ const countdownOrOverdueInfo = computed(() => {
 
 // 超期脉冲动画
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 </style>

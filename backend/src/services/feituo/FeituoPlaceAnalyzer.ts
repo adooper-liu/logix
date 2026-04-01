@@ -102,7 +102,7 @@ export class FeituoPlaceAnalyzer {
         actualLoading: parseDate(getVal(row, `发生地信息_实际装船时间${suffix}`)),
         actualDischarge: parseDate(getVal(row, `发生地信息_实际卸船时间${suffix}`)),
         terminal: getVal(row, `发生地信息_码头名称${suffix}`) || undefined,
-        sequence: i + 1,
+        sequence: i + 1
       });
     }
     return places;
@@ -142,7 +142,7 @@ export class FeituoPlaceAnalyzer {
         actualLoading: parseDate(p['实际装船时间'] || p['actualLoading']),
         actualDischarge: parseDate(p['实际卸船时间'] || p['actualDischarge']),
         terminal: p['码头名称'] || p['terminal'],
-        sequence: p['序号'] || p['sequence'] || i + 1,
+        sequence: p['序号'] || p['sequence'] || i + 1
       });
     }
     return places;
@@ -157,7 +157,12 @@ export class FeituoPlaceAnalyzer {
       const take = <K extends keyof PlaceInfo>(k: K) => {
         const a = m[k];
         const b = inc[k];
-        if ((a === undefined || a === null || a === '') && b !== undefined && b !== null && b !== '') {
+        if (
+          (a === undefined || a === null || a === '') &&
+          b !== undefined &&
+          b !== null &&
+          b !== ''
+        ) {
           (m as any)[k] = b;
         }
       };
@@ -201,8 +206,15 @@ export class FeituoPlaceAnalyzer {
 
     return {
       code,
-      nameEn: getVal(row, '接货地信息_地点名称英文（标准）', '接货地信息_地点名称（英文）') || undefined,
-      nameCn: getVal(row, '接货地信息_地点名称中文（标准）', '接货地信息_地点名称（中文）', '接货地信息_地点名称（原始）') || undefined,
+      nameEn:
+        getVal(row, '接货地信息_地点名称英文（标准）', '接货地信息_地点名称（英文）') || undefined,
+      nameCn:
+        getVal(
+          row,
+          '接货地信息_地点名称中文（标准）',
+          '接货地信息_地点名称（中文）',
+          '接货地信息_地点名称（原始）'
+        ) || undefined,
       placeType: '起运港', // 匹配analyzePorts中的判断
       eta: parseDate(getVal(row, '接货地信息_预计到达时间')),
       ata: parseDate(getVal(row, '接货地信息_实际到达时间')),
@@ -210,7 +222,7 @@ export class FeituoPlaceAnalyzer {
       atd: parseDate(getVal(row, '接货地信息_实际离开时间')),
       actualLoading: parseDate(getVal(row, '接货地信息_实际装船时间')),
       terminal: getVal(row, '接货地信息_码头名称') || undefined,
-      sequence: 1,
+      sequence: 1
     };
   }
 
@@ -224,8 +236,15 @@ export class FeituoPlaceAnalyzer {
 
     return {
       code,
-      nameEn: getVal(row, '交货地信息_地点名称英文（标准）', '交货地信息_地点名称（英文）') || undefined,
-      nameCn: getVal(row, '交货地信息_地点名称中文（标准）', '交货地信息_地点名称（中文）', '交货地信息_地点名称（原始）') || undefined,
+      nameEn:
+        getVal(row, '交货地信息_地点名称英文（标准）', '交货地信息_地点名称（英文）') || undefined,
+      nameCn:
+        getVal(
+          row,
+          '交货地信息_地点名称中文（标准）',
+          '交货地信息_地点名称（中文）',
+          '交货地信息_地点名称（原始）'
+        ) || undefined,
       // 使用「目的港」：analyzePorts 中 seaDestPlace = 非「交货地」的目的地；原「交货地」会导致 seaDestPlace 为空、ETA/ATA 不落库
       placeType: '目的港',
       eta: parseDate(getVal(row, '交货地信息_预计到达时间')),
@@ -233,7 +252,7 @@ export class FeituoPlaceAnalyzer {
       etd: parseDate(getVal(row, '交货地信息_预计离开时间')),
       atd: parseDate(getVal(row, '交货地信息_实际离开时间')),
       terminal: getVal(row, '交货地信息_码头名称') || undefined,
-      sequence: 2,
+      sequence: 2
     };
   }
 
@@ -244,30 +263,32 @@ export class FeituoPlaceAnalyzer {
    */
   analyzePorts(places: PlaceInfo[], existingSeaFreight?: SeaFreight | null): PortAnalysisResult {
     // 优先：根据 placeType 判断港口类型
-    const originPlace = places.find(p =>
-      p.placeType?.includes('起始地') || p.placeType?.includes('起运港')
+    const originPlace = places.find(
+      (p) => p.placeType?.includes('起始地') || p.placeType?.includes('起运港')
     );
 
     // 目的地可能有多个：海港目的港 + 火车目的地（交货地）
-    const destPlaces = places.filter(p =>
-      p.placeType?.includes('目的地') ||
-      p.placeType?.includes('交货地') ||
-      p.placeType?.includes('目的港')
+    const destPlaces = places.filter(
+      (p) =>
+        p.placeType?.includes('目的地') ||
+        p.placeType?.includes('交货地') ||
+        p.placeType?.includes('目的港')
     );
 
     // 海港目的港：不是铁路「交货地」的目的地（用于滞港费计算）；「目的港」类型计入海港目的港
-    let seaDestPlace = destPlaces.find(p => !p.placeType?.includes('交货地'));
+    let seaDestPlace = destPlaces.find((p) => !p.placeType?.includes('交货地'));
 
     // 火车目的地：交货地类型的地点（用于海铁联运跟踪）
-    let railDestPlace = destPlaces.find(p => p.placeType?.includes('交货地'));
+    let railDestPlace = destPlaces.find((p) => p.placeType?.includes('交货地'));
 
     // 兜底：用已存在的港口名称匹配（如果 placeType 未找到）
     if (!seaDestPlace && existingSeaFreight?.portOfDischarge) {
-      seaDestPlace = places.find(p =>
-        p.code === existingSeaFreight.portOfDischarge ||
-        p.nameCn === existingSeaFreight.portOfDischarge ||
-        p.nameEn === existingSeaFreight.portOfDischarge ||
-        (existingSeaFreight.portOfDischarge.includes(p.code))
+      seaDestPlace = places.find(
+        (p) =>
+          p.code === existingSeaFreight.portOfDischarge ||
+          p.nameCn === existingSeaFreight.portOfDischarge ||
+          p.nameEn === existingSeaFreight.portOfDischarge ||
+          existingSeaFreight.portOfDischarge.includes(p.code)
       );
     }
 
@@ -281,11 +302,12 @@ export class FeituoPlaceAnalyzer {
 
     // 起运港兜底
     if (!originPlace && existingSeaFreight?.portOfLoading) {
-      const matchedOrigin = places.find(p =>
-        p.code === existingSeaFreight.portOfLoading ||
-        p.nameCn === existingSeaFreight.portOfLoading ||
-        p.nameEn === existingSeaFreight.portOfLoading ||
-        (existingSeaFreight.portOfLoading.includes(p.code))
+      const matchedOrigin = places.find(
+        (p) =>
+          p.code === existingSeaFreight.portOfLoading ||
+          p.nameCn === existingSeaFreight.portOfLoading ||
+          p.nameEn === existingSeaFreight.portOfLoading ||
+          existingSeaFreight.portOfLoading.includes(p.code)
       );
       if (matchedOrigin) {
         // 注意：这里不能修改originPlace，因为它已经是const
@@ -311,7 +333,7 @@ export class FeituoPlaceAnalyzer {
    * 简化版：返回第一个非交货地的目的地
    */
   getMainDestPlace(destPlaces: PlaceInfo[]): PlaceInfo | undefined {
-    return destPlaces.find(p => !p.placeType?.includes('交货地'));
+    return destPlaces.find((p) => !p.placeType?.includes('交货地'));
   }
 }
 

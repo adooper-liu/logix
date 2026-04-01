@@ -52,7 +52,7 @@ export const calendarCapacityService = {
     return api.post('/capacity/manual', {
       date,
       capacity,
-      reason
+      reason,
     })
   },
 
@@ -75,7 +75,7 @@ export const calendarCapacityService = {
    */
   async getManualSettingsList(page: number = 1, pageSize: number = 20) {
     return api.get('/capacity/manual/list', {
-      params: { page, pageSize }
+      params: { page, pageSize },
     })
   },
 
@@ -85,7 +85,7 @@ export const calendarCapacityService = {
   async updateManualSetting(date: string, capacity: number, reason: string) {
     return api.put(`/capacity/manual/${date}`, {
       capacity,
-      reason
+      reason,
     })
   },
 
@@ -94,5 +94,5 @@ export const calendarCapacityService = {
    */
   async deleteManualSetting(date: string) {
     return api.delete(`/capacity/manual/${date}`)
-  }
+  },
 }

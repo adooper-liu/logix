@@ -42,7 +42,7 @@ export const validateContainerStatus = (container: any): StatusValidationResult 
     isValid: anomalies.length === 0,
     anomalies,
     suggestions,
-    severity
+    severity,
   }
 }
 
@@ -56,7 +56,9 @@ const validateTimeSequence = (container: any, anomalies: string[], suggestions: 
     pickup: container.pickupDate ? parseLocalDate(container.pickupDate) : null,
     delivery: container.deliveryDate ? parseLocalDate(container.deliveryDate) : null,
     unload: container.unloadDate ? parseLocalDate(container.unloadDate) : null,
-    return: container.emptyReturn?.returnTime ? parseLocalDate(container.emptyReturn.returnTime) : null
+    return: container.emptyReturn?.returnTime
+      ? parseLocalDate(container.emptyReturn.returnTime)
+      : null,
   }
 
   // 验证到港时间与提柜时间
@@ -130,7 +132,9 @@ const validateStatusConsistency = (container: any, anomalies: string[], suggesti
   const now = new Date()
   const ata = container.ataDestPort ? parseLocalDate(container.ataDestPort) : null
   const pickup = container.pickupDate ? parseLocalDate(container.pickupDate) : null
-  const returnTime = container.emptyReturn?.returnTime ? parseLocalDate(container.emptyReturn.returnTime) : null
+  const returnTime = container.emptyReturn?.returnTime
+    ? parseLocalDate(container.emptyReturn.returnTime)
+    : null
 
   if (status === SimplifiedStatus.AT_PORT && pickup) {
     anomalies.push('状态为已到目的港，但有提柜时间')
@@ -150,7 +154,7 @@ const validateDataIntegrity = (container: any, anomalies: string[], suggestions:
   // 检查必要字段
   const requiredFields = [
     { field: 'containerNumber', label: '柜号' },
-    { field: 'destinationPort', label: '目的港' }
+    { field: 'destinationPort', label: '目的港' },
   ]
 
   requiredFields.forEach(({ field, label }) => {
@@ -161,13 +165,7 @@ const validateDataIntegrity = (container: any, anomalies: string[], suggestions:
   })
 
   // 检查日期格式
-  const dateFields = [
-    'etaDestPort',
-    'ataDestPort',
-    'pickupDate',
-    'deliveryDate',
-    'unloadDate'
-  ]
+  const dateFields = ['etaDestPort', 'ataDestPort', 'pickupDate', 'deliveryDate', 'unloadDate']
 
   dateFields.forEach(field => {
     if (container[field]) {
@@ -219,5 +217,5 @@ export const generateFixSuggestions = (container: any): string[] => {
 export default {
   validateContainerStatus,
   detectStatusAnomalies,
-  generateFixSuggestions
+  generateFixSuggestions,
 }

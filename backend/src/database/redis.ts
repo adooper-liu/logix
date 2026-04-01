@@ -48,11 +48,7 @@ redisClient.on('reconnecting', () => {
 /**
  * 设置缓存
  */
-export const setCache = async (
-  key: string,
-  value: any,
-  ttl: number = 3600
-): Promise<void> => {
+export const setCache = async (key: string, value: any, ttl: number = 3600): Promise<void> => {
   const cacheKey = `${cachePrefix}${key}`;
   await redisClient.setex(cacheKey, ttl, JSON.stringify(value));
 };
@@ -60,9 +56,7 @@ export const setCache = async (
 /**
  * 获取缓存
  */
-export const getCache = async <T>(
-  key: string
-): Promise<T | null> => {
+export const getCache = async <T>(key: string): Promise<T | null> => {
   const cacheKey = `${cachePrefix}${key}`;
   const cached = await redisClient.get(cacheKey);
 

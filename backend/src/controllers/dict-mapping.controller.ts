@@ -151,7 +151,13 @@ export class DictMappingController {
            is_primary = EXCLUDED.is_primary,
            updated_at = NOW()
          RETURNING *`,
-        [port_code, port_name_cn, port_name_en || null, port_code_old || null, is_primary !== undefined ? is_primary : true]
+        [
+          port_code,
+          port_name_cn,
+          port_name_en || null,
+          port_code_old || null,
+          is_primary !== undefined ? is_primary : true
+        ]
       );
 
       res.json({

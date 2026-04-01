@@ -1,23 +1,18 @@
 /**
  * 滞港费标准匹配服务
  * Demurrage Standard Matcher Service
- * 
+ *
  * 职责：根据货柜维度参数匹配适用的滞港费标准
  * - 获取货柜匹配参数（港口、船公司、清关行等）
  * - 字典编码解析与映射
  * - 通用字典映射查询
  * - 标准匹配诊断
- * 
+ *
  * @since 2026-03-30 (从 DemurrageService 拆分)
  */
 
 import { Repository } from 'typeorm';
 import { Container } from '../entities/Container';
-import { Port } from '../entities/Port';
-import { ShippingCompany } from '../entities/ShippingCompany';
-import { FreightForwarder } from '../entities/FreightForwarder';
-import { OverseasCompany } from '../entities/OverseasCompany';
-import { Customer } from '../entities/Customer';
 import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
 import { logger } from '../utils/logger';
 
@@ -41,17 +36,17 @@ export class DemurrageStandardMatcher {
 
   /**
    * 匹配滞港费标准
-   * 
+   *
    * **业务规则**:
    * 1. 获取货柜维度参数
    * 2. 在有效日期范围内查找
    * 3. 按优先级匹配（港口 > 船公司 > 清关行 > 客户）
-   * 
+   *
    * **算法复杂度**: O(n)，n=标准表记录数
-   * 
+   *
    * @param containerNumber 柜号
    * @returns 匹配的标准列表
-   * 
+   *
    * @example
    * // 示例：匹配成功
    * const standards = await matchStandards('CNTR001');
@@ -126,14 +121,14 @@ export class DemurrageStandardMatcher {
 
   /**
    * 获取货柜用于匹配的维度参数
-   * 
+   *
    * **业务规则**:
    * 1. 优先使用实际日期（ATA, actual pickup/return）
    * 2. 如果没有，使用计划日期
    * 3. 解析关联实体的编码
-   * 
+   *
    * **算法复杂度**: O(n)，n=关联表查询时间
-   * 
+   *
    * @param containerNumber 柜号
    * @returns 匹配参数对象
    */
@@ -166,20 +161,20 @@ export class DemurrageStandardMatcher {
 
     // 获取目的港操作
     const destPo = container.portOperations?.find((po: any) => po.portType === 'destination');
-    
+
     // 提取港口编码
-    let destinationPortCode = destPo?.portCode || null;
+    const destinationPortCode = destPo?.portCode || null;
 
     // 提取船公司编码（从 SeaFreight 表）
-    let shippingCompanyCode = container.seaFreight?.shippingCompanyId || null;
+    const shippingCompanyCode = container.seaFreight?.shippingCompanyId || null;
 
     // 提取国外客户编码（使用 sellToCountry）
-    let foreignCompanyCode = container.replenishmentOrders?.[0]?.sellToCountry || null;
+    const foreignCompanyCode = container.replenishmentOrders?.[0]?.sellToCountry || null;
 
     // 计算滞港费区间（到港→提柜）
     const startDate = destPo?.eta || destPo?.ata || null;
     const startDateSource = destPo?.eta ? 'ETA' : destPo?.ata ? 'ATA' : null;
-    
+
     // 注意：Container 实体没有 truckingTransports 关系，暂不处理 endDate
     const endDate = null;
     const endDateSource = null;
@@ -203,7 +198,7 @@ export class DemurrageStandardMatcher {
 
   /**
    * 诊断匹配结果（调试用）
-   * 
+   *
    * @param containerNumber 柜号
    * @returns 诊断信息
    */
@@ -213,7 +208,7 @@ export class DemurrageStandardMatcher {
     matchedStandardsCount: number;
   }> {
     const containerExists = await this.containerRepo.exists({ where: { containerNumber } });
-    
+
     if (!containerExists) {
       return {
         containerExists: false,

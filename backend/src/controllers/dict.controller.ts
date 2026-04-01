@@ -169,7 +169,14 @@ export class DictController {
         where.country = String(country);
       }
       const list = await repo.find({
-        select: ['companyCode', 'companyName', 'companyNameEn', 'contactPhone', 'contactEmail', 'country'],
+        select: [
+          'companyCode',
+          'companyName',
+          'companyNameEn',
+          'contactPhone',
+          'contactEmail',
+          'country'
+        ],
         where,
         order: { companyName: 'ASC' }
       });
@@ -204,7 +211,14 @@ export class DictController {
         where.country = String(country);
       }
       const list = await repo.find({
-        select: ['brokerCode', 'brokerName', 'brokerNameEn', 'contactPhone', 'contactEmail', 'country'],
+        select: [
+          'brokerCode',
+          'brokerName',
+          'brokerNameEn',
+          'contactPhone',
+          'contactEmail',
+          'country'
+        ],
         where,
         order: { brokerName: 'ASC' }
       });
@@ -242,9 +256,12 @@ export class DictController {
         const portRepo = AppDataSource.getRepository(Port);
         const port = await portRepo
           .createQueryBuilder('p')
-          .where('p.port_code = :v OR LOWER(TRIM(p.port_name)) = LOWER(:v) OR (p.port_name_en IS NOT NULL AND LOWER(TRIM(p.port_name_en)) = LOWER(:v))', {
-            v: portName
-          })
+          .where(
+            'p.port_code = :v OR LOWER(TRIM(p.port_name)) = LOWER(:v) OR (p.port_name_en IS NOT NULL AND LOWER(TRIM(p.port_name_en)) = LOWER(:v))',
+            {
+              v: portName
+            }
+          )
           .getOne();
         result.destination_port_code = port?.portCode ?? null;
         if (!port && portName) warnings.push(`目的港未匹配: ${portName}`);
@@ -255,22 +272,29 @@ export class DictController {
         const shipRepo = AppDataSource.getRepository(ShippingCompany);
         const ship = await shipRepo
           .createQueryBuilder('s')
-          .where('s.company_code = :v OR LOWER(TRIM(s.company_name)) = LOWER(:v) OR (s.company_name_en IS NOT NULL AND LOWER(TRIM(s.company_name_en)) = LOWER(:v))', {
-            v: shipName
-          })
+          .where(
+            's.company_code = :v OR LOWER(TRIM(s.company_name)) = LOWER(:v) OR (s.company_name_en IS NOT NULL AND LOWER(TRIM(s.company_name_en)) = LOWER(:v))',
+            {
+              v: shipName
+            }
+          )
           .getOne();
         result.shipping_company_code = ship?.companyCode ?? null;
         if (!ship && shipName) warnings.push(`船公司未匹配: ${shipName}`);
       }
 
-      const forwarderName = body.origin_forwarder_name?.trim() || body.origin_forwarder_code?.trim();
+      const forwarderName =
+        body.origin_forwarder_name?.trim() || body.origin_forwarder_code?.trim();
       if (forwarderName) {
         const ffRepo = AppDataSource.getRepository(FreightForwarder);
         const ff = await ffRepo
           .createQueryBuilder('f')
-          .where('f.forwarder_code = :v OR LOWER(TRIM(f.forwarder_name)) = LOWER(:v) OR (f.forwarder_name_en IS NOT NULL AND LOWER(TRIM(f.forwarder_name_en)) = LOWER(:v))', {
-            v: forwarderName
-          })
+          .where(
+            'f.forwarder_code = :v OR LOWER(TRIM(f.forwarder_name)) = LOWER(:v) OR (f.forwarder_name_en IS NOT NULL AND LOWER(TRIM(f.forwarder_name_en)) = LOWER(:v))',
+            {
+              v: forwarderName
+            }
+          )
           .getOne();
         result.origin_forwarder_code = ff?.forwarderCode ?? null;
         if (!ff && forwarderName) warnings.push(`货代未匹配: ${forwarderName}`);
@@ -281,9 +305,12 @@ export class DictController {
         const ocRepo = AppDataSource.getRepository(OverseasCompany);
         const oc = await ocRepo
           .createQueryBuilder('o')
-          .where('o.company_code = :v OR LOWER(TRIM(o.company_name)) = LOWER(:v) OR (o.company_name_en IS NOT NULL AND LOWER(TRIM(o.company_name_en)) = LOWER(:v))', {
-            v: foreignName
-          })
+          .where(
+            'o.company_code = :v OR LOWER(TRIM(o.company_name)) = LOWER(:v) OR (o.company_name_en IS NOT NULL AND LOWER(TRIM(o.company_name_en)) = LOWER(:v))',
+            {
+              v: foreignName
+            }
+          )
           .getOne();
         result.foreign_company_code = oc?.companyCode ?? null;
         if (!oc && foreignName) warnings.push(`海外公司未匹配: ${foreignName}`);

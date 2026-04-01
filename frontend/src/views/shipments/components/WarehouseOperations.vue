@@ -107,14 +107,22 @@ const formatDateOnly = (date: Date | string | undefined): string => {
           </div>
           <div class="field-item">
             <span class="field-label">WMS状态</span>
-            <el-tag v-if="wo.wmsStatus" :type="wo.wmsStatus === 'COMPLETED' ? 'success' : 'warning'" size="small">
+            <el-tag
+              v-if="wo.wmsStatus"
+              :type="wo.wmsStatus === 'COMPLETED' ? 'success' : 'warning'"
+              size="small"
+            >
               {{ wo.wmsStatus }}
             </el-tag>
             <span v-else class="field-value">-</span>
           </div>
           <div class="field-item">
             <span class="field-label">EBS状态</span>
-            <el-tag v-if="wo.ebsStatus" :type="wo.ebsStatus === 'COMPLETED' ? 'success' : 'warning'" size="small">
+            <el-tag
+              v-if="wo.ebsStatus"
+              :type="wo.ebsStatus === 'COMPLETED' ? 'success' : 'warning'"
+              size="small"
+            >
               {{ wo.ebsStatus }}
             </el-tag>
             <span v-else class="field-value">-</span>
@@ -125,7 +133,11 @@ const formatDateOnly = (date: Date | string | undefined): string => {
           </div>
           <div class="field-item">
             <span class="field-label">开箱</span>
-            <el-tag v-if="wo.isUnboxing != null" :type="wo.isUnboxing ? 'warning' : 'info'" size="small">
+            <el-tag
+              v-if="wo.isUnboxing != null"
+              :type="wo.isUnboxing ? 'warning' : 'info'"
+              size="small"
+            >
               {{ wo.isUnboxing ? '是' : '否' }}
             </el-tag>
             <span v-else class="field-value">-</span>

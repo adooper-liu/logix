@@ -7,7 +7,11 @@
 
 import { Container } from '../entities/Container';
 import { IntelligentSchedulingService } from './intelligentScheduling.service';
-import { SchedulingCostOptimizerService, CostBreakdown, UnloadOption } from './schedulingCostOptimizer.service';
+import {
+  SchedulingCostOptimizerService,
+  CostBreakdown,
+  UnloadOption
+} from './schedulingCostOptimizer.service';
 import { logger } from '../utils/logger';
 
 /**
@@ -79,7 +83,10 @@ export class CostOptimizationIntegrationService {
       const potentialSavings = currentCost - optimalCost;
 
       // 4. 生成优化建议
-      const optimizationAdvice = this.generateOptimizationAdvice(potentialSavings, bestResult.option);
+      const optimizationAdvice = this.generateOptimizationAdvice(
+        potentialSavings,
+        bestResult.option
+      );
 
       return {
         currentCost,
@@ -114,19 +121,21 @@ export class CostOptimizationIntegrationService {
       plannedUnloadDate: Date;
       lastFreeDate: Date;
     }>
-  ): Promise<Array<{
-    containerNumber: string;
-    costOptimization: {
-      currentCost: number;
-      optimalCost: number;
-      potentialSavings: number;
-      optimizationAdvice: string;
-    };
-  }>> {
+  ): Promise<
+    Array<{
+      containerNumber: string;
+      costOptimization: {
+        currentCost: number;
+        optimalCost: number;
+        potentialSavings: number;
+        optimizationAdvice: string;
+      };
+    }>
+  > {
     const results = [];
 
     for (const container of containers) {
-      const schedule = schedules.find(s => s.containerNumber === container.containerNumber);
+      const schedule = schedules.find((s) => s.containerNumber === container.containerNumber);
       if (!schedule) continue;
 
       const costResult = await this.evaluateScheduleCost(
@@ -169,11 +178,23 @@ export class CostOptimizationIntegrationService {
     averageSavingsPerContainer: number;
   } {
     const totalContainers = batchResults.length;
-    const totalCurrentCost = batchResults.reduce((sum, item) => sum + item.costOptimization.currentCost, 0);
-    const totalOptimalCost = batchResults.reduce((sum, item) => sum + item.costOptimization.optimalCost, 0);
-    const totalPotentialSavings = batchResults.reduce((sum, item) => sum + item.costOptimization.potentialSavings, 0);
-    const containersWithSavings = batchResults.filter(item => item.costOptimization.potentialSavings > 0).length;
-    const averageSavingsPerContainer = totalContainers > 0 ? totalPotentialSavings / totalContainers : 0;
+    const totalCurrentCost = batchResults.reduce(
+      (sum, item) => sum + item.costOptimization.currentCost,
+      0
+    );
+    const totalOptimalCost = batchResults.reduce(
+      (sum, item) => sum + item.costOptimization.optimalCost,
+      0
+    );
+    const totalPotentialSavings = batchResults.reduce(
+      (sum, item) => sum + item.costOptimization.potentialSavings,
+      0
+    );
+    const containersWithSavings = batchResults.filter(
+      (item) => item.costOptimization.potentialSavings > 0
+    ).length;
+    const averageSavingsPerContainer =
+      totalContainers > 0 ? totalPotentialSavings / totalContainers : 0;
 
     return {
       totalContainers,
@@ -214,7 +235,11 @@ export class CostOptimizationIntegrationService {
 
     // 2. 提取排产结果中的计划卸柜日
     const scheduleResult = schedulingResult.results[0];
-    if (!scheduleResult || !scheduleResult.success || !scheduleResult.plannedData?.plannedUnloadDate) {
+    if (
+      !scheduleResult ||
+      !scheduleResult.success ||
+      !scheduleResult.plannedData?.plannedUnloadDate
+    ) {
       return {
         schedulingResult,
         costOptimization: {
@@ -248,7 +273,10 @@ export class CostOptimizationIntegrationService {
    * @param optimalOption 最优方案
    * @returns 优化建议
    */
-  private generateOptimizationAdvice(potentialSavings: number, optimalOption?: UnloadOption): string {
+  private generateOptimizationAdvice(
+    potentialSavings: number,
+    optimalOption?: UnloadOption
+  ): string {
     if (potentialSavings <= 50) {
       return '✅ 当前方案已是最优，无需调整';
     } else if (potentialSavings <= 200) {

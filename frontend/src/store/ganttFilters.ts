@@ -18,7 +18,7 @@ const getDefaultState = (): GanttFilterState => ({
   filterCondition: '',
   filterLabel: '',
   selectedContainers: [],
-  timeDimension: 'arrival'
+  timeDimension: 'arrival',
 })
 
 export const useGanttFilterStore = defineStore('ganttFilters', () => {
@@ -59,7 +59,7 @@ export const useGanttFilterStore = defineStore('ganttFilters', () => {
         filterCondition: filterCondition.value,
         filterLabel: filterLabel.value,
         selectedContainers: [...selectedContainers.value],
-        timeDimension: timeDimension.value
+        timeDimension: timeDimension.value,
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(currentState))
     } catch (e) {
@@ -122,9 +122,7 @@ export const useGanttFilterStore = defineStore('ganttFilters', () => {
       filterLabel.value = String(query.filterLabel)
     }
     if (query.containers) {
-      selectedContainers.value = String(query.containers)
-        .split(',')
-        .filter(Boolean)
+      selectedContainers.value = String(query.containers).split(',').filter(Boolean)
     }
   }
 
@@ -133,13 +131,13 @@ export const useGanttFilterStore = defineStore('ganttFilters', () => {
    */
   function inferTimeDimension(): 'arrival' | 'pickup' | 'lastPickup' | 'return' {
     const condition = filterCondition.value.toLowerCase()
-    
+
     if (!condition) return 'arrival'
     if (condition.includes('arrival')) return 'arrival'
     if (condition.includes('pickup') && !condition.includes('last')) return 'pickup'
     if (condition.includes('last_pickup') || condition.includes('lastpickup')) return 'lastPickup'
     if (condition.includes('return')) return 'return'
-    
+
     return 'arrival'
   }
 
@@ -155,6 +153,6 @@ export const useGanttFilterStore = defineStore('ganttFilters', () => {
     setFilters,
     clearFilters,
     initFromQuery,
-    inferTimeDimension
+    inferTimeDimension,
   }
 })

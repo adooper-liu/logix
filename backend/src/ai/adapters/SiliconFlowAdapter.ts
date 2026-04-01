@@ -16,10 +16,11 @@ export class SiliconFlowAdapter {
   constructor(config: ModelConfig) {
     this.config = config;
     this.client = axios.create({
-      baseURL: config.baseUrl || process.env.SILICON_FLOW_BASE_URL || 'https://api.siliconflow.cn/v1',
+      baseURL:
+        config.baseUrl || process.env.SILICON_FLOW_BASE_URL || 'https://api.siliconflow.cn/v1',
       timeout: 60000,
       headers: {
-        'Authorization': `Bearer ${config.apiKey || process.env.SILICON_FLOW_API_KEY}`,
+        Authorization: `Bearer ${config.apiKey || process.env.SILICON_FLOW_API_KEY}`,
         'Content-Type': 'application/json'
       }
     });
@@ -28,18 +29,21 @@ export class SiliconFlowAdapter {
   /**
    * 聊天完成
    */
-  async chat(messages: ChatMessage[], options?: {
-    temperature?: number;
-    maxTokens?: number;
-    model?: string;
-    max_tokens?: number;
-  }): Promise<ExecutionResult> {
+  async chat(
+    messages: ChatMessage[],
+    options?: {
+      temperature?: number;
+      maxTokens?: number;
+      model?: string;
+      max_tokens?: number;
+    }
+  ): Promise<ExecutionResult> {
     try {
       const startTime = Date.now();
 
       const response = await this.client.post('/chat/completions', {
         model: (options?.model ?? this.config.model) || 'deepseek-ai/DeepSeek-V2-Chat',
-        messages: messages.map(m => ({
+        messages: messages.map((m) => ({
           role: m.role,
           content: m.content
         })),
@@ -76,24 +80,31 @@ export class SiliconFlowAdapter {
    */
   async *chatStream(
     messages: ChatMessage[],
-    options?: { temperature?: number; maxTokens?: number; }
+    options?: { temperature?: number; maxTokens?: number }
   ): AsyncGenerator<string> {
     try {
-      const response = await this.client.post('/chat/completions', {
-        model: this.config.model || 'deepseek-ai/DeepSeek-V2-Chat',
-        messages: messages.map(m => ({
-          role: m.role,
-          content: m.content
-        })),
-        temperature: options?.temperature ?? this.config.temperature ?? 0.7,
-        max_tokens: options?.maxTokens ?? this.config.maxTokens ?? 4096,
-        stream: true
-      }, {
-        responseType: 'stream'
-      });
+      const response = await this.client.post(
+        '/chat/completions',
+        {
+          model: this.config.model || 'deepseek-ai/DeepSeek-V2-Chat',
+          messages: messages.map((m) => ({
+            role: m.role,
+            content: m.content
+          })),
+          temperature: options?.temperature ?? this.config.temperature ?? 0.7,
+          max_tokens: options?.maxTokens ?? this.config.maxTokens ?? 4096,
+          stream: true
+        },
+        {
+          responseType: 'stream'
+        }
+      );
 
       for await (const chunk of response.data) {
-        const lines = chunk.toString().split('\n').filter((line: string) => line.trim() !== '');
+        const lines = chunk
+          .toString()
+          .split('\n')
+          .filter((line: string) => line.trim() !== '');
 
         for (const line of lines) {
           if (line.startsWith('data: ')) {

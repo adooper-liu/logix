@@ -25,34 +25,20 @@ export interface MCPToolResult {
  */
 const MCP_INTENT_PATTERNS = {
   // 读取文件
-  read_file: [
-    '查看代码',
-    '读取文件',
-    '打开文件',
-    '显示代码',
-    '看看这个文件',
-    '文件内容',
-  ],
+  read_file: ['查看代码', '读取文件', '打开文件', '显示代码', '看看这个文件', '文件内容'],
   // 搜索代码
-  search_code: [
-    '搜索代码',
-    '查找',
-    '找找',
-    '哪里有',
-    '哪些文件',
-    '搜索',
-  ],
+  search_code: ['搜索代码', '查找', '找找', '哪里有', '哪些文件', '搜索'],
   // 数据库查询 - 扩展触发词
   query_database: [
     '数据库',
     '表结构',
     '表有哪些',
     '有哪些表',
-    '查询',     // 添加：查询xxx
+    '查询', // 添加：查询xxx
     '查询数据', // 添加
-    '列出',     // 添加：列出xxx
-    '显示',     // 添加：显示xxx
-    '获取',     // 添加：获取xxx
+    '列出', // 添加：列出xxx
+    '显示', // 添加：显示xxx
+    '获取' // 添加：获取xxx
   ]
 };
 
@@ -64,7 +50,8 @@ function parseToolArguments(message: string, intent: string): any {
 
   // 尝试提取文件路径
   // 匹配常见的路径格式：backend/src/... 或 frontend/src/... 或相对路径
-  const pathPattern = /(?:在|找|查看|读取)?\s*([a-zA-Z]:[/\\])?[\w./\\-]+\.(ts|js|vue|md|sql|json)(?:\b|$|\?)/gi;
+  const pathPattern =
+    /(?:在|找|查看|读取)?\s*([a-zA-Z]:[/\\])?[\w./\\-]+\.(ts|js|vue|md|sql|json)(?:\b|$|\?)/gi;
   const pathMatch = message.match(pathPattern);
 
   if (pathMatch) {
@@ -93,25 +80,29 @@ function parseToolArguments(message: string, intent: string): any {
       }
     }
     // 检查是否是表结构查询
-    else if (message.includes('表结构') || message.includes('有哪些表') || message.includes('所有表')) {
+    else if (
+      message.includes('表结构') ||
+      message.includes('有哪些表') ||
+      message.includes('所有表')
+    ) {
       result.showSchema = true;
       result.sql = 'SHOW TABLES';
     } else {
       // 智能解析：从自然语言生成SQL
       // 表名映射
       const tableMapping: Record<string, string> = {
-        '货柜': 'biz_containers',
-        '集装箱': 'biz_containers',
-        'container': 'biz_containers',
-        '备货单': 'biz_replenishment_orders',
-        '订单': 'biz_replenishment_orders',
-        '海运': 'process_sea_freight',
-        '船运': 'process_sea_freight',
-        '港口': 'process_port_operations',
-        '拖卡': 'process_trucking_transport',
-        '仓库': 'process_warehouse_operations',
-        '还箱': 'process_empty_return',
-        '滞港费': 'container_charges'
+        货柜: 'biz_containers',
+        集装箱: 'biz_containers',
+        container: 'biz_containers',
+        备货单: 'biz_replenishment_orders',
+        订单: 'biz_replenishment_orders',
+        海运: 'process_sea_freight',
+        船运: 'process_sea_freight',
+        港口: 'process_port_operations',
+        拖卡: 'process_trucking_transport',
+        仓库: 'process_warehouse_operations',
+        还箱: 'process_empty_return',
+        滞港费: 'container_charges'
       };
 
       let tableName = 'biz_containers'; // 默认查货柜表
@@ -124,15 +115,22 @@ function parseToolArguments(message: string, intent: string): any {
 
       // 提取数量限制
       const limitMatch = message.match(/前(\d+)条|前(\d+)条|(\d+)条/i);
-      const limit = limitMatch ? (limitMatch[1] || limitMatch[2] || limitMatch[3]) : '10';
+      const limit = limitMatch ? limitMatch[1] || limitMatch[2] || limitMatch[3] : '10';
 
       // 提取字段（如果有）
       const fieldMapping: Record<string, string[]> = {
-        '货柜': ['container_number', 'bill_of_lading_number', 'container_type_code', 'logistics_status'],
-        '备货单': ['order_number', 'customer_name', 'sell_to_country', 'total_boxes', 'total_cbm']
+        货柜: [
+          'container_number',
+          'bill_of_lading_number',
+          'container_type_code',
+          'logistics_status'
+        ],
+        备货单: ['order_number', 'customer_name', 'sell_to_country', 'total_boxes', 'total_cbm']
       };
 
-      const fields = fieldMapping[Object.keys(tableMapping).find(k => message.includes(k)) || '货柜'] || ['*'];
+      const fields = fieldMapping[
+        Object.keys(tableMapping).find((k) => message.includes(k)) || '货柜'
+      ] || ['*'];
       result.sql = `SELECT ${fields.join(', ')} FROM ${tableName} LIMIT ${limit}`;
     }
   }
@@ -193,7 +191,7 @@ function detectMCPTool(message: string): string | null {
   mcpLogger.debug('Keyword check', { hasQueryWord, hasBusinessWord, message: normalizedMessage });
 
   if (hasQueryWord && hasBusinessWord) {
-    mcpLogger.info(`MCP TRIGGERED: query_database for message: ${  normalizedMessage}`);
+    mcpLogger.info(`MCP TRIGGERED: query_database for message: ${normalizedMessage}`);
     return 'query_database';
   }
 
@@ -297,10 +295,6 @@ export const mcpAgent = {
    * 获取可用的 MCP 工具列表（供 AI 了解能力）
    */
   getAvailableTools(): any[] {
-    return [
-      fileTool.definition,
-      searchTool.definition,
-      databaseTool.definition
-    ];
+    return [fileTool.definition, searchTool.definition, databaseTool.definition];
   }
 };

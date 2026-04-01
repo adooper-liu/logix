@@ -58,12 +58,12 @@ onMounted(async () => {
     console.log('[国家筛选] 开始加载国家列表...')
     const res = await containerService.getCountries()
     console.log('[国家筛选] API响应:', res)
-    
+
     if (res?.success && Array.isArray(res.data)) {
       console.log('[国家筛选] 成功获取国家数据，数量:', res.data.length)
       const fromApi = res.data.map((c: { code: string; nameCn: string; nameEn: string }) => ({
         value: c.code,
-        label: c.nameCn || c.nameEn || c.code
+        label: c.nameCn || c.nameEn || c.code,
       }))
       countryOptions.value = [{ value: '', label: getAllCountriesLabel() }, ...fromApi]
       // GB 别名 UK，后端会规范化 UK->GB
@@ -71,7 +71,7 @@ onMounted(async () => {
         countryOptions.value.push({ value: 'UK', label: '英国 (UK)' })
       }
       const currentCode = appStore.scopedCountryCode ?? ''
-      if (currentCode && !countryOptions.value.some((o) => o.value === currentCode)) {
+      if (currentCode && !countryOptions.value.some(o => o.value === currentCode)) {
         countryOptions.value.push({ value: currentCode, label: currentCode })
       }
       console.log('[国家筛选] 国家选项设置完成，总数:', countryOptions.value.length)
@@ -87,7 +87,7 @@ onMounted(async () => {
 
 const scopedCountryValue = computed({
   get: () => appStore.scopedCountryCode ?? '',
-  set: (v: string) => appStore.setScopedCountryCode(v || null)
+  set: (v: string) => appStore.setScopedCountryCode(v || null),
 })
 
 // 菜单分组定义
@@ -245,10 +245,12 @@ const isGroupActive = (group: any) => {
   return group.items.some((item: any) => {
     // 精确匹配或子路由匹配（包括 /shipments 和 /shipments/gantt-chart）
     const itemPath = item.path
-    return route.path === itemPath ||
-           route.path.startsWith(itemPath + '/') ||
-           // 特殊处理：/shipments/gantt-chart 应该激活 /shipments 菜单项
-           (itemPath === '/shipments' && route.path.startsWith('/shipments/gantt-chart'))
+    return (
+      route.path === itemPath ||
+      route.path.startsWith(itemPath + '/') ||
+      // 特殊处理：/shipments/gantt-chart 应该激活 /shipments 菜单项
+      (itemPath === '/shipments' && route.path.startsWith('/shipments/gantt-chart'))
+    )
   })
 }
 
@@ -322,7 +324,10 @@ const handleLogout = () => {
                   v-for="item in menuGroup.items"
                   :key="item.path"
                   :command="item.path"
-                  :class="{ 'is-active': activeRoute === item.path || activeRoute.startsWith(item.path + '/') }"
+                  :class="{
+                    'is-active':
+                      activeRoute === item.path || activeRoute.startsWith(item.path + '/'),
+                  }"
                 >
                   <el-icon>
                     <component :is="iconMap[item.meta.icon || 'Box']" />

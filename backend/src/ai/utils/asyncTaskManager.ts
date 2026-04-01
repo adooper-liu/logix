@@ -63,9 +63,7 @@ export class AsyncTaskManager {
   private maxConcurrentTasks: number = 5;
   private taskIdCounter: number = 0;
 
-  constructor(options?: {
-    maxConcurrentTasks?: number;
-  }) {
+  constructor(options?: { maxConcurrentTasks?: number }) {
     this.maxConcurrentTasks = options?.maxConcurrentTasks || 5;
   }
 
@@ -110,10 +108,7 @@ export class AsyncTaskManager {
    * 处理任务队列
    */
   private async processQueue(): Promise<void> {
-    while (
-      this.taskQueue.length > 0 &&
-      this.runningTasks.size < this.maxConcurrentTasks
-    ) {
+    while (this.taskQueue.length > 0 && this.runningTasks.size < this.maxConcurrentTasks) {
       const taskId = this.taskQueue.shift();
       if (!taskId) continue;
 
@@ -193,10 +188,10 @@ export class AsyncTaskManager {
     const tasks = Array.from(this.tasks.values());
     return {
       total: tasks.length,
-      pending: tasks.filter(t => t.status === TaskStatus.PENDING).length,
-      running: tasks.filter(t => t.status === TaskStatus.RUNNING).length,
-      completed: tasks.filter(t => t.status === TaskStatus.COMPLETED).length,
-      failed: tasks.filter(t => t.status === TaskStatus.FAILED).length
+      pending: tasks.filter((t) => t.status === TaskStatus.PENDING).length,
+      running: tasks.filter((t) => t.status === TaskStatus.RUNNING).length,
+      completed: tasks.filter((t) => t.status === TaskStatus.COMPLETED).length,
+      failed: tasks.filter((t) => t.status === TaskStatus.FAILED).length
     };
   }
 

@@ -39,16 +39,21 @@ export function createDateRangeSubQuery(
       { endDate: endDay ?? endDate }
     );
 
-  const raw = (countryCode !== undefined && countryCode !== null ? String(countryCode).trim() : getScopedCountryCode()) || '';
+  const raw =
+    (countryCode !== undefined && countryCode !== null
+      ? String(countryCode).trim()
+      : getScopedCountryCode()) || '';
   const code = normalizeCountryCode(raw);
   if (code) {
-    qb.leftJoin('biz_customers', 'cust', TYPEORM_O_CUSTOMER_JOIN_ON).andWhere('cust.country = :countryCode', {
-      countryCode: code
-    });
+    qb.leftJoin('biz_customers', 'cust', TYPEORM_O_CUSTOMER_JOIN_ON).andWhere(
+      'cust.country = :countryCode',
+      {
+        countryCode: code
+      }
+    );
   }
   return qb;
 }
-
 
 /**
  * Raw SQL 版：返回子查询 SQL 与参数（占位符 $1=startDate, $2=endDate；若有国家则 $3=countryCode）
@@ -62,7 +67,10 @@ export function getDateRangeSubqueryRaw(
   const startDay = parseIsoDateOnlyForFilter(startDate) ?? startDate;
   const endDay = parseIsoDateOnlyForFilter(endDate) ?? endDate;
   const params: any[] = [startDay, endDay];
-  const raw = (countryCode !== undefined && countryCode !== null ? String(countryCode).trim() : getScopedCountryCode()) || '';
+  const raw =
+    (countryCode !== undefined && countryCode !== null
+      ? String(countryCode).trim()
+      : getScopedCountryCode()) || '';
   const code = normalizeCountryCode(raw);
   let sql = `SELECT DISTINCT c.container_number FROM biz_containers c
 LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
@@ -102,4 +110,3 @@ export function applyDateFilterToQuery(
     DateFilterBuilder.addCountryFilters(query, countryCode);
   }
 }
-

@@ -1,6 +1,6 @@
 /**
  * 外部堆场堆存费 - 真假 Drop off 场景验证测试
- * 
+ *
  * 测试目标：
  * 1. 验证真 Drop off（提 < 送 = 卸）正确收费
  * 2. 验证假 Drop off（提 = 送 = 卸）不收费
@@ -10,7 +10,6 @@
 import { describe, it, expect } from '@jest/globals';
 
 describe('外部堆场堆存费 - 真假 Drop off 场景验证', () => {
-  
   describe('场景 1: Live load 模式（提=送=卸）', () => {
     it('应该不收取外部堆场堆存费', () => {
       // Arrange
@@ -24,13 +23,16 @@ describe('外部堆场堆存费 - 真假 Drop off 场景验证', () => {
       };
 
       // Act
-      const actuallyUsedYard = 
-        scenario.mode === 'Drop off' && 
-        scenario.hasYard && 
+      const actuallyUsedYard =
+        scenario.mode === 'Drop off' &&
+        scenario.hasYard &&
         scenario.pickupDate < scenario.deliveryDate;
 
-      const yardStorageDays = actuallyUsedYard 
-        ? Math.floor((scenario.deliveryDate.getTime() - scenario.pickupDate.getTime()) / (1000 * 60 * 60 * 24))
+      const yardStorageDays = actuallyUsedYard
+        ? Math.floor(
+            (scenario.deliveryDate.getTime() - scenario.pickupDate.getTime()) /
+              (1000 * 60 * 60 * 24)
+          )
         : 0;
 
       // Assert
@@ -52,13 +54,16 @@ describe('外部堆场堆存费 - 真假 Drop off 场景验证', () => {
       };
 
       // Act
-      const actuallyUsedYard = 
-        scenario.mode === 'Drop off' && 
-        scenario.hasYard && 
+      const actuallyUsedYard =
+        scenario.mode === 'Drop off' &&
+        scenario.hasYard &&
         scenario.pickupDate < scenario.deliveryDate;
 
-      const yardStorageDays = actuallyUsedYard 
-        ? Math.floor((scenario.deliveryDate.getTime() - scenario.pickupDate.getTime()) / (1000 * 60 * 60 * 24))
+      const yardStorageDays = actuallyUsedYard
+        ? Math.floor(
+            (scenario.deliveryDate.getTime() - scenario.pickupDate.getTime()) /
+              (1000 * 60 * 60 * 24)
+          )
         : 0;
 
       // Assert
@@ -82,13 +87,16 @@ describe('外部堆场堆存费 - 真假 Drop off 场景验证', () => {
       };
 
       // Act
-      const actuallyUsedYard = 
-        scenario.mode === 'Drop off' && 
-        scenario.hasYard && 
+      const actuallyUsedYard =
+        scenario.mode === 'Drop off' &&
+        scenario.hasYard &&
         scenario.pickupDate < scenario.deliveryDate;
 
-      const yardStorageDays = actuallyUsedYard 
-        ? Math.floor((scenario.deliveryDate.getTime() - scenario.pickupDate.getTime()) / (1000 * 60 * 60 * 24))
+      const yardStorageDays = actuallyUsedYard
+        ? Math.floor(
+            (scenario.deliveryDate.getTime() - scenario.pickupDate.getTime()) /
+              (1000 * 60 * 60 * 24)
+          )
         : 0;
 
       const yardStorageCost = actuallyUsedYard
@@ -117,13 +125,16 @@ describe('外部堆场堆存费 - 真假 Drop off 场景验证', () => {
       };
 
       // Act
-      const actuallyUsedYard = 
-        scenario.mode === 'Drop off' && 
-        scenario.hasYard && 
+      const actuallyUsedYard =
+        scenario.mode === 'Drop off' &&
+        scenario.hasYard &&
         scenario.pickupDate < scenario.deliveryDate;
 
-      const yardStorageDays = actuallyUsedYard 
-        ? Math.floor((scenario.deliveryDate.getTime() - scenario.pickupDate.getTime()) / (1000 * 60 * 60 * 24))
+      const yardStorageDays = actuallyUsedYard
+        ? Math.floor(
+            (scenario.deliveryDate.getTime() - scenario.pickupDate.getTime()) /
+              (1000 * 60 * 60 * 24)
+          )
         : 0;
 
       const yardStorageCost = actuallyUsedYard
@@ -144,7 +155,7 @@ describe('外部堆场堆存费 - 真假 Drop off 场景验证', () => {
         mode: 'Drop off',
         pickupDate: new Date('2026-03-25'),
         deliveryDate: new Date('2026-03-27'), // 送 > 提
-        unloadDate: new Date('2026-03-28'),   // 卸 > 送
+        unloadDate: new Date('2026-03-28'), // 卸 > 送
         returnDate: new Date('2026-03-29'),
         hasYard: true,
         standardRate: 80,
@@ -152,13 +163,16 @@ describe('外部堆场堆存费 - 真假 Drop off 场景验证', () => {
       };
 
       // Act
-      const actuallyUsedYard = 
-        scenario.mode === 'Drop off' && 
-        scenario.hasYard && 
+      const actuallyUsedYard =
+        scenario.mode === 'Drop off' &&
+        scenario.hasYard &&
         scenario.pickupDate < scenario.deliveryDate;
 
-      const yardStorageDays = actuallyUsedYard 
-        ? Math.floor((scenario.deliveryDate.getTime() - scenario.pickupDate.getTime()) / (1000 * 60 * 60 * 24))
+      const yardStorageDays = actuallyUsedYard
+        ? Math.floor(
+            (scenario.deliveryDate.getTime() - scenario.pickupDate.getTime()) /
+              (1000 * 60 * 60 * 24)
+          )
         : 0;
 
       const yardStorageCost = actuallyUsedYard
@@ -185,13 +199,16 @@ describe('外部堆场堆存费 - 真假 Drop off 场景验证', () => {
       };
 
       // Act
-      const actuallyUsedYard = 
-        scenario.mode === 'Drop off' && 
-        scenario.hasYard && 
+      const actuallyUsedYard =
+        scenario.mode === 'Drop off' &&
+        scenario.hasYard &&
         scenario.pickupDate < scenario.deliveryDate;
 
-      const yardStorageDays = actuallyUsedYard 
-        ? Math.floor((scenario.deliveryDate.getTime() - scenario.pickupDate.getTime()) / (1000 * 60 * 60 * 24))
+      const yardStorageDays = actuallyUsedYard
+        ? Math.floor(
+            (scenario.deliveryDate.getTime() - scenario.pickupDate.getTime()) /
+              (1000 * 60 * 60 * 24)
+          )
         : 0;
 
       // Assert
@@ -202,12 +219,9 @@ describe('外部堆场堆存费 - 真假 Drop off 场景验证', () => {
 });
 
 describe('送仓日计算逻辑验证', () => {
-  
   describe('Drop off 模式下送仓日的计算', () => {
     it('应该正确计算送仓日（送=卸）', () => {
       // Arrange
-      const unloadMode = 'Drop off';
-      const plannedPickupDate = new Date('2026-03-25');
       const plannedUnloadDate = new Date('2026-03-28');
 
       // Act - Drop off 模式下，送仓日 = 卸柜日
@@ -222,7 +236,6 @@ describe('送仓日计算逻辑验证', () => {
   describe('Live load 模式下送仓日的计算', () => {
     it('应该正确计算送仓日（送=提=卸）', () => {
       // Arrange
-      const unloadMode = 'Live load';
       const plannedPickupDate = new Date('2026-03-25');
       const plannedUnloadDate = new Date('2026-03-25');
 
@@ -238,7 +251,6 @@ describe('送仓日计算逻辑验证', () => {
 });
 
 describe('堆场存放天数计算验证', () => {
-  
   it('应该正确计算堆场存放天数（提→送）', () => {
     // Arrange
     const pickupDate = new Date('2026-03-25');

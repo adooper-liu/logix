@@ -27,7 +27,7 @@ const nodes = [
   { name: '已卸柜' },
   { name: '已还箱' },
   { name: '未还箱' },
-  { name: '未卸柜' }
+  { name: '未卸柜' },
 ] as const
 
 // 初始化图表
@@ -54,7 +54,14 @@ const updateChart = () => {
   // 调试：若「已到目的港」只显示 173、未提柜 0，多为 arrived_at_destination 未传入或为 0
   const DEBUG_SANKEY = import.meta.env?.DEV
   if (DEBUG_SANKEY) {
-    console.log('[SankeyChart] statusDistribution keys:', Object.keys(dist), '; arrived_at_destination=', dist.arrived_at_destination, '; arrivedAtDestination=', (dist as Record<string, number>).arrivedAtDestination)
+    console.log(
+      '[SankeyChart] statusDistribution keys:',
+      Object.keys(dist),
+      '; arrived_at_destination=',
+      dist.arrived_at_destination,
+      '; arrivedAtDestination=',
+      (dist as Record<string, number>).arrivedAtDestination
+    )
   }
 
   // 在途 = 未到港(85) + 已到中转港(46) = shipped+in_transit + arrived_at_transit
@@ -62,7 +69,8 @@ const updateChart = () => {
   const inTransit = dist.in_transit || 0
   const atPort = dist.at_port || 0
   const arrivedTransit = dist.arrived_at_transit || 0
-  const arrivedDest = (dist.arrived_at_destination ?? (dist as Record<string, number>).arrivedAtDestination) || 0
+  const arrivedDest =
+    (dist.arrived_at_destination ?? (dist as Record<string, number>).arrivedAtDestination) || 0
   const pickedUp = dist.picked_up || 0
   const unloaded = dist.unloaded || 0
   const returnedEmpty = dist.returned_empty || 0
@@ -73,25 +81,25 @@ const updateChart = () => {
   const pickedUpAndLater = pickedUp + unloaded + returnedEmpty // 已提柜 173
 
   const nodeValues = {
-    '已出运': shipped + inTransit + atPort + pickedUp + unloaded + returnedEmpty,
-    '在途': notArrivedAnyPort + atTransitPort,
-    '未到港': notArrivedAnyPort,
-    '已到中转港': atTransitPort,
-    '已到目的港': atDestNotPickedUp + pickedUpAndLater,
-    '未提柜': atDestNotPickedUp,
-    '已提柜': pickedUpAndLater,
-    '已卸柜': unloaded + returnedEmpty,
-    '未卸柜': pickedUp,
-    '未还箱': unloaded,
-    '已还箱': returnedEmpty
+    已出运: shipped + inTransit + atPort + pickedUp + unloaded + returnedEmpty,
+    在途: notArrivedAnyPort + atTransitPort,
+    未到港: notArrivedAnyPort,
+    已到中转港: atTransitPort,
+    已到目的港: atDestNotPickedUp + pickedUpAndLater,
+    未提柜: atDestNotPickedUp,
+    已提柜: pickedUpAndLater,
+    已卸柜: unloaded + returnedEmpty,
+    未卸柜: pickedUp,
+    未还箱: unloaded,
+    已还箱: returnedEmpty,
   }
 
   nodeDisplayValues.value = { ...nodeValues }
 
   // 节点数据：value 供布局用
-  const dataWithValues = nodes.map((node) => ({
+  const dataWithValues = nodes.map(node => ({
     name: node.name,
-    value: nodeValues[node.name] ?? 0
+    value: nodeValues[node.name] ?? 0,
   }))
 
   // 链接：已到目的港 流出 未提柜(46)、已提柜(173)
@@ -105,13 +113,13 @@ const updateChart = () => {
     { source: '已提柜', target: '已卸柜', value: nodeValues['已卸柜'] },
     { source: '已提柜', target: '未卸柜', value: nodeValues['未卸柜'] },
     { source: '已卸柜', target: '未还箱', value: nodeValues['未还箱'] },
-    { source: '已卸柜', target: '已还箱', value: nodeValues['已还箱'] }
-  ].filter((l) => l.value > 0)
+    { source: '已卸柜', target: '已还箱', value: nodeValues['已还箱'] },
+  ].filter(l => l.value > 0)
 
   const option = {
     title: {
       text: '货柜状态流转',
-      left: 'center'
+      left: 'center',
     },
     tooltip: {
       trigger: 'item',
@@ -122,14 +130,14 @@ const updateChart = () => {
         } else {
           return `${params.name}<br/>当前状态: ${dist[getStatusKey(params.name)] || 0}<br/>累计总量: ${params.data.value}`
         }
-      }
+      },
     },
     series: [
       {
         type: 'sankey',
         layout: 'none',
         emphasis: {
-          focus: 'adjacency'
+          focus: 'adjacency',
         },
         data: dataWithValues,
         links: links,
@@ -146,17 +154,17 @@ const updateChart = () => {
           fontSize: 12,
           formatter: (params: any) => {
             const name = params.name ?? params.data?.name
-            const v = name != null ? nodeDisplayValues.value[name] : params.data?.value ?? 0
+            const v = name != null ? nodeDisplayValues.value[name] : (params.data?.value ?? 0)
             return `${name ?? ''}\n${v ?? 0}`
-          }
+          },
         },
         lineStyle: {
           color: 'source',
           curveness: 0.5,
-          opacity: 0.5
-        }
-      }
-    ]
+          opacity: 0.5,
+        },
+      },
+    ],
   }
 
   chartInstance.setOption(option, true)
@@ -165,27 +173,31 @@ const updateChart = () => {
 // 获取状态键名映射（与后端 statusDistribution 一致）
 const getStatusKey = (nodeName: string): string => {
   const map: Record<string, string> = {
-    '已出运': 'shipped',
-    '在途': 'in_transit',
-    '未到港': 'shipped', // shipped+in_transit 汇总
-    '已到中转港': 'arrived_at_transit',
-    '已到目的港': 'arrived_at_destination',
-    '未提柜': 'arrived_at_destination',
-    '已提柜': 'picked_up',
-    '已卸柜': 'unloaded',
-    '未卸柜': 'picked_up',
-    '未还箱': 'unloaded',
-    '已还箱': 'returned_empty'
+    已出运: 'shipped',
+    在途: 'in_transit',
+    未到港: 'shipped', // shipped+in_transit 汇总
+    已到中转港: 'arrived_at_transit',
+    已到目的港: 'arrived_at_destination',
+    未提柜: 'arrived_at_destination',
+    已提柜: 'picked_up',
+    已卸柜: 'unloaded',
+    未卸柜: 'picked_up',
+    未还箱: 'unloaded',
+    已还箱: 'returned_empty',
   }
   return map[nodeName] || nodeName
 }
 
 // 监听数据变化
-watch(() => props.data.statusDistribution, () => {
-  if (chartInstance) {
-    updateChart()
-  }
-}, { deep: true })
+watch(
+  () => props.data.statusDistribution,
+  () => {
+    if (chartInstance) {
+      updateChart()
+    }
+  },
+  { deep: true }
+)
 
 onMounted(() => {
   initChart()
@@ -209,7 +221,7 @@ const handleResize = () => {
 
 <template>
   <div class="sankey-chart-container">
-    <div id="sankey-chart" style="width: 100%; height: 400px;"></div>
+    <div id="sankey-chart" style="width: 100%; height: 400px"></div>
   </div>
 </template>
 

@@ -64,7 +64,8 @@ export class ContainerController {
     const countryRepository = AppDataSource.getRepository(Country);
     // 映射表
     const truckingPortMappingRepository = AppDataSource.getRepository(TruckingPortMapping);
-    const warehouseTruckingMappingRepository = AppDataSource.getRepository(WarehouseTruckingMapping);
+    const warehouseTruckingMappingRepository =
+      AppDataSource.getRepository(WarehouseTruckingMapping);
     this.truckingPortMappingRepository = truckingPortMappingRepository;
     this.warehouseTruckingMappingRepository = warehouseTruckingMappingRepository;
 
@@ -110,8 +111,12 @@ export class ContainerController {
    */
   testStatisticsService = async (req: Request, res: Response): Promise<void> => {
     try {
-      logger.info('[Test] StatisticsService initialized', { hasStatsService: !!this.statisticsService });
-      logger.info('[Test] containerRepository initialized', { hasRepo: !!this.containerRepository });
+      logger.info('[Test] StatisticsService initialized', {
+        hasStatsService: !!this.statisticsService
+      });
+      logger.info('[Test] containerRepository initialized', {
+        hasRepo: !!this.containerRepository
+      });
 
       const testQuery = this.containerRepository
         .createQueryBuilder('container')
@@ -181,14 +186,19 @@ export class ContainerController {
         endDate: endDate as string
       });
 
-      logger.info(`[getContainers] Found ${result.items.length} containers, total: ${result.total}`);
+      logger.info(
+        `[getContainers] Found ${result.items.length} containers, total: ${result.total}`
+      );
 
       if (result.total === 0 && startDate && endDate) {
-        logger.info('[getContainers] No rows: date range applied; if data should exist, check X-Country-Code vs customer country (GB/CN) or COALESCE ship dates', {
-          startDate,
-          endDate,
-          scopedCountry: getScopedCountryCode() ?? null
-        });
+        logger.info(
+          '[getContainers] No rows: date range applied; if data should exist, check X-Country-Code vs customer country (GB/CN) or COALESCE ship dates',
+          {
+            startDate,
+            endDate,
+            scopedCountry: getScopedCountryCode() ?? null
+          }
+        );
       }
 
       res.json({
@@ -436,7 +446,9 @@ export class ContainerController {
         logisticsStatus: 'not_shipped'
       });
 
-      const savedContainer = (await this.containerRepository.save(container)) as unknown as Container;
+      const savedContainer = (await this.containerRepository.save(
+        container
+      )) as unknown as Container;
 
       if (savedContainer?.containerNumber) {
         logger.info(`Container created: ${savedContainer.containerNumber}`);
@@ -614,26 +626,41 @@ export class ContainerController {
    */
   getStatisticsDetailed = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { startDate, endDate } = req.query
+      const { startDate, endDate } = req.query;
 
       logger.info('[getStatisticsDetailed] Starting detailed statistics calculation', {
         shipmentDateRange: { startDate, endDate },
         message: 'Filtering by shipment time; country from request context'
       });
 
-      const statusDistribution = await this.statisticsService.getStatusDistribution(startDate as string, endDate as string);
+      const statusDistribution = await this.statisticsService.getStatusDistribution(
+        startDate as string,
+        endDate as string
+      );
       logger.info('[getStatisticsDetailed] Status distribution completed');
 
-      const arrivalDistribution = await this.statisticsService.getArrivalDistribution(startDate as string, endDate as string);
+      const arrivalDistribution = await this.statisticsService.getArrivalDistribution(
+        startDate as string,
+        endDate as string
+      );
       logger.info('[getStatisticsDetailed] Arrival distribution completed');
 
-      const pickupDistribution = await this.statisticsService.getPickupDistribution(startDate as string, endDate as string);
+      const pickupDistribution = await this.statisticsService.getPickupDistribution(
+        startDate as string,
+        endDate as string
+      );
       logger.info('[getStatisticsDetailed] Pickup distribution completed');
 
-      const lastPickupDistribution = await this.statisticsService.getLastPickupDistribution(startDate as string, endDate as string);
+      const lastPickupDistribution = await this.statisticsService.getLastPickupDistribution(
+        startDate as string,
+        endDate as string
+      );
       logger.info('[getStatisticsDetailed] Last pickup distribution completed');
 
-      const returnDistribution = await this.statisticsService.getReturnDistribution(startDate as string, endDate as string);
+      const returnDistribution = await this.statisticsService.getReturnDistribution(
+        startDate as string,
+        endDate as string
+      );
       logger.info('[getStatisticsDetailed] Return distribution completed');
 
       logger.info('[getStatisticsDetailed] Detailed statistics calculation completed');
@@ -675,7 +702,7 @@ export class ContainerController {
    */
   getStatisticsVerify = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { startDate, endDate } = req.query
+      const { startDate, endDate } = req.query;
 
       logger.info('[getStatisticsVerify] Starting statistics verification', {
         shipmentDateRange: {
@@ -685,14 +712,19 @@ export class ContainerController {
         message: 'Filtering by shipment time (createdAt)'
       });
 
-      const [statusDistribution, arrivalDistribution, pickupDistribution, lastPickupDistribution, returnDistribution] =
-        await Promise.all([
-          this.statisticsService.getStatusDistribution(startDate as string, endDate as string),
-          this.statisticsService.getArrivalDistribution(startDate as string, endDate as string),
-          this.statisticsService.getPickupDistribution(startDate as string, endDate as string),
-          this.statisticsService.getLastPickupDistribution(startDate as string, endDate as string),
-          this.statisticsService.getReturnDistribution(startDate as string, endDate as string)
-        ]);
+      const [
+        statusDistribution,
+        arrivalDistribution,
+        pickupDistribution,
+        lastPickupDistribution,
+        returnDistribution
+      ] = await Promise.all([
+        this.statisticsService.getStatusDistribution(startDate as string, endDate as string),
+        this.statisticsService.getArrivalDistribution(startDate as string, endDate as string),
+        this.statisticsService.getPickupDistribution(startDate as string, endDate as string),
+        this.statisticsService.getLastPickupDistribution(startDate as string, endDate as string),
+        this.statisticsService.getReturnDistribution(startDate as string, endDate as string)
+      ]);
 
       const totalStatus =
         (statusDistribution.not_shipped || 0) +
@@ -749,7 +781,12 @@ export class ContainerController {
       const atPortTotal = statusDistribution.at_port || 0;
       const pickedUpPool = (statusDistribution.picked_up || 0) + (statusDistribution.unloaded || 0);
 
-      const makeCheck = (name: string, expected: number, actual: number, relation: 'eq' | 'lte' = 'eq') => {
+      const makeCheck = (
+        name: string,
+        expected: number,
+        actual: number,
+        relation: 'eq' | 'lte' = 'eq'
+      ) => {
         const ok = relation === 'eq' ? actual === expected : actual <= expected;
         return {
           name,
@@ -766,18 +803,35 @@ export class ContainerController {
         makeCheck(
           '状态子集互斥拆分(at_port = arrived_at_transit + arrived_at_destination)',
           atPortTotal,
-          (statusDistribution.arrived_at_transit || 0) + (statusDistribution.arrived_at_destination || 0)
+          (statusDistribution.arrived_at_transit || 0) +
+            (statusDistribution.arrived_at_destination || 0)
         ),
 
         // 到港卡片不变量
         makeCheck('按到港主分组守恒', arrivalMainTotal, arrivalMainTotal),
-        makeCheck('已到目的港=子分组之和', arrivalDistribution.arrivedAtDestination || 0, arrivalDestChildrenTotal),
-        makeCheck('已到中转港=子分组之和', arrivalDistribution.arrivedAtTransit || 0, arrivalTransitChildrenTotal),
-        makeCheck('预计到港=子分组之和', arrivalDistribution.expectedArrival || 0, arrivalExpectedChildrenTotal),
+        makeCheck(
+          '已到目的港=子分组之和',
+          arrivalDistribution.arrivedAtDestination || 0,
+          arrivalDestChildrenTotal
+        ),
+        makeCheck(
+          '已到中转港=子分组之和',
+          arrivalDistribution.arrivedAtTransit || 0,
+          arrivalTransitChildrenTotal
+        ),
+        makeCheck(
+          '预计到港=子分组之和',
+          arrivalDistribution.expectedArrival || 0,
+          arrivalExpectedChildrenTotal
+        ),
 
         // 提柜计划卡片不变量
         makeCheck('按提柜计划总数守恒', pickupDistribution.total || 0, pickupTotal),
-        makeCheck('有计划+无计划=总数', pickupDistribution.total || 0, (pickupDistribution.withPlan || 0) + (pickupDistribution.withoutPlan || 0)),
+        makeCheck(
+          '有计划+无计划=总数',
+          pickupDistribution.total || 0,
+          (pickupDistribution.withPlan || 0) + (pickupDistribution.withoutPlan || 0)
+        ),
 
         // 最晚提柜卡片不变量
         makeCheck('按最晚提柜总数守恒', lastPickupDistribution.total || 0, lastPickupTotal),
@@ -786,9 +840,22 @@ export class ContainerController {
         makeCheck('按最晚还箱总数守恒', returnDistribution.total || 0, returnTotal),
 
         // 跨卡片同源关系
-        makeCheck('同源目标集: arrived_at_destination = 按提柜计划总数', statusDistribution.arrived_at_destination || 0, pickupDistribution.total || 0),
-        makeCheck('同源目标集: arrived_at_destination = 按最晚提柜总数', statusDistribution.arrived_at_destination || 0, lastPickupDistribution.total || 0),
-        makeCheck('还箱目标池约束: 按最晚还箱总数 <= picked_up + unloaded', pickedUpPool, returnDistribution.total || 0, 'lte')
+        makeCheck(
+          '同源目标集: arrived_at_destination = 按提柜计划总数',
+          statusDistribution.arrived_at_destination || 0,
+          pickupDistribution.total || 0
+        ),
+        makeCheck(
+          '同源目标集: arrived_at_destination = 按最晚提柜总数',
+          statusDistribution.arrived_at_destination || 0,
+          lastPickupDistribution.total || 0
+        ),
+        makeCheck(
+          '还箱目标池约束: 按最晚还箱总数 <= picked_up + unloaded',
+          pickedUpPool,
+          returnDistribution.total || 0,
+          'lte'
+        )
       ];
 
       const failedChecks = checks.filter((item) => item.status === 'FAIL');
@@ -916,12 +983,16 @@ export class ContainerController {
           relations: ['seaFreight']
         });
         const byNumber = new Map(withRelations.map((c: Container) => [c.containerNumber, c]));
-        toEnrich = containerNumbers.map((n: string) => byNumber.get(n)).filter(Boolean) as Container[];
+        toEnrich = containerNumbers
+          .map((n: string) => byNumber.get(n))
+          .filter(Boolean) as Container[];
       }
 
       const containersWithStatus = await this.containerService.enrichContainersList(toEnrich);
 
-      logger.info(`[getContainersByFilterCondition] Found ${containers.length} containers for condition: ${filterCondition}`);
+      logger.info(
+        `[getContainersByFilterCondition] Found ${containers.length} containers for condition: ${filterCondition}`
+      );
 
       res.json({
         success: true,
@@ -982,7 +1053,8 @@ export class ContainerController {
 
       if (Array.isArray(containerNumbers) && containerNumbers.length > 0) {
         // 更新指定货柜
-        updatedCount = await this.containerStatusService.updateStatusesForContainers(containerNumbers);
+        updatedCount =
+          await this.containerStatusService.updateStatusesForContainers(containerNumbers);
       } else if (limit) {
         // 批量更新指定数量的货柜
         updatedCount = await this.containerStatusService.batchUpdateStatuses(limit);
@@ -1079,7 +1151,9 @@ export class ContainerController {
 
       // 2. 获取货柜现有数据用于校验
       const [portOp, trucking, warehouseOp, seaFreight] = await Promise.all([
-        queryRunner.manager.findOne(PortOperation, { where: { containerNumber: id, portType: 'destination' } }),
+        queryRunner.manager.findOne(PortOperation, {
+          where: { containerNumber: id, portType: 'destination' }
+        }),
         queryRunner.manager.findOne(TruckingTransport, { where: { containerNumber: id } }),
         queryRunner.manager.findOne(WarehouseOperation, { where: { containerNumber: id } }),
         queryRunner.manager.findOne(SeaFreight, {
@@ -1100,7 +1174,9 @@ export class ContainerController {
           }
         });
         if (!portMapping) {
-          validationErrors.push(`车队 ${truckingCompanyId} 不支持港口 ${seaFreight.portOfDischarge}`);
+          validationErrors.push(
+            `车队 ${truckingCompanyId} 不支持港口 ${seaFreight.portOfDischarge}`
+          );
         }
       }
 
@@ -1119,10 +1195,26 @@ export class ContainerController {
       }
 
       // 3.3 顺序约束校验：计划时间必须按顺序
-      const plannedCustoms = plannedCustomsDate ? new Date(plannedCustomsDate) : (portOp?.plannedCustomsDate ? new Date(portOp.plannedCustomsDate) : null);
-      const plannedPickup = plannedPickupDate ? new Date(plannedPickupDate) : (trucking?.plannedPickupDate ? new Date(trucking.plannedPickupDate) : null);
-      const plannedDelivery = plannedDeliveryDate ? new Date(plannedDeliveryDate) : (trucking?.plannedDeliveryDate ? new Date(trucking.plannedDeliveryDate) : null);
-      const plannedUnload = plannedUnloadDate ? new Date(plannedUnloadDate) : (warehouseOp?.plannedUnloadDate ? new Date(warehouseOp.plannedUnloadDate) : null);
+      const plannedCustoms = plannedCustomsDate
+        ? new Date(plannedCustomsDate)
+        : portOp?.plannedCustomsDate
+          ? new Date(portOp.plannedCustomsDate)
+          : null;
+      const plannedPickup = plannedPickupDate
+        ? new Date(plannedPickupDate)
+        : trucking?.plannedPickupDate
+          ? new Date(trucking.plannedPickupDate)
+          : null;
+      const plannedDelivery = plannedDeliveryDate
+        ? new Date(plannedDeliveryDate)
+        : trucking?.plannedDeliveryDate
+          ? new Date(trucking.plannedDeliveryDate)
+          : null;
+      const plannedUnload = plannedUnloadDate
+        ? new Date(plannedUnloadDate)
+        : warehouseOp?.plannedUnloadDate
+          ? new Date(warehouseOp.plannedUnloadDate)
+          : null;
       const plannedReturn = plannedReturnDate ? new Date(plannedReturnDate) : null;
 
       if (plannedCustoms && plannedPickup && plannedCustoms > plannedPickup) {
@@ -1163,8 +1255,12 @@ export class ContainerController {
       }
 
       // 3. 更新拖卡计划（process_trucking_transport）
-      if (plannedPickupDate !== undefined || plannedDeliveryDate !== undefined ||
-          truckingCompanyId !== undefined || unloadModePlan !== undefined) {
+      if (
+        plannedPickupDate !== undefined ||
+        plannedDeliveryDate !== undefined ||
+        truckingCompanyId !== undefined ||
+        unloadModePlan !== undefined
+      ) {
         let trucking = await queryRunner.manager.findOne(TruckingTransport, {
           where: { containerNumber: id }
         });
@@ -1275,7 +1371,11 @@ export class ContainerController {
         return;
       }
 
-      logger.info('[setManualLastFreeDate] Setting manual LFD:', { containerNumber, lastFreeDate, remark });
+      logger.info('[setManualLastFreeDate] Setting manual LFD:', {
+        containerNumber,
+        lastFreeDate,
+        remark
+      });
 
       // 1. 校验货柜是否存在
       const container = await queryRunner.manager.findOne(Container, {
@@ -1307,12 +1407,16 @@ export class ContainerController {
         return;
       }
 
-      await queryRunner.manager.update(PortOperation, { id: destPort.id }, {
-        lastFreeDate: parsedDate,
-        lastFreeDateSource: 'manual',
-        lastFreeDateRemark: remark || null,
-        lastFreeDateInvalid: false
-      });
+      await queryRunner.manager.update(
+        PortOperation,
+        { id: destPort.id },
+        {
+          lastFreeDate: parsedDate,
+          lastFreeDateSource: 'manual',
+          lastFreeDateRemark: remark || null,
+          lastFreeDateInvalid: false
+        }
+      );
 
       await queryRunner.commitTransaction();
 
@@ -1322,7 +1426,10 @@ export class ContainerController {
         logger.warn('[setManualLastFreeDate] updateStatus after LFD failed:', e);
       }
 
-      logger.info('[setManualLastFreeDate] Manual LFD set successfully:', { containerNumber, lastFreeDate: parsedDate });
+      logger.info('[setManualLastFreeDate] Manual LFD set successfully:', {
+        containerNumber,
+        lastFreeDate: parsedDate
+      });
 
       res.json({
         success: true,
@@ -1337,7 +1444,9 @@ export class ContainerController {
     } catch (error) {
       await queryRunner.rollbackTransaction();
       logger.error('[setManualLastFreeDate] Error:', error);
-      res.status(500).json({ success: false, message: '设置手工最晚提柜日失败', error: String(error) });
+      res
+        .status(500)
+        .json({ success: false, message: '设置手工最晚提柜日失败', error: String(error) });
     } finally {
       await queryRunner.release();
     }
@@ -1383,23 +1492,15 @@ export class ContainerController {
 
       // 3. 恢复为自动计算模式（清空手工备注；有原 LFD 则标为 computed；无日期则 source 置 NULL，避免「computed 却无 last_free_date」）
       if (destPort.lastFreeDate != null) {
-        await queryRunner.manager.update(
-          PortOperation,
-          { id: destPort.id },
-          {
-            lastFreeDateSource: 'computed',
-            lastFreeDateRemark: null
-          } as Record<string, unknown>
-        );
+        await queryRunner.manager.update(PortOperation, { id: destPort.id }, {
+          lastFreeDateSource: 'computed',
+          lastFreeDateRemark: null
+        } as Record<string, unknown>);
       } else {
-        await queryRunner.manager.update(
-          PortOperation,
-          { id: destPort.id },
-          {
-            lastFreeDateSource: null,
-            lastFreeDateRemark: null
-          } as Record<string, unknown>
-        );
+        await queryRunner.manager.update(PortOperation, { id: destPort.id }, {
+          lastFreeDateSource: null,
+          lastFreeDateRemark: null
+        } as Record<string, unknown>);
       }
 
       await queryRunner.commitTransaction();
@@ -1423,7 +1524,9 @@ export class ContainerController {
     } catch (error) {
       await queryRunner.rollbackTransaction();
       logger.error('[resetLastFreeDateToComputed] Error:', error);
-      res.status(500).json({ success: false, message: '恢复自动计算模式失败', error: String(error) });
+      res
+        .status(500)
+        .json({ success: false, message: '恢复自动计算模式失败', error: String(error) });
     } finally {
       await queryRunner.release();
     }

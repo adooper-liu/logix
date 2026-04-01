@@ -67,10 +67,10 @@ export class DateTimeUtils {
  */
 export const parseLocalDate = (dateStr: string): Date => {
   if (!dateStr) return new Date()
-  
+
   // 规范化日期字符串格式
   const normalizedStr = String(dateStr).trim().replace(/\//g, '-')
-  
+
   // 匹配 YYYY-MM-DD 或 YYYY-MM-DD HH:mm:ss 格式
   const parts = normalizedStr.split(/[\s-:T]/)
   const year = parseInt(parts[0], 10)
@@ -89,9 +89,12 @@ export const parseLocalDate = (dateStr: string): Date => {
  * @param format 格式类型
  * @returns 格式化后的字符串
  */
-export const formatDateToLocal = (date: Date | string, format: 'full' | 'date' | 'time' | 'datetime' = 'datetime'): string => {
+export const formatDateToLocal = (
+  date: Date | string,
+  format: 'full' | 'date' | 'time' | 'datetime' = 'datetime'
+): string => {
   const d = typeof date === 'string' ? parseLocalDate(date) : date
-  
+
   const year = d.getFullYear()
   const month = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')
@@ -119,7 +122,7 @@ export const formatDateToLocal = (date: Date | string, format: 'full' | 'date' |
  */
 export const parseExcelDate = (value: number): Date | null => {
   if (!value) return null
-  
+
   // Excel日期从1900年1月1日开始，转换为JavaScript日期
   const date = new Date((value - 25569) * 86400 * 1000)
   return isNaN(date.getTime()) ? null : date
@@ -137,7 +140,7 @@ export const toLocalISOString = (date: Date): string => {
   const hour = String(date.getHours()).padStart(2, '0')
   const minute = String(date.getMinutes()).padStart(2, '0')
   const second = String(date.getSeconds()).padStart(2, '0')
-  
+
   return `${year}-${month}-${day}T${hour}:${minute}:${second}`
 }
 
@@ -162,7 +165,7 @@ export const addDays = (date: Date | string, days: number): Date => {
 export const daysBetween = (start: Date | string, end: Date | string): number => {
   const startDate = typeof start === 'string' ? parseLocalDate(start) : start
   const endDate = typeof end === 'string' ? parseLocalDate(end) : end
-  
+
   const msPerDay = 24 * 60 * 60 * 1000
   return Math.round((endDate.getTime() - startDate.getTime()) / msPerDay)
 }
@@ -198,10 +201,12 @@ export const getDayEnd = (date: Date | string = new Date()): Date => {
 export const isSameDay = (date1: Date | string, date2: Date | string): boolean => {
   const d1 = typeof date1 === 'string' ? parseLocalDate(date1) : date1
   const d2 = typeof date2 === 'string' ? parseLocalDate(date2) : date2
-  
-  return d1.getFullYear() === d2.getFullYear() &&
+
+  return (
+    d1.getFullYear() === d2.getFullYear() &&
     d1.getMonth() === d2.getMonth() &&
     d1.getDate() === d2.getDate()
+  )
 }
 
 /**
@@ -211,11 +216,15 @@ export const isSameDay = (date1: Date | string, date2: Date | string): boolean =
  * @param end 结束日期
  * @returns 是否在范围内
  */
-export const isDateInRange = (date: Date | string, start: Date | string, end: Date | string): boolean => {
+export const isDateInRange = (
+  date: Date | string,
+  start: Date | string,
+  end: Date | string
+): boolean => {
   const d = typeof date === 'string' ? parseLocalDate(date) : date
   const startDate = typeof start === 'string' ? parseLocalDate(start) : start
   const endDate = typeof end === 'string' ? parseLocalDate(end) : end
-  
+
   return d >= startDate && d <= endDate
 }
 
@@ -230,5 +239,5 @@ export default {
   getDayStart,
   getDayEnd,
   isSameDay,
-  isDateInRange
+  isDateInRange,
 }

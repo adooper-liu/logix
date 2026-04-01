@@ -1,4 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  CreateDateColumn,
+  ManyToOne,
+  JoinColumn
+} from 'typeorm';
 import { InspectionRecord } from './InspectionRecord';
 
 @Entity('ext_inspection_events')
@@ -18,7 +25,7 @@ export class InspectionEvent {
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 
-  @ManyToOne(() => InspectionRecord, record => record.events)
+  @ManyToOne(() => InspectionRecord, (record) => record.events)
   @JoinColumn({ name: 'inspection_record_id' })
   inspectionRecord: InspectionRecord;
 }

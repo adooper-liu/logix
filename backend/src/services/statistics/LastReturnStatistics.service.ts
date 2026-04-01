@@ -63,13 +63,20 @@ export class LastReturnStatisticsService {
     query.andWhere('er.last_return_date IS NOT NULL');
     query.andWhere('er.last_return_date < :today', { today });
     applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, { today });
-    const result = await query.select('COUNT(DISTINCT container.containerNumber)', 'count').getRawOne();
+    const result = await query
+      .select('COUNT(DISTINCT container.containerNumber)', 'count')
+      .getRawOne();
     return parseInt(result?.count || '0');
   }
 
   /**
    * 紧急（今天�?天内过期�?   */
-  async getReturnUrgentCount(today: Date, threeDaysLater: Date, startDate?: string, endDate?: string): Promise<number> {
+  async getReturnUrgentCount(
+    today: Date,
+    threeDaysLater: Date,
+    startDate?: string,
+    endDate?: string
+  ): Promise<number> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.addCountryFilters(query);
     this.filterTargetSet(query);
@@ -77,14 +84,25 @@ export class LastReturnStatisticsService {
     query.andWhere('er.last_return_date IS NOT NULL');
     query.andWhere('er.last_return_date >= :today', { today });
     query.andWhere('er.last_return_date <= :threeDays', { threeDays: threeDaysLater });
-    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, { today, threeDays: threeDaysLater });
-    const result = await query.select('COUNT(DISTINCT container.containerNumber)', 'count').getRawOne();
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, {
+      today,
+      threeDays: threeDaysLater
+    });
+    const result = await query
+      .select('COUNT(DISTINCT container.containerNumber)', 'count')
+      .getRawOne();
     return parseInt(result?.count || '0');
   }
 
   /**
    * 警告�?天内�?天内过期�?   */
-  async getReturnWarningCount(today: Date, threeDaysLater: Date, sevenDaysLater: Date, startDate?: string, endDate?: string): Promise<number> {
+  async getReturnWarningCount(
+    today: Date,
+    threeDaysLater: Date,
+    sevenDaysLater: Date,
+    startDate?: string,
+    endDate?: string
+  ): Promise<number> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.addCountryFilters(query);
     this.filterTargetSet(query);
@@ -92,23 +110,37 @@ export class LastReturnStatisticsService {
     query.andWhere('er.last_return_date IS NOT NULL');
     query.andWhere('er.last_return_date > :threeDays', { threeDays: threeDaysLater });
     query.andWhere('er.last_return_date <= :sevenDays', { sevenDays: sevenDaysLater });
-    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, { threeDays: threeDaysLater, sevenDays: sevenDaysLater });
-    const result = await query.select('COUNT(DISTINCT container.containerNumber)', 'count').getRawOne();
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, {
+      threeDays: threeDaysLater,
+      sevenDays: sevenDaysLater
+    });
+    const result = await query
+      .select('COUNT(DISTINCT container.containerNumber)', 'count')
+      .getRawOne();
     return parseInt(result?.count || '0');
   }
 
   /**
    * 正常（超�?天）
    */
-  async getReturnNormalCount(today: Date, sevenDaysLater: Date, startDate?: string, endDate?: string): Promise<number> {
+  async getReturnNormalCount(
+    today: Date,
+    sevenDaysLater: Date,
+    startDate?: string,
+    endDate?: string
+  ): Promise<number> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.addCountryFilters(query);
     this.filterTargetSet(query);
     this.joinEmptyReturn(query);
     query.andWhere('er.last_return_date IS NOT NULL');
     query.andWhere('er.last_return_date > :sevenDays', { sevenDays: sevenDaysLater });
-    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, { sevenDays: sevenDaysLater });
-    const result = await query.select('COUNT(DISTINCT container.containerNumber)', 'count').getRawOne();
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, {
+      sevenDays: sevenDaysLater
+    });
+    const result = await query
+      .select('COUNT(DISTINCT container.containerNumber)', 'count')
+      .getRawOne();
     return parseInt(result?.count || '0');
   }
 
@@ -121,7 +153,9 @@ export class LastReturnStatisticsService {
     this.joinEmptyReturn(query);
     query.andWhere('er.last_return_date IS NULL');
     applyDateFilterToQuery(query, this.containerRepository, startDate, endDate);
-    const result = await query.select('COUNT(DISTINCT container.containerNumber)', 'count').getRawOne();
+    const result = await query
+      .select('COUNT(DISTINCT container.containerNumber)', 'count')
+      .getRawOne();
     return parseInt(result?.count || '0');
   }
 
@@ -143,7 +177,13 @@ export class LastReturnStatisticsService {
       case 'returnUrgent':
         return this.getContainersByReturnUrgent(today, threeDaysLater, startDate, endDate);
       case 'returnWarning':
-        return this.getContainersByReturnWarning(today, threeDaysLater, sevenDaysLater, startDate, endDate);
+        return this.getContainersByReturnWarning(
+          today,
+          threeDaysLater,
+          sevenDaysLater,
+          startDate,
+          endDate
+        );
       case 'returnNormal':
         return this.getContainersByReturnNormal(today, sevenDaysLater, startDate, endDate);
       case 'noLastReturnDate':
@@ -181,7 +221,11 @@ export class LastReturnStatisticsService {
     );
   }
 
-  private async getContainersByReturnExpired(today: Date, startDate?: string, endDate?: string): Promise<Container[]> {
+  private async getContainersByReturnExpired(
+    today: Date,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.addCountryFilters(query);
     this.filterTargetSet(query);
@@ -192,7 +236,12 @@ export class LastReturnStatisticsService {
     return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
   }
 
-  private async getContainersByReturnUrgent(today: Date, threeDaysLater: Date, startDate?: string, endDate?: string): Promise<Container[]> {
+  private async getContainersByReturnUrgent(
+    today: Date,
+    threeDaysLater: Date,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.addCountryFilters(query);
     this.filterTargetSet(query);
@@ -204,7 +253,13 @@ export class LastReturnStatisticsService {
     return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
   }
 
-  private async getContainersByReturnWarning(today: Date, threeDaysLater: Date, sevenDaysLater: Date, startDate?: string, endDate?: string): Promise<Container[]> {
+  private async getContainersByReturnWarning(
+    today: Date,
+    threeDaysLater: Date,
+    sevenDaysLater: Date,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.addCountryFilters(query);
     this.filterTargetSet(query);
@@ -216,7 +271,12 @@ export class LastReturnStatisticsService {
     return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
   }
 
-  private async getContainersByReturnNormal(today: Date, sevenDaysLater: Date, startDate?: string, endDate?: string): Promise<Container[]> {
+  private async getContainersByReturnNormal(
+    today: Date,
+    sevenDaysLater: Date,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.addCountryFilters(query);
     this.filterTargetSet(query);
@@ -227,7 +287,10 @@ export class LastReturnStatisticsService {
     return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
   }
 
-  private async getContainersByNoLastReturnDate(startDate?: string, endDate?: string): Promise<Container[]> {
+  private async getContainersByNoLastReturnDate(
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.addCountryFilters(query);
     this.filterTargetSet(query);
@@ -237,4 +300,3 @@ export class LastReturnStatisticsService {
     return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
   }
 }
-

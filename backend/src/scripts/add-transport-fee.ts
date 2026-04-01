@@ -2,10 +2,10 @@ import { AppDataSource } from '../database';
 
 async function migrate() {
   await AppDataSource.initialize();
-  
+
   try {
     await AppDataSource.query(
-      "ALTER TABLE dict_warehouse_trucking_mapping ADD COLUMN IF NOT EXISTS transport_fee DECIMAL(10,2) DEFAULT 0"
+      'ALTER TABLE dict_warehouse_trucking_mapping ADD COLUMN IF NOT EXISTS transport_fee DECIMAL(10,2) DEFAULT 0'
     );
     console.log('✅ 添加 transport_fee 字段成功');
   } catch (error: any) {
@@ -15,7 +15,7 @@ async function migrate() {
       console.error('❌ 错误:', error.message);
     }
   }
-  
+
   await AppDataSource.destroy();
   process.exit(0);
 }

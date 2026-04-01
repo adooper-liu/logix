@@ -77,22 +77,21 @@ export class ErrorMonitor {
   private checkForAlerts(error: AppError): void {
     // 基于错误严重程度生成告警
     if (error.severity === ErrorSeverity.CRITICAL) {
-      this.generateAlert(
-        AlertLevel.CRITICAL,
-        `Critical error detected: ${error.message}`,
-        { errorType: error.type, statusCode: error.statusCode }
-      );
+      this.generateAlert(AlertLevel.CRITICAL, `Critical error detected: ${error.message}`, {
+        errorType: error.type,
+        statusCode: error.statusCode
+      });
     } else if (error.severity === ErrorSeverity.HIGH) {
-      this.generateAlert(
-        AlertLevel.WARNING,
-        `High severity error: ${error.message}`,
-        { errorType: error.type, statusCode: error.statusCode }
-      );
+      this.generateAlert(AlertLevel.WARNING, `High severity error: ${error.message}`, {
+        errorType: error.type,
+        statusCode: error.statusCode
+      });
     }
 
     // 检查错误率
     const errorRate = this.calculateErrorRate(60 * 60 * 1000); // 1小时
-    if (errorRate > 10) { // 每小时超过10个错误
+    if (errorRate > 10) {
+      // 每小时超过10个错误
       this.generateAlert(
         AlertLevel.WARNING,
         `High error rate detected: ${errorRate.toFixed(2)} errors/hour`,
@@ -136,7 +135,7 @@ export class ErrorMonitor {
   private calculateErrorRate(timeWindowMs: number): number {
     const now = Date.now();
     const errorsInWindow = this.errorStore.filter(
-      error => now - error.timestamp.getTime() <= timeWindowMs
+      (error) => now - error.timestamp.getTime() <= timeWindowMs
     );
 
     return (errorsInWindow.length / (timeWindowMs / 1000 / 60 / 60)) * 60 * 60; // 转换为每小时错误数
@@ -151,11 +150,11 @@ export class ErrorMonitor {
     const byStatusCode: Record<number, number> = {};
 
     // 初始化统计对象
-    Object.values(ErrorType).forEach(type => byType[type] = 0);
-    Object.values(ErrorSeverity).forEach(severity => bySeverity[severity] = 0);
+    Object.values(ErrorType).forEach((type) => (byType[type] = 0));
+    Object.values(ErrorSeverity).forEach((severity) => (bySeverity[severity] = 0));
 
     // 统计错误
-    this.errorStore.forEach(error => {
+    this.errorStore.forEach((error) => {
       byType[error.type]++;
       bySeverity[error.severity]++;
       byStatusCode[error.statusCode] = (byStatusCode[error.statusCode] || 0) + 1;
@@ -182,14 +181,14 @@ export class ErrorMonitor {
     if (resolved === null) {
       return this.alerts;
     }
-    return this.alerts.filter(alert => alert.resolved === resolved);
+    return this.alerts.filter((alert) => alert.resolved === resolved);
   }
 
   /**
    * 解决告警
    */
   resolveAlert(alertId: string): boolean {
-    const alert = this.alerts.find(a => a.id === alertId);
+    const alert = this.alerts.find((a) => a.id === alertId);
     if (alert) {
       alert.resolved = true;
       logger.info(`Alert resolved: ${alertId} - ${alert.message}`);
@@ -206,7 +205,7 @@ export class ErrorMonitor {
     const initialLength = this.errorStore.length;
 
     this.errorStore = this.errorStore.filter(
-      error => now - error.timestamp.getTime() <= maxAgeMs
+      (error) => now - error.timestamp.getTime() <= maxAgeMs
     );
 
     const deletedCount = initialLength - this.errorStore.length;
@@ -224,9 +223,7 @@ export class ErrorMonitor {
     const now = Date.now();
     const initialLength = this.alerts.length;
 
-    this.alerts = this.alerts.filter(
-      alert => now - alert.timestamp.getTime() <= maxAgeMs
-    );
+    this.alerts = this.alerts.filter((alert) => now - alert.timestamp.getTime() <= maxAgeMs);
 
     const deletedCount = initialLength - this.alerts.length;
     if (deletedCount > 0) {
@@ -239,7 +236,10 @@ export class ErrorMonitor {
   /**
    * 获取错误趋势
    */
-  getErrorTrend(timeWindowMs: number = 24 * 60 * 60 * 1000, intervalMs: number = 60 * 60 * 1000): {
+  getErrorTrend(
+    timeWindowMs: number = 24 * 60 * 60 * 1000,
+    intervalMs: number = 60 * 60 * 1000
+  ): {
     timestamps: string[];
     counts: number[];
   } {
@@ -252,7 +252,7 @@ export class ErrorMonitor {
     for (let time = startTime; time <= now; time += intervalMs) {
       const intervalEnd = time + intervalMs;
       const errorCount = this.errorStore.filter(
-        error => error.timestamp.getTime() >= time && error.timestamp.getTime() < intervalEnd
+        (error) => error.timestamp.getTime() >= time && error.timestamp.getTime() < intervalEnd
       ).length;
 
       timestamps.push(new Date(time).toISOString());

@@ -12,9 +12,7 @@
         </span>
       </el-descriptions-item>
       <el-descriptions-item label="港口存储费">
-        <span :class="getAmountClass(data.storageCost)">
-          ${{ data.storageCost.toFixed(2) }}
-        </span>
+        <span :class="getAmountClass(data.storageCost)"> ${{ data.storageCost.toFixed(2) }} </span>
       </el-descriptions-item>
       <el-descriptions-item label="运输费">
         <span :class="getAmountClass(data.transportationCost)">

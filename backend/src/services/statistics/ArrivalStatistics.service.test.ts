@@ -34,7 +34,7 @@ describe('ArrivalStatisticsService - pickup segmentation consistency', () => {
   beforeEach(() => {
     repository = {
       createQueryBuilder: jest.fn(),
-      query: jest.fn().mockResolvedValue([{ count: '0' }]),
+      query: jest.fn().mockResolvedValue([{ count: '0' }])
     };
     service = new ArrivalStatisticsService(repository);
   });
@@ -53,9 +53,7 @@ describe('ArrivalStatisticsService - pickup segmentation consistency', () => {
 
     await service.getArrivedBeforeTodayNotPickedUp(new Date());
 
-    const allAndWhereSql = qb.andWhere.mock.calls
-      .map(args => String(args[0] || ''))
-      .join('\n');
+    const allAndWhereSql = qb.andWhere.mock.calls.map((args) => String(args[0] || '')).join('\n');
 
     expect(allAndWhereSql).toContain('NOT EXISTS');
     expect(allAndWhereSql).toContain('process_trucking_transport');
@@ -72,9 +70,7 @@ describe('ArrivalStatisticsService - pickup segmentation consistency', () => {
 
     await service.getContainersByCondition('arrivedBeforeTodayNotPickedUp');
 
-    const allAndWhereSql = qb.andWhere.mock.calls
-      .map(args => String(args[0] || ''))
-      .join('\n');
+    const allAndWhereSql = qb.andWhere.mock.calls.map((args) => String(args[0] || '')).join('\n');
 
     expect(allAndWhereSql).toContain('NOT EXISTS');
     expect(allAndWhereSql).toContain('process_trucking_transport');
@@ -84,29 +80,32 @@ describe('ArrivalStatisticsService - pickup segmentation consistency', () => {
   it('统计与列表口径: 今日之前到港已提柜都必须使用 EXISTS(pickup_date)', async () => {
     const qbForStats = createMockQueryBuilder();
     jest.spyOn(ContainerQueryBuilder, 'createBaseQuery').mockReturnValueOnce(qbForStats as any);
-    jest.spyOn(ContainerQueryBuilder, 'joinLatestDestinationWithAta').mockReturnValue(qbForStats as any);
+    jest
+      .spyOn(ContainerQueryBuilder, 'joinLatestDestinationWithAta')
+      .mockReturnValue(qbForStats as any);
     jest.spyOn(ContainerQueryBuilder, 'filterTargetStatus').mockReturnValue(qbForStats as any);
     jest.spyOn(ContainerQueryBuilder, 'addDateFilters').mockReturnValue(qbForStats as any);
     jest.spyOn(ContainerQueryBuilder, 'addCountryFilters').mockReturnValue(qbForStats as any);
 
     await service.getArrivedBeforeTodayPickedUp(new Date());
 
-    const statsSql = qbForStats.andWhere.mock.calls.map(args => String(args[0] || '')).join('\n');
+    const statsSql = qbForStats.andWhere.mock.calls.map((args) => String(args[0] || '')).join('\n');
     expect(statsSql).toContain('EXISTS');
     expect(statsSql).toContain('tt.pickup_date IS NOT NULL');
 
     const qbForList = createMockQueryBuilder();
     jest.spyOn(ContainerQueryBuilder, 'createBaseQuery').mockReturnValueOnce(qbForList as any);
-    jest.spyOn(ContainerQueryBuilder, 'joinLatestDestinationWithAta').mockReturnValue(qbForList as any);
+    jest
+      .spyOn(ContainerQueryBuilder, 'joinLatestDestinationWithAta')
+      .mockReturnValue(qbForList as any);
     jest.spyOn(ContainerQueryBuilder, 'filterTargetStatus').mockReturnValue(qbForList as any);
     jest.spyOn(ContainerQueryBuilder, 'addDateFilters').mockReturnValue(qbForList as any);
     jest.spyOn(ContainerQueryBuilder, 'addCountryFilters').mockReturnValue(qbForList as any);
 
     await service.getContainersByCondition('arrivedBeforeTodayPickedUp');
 
-    const listSql = qbForList.andWhere.mock.calls.map(args => String(args[0] || '')).join('\n');
+    const listSql = qbForList.andWhere.mock.calls.map((args) => String(args[0] || '')).join('\n');
     expect(listSql).toContain('EXISTS');
     expect(listSql).toContain('tt.pickup_date IS NOT NULL');
   });
 });
-

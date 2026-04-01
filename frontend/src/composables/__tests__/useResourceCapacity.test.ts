@@ -1,6 +1,6 @@
 /**
  * useResourceCapacity Composable 测试
- * 
+ *
  * @file composables/__tests__/useResourceCapacity.test.ts
  */
 
@@ -419,7 +419,9 @@ describe('useResourceCapacity', () => {
         data: { success: true, data: [{ baseCapacity: 100, occupied: 45 }] },
       })
 
-      const { getWarehouseCapacity, clearCache, capacityCache } = useResourceCapacity({ onLog: mockOnLog })
+      const { getWarehouseCapacity, clearCache, capacityCache } = useResourceCapacity({
+        onLog: mockOnLog,
+      })
 
       // Act - first request to populate cache
       await getWarehouseCapacity('WH001', '2026-03-27')
@@ -438,7 +440,7 @@ describe('useResourceCapacity', () => {
     it('should update loading state during fetch', async () => {
       // Arrange
       let resolvePromise: (value: any) => void
-      const promise = new Promise((resolve) => {
+      const promise = new Promise(resolve => {
         resolvePromise = resolve
       })
 

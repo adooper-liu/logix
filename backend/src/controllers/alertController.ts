@@ -11,7 +11,7 @@ export class AlertController {
     const alerts = await this.alertService.getContainerAlerts(containerNumber);
     return {
       success: true,
-      data: alerts,
+      data: alerts
     };
   }
 
@@ -20,18 +20,18 @@ export class AlertController {
   async getAllAlerts(
     @Query('level') level?: string,
     @Query('type') type?: string,
-    @Query('resolved') resolved?: string,
+    @Query('resolved') resolved?: string
   ) {
     const filters = {
       level: level as AlertLevel,
       type: type as AlertType,
-      resolved: resolved === 'true',
+      resolved: resolved === 'true'
     };
 
     const alerts = await this.alertService.getAllAlerts(filters);
     return {
       success: true,
-      data: alerts,
+      data: alerts
     };
   }
 
@@ -41,7 +41,7 @@ export class AlertController {
     const result = await this.alertService.resolveAlert(alertId, userId || 'system');
     return {
       success: result,
-      message: result ? '预警已解决' : '预警解决失败',
+      message: result ? '预警已解决' : '预警解决失败'
     };
   }
 }

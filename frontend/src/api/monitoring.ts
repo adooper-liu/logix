@@ -7,21 +7,21 @@ import { httpClient } from './httpClient'
  * 性能指标接口
  */
 export interface PerformanceMetrics {
-  cpuUsage: number         // CPU使用率 (%)
-  memoryUsage: number      // 内存使用率 (%)
-  responseTime: number     // 响应时间 (ms)
-  throughput: number       // 每秒请求数
+  cpuUsage: number // CPU使用率 (%)
+  memoryUsage: number // 内存使用率 (%)
+  responseTime: number // 响应时间 (ms)
+  throughput: number // 每秒请求数
 }
 
 /**
  * 优化数据接口
  */
 export interface OptimizationData {
-  apiCacheHits: number     // 缓存命中次数
-  apiCacheTotal: number    // 总请求数
+  apiCacheHits: number // 缓存命中次数
+  apiCacheTotal: number // 总请求数
   searchRequestsSaved: number // 节省的搜索请求
-  slowComponents: number   // 慢组件数量
-  avgLoadTime: number      // 平均加载时间 (秒)
+  slowComponents: number // 慢组件数量
+  avgLoadTime: number // 平均加载时间 (秒)
 }
 
 /**

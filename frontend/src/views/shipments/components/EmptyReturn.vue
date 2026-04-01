@@ -41,7 +41,7 @@ const formatDateOnly = (date: Date | string | undefined): string => {
         v-for="(er, index) in emptyReturns"
         :key="index"
         class="info-card"
-        style="--accent-color: #67C23A"
+        style="--accent-color: #67c23a"
       >
         <div class="info-card-header">
           <span class="info-card-icon">📦</span>

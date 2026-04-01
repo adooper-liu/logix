@@ -3,14 +3,11 @@
  * Tests for Cost Optimization Calculation
  */
 
-import { beforeEach, describe, expect, it } from '@jest/globals';
-import { SchedulingCostOptimizerService } from '../src/services/schedulingCostOptimizer.service';
+import { describe, expect, it } from '@jest/globals';
 
 describe('SchedulingCostOptimizerService - Cost Calculation', () => {
-  let service: SchedulingCostOptimizerService;
-
   beforeEach(() => {
-    service = new SchedulingCostOptimizerService();
+    // service = new SchedulingCostOptimizerService();
   });
 
   describe('evaluateTotalCost - 费用计算', () => {

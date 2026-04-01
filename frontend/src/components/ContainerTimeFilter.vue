@@ -59,7 +59,7 @@ const handleQuickSelect = (value: string) => {
 const emitFilter = () => {
   emit('filter', {
     timeDimension: timeDimension.value,
-    dateRange: dateRange.value
+    dateRange: dateRange.value,
   })
 }
 </script>
@@ -68,8 +68,8 @@ const emitFilter = () => {
   <div class="time-filter">
     <el-space wrap>
       <!-- 时间维度 -->
-      <el-select 
-        v-model="timeDimension" 
+      <el-select
+        v-model="timeDimension"
         placeholder="时间维度"
         style="width: 120px"
         @change="handleDimensionChange"
@@ -82,7 +82,7 @@ const emitFilter = () => {
       </el-select>
 
       <!-- 快速选择 -->
-      <el-select 
+      <el-select
         v-if="timeDimension !== 'all'"
         v-model="quickSelect"
         placeholder="快速选择"

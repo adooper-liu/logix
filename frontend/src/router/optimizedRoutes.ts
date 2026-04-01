@@ -8,9 +8,7 @@ import type { RouteRecordRaw } from 'vue-router'
 import Layout from '@/components/layout/Layout.vue'
 
 // 错误组件（如果不存在，使用简单的 fallback）
-const ErrorPage = defineAsyncComponent(() =>
-  import('@/views/About.vue')
-)
+const ErrorPage = defineAsyncComponent(() => import('@/views/About.vue'))
 
 // 路由分组配置
 const ROUTE_GROUPS = {
@@ -22,13 +20,15 @@ const ROUTE_GROUPS = {
 
   // 货运管理组 - 包含相关页面
   shipments: () => import(/* webpackChunkName: "shipments" */ '@/views/shipments/Shipments.vue'),
-  containerDetail: () => import(/* webpackChunkName: "shipments" */ '@/views/shipments/ContainerDetailRefactored.vue'),
+  containerDetail: () =>
+    import(/* webpackChunkName: "shipments" */ '@/views/shipments/ContainerDetailRefactored.vue'),
 
   // 数据导入组
   import: () => import(/* webpackChunkName: "import" */ '@/views/import/ExcelImport.vue'),
 
   // 监控看板组
-  monitoring: () => import(/* webpackChunkName: "monitoring" */ '@/views/monitoring/Monitoring.vue'),
+  monitoring: () =>
+    import(/* webpackChunkName: "monitoring" */ '@/views/monitoring/Monitoring.vue'),
 
   // 系统管理组
   dictMapping: () => import(/* webpackChunkName: "system" */ '@/views/system/DictMapping.vue'),
@@ -36,7 +36,7 @@ const ROUTE_GROUPS = {
 
   // 帮助文档组
   help: () => import(/* webpackChunkName: "help" */ '@/views/help/HelpDocumentation.vue'),
-  about: () => import(/* webpackChunkName: "help" */ '@/views/About.vue')
+  about: () => import(/* webpackChunkName: "help" */ '@/views/About.vue'),
 }
 
 // 路由配置
@@ -48,8 +48,8 @@ export const routes: RouteRecordRaw[] = [
     meta: {
       title: '登录',
       requiresAuth: false,
-      preload: false // 不预加载
-    }
+      preload: false, // 不预加载
+    },
   },
   {
     path: '/',
@@ -64,8 +64,8 @@ export const routes: RouteRecordRaw[] = [
           title: '仪表板',
           icon: 'House',
           requiresAuth: true,
-          preload: true // 预加载
-        }
+          preload: true, // 预加载
+        },
       },
       {
         path: 'shipments',
@@ -75,8 +75,8 @@ export const routes: RouteRecordRaw[] = [
           title: '集装箱管理',
           icon: 'Box',
           requiresAuth: true,
-          preload: true // 预加载
-        }
+          preload: true, // 预加载
+        },
       },
       {
         path: 'shipments/:containerNumber',
@@ -85,8 +85,8 @@ export const routes: RouteRecordRaw[] = [
         meta: {
           title: '货柜详情',
           requiresAuth: true,
-          preload: false
-        }
+          preload: false,
+        },
       },
       {
         path: 'import',
@@ -96,8 +96,8 @@ export const routes: RouteRecordRaw[] = [
           title: 'Excel数据导入',
           icon: 'Upload',
           requiresAuth: true,
-          preload: false
-        }
+          preload: false,
+        },
       },
       {
         path: 'monitoring',
@@ -107,8 +107,8 @@ export const routes: RouteRecordRaw[] = [
           title: '看板',
           icon: 'DataBoard',
           requiresAuth: true,
-          preload: false
-        }
+          preload: false,
+        },
       },
       {
         path: 'dict-mapping',
@@ -118,8 +118,8 @@ export const routes: RouteRecordRaw[] = [
           title: '通用字典映射',
           icon: 'Document',
           requiresAuth: true,
-          preload: false
-        }
+          preload: false,
+        },
       },
       {
         path: 'settings',
@@ -129,8 +129,8 @@ export const routes: RouteRecordRaw[] = [
           title: '系统设置',
           icon: 'Setting',
           requiresAuth: true,
-          preload: false
-        }
+          preload: false,
+        },
       },
       {
         path: 'help',
@@ -140,8 +140,8 @@ export const routes: RouteRecordRaw[] = [
           title: '帮助文档',
           icon: 'Reading',
           requiresAuth: true,
-          preload: false
-        }
+          preload: false,
+        },
       },
       {
         path: 'about',
@@ -150,10 +150,10 @@ export const routes: RouteRecordRaw[] = [
         meta: {
           title: '关于',
           requiresAuth: false,
-          preload: false
-        }
-      }
-    ]
+          preload: false,
+        },
+      },
+    ],
   },
   {
     path: '/error',
@@ -161,13 +161,13 @@ export const routes: RouteRecordRaw[] = [
     component: ErrorPage,
     meta: {
       title: '错误页面',
-      requiresAuth: false
-    }
+      requiresAuth: false,
+    },
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/login'
-  }
+    redirect: '/login',
+  },
 ]
 
 /**
@@ -207,7 +207,7 @@ export function preloadRoutes() {
  */
 export function smartPreload() {
   // 监听鼠标悬停事件，提前加载可能访问的页面
-  document.addEventListener('mouseover', (e) => {
+  document.addEventListener('mouseover', e => {
     const target = e.target as HTMLElement
     const link = target.closest('a[href]')
     if (!link) return

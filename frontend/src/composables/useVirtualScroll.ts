@@ -28,11 +28,7 @@ export function useVirtualScroll<T = any>(
   data: Ref<T[]>,
   options: VirtualScrollOptions
 ): VirtualScrollResult<T> {
-  const {
-    itemHeight,
-    containerHeight: fixedContainerHeight,
-    overscan = 5
-  } = options
+  const { itemHeight, containerHeight: fixedContainerHeight, overscan = 5 } = options
 
   const containerRef = ref<HTMLElement>()
   const containerHeight = ref(fixedContainerHeight || 600)
@@ -42,9 +38,7 @@ export function useVirtualScroll<T = any>(
   const totalHeight = computed(() => data.value.length * itemHeight)
 
   // 计算可见项数
-  const visibleCount = computed(() =>
-    Math.ceil(containerHeight.value / itemHeight)
-  )
+  const visibleCount = computed(() => Math.ceil(containerHeight.value / itemHeight))
 
   // 计算起始索引（考虑预渲染）
   const startIndex = computed(() => {
@@ -89,7 +83,7 @@ export function useVirtualScroll<T = any>(
 
     containerRef.value.scrollTo({
       top: targetScrollTop,
-      behavior: 'smooth'
+      behavior: 'smooth',
     })
   }
 
@@ -100,9 +94,13 @@ export function useVirtualScroll<T = any>(
   }
 
   // 监听数据变化
-  watch(data, () => {
-    refresh()
-  }, { deep: true })
+  watch(
+    data,
+    () => {
+      refresh()
+    },
+    { deep: true }
+  )
 
   // 监听滚动事件
   onMounted(() => {
@@ -129,7 +127,7 @@ export function useVirtualScroll<T = any>(
     visibleCount: visibleCount.value,
     containerRef,
     scrollToIndex,
-    refresh
+    refresh,
   }
 }
 
@@ -155,11 +153,7 @@ export function useDynamicVirtualScroll<T = any>(
   data: Ref<T[]>,
   options: DynamicVirtualScrollOptions
 ) {
-  const {
-    estimatedItemHeight,
-    containerHeight: fixedContainerHeight,
-    overscan = 5
-  } = options
+  const { estimatedItemHeight, containerHeight: fixedContainerHeight, overscan = 5 } = options
 
   const containerRef = ref<HTMLElement>()
   const containerHeight = ref(fixedContainerHeight || 600)
@@ -178,7 +172,7 @@ export function useDynamicVirtualScroll<T = any>(
       positions[index] = {
         top: currentTop,
         bottom: currentTop + height,
-        height
+        height,
       }
       currentTop += height
     })
@@ -228,10 +222,7 @@ export function useDynamicVirtualScroll<T = any>(
     const viewportBottom = scrollTop.value + containerHeight.value
     let index = startIndex.value
 
-    while (
-      index < data.value.length &&
-      positionMap.value[index]?.top < viewportBottom
-    ) {
+    while (index < data.value.length && positionMap.value[index]?.top < viewportBottom) {
       index++
     }
 
@@ -266,7 +257,7 @@ export function useDynamicVirtualScroll<T = any>(
     if (position) {
       containerRef.value.scrollTo({
         top: position.top,
-        behavior: 'smooth'
+        behavior: 'smooth',
       })
     }
   }
@@ -305,7 +296,7 @@ export function useDynamicVirtualScroll<T = any>(
     containerRef,
     scrollToIndex,
     updateItemHeight,
-    refresh: calculatePositions
+    refresh: calculatePositions,
   }
 }
 
@@ -318,4 +309,3 @@ export interface VirtualScrollProps {
   containerHeight?: number
   overscan?: number
 }
-

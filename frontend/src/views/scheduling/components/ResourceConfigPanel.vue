@@ -96,7 +96,9 @@
           <el-table-column label="操作" width="100">
             <template #default="{ row }">
               <el-button type="primary" link size="small" @click="editMapping(row)">编辑</el-button>
-              <el-button type="danger" link size="small" @click="deleteMapping(row)">删除</el-button>
+              <el-button type="danger" link size="small" @click="deleteMapping(row)"
+                >删除</el-button
+              >
             </template>
           </el-table-column>
         </el-table>
@@ -104,7 +106,11 @@
     </el-tabs>
 
     <!-- 堆场对话框 -->
-    <el-dialog v-model="yardDialogVisible" :title="isEditYard ? '编辑堆场' : '新增堆场'" width="500px">
+    <el-dialog
+      v-model="yardDialogVisible"
+      :title="isEditYard ? '编辑堆场' : '新增堆场'"
+      width="500px"
+    >
       <el-form :model="yardForm" label-width="100px">
         <el-form-item label="堆场编码" required>
           <el-input v-model="yardForm.yardCode" placeholder="如: YARD_USLAX_001" />
@@ -137,7 +143,11 @@
     </el-dialog>
 
     <!-- 映射关系对话框 -->
-    <el-dialog v-model="mappingDialogVisible" :title="mappingForm.id ? '编辑映射' : '新增映射'" width="600px">
+    <el-dialog
+      v-model="mappingDialogVisible"
+      :title="mappingForm.id ? '编辑映射' : '新增映射'"
+      width="600px"
+    >
       <el-form :model="mappingForm" label-width="100px">
         <el-form-item label="国家" required>
           <el-input v-model="mappingForm.country" placeholder="如: US, CA, GB" />
@@ -215,7 +225,7 @@ const yardForm = ref({
   dailyCapacity: 100,
   feePerDay: 0,
   address: '',
-  contactPhone: ''
+  contactPhone: '',
 })
 
 const mappingForm = ref({
@@ -229,7 +239,7 @@ const mappingForm = ref({
   isDefault: false,
   isActive: true,
   transportFee: 0,
-  remarks: ''
+  remarks: '',
 })
 
 // 计算属性
@@ -239,7 +249,9 @@ const truckings = computed(() => props.overview?.truckings || [])
 // 加载堆场数据
 const loadYards = async () => {
   try {
-    const response = await fetch(`/api/v1/scheduling/resources/yards?country=${appStore.scopedCountryCode}`)
+    const response = await fetch(
+      `/api/v1/scheduling/resources/yards?country=${appStore.scopedCountryCode}`
+    )
     const data = await response.json()
     if (data.success) {
       yards.value = data.data || []
@@ -263,7 +275,7 @@ const showYardDialog = (row?: any) => {
       dailyCapacity: 100,
       feePerDay: 0,
       address: '',
-      contactPhone: ''
+      contactPhone: '',
     }
   }
   yardDialogVisible.value = true
@@ -281,7 +293,7 @@ const saveYard = async () => {
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(yardForm.value)
+      body: JSON.stringify(yardForm.value),
     })
 
     const data = await response.json()
@@ -301,7 +313,9 @@ const saveYard = async () => {
 const loadMappingData = async () => {
   mappingLoading.value = true
   try {
-    const response = await fetch(`/api/v1/warehouse-trucking-mapping?country=${appStore.scopedCountryCode || ''}`)
+    const response = await fetch(
+      `/api/v1/warehouse-trucking-mapping?country=${appStore.scopedCountryCode || ''}`
+    )
     const data = await response.json()
     if (data.success) {
       mappings.value = data.data || []
@@ -327,7 +341,7 @@ const showMappingDialog = (row?: any) => {
       isDefault: row.is_default || false,
       isActive: row.is_active !== false,
       transportFee: row.transport_fee || 0,
-      remarks: row.remarks || ''
+      remarks: row.remarks || '',
     }
   } else {
     mappingForm.value = {
@@ -341,7 +355,7 @@ const showMappingDialog = (row?: any) => {
       isDefault: false,
       isActive: true,
       transportFee: 0,
-      remarks: ''
+      remarks: '',
     }
   }
   mappingDialogVisible.value = true
@@ -358,11 +372,11 @@ const deleteMapping = async (row: any) => {
     await ElMessageBox.confirm('确定要删除这条映射关系吗？', '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
-      type: 'warning'
+      type: 'warning',
     })
 
     const response = await fetch(`/api/v1/warehouse-trucking-mapping/${row.id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
     })
     const data = await response.json()
 
@@ -382,7 +396,11 @@ const deleteMapping = async (row: any) => {
 // 保存映射
 const saveMapping = async () => {
   try {
-    if (!mappingForm.value.country || !mappingForm.value.warehouseCode || !mappingForm.value.truckingCompanyId) {
+    if (
+      !mappingForm.value.country ||
+      !mappingForm.value.warehouseCode ||
+      !mappingForm.value.truckingCompanyId
+    ) {
       ElMessage.warning('请填写必填字段')
       return
     }
@@ -396,7 +414,7 @@ const saveMapping = async () => {
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(mappingForm.value)
+      body: JSON.stringify(mappingForm.value),
     })
 
     const data = await response.json()

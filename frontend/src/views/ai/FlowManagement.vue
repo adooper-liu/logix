@@ -76,12 +76,8 @@ const selectFlow = (flow: FlowDefinition) => {
     <div class="page-header">
       <h1>流程管理</h1>
       <div class="header-actions">
-        <el-button :icon="Refresh" @click="loadFlows" :loading="loading">
-          刷新
-        </el-button>
-        <el-button type="primary" :icon="Plus" @click="openFlowEditor()">
-          新建流程
-        </el-button>
+        <el-button :icon="Refresh" @click="loadFlows" :loading="loading"> 刷新 </el-button>
+        <el-button type="primary" :icon="Plus" @click="openFlowEditor()"> 新建流程 </el-button>
       </div>
     </div>
 

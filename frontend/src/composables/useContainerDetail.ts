@@ -8,18 +8,18 @@ import type { Container, ContainerListItem, PortOperation } from '@/types/contai
 import {
   getLogisticsStatusText,
   getLogisticsStatusType,
-  type PortType
+  type PortType,
 } from '@/utils/logisticsStatusMachine'
 
 export function useContainerDetail() {
   const route = useRoute()
   const router = useRouter()
   const { t } = useI18n()
-  
+
   // 货柜列表相关
   const containerList = ref<ContainerListItem[]>([])
   const loadingContainerList = ref(false)
-  
+
   // 路由 param 已解码；若需兼容编码柜号则 decodeURIComponent
   const containerNumber = computed(() => {
     const p = route.params.containerNumber as string
@@ -29,7 +29,7 @@ export function useContainerDetail() {
   // 数据加载
   const loading = ref(false)
   const containerData = ref<Container | null>(null)
-  
+
   // 滞港费相关
   const calculationDates = ref<CalculationDates | null>(null)
   const demurrageCalculation = ref<any>(null) // 滞港费计算结果
@@ -43,9 +43,11 @@ export function useContainerDetail() {
         // 获取所有货柜列表，但使用合理的分页大小
         const response = await containerService.getContainers({ page: 1, pageSize: 200 })
         if (response.success && response.items) {
-          containerList.value = response.items.sort((a: ContainerListItem, b: ContainerListItem) => {
-            return a.containerNumber.localeCompare(b.containerNumber)
-          })
+          containerList.value = response.items.sort(
+            (a: ContainerListItem, b: ContainerListItem) => {
+              return a.containerNumber.localeCompare(b.containerNumber)
+            }
+          )
         }
       } catch (error) {
         console.error('Failed to load container list:', error)
@@ -74,7 +76,9 @@ export function useContainerDetail() {
         // 加载相关数据
         await loadDemurrageDates()
       } else {
-        ElMessage.error((response as { message?: string }).message || t('container.detail.failedToLoad'))
+        ElMessage.error(
+          (response as { message?: string }).message || t('container.detail.failedToLoad')
+        )
       }
     } catch (error: any) {
       console.error('Failed to load container details:', error)
@@ -86,7 +90,9 @@ export function useContainerDetail() {
       const msg =
         error?.response?.data?.message ||
         error?.response?.data?.error ||
-        (error?.response?.status === 404 ? t('container.detail.containerNotFound') : t('container.detail.failedToLoad'))
+        (error?.response?.status === 404
+          ? t('container.detail.containerNotFound')
+          : t('container.detail.failedToLoad'))
       ElMessage.error(msg)
     } finally {
       loading.value = false
@@ -165,14 +171,16 @@ export function useContainerDetail() {
     }
     return {
       text,
-      type: tagType as 'success' | 'warning' | 'danger' | 'info'
+      type: tagType as 'success' | 'warning' | 'danger' | 'info',
     }
   })
 
   // 计算属性：目的港操作信息
   const destinationPortOperation = computed(() => {
     if (!containerData.value?.portOperations) return null
-    return containerData.value.portOperations.find((po: PortOperation) => po.portType === 'destination')
+    return containerData.value.portOperations.find(
+      (po: PortOperation) => po.portType === 'destination'
+    )
   })
 
   // 监听路由参数变化，当货柜号变化时重新加载数据
@@ -196,6 +204,6 @@ export function useContainerDetail() {
     destinationPortOperation,
     loadContainerDetail,
     navigateToPrevious,
-    navigateToNext
+    navigateToNext,
   }
 }

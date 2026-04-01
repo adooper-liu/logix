@@ -31,40 +31,40 @@ const MIGRATION_LOG_TABLE = 'migration_logs';
 // 迁移脚本描述映射表（文件名 → 中文描述）
 const MIGRATION_DESCRIPTIONS: Record<string, string> = {
   // 数据结构类
-  'add_common_ports': '补充常用港口到字典表（萨凡纳、纽约、上海等22个港口）',
-  'add_container_number_to_replenishment_orders': '备货单表添加 container_number 外键字段',
-  'add_country_concept_comments': '国家概念统一：为相关字段添加语义注释',
-  'add_country_to_dict_tables': '清关公司表和拖车公司表添加 country 国家字段',
-  'add_country_to_warehouse_trucking_mapping': '创建仓库-车队映射表并添加国家字段',
-  'add_daily_capacity_to_trucking_companies': '拖车公司表添加日容量字段（智能排产用）',
-  'add_daily_unload_capacity_to_warehouses': '仓库表添加日卸柜能力字段',
-  'add_demurrage_calculation_mode': '滞港费计算支持实际/预测两种模式',
-  'add_demurrage_record_permanence': '滞港费记录表增加临时/永久标识与计算时间',
-  'add_demurrage_standards_and_records': '创建滞港费标准表和滞港费记录表',
-  'add_destination_port_to_demurrage_records': '滞港费记录表增加目的港和物流状态字段',
-  'add_feituo_import_tables': '创建飞驼Excel导入表（船公司/码头维度）',
-  'add_feituo_raw_data_by_group': '飞驼导入表增加按分组存储的原始数据字段',
-  'add_inspection_records': '创建查验记录表和查验事件履历表',
-  'add_last_free_date_mode': '港口操作表增加 last_free_date_mode 字段',
-  'add_savannah_port': '添加萨凡纳港口到字典表',
-  'add_schedule_status': '货柜表添加排产状态字段',
-  'add_sys_data_change_log': '创建数据变更审计日志表',
-  'add_trucking_port_mapping': '创建车队-港口映射表（含费用信息）',
+  add_common_ports: '补充常用港口到字典表（萨凡纳、纽约、上海等22个港口）',
+  add_container_number_to_replenishment_orders: '备货单表添加 container_number 外键字段',
+  add_country_concept_comments: '国家概念统一：为相关字段添加语义注释',
+  add_country_to_dict_tables: '清关公司表和拖车公司表添加 country 国家字段',
+  add_country_to_warehouse_trucking_mapping: '创建仓库-车队映射表并添加国家字段',
+  add_daily_capacity_to_trucking_companies: '拖车公司表添加日容量字段（智能排产用）',
+  add_daily_unload_capacity_to_warehouses: '仓库表添加日卸柜能力字段',
+  add_demurrage_calculation_mode: '滞港费计算支持实际/预测两种模式',
+  add_demurrage_record_permanence: '滞港费记录表增加临时/永久标识与计算时间',
+  add_demurrage_standards_and_records: '创建滞港费标准表和滞港费记录表',
+  add_destination_port_to_demurrage_records: '滞港费记录表增加目的港和物流状态字段',
+  add_feituo_import_tables: '创建飞驼Excel导入表（船公司/码头维度）',
+  add_feituo_raw_data_by_group: '飞驼导入表增加按分组存储的原始数据字段',
+  add_inspection_records: '创建查验记录表和查验事件履历表',
+  add_last_free_date_mode: '港口操作表增加 last_free_date_mode 字段',
+  add_savannah_port: '添加萨凡纳港口到字典表',
+  add_schedule_status: '货柜表添加排产状态字段',
+  add_sys_data_change_log: '创建数据变更审计日志表',
+  add_trucking_port_mapping: '创建车队-港口映射表（含费用信息）',
 
   // 数据回填/修复类
-  'backfill_customer_code_from_sell_to_country': '根据销往国家回填客户代码',
-  'backfill_last_free_date': '【已废弃】最后免费日计算说明（历史参考）',
-  'backfill_last_return_date': '【已废弃】最晚还箱日计算说明（历史参考）',
+  backfill_customer_code_from_sell_to_country: '根据销往国家回填客户代码',
+  backfill_last_free_date: '【已废弃】最后免费日计算说明（历史参考）',
+  backfill_last_return_date: '【已废弃】最晚还箱日计算说明（历史参考）',
   'batch-update-all-statuses': '批量更新所有货柜物流状态',
-  'convert_date_to_timestamp': '数据类型迁移：date 转为 timestamp',
-  'create_resource_occupancy_tables': '创建智能排产资源占用表（仓库/车队/堆场）',
-  'create_universal_dict_mapping': '创建通用字典映射表与查询函数',
+  convert_date_to_timestamp: '数据类型迁移：date 转为 timestamp',
+  create_resource_occupancy_tables: '创建智能排产资源占用表（仓库/车队/堆场）',
+  create_universal_dict_mapping: '创建通用字典映射表与查询函数',
   'fix-at-port-status': '修复 at_port 状态，排除中转港货柜',
-  'fix_port_field_length': '修复港口字段长度（VARCHAR(10) 扩展为 50）',
-  'insert_empty_return_data': '导入还箱数据到 process_empty_returns 表',
-  'normalize_country_uk_to_gb': '国家代码规范化：UK→GB，子公司名称→国家代码',
-  'rollback_timestamp_to_date': '【回滚】数据类型回滚：timestamp 转为 date',
-  'update-container-statuses': '根据还箱记录批量更新货柜状态为 returned_empty',
+  fix_port_field_length: '修复港口字段长度（VARCHAR(10) 扩展为 50）',
+  insert_empty_return_data: '导入还箱数据到 process_empty_returns 表',
+  normalize_country_uk_to_gb: '国家代码规范化：UK→GB，子公司名称→国家代码',
+  rollback_timestamp_to_date: '【回滚】数据类型回滚：timestamp 转为 date',
+  'update-container-statuses': '根据还箱记录批量更新货柜状态为 returned_empty'
 };
 
 export class MigrationService {
@@ -96,16 +96,17 @@ export class MigrationService {
       }
 
       // 读取目录下所有 .sql 文件
-      const files = fs.readdirSync(this.migrationsPath)
-        .filter(f => f.endsWith('.sql'))
+      const files = fs
+        .readdirSync(this.migrationsPath)
+        .filter((f) => f.endsWith('.sql'))
         .sort(); // 按文件名排序（确保执行顺序）
 
       // 获取已执行的迁移记录
       const executedMigrations = await this.getExecutedMigrations();
 
-      return files.map(filename => {
+      return files.map((filename) => {
         const filePath = path.join(this.migrationsPath, filename);
-        const executed = executedMigrations.find(m => m.filename === filename);
+        const executed = executedMigrations.find((m) => m.filename === filename);
 
         return {
           filename,
@@ -202,9 +203,9 @@ export class MigrationService {
    */
   async executeAllPending(): Promise<MigrationExecutionResult[]> {
     const migrations = await this.getAllMigrations();
-    const pending = migrations.filter(m => m.status === 'pending');
+    const pending = migrations.filter((m) => m.status === 'pending');
 
-    return this.executeMigrations(pending.map(m => m.filename));
+    return this.executeMigrations(pending.map((m) => m.filename));
   }
 
   /**
@@ -240,9 +241,7 @@ export class MigrationService {
       }
 
       // 3. 如果都没有，使用文件名（转换为可读格式）
-      return filename
-        .replace(/_/g, ' ')
-        .replace(/^./, c => c.toUpperCase());
+      return filename.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase());
     } catch {
       return path.basename(filePath, '.sql');
     }
@@ -329,14 +328,17 @@ export class MigrationService {
 
     try {
       // 使用 INSERT ... ON CONFLICT 实现 upsert
-      await AppDataSource.query(`
+      await AppDataSource.query(
+        `
         INSERT INTO ${MIGRATION_LOG_TABLE} (filename, status, error, duration_ms, executed_at)
         VALUES ($1, $2, $3, $4, NOW())
         ON CONFLICT (filename) DO UPDATE SET
           status = EXCLUDED.status,
           error = EXCLUDED.error,
           executed_at = NOW()
-      `, [filename, status, error || null, 0]);
+      `,
+        [filename, status, error || null, 0]
+      );
     } catch (err) {
       logger.error('[MigrationService] Error logging migration:', err);
     }
@@ -355,9 +357,9 @@ export class MigrationService {
 
     return {
       total: migrations.length,
-      executed: migrations.filter(m => m.status === 'success').length,
-      pending: migrations.filter(m => m.status === 'pending').length,
-      lastExecuted: migrations.find(m => m.status === 'success')?.executedAt
+      executed: migrations.filter((m) => m.status === 'success').length,
+      pending: migrations.filter((m) => m.status === 'pending').length,
+      lastExecuted: migrations.find((m) => m.status === 'success')?.executedAt
     };
   }
 }

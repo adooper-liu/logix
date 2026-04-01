@@ -9,15 +9,16 @@ import {
   ARRIVAL_DIMENSIONS,
   PICKUP_DIMENSIONS,
   LAST_PICKUP_DIMENSIONS,
-  RETURN_DIMENSIONS
+  RETURN_DIMENSIONS,
 } from '@/config/containerDimensions'
 
 // 泳道配置
-export const createAllLanes = (): LaneConfig[] => LANE_CONFIGS.map(lane => ({
-  name: lane.name,
-  dateField: lane.dateField,
-  color: lane.color
-}))
+export const createAllLanes = (): LaneConfig[] =>
+  LANE_CONFIGS.map(lane => ({
+    name: lane.name,
+    dateField: lane.dateField,
+    color: lane.color,
+  }))
 
 // 泳道名称到维度的映射
 export const laneNameToDimension = LANE_NAME_TO_DIMENSION
@@ -34,7 +35,7 @@ export const useDateRange = (startDate: Date, endDate: Date) => {
     return {
       start,
       end,
-      days
+      days,
     }
   })
 }
@@ -85,7 +86,10 @@ export const useTimeGroups = (
         } else if (dimension.key === 'today') {
           groupStartDate = today.toDate()
           groupEndDate = today.toDate()
-        } else if (dimension.key === 'arrivedBeforeTodayNotPickedUp' || dimension.key === 'arrivedBeforeTodayPickedUp') {
+        } else if (
+          dimension.key === 'arrivedBeforeTodayNotPickedUp' ||
+          dimension.key === 'arrivedBeforeTodayPickedUp'
+        ) {
           groupStartDate = dayjs(startDate).toDate()
           groupEndDate = today.subtract(1, 'day').toDate()
         } else if (dimension.key === 'within3Days') {
@@ -108,7 +112,7 @@ export const useTimeGroups = (
           startDate: groupStartDate,
           endDate: groupEndDate,
           count: 0,
-          color: dimension.color
+          color: dimension.color,
         })
       })
     } else if (laneName === '按提柜计划') {
@@ -139,7 +143,7 @@ export const useTimeGroups = (
           startDate: groupStartDate,
           endDate: groupEndDate,
           count: 0,
-          color: dimension.color
+          color: dimension.color,
         })
       })
     } else if (laneName === '按最晚提柜') {
@@ -170,7 +174,7 @@ export const useTimeGroups = (
           startDate: groupStartDate,
           endDate: groupEndDate,
           count: 0,
-          color: dimension.color
+          color: dimension.color,
         })
       })
     } else if (laneName === '按最晚还箱') {
@@ -201,17 +205,17 @@ export const useTimeGroups = (
           startDate: groupStartDate,
           endDate: groupEndDate,
           count: 0,
-          color: dimension.color
+          color: dimension.color,
         })
       })
     }
 
     // 行数量：优先用统计卡片接口数据（与 Shipments 一致），否则用已加载货柜列表前端分组计数
     const distByLane: Record<string, Record<string, number> | undefined> = {
-      '按到港': statistics?.arrivalDistribution,
-      '按提柜计划': statistics?.pickupDistribution,
-      '按最晚提柜': statistics?.lastPickupDistribution,
-      '按最晚还箱': statistics?.returnDistribution
+      按到港: statistics?.arrivalDistribution,
+      按提柜计划: statistics?.pickupDistribution,
+      按最晚提柜: statistics?.lastPickupDistribution,
+      按最晚还箱: statistics?.returnDistribution,
     }
     const distribution = distByLane[laneName]
     groups.forEach(group => {

@@ -36,7 +36,7 @@ export interface ResolveDemurrageCodesResponse {
 class DictService {
   private api = axios.create({
     baseURL: API_BASE,
-    timeout: 15000
+    timeout: 15000,
   })
 
   async getPorts(): Promise<DictListResponse> {

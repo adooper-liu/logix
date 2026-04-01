@@ -32,15 +32,15 @@ export const knowledgeService = {
 
   // 按类别获取知识
   async getByCategory(category: string) {
-    return api.get<KnowledgeResponse>('/v1/ai/knowledge', { 
-      params: { category } 
+    return api.get<KnowledgeResponse>('/v1/ai/knowledge', {
+      params: { category },
     })
   },
 
   // 搜索知识
   async search(keyword: string) {
-    return api.get<KnowledgeResponse>('/v1/ai/knowledge', { 
-      params: { keyword } 
+    return api.get<KnowledgeResponse>('/v1/ai/knowledge', {
+      params: { keyword },
     })
   },
 
@@ -62,18 +62,22 @@ export interface KnowledgeItem {
 }
 
 export const knowledgeBase: KnowledgeItem[] = [
-${items.map(item => `  // ==================== ${item.category} ====================
+${items
+  .map(
+    item => `  // ==================== ${item.category} ====================
   {
     id: '${item.id}',
     category: '${item.category}',
     title: '${item.title}',
     keywords: ${JSON.stringify(item.keywords, null, 6).replace(/\n/g, '\n    ')},
     content: \`${item.content}\`
-  }`).join(',\n\n')}
+  }`
+  )
+  .join(',\n\n')}
 ];`
 
     return code
-  }
+  },
 }
 
 export default knowledgeService

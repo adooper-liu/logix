@@ -1,5 +1,10 @@
 <script setup lang="ts">
-import { aiService, type ChatMessage, type AIHealthStatus, type ScheduleResult } from '@/services/ai'
+import {
+  aiService,
+  type ChatMessage,
+  type AIHealthStatus,
+  type ScheduleResult,
+} from '@/services/ai'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   MagicStick,
@@ -46,9 +51,9 @@ const scheduleResultData = ref<ScheduleResult | null>(null)
 const getDateContext = () => {
   const dateRangeStr = localStorage.getItem('dateRange')
   const scopedCountryCode = localStorage.getItem('scopedCountryCode')
-  
+
   const context: Record<string, any> = {}
-  
+
   if (dateRangeStr) {
     try {
       const dateRange = JSON.parse(dateRangeStr)
@@ -58,11 +63,11 @@ const getDateContext = () => {
       // ignore
     }
   }
-  
+
   if (scopedCountryCode) {
     context.scopedCountryCode = scopedCountryCode
   }
-  
+
   return context
 }
 
@@ -102,7 +107,7 @@ const welcomeMessage: ChatMessage = {
 
    **手动调用技能**：
    您可以在指令中明确提及技能名称，例如："请使用业务知识技能查询物流状态流转"，以确保我使用正确的技能来回答您的问题。`,
-  timestamp: new Date().toISOString()
+  timestamp: new Date().toISOString(),
 }
 
 // 检查AI健康状态
@@ -135,7 +140,7 @@ const sendMessage = async () => {
   messages.value.push({
     role: 'user',
     content: msg,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   })
   inputMessage.value = ''
   loading.value = true
@@ -147,7 +152,7 @@ const sendMessage = async () => {
   try {
     // 获取上下文（日期范围、国家筛选）
     const context = getDateContext()
-    
+
     // 调用AI对话接口（后端会自动判断是否需要查询数据库或执行排产）
     const chatRes = await aiService.chat(msg, context, { mcpEnabled: mcpEnabled.value })
 
@@ -156,7 +161,7 @@ const sendMessage = async () => {
       messages.value.push({
         role: 'assistant',
         content: chatRes.message,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       })
 
       // 如果有SQL执行结果，显示在预览面板中
@@ -165,7 +170,7 @@ const sendMessage = async () => {
         executionResult.value = chatRes.sqlResult.data || []
         previewError.value = ''
         showSqlPreview.value = true
-        
+
         if (chatRes.sqlResult.truncated) {
           ElMessage.info(`查询到 ${chatRes.sqlResult.rowCount} 条记录，仅显示前5条`)
         }
@@ -175,9 +180,11 @@ const sendMessage = async () => {
       if (chatRes.scheduleResult) {
         scheduleResultData.value = chatRes.scheduleResult
         showScheduleResult.value = true
-        
+
         if (chatRes.scheduleResult.success) {
-          ElMessage.success(`排产完成：成功 ${chatRes.scheduleResult.successCount} 个，失败 ${chatRes.scheduleResult.failedCount} 个`)
+          ElMessage.success(
+            `排产完成：成功 ${chatRes.scheduleResult.successCount} 个，失败 ${chatRes.scheduleResult.failedCount} 个`
+          )
         } else {
           ElMessage.warning('排产执行完成，但有部分失败')
         }
@@ -186,14 +193,14 @@ const sendMessage = async () => {
       messages.value.push({
         role: 'assistant',
         content: chatRes.error || '抱歉，发生了错误，请稍后重试。',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       })
     }
   } catch (error: any) {
     messages.value.push({
       role: 'assistant',
       content: error.message || '网络错误，请稍后重试。',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
   } finally {
     loading.value = false
@@ -204,7 +211,7 @@ const sendMessage = async () => {
 // 执行SQL预览
 const executeSqlPreview = async () => {
   if (!previewSql.value) return
-  
+
   executing.value = true
   try {
     const res = await aiService.executeRawSql(previewSql.value)
@@ -246,20 +253,22 @@ const clearChat = () => {
   ElMessageBox.confirm('确定要清除当前对话吗？', '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
-    type: 'warning'
-  }).then(() => {
-    messages.value = []
-    showSqlPreview.value = false
-    executionResult.value = []
-  }).catch(() => {})
+    type: 'warning',
+  })
+    .then(() => {
+      messages.value = []
+      showSqlPreview.value = false
+      executionResult.value = []
+    })
+    .catch(() => {})
 }
 
 // 格式化时间
 const formatTime = (timestamp?: string) => {
   if (!timestamp) return ''
-  return new Date(timestamp).toLocaleTimeString('zh-CN', { 
-    hour: '2-digit', 
-    minute: '2-digit' 
+  return new Date(timestamp).toLocaleTimeString('zh-CN', {
+    hour: '2-digit',
+    minute: '2-digit',
   })
 }
 
@@ -296,12 +305,7 @@ onMounted(() => {
 
     <!-- 消息区域 -->
     <div ref="messagesContainer" class="messages-area">
-      <div
-        v-for="(msg, index) in messages"
-        :key="index"
-        class="message-item"
-        :class="msg.role"
-      >
+      <div v-for="(msg, index) in messages" :key="index" class="message-item" :class="msg.role">
         <div class="message-avatar">
           <el-avatar :size="36" :icon="msg.role === 'user' ? 'User' : 'ChatDotRound'" />
         </div>
@@ -338,12 +342,19 @@ onMounted(() => {
           <span>SQL 预览</span>
           <div class="preview-actions">
             <el-button size="small" @click="copySql" :icon="DocumentCopy">复制</el-button>
-            <el-button size="small" type="primary" @click="executeSqlPreview" :loading="executing" :icon="CaretRight">执行</el-button>
+            <el-button
+              size="small"
+              type="primary"
+              @click="executeSqlPreview"
+              :loading="executing"
+              :icon="CaretRight"
+              >执行</el-button
+            >
             <el-button size="small" @click="showSqlPreview = false" :icon="Close">关闭</el-button>
           </div>
         </div>
         <pre class="sql-content">{{ previewSql }}</pre>
-        
+
         <!-- 执行结果 -->
         <div v-if="executionResult.length > 0" class="execution-result">
           <div class="result-header">
@@ -360,11 +371,9 @@ onMounted(() => {
               show-overflow-tooltip
             />
           </el-table>
-          <div v-if="executionResult.length > 100" class="result-note">
-            仅显示前100条记录
-          </div>
+          <div v-if="executionResult.length > 100" class="result-note">仅显示前100条记录</div>
         </div>
-        
+
         <div v-if="previewError" class="preview-error">
           <el-icon><WarningFilled /></el-icon>
           {{ previewError }}
@@ -384,10 +393,12 @@ onMounted(() => {
             <el-button size="small" type="primary" @click="router.push('/scheduling')">
               查看详情
             </el-button>
-            <el-button size="small" @click="showScheduleResult = false" :icon="Close">关闭</el-button>
+            <el-button size="small" @click="showScheduleResult = false" :icon="Close"
+              >关闭</el-button
+            >
           </div>
         </div>
-        
+
         <!-- 统计卡片 -->
         <div class="schedule-stats">
           <div class="stat-card total">
@@ -403,7 +414,7 @@ onMounted(() => {
             <div class="stat-label">失败</div>
           </div>
         </div>
-        
+
         <!-- 排产详情列表 -->
         <div class="schedule-detail" v-if="scheduleResultData.results?.length > 0">
           <div class="detail-header">排产详情</div>
@@ -418,9 +429,7 @@ onMounted(() => {
             </el-table-column>
             <el-table-column prop="message" label="消息" show-overflow-tooltip />
           </el-table>
-          <div v-if="scheduleResultData.hasMore" class="result-note">
-            仅显示前5条记录
-          </div>
+          <div v-if="scheduleResultData.hasMore" class="result-note">仅显示前5条记录</div>
         </div>
       </div>
     </transition>
@@ -578,8 +587,12 @@ onMounted(() => {
 }
 
 @keyframes rotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* SQL预览面板 */

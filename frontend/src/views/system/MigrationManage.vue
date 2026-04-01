@@ -8,7 +8,7 @@ import {
   executeAllPending,
   getMigrationContent,
   type MigrationScript,
-  type MigrationStats
+  type MigrationStats,
 } from '@/services/migration'
 
 // 状态
@@ -44,19 +44,15 @@ const loadMigrations = async () => {
 // 执行单个迁移
 const handleExecute = async (filename: string) => {
   try {
-    await ElMessageBox.confirm(
-      `确定要执行迁移脚本「${filename}」吗？`,
-      '执行确认',
-      {
-        confirmButtonText: '执行',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
+    await ElMessageBox.confirm(`确定要执行迁移脚本「${filename}」吗？`, '执行确认', {
+      confirmButtonText: '执行',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
 
     executingFile.value = filename
     const res = await executeMigration(filename)
-    
+
     if (res.success) {
       ElMessage.success(res.message)
       await loadMigrations()
@@ -86,13 +82,13 @@ const handleExecuteAll = async () => {
       {
         confirmButtonText: '执行全部',
         cancelButtonText: '取消',
-        type: 'warning'
+        type: 'warning',
       }
     )
 
     loading.value = true
     const res = await executeAllPending()
-    
+
     if (res.success) {
       ElMessage.success(res.message)
     } else {
@@ -136,20 +132,28 @@ const formatDate = (dateStr?: string) => {
 // 获取状态类型
 const getStatusType = (status: string) => {
   switch (status) {
-    case 'success': return 'success'
-    case 'failed': return 'danger'
-    case 'running': return 'warning'
-    default: return 'info'
+    case 'success':
+      return 'success'
+    case 'failed':
+      return 'danger'
+    case 'running':
+      return 'warning'
+    default:
+      return 'info'
   }
 }
 
 // 获取状态文本
 const getStatusText = (status: string) => {
   switch (status) {
-    case 'success': return '已执行'
-    case 'failed': return '失败'
-    case 'running': return '执行中'
-    default: return '待执行'
+    case 'success':
+      return '已执行'
+    case 'failed':
+      return '失败'
+    case 'running':
+      return '执行中'
+    default:
+      return '待执行'
   }
 }
 
@@ -214,8 +218,8 @@ onMounted(() => {
         <div class="card-header">
           <span>迁移脚本列表</span>
           <div class="actions">
-            <el-button 
-              type="primary" 
+            <el-button
+              type="primary"
               :loading="loading"
               :disabled="pendingMigrations.length === 0"
               @click="handleExecuteAll"
@@ -232,14 +236,14 @@ onMounted(() => {
       </template>
 
       <!-- 迁移表格 -->
-      <el-table 
-        v-loading="loading" 
-        :data="migrations" 
+      <el-table
+        v-loading="loading"
+        :data="migrations"
         stripe
         @selection-change="handleSelectionChange"
       >
         <el-table-column type="selection" width="50" />
-        
+
         <el-table-column label="状态" width="90">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)" size="small">
@@ -247,7 +251,7 @@ onMounted(() => {
             </el-tag>
           </template>
         </el-table-column>
-        
+
         <el-table-column prop="filename" label="文件名" min-width="200">
           <template #default="{ row }">
             <el-link type="primary" @click="handleViewContent(row.filename)">
@@ -255,32 +259,27 @@ onMounted(() => {
             </el-link>
           </template>
         </el-table-column>
-        
+
         <el-table-column prop="description" label="描述" min-width="250" />
-        
+
         <el-table-column label="执行时间" width="170">
           <template #default="{ row }">
             {{ formatDate(row.executedAt) }}
           </template>
         </el-table-column>
-        
+
         <el-table-column label="操作" width="150" fixed="right">
           <template #default="{ row }">
-            <el-button 
+            <el-button
               v-if="row.status === 'pending'"
-              type="primary" 
+              type="primary"
               size="small"
               :loading="executingFile === row.filename"
               @click="handleExecute(row.filename)"
             >
               执行
             </el-button>
-            <el-button 
-              size="small"
-              @click="handleViewContent(row.filename)"
-            >
-              查看
-            </el-button>
+            <el-button size="small" @click="handleViewContent(row.filename)"> 查看 </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -302,8 +301,8 @@ onMounted(() => {
       />
       <template #footer>
         <el-button @click="showContentDialog = false">关闭</el-button>
-        <el-button 
-          type="primary" 
+        <el-button
+          type="primary"
           :disabled="migrations.find(m => m.filename === currentFilename)?.status === 'success'"
           @click="handleExecute(currentFilename)"
         >
@@ -339,22 +338,22 @@ onMounted(() => {
   font-size: 36px;
   padding: 12px;
   border-radius: 12px;
-  
+
   &.total {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
   }
-  
+
   &.success {
     background: linear-gradient(135deg, #67c23a 0%, #85ce61 100%);
     color: white;
   }
-  
+
   &.pending {
     background: linear-gradient(135deg, #e6a23c 0%, #f78989 100%);
     color: white;
   }
-  
+
   &.last {
     background: linear-gradient(135deg, #909399 0%, #c0c4cc 100%);
     color: white;
@@ -383,7 +382,7 @@ onMounted(() => {
     justify-content: space-between;
     align-items: center;
   }
-  
+
   .actions {
     display: flex;
     gap: 8px;

@@ -7,11 +7,7 @@
 
 import { logger } from '../../utils/logger';
 import { flowEngine } from '../utils/flowEngine';
-import {
-  FlowDefinition,
-  FlowInstance,
-  FlowExecutionResult
-} from '../types/flow';
+import { FlowDefinition, FlowInstance, FlowExecutionResult } from '../types/flow';
 
 /**
  * 流程服务类
@@ -20,7 +16,9 @@ export class FlowService {
   /**
    * 创建流程定义
    */
-  async createFlowDefinition(flow: Omit<FlowDefinition, 'id' | 'createdAt' | 'updatedAt'>): Promise<FlowDefinition> {
+  async createFlowDefinition(
+    flow: Omit<FlowDefinition, 'id' | 'createdAt' | 'updatedAt'>
+  ): Promise<FlowDefinition> {
     const newFlow: FlowDefinition = {
       ...flow,
       id: `flow-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -45,7 +43,7 @@ export class FlowService {
    */
   getFlowDefinition(flowId: string): FlowDefinition | undefined {
     const flows = flowEngine.getFlowDefinitions();
-    return flows.find(flow => flow.id === flowId);
+    return flows.find((flow) => flow.id === flowId);
   }
 
   /**
@@ -86,7 +84,10 @@ export class FlowService {
   /**
    * 创建流程实例
    */
-  async createFlowInstance(flowId: string, variables: Record<string, any> = {}): Promise<FlowInstance> {
+  async createFlowInstance(
+    flowId: string,
+    variables: Record<string, any> = {}
+  ): Promise<FlowInstance> {
     return flowEngine.createFlowInstance(flowId, variables);
   }
 
@@ -107,7 +108,10 @@ export class FlowService {
   /**
    * 执行流程（创建并执行）
    */
-  async executeFlow(flowId: string, variables: Record<string, any> = {}): Promise<FlowExecutionResult> {
+  async executeFlow(
+    flowId: string,
+    variables: Record<string, any> = {}
+  ): Promise<FlowExecutionResult> {
     const instance = await this.createFlowInstance(flowId, variables);
     return this.executeFlowInstance(instance.id);
   }
@@ -115,7 +119,10 @@ export class FlowService {
   /**
    * 执行流程定义（直接执行流程定义，不保存实例）
    */
-  async executeFlowDefinition(flow: FlowDefinition, variables: Record<string, any> = {}): Promise<FlowExecutionResult> {
+  async executeFlowDefinition(
+    flow: FlowDefinition,
+    variables: Record<string, any> = {}
+  ): Promise<FlowExecutionResult> {
     // 检查流程定义是否已经存在
     const existingFlow = this.getFlowDefinition(flow.id);
     if (!existingFlow) {

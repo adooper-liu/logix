@@ -100,10 +100,10 @@ const iconWhitelist = [
   'InfoFilled',
   'QuestionFilled',
   // 物流相关
-  'Truck'
+  'Truck',
 ]
 
-iconWhitelist.forEach((key) => {
+iconWhitelist.forEach(key => {
   const icon = ElementPlusIconsVue[key as keyof typeof ElementPlusIconsVue]
   if (icon) {
     app.component(key, icon)
@@ -115,7 +115,7 @@ app.use(router)
 app.use(i18n)
 app.use(dateTimePlugin)
 app.use(ElementPlus, {
-  locale: zhCn
+  locale: zhCn,
 })
 
 // 监听语言变化，动态切换 Element Plus 语言
@@ -129,12 +129,12 @@ const elementPlusLocales: Record<Language, any> = {
   'de-DE': de,
   'fr-FR': fr,
   'it-IT': en, // 意大利语使用英文作为备选
-  'es-ES': es
+  'es-ES': es,
 }
 
 watch(
   () => i18n.global.locale.value,
-  (newLocale) => {
+  newLocale => {
     const lang = newLocale as Language
     if (elementPlusLocales[lang]) {
       app.config.globalProperties.$ELEMENT = { locale: elementPlusLocales[lang] }

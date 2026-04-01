@@ -52,11 +52,11 @@ class LogisticsPathService {
   constructor() {
     this.api = axios.create({
       baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1',
-      timeout: 15000
+      timeout: 15000,
     })
 
     this.api.interceptors.request.use(
-      (config) => {
+      config => {
         const token = localStorage.getItem('token')
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
@@ -67,7 +67,7 @@ class LogisticsPathService {
         }
         return config
       },
-      (error) => Promise.reject(error)
+      error => Promise.reject(error)
     )
   }
 
@@ -89,9 +89,7 @@ class LogisticsPathService {
   /**
    * 验证物流路径
    */
-  async validatePath(
-    pathId: string
-  ): Promise<{
+  async validatePath(pathId: string): Promise<{
     success: boolean
     data?: { isValid: boolean; errors: string[]; warnings: string[] }
     message?: string

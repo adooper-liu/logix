@@ -37,6 +37,9 @@ export function useGanttLogic() {
   const tooltipVisible = ref(false)
   const tooltipPosition = ref({ x: 0, y: 0 })
   const tooltipContainer = ref<Container | null>(null)
+  // Tooltip 尺寸预估（用于边界检测）
+  const TOOLTIP_WIDTH = 320
+  const TOOLTIP_HEIGHT = 420
 
   // 交互状态
   const selectedContainer = ref<Container | null>(null)
@@ -49,7 +52,12 @@ export function useGanttLogic() {
   const draggingContainer = ref<Container | null>(null)
   const dragOverDate = ref<Date | null>(null)
   const dropIndicatorPosition = ref({ x: 0, y: 0 })
-  const dropIndicatorCellRect = ref<{ left: number; top: number; width: number; height: number } | null>(null)
+  const dropIndicatorCellRect = ref<{
+    left: number
+    top: number
+    width: number
+    height: number
+  } | null>(null)
   /** 待确认的拖拽落点数据，在 dragend 后再弹窗，避免首次点击被消费 */
   const pendingDropConfirm = ref<{
     container: Container
@@ -58,8 +66,6 @@ export function useGanttLogic() {
     fieldLabel: string
     confirmMsg: string
   } | null>(null)
-
-
 
   // 高级筛选
   const advancedFilters = ref({
@@ -263,11 +269,11 @@ export function useGanttLogic() {
       // 初始化目的港层级
       if (!result[portCode]) {
         result[portCode] = {
-          '清关': {},
-          '提柜': {},
-          '卸柜': {},
-          '还箱': {},
-          '查验': {}
+          清关: {},
+          提柜: {},
+          卸柜: {},
+          还箱: {},
+          查验: {},
         }
       }
 
@@ -286,8 +292,8 @@ export function useGanttLogic() {
   })
 
   // 获取货柜对应的节点和供应商
-  const getNodeAndSupplier = (container: Container): Array<{ node: string, supplier: string }> => {
-    const result: Array<{ node: string, supplier: string }> = []
+  const getNodeAndSupplier = (container: Container): Array<{ node: string; supplier: string }> => {
+    const result: Array<{ node: string; supplier: string }> = []
 
     // 清关节点 - 仅当有清关行或计划提柜日时才显示
     if (container.portOperations && container.portOperations.length > 0) {
@@ -329,7 +335,8 @@ export function useGanttLogic() {
         // 回退到使用仓库名称
         if (!supplier && container.warehouseOperations?.[0]) {
           const warehouseOp = container.warehouseOperations[0]
-          supplier = warehouseOp.warehouseId || warehouseOp.actualWarehouse || warehouseOp.plannedWarehouse
+          supplier =
+            warehouseOp.warehouseId || warehouseOp.actualWarehouse || warehouseOp.plannedWarehouse
         }
         if (supplier) {
           result.push({ node: '还箱', supplier })
@@ -350,7 +357,7 @@ export function useGanttLogic() {
     if (result.length === 0) {
       result.push({
         node: '未分类',
-        supplier: '未指定供应商'
+        supplier: '未指定供应商',
       })
     }
 
@@ -567,13 +574,43 @@ export function useGanttLogic() {
     })
   }
 
-  // Tooltip
+  // Tooltip：智能边界检测
   const showTooltip = (container: Container, event: MouseEvent) => {
     tooltipContainer.value = container
-    tooltipPosition.value = {
-      x: event.clientX + 10,
-      y: event.clientY + 10,
+
+    // 基础偏移量
+    const offsetX = 15
+    const offsetY = 15
+
+    // 获取视口尺寸
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
+
+    // 计算 tooltip 位置
+    let x = event.clientX + offsetX
+    let y = event.clientY + offsetY
+
+    // 右侧边界检测：如果 tooltip 会超出右边界，则向左偏移
+    if (x + TOOLTIP_WIDTH > viewportWidth - 10) {
+      x = event.clientX - TOOLTIP_WIDTH - offsetX
     }
+
+    // 底部边界检测：如果 tooltip 会超出底边界，则向上偏移
+    if (y + TOOLTIP_HEIGHT > viewportHeight - 10) {
+      y = event.clientY - TOOLTIP_HEIGHT - offsetY
+    }
+
+    // 左边界检测：确保不超出左边界
+    if (x < 10) {
+      x = 10
+    }
+
+    // 上边界检测：确保不超出上边界
+    if (y < 10) {
+      y = 10
+    }
+
+    tooltipPosition.value = { x, y }
     tooltipVisible.value = true
   }
 
@@ -680,7 +717,10 @@ export function useGanttLogic() {
         })
           .then(async () => {
             const updateData: Record<string, string> = { [updateField]: newDate }
-            const result = await containerService.updateSchedule(container.containerNumber, updateData)
+            const result = await containerService.updateSchedule(
+              container.containerNumber,
+              updateData
+            )
             if (result.success) {
               ElMessage.success('日期调整成功')
               await loadData()
@@ -701,12 +741,34 @@ export function useGanttLogic() {
     })
   }
 
+  // ========== 拖拽字段映射 ==========
+  /** 节点类型到更新字段的映射 */
+  const NODE_TO_FIELD_MAP: Record<string, { field: string; label: string }> = {
+    '清关': { field: 'plannedCustomsDate', label: '计划清关日' },
+    '查验': { field: 'plannedCustomsDate', label: '计划查验日' },
+    '提柜': { field: 'plannedPickupDate', label: '计划提柜日' },
+    '卸柜': { field: 'plannedUnloadDate', label: '计划卸柜日' },
+    '还箱': { field: 'plannedReturnDate', label: '计划还箱日' },
+    '未分类': { field: 'plannedPickupDate', label: '计划提柜日' },
+  }
+
+  /** 获取当前节点类型（从 collapsedGroups 推断或默认） */
+  const getCurrentDragNodeType = (): string => {
+    // 从 filterCondition 推断节点类型
+    const condition = filterCondition.value
+    if (condition.startsWith('return')) return '还箱'
+    if (condition.includes('Pickup') || condition.includes('Planned')) return '提柜'
+    if (condition.includes('LastPickup')) return '提柜'
+    return '提柜' // 默认
+  }
+
   const handleDrop = (date: Date) => {
     if (!draggingContainer.value || !dragOverDate.value) return
 
     const container = draggingContainer.value
     const newDate = dayjs(dragOverDate.value).format('YYYY-MM-DD')
 
+    // 根据 filterCondition 或节点类型确定要更新的字段
     const condition = filterCondition.value
     let updateField = 'plannedPickupDate'
     let fieldLabel = '计划提柜日'
@@ -714,7 +776,14 @@ export function useGanttLogic() {
     if (condition.startsWith('return')) {
       updateField = 'plannedReturnDate'
       fieldLabel = '计划还箱日'
+    } else if (condition.startsWith('unload')) {
+      updateField = 'plannedUnloadDate'
+      fieldLabel = '计划卸柜日'
+    } else if (condition.startsWith('customs') || condition.startsWith('inspection')) {
+      updateField = 'plannedCustomsDate'
+      fieldLabel = '计划清关日'
     } else {
+      // 默认按提柜处理
       updateField = 'plannedPickupDate'
       fieldLabel = '计划提柜日'
     }
@@ -729,7 +798,7 @@ export function useGanttLogic() {
 
       // 准备更新数据
       const updateData: any = {
-        [data.field]: data.value
+        [data.field]: data.value,
       }
 
       // 调用API更新货柜日期
@@ -792,8 +861,8 @@ export function useGanttLogic() {
       query: {
         startDate: ganttFilterStore.startDate,
         endDate: ganttFilterStore.endDate,
-        filterCondition: ganttFilterStore.filterCondition
-      }
+        filterCondition: ganttFilterStore.filterCondition,
+      },
     })
   }
 
@@ -839,8 +908,13 @@ export function useGanttLogic() {
   let rafId = 0
   let lastEvent: DragEvent | null = null
   const updateDragOverState = (event: DragEvent) => {
-    const elementUnderCursor = document.elementFromPoint(event.clientX, event.clientY) as HTMLElement
-    const dateCell = elementUnderCursor?.closest('.date-cell') ?? (event.target as HTMLElement)?.closest('.date-cell')
+    const elementUnderCursor = document.elementFromPoint(
+      event.clientX,
+      event.clientY
+    ) as HTMLElement
+    const dateCell =
+      elementUnderCursor?.closest('.date-cell') ??
+      (event.target as HTMLElement)?.closest('.date-cell')
     if (dateCell) {
       const dateIndexAttr = dateCell.getAttribute('data-date-index')
       let dateIndex = -1
@@ -856,7 +930,12 @@ export function useGanttLogic() {
         const newDate = dateRange.value[dateIndex]
         const rect = dateCell.getBoundingClientRect()
         dragOverDate.value = newDate
-        dropIndicatorCellRect.value = { left: rect.left, top: rect.top, width: rect.width, height: rect.height }
+        dropIndicatorCellRect.value = {
+          left: rect.left,
+          top: rect.top,
+          width: rect.width,
+          height: rect.height,
+        }
         dropIndicatorPosition.value = {
           x: rect.left + rect.width / 2 - 80,
           y: rect.top,

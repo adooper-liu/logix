@@ -24,23 +24,25 @@ export class EtaStatisticsService {
     const sevenDaysLater = DateFilterBuilder.addDays(today, 7);
 
     const [overdue, within3Days, within7Days, over7Days, otherRecords] = await Promise.all([
-      this.getOverdueNotArrived(today, startDate, endDate).catch(err => {
+      this.getOverdueNotArrived(today, startDate, endDate).catch((err) => {
         console.error('[EtaStatistics] getOverdueNotArrived error:', err);
         return 0;
       }),
-      this.getWithin3Days(today, threeDaysLater, startDate, endDate).catch(err => {
+      this.getWithin3Days(today, threeDaysLater, startDate, endDate).catch((err) => {
         console.error('[EtaStatistics] getWithin3Days error:', err);
         return 0;
       }),
-      this.getWithin7Days(today, threeDaysLater, sevenDaysLater, startDate, endDate).catch(err => {
-        console.error('[EtaStatistics] getWithin7Days error:', err);
-        return 0;
-      }),
-      this.getOver7Days(today, sevenDaysLater, startDate, endDate).catch(err => {
+      this.getWithin7Days(today, threeDaysLater, sevenDaysLater, startDate, endDate).catch(
+        (err) => {
+          console.error('[EtaStatistics] getWithin7Days error:', err);
+          return 0;
+        }
+      ),
+      this.getOver7Days(today, sevenDaysLater, startDate, endDate).catch((err) => {
         console.error('[EtaStatistics] getOver7Days error:', err);
         return 0;
       }),
-      this.getOtherRecords(startDate, endDate).catch(err => {
+      this.getOtherRecords(startDate, endDate).catch((err) => {
         console.error('[EtaStatistics] getOtherRecords error:', err);
         return 0;
       })
@@ -69,7 +71,9 @@ export class EtaStatisticsService {
     query.andWhere('DATE(latest_po.latest_eta) < :today', { today });
     this.excludeContainersArrivedAtTransit(query);
     applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, { today });
-    const result = await query.select('COUNT(DISTINCT container.containerNumber)', 'count').getRawOne();
+    const result = await query
+      .select('COUNT(DISTINCT container.containerNumber)', 'count')
+      .getRawOne();
     return parseInt(result?.count || '0');
   }
 
@@ -77,15 +81,25 @@ export class EtaStatisticsService {
    * 3天内到港（ETA）
    * 修正：必须排除有中转港记录的货柜
    */
-  async getWithin3Days(today: Date, threeDaysLater: Date, startDate?: string, endDate?: string): Promise<number> {
+  async getWithin3Days(
+    today: Date,
+    threeDaysLater: Date,
+    startDate?: string,
+    endDate?: string
+  ): Promise<number> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.joinLatestDestinationWithEta(query);
     ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.ETA_TARGET);
     query.andWhere('DATE(latest_po.latest_eta) >= :today', { today });
     query.andWhere('DATE(latest_po.latest_eta) <= :threeDays', { threeDays: threeDaysLater });
     this.excludeContainersArrivedAtTransit(query);
-    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, { today, threeDays: threeDaysLater });
-    const result = await query.select('COUNT(DISTINCT container.containerNumber)', 'count').getRawOne();
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, {
+      today,
+      threeDays: threeDaysLater
+    });
+    const result = await query
+      .select('COUNT(DISTINCT container.containerNumber)', 'count')
+      .getRawOne();
     return parseInt(result?.count || '0');
   }
 
@@ -93,15 +107,26 @@ export class EtaStatisticsService {
    * 7天内到港（ETA）
    * 修正：必须排除有中转港记录的货柜
    */
-  async getWithin7Days(today: Date, threeDaysLater: Date, sevenDaysLater: Date, startDate?: string, endDate?: string): Promise<number> {
+  async getWithin7Days(
+    today: Date,
+    threeDaysLater: Date,
+    sevenDaysLater: Date,
+    startDate?: string,
+    endDate?: string
+  ): Promise<number> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.joinLatestDestinationWithEta(query);
     ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.ETA_TARGET);
     query.andWhere('DATE(latest_po.latest_eta) > :threeDays', { threeDays: threeDaysLater });
     query.andWhere('DATE(latest_po.latest_eta) <= :sevenDays', { sevenDays: sevenDaysLater });
     this.excludeContainersArrivedAtTransit(query);
-    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, { threeDays: threeDaysLater, sevenDays: sevenDaysLater });
-    const result = await query.select('COUNT(DISTINCT container.containerNumber)', 'count').getRawOne();
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, {
+      threeDays: threeDaysLater,
+      sevenDays: sevenDaysLater
+    });
+    const result = await query
+      .select('COUNT(DISTINCT container.containerNumber)', 'count')
+      .getRawOne();
     return parseInt(result?.count || '0');
   }
 
@@ -109,14 +134,23 @@ export class EtaStatisticsService {
    * 超过7天到港（ETA）
    * 修正：必须排除有中转港记录的货柜
    */
-  async getOver7Days(today: Date, sevenDaysLater: Date, startDate?: string, endDate?: string): Promise<number> {
+  async getOver7Days(
+    today: Date,
+    sevenDaysLater: Date,
+    startDate?: string,
+    endDate?: string
+  ): Promise<number> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.joinLatestDestinationWithEta(query);
     ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.ETA_TARGET);
     query.andWhere('DATE(latest_po.latest_eta) > :sevenDays', { sevenDays: sevenDaysLater });
     this.excludeContainersArrivedAtTransit(query);
-    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, { sevenDays: sevenDaysLater });
-    const result = await query.select('COUNT(DISTINCT container.containerNumber)', 'count').getRawOne();
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, {
+      sevenDays: sevenDaysLater
+    });
+    const result = await query
+      .select('COUNT(DISTINCT container.containerNumber)', 'count')
+      .getRawOne();
     return parseInt(result?.count || '0');
   }
 
@@ -148,7 +182,9 @@ export class EtaStatisticsService {
     ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.ETA_TARGET);
     this.excludeContainersArrivedAtTransit(query);
     applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, undefined);
-    const result = await query.select('COUNT(DISTINCT container.containerNumber)', 'count').getRawOne();
+    const result = await query
+      .select('COUNT(DISTINCT container.containerNumber)', 'count')
+      .getRawOne();
     return parseInt(result?.count || '0');
   }
 
@@ -170,7 +206,13 @@ export class EtaStatisticsService {
       case 'within3Days':
         return this.getContainersByWithin3Days(today, threeDaysLater, startDate, endDate);
       case 'within7Days':
-        return this.getContainersByWithin7Days(today, threeDaysLater, sevenDaysLater, startDate, endDate);
+        return this.getContainersByWithin7Days(
+          today,
+          threeDaysLater,
+          sevenDaysLater,
+          startDate,
+          endDate
+        );
       case 'over7Days':
         return this.getContainersByOver7Days(today, sevenDaysLater, startDate, endDate);
       case 'otherRecords':
@@ -207,7 +249,12 @@ export class EtaStatisticsService {
     )`);
   }
 
-  private async getContainersByWithin3Days(today: Date, threeDaysLater: Date, startDate?: string, endDate?: string): Promise<Container[]> {
+  private async getContainersByWithin3Days(
+    today: Date,
+    threeDaysLater: Date,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.joinLatestDestinationWithEta(query);
     ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.ETA_TARGET);
@@ -219,7 +266,13 @@ export class EtaStatisticsService {
     return query.getMany();
   }
 
-  private async getContainersByWithin7Days(today: Date, threeDaysLater: Date, sevenDaysLater: Date, startDate?: string, endDate?: string): Promise<Container[]> {
+  private async getContainersByWithin7Days(
+    today: Date,
+    threeDaysLater: Date,
+    sevenDaysLater: Date,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.joinLatestDestinationWithEta(query);
     ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.ETA_TARGET);
@@ -231,7 +284,12 @@ export class EtaStatisticsService {
     return query.getMany();
   }
 
-  private async getContainersByOver7Days(today: Date, sevenDaysLater: Date, startDate?: string, endDate?: string): Promise<Container[]> {
+  private async getContainersByOver7Days(
+    today: Date,
+    sevenDaysLater: Date,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.joinLatestDestinationWithEta(query);
     ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.ETA_TARGET);
@@ -242,7 +300,11 @@ export class EtaStatisticsService {
     return query.getMany();
   }
 
-  private async getContainersByOverdue(today: Date, startDate?: string, endDate?: string): Promise<Container[]> {
+  private async getContainersByOverdue(
+    today: Date,
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
     ContainerQueryBuilder.joinLatestDestinationWithEta(query);
     ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.ETA_TARGET);
@@ -253,7 +315,10 @@ export class EtaStatisticsService {
     return query.getMany();
   }
 
-  private async getContainersByOtherRecords(startDate?: string, endDate?: string): Promise<Container[]> {
+  private async getContainersByOtherRecords(
+    startDate?: string,
+    endDate?: string
+  ): Promise<Container[]> {
     const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository);
 
     query.innerJoin(

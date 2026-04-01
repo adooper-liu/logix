@@ -16,7 +16,13 @@ export const FEITUO_TABLE1_SPEC = {
   description: '飞驼导入主数据表（订舱、海运、费用信息）',
   fields: [
     // 基础信息
-    { field: 'container_number', excelColumn: '集装箱号', type: 'string', required: true, primaryKey: true },
+    {
+      field: 'container_number',
+      excelColumn: '集装箱号',
+      type: 'string',
+      required: true,
+      primaryKey: true
+    },
     { field: 'bill_of_lading_number', excelColumn: '提单号', type: 'string', required: true },
     { field: 'booking_number', excelColumn: '订舱号', type: 'string', required: false },
 
@@ -55,7 +61,13 @@ export const FEITUO_TABLE1_SPEC = {
 
     // 其他信息
     { field: 'remark', excelColumn: '备注', type: 'string', required: false },
-    { field: 'data_source', excelColumn: '数据来源', type: 'string', required: false, default: 'Excel' }
+    {
+      field: 'data_source',
+      excelColumn: '数据来源',
+      type: 'string',
+      required: false,
+      default: 'Excel'
+    }
   ]
 };
 
@@ -68,7 +80,13 @@ export const FEITUO_TABLE2_SPEC = {
   description: '飞驼导入状态事件表（时间节点、状态变更）',
   fields: [
     // 基础信息
-    { field: 'container_number', excelColumn: '集装箱号', type: 'string', required: true, primaryKey: true },
+    {
+      field: 'container_number',
+      excelColumn: '集装箱号',
+      type: 'string',
+      required: true,
+      primaryKey: true
+    },
     { field: 'bill_of_lading_number', excelColumn: '提单号', type: 'string', required: true },
 
     // 事件信息
@@ -87,7 +105,13 @@ export const FEITUO_TABLE2_SPEC = {
 
     // 其他信息
     { field: 'remark', excelColumn: '备注', type: 'string', required: false },
-    { field: 'data_source', excelColumn: '数据来源', type: 'string', required: false, default: 'Excel' }
+    {
+      field: 'data_source',
+      excelColumn: '数据来源',
+      type: 'string',
+      required: false,
+      default: 'Excel'
+    }
   ]
 };
 
@@ -236,7 +260,8 @@ export const ERROR_MESSAGES = {
   [IMPORT_ERROR_CODES.FILE_FORMAT_INVALID]: '文件格式不正确，请上传 .xlsx 或 .xls 文件',
   [IMPORT_ERROR_CODES.FILE_SIZE_EXCEEDED]: '文件大小超过限制: {size}MB (最大 {maxSize}MB)',
   [IMPORT_ERROR_CODES.DATA_REQUIRED_FIELD_MISSING]: '缺少必填字段: {field}',
-  [IMPORT_ERROR_CODES.DATA_TYPE_INVALID]: '字段 {field} 类型错误: 期望 {expectedType}，实际 {actualType}',
+  [IMPORT_ERROR_CODES.DATA_TYPE_INVALID]:
+    '字段 {field} 类型错误: 期望 {expectedType}，实际 {actualType}',
   [IMPORT_ERROR_CODES.DATA_DUPLICATE_KEY]: '重复的主键: {key}',
   [IMPORT_ERROR_CODES.MAPPING_NOT_FOUND]: '找不到字段映射: {field}',
   [IMPORT_ERROR_CODES.MAPPING_INVALID]: '无效的映射配置: {reason}',
@@ -259,15 +284,15 @@ export const CONTAINER_COUNT_PARSER_RULES = {
    * @param description 箱数描述字符串
    * @returns 解析结果 [{count, type, size}]
    */
-  parse: (description: string): Array<{count: number; type: string; size: string}> => {
+  parse: (description: string): Array<{ count: number; type: string; size: string }> => {
     if (!description || typeof description !== 'string') {
       return [];
     }
 
-    const results: Array<{count: number; type: string; size: string}> = [];
+    const results: Array<{ count: number; type: string; size: string }> = [];
 
     // 按加号分割多个箱型
-    const parts = description.split('+').map(p => p.trim());
+    const parts = description.split('+').map((p) => p.trim());
 
     for (const part of parts) {
       // 按星号分割数量和箱型
@@ -286,7 +311,7 @@ export const CONTAINER_COUNT_PARSER_RULES = {
         results.push({
           count: isNaN(count) ? 0 : count,
           type: type || 'GP', // 默认GP
-          size: size || '20'  // 默认20尺
+          size: size || '20' // 默认20尺
         });
       }
     }

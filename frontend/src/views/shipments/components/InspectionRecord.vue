@@ -1,6 +1,16 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { ElMessage, ElDatePicker, ElSelect, ElOption, ElButton, ElInput, ElTable, ElTableColumn, ElPopconfirm } from 'element-plus'
+import {
+  ElMessage,
+  ElDatePicker,
+  ElSelect,
+  ElOption,
+  ElButton,
+  ElInput,
+  ElTable,
+  ElTableColumn,
+  ElPopconfirm,
+} from 'element-plus'
 import { inspectionService, type InspectionRecord } from '@/services/inspection'
 import { containerService } from '@/services/container'
 import dayjs from 'dayjs'
@@ -176,11 +186,7 @@ onMounted(async () => {
   <div class="inspection-record">
     <div class="record-header">
       <h3 class="record-title">查验记录</h3>
-      <el-button 
-        type="primary" 
-        size="small" 
-        @click="isEditing = !isEditing"
-      >
+      <el-button type="primary" size="small" @click="isEditing = !isEditing">
         {{ isEditing ? '取消编辑' : '编辑记录' }}
       </el-button>
     </div>
@@ -197,46 +203,41 @@ onMounted(async () => {
         <div class="form-grid">
           <div class="form-item">
             <label class="form-label">问题类型</label>
-            <el-select 
-              v-model="formData.inspectionType" 
-              placeholder="请选择" 
+            <el-select
+              v-model="formData.inspectionType"
+              placeholder="请选择"
               :disabled="!isEditing"
               class="form-select"
             >
-              <el-option 
-                v-for="option in inspectionTypeOptions" 
-                :key="option.value" 
-                :label="option.label" 
-                :value="option.value" 
+              <el-option
+                v-for="option in inspectionTypeOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
               />
             </el-select>
           </div>
 
           <div class="form-item">
             <label class="form-label">查验SKU</label>
-            <el-select 
-              v-model="formData.inspectionSkus" 
-              multiple 
-              placeholder="请选择SKU" 
+            <el-select
+              v-model="formData.inspectionSkus"
+              multiple
+              placeholder="请选择SKU"
               :disabled="!isEditing"
               class="form-select"
             >
-              <el-option 
-                v-for="sku in containerSkus" 
-                :key="sku" 
-                :label="sku" 
-                :value="sku" 
-              />
+              <el-option v-for="sku in containerSkus" :key="sku" :label="sku" :value="sku" />
             </el-select>
           </div>
 
           <div class="form-item">
             <label class="form-label">海关质疑</label>
-            <el-input 
-              v-model="formData.customsQuestion" 
-              type="textarea" 
-              :rows="2" 
-              placeholder="记录海关提出的原始、具体问题" 
+            <el-input
+              v-model="formData.customsQuestion"
+              type="textarea"
+              :rows="2"
+              placeholder="记录海关提出的原始、具体问题"
               :disabled="!isEditing"
               class="form-textarea"
             />
@@ -244,11 +245,11 @@ onMounted(async () => {
 
           <div class="form-item">
             <label class="form-label">海关要求</label>
-            <el-input 
-              v-model="formData.customsRequirement" 
-              type="textarea" 
-              :rows="2" 
-              placeholder="记录海关明确要求的证据或行动" 
+            <el-input
+              v-model="formData.customsRequirement"
+              type="textarea"
+              :rows="2"
+              placeholder="记录海关明确要求的证据或行动"
               :disabled="!isEditing"
               class="form-textarea"
             />
@@ -256,9 +257,9 @@ onMounted(async () => {
 
           <div class="form-item">
             <label class="form-label">海关时限</label>
-            <el-input 
-              v-model="formData.customsDeadline" 
-              placeholder="记录海关给出的处理期限（如有）" 
+            <el-input
+              v-model="formData.customsDeadline"
+              placeholder="记录海关给出的处理期限（如有）"
               :disabled="!isEditing"
               class="form-input"
             />
@@ -266,11 +267,11 @@ onMounted(async () => {
 
           <div class="form-item">
             <label class="form-label">出运前风险预判</label>
-            <el-input 
-              v-model="formData.preShipmentRiskAssessment" 
-              type="textarea" 
-              :rows="3" 
-              placeholder="记录在产品认证或发货前，内部是否已识别到该潜在风险，以及预判结论" 
+            <el-input
+              v-model="formData.preShipmentRiskAssessment"
+              type="textarea"
+              :rows="3"
+              placeholder="记录在产品认证或发货前，内部是否已识别到该潜在风险，以及预判结论"
               :disabled="!isEditing"
               class="form-textarea"
             />
@@ -278,11 +279,11 @@ onMounted(async () => {
 
           <div class="form-item">
             <label class="form-label">本次应对措施</label>
-            <el-input 
-              v-model="formData.responseMeasures" 
-              type="textarea" 
-              :rows="3" 
-              placeholder="记录为解决本次清关事件所采取的具体行动" 
+            <el-input
+              v-model="formData.responseMeasures"
+              type="textarea"
+              :rows="3"
+              placeholder="记录为解决本次清关事件所采取的具体行动"
               :disabled="!isEditing"
               class="form-textarea"
             />
@@ -290,11 +291,11 @@ onMounted(async () => {
 
           <div class="form-item">
             <label class="form-label">海关最终裁定</label>
-            <el-input 
-              v-model="formData.customsFinalDecision" 
-              type="textarea" 
-              :rows="2" 
-              placeholder="记录海关的最终决定及理由" 
+            <el-input
+              v-model="formData.customsFinalDecision"
+              type="textarea"
+              :rows="2"
+              placeholder="记录海关的最终决定及理由"
               :disabled="!isEditing"
               class="form-textarea"
             />
@@ -302,11 +303,11 @@ onMounted(async () => {
 
           <div class="form-item">
             <label class="form-label">最新状态</label>
-            <el-input 
-              v-model="formData.latestStatus" 
-              type="textarea" 
-              :rows="2" 
-              placeholder="动态更新当前处理进展" 
+            <el-input
+              v-model="formData.latestStatus"
+              type="textarea"
+              :rows="2"
+              placeholder="动态更新当前处理进展"
               :disabled="!isEditing"
               class="form-textarea"
             />
@@ -314,27 +315,27 @@ onMounted(async () => {
 
           <div class="form-item">
             <label class="form-label">是否已清关完结</label>
-            <el-select 
-              v-model="formData.customsClearanceStatus" 
-              placeholder="请选择" 
+            <el-select
+              v-model="formData.customsClearanceStatus"
+              placeholder="请选择"
               :disabled="!isEditing"
               class="form-select"
             >
-              <el-option 
-                v-for="option in customsClearanceStatusOptions" 
-                :key="option.value" 
-                :label="option.label" 
-                :value="option.value" 
+              <el-option
+                v-for="option in customsClearanceStatusOptions"
+                :key="option.value"
+                :label="option.label"
+                :value="option.value"
               />
             </el-select>
           </div>
 
           <div class="form-item">
             <label class="form-label">产生滞港费用</label>
-            <el-input 
-              v-model.number="formData.demurrageFee" 
-              type="number" 
-              placeholder="金额，本地币" 
+            <el-input
+              v-model.number="formData.demurrageFee"
+              type="number"
+              placeholder="金额，本地币"
               :disabled="true"
               class="form-input"
             />
@@ -343,11 +344,11 @@ onMounted(async () => {
 
           <div class="form-item">
             <label class="form-label">责任认定</label>
-            <el-input 
-              v-model="formData.responsibilityDetermination" 
-              type="textarea" 
-              :rows="2" 
-              placeholder="记录内部判定的责任根源" 
+            <el-input
+              v-model="formData.responsibilityDetermination"
+              type="textarea"
+              :rows="2"
+              placeholder="记录内部判定的责任根源"
               :disabled="!isEditing"
               class="form-textarea"
             />
@@ -355,11 +356,11 @@ onMounted(async () => {
 
           <div class="form-item">
             <label class="form-label">备注</label>
-            <el-input 
-              v-model="formData.remarks" 
-              type="textarea" 
-              :rows="3" 
-              placeholder="手工填写以上字段未尽项内容" 
+            <el-input
+              v-model="formData.remarks"
+              type="textarea"
+              :rows="3"
+              placeholder="手工填写以上字段未尽项内容"
               :disabled="!isEditing"
               class="form-textarea"
             />
@@ -372,32 +373,27 @@ onMounted(async () => {
       </el-card>
 
       <!-- 事件履历 -->
-      <el-card class="events-card" shadow="hover" style="margin-top: 20px;">
+      <el-card class="events-card" shadow="hover" style="margin-top: 20px">
         <template #header>
           <div class="card-header">
             <span>事件履历</span>
-            <el-button 
-              v-if="isEditing" 
-              type="success" 
-              size="small" 
-              @click="addEvent"
-            >
+            <el-button v-if="isEditing" type="success" size="small" @click="addEvent">
               添加事件
             </el-button>
           </div>
         </template>
 
-        <div v-if="isEditing" class="event-form" style="margin-bottom: 20px;">
-          <el-date-picker 
-            v-model="newEvent.eventDate" 
-            type="date" 
-            placeholder="选择日期" 
-            style="width: 180px; margin-right: 10px;"
+        <div v-if="isEditing" class="event-form" style="margin-bottom: 20px">
+          <el-date-picker
+            v-model="newEvent.eventDate"
+            type="date"
+            placeholder="选择日期"
+            style="width: 180px; margin-right: 10px"
           />
-          <el-input 
-            v-model="newEvent.eventStatus" 
-            placeholder="事件状态" 
-            style="flex: 1; margin-right: 10px;"
+          <el-input
+            v-model="newEvent.eventStatus"
+            placeholder="事件状态"
+            style="flex: 1; margin-right: 10px"
           />
           <el-button type="primary" size="small" @click="addEvent">添加</el-button>
         </div>
@@ -411,10 +407,7 @@ onMounted(async () => {
           <el-table-column prop="eventStatus" label="最新状态" min-width="200" />
           <el-table-column label="操作" width="100" v-if="isEditing">
             <template #default="scope">
-              <el-popconfirm
-                title="确定删除此事件吗？"
-                @confirm="deleteEvent(scope.row.id!)"
-              >
+              <el-popconfirm title="确定删除此事件吗？" @confirm="deleteEvent(scope.row.id!)">
                 <template #reference>
                   <el-button type="danger" size="small" plain>删除</el-button>
                 </template>
@@ -423,7 +416,7 @@ onMounted(async () => {
           </el-table-column>
         </el-table>
 
-        <div v-if="(!formData.events || formData.events.length === 0)" class="empty-events">
+        <div v-if="!formData.events || formData.events.length === 0" class="empty-events">
           <p>暂无事件记录</p>
         </div>
       </el-card>

@@ -53,7 +53,7 @@ export class CacheManager {
    * 生成缓存键
    */
   generateKey(prefix: string, ...args: any[]): string {
-    const normalizedArgs = args.map(arg => {
+    const normalizedArgs = args.map((arg) => {
       if (typeof arg === 'object' && arg !== null) {
         return JSON.stringify(arg);
       }
@@ -80,7 +80,9 @@ export class CacheManager {
     }
 
     this.cache.set(key, cacheItem);
-    logger.debug(`[CacheManager] Set cache for key: ${key}, expires in ${(expiresAt - Date.now()) / 1000}s`);
+    logger.debug(
+      `[CacheManager] Set cache for key: ${key}, expires in ${(expiresAt - Date.now()) / 1000}s`
+    );
   }
 
   /**

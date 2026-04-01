@@ -109,8 +109,8 @@ export async function executeMigrations(req: Request, res: Response) {
 
     const results = await migrationService.executeMigrations(filenames);
 
-    const successCount = results.filter(r => r.success).length;
-    const failCount = results.filter(r => !r.success).length;
+    const successCount = results.filter((r) => r.success).length;
+    const failCount = results.filter((r) => !r.success).length;
 
     res.json({
       success: failCount === 0,
@@ -142,8 +142,8 @@ export async function executeAllPending(req: Request, res: Response) {
 
     const results = await migrationService.executeAllPending();
 
-    const successCount = results.filter(r => r.success).length;
-    const failCount = results.filter(r => !r.success).length;
+    const successCount = results.filter((r) => r.success).length;
+    const failCount = results.filter((r) => !r.success).length;
 
     res.json({
       success: failCount === 0,

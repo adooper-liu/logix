@@ -27,7 +27,8 @@ export class AuditController {
       } = req.query;
 
       const params: Parameters<typeof auditLogService.queryChanges>[0] = {};
-      if (containerNumber && typeof containerNumber === 'string') params.containerNumber = containerNumber;
+      if (containerNumber && typeof containerNumber === 'string')
+        params.containerNumber = containerNumber;
       if (entityType && typeof entityType === 'string') params.entityType = entityType;
       if (entityId && typeof entityId === 'string') params.entityId = entityId;
       if (sourceType && typeof sourceType === 'string') params.sourceType = sourceType as any;

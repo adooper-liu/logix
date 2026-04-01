@@ -11,7 +11,7 @@ export enum CostType {
   INSPECTION = 'inspection',
   TRUCKING = 'trucking',
   WAREHOUSE = 'warehouse',
-  OTHER = 'other',
+  OTHER = 'other'
 }
 
 // 费用项接口
@@ -38,7 +38,7 @@ export interface CostCalculationResult {
 export class CostService {
   constructor(
     private demurrageService: DemurrageService,
-    @InjectRepository(InspectionRecord) private inspectionRepository: Repository<InspectionRecord>,
+    @InjectRepository(InspectionRecord) private inspectionRepository: Repository<InspectionRecord>
   ) {}
 
   // 计算货柜的总费用
@@ -67,7 +67,7 @@ export class CostService {
     items.push(...warehouseItems);
 
     // 计算总费用
-    items.forEach(item => {
+    items.forEach((item) => {
       totalAmount += item.amount;
       if (item.currency) {
         currency = item.currency;
@@ -79,7 +79,7 @@ export class CostService {
       totalAmount,
       currency,
       items,
-      calculationDate: new Date(),
+      calculationDate: new Date()
     };
   }
 
@@ -89,11 +89,12 @@ export class CostService {
 
     if (demurrageResult.items && demurrageResult.items.length > 0) {
       demurrageResult.items.forEach((item: any) => {
-        const costType = item.chargeTypeCode?.toLowerCase().includes('detention') ||
-                       item.chargeName?.toLowerCase().includes('detention') ||
-                       item.chargeName?.toLowerCase().includes('滞箱')
-          ? CostType.DETENTION
-          : CostType.DEMURRAGE;
+        const costType =
+          item.chargeTypeCode?.toLowerCase().includes('detention') ||
+          item.chargeName?.toLowerCase().includes('detention') ||
+          item.chargeName?.toLowerCase().includes('滞箱')
+            ? CostType.DETENTION
+            : CostType.DEMURRAGE;
 
         items.push({
           type: costType,
@@ -105,8 +106,8 @@ export class CostService {
           details: {
             freeDays: item.freeDays,
             chargeDays: item.chargeDays,
-            tierBreakdown: item.tierBreakdown,
-          },
+            tierBreakdown: item.tierBreakdown
+          }
         });
       });
     }
@@ -119,7 +120,7 @@ export class CostService {
     const items: CostItem[] = [];
 
     const inspection = await this.inspectionRepository.findOne({
-      where: { containerNumber },
+      where: { containerNumber }
     });
 
     if (inspection) {
@@ -130,7 +131,7 @@ export class CostService {
           type: CostType.INSPECTION,
           description: '查验滞港费',
           amount: inspection.demurrageFee,
-          currency: 'USD',
+          currency: 'USD'
         });
       }
 
@@ -139,7 +140,7 @@ export class CostService {
         type: CostType.INSPECTION,
         description: '查验手续费',
         amount: 500,
-        currency: 'USD',
+        currency: 'USD'
       });
     }
 
@@ -156,7 +157,7 @@ export class CostService {
       type: CostType.TRUCKING,
       description: '拖卡费用',
       amount: 1000,
-      currency: 'USD',
+      currency: 'USD'
     });
 
     return items;
@@ -172,16 +173,18 @@ export class CostService {
       type: CostType.WAREHOUSE,
       description: '卸柜费用',
       amount: 500,
-      currency: 'USD',
+      currency: 'USD'
     });
 
     return items;
   }
 
   // 计算多个货柜的费用
-  async calculateMultipleContainersCosts(containerNumbers: string[]): Promise<CostCalculationResult[]> {
+  async calculateMultipleContainersCosts(
+    containerNumbers: string[]
+  ): Promise<CostCalculationResult[]> {
     const results = await Promise.all(
-      containerNumbers.map(containerNumber => this.calculateContainerCosts(containerNumber))
+      containerNumbers.map((containerNumber) => this.calculateContainerCosts(containerNumber))
     );
 
     return results;
@@ -210,9 +213,9 @@ export class CostService {
         [CostType.INSPECTION]: 0,
         [CostType.TRUCKING]: 0,
         [CostType.WAREHOUSE]: 0,
-        [CostType.OTHER]: 0,
+        [CostType.OTHER]: 0
       },
-      byContainer: {},
+      byContainer: {}
     };
   }
 }

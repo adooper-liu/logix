@@ -81,7 +81,7 @@ export class ContainerStatisticsService {
     endDate?: string
   ): Promise<Record<string, number>> {
     const [arrivalDist, etaDist] = await Promise.all([
-      this.arrivalStatistics.getDistribution(startDate, endDate).catch(err => {
+      this.arrivalStatistics.getDistribution(startDate, endDate).catch((err) => {
         console.error('[ContainerStatistics] arrivalStatistics.getDistribution error:', err);
         return {
           today: 0,
@@ -97,14 +97,24 @@ export class ContainerStatisticsService {
           total: 0
         };
       }),
-      this.etaStatistics.getDistribution(startDate, endDate).catch(err => {
+      this.etaStatistics.getDistribution(startDate, endDate).catch((err) => {
         console.error('[ContainerStatistics] etaStatistics.getDistribution error:', err);
-        return { overdue: 0, within3Days: 0, within7Days: 0, over7Days: 0, otherRecords: 0, total: 0 };
+        return {
+          overdue: 0,
+          within3Days: 0,
+          within7Days: 0,
+          over7Days: 0,
+          otherRecords: 0,
+          total: 0
+        };
       })
     ]);
 
     // 四个主分组；预计到港 = 子项之和，保证主数与子项一致
-    const arrivedAtDestination = (arrivalDist.today || 0) + (arrivalDist.beforeTodayNotPickedUp || 0) + (arrivalDist.beforeTodayPickedUp || 0);
+    const arrivedAtDestination =
+      (arrivalDist.today || 0) +
+      (arrivalDist.beforeTodayNotPickedUp || 0) +
+      (arrivalDist.beforeTodayPickedUp || 0);
     const arrivedAtTransit = arrivalDist.arrivedAtTransit || 0;
     const overdue = etaDist.overdue || 0;
     const within3Days = etaDist.within3Days || 0;
@@ -145,10 +155,7 @@ export class ContainerStatisticsService {
   /**
    * 获取按 ETA 分布的统计
    */
-  async getEtaDistribution(
-    startDate?: string,
-    endDate?: string
-  ): Promise<Record<string, number>> {
+  async getEtaDistribution(startDate?: string, endDate?: string): Promise<Record<string, number>> {
     return this.etaStatistics.getDistribution(startDate, endDate);
   }
 
@@ -211,8 +218,16 @@ export class ContainerStatisticsService {
     startDate?: string,
     endDate?: string
   ): Promise<Container[]> {
-    if (filterCondition === 'picked_up' || filterCondition === 'unloaded' || filterCondition === 'returned_empty') {
-      return this.statusDistribution.getContainersByProcessFactStatus(filterCondition, startDate, endDate);
+    if (
+      filterCondition === 'picked_up' ||
+      filterCondition === 'unloaded' ||
+      filterCondition === 'returned_empty'
+    ) {
+      return this.statusDistribution.getContainersByProcessFactStatus(
+        filterCondition,
+        startDate,
+        endDate
+      );
     }
 
     // 有出运日期时，与 statistics-detailed 的 getDistributionByProcessFacts 同源（避免 logistics_status 与推导状态不一致）
@@ -227,7 +242,11 @@ export class ContainerStatisticsService {
       };
       const derivedGroup = derivedByFilter[filterCondition];
       if (derivedGroup) {
-        return this.statusDistribution.getContainersByDerivedStatuses(startDate, endDate, derivedGroup);
+        return this.statusDistribution.getContainersByDerivedStatuses(
+          startDate,
+          endDate,
+          derivedGroup
+        );
       }
     }
 
@@ -240,7 +259,15 @@ export class ContainerStatisticsService {
     if (filterCondition === 'arrived_at_destination') {
       return this.statusDistribution.getContainersByArrivedAtDestination(startDate, endDate);
     }
-    const validStatuses = ['not_shipped', 'shipped', 'in_transit', 'at_port', 'picked_up', 'unloaded', 'returned_empty'];
+    const validStatuses = [
+      'not_shipped',
+      'shipped',
+      'in_transit',
+      'at_port',
+      'picked_up',
+      'unloaded',
+      'returned_empty'
+    ];
     if (validStatuses.includes(filterCondition)) {
       return this.getContainersByStatus(filterCondition, startDate, endDate);
     }
@@ -251,11 +278,23 @@ export class ContainerStatisticsService {
       case 'eta':
         return this.etaStatistics.getContainersByCondition(filterCondition, startDate, endDate);
       case 'plannedPickup':
-        return this.plannedPickupStatistics.getContainersByCondition(filterCondition, startDate, endDate);
+        return this.plannedPickupStatistics.getContainersByCondition(
+          filterCondition,
+          startDate,
+          endDate
+        );
       case 'lastPickup':
-        return this.lastPickupStatistics.getContainersByCondition(filterCondition, startDate, endDate);
+        return this.lastPickupStatistics.getContainersByCondition(
+          filterCondition,
+          startDate,
+          endDate
+        );
       case 'lastReturn':
-        return this.lastReturnStatistics.getContainersByCondition(filterCondition, startDate, endDate);
+        return this.lastReturnStatistics.getContainersByCondition(
+          filterCondition,
+          startDate,
+          endDate
+        );
       default:
         console.warn(`[ContainerStatisticsService] Unknown filterCondition: ${filterCondition}`);
         return [];
@@ -289,8 +328,9 @@ export class ContainerStatisticsService {
   ): Promise<Container[]> {
     const query = this.containerRepository.createQueryBuilder('container');
     query.where('container.logisticsStatus = :logisticsStatus', { logisticsStatus: 'in_transit' });
-    query.andWhere(qb => {
-      const subQuery = qb.subQuery()
+    query.andWhere((qb) => {
+      const subQuery = qb
+        .subQuery()
         .select('1')
         .from('process_port_operations', 'transit_po')
         .where('transit_po.container_number = container.container_number')
@@ -298,13 +338,16 @@ export class ContainerStatisticsService {
         .getQuery();
       return `EXISTS ${subQuery}`;
     });
-    query.andWhere(qb => {
-      const destSubQuery = qb.subQuery()
+    query.andWhere((qb) => {
+      const destSubQuery = qb
+        .subQuery()
         .select('1')
         .from('process_port_operations', 'dest_po')
         .where('dest_po.container_number = container.container_number')
         .andWhere('dest_po.port_type = :portType', { portType: 'destination' })
-        .andWhere('dest_po.port_sequence = (SELECT MAX(po2.port_sequence) FROM process_port_operations po2 WHERE po2.container_number = dest_po.container_number AND po2.port_type = \'destination\')')
+        .andWhere(
+          "dest_po.port_sequence = (SELECT MAX(po2.port_sequence) FROM process_port_operations po2 WHERE po2.container_number = dest_po.container_number AND po2.port_type = 'destination')"
+        )
         .andWhere('dest_po.ata IS NOT NULL')
         .getQuery();
       return `NOT EXISTS ${destSubQuery}`;

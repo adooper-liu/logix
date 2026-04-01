@@ -124,7 +124,9 @@ export class CustomerController {
       const saved = await this.customerRepository.save(customer);
       const savedCustomer = (Array.isArray(saved) ? saved[0] : saved) as Customer;
 
-      logger.info(`Customer created: ${savedCustomer.customerName} (${savedCustomer.customerCode})`);
+      logger.info(
+        `Customer created: ${savedCustomer.customerName} (${savedCustomer.customerCode})`
+      );
 
       res.status(201).json({
         success: true,

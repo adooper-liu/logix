@@ -17,13 +17,13 @@ const SOURCE_LABELS: Record<string, string> = {
   feituo_api: '飞驼API',
   feituo_excel: '飞驼Excel',
   manual: '手工维护',
-  status_update: '状态更新'
+  status_update: '状态更新',
 }
 
 const ACTION_LABELS: Record<string, string> = {
   INSERT: '新增',
   UPDATE: '更新',
-  DELETE: '删除'
+  DELETE: '删除',
 }
 
 const loadLogs = async () => {
@@ -54,7 +54,9 @@ watch(() => props.containerNumber, loadLogs, { immediate: true })
 
 defineExpose({ load: loadLogs })
 
-function formatChangedFields(fields: Record<string, { old?: unknown; new?: unknown }> | null): string {
+function formatChangedFields(
+  fields: Record<string, { old?: unknown; new?: unknown }> | null
+): string {
   if (!fields || typeof fields !== 'object') return '—'
   const parts: string[] = []
   for (const [k, v] of Object.entries(fields)) {
@@ -77,7 +79,7 @@ function formatDateTime(iso: string | undefined): string {
       day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
-      second: '2-digit'
+      second: '2-digit',
     })
   } catch {
     return iso

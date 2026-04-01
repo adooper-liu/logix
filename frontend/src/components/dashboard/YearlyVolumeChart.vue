@@ -19,7 +19,7 @@ let chartInstance: echarts.ECharts | null = null
 // 与 variables 一致：柱状图渐变、折线图多色
 const BAR_GRADIENT = [
   { offset: 0, color: '#409EFF' },
-  { offset: 1, color: '#67C23A' }
+  { offset: 1, color: '#67C23A' },
 ]
 const LINE_COLORS = ['#409EFF', '#E6A23C', '#67C23A', '#909399', '#F56C6C', '#00d4ff']
 
@@ -37,7 +37,7 @@ const updateChart = () => {
       axisPointer: {
         type: viewType.value === 'yearly' ? 'shadow' : 'cross',
         shadowStyle: { color: 'rgba(0,0,0,0.06)' },
-        crossStyle: { color: '#909399' }
+        crossStyle: { color: '#909399' },
       },
       formatter: (params: any) => {
         if (viewType.value === 'yearly') {
@@ -49,20 +49,23 @@ const updateChart = () => {
           result += `${param.seriesName}：<strong>${param.value}</strong> 柜<br/>`
         })
         return result
-      }
+      },
     },
     legend: {
-      data: viewType.value === 'yearly' ? ['出运货柜'] : props.data.map((item: any) => item.year + '年'),
+      data:
+        viewType.value === 'yearly'
+          ? ['出运货柜']
+          : props.data.map((item: any) => item.year + '年'),
       top: 8,
       left: 'center',
-      textStyle: { color: '#606266', fontSize: 12 }
+      textStyle: { color: '#606266', fontSize: 12 },
     },
     grid: {
       left: '3%',
       right: '4%',
       bottom: '14%',
       top: 44,
-      containLabel: true
+      containLabel: true,
     },
     xAxis: {
       type: 'category',
@@ -71,8 +74,8 @@ const updateChart = () => {
       axisLabel: {
         color: '#606266',
         fontSize: 12,
-        rotate: viewType.value === 'monthly' ? 45 : 0
-      }
+        rotate: viewType.value === 'monthly' ? 45 : 0,
+      },
     },
     yAxis: {
       type: 'value',
@@ -82,10 +85,10 @@ const updateChart = () => {
       axisLabel: {
         color: '#606266',
         fontSize: 12,
-        formatter: '{value}'
-      }
+        formatter: '{value}',
+      },
     },
-    series: [] as any[]
+    series: [] as any[],
   }
 
   if (viewType.value === 'yearly') {
@@ -106,9 +109,9 @@ const updateChart = () => {
             y: 0,
             x2: 0,
             y2: 1,
-            colorStops: BAR_GRADIENT
+            colorStops: BAR_GRADIENT,
           },
-          borderRadius: [6, 6, 0, 0]
+          borderRadius: [6, 6, 0, 0],
         },
         emphasis: {
           itemStyle: {
@@ -120,10 +123,10 @@ const updateChart = () => {
               y2: 1,
               colorStops: [
                 { offset: 0, color: '#79bbff' },
-                { offset: 1, color: '#95d475' }
-              ]
-            }
-          }
+                { offset: 1, color: '#95d475' },
+              ],
+            },
+          },
         },
         label: {
           show: true,
@@ -131,15 +134,14 @@ const updateChart = () => {
           formatter: '{c} 柜',
           fontSize: 13,
           fontWeight: 600,
-          color: '#303133'
-        }
-      }
+          color: '#303133',
+        },
+      },
     ]
   } else {
     const months = Array.from({ length: 12 }, (_, i) => `${i + 1}月`)
     ;(option as any).xAxis.data = months
     ;(option as any).tooltip.axisPointer.type = 'cross'
-
     ;(option as any).series = props.data.map((item: any, idx: number) => ({
       name: item.year + '年',
       type: 'line',
@@ -149,27 +151,34 @@ const updateChart = () => {
       symbolSize: 8,
       lineStyle: {
         width: 2.5,
-        color: LINE_COLORS[idx % LINE_COLORS.length]
+        color: LINE_COLORS[idx % LINE_COLORS.length],
       },
       itemStyle: {
         color: LINE_COLORS[idx % LINE_COLORS.length],
         borderWidth: 2,
-        borderColor: '#fff'
+        borderColor: '#fff',
       },
-      emphasis: { scale: true, scaleSize: 10 }
+      emphasis: { scale: true, scaleSize: 10 },
     }))
   }
 
   chartInstance.setOption(option, true)
 }
 
-watch(() => props.data, () => {
-  updateChart()
-}, { deep: true })
+watch(
+  () => props.data,
+  () => {
+    updateChart()
+  },
+  { deep: true }
+)
 
-watch(() => viewType.value, () => {
-  updateChart()
-})
+watch(
+  () => viewType.value,
+  () => {
+    updateChart()
+  }
+)
 
 onMounted(() => {
   const chartDom = document.getElementById('yearly-chart')

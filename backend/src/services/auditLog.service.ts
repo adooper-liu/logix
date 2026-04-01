@@ -65,7 +65,9 @@ export class AuditLogService {
   /**
    * 查询变更日志
    */
-  async queryChanges(params: QueryChangesParams): Promise<{ rows: SysDataChangeLog[]; total: number }> {
+  async queryChanges(
+    params: QueryChangesParams
+  ): Promise<{ rows: SysDataChangeLog[]; total: number }> {
     const qb = this.repo.createQueryBuilder('log');
     const limit = Math.min(params.limit ?? 50, 200);
     const offset = params.offset ?? 0;
@@ -91,10 +93,7 @@ export class AuditLogService {
 
     qb.orderBy('log.created_at', 'DESC');
 
-    const [rows, total] = await qb
-      .skip(offset)
-      .take(limit)
-      .getManyAndCount();
+    const [rows, total] = await qb.skip(offset).take(limit).getManyAndCount();
 
     return { rows, total };
   }

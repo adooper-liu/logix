@@ -71,7 +71,7 @@ class LogixMCPServer {
   private setupHandlers() {
     // 列出所有可用工具
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-      const toolDefinitions = Array.from(this.tools.values()).map(tool => tool.definition);
+      const toolDefinitions = Array.from(this.tools.values()).map((tool) => tool.definition);
 
       mcpLogger.info('List tools requested', { toolCount: toolDefinitions.length });
 

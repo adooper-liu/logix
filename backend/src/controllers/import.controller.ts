@@ -9,6 +9,7 @@ import { PICKUP_DATE_SOURCE } from '../constants/pickupDateSource';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
 import { ContainerType } from '../entities/ContainerType';
+import { Country } from '../entities/Country';
 import { Customer } from '../entities/Customer';
 import { CustomsBroker } from '../entities/CustomsBroker';
 import { EmptyReturn } from '../entities/EmptyReturn';
@@ -39,6 +40,7 @@ export class ImportController {
   private containerTypeRepository: Repository<ContainerType>;
   private demurrageStandardRepository: Repository<ExtDemurrageStandard>;
   private customerRepository: Repository<Customer>;
+  private countryRepository: Repository<Country>;
 
   constructor() {
     this.containerRepository = AppDataSource.getRepository(Container);
@@ -51,6 +53,7 @@ export class ImportController {
     this.containerTypeRepository = AppDataSource.getRepository(ContainerType);
     this.demurrageStandardRepository = AppDataSource.getRepository(ExtDemurrageStandard);
     this.customerRepository = AppDataSource.getRepository(Customer);
+    this.countryRepository = AppDataSource.getRepository(Country);
   }
 
   /**
@@ -1592,6 +1595,15 @@ export class ImportController {
     let successCount = 0;
     const errors: { row: number; error: string }[] = [];
 
+    // ✅ 预加载国家字典缓存（提高性能）
+    const countryCurrencyCache = new Map<string, string>();
+    const countries = await this.countryRepository.find({
+      select: ['code', 'currency']
+    });
+    for (const country of countries) {
+      countryCurrencyCache.set(country.code, country.currency);
+    }
+
     for (let i = 0; i < records.length; i++) {
       const row = records[i];
       const rowNum = i + 1;
@@ -1607,6 +1619,31 @@ export class ImportController {
           resolvedRow.origin_forwarder_code = resolved.origin_forwarder_code;
         if (resolved.foreign_company_code)
           resolvedRow.foreign_company_code = resolved.foreign_company_code;
+
+        // ✅ 关键修复：根据目的港自动填充货币
+        let currency = resolvedRow.currency;
+        if (!currency && resolvedRow.destination_port_code) {
+          const portCode = String(resolvedRow.destination_port_code).trim();
+          const countryCode = portCode.substring(0, 2).toUpperCase();
+
+          // 从缓存获取货币
+          currency = countryCurrencyCache.get(countryCode);
+
+          if (!currency) {
+            // 缓存未命中，查询数据库
+            const country = await this.countryRepository.findOne({
+              where: { code: countryCode },
+              select: ['currency']
+            });
+            if (country?.currency) {
+              currency = country.currency;
+              countryCurrencyCache.set(countryCode, currency);
+            }
+          }
+        }
+
+        // 最终回退到 USD
+        currency = currency || 'USD';
 
         const entity = this.demurrageStandardRepository.create({
           foreignCompanyCode: String(resolvedRow.foreign_company_code ?? ''),
@@ -1635,7 +1672,7 @@ export class ImportController {
           calculationBasis: resolvedRow.calculation_basis ?? '按卸船',
           ratePerDay: resolvedRow.rate_per_day ?? null,
           tiers: (resolvedRow.tiers as Record<string, unknown>) ?? null,
-          currency: resolvedRow.currency ?? 'USD',
+          currency, // ✅ 使用自动填充的货币
           processStatus: resolvedRow.process_status ?? null
         } as any);
 
@@ -1643,7 +1680,7 @@ export class ImportController {
         successCount++;
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        logger.error(`[Import] 滞港费标准第 ${rowNum} 行导入失败: ${msg}`);
+        logger.error(`[Import] 滞港费标准第 ${rowNum} 行导入失败：${msg}`);
         errors.push({ row: rowNum, error: msg });
       }
     }

@@ -12,17 +12,14 @@ import {
   useDateRange,
   useDateArray,
   useTimeGroups,
-  type GanttStatisticsData
+  type GanttStatisticsData,
 } from './composables/useGanttData'
 import {
   formatDateLabel,
   formatFullDate,
-  extractDateFromContainer
+  extractDateFromContainer,
 } from './composables/useGanttHelpers'
-import {
-  getGroupContainersSubset,
-  getGroupContainers
-} from './composables/useGanttFilters'
+import { getGroupContainersSubset, getGroupContainers } from './composables/useGanttFilters'
 
 const route = useRoute()
 
@@ -55,28 +52,48 @@ const getInitialLaneName = (): string => {
 
   // 根据 filterCondition 映射到泳道名称
   const arrivalFilters = [
-    'arrivalToday', 'arrivedBeforeNotPickedUp', 'arrivedBeforePickedUp',
-    'arrivedAtTransit', 'transitOverdue', 'transitWithin3Days', 'transitWithin7Days',
-    'transitOver7Days', 'transitNoEta', 'arrivedTodayNoAta', 'etaOverdue',
-    'etaWithin3Days', 'etaWithin7Days', 'etaOver7Days', 'etaNoRecord'
+    'arrivalToday',
+    'arrivedBeforeNotPickedUp',
+    'arrivedBeforePickedUp',
+    'arrivedAtTransit',
+    'transitOverdue',
+    'transitWithin3Days',
+    'transitWithin7Days',
+    'transitOver7Days',
+    'transitNoEta',
+    'arrivedTodayNoAta',
+    'etaOverdue',
+    'etaWithin3Days',
+    'etaWithin7Days',
+    'etaOver7Days',
+    'etaNoRecord',
   ]
   if (arrivalFilters.includes(filterCondition)) return '按到港'
 
   const pickupFilters = [
-    'overduePlanned', 'todayPlanned', 'plannedWithin3Days',
-    'plannedWithin7Days', 'pendingArrangement'
+    'overduePlanned',
+    'todayPlanned',
+    'plannedWithin3Days',
+    'plannedWithin7Days',
+    'pendingArrangement',
   ]
   if (pickupFilters.includes(filterCondition)) return '按提柜计划'
 
   const lastPickupFilters = [
-    'lastPickupExpired', 'lastPickupUrgent', 'lastPickupWarning',
-    'lastPickupNormal', 'lastPickupNoDate'
+    'lastPickupExpired',
+    'lastPickupUrgent',
+    'lastPickupWarning',
+    'lastPickupNormal',
+    'lastPickupNoDate',
   ]
   if (lastPickupFilters.includes(filterCondition)) return '按最晚提柜'
 
   const returnFilters = [
-    'returnExpired', 'returnUrgent', 'returnWarning',
-    'returnNormal', 'returnNoDate'
+    'returnExpired',
+    'returnUrgent',
+    'returnWarning',
+    'returnNormal',
+    'returnNoDate',
   ]
   if (returnFilters.includes(filterCondition)) return '按最晚还箱'
 
@@ -146,14 +163,16 @@ const getFilteredTimeGroups = computed(() => {
     returnUrgent: '紧急',
     returnWarning: '警告',
     returnNormal: '正常',
-    returnNoDate: '最后还箱日为空'
+    returnNoDate: '最后还箱日为空',
   }
 
   const targetLabel = filterToSubDimensionMap[filterCondition]
   console.log(`[Gantt Debug] targetLabel = "${targetLabel}"`)
 
   if (!targetLabel) {
-    console.warn(`[Gantt Debug] filterCondition "${filterCondition}" not found in map, showing all timeGroups`)
+    console.warn(
+      `[Gantt Debug] filterCondition "${filterCondition}" not found in map, showing all timeGroups`
+    )
     return timeGroups.value
   }
 
@@ -171,7 +190,7 @@ const selectedLane = computed<LaneConfig>(() => {
 })
 
 // 监听泳道变化，通知父组件更新显示范围
-watch(selectedLaneName, (newName) => {
+watch(selectedLaneName, newName => {
   // 持久化到 localStorage
   localStorage.setItem('ganttSelectedLaneName', newName)
   const dimension = laneNameToDimension[newName]
@@ -257,28 +276,40 @@ const timeGroups = useTimeGroups(
 )
 
 // 调试日志：监控圆点渲染
-watch([() => props.containers, () => timeGroups.value], ([newContainers, newTimeGroups]) => {
-  console.log('[Gantt Debug] Containers:', newContainers?.length || 0)
-  console.log('[Gantt Debug] Time Groups:', newTimeGroups?.length || 0)
-  console.log('[Gantt Debug] Filtered Time Groups:', getFilteredTimeGroups.value.length)
-  console.log('[Gantt Debug] Selected Lane:', selectedLane.value.name)
-  console.log('[Gantt Debug] filterCondition:', route.query.filterCondition)
-  newTimeGroups?.forEach(group => {
-    const subset = getGroupContainersSubset(props.containers, selectedLane.value.name, group.label)
-    console.log(`[Gantt Debug] Group "${group.label}": count=${group.count}, subset.length=${subset.length}`)
-    // 检查 subset 中的货柜是否有 extractedDate
-    subset.slice(0, 3).forEach(container => {
-      console.log(`[Gantt Debug]   Container ${container.containerNumber}: extractedDate=${container.extractedDate ? dayjs(container.extractedDate).format('YYYY-MM-DD') : 'null'}`)
+watch(
+  [() => props.containers, () => timeGroups.value],
+  ([newContainers, newTimeGroups]) => {
+    console.log('[Gantt Debug] Containers:', newContainers?.length || 0)
+    console.log('[Gantt Debug] Time Groups:', newTimeGroups?.length || 0)
+    console.log('[Gantt Debug] Filtered Time Groups:', getFilteredTimeGroups.value.length)
+    console.log('[Gantt Debug] Selected Lane:', selectedLane.value.name)
+    console.log('[Gantt Debug] filterCondition:', route.query.filterCondition)
+    newTimeGroups?.forEach(group => {
+      const subset = getGroupContainersSubset(
+        props.containers,
+        selectedLane.value.name,
+        group.label
+      )
+      console.log(
+        `[Gantt Debug] Group "${group.label}": count=${group.count}, subset.length=${subset.length}`
+      )
+      // 检查 subset 中的货柜是否有 extractedDate
+      subset.slice(0, 3).forEach(container => {
+        console.log(
+          `[Gantt Debug]   Container ${container.containerNumber}: extractedDate=${container.extractedDate ? dayjs(container.extractedDate).format('YYYY-MM-DD') : 'null'}`
+        )
+      })
     })
-  })
-}, { deep: true, immediate: true })
+  },
+  { deep: true, immediate: true }
+)
 
 // 当前泳道对应的「日期」含义（tooltip 中日期行的标签）
 const DATE_LABEL_BY_LANE_NAME: Record<string, string> = {
-  '按到港': '到港日期',
-  '按提柜计划': '计划提柜日',
-  '按最晚提柜': '最晚提柜日',
-  '按最晚还箱': '最晚还箱日'
+  按到港: '到港日期',
+  按提柜计划: '计划提柜日',
+  按最晚提柜: '最晚提柜日',
+  按最晚还箱: '最晚还箱日',
 }
 function getDateLabelForLane(lane: LaneConfig): string {
   return DATE_LABEL_BY_LANE_NAME[lane.name] ?? '日期'
@@ -299,9 +330,13 @@ function getDestPortFromContainer(container: ContainerItem): string {
 const isToday = (d: Date) => dayjs(d).isSame(dayjs(), 'day')
 
 // 监听 timeGroups 变化，重新收集 ref
-watch(() => timeGroups, () => {
-  collectLaneTimelines()
-}, { deep: true, immediate: true })
+watch(
+  () => timeGroups,
+  () => {
+    collectLaneTimelines()
+  },
+  { deep: true, immediate: true }
+)
 </script>
 
 <template>
@@ -332,7 +367,9 @@ watch(() => timeGroups, () => {
         <div class="legend-dot" :style="{ backgroundColor: selectedLane.color }"></div>
         <span class="legend-label">
           {{ selectedLane.name }}
-          <span class="legend-subtitle" v-if="selectedLane.subtitle">{{ selectedLane.subtitle }}</span>
+          <span class="legend-subtitle" v-if="selectedLane.subtitle">{{
+            selectedLane.subtitle
+          }}</span>
         </span>
       </div>
     </div>
@@ -345,8 +382,8 @@ watch(() => timeGroups, () => {
           :key="date.getTime()"
           class="date-cell"
           :class="{
-            'weekend': dayjs(date).day() === 0 || dayjs(date).day() === 6,
-            'today': isToday(date)
+            weekend: dayjs(date).day() === 0 || dayjs(date).day() === 6,
+            today: isToday(date),
           }"
         >
           {{ formatDateLabel(date) }}
@@ -356,7 +393,11 @@ watch(() => timeGroups, () => {
 
     <div class="gantt-body">
       <!-- 时间分组泳道 -->
-      <div v-for="group in getFilteredTimeGroups" :key="group.label" class="gantt-lane time-group-lane">
+      <div
+        v-for="group in getFilteredTimeGroups"
+        :key="group.label"
+        class="gantt-lane time-group-lane"
+      >
         <div class="lane-label" :style="{ borderLeftColor: group.color }">
           <div class="lane-label-content">
             <span class="lane-label-text">{{ group.label }}</span>
@@ -370,11 +411,17 @@ watch(() => timeGroups, () => {
             :key="date.getTime()"
             class="timeline-cell"
             :class="{
-              'weekend': dayjs(date).day() === 0 || dayjs(date).day() === 6,
-              'today': isToday(date)
+              weekend: dayjs(date).day() === 0 || dayjs(date).day() === 6,
+              today: isToday(date),
             }"
           >
-            <template v-for="container in getGroupContainers(getGroupContainersSubset(props.containers, selectedLane.name, group.label), date)" :key="container.containerNumber">
+            <template
+              v-for="container in getGroupContainers(
+                getGroupContainersSubset(props.containers, selectedLane.name, group.label),
+                date
+              )"
+              :key="container.containerNumber"
+            >
               <el-tooltip
                 placement="top"
                 effect="dark"
@@ -385,24 +432,33 @@ watch(() => timeGroups, () => {
                     <div class="tooltip-card-title">{{ container.containerNumber }}</div>
                     <div class="tooltip-card-body">
                       <div class="tooltip-card-row">
-                        <span class="tooltip-card-label">{{ getDateLabelForLane(selectedLane) }}</span>
-                        <span class="tooltip-card-value">{{ formatFullDate(extractDateFromContainer(container, selectedLane.dateField)) }}</span>
+                        <span class="tooltip-card-label">{{
+                          getDateLabelForLane(selectedLane)
+                        }}</span>
+                        <span class="tooltip-card-value">{{
+                          formatFullDate(
+                            extractDateFromContainer(container, selectedLane.dateField)
+                          )
+                        }}</span>
                       </div>
                       <div class="tooltip-card-row">
                         <span class="tooltip-card-label">状态</span>
-                        <span class="tooltip-card-value">{{ (container as any).logisticsStatus ?? (container as any).logistics_status ?? '-' }}</span>
+                        <span class="tooltip-card-value">{{
+                          (container as any).logisticsStatus ??
+                          (container as any).logistics_status ??
+                          '-'
+                        }}</span>
                       </div>
                       <div class="tooltip-card-row">
                         <span class="tooltip-card-label">目的港</span>
-                        <span class="tooltip-card-value">{{ getDestPortFromContainer(container) }}</span>
+                        <span class="tooltip-card-value">{{
+                          getDestPortFromContainer(container)
+                        }}</span>
                       </div>
                     </div>
                   </div>
                 </template>
-                <div
-                  class="container-dot"
-                  :style="{ backgroundColor: group.color }"
-                ></div>
+                <div class="container-dot" :style="{ backgroundColor: group.color }"></div>
               </el-tooltip>
             </template>
           </div>
@@ -743,7 +799,9 @@ watch(() => timeGroups, () => {
           min-height: 10px;
           border-radius: 50%;
           cursor: pointer;
-          transition: transform 0.2s ease, box-shadow 0.2s ease;
+          transition:
+            transform 0.2s ease,
+            box-shadow 0.2s ease;
           flex-shrink: 0;
           border: 1.5px solid rgba(255, 255, 255, 0.9);
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);

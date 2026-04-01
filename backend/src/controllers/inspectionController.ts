@@ -12,7 +12,7 @@ export class InspectionController {
     const record = await this.inspectionService.getByContainerNumber(containerNumber);
     return {
       success: true,
-      data: record,
+      data: record
     };
   }
 
@@ -22,7 +22,7 @@ export class InspectionController {
     const result = await this.inspectionService.createOrUpdate(record);
     return {
       success: true,
-      data: result,
+      data: result
     };
   }
 
@@ -31,15 +31,15 @@ export class InspectionController {
   async addEvent(
     @Body('inspectionRecordId') inspectionRecordId: number,
     @Body('eventDate') eventDate: string,
-    @Body('eventStatus') eventStatus: string,
+    @Body('eventStatus') eventStatus: string
   ) {
     const result = await this.inspectionService.addEvent(inspectionRecordId, {
       eventDate: new Date(eventDate),
-      eventStatus,
+      eventStatus
     });
     return {
       success: true,
-      data: result,
+      data: result
     };
   }
 
@@ -48,7 +48,7 @@ export class InspectionController {
   async deleteEvent(@Param('eventId') eventId: number) {
     await this.inspectionService.deleteEvent(eventId);
     return {
-      success: true,
+      success: true
     };
   }
 
@@ -57,17 +57,17 @@ export class InspectionController {
   async getAllRecords(
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
-    @Query('customsClearanceStatus') customsClearanceStatus?: string,
+    @Query('customsClearanceStatus') customsClearanceStatus?: string
   ) {
     const filters = {
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
-      customsClearanceStatus,
+      customsClearanceStatus
     };
     const records = await this.inspectionService.getAllRecords(filters);
     return {
       success: true,
-      data: records,
+      data: records
     };
   }
 }

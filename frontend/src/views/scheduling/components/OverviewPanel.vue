@@ -52,7 +52,9 @@
       <template #header>
         <div class="card-header">
           <span>仓库列表</span>
-          <el-button type="primary" size="small" @click="emit('navigate', 'warehouse')">管理</el-button>
+          <el-button type="primary" size="small" @click="emit('navigate', 'warehouse')"
+            >管理</el-button
+          >
         </div>
       </template>
       <el-table :data="overview.warehouses?.slice(0, 5)" size="small">
@@ -73,7 +75,9 @@
       <template #header>
         <div class="card-header">
           <span>车队列表</span>
-          <el-button type="primary" size="small" @click="emit('navigate', 'trucking')">管理</el-button>
+          <el-button type="primary" size="small" @click="emit('navigate', 'trucking')"
+            >管理</el-button
+          >
         </div>
       </template>
       <el-table :data="overview.truckings?.slice(0, 5)" size="small">
@@ -111,14 +115,16 @@ const resolvedCountry = computed(() => props.country || appStore.scopedCountryCo
 const overview = ref<any>({
   warehouses: [],
   truckings: [],
-  pendingCount: 0
+  pendingCount: 0,
 })
 
 const mappingCount = ref(0)
 
 const loadOverview = async () => {
   try {
-    const query = resolvedCountry.value ? `?country=${encodeURIComponent(resolvedCountry.value)}` : ''
+    const query = resolvedCountry.value
+      ? `?country=${encodeURIComponent(resolvedCountry.value)}`
+      : ''
     const response = await fetch(`/api/v1/scheduling/overview${query}`)
     const data = await response.json()
     if (data.success) {
@@ -131,7 +137,9 @@ const loadOverview = async () => {
 
 const loadMappingCount = async () => {
   try {
-    const query = resolvedCountry.value ? `?country=${encodeURIComponent(resolvedCountry.value)}` : ''
+    const query = resolvedCountry.value
+      ? `?country=${encodeURIComponent(resolvedCountry.value)}`
+      : ''
     const response = await fetch(`/api/v1/warehouse-trucking-mapping${query}`)
     const data = await response.json()
     if (data.success) {
@@ -192,10 +200,18 @@ watch(
   color: #fff;
 }
 
-.stat-icon.warehouse { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-.stat-icon.trucking { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-.stat-icon.mapping { background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); }
-.stat-icon.pending { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.stat-icon.warehouse {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+.stat-icon.trucking {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+.stat-icon.mapping {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+.stat-icon.pending {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
 
 .stat-info {
   flex: 1;

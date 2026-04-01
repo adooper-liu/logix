@@ -22,13 +22,13 @@ import { EmptyReturn } from '../entities/EmptyReturn';
  * Simplified Logistics Status Enum (7-layer flow)
  */
 export enum SimplifiedStatus {
-  NOT_SHIPPED = 'not_shipped',      // 未出运
-  SHIPPED = 'shipped',              // 已出运/已装船
-  IN_TRANSIT = 'in_transit',        // 在途
-  AT_PORT = 'at_port',              // 已到港（中转港或目的港）
-  PICKED_UP = 'picked_up',          // 已提柜
-  UNLOADED = 'unloaded',            // 已卸柜
-  RETURNED_EMPTY = 'returned_empty'  // 已还箱
+  NOT_SHIPPED = 'not_shipped', // 未出运
+  SHIPPED = 'shipped', // 已出运/已装船
+  IN_TRANSIT = 'in_transit', // 在途
+  AT_PORT = 'at_port', // 已到港（中转港或目的港）
+  PICKED_UP = 'picked_up', // 已提柜
+  UNLOADED = 'unloaded', // 已卸柜
+  RETURNED_EMPTY = 'returned_empty' // 已还箱
 }
 
 /**
@@ -144,15 +144,15 @@ export const DetailedToSimplifiedMap: Record<DetailedStatus, SimplifiedStatus> =
   [DetailedStatus.COMPLETED]: SimplifiedStatus.RETURNED_EMPTY,
 
   // 异常状态映射
-  [DetailedStatus.CUSTOMS_HOLD]: SimplifiedStatus.AT_PORT,       // 清关扣货视为在港
-  [DetailedStatus.CARRIER_HOLD]: SimplifiedStatus.AT_PORT,       // 承运人扣货视为在港
-  [DetailedStatus.TERMINAL_HOLD]: SimplifiedStatus.AT_PORT,     // 码头扣货视为在港
-  [DetailedStatus.CHARGES_HOLD]: SimplifiedStatus.AT_PORT,       // 费用扣货视为在港
-  [DetailedStatus.DUMPED]: SimplifiedStatus.AT_PORT,             // 倒箱视为在港
-  [DetailedStatus.DELAYED]: SimplifiedStatus.AT_PORT,           // 延误可能在港或途中，优先在港
-  [DetailedStatus.DETENTION]: SimplifiedStatus.AT_PORT,         // 滞港费视为在港
-  [DetailedStatus.OVERDUE]: SimplifiedStatus.RETURNED_EMPTY,    // 逾期可能已还箱
-  [DetailedStatus.HOLD]: SimplifiedStatus.AT_PORT               // 通用扣货视为在港
+  [DetailedStatus.CUSTOMS_HOLD]: SimplifiedStatus.AT_PORT, // 清关扣货视为在港
+  [DetailedStatus.CARRIER_HOLD]: SimplifiedStatus.AT_PORT, // 承运人扣货视为在港
+  [DetailedStatus.TERMINAL_HOLD]: SimplifiedStatus.AT_PORT, // 码头扣货视为在港
+  [DetailedStatus.CHARGES_HOLD]: SimplifiedStatus.AT_PORT, // 费用扣货视为在港
+  [DetailedStatus.DUMPED]: SimplifiedStatus.AT_PORT, // 倒箱视为在港
+  [DetailedStatus.DELAYED]: SimplifiedStatus.AT_PORT, // 延误可能在港或途中，优先在港
+  [DetailedStatus.DETENTION]: SimplifiedStatus.AT_PORT, // 滞港费视为在港
+  [DetailedStatus.OVERDUE]: SimplifiedStatus.RETURNED_EMPTY, // 逾期可能已还箱
+  [DetailedStatus.HOLD]: SimplifiedStatus.AT_PORT // 通用扣货视为在港
 };
 
 // ============================================================================
@@ -164,17 +164,17 @@ export const DetailedToSimplifiedMap: Record<DetailedStatus, SimplifiedStatus> =
  * Map Excel Chinese statuses to simplified statuses
  */
 export const ExcelStatusToSimplifiedMap: Record<string, SimplifiedStatus> = {
-  '未出运': SimplifiedStatus.NOT_SHIPPED,
-  '已出运': SimplifiedStatus.SHIPPED,
-  '已装船': SimplifiedStatus.SHIPPED,
-  '在途': SimplifiedStatus.IN_TRANSIT,
-  '已到港': SimplifiedStatus.AT_PORT,
-  '已到中转港': SimplifiedStatus.AT_PORT,
-  '到达目的港': SimplifiedStatus.AT_PORT,
-  '已提柜': SimplifiedStatus.PICKED_UP,
-  '已卸柜': SimplifiedStatus.UNLOADED,
-  '已还箱': SimplifiedStatus.RETURNED_EMPTY,
-  '已取消': SimplifiedStatus.NOT_SHIPPED // 取消视为未出运
+  未出运: SimplifiedStatus.NOT_SHIPPED,
+  已出运: SimplifiedStatus.SHIPPED,
+  已装船: SimplifiedStatus.SHIPPED,
+  在途: SimplifiedStatus.IN_TRANSIT,
+  已到港: SimplifiedStatus.AT_PORT,
+  已到中转港: SimplifiedStatus.AT_PORT,
+  到达目的港: SimplifiedStatus.AT_PORT,
+  已提柜: SimplifiedStatus.PICKED_UP,
+  已卸柜: SimplifiedStatus.UNLOADED,
+  已还箱: SimplifiedStatus.RETURNED_EMPTY,
+  已取消: SimplifiedStatus.NOT_SHIPPED // 取消视为未出运
 };
 
 // ============================================================================
@@ -187,27 +187,27 @@ export const ExcelStatusToSimplifiedMap: Record<string, SimplifiedStatus> = {
  */
 export const ExternalApiToDetailedMap: Record<string, DetailedStatus> = {
   // 飞驼API状态代码映射 (含 Freightower 文档 https://doc.freightower.com/7113318m0)
-  'BO': DetailedStatus.LOADED,           // 装船
-  'LOAD': DetailedStatus.LOADED,          // 装船 (equipmentEvents LOAD+LADEN)
-  'DLPT': DetailedStatus.SAILING,        // 航行
-  'ARRIVE': DetailedStatus.ARRIVED,       // 到达
-  'ATA': DetailedStatus.ARRIVED,          // 实际到港
-  'ARRI': DetailedStatus.ARRIVED,        // 靠泊 (transportEvents ARRI+BRTH)
-  'ETA': DetailedStatus.SAILING,          // 预计到港
-  'GATE_IN': DetailedStatus.GATE_IN,      // 进闸
-  'GATE_OUT': DetailedStatus.GATE_OUT,    // 出闸
-  'GTIN': DetailedStatus.GATE_IN,         // 进场 (equipmentEvents GTIN+LADEN)
-  'GTOT': DetailedStatus.GATE_OUT,        // 提货 (equipmentEvents GTOT+LADEN)
-  'DISCHARGED': DetailedStatus.DISCHARGED,// 卸货
-  'DISC': DetailedStatus.DISCHARGED,      // 卸船 (equipmentEvents DISC+LADEN)
-  'AVAIL': DetailedStatus.AVAILABLE,     // 可提货
-  'EMPTY_RETURN': DetailedStatus.RETURNED_EMPTY, // 还空箱
-  'RCVE': DetailedStatus.RETURNED_EMPTY,  // 还空箱 (Freightower实际返回的状态码)
-  'DUMP': DetailedStatus.DUMPED,          // 甩柜 (equipmentEvents DUMP+LADEN)
-  'HOLD': DetailedStatus.HOLD,           // 扣货
-  'CUSTOMS_HOLD': DetailedStatus.CUSTOMS_HOLD,  // 清关扣货
-  'CARRIER_HOLD': DetailedStatus.CARRIER_HOLD,  // 承运人扣货
-  'TERMINAL_HOLD': DetailedStatus.TERMINAL_HOLD // 码头扣货
+  BO: DetailedStatus.LOADED, // 装船
+  LOAD: DetailedStatus.LOADED, // 装船 (equipmentEvents LOAD+LADEN)
+  DLPT: DetailedStatus.SAILING, // 航行
+  ARRIVE: DetailedStatus.ARRIVED, // 到达
+  ATA: DetailedStatus.ARRIVED, // 实际到港
+  ARRI: DetailedStatus.ARRIVED, // 靠泊 (transportEvents ARRI+BRTH)
+  ETA: DetailedStatus.SAILING, // 预计到港
+  GATE_IN: DetailedStatus.GATE_IN, // 进闸
+  GATE_OUT: DetailedStatus.GATE_OUT, // 出闸
+  GTIN: DetailedStatus.GATE_IN, // 进场 (equipmentEvents GTIN+LADEN)
+  GTOT: DetailedStatus.GATE_OUT, // 提货 (equipmentEvents GTOT+LADEN)
+  DISCHARGED: DetailedStatus.DISCHARGED, // 卸货
+  DISC: DetailedStatus.DISCHARGED, // 卸船 (equipmentEvents DISC+LADEN)
+  AVAIL: DetailedStatus.AVAILABLE, // 可提货
+  EMPTY_RETURN: DetailedStatus.RETURNED_EMPTY, // 还空箱
+  RCVE: DetailedStatus.RETURNED_EMPTY, // 还空箱 (Freightower实际返回的状态码)
+  DUMP: DetailedStatus.DUMPED, // 甩柜 (equipmentEvents DUMP+LADEN)
+  HOLD: DetailedStatus.HOLD, // 扣货
+  CUSTOMS_HOLD: DetailedStatus.CUSTOMS_HOLD, // 清关扣货
+  CARRIER_HOLD: DetailedStatus.CARRIER_HOLD, // 承运人扣货
+  TERMINAL_HOLD: DetailedStatus.TERMINAL_HOLD // 码头扣货
 };
 
 // ============================================================================
@@ -219,9 +219,7 @@ export const ExternalApiToDetailedMap: Record<string, DetailedStatus> = {
  * Valid transition rules for simplified statuses
  */
 export const SimplifiedStatusTransitions: Record<SimplifiedStatus, SimplifiedStatus[]> = {
-  [SimplifiedStatus.NOT_SHIPPED]: [
-    SimplifiedStatus.SHIPPED
-  ],
+  [SimplifiedStatus.NOT_SHIPPED]: [SimplifiedStatus.SHIPPED],
   [SimplifiedStatus.SHIPPED]: [
     SimplifiedStatus.IN_TRANSIT,
     SimplifiedStatus.AT_PORT,
@@ -239,9 +237,7 @@ export const SimplifiedStatusTransitions: Record<SimplifiedStatus, SimplifiedSta
     SimplifiedStatus.UNLOADED,
     SimplifiedStatus.RETURNED_EMPTY // 支持跳转：直接还箱
   ],
-  [SimplifiedStatus.UNLOADED]: [
-    SimplifiedStatus.RETURNED_EMPTY
-  ],
+  [SimplifiedStatus.UNLOADED]: [SimplifiedStatus.RETURNED_EMPTY],
   [SimplifiedStatus.RETURNED_EMPTY]: []
 };
 
@@ -272,9 +268,11 @@ export const isWmsConfirmed = (warehouseOperation?: WarehouseOperation): boolean
   if (!warehouseOperation) return false;
 
   // 满足任一条件即可
-  return warehouseOperation.wmsStatus === 'WMS已完成' ||
-         warehouseOperation.ebsStatus === '已入库' ||
-         warehouseOperation.wmsConfirmDate !== null;
+  return (
+    warehouseOperation.wmsStatus === 'WMS已完成' ||
+    warehouseOperation.ebsStatus === '已入库' ||
+    warehouseOperation.wmsConfirmDate !== null
+  );
 };
 
 /**
@@ -309,8 +307,8 @@ export const calculateLogisticsStatus = (
   emptyReturn?: EmptyReturn
 ): LogisticsStatusResult => {
   // 分类港口操作记录
-  const transitPorts = portOperations.filter(po => po.portType === 'transit');
-  const destPorts = portOperations.filter(po => po.portType === 'destination');
+  const transitPorts = portOperations.filter((po) => po.portType === 'transit');
+  const destPorts = portOperations.filter((po) => po.portType === 'destination');
 
   let status = SimplifiedStatus.NOT_SHIPPED;
   let currentPortType: 'origin' | 'transit' | 'destination' | null = null;
@@ -348,7 +346,7 @@ export const calculateLogisticsStatus = (
   }
 
   // 优先级4: 目的港有实际到港时间
-  const destWithArrival = destPorts.find(po => po.ata);
+  const destWithArrival = destPorts.find((po) => po.ata);
   if (destWithArrival) {
     status = SimplifiedStatus.AT_PORT;
     currentPortType = 'destination';
@@ -360,7 +358,7 @@ export const calculateLogisticsStatus = (
 
   // 优先级4a: 目的港有可提货时间（飞驼状态码 PCAB/AVLE/AVAIL 触发）
   // availableTime 表示货柜已到港并可提货，即使没有ATA也视为已到港
-  const destWithAvailable = destPorts.find(po => po.availableTime);
+  const destWithAvailable = destPorts.find((po) => po.availableTime);
   if (destWithAvailable) {
     status = SimplifiedStatus.AT_PORT;
     currentPortType = 'destination';
@@ -371,8 +369,8 @@ export const calculateLogisticsStatus = (
   }
 
   // 优先级5: 中转港有到港/进闸（ata、gate_in_time 或 transit_arrival_date）
-  const transitWithArrival = transitPorts.find(po =>
-    po.ata || po.gateInTime || po.transitArrivalDate
+  const transitWithArrival = transitPorts.find(
+    (po) => po.ata || po.gateInTime || po.transitArrivalDate
   );
   if (transitWithArrival) {
     status = SimplifiedStatus.AT_PORT;

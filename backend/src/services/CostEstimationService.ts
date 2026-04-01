@@ -169,7 +169,7 @@ export class CostEstimationService {
   private async calculateTransportCost(
     truckingCompanyId?: string,
     warehouseCode?: string,
-    portCode?: string
+    _portCode?: string
   ): Promise<{
     transportFee: number;
     yardOperationFee?: number;

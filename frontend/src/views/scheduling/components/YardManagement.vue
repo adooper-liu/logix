@@ -93,13 +93,15 @@ const form = ref({
   dailyCapacity: 100,
   feePerDay: 0,
   address: '',
-  contactPhone: ''
+  contactPhone: '',
 })
 
 const loadYards = async () => {
   loading.value = true
   try {
-    const response = await fetch(`/api/v1/scheduling/resources/yards?country=${props.country || appStore.scopedCountryCode}`)
+    const response = await fetch(
+      `/api/v1/scheduling/resources/yards?country=${props.country || appStore.scopedCountryCode}`
+    )
     const data = await response.json()
     if (data.success) {
       yards.value = data.data || []
@@ -125,7 +127,7 @@ const showDialog = (row?: any) => {
       dailyCapacity: 100,
       feePerDay: 0,
       address: '',
-      contactPhone: ''
+      contactPhone: '',
     }
   }
   dialogVisible.value = true
@@ -142,7 +144,7 @@ const saveYard = async () => {
     const response = await fetch(url, {
       method,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form.value)
+      body: JSON.stringify(form.value),
     })
 
     const data = await response.json()
@@ -163,7 +165,7 @@ const deleteYard = async (row: any) => {
     await ElMessageBox.confirm('确定要删除该堆场吗？', '提示', { type: 'warning' })
 
     const response = await fetch(`/api/v1/scheduling/resources/yards/${row.yardCode}`, {
-      method: 'DELETE'
+      method: 'DELETE',
     })
 
     const data = await response.json()

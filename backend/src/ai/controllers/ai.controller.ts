@@ -374,7 +374,12 @@ export class AIController {
       const { message, context, options } = req.body as {
         message: string;
         context?: Record<string, any>;
-        options?: { execute?: boolean; preview?: boolean; autoQuery?: boolean; mcpEnabled?: boolean };
+        options?: {
+          execute?: boolean;
+          preview?: boolean;
+          autoQuery?: boolean;
+          mcpEnabled?: boolean;
+        };
       };
 
       // 验证消息参数

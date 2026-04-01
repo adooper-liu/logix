@@ -15,6 +15,7 @@ import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import { nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { formatCurrency } from '@/utils/currency'
 
 const router = useRouter()
 const loading = ref(false)
@@ -108,7 +109,7 @@ const dataCache = ref<DashboardCache>({
   demurrageSummary: null,
   stats: null,
   alertDetails: null,
-  statusDistribution: null
+  statusDistribution: null,
 })
 
 const loadData = async () => {
@@ -135,9 +136,10 @@ const loadData = async () => {
       containerService.getStatisticsDetailed(startDate, endDate),
       containerService.getYearlyShipmentVolume(), // 年度出运量不受时间范围影响
     ])
-    
+
     // 后台加载滞港费数据
-    demurrageService.getSummary({ startDate, endDate, limit: 500 })
+    demurrageService
+      .getSummary({ startDate, endDate, limit: 500 })
       .then(summaryRes => {
         if (summaryRes?.success && summaryRes?.data) {
           demurrageSummary.value = {
@@ -157,53 +159,53 @@ const loadData = async () => {
     const yearlyResponse = yearlyResult.status === 'fulfilled' ? yearlyResult.value : null
 
     if (statusResponse?.success && statusResponse?.data) {
-        const res = statusResponse
-        const dist = res.data.statusDistribution
+      const res = statusResponse
+      const dist = res.data.statusDistribution
 
-        // 总柜数：与 Shipments/statistics-verify 一致，仅 7 个主状态之和（不含 arrived_at_transit/arrived_at_destination 子维度）
-        const totalContainers = MAIN_STATUS_KEYS.reduce((sum, key) => sum + (dist[key] ?? 0), 0)
-        // 在途货柜 = 未到港 + 已到中转港（与桑基图/按状态口径一致）
-        const activeContainers =
-          (dist.shipped ?? 0) + (dist.in_transit ?? 0) + (dist.arrived_at_transit ?? 0)
+      // 总柜数：与 Shipments/statistics-verify 一致，仅 7 个主状态之和（不含 arrived_at_transit/arrived_at_destination 子维度）
+      const totalContainers = MAIN_STATUS_KEYS.reduce((sum, key) => sum + (dist[key] ?? 0), 0)
+      // 在途货柜 = 未到港 + 已到中转港（与桑基图/按状态口径一致）
+      const activeContainers =
+        (dist.shipped ?? 0) + (dist.in_transit ?? 0) + (dist.arrived_at_transit ?? 0)
 
-        statusData.value = {
-          not_shipped: dist.not_shipped ?? 0,
-          shipped: dist.shipped ?? 0,
-          in_transit: dist.in_transit ?? 0,
-          arrived_at_transit: dist.arrived_at_transit ?? 0,
-          arrived_at_destination: dist.arrived_at_destination ?? 0,
-          at_port: dist.at_port ?? 0,
-          picked_up: dist.picked_up ?? 0,
-          unloaded: dist.unloaded ?? 0,
-          returned_empty: dist.returned_empty ?? 0,
-        }
+      statusData.value = {
+        not_shipped: dist.not_shipped ?? 0,
+        shipped: dist.shipped ?? 0,
+        in_transit: dist.in_transit ?? 0,
+        arrived_at_transit: dist.arrived_at_transit ?? 0,
+        arrived_at_destination: dist.arrived_at_destination ?? 0,
+        at_port: dist.at_port ?? 0,
+        picked_up: dist.picked_up ?? 0,
+        unloaded: dist.unloaded ?? 0,
+        returned_empty: dist.returned_empty ?? 0,
+      }
 
-        const arrivalDist = res.data.arrivalDistribution ?? {}
-        const lastPickupDist = res.data.lastPickupDistribution ?? {}
-        const returnDist = res.data.returnDistribution ?? {}
-        const pickupDist = res.data.pickupDistribution ?? {}
+      const arrivalDist = res.data.arrivalDistribution ?? {}
+      const lastPickupDist = res.data.lastPickupDistribution ?? {}
+      const returnDist = res.data.returnDistribution ?? {}
+      const pickupDist = res.data.pickupDistribution ?? {}
 
-        alertDetails.value = {
-          etaOverdue: arrivalDist.overdue ?? 0,
-          lastPickupOverdue: lastPickupDist.expired ?? 0,
-          lastReturnOverdue: returnDist.expired ?? 0,
-          plannedPickupOverdue: pickupDist.overdue ?? 0,
-        }
+      alertDetails.value = {
+        etaOverdue: arrivalDist.overdue ?? 0,
+        lastPickupOverdue: lastPickupDist.expired ?? 0,
+        lastReturnOverdue: returnDist.expired ?? 0,
+        plannedPickupOverdue: pickupDist.overdue ?? 0,
+      }
 
-        // 模拟甩柜预警数量（实际应从后端API获取）
-        const dumpedContainers = 5 // 假设当前有5个甩柜预警
+      // 模拟甩柜预警数量（实际应从后端API获取）
+      const dumpedContainers = 5 // 假设当前有5个甩柜预警
 
-        stats.value = {
-          totalContainers,
-          activeContainers,
-          completedContainers: dist.returned_empty ?? 0,
-          alertContainers:
-            alertDetails.value.etaOverdue +
-            alertDetails.value.lastPickupOverdue +
-            alertDetails.value.lastReturnOverdue +
-            alertDetails.value.plannedPickupOverdue,
-          dumpedContainers,
-        }
+      stats.value = {
+        totalContainers,
+        activeContainers,
+        completedContainers: dist.returned_empty ?? 0,
+        alertContainers:
+          alertDetails.value.etaOverdue +
+          alertDetails.value.lastPickupOverdue +
+          alertDetails.value.lastReturnOverdue +
+          alertDetails.value.plannedPickupOverdue,
+        dumpedContainers,
+      }
 
       statusDistribution.value = [
         { name: '已出运', value: dist.shipped ?? 0, color: '#409eff' },
@@ -237,7 +239,7 @@ const loadData = async () => {
       demurrageSummary: demurrageSummary.value,
       stats: stats.value,
       alertDetails: alertDetails.value,
-      statusDistribution: statusDistribution.value
+      statusDistribution: statusDistribution.value,
     }
   } catch (error) {
     console.error('Failed to load dashboard data:', error)
@@ -268,7 +270,12 @@ const handleRefresh = () => {
 }
 
 const formatDemurrageAmount = (amount: number, currency: string) =>
-  `${currency} ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  formatCurrency(amount, currency, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+    showSymbol: false,
+    showCode: true,
+  })
 
 const demurrageSectionRef = ref<HTMLElement | null>(null)
 const showDemurrage = async () => {
@@ -343,13 +350,20 @@ onMounted(() => {
           type="completed"
           :icon="Money"
           :value="demurrageSummary?.totalAmount ?? 0"
-          :display-value="demurrageSummary ? formatDemurrageAmount(demurrageSummary.totalAmount, demurrageSummary.currency) : '暂无数'"
+          :display-value="
+            demurrageSummary
+              ? formatDemurrageAmount(demurrageSummary.totalAmount, demurrageSummary.currency)
+              : '暂无数'
+          "
           label="滞港费合计"
           :demurrage-details="
             demurrageSummary
               ? {
                   containerCount: demurrageSummary.containerCountWithCharge,
-                  avgPerContainer: formatDemurrageAmount(demurrageSummary.avgPerContainer, demurrageSummary.currency),
+                  avgPerContainer: formatDemurrageAmount(
+                    demurrageSummary.avgPerContainer,
+                    demurrageSummary.currency
+                  ),
                   alertStatus: demurrageSummary.containerCountWithCharge > 0 ? '需关注' : '正常',
                 }
               : undefined
@@ -458,7 +472,9 @@ onMounted(() => {
 
 .demurrage-slide-enter-active,
 .demurrage-slide-leave-active {
-  transition: opacity 0.2s ease, transform 0.25s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.25s ease;
 }
 
 .demurrage-slide-enter-from,

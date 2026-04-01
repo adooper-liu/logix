@@ -311,7 +311,7 @@ export class SqlValidator {
 
     // 5. 检查是否有无 LIMIT 的查询
     if (!/LIMIT\s+\d+/i.test(sql)) {
-      warnings.push(`No LIMIT specified, results will be capped at ${  this.maxRows}`);
+      warnings.push(`No LIMIT specified, results will be capped at ${this.maxRows}`);
     }
 
     // 6. 检查是否有潜在的多表查询问题

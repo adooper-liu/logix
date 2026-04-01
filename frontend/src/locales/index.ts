@@ -15,7 +15,7 @@ export const messages = {
   'de-DE': deDE,
   'fr-FR': frFR,
   'it-IT': itIT,
-  'es-ES': esES
+  'es-ES': esES,
 }
 
 // 从 localStorage 读取语言设置，如果没有则使用默认语言
@@ -36,7 +36,7 @@ const i18n = createI18n({
   legacy: false, // 使用 Composition API 模式
   locale: getSavedLanguage(),
   fallbackLocale: 'zh-CN',
-  messages
+  messages,
 })
 
 export default i18n

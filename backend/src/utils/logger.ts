@@ -55,7 +55,7 @@ export const logger = winston.createLogger({
 
 // 生产环境不输出到控制台
 if (config.nodeEnv === 'production') {
-  logger.transports.forEach(transport => {
+  logger.transports.forEach((transport) => {
     if (transport instanceof winston.transports.Console) {
       logger.remove(transport);
     }

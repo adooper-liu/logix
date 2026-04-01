@@ -193,11 +193,9 @@ export class ErrorManager {
       appError = error;
     } else {
       // 普通Error，转换为AppError
-      appError = this.createError(
-        ErrorType.INTERNAL,
-        error.message || '未知错误',
-        { originalError: error.message }
-      );
+      appError = this.createError(ErrorType.INTERNAL, error.message || '未知错误', {
+        originalError: error.message
+      });
       appError.stack = error.stack;
     }
 

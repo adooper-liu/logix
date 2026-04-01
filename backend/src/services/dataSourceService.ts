@@ -15,22 +15,22 @@ import type { SourceType } from '../entities/SysDataChangeLog';
  * 数据来源类型
  */
 export enum DataSourceType {
-  FEITUO_API = 'FeituoAPI',  // 飞驼API
-  FEITUO_EXCEL = 'Feituo',   // 飞驼Excel导入
-  MANUAL = 'Manual',        // 手工维护
-  EXCEL = 'Excel',          // 普通Excel导入
-  SYSTEM = 'System',        // 系统自动生成
+  FEITUO_API = 'FeituoAPI', // 飞驼API
+  FEITUO_EXCEL = 'Feituo', // 飞驼Excel导入
+  MANUAL = 'Manual', // 手工维护
+  EXCEL = 'Excel', // 普通Excel导入
+  SYSTEM = 'System' // 系统自动生成
 }
 
 /**
  * 数据来源优先级（数字越小优先级越高）
  */
 export const DATA_SOURCE_PRIORITY: Record<DataSourceType, number> = {
-  [DataSourceType.MANUAL]: 1,      // 手工维护优先级最高
-  [DataSourceType.FEITUO_API]: 2,  // 飞驼API次之
-  [DataSourceType.EXCEL]: 3,       // Excel导入
+  [DataSourceType.MANUAL]: 1, // 手工维护优先级最高
+  [DataSourceType.FEITUO_API]: 2, // 飞驼API次之
+  [DataSourceType.EXCEL]: 3, // Excel导入
   [DataSourceType.FEITUO_EXCEL]: 3, // 飞驼Excel导入
-  [DataSourceType.SYSTEM]: 4,      // 系统自动生成优先级最低
+  [DataSourceType.SYSTEM]: 4 // 系统自动生成优先级最低
 };
 
 /**
@@ -124,7 +124,9 @@ export class DataSourceService {
           portOperation.dataSource = dataSource;
           updated = true;
 
-          logger.info(`[DataSourceService] 更新港口操作字段: ${containerNumber} - ${fieldName} = ${value} (来源: ${dataSource})`);
+          logger.info(
+            `[DataSourceService] 更新港口操作字段: ${containerNumber} - ${fieldName} = ${value} (来源: ${dataSource})`
+          );
         }
       }
 
@@ -190,7 +192,9 @@ export class DataSourceService {
           remark: `数据来源 ${dataSource} 更新字段 ${fieldName}`
         });
 
-        logger.info(`[DataSourceService] 更新货柜字段: ${containerNumber} - ${fieldName} = ${value} (来源: ${dataSource})`);
+        logger.info(
+          `[DataSourceService] 更新货柜字段: ${containerNumber} - ${fieldName} = ${value} (来源: ${dataSource})`
+        );
         return true;
       }
 
@@ -218,7 +222,12 @@ export class DataSourceService {
 
       // 更新港口操作字段
       for (const [fieldName, value] of Object.entries(fields)) {
-        const fieldUpdated = await this.updatePortOperationField(containerNumber, fieldName, value, dataSource);
+        const fieldUpdated = await this.updatePortOperationField(
+          containerNumber,
+          fieldName,
+          value,
+          dataSource
+        );
         if (fieldUpdated) {
           updated = true;
           updatedFields.push(fieldName);
@@ -242,7 +251,7 @@ export class DataSourceService {
         [DataSourceType.FEITUO_EXCEL]: 0,
         [DataSourceType.MANUAL]: 0,
         [DataSourceType.EXCEL]: 0,
-        [DataSourceType.SYSTEM]: 0,
+        [DataSourceType.SYSTEM]: 0
       };
 
       // 统计港口操作记录的数据源
@@ -252,7 +261,7 @@ export class DataSourceService {
         .groupBy('po.data_source')
         .getRawMany();
 
-      portOperationStats.forEach(stat => {
+      portOperationStats.forEach((stat) => {
         const source = stat.po_data_source as DataSourceType;
         if (source in stats) {
           stats[source] = parseInt(stat.count, 10);
@@ -281,14 +290,15 @@ export class DataSourceService {
 
       const dataSourceInfo = {
         containerNumber,
-        portOperations: portOperations.map(po => ({
+        portOperations: portOperations.map((po) => ({
           portType: po.portType,
           dataSource: po.dataSource,
           updatedAt: po.updatedAt
         })),
-        lastUpdated: portOperations.length > 0
-          ? Math.max(...portOperations.map(po => po.updatedAt.getTime()))
-          : null
+        lastUpdated:
+          portOperations.length > 0
+            ? Math.max(...portOperations.map((po) => po.updatedAt.getTime()))
+            : null
       };
 
       return dataSourceInfo;

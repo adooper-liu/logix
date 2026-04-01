@@ -27,10 +27,12 @@ export class FiveNodeService {
   }
 
   /** 目的港港口操作（ETA/ATA、清关计划/实际等） */
-  private async getDestinationPortOperation(containerNumber: string): Promise<PortOperation | null> {
+  private async getDestinationPortOperation(
+    containerNumber: string
+  ): Promise<PortOperation | null> {
     return this.portOperationRepository.findOne({
       where: { containerNumber, portType: DEST_PORT },
-      order: { portSequence: 'DESC' },
+      order: { portSequence: 'DESC' }
     });
   }
 
@@ -39,7 +41,7 @@ export class FiveNodeService {
     // 获取货柜基本信息
     const container = await this.containerRepository.findOne({
       where: { containerNumber },
-      relations: ['seaFreight'],
+      relations: ['seaFreight']
     });
 
     if (!container) {
@@ -69,7 +71,7 @@ export class FiveNodeService {
       trucking: truckingInfo,
       unloading: unloadingInfo,
       emptyReturn: emptyReturnInfo,
-      inspection: inspectionInfo,
+      inspection: inspectionInfo
     });
 
     // 费用信息
@@ -87,7 +89,7 @@ export class FiveNodeService {
         trucking: truckingInfo,
         unloading: unloadingInfo,
         emptyReturn: emptyReturnInfo,
-        inspection: inspectionInfo,
+        inspection: inspectionInfo
       },
       warnings,
       costs,
@@ -96,8 +98,8 @@ export class FiveNodeService {
         trucking: truckingInfo,
         unloading: unloadingInfo,
         emptyReturn: emptyReturnInfo,
-        inspection: inspectionInfo,
-      }),
+        inspection: inspectionInfo
+      })
     };
   }
 
@@ -112,7 +114,7 @@ export class FiveNodeService {
       plannedDate: planned,
       actualDate: actual,
       estimatedDate: null,
-      latestStatus: customsStatus || (cleared ? '已清关' : '待清关'),
+      latestStatus: customsStatus || (cleared ? '已清关' : '待清关')
     };
   }
 
@@ -120,7 +122,7 @@ export class FiveNodeService {
   private async getTruckingInfo(containerNumber: string) {
     const trucking = await this.truckingRepository.findOne({
       where: { containerNumber },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: 'DESC' }
     });
 
     const pickup = trucking?.pickupDate ?? null;
@@ -131,7 +133,7 @@ export class FiveNodeService {
       estimatedDate: null,
       latestStatus: pickup ? '已提柜' : '未提柜',
       pickupTime: pickup,
-      deliveryTime: trucking?.deliveryDate ?? null,
+      deliveryTime: trucking?.deliveryDate ?? null
     };
   }
 
@@ -139,7 +141,7 @@ export class FiveNodeService {
   private async getUnloadingInfo(containerNumber: string) {
     const warehouseOp = await this.warehouseRepository.findOne({
       where: { containerNumber },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: 'DESC' }
     });
 
     const unload = warehouseOp?.unloadDate ?? null;
@@ -149,7 +151,7 @@ export class FiveNodeService {
       actualDate: unload,
       estimatedDate: null,
       latestStatus: unload ? '已卸柜' : '未卸柜',
-      unloadingTime: unload,
+      unloadingTime: unload
     };
   }
 
@@ -157,7 +159,7 @@ export class FiveNodeService {
   private async getEmptyReturnInfo(containerNumber: string) {
     const emptyReturn = await this.emptyReturnRepository.findOne({
       where: { containerNumber },
-      order: { createdAt: 'DESC' },
+      order: { createdAt: 'DESC' }
     });
 
     const returned = !!emptyReturn?.returnTime;
@@ -167,7 +169,7 @@ export class FiveNodeService {
       actualDate: emptyReturn?.returnTime ?? null,
       estimatedDate: null,
       latestStatus: returned ? '已还箱' : '未还箱',
-      returnTime: emptyReturn?.returnTime ?? null,
+      returnTime: emptyReturn?.returnTime ?? null
     };
   }
 
@@ -175,7 +177,7 @@ export class FiveNodeService {
   private async getInspectionInfo(containerNumber: string) {
     const inspection = await this.inspectionRepository.findOne({
       where: { containerNumber },
-      relations: ['events'],
+      relations: ['events']
     });
 
     const inspected = !!inspection?.inspectionDate;
@@ -185,7 +187,7 @@ export class FiveNodeService {
       actualDate: inspection?.inspectionDate || null,
       estimatedDate: null,
       latestStatus: inspection?.latestStatus || '未查验',
-      customsClearanceStatus: inspection?.customsClearanceStatus || null,
+      customsClearanceStatus: inspection?.customsClearanceStatus || null
     };
   }
 
@@ -203,7 +205,7 @@ export class FiveNodeService {
       warnings.push({
         type: 'customs',
         level: 'warning',
-        message: '清关计划日期已过，尚未完成',
+        message: '清关计划日期已过，尚未完成'
       });
     }
 
@@ -215,7 +217,7 @@ export class FiveNodeService {
         warnings.push({
           type: 'trucking',
           level: 'critical',
-          message: '已超过最晚提柜日',
+          message: '已超过最晚提柜日'
         });
       }
     }
@@ -223,24 +225,29 @@ export class FiveNodeService {
     // 还箱预警
     if (nodeInfo.trucking.status === 'pickedUp' && nodeInfo.emptyReturn.status !== 'returned') {
       // 检查是否超过最晚还箱日
-      const latestReturnDate = this.calculateLatestReturnDate(container, nodeInfo.trucking.pickupTime);
+      const latestReturnDate = this.calculateLatestReturnDate(
+        container,
+        nodeInfo.trucking.pickupTime
+      );
       if (latestReturnDate && new Date() > latestReturnDate) {
         warnings.push({
           type: 'emptyReturn',
           level: 'critical',
-          message: '已超过最晚还箱日',
+          message: '已超过最晚还箱日'
         });
       }
     }
 
     // 查验预警
-    if (nodeInfo.inspection.status === 'inspected' &&
-        nodeInfo.inspection.customsClearanceStatus &&
-        nodeInfo.inspection.customsClearanceStatus !== '全部放行') {
+    if (
+      nodeInfo.inspection.status === 'inspected' &&
+      nodeInfo.inspection.customsClearanceStatus &&
+      nodeInfo.inspection.customsClearanceStatus !== '全部放行'
+    ) {
       warnings.push({
         type: 'inspection',
         level: 'warning',
-        message: '查验尚未完成',
+        message: '查验尚未完成'
       });
     }
 
@@ -255,7 +262,7 @@ export class FiveNodeService {
       demurrage: 0,
       detention: 0,
       inspection: 0,
-      total: 0,
+      total: 0
     };
   }
 
@@ -323,11 +330,7 @@ export class FiveNodeService {
   }
 
   // 获取所有货柜的五节点信息（用于列表）
-  async getAllFiveNodeInfo(filters?: {
-    startDate?: Date;
-    endDate?: Date;
-    status?: string;
-  }) {
+  async getAllFiveNodeInfo(filters?: { startDate?: Date; endDate?: Date; status?: string }) {
     const query = this.containerRepository.createQueryBuilder('container');
 
     if (filters) {

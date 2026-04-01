@@ -3,7 +3,7 @@ import { ContainerStatisticsService } from './containerStatistics.service';
 const createMockRepository = () => ({
   createQueryBuilder: jest.fn(),
   find: jest.fn(),
-  query: jest.fn(),
+  query: jest.fn()
 });
 
 describe('ContainerStatisticsService - filter consistency routing', () => {
@@ -69,4 +69,3 @@ describe('ContainerStatisticsService - filter consistency routing', () => {
     expect(lastPickupSpy).toHaveBeenNthCalledWith(5, 'noLastFreeDate', undefined, undefined);
   });
 });
-

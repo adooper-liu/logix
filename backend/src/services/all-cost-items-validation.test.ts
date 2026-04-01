@@ -1,8 +1,8 @@
 /**
  * 所有费用项全面验证测试
- * 
+ *
  * 测试目标：验证成本计算包含的所有费用项
- * 
+ *
  * 费用项清单（7 项）：
  * 1. 滞港费 (Demurrage Cost) - ext_demurrage_standards
  * 2. 滞箱费 (Detention Cost) - ext_demurrage_standards
@@ -16,7 +16,6 @@
 import { describe, it, expect } from '@jest/globals';
 
 describe('所有费用项全面验证', () => {
-  
   describe('费用项定义与数据源验证', () => {
     it('应该正确定义所有 7 种费用项', () => {
       // Arrange
@@ -83,9 +82,9 @@ describe('所有费用项全面验证', () => {
 
       // Assert
       expect(allCostItems).toHaveLength(7);
-      
+
       // 验证每个费用项都有必要的字段
-      allCostItems.forEach(item => {
+      allCostItems.forEach((item) => {
         expect(item.name).toBeDefined();
         expect(item.code).toBeDefined();
         expect(item.dataSource).toBeDefined();
@@ -97,19 +96,19 @@ describe('所有费用项全面验证', () => {
     it('应该区分 D&D 费用与运输环节费用', () => {
       // Arrange
       const ddFees = [
-        'demurrageCost',      // 滞港费
-        'detentionCost',      // 滞箱费
-        'storageCost',        // 港口存储费
-        'ddCombinedCost'      // D&D 合并费
+        'demurrageCost', // 滞港费
+        'detentionCost', // 滞箱费
+        'storageCost', // 港口存储费
+        'ddCombinedCost' // D&D 合并费
       ];
 
       const transportationFees = [
-        'yardStorageCost',    // 外部堆场堆存费
-        'transportationCost'  // 运输费
+        'yardStorageCost', // 外部堆场堆存费
+        'transportationCost' // 运输费
       ];
 
       const handlingFees = [
-        'handlingCost'        // 操作费/加急费
+        'handlingCost' // 操作费/加急费
       ];
 
       // Assert
@@ -118,11 +117,11 @@ describe('所有费用项全面验证', () => {
       expect(handlingFees).toHaveLength(1);
 
       // 验证数据源不同
-      ddFees.forEach(fee => {
+      ddFees.forEach((fee) => {
         expect(fee).toMatch(/^(demurrage|detention|storage|ddCombined)Cost$/);
       });
 
-      transportationFees.forEach(fee => {
+      transportationFees.forEach((fee) => {
         expect(fee).toMatch(/^(yardStorage|transportation)Cost$/);
       });
     });
@@ -132,13 +131,13 @@ describe('所有费用项全面验证', () => {
     it('应该包含所有 6 个费用字段和 1 个总计字段', () => {
       // Arrange
       const costBreakdownFields = [
-        'demurrageCost',      // 1. 滞港费
-        'detentionCost',      // 2. 滞箱费
-        'storageCost',        // 3. 港口存储费
-        'yardStorageCost',    // 4. 外部堆场堆存费 ⭐
+        'demurrageCost', // 1. 滞港费
+        'detentionCost', // 2. 滞箱费
+        'storageCost', // 3. 港口存储费
+        'yardStorageCost', // 4. 外部堆场堆存费 ⭐
         'transportationCost', // 5. 运输费
-        'handlingCost',       // 6. 操作费/加急费
-        'totalCost'           // 7. 总成本
+        'handlingCost', // 6. 操作费/加急费
+        'totalCost' // 7. 总成本
       ];
 
       // Act
@@ -154,8 +153,8 @@ describe('所有费用项全面验证', () => {
 
       // Assert
       expect(Object.keys(breakdown)).toHaveLength(7);
-      
-      costBreakdownFields.forEach(field => {
+
+      costBreakdownFields.forEach((field) => {
         expect(breakdown).toHaveProperty(field);
         expect(typeof breakdown[field]).toBe('number');
       });
@@ -173,7 +172,7 @@ describe('所有费用项全面验证', () => {
       };
 
       // Act
-      const totalCost = 
+      const totalCost =
         breakdown.demurrageCost +
         breakdown.detentionCost +
         breakdown.storageCost +
@@ -185,11 +184,11 @@ describe('所有费用项全面验证', () => {
       expect(totalCost).toBe(890);
       expect(totalCost).toEqual(
         breakdown.demurrageCost +
-        breakdown.detentionCost +
-        breakdown.storageCost +
-        breakdown.yardStorageCost +
-        breakdown.transportationCost +
-        breakdown.handlingCost
+          breakdown.detentionCost +
+          breakdown.storageCost +
+          breakdown.yardStorageCost +
+          breakdown.transportationCost +
+          breakdown.handlingCost
       );
     });
   });
@@ -225,7 +224,7 @@ describe('所有费用项全面验证', () => {
           'demurrageCost',
           'detentionCost',
           'storageCost',
-          'yardStorageCost',    // ✅ 真 Drop off
+          'yardStorageCost', // ✅ 真 Drop off
           'transportationCost'
         ]
       };
@@ -278,7 +277,7 @@ describe('所有费用项全面验证', () => {
     it('D&D 费用应该来自 ext_demurrage_standards', () => {
       // Arrange
       const ddFeesDataSource = 'ext_demurrage_standards';
-      
+
       const ddFees = [
         { name: '滞港费', code: 'DEMURRAGE' },
         { name: '滞箱费', code: 'DETENTION' },
@@ -287,7 +286,7 @@ describe('所有费用项全面验证', () => {
       ];
 
       // Assert
-      ddFees.forEach(fee => {
+      ddFees.forEach((_fee) => {
         expect(ddFeesDataSource).toBe('ext_demurrage_standards');
       });
     });
@@ -380,7 +379,7 @@ describe('所有费用项全面验证', () => {
         { mode: 'Live load', hasYard: true, pickupBeforeDelivery: false, shouldCharge: false },
         { mode: 'Drop off', hasYard: false, pickupBeforeDelivery: true, shouldCharge: false },
         { mode: 'Drop off', hasYard: true, pickupBeforeDelivery: false, shouldCharge: false }, // 假 Drop off
-        { mode: 'Drop off', hasYard: true, pickupBeforeDelivery: true, shouldCharge: true }   // 真 Drop off
+        { mode: 'Drop off', hasYard: true, pickupBeforeDelivery: true, shouldCharge: true } // 真 Drop off
       ];
 
       // Act & Assert

@@ -40,6 +40,6 @@ export const useAppStore = defineStore('app', () => {
 
   return {
     scopedCountryCode,
-    setScopedCountryCode
+    setScopedCountryCode,
   }
 })

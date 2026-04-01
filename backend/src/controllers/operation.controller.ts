@@ -147,14 +147,22 @@ export class OperationController {
       const { containerNumber } = req.params;
       const truckingData = snakeToCamel(req.body);
 
-      let truckingTransport = await this.truckingTransportRepository.findOne({ where: { containerNumber } });
+      let truckingTransport = await this.truckingTransportRepository.findOne({
+        where: { containerNumber }
+      });
       if (!truckingTransport) {
-        const created = this.truckingTransportRepository.create({ containerNumber, ...truckingData });
+        const created = this.truckingTransportRepository.create({
+          containerNumber,
+          ...truckingData
+        });
         truckingTransport = Array.isArray(created) ? created[0] : created;
       } else {
         Object.assign(truckingTransport, truckingData);
       }
-      if (Object.prototype.hasOwnProperty.call(truckingData, 'pickupDate') && truckingData.pickupDate != null) {
+      if (
+        Object.prototype.hasOwnProperty.call(truckingData, 'pickupDate') &&
+        truckingData.pickupDate != null
+      ) {
         truckingTransport.pickupDateSource = PICKUP_DATE_SOURCE.MANUAL;
       }
 
@@ -226,9 +234,14 @@ export class OperationController {
       const { containerNumber } = req.params;
       const warehouseData = snakeToCamel(req.body);
 
-      let warehouseOperation = await this.warehouseOperationRepository.findOne({ where: { containerNumber } });
+      let warehouseOperation = await this.warehouseOperationRepository.findOne({
+        where: { containerNumber }
+      });
       if (!warehouseOperation) {
-        const created = this.warehouseOperationRepository.create({ containerNumber, ...warehouseData });
+        const created = this.warehouseOperationRepository.create({
+          containerNumber,
+          ...warehouseData
+        });
         warehouseOperation = Array.isArray(created) ? created[0] : created;
       } else {
         Object.assign(warehouseOperation, warehouseData);

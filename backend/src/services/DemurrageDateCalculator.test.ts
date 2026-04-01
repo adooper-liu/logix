@@ -166,7 +166,7 @@ describe('DemurrageDateCalculator', () => {
     it('应该正确计算自然日免费期', () => {
       const startDate = new Date('2026-03-01');
       const result = calculator.calculateLastFreeDate(startDate, 7, '自然日', 'actual');
-      
+
       expect(result.lastFreeDate.toISOString()).toBe('2026-03-07T00:00:00.000Z');
       expect(result.lastFreeDateMode).toBe('actual');
       expect(result.freeDays).toBe(7);
@@ -176,7 +176,7 @@ describe('DemurrageDateCalculator', () => {
       // 从周一开始 7 个工作日
       const monday = new Date('2026-03-09');
       const result = calculator.calculateLastFreeDate(monday, 7, '工作日', 'forecast');
-      
+
       // n = 7-1 = 6 个工作日
       // Mon(1), Tue(2), Wed(3), Thu(4), Fri(5), skip Sat/Sun, Mon(6) -> 2026-03-16
       expect(result.lastFreeDate.toISOString()).toBe('2026-03-16T00:00:00.000Z');
@@ -186,7 +186,7 @@ describe('DemurrageDateCalculator', () => {
     it('应该处理 0 免费天的情况', () => {
       const startDate = new Date('2026-03-01');
       const result = calculator.calculateLastFreeDate(startDate, 0, '自然日');
-      
+
       // n = max(0, 0-1) = 0, so lastFreeDate = startDate
       expect(result.lastFreeDate.toISOString()).toBe('2026-03-01T00:00:00.000Z');
     });
@@ -197,7 +197,7 @@ describe('DemurrageDateCalculator', () => {
       const lastFreeDate = new Date('2026-03-07');
       const endDate = new Date('2026-03-15');
       const result = calculator.calculateChargeDays(lastFreeDate, endDate, '自然日');
-      
+
       expect(result.chargeDays).toBe(8); // 3/8 to 3/15 = 8 days
       expect(result.chargeStart.toISOString()).toBe('2026-03-08T00:00:00.000Z');
       expect(result.isWorkingDaysOnly).toBe(false);
@@ -208,7 +208,7 @@ describe('DemurrageDateCalculator', () => {
       const lastFreeDate = new Date('2026-03-06'); // Friday
       const endDate = new Date('2026-03-10'); // Tuesday (skip weekend)
       const result = calculator.calculateChargeDays(lastFreeDate, endDate, '工作日');
-      
+
       expect(result.chargeDays).toBe(2); // Mon(1), Tue(2)
       expect(result.isWorkingDaysOnly).toBe(true);
     });
@@ -217,7 +217,7 @@ describe('DemurrageDateCalculator', () => {
       const lastFreeDate = new Date('2026-03-07');
       const endDate = new Date('2026-03-05');
       const result = calculator.calculateChargeDays(lastFreeDate, endDate, '自然日');
-      
+
       expect(result.chargeDays).toBe(0);
     });
   });
@@ -227,7 +227,7 @@ describe('DemurrageDateCalculator', () => {
       const startDate = new Date('2026-03-01');
       const endDate = new Date('2026-03-15');
       const result = calculator.calculateSingleItemDates(startDate, endDate, 7, '自然日', 'actual');
-      
+
       expect(result.freePeriod.lastFreeDate.toISOString()).toBe('2026-03-07T00:00:00.000Z');
       expect(result.chargePeriod.chargeDays).toBe(8);
       expect(result.hasCharges).toBe(true);
@@ -237,7 +237,7 @@ describe('DemurrageDateCalculator', () => {
       const startDate = new Date('2026-03-01');
       const endDate = new Date('2026-03-05');
       const result = calculator.calculateSingleItemDates(startDate, endDate, 7, '自然日');
-      
+
       expect(result.freePeriod.lastFreeDate.toISOString()).toBe('2026-03-07T00:00:00.000Z');
       expect(result.chargePeriod.chargeDays).toBe(0);
       expect(result.hasCharges).toBe(false);
@@ -249,7 +249,7 @@ describe('DemurrageDateCalculator', () => {
       const start = new Date('2026-03-01');
       const end = new Date('2026-03-15');
       const result = calculator.validateDateRange(start, end, 'test');
-      
+
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
@@ -258,7 +258,7 @@ describe('DemurrageDateCalculator', () => {
       const start = new Date('2026-03-15');
       const end = new Date('2026-03-01');
       const result = calculator.validateDateRange(start, end, 'test');
-      
+
       expect(result.isValid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
     });
@@ -267,7 +267,7 @@ describe('DemurrageDateCalculator', () => {
       const start = new Date('1990-01-01');
       const end = new Date('1990-12-31');
       const result = calculator.validateDateRange(start, end, 'test');
-      
+
       expect(result.warnings.length).toBeGreaterThan(0);
     });
 
@@ -276,9 +276,9 @@ describe('DemurrageDateCalculator', () => {
       future.setFullYear(future.getFullYear() + 2);
       const start = future;
       const end = new Date(future.getTime() + 86400000); // +1 day
-      
+
       const result = calculator.validateDateRange(start, end, 'test');
-      
+
       expect(result.warnings.length).toBeGreaterThan(0);
     });
   });

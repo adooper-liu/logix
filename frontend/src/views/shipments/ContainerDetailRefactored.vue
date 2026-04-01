@@ -240,7 +240,11 @@ watch(
                       刷新
                     </el-button>
                   </div>
-                  <DemurrageDetailSection ref="demurrageRef" :container-number="containerNumber" />
+                  <DemurrageDetailSection
+                    ref="demurrageRef"
+                    :container-number="containerNumber"
+                    :calculation-data="demurrageCalculation"
+                  />
                 </div>
               </el-tab-pane>
               <el-tab-pane label="变更日志" name="change-log" lazy>

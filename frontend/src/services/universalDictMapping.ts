@@ -74,13 +74,10 @@ const mappingCache: Record<string, Record<string, string>> = {
 /**
  * 获取标准代码(通用)
  */
-export async function getStandardCode(
-  dictType: string,
-  name: string
-): Promise<MappingResult> {
+export async function getStandardCode(dictType: string, name: string): Promise<MappingResult> {
   try {
     const response = await axios.get(`${API_BASE}/universal/code`, {
-      params: { dictType, name }
+      params: { dictType, name },
     })
     return response.data
   } catch (error: any) {
@@ -88,7 +85,7 @@ export async function getStandardCode(
     return {
       success: false,
       data: null,
-      message: error.response?.data?.error || error.message
+      message: error.response?.data?.error || error.message,
     }
   }
 }
@@ -103,14 +100,14 @@ export async function getStandardCodesBatch(
   try {
     const response = await axios.post(`${API_BASE}/universal/batch`, {
       dictType,
-      names
+      names,
     })
     return response.data
   } catch (error: any) {
     console.error('[getStandardCodesBatch] Error:', error)
     return {
       success: false,
-      data: {}
+      data: {},
     }
   }
 }
@@ -118,9 +115,7 @@ export async function getStandardCodesBatch(
 /**
  * 获取指定类型的所有映射
  */
-export async function getMappingsByType(
-  dictType: string
-): Promise<AllMappingsResult> {
+export async function getMappingsByType(dictType: string): Promise<AllMappingsResult> {
   try {
     const response = await axios.get(`${API_BASE}/universal/type/${dictType}`)
     return response.data
@@ -129,7 +124,7 @@ export async function getMappingsByType(
     return {
       success: false,
       data: [],
-      total: 0
+      total: 0,
     }
   }
 }
@@ -145,7 +140,7 @@ export async function getAllDictTypes() {
     console.error('[getAllDictTypes] Error:', error)
     return {
       success: false,
-      data: []
+      data: [],
     }
   }
 }
@@ -153,20 +148,17 @@ export async function getAllDictTypes() {
 /**
  * 模糊搜索映射
  */
-export async function searchMappings(
-  dictType: string,
-  keyword: string
-) {
+export async function searchMappings(dictType: string, keyword: string) {
   try {
     const response = await axios.get(`${API_BASE}/universal/search/${dictType}`, {
-      params: { keyword }
+      params: { keyword },
     })
     return response.data
   } catch (error: any) {
     console.error('[searchMappings] Error:', error)
     return {
       success: false,
-      data: []
+      data: [],
     }
   }
 }
@@ -182,7 +174,7 @@ export async function addMapping(mapping: Partial<MappingData>) {
     console.error('[addMapping] Error:', error)
     return {
       success: false,
-      error: error.response?.data?.error || error.message
+      error: error.response?.data?.error || error.message,
     }
   }
 }
@@ -198,7 +190,7 @@ export async function addMappingsBatch(mappings: Partial<MappingData>[]) {
     console.error('[addMappingsBatch] Error:', error)
     return {
       success: false,
-      error: error.response?.data?.error || error.message
+      error: error.response?.data?.error || error.message,
     }
   }
 }
@@ -206,10 +198,7 @@ export async function addMappingsBatch(mappings: Partial<MappingData>[]) {
 /**
  * 更新映射
  */
-export async function updateMapping(
-  id: number,
-  updates: Partial<MappingData>
-) {
+export async function updateMapping(id: number, updates: Partial<MappingData>) {
   try {
     const response = await axios.put(`${API_BASE}/universal/${id}`, updates)
     return response.data
@@ -217,7 +206,7 @@ export async function updateMapping(
     console.error('[updateMapping] Error:', error)
     return {
       success: false,
-      error: error.response?.data?.error || error.message
+      error: error.response?.data?.error || error.message,
     }
   }
 }
@@ -233,7 +222,7 @@ export async function deleteMapping(id: number) {
     console.error('[deleteMapping] Error:', error)
     return {
       success: false,
-      error: error.response?.data?.error || error.message
+      error: error.response?.data?.error || error.message,
     }
   }
 }
@@ -278,12 +267,10 @@ export async function preloadAllCommonMappings(): Promise<void> {
     DictType.PORT,
     DictType.COUNTRY,
     DictType.SHIPPING_COMPANY,
-    DictType.CONTAINER_TYPE
+    DictType.CONTAINER_TYPE,
   ]
 
-  await Promise.all(
-    commonTypes.map(type => preloadMappings(type))
-  )
+  await Promise.all(commonTypes.map(type => preloadMappings(type)))
 
   console.log('[preloadAllCommonMappings] 所有常用字典映射加载完成')
 }
@@ -392,7 +379,7 @@ export const mappingCacheManager = {
       return Object.keys(mappingCache[dictType] || {}).length
     }
     return Object.values(mappingCache).reduce((sum, cache) => sum + Object.keys(cache).length, 0)
-  }
+  },
 }
 
 // 导出服务实例（用于组件导入）
@@ -414,5 +401,5 @@ export const universalDictMappingService = {
   getPortCode,
   getCountryCode,
   getShippingCompanyCode,
-  getContainerTypeCode
+  getContainerTypeCode,
 }

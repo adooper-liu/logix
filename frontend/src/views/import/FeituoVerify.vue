@@ -14,7 +14,13 @@ const stats = ref<{
   recentContainers: { containerNumber: string; lastUpdate: string }[]
 } | null>(null)
 const containers = ref<{
-  items: { containerNumber: string; dataSources: string[]; eventCount: string; firstEventAt: string; lastEventAt: string }[]
+  items: {
+    containerNumber: string
+    dataSources: string[]
+    eventCount: string
+    firstEventAt: string
+    lastEventAt: string
+  }[]
   total: number
   page: number
   pageSize: number
@@ -63,7 +69,7 @@ const loadContainers = async () => {
     const res = await feituoService.getContainersWithExternalData({
       dataSource: dataSourceFilter.value || undefined,
       page: page.value,
-      pageSize: pageSize.value
+      pageSize: pageSize.value,
     })
     if (res.success && res.data) {
       containers.value = res.data
@@ -91,7 +97,7 @@ const formatDate = (d: string) => {
       month: '2-digit',
       day: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     })
   } catch {
     return d
@@ -119,11 +125,12 @@ onMounted(refresh)
       <el-alert type="info" :closable="false" show-icon class="info-alert">
         <template #title>数据来源说明</template>
         <p>
-          <el-tag type="primary" size="small">API</el-tag>：飞驼 API 实时同步，由 FeiTuoAdapter 拉取并写入
-          <code>ext_container_status_events</code>，标记为 <code>FeituoAPI</code>。
+          <el-tag type="primary" size="small">API</el-tag>：飞驼 API 实时同步，由 FeiTuoAdapter
+          拉取并写入 <code>ext_container_status_events</code>，标记为 <code>FeituoAPI</code>。
         </p>
         <p>
-          <el-tag type="success" size="small">Excel</el-tag>：飞驼 Excel 导入，标记为 <code>Feituo</code>。
+          <el-tag type="success" size="small">Excel</el-tag>：飞驼 Excel 导入，标记为
+          <code>Feituo</code>。
         </p>
       </el-alert>
 
@@ -153,11 +160,7 @@ onMounted(refresh)
         <div v-if="stats.dataSourceStats?.length" class="data-source-breakdown">
           <h4>按数据源分布</h4>
           <div class="ds-tags">
-            <div
-              v-for="ds in stats.dataSourceStats"
-              :key="ds.dataSource"
-              class="ds-item"
-            >
+            <div v-for="ds in stats.dataSourceStats" :key="ds.dataSource" class="ds-item">
               <el-tag :type="dataSourceTagType(ds.dataSource)" size="large">
                 {{ dataSourceLabel(ds.dataSource) }}
               </el-tag>
@@ -175,15 +178,16 @@ onMounted(refresh)
             placeholder="全部数据源"
             clearable
             style="width: 140px"
-            @change="page = 1; loadContainers()"
+            @change="
+              page = 1
+              loadContainers()
+            "
           >
             <el-option label="全部" value="" />
             <el-option label="API (FeituoAPI)" value="FeituoAPI" />
             <el-option label="Excel (Feituo)" value="Feituo" />
           </el-select>
-          <el-button type="primary" :loading="loading" @click="loadContainers">
-            查询
-          </el-button>
+          <el-button type="primary" :loading="loading" @click="loadContainers"> 查询 </el-button>
         </div>
 
         <el-table
@@ -204,7 +208,7 @@ onMounted(refresh)
           <el-table-column label="数据来源" min-width="160">
             <template #default="{ row }">
               <el-tag
-                v-for="ds in (row.dataSources || [])"
+                v-for="ds in row.dataSources || []"
                 :key="ds"
                 :type="dataSourceTagType(ds)"
                 size="small"
@@ -283,7 +287,8 @@ onMounted(refresh)
 .containers-section {
   margin-top: $spacing-lg;
 
-  h3, h4 {
+  h3,
+  h4 {
     margin: 0 0 $spacing-md;
     font-size: 1rem;
     font-weight: 600;

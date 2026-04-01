@@ -1,6 +1,6 @@
 /**
  * Phase 2 堆存费概念澄清与重构 - 简化集成测试
- * 
+ *
  * 测试目标：
  * 1. 验证 calculateTotalCost() 返回的 storageCost 是港口存储费
  * 2. 验证 Drop off 模式的外部堆场堆存费计算逻辑
@@ -9,7 +9,6 @@
 import { describe, it, expect } from '@jest/globals';
 
 describe('Phase 2 - 堆存费概念澄清（简化测试）', () => {
-  
   describe('概念验证测试', () => {
     it('应该区分两种堆存费的定义', () => {
       // Arrange
@@ -52,7 +51,7 @@ describe('Phase 2 - 堆存费概念澄清（简化测试）', () => {
     it('应该验证 Live load 模式无外部堆场堆存费', () => {
       // Arrange
       const unloadMode: string = 'Live load';
-      
+
       // Act
       const hasYardStorageFee = unloadMode === 'Drop off';
 
@@ -100,17 +99,17 @@ describe('Phase 2 - 堆存费概念澄清（简化测试）', () => {
       const handlingCost = 0;
 
       // Act
-      const totalCost = 
-        demurrageCost + 
-        detentionCost + 
-        portStorageCost + 
-        transportationCost + 
-        yardStorageCost + 
+      const totalCost =
+        demurrageCost +
+        detentionCost +
+        portStorageCost +
+        transportationCost +
+        yardStorageCost +
         handlingCost;
 
       // Assert
       expect(totalCost).toBe(740);
-      
+
       // 验证两种堆存费分别计算
       expect(portStorageCost).toBeGreaterThan(0);
       expect(yardStorageCost).toBeGreaterThan(0);
@@ -124,7 +123,7 @@ describe('Phase 2 - 堆存费概念澄清（简化测试）', () => {
         { fromDay: 8, toDay: 14, ratePerDay: 100 },
         { fromDay: 15, ratePerDay: 200 }
       ];
-      
+
       const freeDays = 5;
       const actualStorageDays = 10; // 实际堆放 10 天
       const chargeableDays = actualStorageDays - freeDays; // 5 天收费
@@ -134,8 +133,7 @@ describe('Phase 2 - 堆存费概念澄清（简化测试）', () => {
       if (chargeableDays <= 7) {
         totalCost = chargeableDays * tiers[0].ratePerDay;
       } else if (chargeableDays <= 14) {
-        totalCost = (7 * tiers[0].ratePerDay) + 
-                    ((chargeableDays - 7) * tiers[1].ratePerDay);
+        totalCost = 7 * tiers[0].ratePerDay + (chargeableDays - 7) * tiers[1].ratePerDay;
       }
 
       // Assert
@@ -148,7 +146,6 @@ describe('Phase 2 - 堆存费概念澄清（简化测试）', () => {
     it('应该从正确的表读取港口存储费标准', () => {
       // Arrange
       const expectedTable = 'ext_demurrage_standards';
-      const expectedField = 'chargeTypeCode';
       const expectedValue = 'STORAGE';
 
       // Assert

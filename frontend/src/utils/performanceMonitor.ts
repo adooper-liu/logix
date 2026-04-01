@@ -45,22 +45,22 @@ class PerformanceCollector {
       domContentLoaded: 0,
       loadComplete: 0,
       firstPaint: 0,
-      firstContentfulPaint: 0
+      firstContentfulPaint: 0,
     },
     network: {
       totalRequests: 0,
       failedRequests: 0,
-      avgResponseTime: 0
+      avgResponseTime: 0,
     },
     components: {
       renderTime: new Map(),
-      slowComponents: []
+      slowComponents: [],
     },
     memory: {
       usedJSHeapSize: 0,
       totalJSHeapSize: 0,
-      jsHeapSizeLimit: 0
-    }
+      jsHeapSizeLimit: 0,
+    },
   }
 
   private requestTimes: Map<string, number[]> = new Map()
@@ -80,15 +80,14 @@ class PerformanceCollector {
 
     window.addEventListener('load', () => {
       const perfData = window.performance.timing
-      this.metrics.pageLoad.loadComplete =
-        perfData.loadEventEnd - perfData.navigationStart
+      this.metrics.pageLoad.loadComplete = perfData.loadEventEnd - perfData.navigationStart
       console.log('[Performance] 页面加载完成:', this.metrics.pageLoad)
     })
 
     // 监听 Paint 事件
     if ('PerformanceObserver' in window) {
-      const observer = new PerformanceObserver((list) => {
-        list.getEntries().forEach((entry) => {
+      const observer = new PerformanceObserver(list => {
+        list.getEntries().forEach(entry => {
           if (entry.name === 'first-paint') {
             this.metrics.pageLoad.firstPaint = entry.startTime
           } else if (entry.name === 'first-contentful-paint') {
@@ -149,7 +148,7 @@ class PerformanceCollector {
       this.metrics.memory = {
         usedJSHeapSize: memory.usedJSHeapSize,
         totalJSHeapSize: memory.totalJSHeapSize,
-        jsHeapSizeLimit: memory.jsHeapSizeLimit
+        jsHeapSizeLimit: memory.jsHeapSizeLimit,
       }
     }
   }
@@ -191,14 +190,12 @@ class PerformanceCollector {
       ``,
       `组件渲染:`,
       `  - 慢组件 (>50ms):`,
-      ...metrics.components.slowComponents.map(
-        c => `    - ${c.name}: ${c.time}ms`
-      ),
+      ...metrics.components.slowComponents.map(c => `    - ${c.name}: ${c.time}ms`),
       ``,
       `内存使用:`,
       `  - 已使用: ${(metrics.memory.usedJSHeapSize / 1024 / 1024).toFixed(2)}MB`,
       `  - 总分配: ${(metrics.memory.totalJSHeapSize / 1024 / 1024).toFixed(2)}MB`,
-      `  - 限制: ${(metrics.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2)}MB`
+      `  - 限制: ${(metrics.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2)}MB`,
     ].join('\n')
 
     return report
@@ -222,19 +219,16 @@ export const performanceMonitorPlugin = {
     app.config.globalProperties.$performance = {
       getMetrics: () => performanceCollector.getMetrics(),
       report: () => performanceCollector.generateReport(),
-      reset: () => performanceCollector.reset()
+      reset: () => performanceCollector.reset(),
     }
 
     // 监听组件渲染
     if ('PerformanceObserver' in window) {
-      const observer = new PerformanceObserver((list) => {
-        list.getEntries().forEach((entry) => {
+      const observer = new PerformanceObserver(list => {
+        list.getEntries().forEach(entry => {
           if (entry.entryType === 'measure' && entry.name.startsWith('render-')) {
             const componentName = entry.name.replace('render-', '')
-            performanceCollector.recordComponentRender(
-              componentName,
-              entry.duration
-            )
+            performanceCollector.recordComponentRender(componentName, entry.duration)
           }
         })
       })
@@ -242,18 +236,14 @@ export const performanceMonitorPlugin = {
     }
 
     console.log('[Performance] 性能监控已启用')
-  }
+  },
 }
 
 /**
  * 组件性能测量装饰器
  */
 export function measurePerformance(componentName: string) {
-  return function (
-    _target: any,
-    propertyKey: string,
-    descriptor: PropertyDescriptor
-  ) {
+  return function (_target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value
 
     descriptor.value = function (...args: any[]) {
@@ -277,11 +267,8 @@ export function measurePerformance(componentName: string) {
 /**
  * 测量函数执行时间
  */
-export function measureTime<T extends (...args: any[]) => any>(
-  fn: T,
-  name: string
-): T {
-  return (function (this: any, ...args: Parameters<T>) {
+export function measureTime<T extends (...args: any[]) => any>(fn: T, name: string): T {
+  return function (this: any, ...args: Parameters<T>) {
     const start = performance.now()
     const result = fn.apply(this, args)
     const end = performance.now()
@@ -292,7 +279,7 @@ export function measureTime<T extends (...args: any[]) => any>(
     }
 
     return result
-  }) as T
+  } as T
 }
 
 /**
@@ -309,17 +296,11 @@ export function createRequestMonitor(axiosInstance: any) {
       const { config } = response
       const duration = Date.now() - (config.metadata?.startTime || Date.now())
 
-      performanceCollector.recordRequest(
-        config.url,
-        duration,
-        true
-      )
+      performanceCollector.recordRequest(config.url, duration, true)
 
       // 记录慢请求
       if (duration > 1000) {
-        console.warn(
-          `[Performance] 慢请求: ${config.url} - ${duration}ms`
-        )
+        console.warn(`[Performance] 慢请求: ${config.url} - ${duration}ms`)
       }
 
       return response
@@ -328,11 +309,7 @@ export function createRequestMonitor(axiosInstance: any) {
       const { config } = error
       const duration = Date.now() - (config.metadata?.startTime || Date.now())
 
-      performanceCollector.recordRequest(
-        config?.url || 'unknown',
-        duration,
-        false
-      )
+      performanceCollector.recordRequest(config?.url || 'unknown', duration, false)
 
       return Promise.reject(error)
     }

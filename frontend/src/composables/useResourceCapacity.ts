@@ -1,12 +1,12 @@
 /**
  * 资源档期管理 Composable
- * 
+ *
  * 负责处理仓库和车队的档期检查，包括：
  * - 获取仓库档期状态和占用率
  * - 获取车队档期状态和占用率
  * - 批量预加载档期数据
  * - 缓存管理（避免重复请求）
- * 
+ *
  * @module composables/useResourceCapacity
  */
 
@@ -33,7 +33,7 @@ export interface UseResourceCapacityOptions {
 
 export function useResourceCapacity(options: UseResourceCapacityOptions = {}) {
   const { onError, onLog } = options
-  
+
   /** 档期缓存 Map<cacheKey, CapacityData> */
   const capacityCache = reactive(new Map<string, CapacityData>())
   /** 是否正在加载 */
@@ -110,10 +110,7 @@ export function useResourceCapacity(options: UseResourceCapacityOptions = {}) {
   /**
    * 获取仓库档期
    */
-  async function getWarehouseCapacity(
-    warehouseCode: string,
-    date: string
-  ): Promise<CapacityData> {
+  async function getWarehouseCapacity(warehouseCode: string, date: string): Promise<CapacityData> {
     return await fetchCapacity('warehouse', warehouseCode, date)
   }
 
@@ -130,10 +127,7 @@ export function useResourceCapacity(options: UseResourceCapacityOptions = {}) {
   /**
    * 获取仓库档期状态文本
    */
-  async function getWarehouseCapacityText(
-    warehouseCode: string,
-    date: string
-  ): Promise<string> {
+  async function getWarehouseCapacityText(warehouseCode: string, date: string): Promise<string> {
     const data = await getWarehouseCapacity(warehouseCode, date)
     return data.status
   }
@@ -141,10 +135,7 @@ export function useResourceCapacity(options: UseResourceCapacityOptions = {}) {
   /**
    * 获取车队档期状态文本
    */
-  async function getTruckingCapacityText(
-    truckingCompanyId: string,
-    date: string
-  ): Promise<string> {
+  async function getTruckingCapacityText(truckingCompanyId: string, date: string): Promise<string> {
     const data = await getTruckingCapacity(truckingCompanyId, date)
     return data.status
   }
@@ -169,7 +160,7 @@ export function useResourceCapacity(options: UseResourceCapacityOptions = {}) {
 
   /**
    * 批量预加载档期数据
-   * 
+   *
    * @param requests 预加载请求列表
    * @param options 并发配置
    */
@@ -182,7 +173,7 @@ export function useResourceCapacity(options: UseResourceCapacityOptions = {}) {
     options: { maxConcurrent?: number } = {}
   ) {
     const { maxConcurrent = 10 } = options
-    
+
     if (requests.length === 0) {
       onLog?.('[预加载] 没有需要加载的数据')
       return
@@ -214,22 +205,28 @@ export function useResourceCapacity(options: UseResourceCapacityOptions = {}) {
     }
 
     // 处理车队请求
-    const truckingChunks = truckingRequests.reduce((acc, req, i) => {
-      if (i % maxConcurrent === 0) acc.push([])
-      acc[acc.length - 1].push(req)
-      return acc
-    }, [] as typeof truckingRequests[])
+    const truckingChunks = truckingRequests.reduce(
+      (acc, req, i) => {
+        if (i % maxConcurrent === 0) acc.push([])
+        acc[acc.length - 1].push(req)
+        return acc
+      },
+      [] as (typeof truckingRequests)[]
+    )
 
     for (const chunk of truckingChunks) {
       await processChunk(chunk)
     }
 
     // 处理仓库请求
-    const warehouseChunks = warehouseRequests.reduce((acc, req, i) => {
-      if (i % maxConcurrent === 0) acc.push([])
-      acc[acc.length - 1].push(req)
-      return acc
-    }, [] as typeof warehouseRequests[])
+    const warehouseChunks = warehouseRequests.reduce(
+      (acc, req, i) => {
+        if (i % maxConcurrent === 0) acc.push([])
+        acc[acc.length - 1].push(req)
+        return acc
+      },
+      [] as (typeof warehouseRequests)[]
+    )
 
     for (const chunk of warehouseChunks) {
       await processChunk(chunk)
@@ -248,7 +245,7 @@ export function useResourceCapacity(options: UseResourceCapacityOptions = {}) {
 
   /**
    * 从行数据中提取并预加载档期
-   * 
+   *
    * @param results 排产结果数组
    */
   async function preloadFromResults(results: any[]) {

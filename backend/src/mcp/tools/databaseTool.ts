@@ -22,9 +22,9 @@ const FORBIDDEN_KEYWORDS = [
   'REVOKE',
   'EXEC',
   'EXECUTE',
-  'WITH',  // 禁止 WITH（可能用于递归或其他复杂查询）
+  'WITH', // 禁止 WITH（可能用于递归或其他复杂查询）
   'RETURNING',
-  'INTO',
+  'INTO'
 ];
 
 /**
@@ -48,7 +48,7 @@ function validateSql(sql: string): void {
   }
 
   // 禁止多语句（分号分隔）
-  if (upperSql.includes(';') && upperSql.split(';').filter(s => s.trim()).length > 1) {
+  if (upperSql.includes(';') && upperSql.split(';').filter((s) => s.trim()).length > 1) {
     throw new Error('禁止执行多条 SQL 语句');
   }
 }
@@ -87,7 +87,8 @@ async function getTableList(): Promise<string[]> {
  * 获取表结构
  */
 async function getTableSchema(tableName: string): Promise<any[]> {
-  const result = await AppDataSource.query(`
+  const result = await AppDataSource.query(
+    `
     SELECT 
       column_name,
       data_type,
@@ -98,7 +99,9 @@ async function getTableSchema(tableName: string): Promise<any[]> {
     WHERE table_schema = 'public'
     AND table_name = $1
     ORDER BY ordinal_position
-  `, [tableName]);
+  `,
+    [tableName]
+  );
 
   return result;
 }
@@ -109,7 +112,8 @@ async function getTableSchema(tableName: string): Promise<any[]> {
 export const databaseTool = {
   definition: {
     name: 'query_database',
-    description: '查询 LogiX 数据库。安全限制：只能执行 SELECT 查询，禁止 INSERT/UPDATE/DELETE/DROP 等写操作。',
+    description:
+      '查询 LogiX 数据库。安全限制：只能执行 SELECT 查询，禁止 INSERT/UPDATE/DELETE/DROP 等写操作。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -163,7 +167,9 @@ export const databaseTool = {
 
       // 检查是否是表结构查询
       if (showSchema && sql.trim().match(/^(DESCRIBE|SHOW COLUMNS FROM|TABLE\s+)/i)) {
-        const tableName = sql.trim().match(/^(?:DESCRIBE|SHOW COLUMNS FROM|TABLE\s+)\s+(\w+)/i)?.[1];
+        const tableName = sql
+          .trim()
+          .match(/^(?:DESCRIBE|SHOW COLUMNS FROM|TABLE\s+)\s+(\w+)/i)?.[1];
 
         if (tableName) {
           const schema = await getTableSchema(tableName);
@@ -205,7 +211,7 @@ export const databaseTool = {
           if (val === null) return 'NULL';
           if (typeof val === 'object') return JSON.stringify(val).substring(0, maxLen);
           const str = String(val);
-          return str.length > maxLen ? `${str.substring(0, maxLen - 2)  }..` : str;
+          return str.length > maxLen ? `${str.substring(0, maxLen - 2)}..` : str;
         };
 
         // 简化列名显示（去除前缀如 container_）
@@ -223,18 +229,22 @@ export const databaseTool = {
         // 计算每列最大宽度
         const colWidths = simpleColumns.map((col, i) => {
           const headerLen = col.length;
-          const maxDataLen = Math.min(...result.slice(0, maxRows).map(row => truncate(row[columns[i]], 50).length));
+          const maxDataLen = Math.min(
+            ...result.slice(0, maxRows).map((row) => truncate(row[columns[i]], 50).length)
+          );
           return Math.min(Math.max(headerLen, maxDataLen) + 1, 35);
         });
 
         // 表头
-        output += `${simpleColumns.map((col, i) => col.padEnd(colWidths[i])).join(' | ')  }\n`;
-        output += `${colWidths.map(w => '-'.repeat(w)).join('-+-')  }\n`;
+        output += `${simpleColumns.map((col, i) => col.padEnd(colWidths[i])).join(' | ')}\n`;
+        output += `${colWidths.map((w) => '-'.repeat(w)).join('-+-')}\n`;
 
         // 数据行
         for (const row of result.slice(0, maxRows)) {
-          const values = columns.map((col, i) => truncate(row[col], colWidths[i]).padEnd(colWidths[i]));
-          output += `${values.join(' | ')  }\n`;
+          const values = columns.map((col, i) =>
+            truncate(row[col], colWidths[i]).padEnd(colWidths[i])
+          );
+          output += `${values.join(' | ')}\n`;
         }
 
         if (result.length > maxRows) {

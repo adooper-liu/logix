@@ -1,13 +1,13 @@
 /**
  * 滞港费记录写回服务
  * Demurrage Record Writer Service
- * 
+ *
  * 职责：将计算结果写回数据库
  * - ExtDemurrageRecord CRUD 操作
  * - 单条记录保存
  * - 批量记录保存
  * - 临时/永久数据管理
- * 
+ *
  * @since 2026-03-30 (从 DemurrageService 拆分)
  */
 
@@ -33,23 +33,23 @@ export class DemurrageRecordWriter {
 
   /**
    * 保存单条货柜的计算结果到记录表
-   * 
+   *
    * **业务规则**:
    * 1. 先删除该货柜的所有旧记录（覆盖写入）
    * 2. 为每个费用项创建一条新记录
    * 3. 标注临时/永久状态（isFinal）
    * 4. 已还箱 = 永久数据，未还箱 = 临时数据
-   * 
+   *
    * **算法复杂度**: O(n)，n=费用项数量
-   * 
+   *
    * @param result 计算结果
    * @param options 保存选项
    * @returns 保存的记录数
-   * 
+   *
    * @example
    * // 示例：保存临时数据（未还箱）
    * await saveToRecords(result, { isFinal: false });
-   * 
+   *
    * @example
    * // 示例：保存永久数据（已还箱）
    * await saveToRecords(result, { isFinal: true });
@@ -110,15 +110,15 @@ export class DemurrageRecordWriter {
 
   /**
    * 批量保存多个货柜的计算结果
-   * 
+   *
    * **业务规则**:
    * 1. 支持并发控制（Promise.allSettled）
    * 2. 单个货柜失败不影响其他货柜
    * 3. 统计成功/失败数量
    * 4. 区分临时/永久数据
-   * 
+   *
    * **算法复杂度**: O(n*m)，n=货柜数，m=平均每个货柜的费用项数
-   * 
+   *
    * @param results 计算结果数组
    * @param isFinal 是否为永久数据
    * @returns 保存统计结果
@@ -168,11 +168,11 @@ export class DemurrageRecordWriter {
 
   /**
    * 根据柜号查询记录
-   * 
+   *
    * **业务规则**:
    * 1. 支持查询临时或永久数据
    * 2. 按费用项分组返回
-   * 
+   *
    * @param containerNumber 柜号
    * @param isFinal 是否只查永久数据
    * @returns 记录列表
@@ -182,7 +182,7 @@ export class DemurrageRecordWriter {
     isFinal?: boolean
   ): Promise<ExtDemurrageRecord[]> {
     const where: any = { containerNumber };
-    
+
     if (isFinal !== undefined) {
       where.isFinal = isFinal;
     }
@@ -195,21 +195,18 @@ export class DemurrageRecordWriter {
 
   /**
    * 删除指定柜号的记录
-   * 
+   *
    * **业务规则**:
    * 1. 支持删除临时或永久数据
    * 2. 支持全部删除
-   * 
+   *
    * @param containerNumber 柜号
    * @param isFinal 是否只删永久数据（undefined=全部删除）
    * @returns 删除的记录数
    */
-  async deleteByContainerNumber(
-    containerNumber: string,
-    isFinal?: boolean
-  ): Promise<number> {
+  async deleteByContainerNumber(containerNumber: string, isFinal?: boolean): Promise<number> {
     const where: any = { containerNumber };
-    
+
     if (isFinal !== undefined) {
       where.isFinal = isFinal;
     }
@@ -220,11 +217,11 @@ export class DemurrageRecordWriter {
 
   /**
    * 查询过期的临时数据
-   * 
+   *
    * **业务规则**:
    * 1. 临时数据超过 7 天自动清理
    * 2. 防止数据库膨胀
-   * 
+   *
    * @param daysAgo 多少天前的数据（默认 7）
    * @returns 过期记录列表
    */
@@ -243,17 +240,17 @@ export class DemurrageRecordWriter {
 
   /**
    * 清理过期的临时数据
-   * 
+   *
    * **业务规则**:
    * 1. 定期清理（每周执行）
    * 2. 保留最近 7 天的临时数据
-   * 
+   *
    * @param daysAgo 多少天前的数据（默认 7）
    * @returns 清理的记录数
    */
   async cleanupExpiredTempRecords(daysAgo: number = 7): Promise<number> {
     const expiredRecords = await this.findExpiredTempRecords(daysAgo);
-    
+
     if (expiredRecords.length === 0) {
       return 0;
     }
@@ -272,11 +269,11 @@ export class DemurrageRecordWriter {
 
   /**
    * 检查柜号是否有永久数据
-   * 
+   *
    * **业务规则**:
    * 1. 已还箱的货柜有永久数据
    * 2. 用于判断是否需要重新计算
-   * 
+   *
    * @param containerNumber 柜号
    * @returns 是否存在
    */
@@ -288,17 +285,20 @@ export class DemurrageRecordWriter {
 
   /**
    * 获取统计信息
-   * 
+   *
    * **业务规则**:
    * 1. 统计总记录数
    * 2. 区分临时/永久数据
    * 3. 按日期范围统计
-   * 
+   *
    * @param startDate 开始日期
    * @param endDate 结束日期
    * @returns 统计信息
    */
-  async getStatistics(startDate?: Date, endDate?: Date): Promise<{
+  async getStatistics(
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<{
     totalCount: number;
     tempCount: number;
     finalCount: number;

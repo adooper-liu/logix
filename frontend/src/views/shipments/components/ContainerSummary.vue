@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DemurrageCalculationResponse } from '@/services/demurrage'
+import { formatCurrency } from '@/utils/currency'
 import {
   getLogisticsStatusText,
   getLogisticsStatusType,
@@ -106,7 +107,14 @@ const demurrageSummary = computed(() => {
       <div v-if="demurrageSummary" class="demurrage-container">
         <div class="demurrage-inline" title="滞港费" @click="emit('openDemurrageTab')">
           <span class="demurrage-total">
-            {{ demurrageSummary.currency }} {{ demurrageSummary.totalAmount.toFixed(2) }}
+            {{
+              formatCurrency(demurrageSummary.totalAmount, demurrageSummary.currency, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+                showSymbol: false,
+                showCode: true,
+              })
+            }}
           </span>
         </div>
         <!-- 滞港费详细（小标签样式） -->
@@ -121,7 +129,14 @@ const demurrageSummary = computed(() => {
               chargeType.chargeName || chargeType.chargeType
             }}</span>
             <span class="charge-type-amount">
-              {{ demurrageSummary.currency }} {{ chargeType.totalAmount.toFixed(2) }}
+              {{
+                formatCurrency(chargeType.totalAmount, demurrageSummary.currency, {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                  showSymbol: false,
+                  showCode: true,
+                })
+              }}
             </span>
           </el-tag>
         </div>

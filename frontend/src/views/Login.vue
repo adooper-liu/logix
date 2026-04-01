@@ -10,7 +10,7 @@ const userStore = useUserStore()
 
 const loginForm = ref({
   username: 'admin',
-  password: '123456'
+  password: '123456',
 })
 
 const loading = ref(false)
@@ -22,10 +22,10 @@ const handleLogin = async () => {
   }
 
   loading.value = true
-  
+
   try {
     const result = await userStore.login(loginForm.value.username, loginForm.value.password)
-    
+
     if (result.success) {
       ElMessage.success('登录成功')
       router.push('/')
@@ -47,12 +47,8 @@ const handleLogin = async () => {
         <h1 class="title">LogiX</h1>
         <p class="subtitle">物流管理系统</p>
       </div>
-      
-      <el-form 
-        :model="loginForm" 
-        label-position="top"
-        @submit.prevent="handleLogin"
-      >
+
+      <el-form :model="loginForm" label-position="top" @submit.prevent="handleLogin">
         <el-form-item label="用户名">
           <el-input
             v-model="loginForm.username"
@@ -61,7 +57,7 @@ const handleLogin = async () => {
             size="large"
           />
         </el-form-item>
-        
+
         <el-form-item label="密码">
           <el-input
             v-model="loginForm.password"
@@ -72,7 +68,7 @@ const handleLogin = async () => {
             @keyup.enter="handleLogin"
           />
         </el-form-item>
-        
+
         <el-form-item>
           <el-button
             type="primary"
@@ -85,7 +81,7 @@ const handleLogin = async () => {
           </el-button>
         </el-form-item>
       </el-form>
-      
+
       <div class="login-footer">
         <p class="tips">演示账号: admin / 123456</p>
       </div>
@@ -112,33 +108,33 @@ const handleLogin = async () => {
   background: white;
   border-radius: 10px;
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-  
+
   .login-header {
     text-align: center;
     margin-bottom: 30px;
-    
+
     .title {
       font-size: 32px;
       font-weight: bold;
       color: $text-primary;
       margin-bottom: 10px;
     }
-    
+
     .subtitle {
       color: $text-secondary;
       font-size: 16px;
     }
   }
-  
+
   .login-button {
     width: 100%;
     margin-top: 20px;
   }
-  
+
   .login-footer {
     text-align: center;
     margin-top: 20px;
-    
+
     .tips {
       color: $text-secondary;
       font-size: 14px;

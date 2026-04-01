@@ -732,19 +732,19 @@ export function searchKnowledge(query: string): string[] {
 
   // 按分数排序，返回前5个最相关的
   results.sort((a, b) => b.score - a.score);
-  return results.slice(0, 5).map(r => r.item.content);
+  return results.slice(0, 5).map((r) => r.item.content);
 }
 
 /**
  * 按类别获取知识
  */
 export function getKnowledgeByCategory(category: string): KnowledgeItem[] {
-  return knowledgeBase.filter(item => item.category === category);
+  return knowledgeBase.filter((item) => item.category === category);
 }
 
 /**
  * 获取所有类别
  */
 export function getAllCategories(): string[] {
-  return [...new Set(knowledgeBase.map(item => item.category))];
+  return [...new Set(knowledgeBase.map((item) => item.category))];
 }

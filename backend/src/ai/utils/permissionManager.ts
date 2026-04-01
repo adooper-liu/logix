@@ -98,10 +98,13 @@ export class PermissionManager {
       if (this.hasPermission(userLevel, operation)) {
         next();
       } else {
-        logger.warn(`[PermissionManager] Permission denied for user with level ${userLevel} to perform ${operation}`);
+        logger.warn(
+          `[PermissionManager] Permission denied for user with level ${userLevel} to perform ${operation}`
+        );
         res.status(403).json({
           success: false,
-          error: 'Permission denied. You do not have sufficient permissions to perform this operation.'
+          error:
+            'Permission denied. You do not have sufficient permissions to perform this operation.'
         });
       }
     };

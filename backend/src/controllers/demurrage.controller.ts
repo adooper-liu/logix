@@ -166,7 +166,8 @@ export class DemurrageController {
         return;
       }
 
-      const { result, message, reason } = await demurrageService.calculateForContainer(containerNumber);
+      const { result, message, reason } =
+        await demurrageService.calculateForContainer(containerNumber);
       if (!result) {
         res.json({
           success: true,
@@ -244,7 +245,10 @@ export class DemurrageController {
       res.json({ success: true, data: result });
     } catch (error) {
       const err = error as Error;
-      logger.error('Failed to get top demurrage containers', { message: err.message, stack: err.stack });
+      logger.error('Failed to get top demurrage containers', {
+        message: err.message,
+        stack: err.stack
+      });
       res.status(500).json({
         success: false,
         message: '获取高费用货柜失败',

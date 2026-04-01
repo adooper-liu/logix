@@ -68,9 +68,13 @@ const updateChart = () => {
 
 import { onMounted, onUnmounted, watch } from 'vue'
 
-watch(() => props.data, () => {
-  updateChart()
-}, { deep: true })
+watch(
+  () => props.data,
+  () => {
+    updateChart()
+  },
+  { deep: true }
+)
 
 onMounted(() => {
   const chartDom = document.getElementById('status-chart')

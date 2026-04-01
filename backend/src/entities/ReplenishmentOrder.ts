@@ -62,7 +62,13 @@ export class ReplenishmentOrder {
   @Column({ type: 'decimal', precision: 12, scale: 2, default: 0, name: 'total_gross_weight' })
   totalGrossWeight!: number;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2, nullable: true, name: 'shipment_total_value' })
+  @Column({
+    type: 'decimal',
+    precision: 15,
+    scale: 2,
+    nullable: true,
+    name: 'shipment_total_value'
+  })
   shipmentTotalValue!: number;
 
   @Column({ type: 'decimal', precision: 15, scale: 2, nullable: true, name: 'fob_amount' })

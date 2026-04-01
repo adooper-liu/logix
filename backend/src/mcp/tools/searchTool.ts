@@ -22,7 +22,7 @@ const PROJECT_ROOT = resolveProjectRoot();
 const ALLOWED_SEARCH_DIRS = [
   path.join(PROJECT_ROOT, 'backend/src'),
   path.join(PROJECT_ROOT, 'frontend/src'),
-  path.join(PROJECT_ROOT, 'shared'),
+  path.join(PROJECT_ROOT, 'shared')
 ];
 
 /**
@@ -36,13 +36,18 @@ const IGNORE_PATTERNS = [
   '.cache',
   'coverage',
   '.next',
-  'logs',
+  'logs'
 ];
 
 /**
  * 搜索目录中的文件
  */
-function searchFiles(dir: string, pattern: RegExp, results: string[], maxResults: number = 50): boolean {
+function searchFiles(
+  dir: string,
+  pattern: RegExp,
+  results: string[],
+  maxResults: number = 50
+): boolean {
   if (results.length >= maxResults) return true;
 
   if (!fs.existsSync(dir)) return false;
@@ -140,12 +145,7 @@ export const searchTool = {
     type?: string;
     maxResults?: number;
   }): Promise<string> {
-    const {
-      pattern,
-      path: searchPath = 'backend/src',
-      type = 'all',
-      maxResults = 30
-    } = args;
+    const { pattern, path: searchPath = 'backend/src', type = 'all', maxResults = 30 } = args;
 
     // 安全检查
     if (pattern.includes('..') || searchPath.includes('..')) {
@@ -172,7 +172,7 @@ export const searchTool = {
     if (!isAllowed) {
       // 尝试相对于项目根目录
       searchDir = path.join(PROJECT_ROOT, searchPath);
-      isAllowed = ALLOWED_SEARCH_DIRS.some(dir => searchDir.startsWith(path.resolve(dir)));
+      isAllowed = ALLOWED_SEARCH_DIRS.some((dir) => searchDir.startsWith(path.resolve(dir)));
 
       if (!isAllowed) {
         throw new Error(`搜索路径不在允许的目录内：${searchPath}`);

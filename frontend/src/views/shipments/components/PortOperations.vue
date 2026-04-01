@@ -35,11 +35,14 @@ const props = defineProps<Props>()
 const portTypeConfig: Record<string, { label: string; icon: string; color: string }> = {
   origin: { label: '起运港', icon: '🚢', color: '#409EFF' },
   transit: { label: '中转港', icon: '🔄', color: '#E6A23C' },
-  destination: { label: '目的港', icon: '📍', color: '#67C23A' }
+  destination: { label: '目的港', icon: '📍', color: '#67C23A' },
 }
 
 // 清关状态映射
-const customsStatusMap: Record<string, { text: string; type: 'success' | 'warning' | 'danger' | 'info' }> = {
+const customsStatusMap: Record<
+  string,
+  { text: string; type: 'success' | 'warning' | 'danger' | 'info' }
+> = {
   released: { text: '已放行', type: 'success' },
   cleared: { text: '已清关', type: 'success' },
   pass: { text: '已放行', type: 'success' },
@@ -49,7 +52,7 @@ const customsStatusMap: Record<string, { text: string; type: 'success' | 'warnin
   customs_hold: { text: '海关滞留', type: 'danger' },
   terminal_hold: { text: '码头滞留', type: 'warning' },
   carrier_hold: { text: '船公司滞留', type: 'warning' },
-  dumped: { text: '甩柜', type: 'danger' }
+  dumped: { text: '甩柜', type: 'danger' },
 }
 
 // 按 portSequence 排序后展示
@@ -68,7 +71,9 @@ const formatDateOnly = (date: Date | string | undefined): string => {
 }
 
 // 最晚提柜日警示状态
-const getLastFreeDateStatus = (date: Date | string | undefined): 'expired' | 'urgent' | 'normal' | 'none' => {
+const getLastFreeDateStatus = (
+  date: Date | string | undefined
+): 'expired' | 'urgent' | 'normal' | 'none' => {
   if (!date) return 'none'
   const d = new Date(date)
   if (isNaN(d.getTime())) return 'none'
@@ -85,7 +90,9 @@ const getLastFreeDateStatus = (date: Date | string | undefined): 'expired' | 'ur
 const getCustomsDisplay = (status: string | undefined) => {
   if (!status) return null
   const key = status.toLowerCase().replace(/-/g, '_')
-  return customsStatusMap[key] ?? customsStatusMap[status] ?? { text: status, type: 'info' as const }
+  return (
+    customsStatusMap[key] ?? customsStatusMap[status] ?? { text: status, type: 'info' as const }
+  )
 }
 </script>
 
@@ -94,25 +101,27 @@ const getCustomsDisplay = (status: string | undefined) => {
     <div v-if="sortedPorts.length > 0" class="port-flow-container">
       <!-- 港口流程时间轴 -->
       <div class="port-flow-timeline">
-        <div
-          v-for="(po, index) in sortedPorts"
-          :key="po.id ?? index"
-          class="port-node-wrapper"
-        >
+        <div v-for="(po, index) in sortedPorts" :key="po.id ?? index" class="port-node-wrapper">
           <div
             class="port-node"
             :class="[po.portType || '', { 'has-ata': !!po.ataDestPort }]"
             :style="{ '--port-color': portTypeConfig[po.portType || '']?.color }"
           >
             <!-- 港口类型图标 -->
-            <div class="port-icon" :style="{ '--port-color': portTypeConfig[po.portType || '']?.color }">
+            <div
+              class="port-icon"
+              :style="{ '--port-color': portTypeConfig[po.portType || '']?.color }"
+            >
               {{ portTypeConfig[po.portType || '']?.icon || '📍' }}
             </div>
 
             <div class="port-content">
               <!-- 头部：港口类型 + 名称 -->
               <div class="port-header">
-                <span class="port-type-badge" :style="{ '--badge-color': portTypeConfig[po.portType || '']?.color }">
+                <span
+                  class="port-type-badge"
+                  :style="{ '--badge-color': portTypeConfig[po.portType || '']?.color }"
+                >
                   {{ portTypeConfig[po.portType || '']?.label || po.portType }}
                 </span>
                 <span class="port-name">{{ po.portName || po.portCode || '-' }}</span>
@@ -179,7 +188,9 @@ const getCustomsDisplay = (status: string | undefined) => {
                 </div>
                 <div class="field-item">
                   <span class="field-label">清关公司</span>
-                  <span class="field-value">{{ po.customsBroker || po.customsBrokerCode || '-' }}</span>
+                  <span class="field-value">{{
+                    po.customsBroker || po.customsBrokerCode || '-'
+                  }}</span>
                 </div>
                 <div class="field-item">
                   <span class="field-label">码头</span>
@@ -295,7 +306,11 @@ const getCustomsDisplay = (status: string | undefined) => {
   width: 44px;
   height: 44px;
   border-radius: $radius-circle;
-  background: linear-gradient(135deg, var(--port-color, $primary-color) 0%, color-mix(in srgb, var(--port-color, $primary-color) 80%, white) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--port-color, $primary-color) 0%,
+    color-mix(in srgb, var(--port-color, $primary-color) 80%, white) 100%
+  );
   display: flex;
   align-items: center;
   justify-content: center;

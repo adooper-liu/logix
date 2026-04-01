@@ -27,7 +27,7 @@ const log = loggerModule.log || {
  */
 interface CalendarConfig {
   enabled: boolean;
-  weekendDays: number[];  // 0=周日，1=周一...6=周六
+  weekendDays: number[]; // 0=周日，1=周一...6=周六
   weekdayMultiplier: number;
 }
 
@@ -62,7 +62,7 @@ export class SmartCalendarCapacity {
       // 解析周末定义（默认周六、周日）
       let weekendDays = [6, 0];
       if (weekendConfig?.configValue) {
-        weekendDays = weekendConfig.configValue.split(',').map(d => parseInt(d.trim()));
+        weekendDays = weekendConfig.configValue.split(',').map((d) => parseInt(d.trim()));
       }
 
       const multiplier = multiplierConfig?.configValue
@@ -79,7 +79,7 @@ export class SmartCalendarCapacity {
       // 返回默认配置
       return {
         enabled: true,
-        weekendDays: [6, 0],  // 周六、周日
+        weekendDays: [6, 0], // 周六、周日
         weekdayMultiplier: 1.0
       };
     }
@@ -93,10 +93,10 @@ export class SmartCalendarCapacity {
   async isRestDay(date: Date): Promise<boolean> {
     const config = await this.getCalendarConfig();
     if (!config.enabled) {
-      return false;  // 未启用时不判断休息日
+      return false; // 未启用时不判断休息日
     }
 
-    const dayOfWeek = date.getDay();  // 0=周日，1=周一...6=周六
+    const dayOfWeek = date.getDay(); // 0=周日，1=周一...6=周六
     return config.weekendDays.includes(dayOfWeek);
   }
 
@@ -106,10 +106,7 @@ export class SmartCalendarCapacity {
    * @param date 日期
    * @returns 计算后的能力值
    */
-  async calculateWarehouseCapacity(
-    warehouseCode: string,
-    date: Date
-  ): Promise<number> {
+  async calculateWarehouseCapacity(warehouseCode: string, date: Date): Promise<number> {
     try {
       // 1. 获取仓库信息
       const warehouse = await this.warehouseRepo.findOne({
@@ -133,8 +130,10 @@ export class SmartCalendarCapacity {
       const isRest = await this.isRestDay(date);
 
       if (isRest) {
-        log.debug(`[SmartCalendar] ${date.toISOString().split('T')[0]} is rest day for warehouse ${warehouseCode}, capacity=0`);
-        return 0;  // 休息日能力为 0
+        log.debug(
+          `[SmartCalendar] ${date.toISOString().split('T')[0]} is rest day for warehouse ${warehouseCode}, capacity=0`
+        );
+        return 0; // 休息日能力为 0
       }
 
       // 4. 工作日能力 = 字典表能力 × 倍率
@@ -143,13 +142,13 @@ export class SmartCalendarCapacity {
 
       log.debug(
         `[SmartCalendar] ${date.toISOString().split('T')[0]} weekday capacity for ${warehouseCode}: ` +
-        `${baseCapacity} × ${config.weekdayMultiplier} = ${calculatedCapacity}`
+          `${baseCapacity} × ${config.weekdayMultiplier} = ${calculatedCapacity}`
       );
 
       return calculatedCapacity;
     } catch (error) {
       log.error(`[SmartCalendar] Failed to calculate warehouse capacity:`, error);
-      return 10;  // 出错时返回默认值
+      return 10; // 出错时返回默认值
     }
   }
 
@@ -159,10 +158,7 @@ export class SmartCalendarCapacity {
    * @param date 日期
    * @returns 计算后的能力值
    */
-  async calculateTruckingCapacity(
-    truckingCompanyId: string,
-    date: Date
-  ): Promise<number> {
+  async calculateTruckingCapacity(truckingCompanyId: string, date: Date): Promise<number> {
     try {
       // 1. 获取车队信息
       const truckingCompany = await this.truckingCompanyRepo.findOne({
@@ -186,8 +182,10 @@ export class SmartCalendarCapacity {
       const isRest = await this.isRestDay(date);
 
       if (isRest) {
-        log.debug(`[SmartCalendar] ${date.toISOString().split('T')[0]} is rest day for trucking ${truckingCompanyId}, capacity=0`);
-        return 0;  // 休息日能力为 0
+        log.debug(
+          `[SmartCalendar] ${date.toISOString().split('T')[0]} is rest day for trucking ${truckingCompanyId}, capacity=0`
+        );
+        return 0; // 休息日能力为 0
       }
 
       // 4. 工作日能力 = 字典表能力 × 倍率
@@ -196,13 +194,13 @@ export class SmartCalendarCapacity {
 
       log.debug(
         `[SmartCalendar] ${date.toISOString().split('T')[0]} weekday capacity for ${truckingCompanyId}: ` +
-        `${baseCapacity} × ${config.weekdayMultiplier} = ${calculatedCapacity}`
+          `${baseCapacity} × ${config.weekdayMultiplier} = ${calculatedCapacity}`
       );
 
       return calculatedCapacity;
     } catch (error) {
       log.error(`[SmartCalendar] Failed to calculate trucking capacity:`, error);
-      return 10;  // 出错时返回默认值
+      return 10; // 出错时返回默认值
     }
   }
 
@@ -241,7 +239,9 @@ export class SmartCalendarCapacity {
       occupancy.updatedAt = new Date();
 
       await this.warehouseOccupancyRepo.save(occupancy);
-      log.info(`[SmartCalendar] Updated warehouse ${warehouseCode} capacity on ${dateStr} to ${calculatedCapacity}`);
+      log.info(
+        `[SmartCalendar] Updated warehouse ${warehouseCode} capacity on ${dateStr} to ${calculatedCapacity}`
+      );
 
       return occupancy;
     }
@@ -259,7 +259,9 @@ export class SmartCalendarCapacity {
     });
 
     await this.warehouseOccupancyRepo.save(occupancy);
-    log.info(`[SmartCalendar] Created warehouse ${warehouseCode} occupancy on ${dateStr} with capacity ${calculatedCapacity}`);
+    log.info(
+      `[SmartCalendar] Created warehouse ${warehouseCode} occupancy on ${dateStr} with capacity ${calculatedCapacity}`
+    );
 
     return occupancy;
   }
@@ -305,7 +307,9 @@ export class SmartCalendarCapacity {
       occupancy.updatedAt = new Date();
 
       await this.truckingOccupancyRepo.save(occupancy);
-      log.info(`[SmartCalendar] Updated trucking ${truckingCompanyId} capacity on ${dateStr} to ${calculatedCapacity}`);
+      log.info(
+        `[SmartCalendar] Updated trucking ${truckingCompanyId} capacity on ${dateStr} to ${calculatedCapacity}`
+      );
 
       return occupancy;
     }
@@ -325,7 +329,9 @@ export class SmartCalendarCapacity {
     });
 
     await this.truckingOccupancyRepo.save(occupancy);
-    log.info(`[SmartCalendar] Created trucking ${truckingCompanyId} occupancy on ${dateStr} with capacity ${calculatedCapacity}`);
+    log.info(
+      `[SmartCalendar] Created trucking ${truckingCompanyId} occupancy on ${dateStr} with capacity ${calculatedCapacity}`
+    );
 
     return occupancy;
   }
@@ -394,13 +400,17 @@ export class SmartCalendarCapacity {
       occupancy.capacity = capacity;
       occupancy.remaining = Math.max(0, capacity - occupancy.plannedCount);
       await this.warehouseOccupancyRepo.save(occupancy);
-      log.info(`[SmartCalendar] Manually set warehouse ${code} capacity on ${dateStr} to ${capacity}`);
+      log.info(
+        `[SmartCalendar] Manually set warehouse ${code} capacity on ${dateStr} to ${capacity}`
+      );
     } else {
       const occupancy = await this.ensureTruckingOccupancy(code, normalizedDate);
       occupancy.capacity = capacity;
       occupancy.remaining = Math.max(0, capacity - occupancy.plannedTrips);
       await this.truckingOccupancyRepo.save(occupancy);
-      log.info(`[SmartCalendar] Manually set trucking ${code} capacity on ${dateStr} to ${capacity}`);
+      log.info(
+        `[SmartCalendar] Manually set trucking ${code} capacity on ${dateStr} to ${capacity}`
+      );
     }
   }
 }

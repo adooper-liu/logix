@@ -8,6 +8,7 @@
 import { In, Repository } from 'typeorm';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
+import { Country } from '../entities/Country';
 import { DictSchedulingConfig } from '../entities/DictSchedulingConfig';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
@@ -173,7 +174,8 @@ export class SchedulingCostOptimizerService {
       AppDataSource.getRepository(SeaFreight),
       AppDataSource.getRepository(TruckingTransport),
       AppDataSource.getRepository(EmptyReturn),
-      AppDataSource.getRepository(ReplenishmentOrder)
+      AppDataSource.getRepository(ReplenishmentOrder),
+      AppDataSource.getRepository(Country)
     );
   }
 
@@ -1267,7 +1269,7 @@ export class SchedulingCostOptimizerService {
       // 1. 如果原计划已经超期（lastFreeDate < basePickupDate），无论今天如何，都是 overdue
       // 2. 否则，根据剩余天数判断
       let category: 'within_free_period' | 'overdue';
-      let actualRemainingDays = remainingDays;
+      const actualRemainingDays = remainingDays;
 
       if (isOriginalPlanOverdue) {
         // 原计划超期，即使今天还在免费期内，也是 overdue

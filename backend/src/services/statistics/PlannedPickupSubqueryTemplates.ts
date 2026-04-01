@@ -73,7 +73,11 @@ export class PlannedPickupSubqueryTemplates {
   /**
    * 7天内计划提柜（3天 < plannedPickupDate <= 7天）
    */
-  static readonly WITHIN_7_DAYS_PLANNED_SUBQUERY = (today: string, threeDaysLater: string, sevenDaysLater: string) => `
+  static readonly WITHIN_7_DAYS_PLANNED_SUBQUERY = (
+    today: string,
+    threeDaysLater: string,
+    sevenDaysLater: string
+  ) => `
     SELECT DISTINCT t.container_number
     FROM (${PlannedPickupSubqueryTemplates.TARGET_SET_SUBQUERY}) t
     INNER JOIN process_trucking_transport tt ON t.container_number = tt.container_number
@@ -96,7 +100,11 @@ export class PlannedPickupSubqueryTemplates {
   /**
    * 主分组组合（有计划提柜日期的货柜）
    */
-  static readonly WITH_PLAN_SUBQUERY = (today: string, threeDaysLater: string, sevenDaysLater: string) => `
+  static readonly WITH_PLAN_SUBQUERY = (
+    today: string,
+    threeDaysLater: string,
+    sevenDaysLater: string
+  ) => `
     ${PlannedPickupSubqueryTemplates.OVERDUE_PLANNED_SUBQUERY(today)}
     UNION
     ${PlannedPickupSubqueryTemplates.TODAY_PLANNED_SUBQUERY(today)}
@@ -109,7 +117,11 @@ export class PlannedPickupSubqueryTemplates {
   /**
    * 主分组组合（全部货柜）
    */
-  static readonly ALL_CONTAINERS_SUBQUERY = (today: string, threeDaysLater: string, sevenDaysLater: string) => `
+  static readonly ALL_CONTAINERS_SUBQUERY = (
+    today: string,
+    threeDaysLater: string,
+    sevenDaysLater: string
+  ) => `
     ${PlannedPickupSubqueryTemplates.WITH_PLAN_SUBQUERY(today, threeDaysLater, sevenDaysLater)}
     UNION
     ${PlannedPickupSubqueryTemplates.PENDING_ARRANGEMENT_SUBQUERY}

@@ -18,7 +18,7 @@ import {
   ContainerStatusNode,
   ContainerLoadingData,
   ContainerHoldData,
-  ContainerChargeData,
+  ContainerChargeData
 } from './ExternalDataAdapter.interface.js';
 
 /** 飞驼查询可选参数（从 process_sea_freight 等获取） */
@@ -79,11 +79,12 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
 
   constructor() {
     const cfg = config.feituo || {};
-    this.apiBaseUrl = (cfg as { apiBaseUrl?: string }).apiBaseUrl || 'https://openapi.freightower.com';
+    this.apiBaseUrl =
+      (cfg as { apiBaseUrl?: string }).apiBaseUrl || 'https://openapi.freightower.com';
     this.axiosInstance = axios.create({
       baseURL: this.apiBaseUrl,
       timeout: (cfg as { timeout?: number }).timeout || 30000,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' }
     });
   }
 
@@ -113,7 +114,7 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
     }
     const res = await this.axiosInstance.post<FeiTuoTokenResponse>('/auth/api/token', {
       clientId: cfg.clientId.trim(),
-      secret: cfg.clientSecret.trim(),
+      secret: cfg.clientSecret.trim()
     });
     const token = res.data?.access_token;
     if (!token) {
@@ -141,13 +142,13 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
           error:
             '飞驼 Token 未配置。请在 .env 中配置 FEITUO_CLIENT_ID、FEITUO_CLIENT_SECRET，或 FEITUO_ACCESS_TOKEN。前期可继续使用 Excel 导入。',
           source: this.sourceType,
-          timestamp: new Date(),
+          timestamp: new Date()
         };
       }
 
       const token = await this.getToken();
       const body: Record<string, string> = {
-        containerNo: containerNumber,
+        containerNo: containerNumber
       };
       if (options?.billNo) body.billNo = options.billNo;
       if (options?.carrierCode) body.carrierCode = options.carrierCode;
@@ -185,7 +186,7 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
           locationType: '',
           dataSource: 'FeituoAPI', // 飞驼 API 同步，与 Excel 导入的 Feituo 区分
           isFinal: !isEsti,
-          isEstimated: isEsti,
+          isEstimated: isEsti
         };
       });
 
@@ -193,7 +194,7 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
         success: true,
         data: events,
         source: this.sourceType,
-        timestamp: new Date(),
+        timestamp: new Date()
       };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -202,7 +203,7 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
         success: false,
         error: msg,
         source: this.sourceType,
-        timestamp: new Date(),
+        timestamp: new Date()
       };
     }
   }
@@ -224,7 +225,7 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
       success: false,
       error: '飞驼适配器暂未实现装载记录接口',
       source: this.sourceType,
-      timestamp: new Date(),
+      timestamp: new Date()
     };
   }
 
@@ -250,7 +251,7 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
           success: false,
           error: statusResult.error || '获取状态事件失败',
           source: this.sourceType,
-          timestamp: new Date(),
+          timestamp: new Date()
         };
       }
 
@@ -259,12 +260,12 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
 
       // HOLD 状态码映射
       const HOLD_STATUS_CODES: Record<string, { holdType: string; isHold: boolean }> = {
-        CUIP: { holdType: 'CUSTOMS', isHold: true },   // 海关滞留
-        SRHD: { holdType: 'CARRIER', isHold: true },  // 船公司滞留
+        CUIP: { holdType: 'CUSTOMS', isHold: true }, // 海关滞留
+        SRHD: { holdType: 'CARRIER', isHold: true }, // 船公司滞留
         TMHD: { holdType: 'TERMINAL', isHold: true }, // 码头滞留
         PASS: { holdType: 'CUSTOMS', isHold: false }, // 海关放行
         TMPS: { holdType: 'TERMINAL', isHold: false }, // 码头放行
-        SRRL: { holdType: 'CARRIER', isHold: false }, // 船公司放行
+        SRRL: { holdType: 'CARRIER', isHold: false } // 船公司放行
       };
 
       // 按时间排序事件
@@ -286,7 +287,7 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
           const hold: ContainerHoldData = {
             holdType: mapping.holdType,
             holdReason: event.statusNameCn || event.statusNameEn || getHoldReason(event.statusCode),
-            holdDate: event.occurredAt || new Date(),
+            holdDate: event.occurredAt || new Date()
           };
           activeHolds.set(key, hold);
         } else {
@@ -304,7 +305,7 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
               holdReason: '',
               holdDate: new Date(0), // 未知滞留日期
               releaseDate: event.occurredAt,
-              releaseReason: event.statusNameCn || event.statusNameEn,
+              releaseReason: event.statusNameCn || event.statusNameEn
             });
           }
         }
@@ -319,7 +320,7 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
         success: true,
         data: holds,
         source: this.sourceType,
-        timestamp: new Date(),
+        timestamp: new Date()
       };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -328,7 +329,7 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
         success: false,
         error: msg,
         source: this.sourceType,
-        timestamp: new Date(),
+        timestamp: new Date()
       };
     }
   }
@@ -340,7 +341,7 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
       success: false,
       error: '飞驼适配器暂未实现费用接口',
       source: this.sourceType,
-      timestamp: new Date(),
+      timestamp: new Date()
     };
   }
 
@@ -351,7 +352,7 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
       data: res.success,
       error: res.error,
       source: this.sourceType,
-      timestamp: new Date(),
+      timestamp: new Date()
     };
   }
 
@@ -361,7 +362,7 @@ export class FeiTuoAdapter implements IExternalDataAdapter {
       success: true,
       data: true,
       source: this.sourceType,
-      timestamp: new Date(),
+      timestamp: new Date()
     };
   }
 }
@@ -373,7 +374,7 @@ function getHoldReason(statusCode: string): string {
   const reasons: Record<string, string> = {
     CUIP: '海关滞留 - 待清关检查',
     SRHD: '船公司滞留 - 待支付费用或文件',
-    TMHD: '码头滞留 - 待支付码头费用',
+    TMHD: '码头滞留 - 待支付码头费用'
   };
   return reasons[statusCode] || '未知原因';
 }

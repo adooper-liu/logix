@@ -25,42 +25,43 @@ import { parseLocalDate, formatDateToLocal } from '@/utils/dateTimeUtils'
 const props = defineProps({
   modelValue: {
     type: [Date, String],
-    default: null
+    default: null,
   },
   type: {
     type: String,
     default: 'datetime',
-    validator: (value: string) => ['date', 'datetime', 'datetimerange', 'daterange'].includes(value)
+    validator: (value: string) =>
+      ['date', 'datetime', 'datetimerange', 'daterange'].includes(value),
   },
   format: {
     type: String,
-    default: 'YYYY-MM-DD HH:mm'
+    default: 'YYYY-MM-DD HH:mm',
   },
   valueFormat: {
     type: String,
-    default: 'YYYY-MM-DD HH:mm:ss'
+    default: 'YYYY-MM-DD HH:mm:ss',
   },
   placeholder: {
     type: String,
-    default: ''
+    default: '',
   },
   disabled: {
     type: Boolean,
-    default: false
+    default: false,
   },
   clearable: {
     type: Boolean,
-    default: true
+    default: true,
   },
   size: {
     type: String,
     default: 'default',
-    validator: (value: string) => ['large', 'default', 'small'].includes(value)
+    validator: (value: string) => ['large', 'default', 'small'].includes(value),
   },
   style: {
     type: Object,
-    default: () => ({})
-  }
+    default: () => ({}),
+  },
 })
 
 // Emits
@@ -70,13 +71,17 @@ const emit = defineEmits(['update:modelValue', 'change', 'blur', 'focus'])
 const dateValue = ref<any>(null)
 
 // 监听modelValue变化
-watch(() => props.modelValue, (newValue) => {
-  if (newValue) {
-    dateValue.value = newValue
-  } else {
-    dateValue.value = null
-  }
-}, { immediate: true })
+watch(
+  () => props.modelValue,
+  newValue => {
+    if (newValue) {
+      dateValue.value = newValue
+    } else {
+      dateValue.value = null
+    }
+  },
+  { immediate: true }
+)
 
 // 处理值变化
 const handleChange = (value: any) => {

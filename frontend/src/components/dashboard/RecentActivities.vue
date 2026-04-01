@@ -18,7 +18,7 @@ const props = defineProps<RecentActivitiesProps>()
 const typeIcons: Record<string, any> = {
   success: Check,
   warning: Warning,
-  info: Ship
+  info: Ship,
 }
 </script>
 
@@ -31,9 +31,7 @@ const typeIcons: Record<string, any> = {
       :class="`activity-${activity.type}`"
     >
       <div class="activity-content">
-        <div class="activity-title">
-          集装箱 {{ activity.container }} {{ activity.status }}
-        </div>
+        <div class="activity-title">集装箱 {{ activity.container }} {{ activity.status }}</div>
         <div class="activity-time">{{ activity.time }}</div>
       </div>
       <div class="activity-status">

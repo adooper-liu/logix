@@ -12,7 +12,7 @@ export enum DebugCategory {
   ERROR = '❌',
   SUCCESS = '✅',
   WARNING = '⚠️',
-  INFO = 'ℹ️'
+  INFO = 'ℹ️',
 }
 
 interface DebugContext {
@@ -35,7 +35,7 @@ class DebugLogger {
     console.log(`${DebugCategory.CLICK} ${this.prefix} Click`, {
       ...context,
       data,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
   }
 
@@ -46,7 +46,7 @@ class DebugLogger {
     console.log(`${DebugCategory.API} ${this.prefix} API Call`, {
       ...context,
       data,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
   }
 
@@ -59,18 +59,21 @@ class DebugLogger {
       response: {
         success: response.success,
         count: response.count,
-        itemsLength: response.items?.length || 0
+        itemsLength: response.items?.length || 0,
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
 
     if (response.items && response.items.length > 0) {
-      console.log(`${DebugCategory.DATA} ${this.prefix} First 3 items:`, response.items.slice(0, 3).map(item => ({
-        containerNumber: item.containerNumber,
-        logisticsStatus: item.logisticsStatus,
-        etaDestPort: item.etaDestPort,
-        ataDestPort: item.ataDestPort
-      })))
+      console.log(
+        `${DebugCategory.DATA} ${this.prefix} First 3 items:`,
+        response.items.slice(0, 3).map(item => ({
+          containerNumber: item.containerNumber,
+          logisticsStatus: item.logisticsStatus,
+          etaDestPort: item.etaDestPort,
+          ataDestPort: item.ataDestPort,
+        }))
+      )
     }
   }
 
@@ -81,7 +84,7 @@ class DebugLogger {
     console.log(`${DebugCategory.FILTER} ${this.prefix} Filter`, {
       ...context,
       data,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
   }
 
@@ -92,7 +95,7 @@ class DebugLogger {
     console.log(`${DebugCategory.NAVIGATION} ${this.prefix} Navigation`, {
       ...context,
       data,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
   }
 
@@ -103,7 +106,7 @@ class DebugLogger {
     console.log(`${DebugCategory.SUCCESS} ${this.prefix} Success: ${message}`, {
       ...context,
       data,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
   }
 
@@ -114,7 +117,7 @@ class DebugLogger {
     console.warn(`${DebugCategory.WARNING} ${this.prefix} Warning: ${message}`, {
       ...context,
       data,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
   }
 
@@ -126,7 +129,7 @@ class DebugLogger {
       ...context,
       error: error.message || error,
       stack: error.stack,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
   }
 
@@ -137,7 +140,7 @@ class DebugLogger {
     console.log(`${DebugCategory.INFO} ${this.prefix} Info: ${message}`, {
       ...context,
       data,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
   }
 }

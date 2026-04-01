@@ -16,7 +16,7 @@ const currentLanguage = computed(() => {
 const languageOptions = computed(() => {
   return Object.entries(SUPPORTED_LANGUAGES).map(([key, value]) => ({
     key: key as Language,
-    ...value
+    ...value,
   }))
 })
 
@@ -27,18 +27,14 @@ const handleSelect = (lang: Language) => {
 </script>
 
 <template>
-  <el-dropdown
-    trigger="click"
-    @command="handleSelect"
-    @visible-change="showDropdown = $event"
-  >
-  <div class="language-switcher">
-    <span class="language-icon">{{ currentLanguage.icon }}</span>
-    <span class="language-text">{{ currentLanguage.name }}</span>
-    <el-icon class="arrow-icon" :class="{ 'is-open': showDropdown }">
-      <ArrowDown />
-    </el-icon>
-  </div>
+  <el-dropdown trigger="click" @command="handleSelect" @visible-change="showDropdown = $event">
+    <div class="language-switcher">
+      <span class="language-icon">{{ currentLanguage.icon }}</span>
+      <span class="language-text">{{ currentLanguage.name }}</span>
+      <el-icon class="arrow-icon" :class="{ 'is-open': showDropdown }">
+        <ArrowDown />
+      </el-icon>
+    </div>
     <template #dropdown>
       <el-dropdown-menu>
         <el-dropdown-item
@@ -79,12 +75,12 @@ const handleSelect = (lang: Language) => {
     color: $nav-text-primary;
   }
 
-    .language-icon {
-      font-size: 18px;
-      line-height: 1;
-      display: inline-flex;
-      align-items: center;
-    }
+  .language-icon {
+    font-size: 18px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+  }
 
   .language-text {
     line-height: 1.5;
@@ -120,12 +116,20 @@ const handleSelect = (lang: Language) => {
     color: $nav-text-secondary;
 
     &:hover {
-      background: linear-gradient(135deg, rgba(0, 212, 255, 0.15), rgba(124, 58, 237, 0.15)) !important;
+      background: linear-gradient(
+        135deg,
+        rgba(0, 212, 255, 0.15),
+        rgba(124, 58, 237, 0.15)
+      ) !important;
       color: $nav-text-primary !important;
     }
 
     &.is-active {
-      background: linear-gradient(135deg, rgba(0, 212, 255, 0.25), rgba(124, 58, 237, 0.25)) !important;
+      background: linear-gradient(
+        135deg,
+        rgba(0, 212, 255, 0.25),
+        rgba(124, 58, 237, 0.25)
+      ) !important;
       color: $nav-accent-cyan !important;
       font-weight: 600;
     }

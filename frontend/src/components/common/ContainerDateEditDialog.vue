@@ -1,10 +1,5 @@
 <template>
-  <el-dialog
-    v-model="visible"
-    title="调整货柜日期"
-    width="400px"
-    :before-close="handleClose"
-  >
+  <el-dialog v-model="visible" title="调整货柜日期" width="400px" :before-close="handleClose">
     <el-form :model="form" label-width="120px" size="default">
       <el-form-item label="集装箱号：">
         <span class="container-number">{{ form.containerNumber }}</span>
@@ -31,21 +26,14 @@
       </el-form-item>
 
       <el-form-item label="调整原因：">
-        <el-input
-          v-model="form.reason"
-          type="textarea"
-          :rows="3"
-          placeholder="请输入调整原因"
-        />
+        <el-input v-model="form.reason" type="textarea" :rows="3" placeholder="请输入调整原因" />
       </el-form-item>
     </el-form>
 
     <template #footer>
       <span class="dialog-footer">
         <el-button @click="handleClose">取消</el-button>
-        <el-button type="primary" @click="handleSave" :loading="saving">
-          保存
-        </el-button>
+        <el-button type="primary" @click="handleSave" :loading="saving"> 保存 </el-button>
       </span>
     </template>
   </el-dialog>
@@ -70,7 +58,7 @@ const emit = defineEmits<Emits>()
 
 const visible = computed({
   get: () => props.visible,
-  set: (value) => emit('update:visible', value),
+  set: value => emit('update:visible', value),
 })
 
 const saving = ref(false)
@@ -84,7 +72,7 @@ const form = ref({
 // 监听 container 变化，初始化表单
 watch(
   () => props.container,
-  (newContainer) => {
+  newContainer => {
     if (newContainer) {
       form.value.containerNumber = newContainer.containerNumber
       form.value.dateType = 'etaDestPort'
@@ -104,7 +92,7 @@ watch(
 // 监听日期类型变化，自动填充当前值
 watch(
   () => form.value.dateType,
-  (newType) => {
+  newType => {
     if (props.container) {
       const currentDate = props.container[newType]
       if (currentDate) {

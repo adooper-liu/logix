@@ -74,14 +74,7 @@ function daysBetween(start: Date, end: Date): number {
  * 计费天数 = max(0, endDate - lastFreeDate 的天数)
  */
 export function calculateDemurrage(input: DemurrageCalculationInput): DemurrageCalculationResult {
-  const {
-    startDate,
-    endDate,
-    freeDays = 0,
-    ratePerDay = 0,
-    tiers = [],
-    currency = 'USD'
-  } = input
+  const { startDate, endDate, freeDays = 0, ratePerDay = 0, tiers = [], currency = 'USD' } = input
 
   const emptyResult: DemurrageCalculationResult = {
     lastFreeDate: null,
@@ -89,7 +82,7 @@ export function calculateDemurrage(input: DemurrageCalculationInput): DemurrageC
     totalAmount: 0,
     tierBreakdown: [],
     currency,
-    isWithinFreePeriod: true
+    isWithinFreePeriod: true,
   }
 
   if (!startDate || freeDays < 0) {
@@ -114,7 +107,7 @@ export function calculateDemurrage(input: DemurrageCalculationInput): DemurrageC
       totalAmount: 0,
       tierBreakdown: [],
       currency,
-      isWithinFreePeriod: true
+      isWithinFreePeriod: true,
     }
   }
 
@@ -130,7 +123,7 @@ export function calculateDemurrage(input: DemurrageCalculationInput): DemurrageC
       totalAmount: 0,
       tierBreakdown: [],
       currency,
-      isWithinFreePeriod: false
+      isWithinFreePeriod: false,
     }
   }
 
@@ -158,7 +151,7 @@ export function calculateDemurrage(input: DemurrageCalculationInput): DemurrageC
         toDay: tierEndDay,
         days: daysInTier,
         ratePerDay: tier.ratePerDay,
-        subtotal
+        subtotal,
       })
 
       totalAmount += subtotal
@@ -173,7 +166,7 @@ export function calculateDemurrage(input: DemurrageCalculationInput): DemurrageC
         toDay: chargeDays,
         days: chargeDays,
         ratePerDay: ratePerDay || 0,
-        subtotal: totalAmount
+        subtotal: totalAmount,
       })
     }
   }
@@ -184,7 +177,7 @@ export function calculateDemurrage(input: DemurrageCalculationInput): DemurrageC
     totalAmount,
     tierBreakdown,
     currency,
-    isWithinFreePeriod: false
+    isWithinFreePeriod: false,
   }
 }
 
@@ -215,46 +208,33 @@ export function parseContainerForDemurrage(containerData: {
   truckingTransports?: Array<{ pickupDate?: Date | string }>
   order?: { freightForwarderCode?: string }
 }): ContainerDemurrageParams {
-  const destPort = containerData.portOperations?.find(
-    (po) => po.portType === 'destination'
-  )
+  const destPort = containerData.portOperations?.find(po => po.portType === 'destination')
 
   if (!destPort) {
     return { startDate: null, endDate: null }
   }
 
   // 起算日：按到港优先 ATA，无则 ETA；按卸船则用 destPortUnloadDate / dischargedTime
-  const ata = destPort.ataDestPort
-    ? toDateOnly(destPort.ataDestPort as Date)
-    : null
-  const eta = destPort.etaDestPort
-    ? toDateOnly(destPort.etaDestPort as Date)
-    : null
-  const discharge = (destPort.destPortUnloadDate || destPort.dischargedTime)
-    ? toDateOnly(
-        (destPort.destPortUnloadDate || destPort.dischargedTime) as Date
-      )
-    : null
+  const ata = destPort.ataDestPort ? toDateOnly(destPort.ataDestPort as Date) : null
+  const eta = destPort.etaDestPort ? toDateOnly(destPort.etaDestPort as Date) : null
+  const discharge =
+    destPort.destPortUnloadDate || destPort.dischargedTime
+      ? toDateOnly((destPort.destPortUnloadDate || destPort.dischargedTime) as Date)
+      : null
 
   const startDate = ata || eta || discharge
 
   // 免费天数：由 lastFreeDate 推导（免费期截止日与起算日之间的自然日数）
   let freeDays: number | undefined
-  const lastFree = destPort.lastFreeDate
-    ? toDateOnly(destPort.lastFreeDate as Date)
-    : null
+  const lastFree = destPort.lastFreeDate ? toDateOnly(destPort.lastFreeDate as Date) : null
   if (startDate && lastFree && lastFree >= startDate) {
     freeDays = daysBetween(startDate, lastFree)
   }
 
   // 截止日：提柜日优先，无则今天
-  const pickups = containerData.truckingTransports?.filter(
-    (tt) => tt.pickupDate
-  )
+  const pickups = containerData.truckingTransports?.filter(tt => tt.pickupDate)
   const pickupDate =
-    pickups && pickups.length > 0
-      ? toDateOnly((pickups[0].pickupDate as Date) || new Date())
-      : null
+    pickups && pickups.length > 0 ? toDateOnly((pickups[0].pickupDate as Date) || new Date()) : null
   const endDate = pickupDate || toDateOnly(new Date())
 
   return {
@@ -265,7 +245,7 @@ export function parseContainerForDemurrage(containerData: {
     shippingCompanyCode: Array.isArray(containerData.seaFreight)
       ? containerData.seaFreight[0]?.shippingCompanyCode
       : (containerData.seaFreight as any)?.shippingCompanyCode,
-    originForwarderCode: (containerData.order as any)?.freightForwarderCode
+    originForwarderCode: (containerData.order as any)?.freightForwarderCode,
   }
 }
 

@@ -123,7 +123,7 @@ export function useDebounce<T = any>(delay: number = 300) {
     pending,
     setValue,
     flush,
-    cancel
+    cancel,
   }
 }
 
@@ -192,7 +192,7 @@ export function useThrottle<T = any>(limit: number = 300) {
     throttledValue,
     scheduled,
     setValue,
-    flush
+    flush,
   }
 }
 
@@ -267,7 +267,7 @@ export function useSearchDebounce<T = any>(
     isLoading,
     error,
     onSearchInput,
-    clear
+    clear,
   }
 }
 
@@ -298,7 +298,7 @@ export function useThrottledScroll(
   })
 
   return {
-    throttledFn
+    throttledFn,
   }
 }
 
@@ -328,7 +328,7 @@ export function useThrottledResize(
   })
 
   return {
-    throttledFn
+    throttledFn,
   }
 }
 

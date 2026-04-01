@@ -107,7 +107,7 @@ describe('CustomsBrokerSelectionService', () => {
     it('应该批量选择清关公司', async () => {
       // Arrange
       const countryCodes = ['US', 'CA', 'GB'];
-      
+
       (mockCustomsBrokerRepo.find as jest.Mock)
         .mockResolvedValueOnce([{ brokerCode: 'CB-US-001' }])
         .mockResolvedValueOnce([])
@@ -118,9 +118,9 @@ describe('CustomsBrokerSelectionService', () => {
 
       // Assert
       expect(results).toEqual({
-        'US': 'CB-US-001',
-        'CA': 'UNSPECIFIED',
-        'GB': 'CB-GB-001'
+        US: 'CB-US-001',
+        CA: 'UNSPECIFIED',
+        GB: 'CB-GB-001'
       });
     });
 

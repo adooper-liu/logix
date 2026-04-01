@@ -44,7 +44,7 @@ export class TimeService {
         order: { createdAt: 'DESC' }
       });
 
-      const dest = container.portOperations?.find(op => op.portType === 'destination');
+      const dest = container.portOperations?.find((op) => op.portType === 'destination');
       const sf = container.seaFreight;
 
       // 计算各个节点的预测时间（与前端 TimePredictionTab 字段对齐）
@@ -75,7 +75,12 @@ export class TimeService {
   }
 
   // 获取当前状态
-  private getCurrentStatus(container: Container, trucking: any, warehouseOp: any, emptyReturn: any): string {
+  private getCurrentStatus(
+    container: Container,
+    trucking: any,
+    warehouseOp: any,
+    emptyReturn: any
+  ): string {
     if (emptyReturn?.returnTime) {
       return '已还箱';
     } else if (warehouseOp?.unloadDate || warehouseOp?.unboxingTime) {
@@ -83,7 +88,7 @@ export class TimeService {
     } else if (trucking?.pickupDate) {
       return '已提柜';
     } else if (container.portOperations) {
-      const destinationPort = container.portOperations.find(op => op.portType === 'destination');
+      const destinationPort = container.portOperations.find((op) => op.portType === 'destination');
       if (destinationPort?.ata) {
         return '已到港';
       } else if (destinationPort?.eta) {
@@ -100,7 +105,7 @@ export class TimeService {
     }
 
     if (container.portOperations) {
-      const destinationPort = container.portOperations.find(op => op.portType === 'destination');
+      const destinationPort = container.portOperations.find((op) => op.portType === 'destination');
       if (destinationPort?.ata) {
         const ata = new Date(destinationPort.ata);
         const predicted = new Date(ata);
@@ -142,7 +147,12 @@ export class TimeService {
   }
 
   // 预测还箱时间
-  private predictReturnTime(container: Container, trucking: any, warehouseOp: any, emptyReturn: any): Date | null {
+  private predictReturnTime(
+    container: Container,
+    trucking: any,
+    warehouseOp: any,
+    emptyReturn: any
+  ): Date | null {
     if (emptyReturn?.returnTime) {
       return new Date(emptyReturn.returnTime);
     }
@@ -165,7 +175,12 @@ export class TimeService {
   }
 
   // 预测完成时间
-  private predictCompletionTime(container: Container, trucking: any, warehouseOp: any, emptyReturn: any): Date | null {
+  private predictCompletionTime(
+    container: Container,
+    trucking: any,
+    warehouseOp: any,
+    emptyReturn: any
+  ): Date | null {
     return this.predictReturnTime(container, trucking, warehouseOp, emptyReturn);
   }
 }

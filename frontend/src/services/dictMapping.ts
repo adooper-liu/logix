@@ -30,14 +30,16 @@ export interface PortMappingBatchResult {
  */
 export async function getPortCodeByChineseName(portName: string): Promise<PortMappingResult> {
   try {
-    const response = await axios.get(`${API_BASE}/dict-mapping/port/${encodeURIComponent(portName)}`)
+    const response = await axios.get(
+      `${API_BASE}/dict-mapping/port/${encodeURIComponent(portName)}`
+    )
     return response.data
   } catch (error: any) {
     console.error('[getPortCodeByChineseName] Error:', error)
     return {
       success: false,
       data: null,
-      message: error.response?.data?.error || error.message
+      message: error.response?.data?.error || error.message,
     }
   }
 }
@@ -45,7 +47,9 @@ export async function getPortCodeByChineseName(portName: string): Promise<PortMa
 /**
  * 批量获取港口代码映射（新增）
  */
-export async function getPortCodeMappingsBatch(portNames: string[]): Promise<PortMappingBatchResult> {
+export async function getPortCodeMappingsBatch(
+  portNames: string[]
+): Promise<PortMappingBatchResult> {
   try {
     const response = await axios.post(`${API_BASE}/dict-mapping/port/batch`, { portNames })
     return response.data
@@ -53,7 +57,7 @@ export async function getPortCodeMappingsBatch(portNames: string[]): Promise<Por
     console.error('[getPortCodeMappingsBatch] Error:', error)
     return {
       success: false,
-      data: {}
+      data: {},
     }
   }
 }
@@ -61,7 +65,9 @@ export async function getPortCodeMappingsBatch(portNames: string[]): Promise<Por
 /**
  * 批量获取港口代码(带缓存)
  */
-export async function getPortCodesCachedBatch(portNames: string[]): Promise<Record<string, string | null>> {
+export async function getPortCodesCachedBatch(
+  portNames: string[]
+): Promise<Record<string, string | null>> {
   const result: Record<string, string | null> = {}
 
   // 先从缓存查找
@@ -99,7 +105,7 @@ export async function getAllPortMappings() {
     console.error('[getAllPortMappings] Error:', error)
     return {
       success: false,
-      data: []
+      data: [],
     }
   }
 }
@@ -121,7 +127,7 @@ export async function addPortMapping(mapping: {
     console.error('[addPortMapping] Error:', error)
     return {
       success: false,
-      error: error.response?.data?.error || error.message
+      error: error.response?.data?.error || error.message,
     }
   }
 }
@@ -137,7 +143,7 @@ export async function deletePortMapping(id: number) {
     console.error('[deletePortMapping] Error:', error)
     return {
       success: false,
-      error: error.response?.data?.error || error.message
+      error: error.response?.data?.error || error.message,
     }
   }
 }
@@ -185,7 +191,9 @@ export async function getPortCodeCached(portName: string): Promise<string | null
 /**
  * 批量获取港口代码(带缓存,使用新的批量接口)
  */
-export async function getPortCodesCached(portNames: string[]): Promise<Record<string, string | null>> {
+export async function getPortCodesCached(
+  portNames: string[]
+): Promise<Record<string, string | null>> {
   const result: Record<string, string | null> = {}
 
   // 先从缓存查找

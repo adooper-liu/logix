@@ -8,21 +8,24 @@
  */
 export function camelToSnake<T extends Record<string, any>>(obj: T): Record<string, any> {
   if (obj === null || obj === undefined) {
-    return obj;
+    return obj
   }
   if (typeof obj !== 'object' || Array.isArray(obj)) {
-    return obj;
+    return obj
   }
-  const result: Record<string, any> = {};
+  const result: Record<string, any> = {}
   for (const key in obj) {
     if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      const snakeKey = key.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
-      const value = obj[key];
+      const snakeKey = key.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`)
+      const value = obj[key]
       result[snakeKey] =
-        value !== null && typeof value === 'object' && !Array.isArray(value) && value.constructor === Object
+        value !== null &&
+        typeof value === 'object' &&
+        !Array.isArray(value) &&
+        value.constructor === Object
           ? camelToSnake(value as Record<string, any>)
-          : value;
+          : value
     }
   }
-  return result;
+  return result
 }

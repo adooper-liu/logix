@@ -45,7 +45,7 @@ export default {
     all: 'Tutti',
     more: 'Altro',
     expand: 'Espandi',
-    collapse: 'Comprimi'
+    collapse: 'Comprimi',
   },
 
   // ========== Navigazione ==========
@@ -64,7 +64,7 @@ export default {
     help: 'Aiuto',
     about: 'Informazioni',
     personalCenter: 'Centro personale',
-    logout: 'Logout'
+    logout: 'Logout',
   },
 
   // ========== Utente ==========
@@ -81,7 +81,7 @@ export default {
     logoutSuccess: 'Logout riuscito',
     pleaseLogin: 'Accedi prima',
     rememberMe: 'Ricordami',
-    forgotPassword: 'Password dimenticata?'
+    forgotPassword: 'Password dimenticata?',
   },
 
   // ========== Container ==========
@@ -101,7 +101,7 @@ export default {
       atPort: 'In porto',
       pickedUp: 'Ritirato',
       unloaded: 'Scaricato',
-      returnedEmpty: 'Restituito vuoto'
+      returnedEmpty: 'Restituito vuoto',
     },
     // Tipi di container
     types: {
@@ -114,15 +114,15 @@ export default {
       '20OT': '20 piedi open top',
       '40OT': '40 piedi open top',
       '20FR': '20 piedi flat rack',
-      '40FR': '40 piedi flat rack'
+      '40FR': '40 piedi flat rack',
     },
     shipmentsList: {
       singleFreeDateWriteBack: 'Aggiorna date franchigia (singolo)',
       singleFreeDateWriteBackSuccess: 'Date franchigia salvate',
       singleFreeDateWriteBackSkipped: 'Calcolato ma nulla scritto',
       singleFreeDateWriteBackFailed: 'Aggiornamento non riuscito',
-      singleFreeDateWriteBackNoContainer: 'Numero container mancante'
-    }
+      singleFreeDateWriteBackNoContainer: 'Numero container mancante',
+    },
   },
 
   // ========== Ordine ==========
@@ -145,8 +145,8 @@ export default {
       pending: 'In attesa',
       processing: 'In elaborazione',
       completed: 'Completato',
-      cancelled: 'Annullato'
-    }
+      cancelled: 'Annullato',
+    },
   },
 
   // ========== Porto ==========
@@ -162,8 +162,8 @@ export default {
     types: {
       origin: 'Porto di origine',
       transit: 'Porto di transito',
-      destination: 'Porto di destinazione'
-    }
+      destination: 'Porto di destinazione',
+    },
   },
 
   // ========== Demurrage ==========
@@ -178,12 +178,12 @@ export default {
     // Base calcolo
     basis: {
       byArrival: 'Per arrivo',
-      byUnloading: 'Per scarico'
+      byUnloading: 'Per scarico',
     },
     // Base giorni gratuiti
     freeDaysBasisTypes: {
       naturalDay: 'Giorno naturale',
-      workingDay: 'Giorno lavorativo'
+      workingDay: 'Giorno lavorativo',
     },
     // Tipi tariffa
     chargeTypes: {
@@ -191,8 +191,8 @@ export default {
       storage: 'Stoccaggio',
       detention: 'Detention',
       demurrageDetention: 'Demurrage e detention',
-      storageSurcharge: 'Soprattassa stoccaggio'
-    }
+      storageSurcharge: 'Soprattassa stoccaggio',
+    },
   },
 
   // ========== Monitoraggio ==========
@@ -213,7 +213,7 @@ export default {
     healthy: 'Sano',
     unhealthy: 'Malsano',
     warning: 'Avviso',
-    critical: 'Critico'
+    critical: 'Critico',
   },
 
   // ========== Impostazioni ==========
@@ -227,9 +227,9 @@ export default {
     profile: 'Profilo',
     preferences: 'Preferenze',
     languageTip: 'Seleziona la tua lingua preferita',
-    themeTip: 'Scegli il tema dell\'interfaccia',
+    themeTip: "Scegli il tema dell'interfaccia",
     notificationTip: 'Gestisci le preferenze di notifica',
-    securityTip: 'Gestisci le impostazioni di sicurezza'
+    securityTip: 'Gestisci le impostazioni di sicurezza',
   },
 
   // ========== Aiuto ==========
@@ -242,7 +242,7 @@ export default {
     searchDoc: 'Cerca nella documentazione',
     noResults: 'Nessun risultato trovato',
     recentlyViewed: 'Visualizzati di recente',
-    popularTopics: 'Argomenti popolari'
+    popularTopics: 'Argomenti popolari',
   },
 
   // ========== Informazioni ==========
@@ -255,7 +255,7 @@ export default {
     privacyPolicy: 'Informativa sulla privacy',
     contactUs: 'Contattaci',
     website: 'Sito web',
-    github: 'GitHub'
+    github: 'GitHub',
   },
 
   // ========== Validazione ==========
@@ -268,7 +268,7 @@ export default {
     pattern: 'Formato non valido',
     range: 'Il valore deve essere tra {min} e {max}',
     numeric: 'Inserisci un numero valido',
-    url: 'Inserisci un URL valido'
+    url: 'Inserisci un URL valido',
   },
 
   // ========== Tempo ==========
@@ -279,7 +279,7 @@ export default {
     lastWeek: 'Settimana scorsa',
     thisMonth: 'Questo mese',
     lastMonth: 'Mese scorso',
-    thisYear: 'Quest\'anno',
+    thisYear: "Quest'anno",
     lastYear: 'Anno scorso',
     daysAgo: '{days} giorni fa',
     hoursAgo: '{hours} ore fa',
@@ -287,7 +287,7 @@ export default {
     justNow: 'Proprio ora',
     dateFormat: 'DD/MM/YYYY',
     dateTimeFormat: 'DD/MM/YYYY HH:mm:ss',
-    timeFormat: 'HH:mm:ss'
+    timeFormat: 'HH:mm:ss',
   },
 
   // ========== Errore ==========
@@ -300,6 +300,6 @@ export default {
     timeout: 'Timeout della richiesta',
     unknown: 'Errore sconosciuto',
     retry: 'Riprova',
-    contactAdmin: 'Contatta l\'amministratore'
-  }
+    contactAdmin: "Contatta l'amministratore",
+  },
 }

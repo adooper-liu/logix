@@ -60,11 +60,12 @@ ${sqlResult.truncated ? '(仅显示前5条)' : ''}
 
   // MCP工具结果
   if (mcpToolResult) {
-    const toolTitle = mcpToolResult.toolName === 'read_file'
-      ? '文件内容'
-      : mcpToolResult.toolName === 'search_code'
-        ? '代码搜索结果'
-        : '数据库查询';
+    const toolTitle =
+      mcpToolResult.toolName === 'read_file'
+        ? '文件内容'
+        : mcpToolResult.toolName === 'search_code'
+          ? '代码搜索结果'
+          : '数据库查询';
 
     prompt += `
 ## ${toolTitle}

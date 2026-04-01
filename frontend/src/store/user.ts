@@ -20,7 +20,7 @@ export const useUserStore = defineStore('user', () => {
   const login = async (username: string, _password: string) => {
     try {
       // 模拟登录API调用
-      const response = await new Promise<any>((resolve) => {
+      const response = await new Promise<any>(resolve => {
         setTimeout(() => {
           resolve({
             token: 'mock-token-' + Date.now(),
@@ -28,15 +28,15 @@ export const useUserStore = defineStore('user', () => {
               id: 1,
               username,
               email: `${username}@logix.com`,
-              role: 'admin'
-            }
+              role: 'admin',
+            },
           })
         }, 1000)
       })
 
       setToken(response.token)
       setUserInfo(response.user)
-      
+
       return { success: true }
     } catch (error) {
       return { success: false, error: '登录失败' }
@@ -60,6 +60,6 @@ export const useUserStore = defineStore('user', () => {
     setToken,
     login,
     logout,
-    checkAuth
+    checkAuth,
   }
 })

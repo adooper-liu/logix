@@ -37,7 +37,7 @@ const fields = ref<FieldConfig[]>([])
 
 // 搜索表单
 const searchForm = reactive({
-  keyword: ''
+  keyword: '',
 })
 
 // 数据表格
@@ -48,7 +48,7 @@ const loading = ref(false)
 const pagination = reactive({
   page: 1,
   pageSize: 20,
-  total: 0
+  total: 0,
 })
 
 // 弹窗控制
@@ -66,7 +66,7 @@ const selectedFile = ref<File | null>(null)
 const importResult = reactive({
   success: 0,
   failed: 0,
-  errors: [] as string[]
+  errors: [] as string[],
 })
 
 // 加载字典类型
@@ -96,7 +96,7 @@ const loadData = async () => {
     const params = {
       page: pagination.page,
       pageSize: pagination.pageSize,
-      keyword: searchForm.keyword
+      keyword: searchForm.keyword,
     }
     const response = await axios.get(`${BASE_URL}/dict-manage/${currentDictType.value}`, { params })
     tableData.value = response.data?.data || []
@@ -188,7 +188,7 @@ const handleDelete = async (row: DictRecord) => {
     const label = fields.value.find(f => f.isPrimaryKey)?.label || '记录'
 
     await ElMessageBox.confirm(`确定要删除该${label}吗？`, '确认删除', {
-      type: 'warning'
+      type: 'warning',
     })
 
     await axios.delete(`${BASE_URL}/dict-manage/${currentDictType.value}/${pkValue}`)
@@ -302,7 +302,10 @@ const handleConfirmImport = async () => {
       })
 
       // 自增主键(id)：过滤 "示例值" 或空，不参与校验
-      const pkField = fields.value.find(f => f.isPrimaryKey)?.field.replace(/([A-Z])/g, '_$1').toLowerCase()
+      const pkField = fields.value
+        .find(f => f.isPrimaryKey)
+        ?.field.replace(/([A-Z])/g, '_$1')
+        .toLowerCase()
       const pkValue = record[pkField!]
       if (pkField === 'id' && (pkValue === '示例值' || pkValue === '' || pkValue == null)) {
         delete record.id
@@ -331,7 +334,9 @@ const handleConfirmImport = async () => {
           importResult.success++
         } catch (error: any) {
           importResult.failed++
-          importResult.errors.push(`导入失败: ${JSON.stringify(record)} - ${error?.response?.data?.message || error?.message}`)
+          importResult.errors.push(
+            `导入失败: ${JSON.stringify(record)} - ${error?.response?.data?.message || error?.message}`
+          )
         }
       }
       ElMessage.success(`导入完成: 成功${importResult.success}条, 失败${importResult.failed}条`)
@@ -506,10 +511,7 @@ watch(currentDictType, () => {
               :required="field.isPrimaryKey && dialogMode === 'create'"
             >
               <!-- 布尔类型 -->
-              <el-switch
-                v-if="field.isBoolean"
-                v-model="formData[field.field]"
-              />
+              <el-switch v-if="field.isBoolean" v-model="formData[field.field]" />
               <!-- 普通输入框 -->
               <el-input
                 v-else
@@ -551,7 +553,13 @@ watch(currentDictType, () => {
           <template #title>
             <div>导入失败: {{ importResult.failed }}条</div>
           </template>
-          <div v-for="(err, idx) in importResult.errors.slice(0, 10)" :key="idx" style="font-size: 12px">{{ err }}</div>
+          <div
+            v-for="(err, idx) in importResult.errors.slice(0, 10)"
+            :key="idx"
+            style="font-size: 12px"
+          >
+            {{ err }}
+          </div>
         </el-alert>
       </div>
 

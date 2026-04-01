@@ -42,8 +42,8 @@ export class HttpClient {
       baseURL: this.baseURL,
       timeout: this.timeout,
       headers: {
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     })
 
     this.setupInterceptors()
@@ -55,7 +55,7 @@ export class HttpClient {
   private setupInterceptors() {
     // 请求拦截器
     this.instance.interceptors.request.use(
-      (config) => {
+      config => {
         const token = localStorage.getItem('token')
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
@@ -67,7 +67,7 @@ export class HttpClient {
         ;(config as any).metadata = { startTime: Date.now() }
         return config
       },
-      (error) => {
+      error => {
         console.error('请求错误:', error)
         return Promise.reject(error)
       }
@@ -92,7 +92,7 @@ export class HttpClient {
           return Promise.reject(new Error(apiResponse.message || '请求失败'))
         }
       },
-      (error) => {
+      error => {
         console.error('响应错误:', error)
 
         if (error.response) {
@@ -216,7 +216,7 @@ export class HttpClient {
  */
 export const httpClient = new HttpClient({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api',
-  timeout: 30000
+  timeout: 30000,
 })
 
 /**

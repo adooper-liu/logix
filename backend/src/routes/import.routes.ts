@@ -33,7 +33,10 @@ router.post('/excel/batch', importController.importBatchExcelData.bind(importCon
  * @desc    批量导入滞港费标准
  * @access  Public
  */
-router.post('/demurrage-standards', importController.importDemurrageStandards.bind(importController));
+router.post(
+  '/demurrage-standards',
+  importController.importDemurrageStandards.bind(importController)
+);
 
 /**
  * @route   POST /api/v1/import/feituo-excel
