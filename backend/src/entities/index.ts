@@ -52,3 +52,6 @@ export { ExtWarehouseDailyOccupancy } from './ExtWarehouseDailyOccupancy';
 export { ExtTruckingSlotOccupancy } from './ExtTruckingSlotOccupancy';
 export { ExtYardDailyOccupancy } from './ExtYardDailyOccupancy';
 export { Yard } from './Yard';
+
+// 排产历史表 (Scheduling History Tables)
+export { SchedulingHistory } from './SchedulingHistory';

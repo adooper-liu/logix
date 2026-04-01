@@ -19,6 +19,7 @@ import { Country } from '../entities/Country';
 import { Customer } from '../entities/Customer';
 import { CustomerType } from '../entities/CustomerType';
 import { CustomsBroker } from '../entities/CustomsBroker';
+import { DictHoliday } from '../entities/DictHoliday'; // ✅ Phase 2 Task 2: 新增
 import { DictSchedulingConfig } from '../entities/DictSchedulingConfig';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
@@ -53,6 +54,7 @@ import { Warehouse } from '../entities/Warehouse';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { Yard } from '../entities/Yard';
+import { SchedulingHistory } from '../entities/SchedulingHistory'; // ✅ Phase 3: 排产历史表
 import { logger } from '../utils/logger';
 
 export const dataSourceOptions: DataSourceOptions = {
@@ -114,6 +116,9 @@ export const dataSourceOptions: DataSourceOptions = {
     // 系统审计表 (System Audit Tables)
     SysDataChangeLog,
 
+    // 节假日字典表 (Holiday Dictionary Table) - ✅ Phase 2 Task 2
+    DictHoliday,
+
     // 查验相关表 (Inspection Tables)
     InspectionRecord,
     InspectionEvent,
@@ -124,6 +129,9 @@ export const dataSourceOptions: DataSourceOptions = {
     ExtTruckingReturnSlotOccupancy,
     ExtYardDailyOccupancy,
     Yard,
+
+    // 排产历史表 (Scheduling History Table) - ✅ Phase 3
+    SchedulingHistory,
 
     // 流程管理表 (Flow Management Tables)
     FlowDefinition,

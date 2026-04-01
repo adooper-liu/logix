@@ -9,6 +9,9 @@ import WarehouseTruckingMappingController from '../controllers/warehouse-truckin
 const router = Router();
 const controller = WarehouseTruckingMappingController;
 
+// 静态映射数据路由（用于甘特图，不依赖货柜数据）
+router.get('/static', controller.getStaticMappings);
+
 // CRUD 路由
 router.get('/', controller.getAll);
 router.get('/:id', controller.getById);

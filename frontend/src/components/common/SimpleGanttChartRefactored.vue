@@ -242,6 +242,7 @@
 
               <!-- 三级：供应商行（嵌套在第二级内，展开节点时显示） -->
               <template v-if="!isGroupCollapsed(port + '-' + node)">
+                <!-- 已有货柜分配的供应商行 -->
                 <div
                   v-for="(containersBySupplier, supplier) in suppliersByNode"
                   :key="port + '-' + node + '-' + supplier"
@@ -322,6 +323,45 @@
                     </div>
                   </div>
                 </div>
+
+                <!-- 可用供应商行：当节点下没有货柜分配但有可用供应商时显示 -->
+                <template v-if="Object.keys(suppliersByNode).length === 0">
+                  <div
+                    v-for="availableSupplier in getAvailableSuppliersForNode(port, node)"
+                    :key="port + '-' + node + '-available-' + availableSupplier.supplierCode"
+                    class="gantt-data-row supplier-row available-supplier-row"
+                  >
+                    <!-- 供应商行：显示在分类列 -->
+                    <div
+                      class="tree-column level-3"
+                      :style="{ height: MIN_ROW_HEIGHT + 'px' }"
+                      style="cursor: default"
+                    >
+                      <span class="available-supplier-icon">◇</span>
+                      <span class="available-supplier-name">{{ availableSupplier.supplierName }}</span>
+                      <span class="group-count">({{ availableSupplier.count }})</span>
+                    </div>
+                    <!-- 空日期列 -->
+                    <div
+                      class="dates-column level-3-dates"
+                      :style="{ height: MIN_ROW_HEIGHT + 'px' }"
+                    >
+                      <div
+                        v-for="(date, index) in dateRange"
+                        :key="date.getTime()"
+                        class="date-cell empty-cell"
+                        :data-date-index="index"
+                        :class="{
+                          'is-weekend': isWeekend(date),
+                          'is-today': isToday(date),
+                        }"
+                        :style="{ width: getDateCellWidth(date) }"
+                      >
+                        <div class="dots-container"></div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
               </template>
             </div>
           </template>
@@ -604,23 +644,51 @@
               finalGroupedByPort[selectedPortForModal]
             )"
             :key="selectedPortForModal + '-' + node"
-            class="gantt-data-row node-group-row"
+            class="node-group-container"
           >
-            <div class="tree-column level-2" style="padding-left: 20px">
-              {{ node }}
-              <span class="group-count">({{ getTotalContainersInNode(suppliersByNode) }})</span>
+            <!-- 节点行：显示在分类列，与独立表格一致 -->
+            <div
+              class="gantt-data-row node-group-row"
+              @click="toggleGroupCollapse(selectedPortForModal + '-' + node)"
+              style="cursor: pointer"
+            >
+              <div class="tree-column level-2" style="padding-left: 20px">
+                <el-icon
+                  class="collapse-icon"
+                  :class="{ expanded: !isGroupCollapsed(selectedPortForModal + '-' + node) }"
+                >
+                  <arrow-right />
+                </el-icon>
+                {{ node }}
+                <span class="group-count">({{ getTotalContainersInNode(suppliersByNode) }})</span>
+              </div>
+              <!-- 节点日期列（隐藏，因为供应商行自己显示日期） -->
+              <div
+                v-if="!isGroupCollapsed(selectedPortForModal + '-' + node)"
+                class="dates-column node-dates"
+                :style="{ height: getNodeRowHeight(suppliersByNode) }"
+              ></div>
             </div>
-            <div class="dates-column node-dates" style="margin-left: 200px">
+
+            <!-- 供应商行（嵌套在节点内，与独立表格一致） -->
+            <template v-if="!isGroupCollapsed(selectedPortForModal + '-' + node)">
               <div
                 v-for="(containersBySupplier, supplier) in suppliersByNode"
                 :key="selectedPortForModal + '-' + node + '-' + supplier"
-                class="supplier-row"
+                class="gantt-data-row supplier-row"
               >
                 <div class="tree-column level-3" style="padding-left: 40px">
+                  <el-icon
+                    class="collapse-icon"
+                    :class="{ expanded: !isGroupCollapsed(selectedPortForModal + '-' + node + '-' + supplier) }"
+                  >
+                    <arrow-right />
+                  </el-icon>
                   {{ getSupplierDisplayName(node, supplier, containersBySupplier) }}
                   <span class="group-count">({{ containersBySupplier.length }})</span>
                 </div>
                 <div
+                  v-if="!isGroupCollapsed(selectedPortForModal + '-' + node + '-' + supplier)"
                   class="dates-column level-3-dates"
                   :style="{ height: getSupplierRowHeight(containersBySupplier.length) }"
                 >
@@ -690,7 +758,7 @@
                   </div>
                 </div>
               </div>
-            </div>
+            </template>
           </div>
         </div>
       </div>
@@ -745,12 +813,13 @@
 </template>
 
 <script setup lang="ts">
+import { useAppStore } from '@/store/app'
 import { dictService } from '@/services/dict'
 import type { Container } from '@/types/container'
 import { ArrowDown, ArrowRight, ArrowUp, Check, InfoFilled, Warning } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ContainerContextMenu from './ContainerContextMenu.vue'
 import ContainerDateEditDialog from './ContainerDateEditDialog.vue'
@@ -765,6 +834,7 @@ import { containerService } from '@/services/container'
 
 const route = useRoute()
 const router = useRouter()
+const appStore = useAppStore()
 
 // 搜索相关状态
 const searchKeyword = ref('')
@@ -774,6 +844,45 @@ const searchField = ref<'containerNumber' | 'billOfLading' | 'destinationPort' |
 
 // 每行显示的货柜数量
 const CONTAINERS_PER_ROW = 10
+
+// 静态映射数据结构
+interface StaticMappings {
+  ports: Array<{
+    portCode: string
+    portName: string
+    country: string
+  }>
+  truckingByPort: Record<string, Array<{
+    truckingCompanyId: string
+    truckingCompanyName: string
+    isDefault: boolean
+  }>>
+  warehousesByTrucking: Record<string, Array<{
+    warehouseCode: string
+    warehouseName: string
+    isDefault: boolean
+  }>>
+}
+
+// 静态映射数据
+const staticMappings = ref<StaticMappings | null>(null)
+
+// 加载静态映射数据
+const loadStaticMappings = async () => {
+  try {
+    const res = await containerService.getStaticMappings()
+    if (res.success && res.data) {
+      staticMappings.value = res.data
+      console.log('[甘特图] 静态映射数据加载成功:', {
+        ports: res.data.ports.length,
+        truckingKeys: Object.keys(res.data.truckingByPort).length,
+        warehouseKeys: Object.keys(res.data.warehousesByTrucking).length
+      })
+    }
+  } catch (e) {
+    console.error('[甘特图] 加载静态映射失败:', e)
+  }
+}
 
 // 每行高度
 const ROW_HEIGHT = 10
@@ -1033,6 +1142,169 @@ const getSupplierDisplayName = (node: string, codeOrName: string, containers?: a
     default:
       return codeOrName
   }
+}
+
+/**
+ * 获取节点的可选供应商文本（用于分类列显示）
+ * 提柜节点：显示可用车队列表
+ * 卸柜节点：显示可用仓库列表
+ */
+const getAvailableSuppliersText = (node: string, container: any): string => {
+  if (!container) return ''
+  
+  switch (node) {
+    case '提柜': {
+      const available = container.availableTruckingCompanies
+      if (!available || available.length === 0) return ''
+      // 只显示前3个，hover时显示全部
+      if (available.length <= 3) {
+        return available.map((t: any) => t.truckingCompanyName).join(', ')
+      }
+      return available.slice(0, 3).map((t: any) => t.truckingCompanyName).join(', ') + ` +${available.length - 3}`
+    }
+    case '卸柜': {
+      const available = container.availableWarehouses
+      if (!available || available.length === 0) return ''
+      if (available.length <= 3) {
+        return available.map((w: any) => w.warehouseName).join(', ')
+      }
+      return available.slice(0, 3).map((w: any) => w.warehouseName).join(', ') + ` +${available.length - 3}`
+    }
+    default:
+      return ''
+  }
+}
+
+/**
+ * 获取节点的全部可选供应商文本（hover提示）
+ */
+const getAvailableSuppliersFullText = (node: string, container: any): string => {
+  if (!container) return ''
+
+  switch (node) {
+    case '提柜': {
+      const available = container.availableTruckingCompanies
+      if (!available || available.length === 0) return ''
+      return available.map((t: any) => t.truckingCompanyName).join('\n')
+    }
+    case '卸柜': {
+      const available = container.availableWarehouses
+      if (!available || available.length === 0) return ''
+      return available.map((w: any) => w.warehouseName).join('\n')
+    }
+    default:
+      return ''
+  }
+}
+
+/**
+ * 获取某个港口节点下的所有可用供应商列表
+ * 用于在没有货柜分配时，显示可选供应商
+ * @param port 港口代码
+ * @param node 节点名称（清关/提柜/卸柜/还箱/查验）
+ * @returns 可用供应商数组，每个元素包含 supplierCode, supplierName, count(已分配货柜数)
+ */
+const getAvailableSuppliersForNode = (port: string, node: string): Array<{ supplierCode: string; supplierName: string; count: number }> => {
+  const nodesByPort = finalGroupedByPort.value[port]
+  if (!nodesByPort) return []
+  
+  const result: Array<{ supplierCode: string; supplierName: string; count: number }> = []
+  
+  // 获取该港口下所有货柜（从所有节点收集，而不是只看当前节点）
+  const allContainers: Container[] = []
+  Object.values(nodesByPort).forEach(suppliersByNode => {
+    Object.values(suppliersByNode).forEach(containers => {
+      allContainers.push(...containers)
+    })
+  })
+  
+  // 如果当前港口没有任何货柜，尝试从 finalFilteredContainers 中获取同一港口的货柜
+  let containersForSuppliers = allContainers
+  if (containersForSuppliers.length === 0) {
+    // 从 finalFilteredContainers 中过滤同一目的港的货柜
+    containersForSuppliers = finalFilteredContainers.value.filter((c: Container) => {
+      const destPort = c.latestPortOperation?.portCode || c.destinationPort
+      return destPort === port
+    })
+  }
+  
+  if (containersForSuppliers.length === 0) return []
+
+  // 根据节点类型获取可用供应商
+  switch (node) {
+    case '清关': {
+      // 清关行默认显示"未指定清关公司"
+      // 统计已分配到未指定清关行的货柜数量
+      let count = 0
+      Object.values(nodesByPort['清关'] || {}).forEach((containers: any[]) => {
+        if (containers.some((c: Container) => 
+          !c.portOperations?.find((op: any) => op.portType === 'destination')?.customsBrokerCode ||
+          c.portOperations?.find((op: any) => op.portType === 'destination')?.customsBrokerCode === 'UNSPECIFIED'
+        )) {
+          count += containers.length
+        }
+      })
+      result.push({
+        supplierCode: 'UNSPECIFIED',
+        supplierName: '未指定清关公司',
+        count
+      })
+      break
+    }
+    case '提柜': {
+      // 从同一港口的货柜获取可用车队列表（这些已经是根据映射关系过滤过的）
+      const firstContainer = containersForSuppliers[0]
+      const available = firstContainer?.availableTruckingCompanies || []
+      
+      available.forEach((t: any) => {
+        // 统计已分配到该供应商的货柜数量
+        let count = 0
+        Object.values(nodesByPort['提柜'] || {}).forEach((containers: any[]) => {
+          if (containers.some((c: Container) => 
+            c.truckingTransports?.[0]?.truckingCompanyId === t.truckingCompanyId ||
+            c.truckingTransports?.[0]?.carrierCompany === t.truckingCompanyId
+          )) {
+            count += containers.length
+          }
+        })
+        result.push({
+          supplierCode: t.truckingCompanyId,
+          supplierName: t.truckingCompanyName,
+          count
+        })
+      })
+      break
+    }
+    case '卸柜': {
+      // 从同一港口的货柜获取可用仓库列表（这些已经是根据映射关系过滤过的）
+      const firstContainer = containersForSuppliers[0]
+      const available = firstContainer?.availableWarehouses || []
+      
+      available.forEach((w: any) => {
+        // 统计已分配到该供应商的货柜数量
+        let count = 0
+        Object.values(nodesByPort['卸柜'] || {}).forEach((containers: any[]) => {
+          if (containers.some((c: Container) => 
+            c.warehouseOperations?.[0]?.warehouseId === w.warehouseCode ||
+            c.warehouseOperations?.[0]?.actualWarehouse === w.warehouseCode ||
+            c.warehouseOperations?.[0]?.plannedWarehouse === w.warehouseCode
+          )) {
+            count += containers.length
+          }
+        })
+        result.push({
+          supplierCode: w.warehouseCode,
+          supplierName: w.warehouseName,
+          count
+        })
+      })
+      break
+    }
+    default:
+      break
+  }
+  
+  return result
 }
 
 // 获取港口显示名称
@@ -1751,16 +2023,111 @@ const finalFilteredContainers = computed(() => {
   return result
 })
 
-// 最终的分组（基于搜索后的结果）- 三级分组
-const finalGroupedByPort = computed(() => {
-  // 使用 useGanttLogic 的三级分组逻辑
+/**
+ * 基于静态映射的三级分组
+ * 结构：port → node → supplier → containers[]
+ * 
+ * 逻辑：
+ * 1. 先收集有货柜的目的港
+ * 2. 只显示有货柜的港口
+ * 3. 静态映射用于构建供应商结构，货柜叠加到对应节点
+ */
+const staticBasedGroupedByPort = computed(() => {
   const groups: Record<string, Record<string, Record<string, any[]>>> = {}
-
+  
+  // 1. 先收集所有有货柜的目的港
+  const portsWithContainers = new Set<string>()
   finalFilteredContainers.value.forEach(container => {
     const portCode = container.destinationPort || '未指定'
-
-    // 初始化目的港层级（包括"未分类"节点）
+    portsWithContainers.add(portCode)
+  })
+  
+  // 如果没有货柜，不显示任何港口
+  if (portsWithContainers.size === 0) {
+    return groups
+  }
+  
+  // 2. 只显示有货柜的港口 - 使用静态映射构建供应商结构
+  if (staticMappings.value?.ports) {
+    // 获取当前全局国别
+    const scopedCountry = appStore.scopedCountryCode
+    
+    staticMappings.value.ports.forEach(portInfo => {
+      const portCode = portInfo.portCode
+      const portName = portInfo.portName
+      const portCountry = portInfo.country
+      
+      // 只显示有货柜的港口
+      if (!portsWithContainers.has(portCode)) {
+        return
+      }
+      
+      // 如果有全局国别筛选，只显示匹配国别的港口
+      if (scopedCountry && portCountry !== scopedCountry && 
+          !(scopedCountry === 'GB' && portCountry === 'UK') &&
+          !(scopedCountry === 'UK' && portCountry === 'GB')) {
+        return
+      }
+      
+      // 初始化港口层级
+      if (!groups[portCode]) {
+        groups[portCode] = {
+          清关: {},
+          提柜: {},
+          卸柜: {},
+          还箱: {},
+          查验: {},
+          未分类: {},
+        }
+      }
+      
+      // 获取该港口+国别的车队列表
+      const mappingKey = `${portCode}:${portCountry}`
+      const truckingList = staticMappings.value.truckingByPort[mappingKey] || []
+      
+      // 清关行：默认"未指定清关公司"
+      if (!groups[portCode]['清关']['UNSPECIFIED']) {
+        groups[portCode]['清关']['UNSPECIFIED'] = []
+      }
+      
+      // 提柜节点：显示车队
+      truckingList.forEach(t => {
+        if (!groups[portCode]['提柜'][t.truckingCompanyId]) {
+          groups[portCode]['提柜'][t.truckingCompanyId] = []
+        }
+      })
+      
+      // 卸柜节点：显示仓库（从车队映射获取）
+      const warehouseKeys = new Set<string>()
+      truckingList.forEach(t => {
+        const whMappingKey = `${t.truckingCompanyId}:${portCountry}`
+        const warehouses = staticMappings.value.warehousesByTrucking[whMappingKey] || []
+        warehouses.forEach(w => {
+          warehouseKeys.add(w.warehouseCode)
+        })
+      })
+      warehouseKeys.forEach(whCode => {
+        if (!groups[portCode]['卸柜'][whCode]) {
+          groups[portCode]['卸柜'][whCode] = []
+        }
+      })
+      
+      // 还箱/查验节点：默认空
+      if (!groups[portCode]['还箱']['UNSPECIFIED']) {
+        groups[portCode]['还箱']['UNSPECIFIED'] = []
+      }
+      if (!groups[portCode]['查验']['UNSPECIFIED']) {
+        groups[portCode]['查验']['UNSPECIFIED'] = []
+      }
+    })
+  }
+  
+  // 3. 将货柜叠加到对应的供应商节点
+  finalFilteredContainers.value.forEach(container => {
+    const portCode = container.destinationPort || '未指定'
+    
     if (!groups[portCode]) {
+      // 港口不存在于静态映射中，创建空结构
       groups[portCode] = {
         清关: {},
         提柜: {},
@@ -1770,38 +2137,28 @@ const finalGroupedByPort = computed(() => {
         未分类: {},
       }
     }
-
-    // 确保所有预定义节点都存在
-    const allNodes = ['清关', '提柜', '卸柜', '还箱', '查验', '未分类']
-    allNodes.forEach(node => {
+    
+    // 确定货柜属于哪个节点和供应商
+    const nodeSupplierMap = getNodeAndSupplier(container)
+    
+    nodeSupplierMap.forEach(({ node, supplier }) => {
       if (!groups[portCode][node]) {
         groups[portCode][node] = {}
       }
-    })
-
-    // 确定五节点和对应的供应商（按原始数据，货柜可出现在多个节点）
-    const nodeSupplierMap = getNodeAndSupplier(container)
-
-    nodeSupplierMap.forEach(({ node, supplier }) => {
       if (!groups[portCode][node][supplier]) {
         groups[portCode][node][supplier] = []
       }
       groups[portCode][node][supplier].push(container)
     })
   })
-
-  // 如果没有数据，创建一个空的默认结构用于显示框架
-  if (finalFilteredContainers.value.length === 0) {
-    groups['未指定'] = {
-      清关: {},
-      提柜: {},
-      卸柜: {},
-      还箱: {},
-      查验: {},
-    }
-  }
-
+  
   return groups
+})
+
+// 最终的分组（基于搜索后的结果）- 三级分组
+// 现在基于静态映射构建，确保不依赖货柜数据
+const finalGroupedByPort = computed(() => {
+  return staticBasedGroupedByPort.value
 })
 
 // ========== 性能优化 ==========
@@ -2294,6 +2651,7 @@ const isDashedTask = (container: any, date: Date): boolean => {
 
 // 生命周期
 onMounted(() => {
+  loadStaticMappings() // 先加载静态映射数据
   loadData()
   loadPorts()
   loadSupplierDicts()
@@ -2314,6 +2672,11 @@ onMounted(() => {
 onUnmounted(() => {
   document.removeEventListener('dragover', handleDragOver)
   document.removeEventListener('drop', handleGlobalDrop)
+})
+
+// 监听国别筛选变化，重新加载静态映射
+watch(() => appStore.scopedCountryCode, () => {
+  loadStaticMappings()
 })
 </script>
 
@@ -3348,9 +3711,78 @@ export default {
   max-width: 180px;
   flex-shrink: 0;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
   padding-left: 40px; /* 树形缩进40px */
+  padding-top: 4px;
+  padding-bottom: 4px;
   box-sizing: border-box;
+  gap: 2px;
+}
+
+/* 可用供应商行样式（无货柜分配时显示） */
+.available-supplier-row {
+  background: #fafafa;
+}
+
+.available-supplier-row .tree-column.level-3 {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.available-supplier-icon {
+  color: #67c23a;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.available-supplier-name {
+  color: #606266;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100px;
+}
+
+/* 空单元格样式 */
+.date-cell.empty-cell {
+  background: transparent;
+}
+
+.date-cell.empty-cell:hover {
+  background: rgba(64, 158, 255, 0.05);
+}
+
+/* 可用供应商提示信息 */
+.available-suppliers-hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: #909399;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.available-suppliers-hint .available-icon {
+  color: #67c23a;
+  font-size: 8px;
+  flex-shrink: 0;
+}
+
+.available-suppliers-hint .available-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.available-suppliers-hint:hover {
+  color: #409eff;
 }
 
 .dates-column.level-3-dates {

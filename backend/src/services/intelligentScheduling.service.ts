@@ -727,13 +727,36 @@ export class IntelligentSchedulingService {
         };
       }
 
-      // 6. 先选择车队（以便根据 has_yard 决定卸柜方式）
-      // ✅ Phase 3: 使用 TruckingSelectorService
+      // 6. ✅ 2026-04-01: 提前判断卸柜模式偏好，传递给车队选择器
+      // 判断逻辑：
+      // - 如果 plannedPickupDate > lastFreeDate（超期），需要 Drop off 模式
+      // - 如果 daysDiff > 1 且有堆场，Drop off 可能更优
+      // - 否则，Live load 和 Drop off 都可
+      let preferredUnloadMode: 'Drop off' | 'Live load' | 'any' = 'any';
+      if (destPo.lastFreeDate) {
+        const lastFreeDate = new Date(destPo.lastFreeDate);
+        const daysDiff = Math.ceil(
+          (lastFreeDate.getTime() - plannedPickupDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        if (daysDiff > 1) {
+          // 延迟超过1天，优先选择有堆场的车队（支持 Drop off）
+          preferredUnloadMode = 'Drop off';
+        } else if (plannedPickupDate > lastFreeDate) {
+          // 已超期，强烈需要 Drop off 模式
+          preferredUnloadMode = 'Drop off';
+        }
+      }
+
+      // 6.1 先选择车队（以便根据 has_yard 决定卸柜方式）
+      // ✅ Phase 3: 使用 TruckingSelectorService（含卸柜模式兼容度评分）
       const truckingCompany = await this.truckingSelectorService.selectTruckingCompany({
         warehouseCode: warehouse.warehouseCode,
         portCode: destPo.portCode,
         countryCode: warehouse.country,
-        plannedDate: plannedPickupDate
+        plannedDate: plannedPickupDate,
+        preferredUnloadMode,
+        lastFreeDate: destPo.lastFreeDate ? new Date(destPo.lastFreeDate) : undefined,
+        basePickupDate: plannedPickupDate
       });
 
       if (!truckingCompany) {
@@ -750,6 +773,41 @@ export class IntelligentSchedulingService {
       // has_yard = true → 支持 Drop off（提<送=卸）
       // has_yard = false → 必须 Live load（提=送=卸）
       const unloadMode = truckingCompany.hasYard ? 'Drop off' : 'Live load';
+
+      // ✅ Fast Path: 检查是否需要进行成本优化
+      // 只有在可能出现成本问题时才调用成本优化算法
+      // 2026-04-01: 条件2已修复，仅在 hasYard=true 时评估堆场费
+      const needsOptimization = this.checkIfOptimizationNeeded(
+        plannedPickupDate,
+        destPo.lastFreeDate,
+        plannedUnloadDate,
+        truckingCompany.hasYard
+      );
+
+      if (needsOptimization) {
+        // ✅ Phase 1: 实时成本优化（仅在需要时调用）
+        // 在确定仓库、车队、基础提柜日后，评估成本优化方案
+        const optimization = await this.costOptimizerService.suggestOptimalUnloadDate(
+          container.containerNumber,
+          warehouse,
+          truckingCompany,
+          plannedPickupDate,
+          destPo.lastFreeDate
+        );
+
+        // 使用优化后的提柜日（如果找到更优方案）
+        if (optimization.suggestedPickupDate && optimization.optimizedCost < optimization.originalCost) {
+          logger.info(
+            `[IntelligentScheduling] Cost optimization applied for ${container.containerNumber}: ${optimization.originalCost} -> ${optimization.optimizedCost}`
+          );
+          plannedPickupDate = optimization.suggestedPickupDate;
+          // 注意：plannedUnloadDate 和 plannedReturnDate 会在后面重新计算
+        }
+      } else {
+        logger.debug(
+          `[IntelligentScheduling] Fast path for ${container.containerNumber}: Current plan is optimal`
+        );
+      }
 
       // ✅ 验证 plannedUnloadDate 有效性
       if (!plannedUnloadDate || isNaN(plannedUnloadDate.getTime())) {
@@ -1128,6 +1186,69 @@ export class IntelligentSchedulingService {
       }
     }
     return null;
+  }
+
+  /**
+   * ✅ Fast Path: 检查是否需要进行成本优化
+   *
+   * **设计原则**: Lazy Evaluation（惰性计算）
+   * - 如果默认方案已经是最优的（提柜日在免费期内、仓库能快速卸货），就不需要额外计算
+   * - 只有在可能出现成本问题时才调用成本优化算法
+   *
+   * @param plannedPickupDate 计划提柜日
+   * @param lastFreeDate 最后免费日
+   * @param plannedUnloadDate 计划卸柜日
+   * @param hasYard 车队是否有堆场
+   * @returns true=需要优化，false=快速路径（跳过优化）
+   */
+  private checkIfOptimizationNeeded(
+    plannedPickupDate: Date,
+    lastFreeDate: Date | undefined,
+    plannedUnloadDate: Date | null,
+    hasYard: boolean
+  ): boolean {
+    // 条件1: 提柜日是否在免费期内
+    // 如果提柜日已超期（> lastFreeDate），必须优化
+    if (lastFreeDate) {
+      const pickupDateOnly = new Date(plannedPickupDate);
+      pickupDateOnly.setHours(0, 0, 0, 0);
+      const lastFreeOnly = new Date(lastFreeDate);
+      lastFreeOnly.setHours(0, 0, 0, 0);
+
+      if (pickupDateOnly > lastFreeOnly) {
+        logger.debug(
+          `[IntelligentScheduling] Optimization needed: pickupDate ${pickupDateOnly.toISOString().split('T')[0]} > lastFreeDate ${lastFreeOnly.toISOString().split('T')[0]}`
+        );
+        return true;
+      }
+    }
+
+    // 条件2: 卸柜延迟天数（仅适用于有堆场的车队）
+    // 如果提柜日和卸柜日相差超过1天，可能产生堆场费，需要优化
+    // 注意：Live load 模式（hasYard=false）提=卸=送，daysDiff 永远是 0，无需评估堆场费
+    if (plannedUnloadDate && truckingCompany?.hasYard) {
+      const pickupDateOnly = new Date(plannedPickupDate);
+      pickupDateOnly.setHours(0, 0, 0, 0);
+      const unloadDateOnly = new Date(plannedUnloadDate);
+      unloadDateOnly.setHours(0, 0, 0, 0);
+      const daysDiff = Math.ceil(
+        (unloadDateOnly.getTime() - pickupDateOnly.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      // 如果延迟超过1天，可能产生堆场费，需要优化
+      if (daysDiff > 1) {
+        logger.debug(
+          `[IntelligentScheduling] Optimization needed: ${daysDiff} days delay with yard`
+        );
+        return true;
+      }
+    }
+
+    // 条件3: Happy Path - 当前方案已是最优，跳过成本优化
+    logger.debug(
+      `[IntelligentScheduling] Fast path: No optimization needed. pickup=${plannedPickupDate.toISOString().split('T')[0]}, lastFree=${lastFreeDate?.toISOString().split('T')[0]}, delay=${plannedUnloadDate ? Math.ceil((new Date(plannedUnloadDate).getTime() - new Date(plannedPickupDate).getTime()) / (1000 * 60 * 60 * 24)) : 0}d, hasYard=${hasYard}`
+    );
+    return false;
   }
 
   /**

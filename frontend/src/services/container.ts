@@ -584,6 +584,34 @@ class ContainerService {
     )
     return response.data
   }
+
+  /**
+   * 获取甘特图静态映射数据（不依赖货柜数据）
+   * 返回当前国别的所有港口-车队-仓库映射关系
+   */
+  async getStaticMappings(): Promise<{
+    success: boolean
+    data: {
+      ports: Array<{
+        portCode: string
+        portName: string
+        country: string
+      }>
+      truckingByPort: Record<string, Array<{
+        truckingCompanyId: string
+        truckingCompanyName: string
+        isDefault: boolean
+      }>>
+      warehousesByTrucking: Record<string, Array<{
+        warehouseCode: string
+        warehouseName: string
+        isDefault: boolean
+      }>>
+    }
+  }> {
+    const response = await this.api.get('/warehouse-trucking-mapping/static')
+    return response.data
+  }
 }
 
 export const containerService = new ContainerService()

@@ -281,4 +281,82 @@ export class OccupancyCalculator {
       throw error;
     }
   }
+
+  /**
+   * 批量获取仓库档期占用情况
+   * 
+   * 一次性获取未来 N 天的档期数据，减少数据库查询次数
+   * 
+   * @param warehouseCodes 仓库代码列表
+   * @param startDate 开始日期
+   * @param days 天数，默认 30 天
+   * @returns Map<warehouseCode, Map<dateString, Occupancy>>
+   */
+  async getBatchWarehouseOccupancy(
+    warehouseCodes: string[],
+    startDate: Date,
+    days: number = 30
+  ): Promise<Map<string, Map<string, ExtWarehouseDailyOccupancy>>> {
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + days);
+
+    // 一次性查询所有档期数据
+    const occupancies = await this.warehouseOccupancyRepo
+      .createQueryBuilder('occ')
+      .where('occ.warehouse_code IN (:...warehouseCodes)', { warehouseCodes })
+      .andWhere('occ.date >= :startDate', { startDate })
+      .andWhere('occ.date <= :endDate', { endDate })
+      .getMany();
+
+    // 组织成嵌套 Map 结构
+    const result = new Map<string, Map<string, ExtWarehouseDailyOccupancy>>();
+    for (const occ of occupancies) {
+      if (!result.has(occ.warehouseCode)) {
+        result.set(occ.warehouseCode, new Map());
+      }
+      const dateKey = occ.date.toISOString().split('T')[0]; // YYYY-MM-DD
+      result.get(occ.warehouseCode)!.set(dateKey, occ);
+    }
+
+    return result;
+  }
+
+  /**
+   * 批量获取车队档期占用情况
+   * 
+   * 一次性获取未来 N 天的档期数据，减少数据库查询次数
+   * 
+   * @param truckingCompanyIds 车队 ID 列表
+   * @param startDate 开始日期
+   * @param days 天数，默认 30 天
+   * @returns Map<truckingCompanyId, Map<dateString, Occupancy>>
+   */
+  async getBatchTruckingOccupancy(
+    truckingCompanyIds: string[],
+    startDate: Date,
+    days: number = 30
+  ): Promise<Map<string, Map<string, ExtTruckingSlotOccupancy>>> {
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + days);
+
+    // 一次性查询所有档期数据
+    const occupancies = await this.truckingOccupancyRepo
+      .createQueryBuilder('occ')
+      .where('occ.trucking_company_id IN (:...truckingCompanyIds)', { truckingCompanyIds })
+      .andWhere('occ.date >= :startDate', { startDate })
+      .andWhere('occ.date <= :endDate', { endDate })
+      .getMany();
+
+    // 组织成嵌套 Map 结构
+    const result = new Map<string, Map<string, ExtTruckingSlotOccupancy>>();
+    for (const occ of occupancies) {
+      if (!result.has(occ.truckingCompanyId)) {
+        result.set(occ.truckingCompanyId, new Map());
+      }
+      const dateKey = occ.date.toISOString().split('T')[0]; // YYYY-MM-DD
+      result.get(occ.truckingCompanyId)!.set(dateKey, occ);
+    }
+
+    return result;
+  }
 }

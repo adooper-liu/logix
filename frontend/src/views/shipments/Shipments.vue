@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import CountdownCard from '@/components/CountdownCard.vue'
+import SchedulingHistoryCard from '@/components/SchedulingHistoryCard.vue'
 import { useContainerCountdown } from '@/composables/useContainerCountdown'
 import { useLogisticsStatus } from '@/composables/useLogisticsStatus'
 import { useShipmentsExport } from '@/composables/useShipmentsExport'
@@ -26,7 +27,7 @@ import {
 } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -161,10 +162,14 @@ const isUnmounted = ref(false)
 
 /** 单柜「免费日更新」按钮 loading（按柜号） */
 const singleFreeDateWriteBackLoading = ref<string | null>(null)
-/** 单柜「LFD手工维护」按钮 loading（按柜号） */
+/** 单柜「LFD 手工维护」按钮 loading（按柜号） */
 const manualLfdLoading = ref<string | null>(null)
 /** 统计卡片组折叠状态 */
 const statisticsCollapsed = ref(false)
+
+/** 排产历史记录相关 */
+const showHistoryDrawer = ref(false)
+const selectedContainerForHistory = ref<string>('')
 
 // 统计数据（从后端API获取，不依赖全量数据）
 const statisticsData = ref<{
@@ -466,10 +471,19 @@ const viewDetails = (container: any) => {
 
 // 查看排产历史记录
 const viewSchedulingHistory = (container: any) => {
-  // SchedulingHistoryCard 组件会通过 drawer 形式展示历史
-  // 这里不需要额外逻辑，点击按钮后组件会自动处理
-  console.log('查看排产历史:', container.containerNumber)
+  selectedContainerForHistory.value = container.containerNumber
+  // 通过 nextTick 确保 DOM 更新后再调用
+  import('vue').then(({ nextTick }) => {
+    nextTick(() => {
+      if (historyCardRef.value) {
+        historyCardRef.value.toggleHistory()
+      }
+    })
+  })
 }
+
+// 历史记录组件引用
+const historyCardRef = ref<InstanceType<typeof SchedulingHistoryCard>>()
 
 // 编辑集装箱
 const editContainer = (container: any) => {

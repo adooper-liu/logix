@@ -1756,7 +1756,7 @@ const handlePreviewSchedule = async () => {
         addLog(`  - 计算说明：${r.message || '成功'}`)
       }
 
-      return {
+      const transformed = {
         ...r,
         plannedPickupDate: r.plannedData?.plannedPickupDate || '-',
         plannedDeliveryDate: r.plannedData?.plannedDeliveryDate || '-',
@@ -1772,6 +1772,18 @@ const handlePreviewSchedule = async () => {
         returnFreeDays: r.returnFreeDays,
         freeDaysRemaining: r.freeDaysRemaining ?? undefined,
       }
+      
+      // ✅ 调试：输出前 3 条数据的完整结构
+      if (index < 3) {
+        console.log(`[预览数据 ${index}]`, {
+          containerNumber: r.containerNumber,
+          truckingCompany: transformed.truckingCompany,
+          unloadMode: transformed.unloadMode,
+          plannedData: r.plannedData,
+        })
+      }
+      
+      return transformed
     })
 
     // ✅ 直接显示预览结果，不再弹出对话框

@@ -86,15 +86,18 @@
       <el-table-column prop="plannedDeliveryDate" label="送仓日" width="100" />
       <el-table-column prop="plannedUnloadDate" label="卸柜日" width="100" />
       <el-table-column prop="plannedReturnDate" label="还箱日" width="100" />
-      <el-table-column prop="unloadMode" label="方式" width="90">
+
+      <!-- ✅ 新增：车队和卸柜方式列（放在仓库前面，方便查看） -->
+      <el-table-column prop="truckingCompany" label="车队" min-width="180" show-overflow-tooltip />
+      <el-table-column prop="unloadMode" label="卸柜方式" width="110">
         <template #default="{ row }">
           <el-tag :type="row.unloadMode === 'Drop off' ? 'success' : 'info'" size="small">
             {{ row.unloadMode }}
           </el-tag>
         </template>
       </el-table-column>
+
       <el-table-column prop="warehouseName" label="仓库" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="truckingCompany" label="车队" min-width="150" show-overflow-tooltip />
 
       <!-- 费用明细列展开 -->
       <el-table-column
@@ -386,36 +389,6 @@
             </template>
           </el-popover>
           <span v-else>-</span>
-        </template>
-      </el-table-column>
-
-      <!-- ✅ Task 2.2: 新增优化建议列 -->
-      <el-table-column label="💡 优化建议" width="130" align="center">
-        <template #default="{ row }">
-          <div
-            v-if="row.optimizationSuggestions"
-            style="display: flex; flex-direction: column; gap: 4px"
-          >
-            <el-tag
-              v-if="row.optimizationSuggestions.shouldOptimize"
-              type="success"
-              effect="plain"
-              size="small"
-              style="cursor: pointer"
-              @click="handleViewOptimizationSuggestion(row)"
-            >
-              💰 可省 ${{ row.optimizationSuggestions.savings.toFixed(2) }}
-            </el-tag>
-            <el-tag v-else type="info" effect="plain" size="small"> ✅ 已最优 </el-tag>
-            <div
-              v-if="row.optimizationSuggestions.shouldOptimize"
-              style="font-size: 11px; color: #67c23a; cursor: pointer"
-              @click="handleViewOptimizationSuggestion(row)"
-            >
-              查看详情 →
-            </div>
-          </div>
-          <span v-else style="color: #999">-</span>
         </template>
       </el-table-column>
 

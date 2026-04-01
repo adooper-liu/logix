@@ -27,6 +27,7 @@ import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { buildGanttDerived } from '../utils/ganttDerivedBuilder';
 import { logger } from '../utils/logger';
 import { calculateLogisticsStatus } from '../utils/logisticsStatusMachine';
+import { getScopedCountryCode } from '../utils/requestContext';
 
 interface ContainerWithStatus {
   container: Container;
@@ -116,6 +117,13 @@ export class ContainerService {
       const order = ordersMap.get(container.containerNumber);
       if (order?.sellToCountry) countriesSet.add(order.sellToCountry);
     });
+
+    // 添加全局国别筛选到查询列表（用于静态映射关系查询）
+    const scopedCountry = getScopedCountryCode();
+    if (scopedCountry) {
+      countriesSet.add(scopedCountry);
+      logger.info(`[enrichContainersList] 添加全局国别筛选: ${scopedCountry}`);
+    }
 
     // 调试日志：查看收集到的目的港和国家
     logger.info('[enrichContainersList] 收集的 portCodes:', Array.from(portCodesSet));

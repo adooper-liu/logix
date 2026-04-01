@@ -6,8 +6,146 @@
 import { Request, Response } from 'express';
 import { AppDataSource } from '../database';
 import { logger } from '../utils/logger';
+import { getScopedCountryCode } from '../utils/requestContext';
 
 export class WarehouseTruckingMappingController {
+  /**
+   * 获取甘特图静态映射数据（不依赖货柜数据）
+   * 返回当前国别的所有港口-车队-仓库映射关系
+   */
+  getStaticMappings = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const scopedCountry = getScopedCountryCode();
+      
+      // 确定要查询的国别列表
+      let countries: string[] = [];
+      if (scopedCountry) {
+        // 有全局筛选时，只查询该国别
+        countries = [scopedCountry, scopedCountry === 'GB' ? 'UK' : ''].filter(Boolean);
+      } else {
+        // 无全局筛选时，查询所有国别
+        const countryResult = await AppDataSource.query(
+          `SELECT DISTINCT country FROM dict_trucking_port_mapping WHERE is_active = true`
+        );
+        countries = countryResult.map((r: any) => r.country).filter(Boolean);
+      }
+
+      if (countries.length === 0) {
+        res.json({
+          success: true,
+          data: {
+            ports: [],
+            truckingByPort: {},
+            warehousesByTrucking: {}
+          }
+        });
+        return;
+      }
+
+      const countryPlaceholders = countries.map((_, i) => `$${i + 1}`).join(', ');
+
+      // 1. 查询所有活跃的车队-港口映射（用于获取港口列表）
+      const truckingPortMappings = await AppDataSource.query(
+        `SELECT DISTINCT port_code, port_name, country 
+         FROM dict_trucking_port_mapping 
+         WHERE country IN (${countryPlaceholders}) AND is_active = true
+         ORDER BY port_code`,
+        countries
+      );
+
+      // 2. 查询所有车队（按港口+国别分组）
+      const truckingCompanies = await AppDataSource.query(
+        `SELECT DISTINCT trucking_company_id, trucking_company_name, port_code, country, is_default
+         FROM dict_trucking_port_mapping 
+         WHERE country IN (${countryPlaceholders}) AND is_active = true
+         ORDER BY trucking_company_id`,
+        countries
+      );
+
+      // 3. 构建车队按港口分组的映射
+      const truckingByPort: Record<string, Array<{
+        truckingCompanyId: string;
+        truckingCompanyName: string;
+        isDefault: boolean;
+      }>> = {};
+      
+      truckingCompanies.forEach((t: any) => {
+        const key = `${t.port_code}:${t.country}`;
+        if (!truckingByPort[key]) {
+          truckingByPort[key] = [];
+        }
+        truckingByPort[key].push({
+          truckingCompanyId: t.trucking_company_id,
+          truckingCompanyName: t.trucking_company_name,
+          isDefault: t.is_default
+        });
+      });
+
+      // 4. 收集所有车队ID用于查询仓库映射
+      const truckingIds = [...new Set(truckingCompanies.map((t: any) => t.trucking_company_id))];
+      
+      // 5. 查询仓库-车队映射（车队 → 仓库）
+      let warehouseMappings: any[] = [];
+      if (truckingIds.length > 0) {
+        const truckingIdPlaceholders = truckingIds.map((_, i) => `$${i + 1}`).join(', ');
+        const warehouseCountryPlaceholders = countries.map((_, i) => `$${truckingIds.length + i + 1}`).join(', ');
+        
+        warehouseMappings = await AppDataSource.query(
+          `SELECT warehouse_code, warehouse_name, trucking_company_id, country, is_default
+           FROM dict_warehouse_trucking_mapping 
+           WHERE trucking_company_id IN (${truckingIdPlaceholders})
+           AND country IN (${warehouseCountryPlaceholders})
+           AND is_active = true
+           ORDER BY trucking_company_id, warehouse_code`,
+          [...truckingIds, ...countries]
+        );
+      }
+
+      // 6. 构建仓库按车队分组的映射
+      const warehousesByTrucking: Record<string, Array<{
+        warehouseCode: string;
+        warehouseName: string;
+        isDefault: boolean;
+      }>> = {};
+      
+      warehouseMappings.forEach((w: any) => {
+        const key = `${w.trucking_company_id}:${w.country}`;
+        if (!warehousesByTrucking[key]) {
+          warehousesByTrucking[key] = [];
+        }
+        // 去重
+        if (!warehousesByTrucking[key].find(existing => existing.warehouseCode === w.warehouse_code)) {
+          warehousesByTrucking[key].push({
+            warehouseCode: w.warehouse_code,
+            warehouseName: w.warehouse_name,
+            isDefault: w.is_default
+          });
+        }
+      });
+
+      // 7. 提取港口列表
+      const ports = truckingPortMappings.map((p: any) => ({
+        portCode: p.port_code,
+        portName: p.port_name,
+        country: p.country
+      }));
+
+      logger.info(`[getStaticMappings] 返回 ${ports.length} 个港口，${Object.keys(truckingByPort).length} 个车队映射，${Object.keys(warehousesByTrucking).length} 个仓库映射`);
+
+      res.json({
+        success: true,
+        data: {
+          ports,
+          truckingByPort,
+          warehousesByTrucking
+        }
+      });
+    } catch (error: any) {
+      logger.error('[WarehouseTruckingMapping getStaticMappings] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  };
+
   /**
    * 获取所有映射记录
    */

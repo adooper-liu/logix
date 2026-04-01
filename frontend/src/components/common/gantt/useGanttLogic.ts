@@ -502,6 +502,16 @@ export function useGanttLogic() {
         }
 
         console.log('[useGanttLogic] 设置 containers，数量:', response.items?.length || 0)
+        
+        // ========== 调试代码：检查候选供应商数据 ==========
+        if (response.items && response.items.length > 0) {
+          const firstContainer = response.items[0]
+          console.log('[useGanttLogic] 第一个货柜 availableTruckingCompanies:', firstContainer.availableTruckingCompanies)
+          console.log('[useGanttLogic] 第一个货柜 availableWarehouses:', firstContainer.availableWarehouses)
+          console.log('[useGanttLogic] 第一个货柜完整字段:', Object.keys(firstContainer))
+        }
+        // ===================================================
+        
         containers.value = response.items ?? []
       } catch (err: any) {
         console.error('[useGanttLogic] API 调用失败:', err)
@@ -576,6 +586,12 @@ export function useGanttLogic() {
 
   // Tooltip：智能边界检测
   const showTooltip = (container: Container, event: MouseEvent) => {
+    // ========== 调试代码：检查 tooltip 数据 ==========
+    console.log('[showTooltip] container:', container.containerNumber)
+    console.log('[showTooltip] availableTruckingCompanies:', container.availableTruckingCompanies)
+    console.log('[showTooltip] availableWarehouses:', container.availableWarehouses)
+    // ==================================================
+    
     tooltipContainer.value = container
 
     // 基础偏移量
@@ -590,14 +606,26 @@ export function useGanttLogic() {
     let x = event.clientX + offsetX
     let y = event.clientY + offsetY
 
+    // 动态计算 tooltip 高度（基础高度 + 候选供应商区域高度）
+    let actualTooltipHeight = TOOLTIP_HEIGHT
+    const hasCandidateSuppliers = (container.availableTruckingCompanies?.length || 0) > 0 || 
+                                  (container.availableWarehouses?.length || 0) > 0
+    if (hasCandidateSuppliers) {
+      // 基础高度约 400px，候选供应商区域额外高度估算
+      const truckingCount = container.availableTruckingCompanies?.length || 0
+      const warehouseCount = container.availableWarehouses?.length || 0
+      // 每个候选项约 24px 高度，加上标题和边距约 60px
+      actualTooltipHeight = 400 + (truckingCount + warehouseCount) * 24 + 60
+    }
+
     // 右侧边界检测：如果 tooltip 会超出右边界，则向左偏移
     if (x + TOOLTIP_WIDTH > viewportWidth - 10) {
       x = event.clientX - TOOLTIP_WIDTH - offsetX
     }
 
     // 底部边界检测：如果 tooltip 会超出底边界，则向上偏移
-    if (y + TOOLTIP_HEIGHT > viewportHeight - 10) {
-      y = event.clientY - TOOLTIP_HEIGHT - offsetY
+    if (y + actualTooltipHeight > viewportHeight - 10) {
+      y = event.clientY - actualTooltipHeight - offsetY
     }
 
     // 左边界检测：确保不超出左边界

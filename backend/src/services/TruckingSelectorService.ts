@@ -5,6 +5,12 @@ import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { TruckingPortMapping } from '../entities/TruckingPortMapping';
 import { ExtTruckingSlotOccupancy } from '../entities/ExtTruckingSlotOccupancy';
 import { logger } from '../utils/logger';
+import { CacheService } from './CacheService';
+import {
+  SchedulingCacheKeys,
+  SchedulingCacheTTL,
+  getSchedulingCacheKey
+} from '../constants/SchedulingCacheStrategy';
 
 /**
  * 车队选择服务
@@ -44,11 +50,17 @@ export interface TruckingScoreResult {
   /** 合作关系评分（0-100） */
   relationshipScore: number;
 
+  /** 卸柜模式兼容度评分（0-100） */
+  unloadModeScore: number;
+
   /** 综合得分 */
   totalScore: number;
 
   /** 运输成本 */
   transportCost: number;
+
+  /** 是否有堆场 */
+  hasYard: boolean;
 }
 
 /**
@@ -66,6 +78,15 @@ export interface TruckingSelectionOptions {
 
   /** 计划日期 */
   plannedDate?: Date;
+
+  /** 卸柜模式偏好（可选，2026-04-01新增） */
+  preferredUnloadMode?: 'Drop off' | 'Live load' | 'any';
+
+  /** 免费期截止日（可选，用于判断是否需要 Drop off 模式） */
+  lastFreeDate?: Date;
+
+  /** 基础提柜日（可选，用于计算延迟天数） */
+  basePickupDate?: Date;
 }
 
 /**
@@ -89,6 +110,7 @@ export class TruckingSelectorService {
   private truckingPortMappingRepo: Repository<TruckingPortMapping>;
   private truckingCompanyRepo: Repository<TruckingCompany>;
   private truckingOccupancyRepo: Repository<ExtTruckingSlotOccupancy>;
+  private cacheService: CacheService;
 
   /**
    * 创建车队选择服务实例
@@ -98,6 +120,7 @@ export class TruckingSelectorService {
     this.truckingPortMappingRepo = AppDataSource.getRepository(TruckingPortMapping);
     this.truckingCompanyRepo = AppDataSource.getRepository(TruckingCompany);
     this.truckingOccupancyRepo = AppDataSource.getRepository(ExtTruckingSlotOccupancy);
+    this.cacheService = new CacheService();
   }
 
   /**
@@ -136,11 +159,16 @@ export class TruckingSelectorService {
         return null;
       }
 
-      // 阶段 2: 综合评分
+      // 阶段 2: 综合评分（含卸柜模式兼容度）
       const scored = await this.scoreTruckingCompanies(
         candidates,
         options.warehouseCode,
-        options.portCode
+        options.portCode,
+        {
+          preferredUnloadMode: options.preferredUnloadMode,
+          lastFreeDate: options.lastFreeDate,
+          basePickupDate: options.basePickupDate
+        }
       );
 
       // 阶段 3: 选择最优车队
@@ -150,7 +178,9 @@ export class TruckingSelectorService {
       logger.debug('[TruckingSelectorService] 选择车队', {
         truckingCompanyId: best.truckingCompanyId,
         totalScore: best.totalScore.toFixed(2),
-        transportCost: best.transportCost
+        transportCost: best.transportCost,
+        hasYard: best.hasYard,
+        preferredUnloadMode: options.preferredUnloadMode
       });
 
       return this.truckingCompanyRepo.findOne({
@@ -190,28 +220,56 @@ export class TruckingSelectorService {
     const candidates: TruckingCandidate[] = [];
 
     try {
-      // Step 1: 从 warehouse_trucking_mapping 获取仓库映射的车队
+      // Step 1: 从 warehouse_trucking_mapping 获取仓库映射的车队 - 带缓存
       const mappingWhere: any = { warehouseCode: filter.warehouseCode, isActive: true };
       if (filter.countryCode) mappingWhere.country = filter.countryCode;
 
-      const mappings = await this.warehouseTruckingMappingRepo.find({
-        where: mappingWhere,
-        take: 20 // 限制数量，避免过多
-      });
+      const warehouseTruckingCacheKey = getSchedulingCacheKey(
+        SchedulingCacheKeys.WAREHOUSE_TRUCKING_MAPPING,
+        filter.countryCode || '',
+        filter.warehouseCode
+      );
+      let mappings = await this.cacheService.get<WarehouseTruckingMapping[]>(warehouseTruckingCacheKey);
+      
+      if (!mappings) {
+        mappings = await this.warehouseTruckingMappingRepo.find({
+          where: mappingWhere,
+          take: 20 // 限制数量，避免过多
+        });
+        // 缓存映射关系（6小时）
+        if (mappings.length > 0) {
+          await this.cacheService.set(warehouseTruckingCacheKey, mappings, SchedulingCacheTTL.MAPPING);
+        }
+      }
 
       let candidateIds = mappings.map((m) => m.truckingCompanyId);
 
-      // Step 2: 如果指定了港口，进一步过滤
+      // Step 2: 如果指定了港口，进一步过滤 - 带缓存
       if (filter.portCode && filter.countryCode) {
-        const portMappings = await this.truckingPortMappingRepo.find({
-          where: { portCode: filter.portCode, country: filter.countryCode, isActive: true }
-        });
+        const portTruckingCacheKey = getSchedulingCacheKey(
+          SchedulingCacheKeys.PORT_TRUCKING_MAPPING,
+          filter.countryCode,
+          filter.portCode
+        );
+        let portMappings = await this.cacheService.get<TruckingPortMapping[]>(portTruckingCacheKey);
+        
+        if (!portMappings) {
+          portMappings = await this.truckingPortMappingRepo.find({
+            where: { portCode: filter.portCode, country: filter.countryCode, isActive: true }
+          });
+          // 缓存映射关系（6小时）
+          if (portMappings.length > 0) {
+            await this.cacheService.set(portTruckingCacheKey, portMappings, SchedulingCacheTTL.MAPPING);
+          }
+        }
+        
         const portTruckingIds = new Set(portMappings.map((pm) => pm.truckingCompanyId));
         candidateIds = candidateIds.filter((id) => portTruckingIds.has(id));
       }
 
       // Step 3: 检查每个车队的可用性
       for (const truckingId of candidateIds) {
+        // 车队档期不做全局缓存（因为是按日期查询），但可以使用短期缓存
         const occupancy = await this.truckingOccupancyRepo.findOne({
           where: {
             truckingCompanyId: truckingId,
@@ -248,19 +306,26 @@ export class TruckingSelectorService {
    * 对候选车队进行综合评分
    *
    * 评分维度：
-   * 1. 成本评分（40% 权重）- 成本越低分数越高
-   * 2. 能力评分（30% 权重）- 有剩余能力=100 分
-   * 3. 关系评分（30% 权重）- 基于合作关系级别
+   * 1. 成本评分（30% 权重）- 成本越低分数越高
+   * 2. 能力评分（20% 权重）- 有剩余能力=100 分
+   * 3. 关系评分（20% 权重）- 基于合作关系级别
+   * 4. 卸柜模式兼容度（30% 权重）- 2026-04-01新增
    *
    * @param candidates - 候选车队列表
    * @param warehouseCode - 仓库代码
    * @param portCode - 港口代码
+   * @param modeOptions - 卸柜模式偏好选项
    * @returns 评分结果列表
    */
   private async scoreTruckingCompanies(
     candidates: TruckingCandidate[],
     warehouseCode: string,
-    portCode?: string
+    portCode?: string,
+    modeOptions?: {
+      preferredUnloadMode?: 'Drop off' | 'Live load' | 'any';
+      lastFreeDate?: Date;
+      basePickupDate?: Date;
+    }
   ): Promise<TruckingScoreResult[]> {
     logger.info('[TruckingSelectorService] 开始车队评分', {
       count: candidates.length
@@ -286,31 +351,87 @@ export class TruckingSelectorService {
       const maxCost = Math.max(...costs);
       const costRange = maxCost - minCost || 1;
 
-      // Step 3: 对每个车队评分
+      // Step 3: 获取所有车队的 hasYard 信息
+      const truckingYardMap = new Map<string, boolean>();
+      for (const candidate of candidates) {
+        const trucking = await this.truckingCompanyRepo.findOne({
+          where: { companyCode: candidate.truckingCompanyId },
+          select: ['companyCode', 'hasYard']
+        });
+        truckingYardMap.set(candidate.truckingCompanyId, trucking?.hasYard ?? false);
+      }
+
+      // Step 4: 计算卸柜模式兼容度
+      // 评估逻辑：
+      // - 如果有 lastFreeDate 和 basePickupDate，计算延迟天数
+      // - daysDiff > 1 且车队无堆场 → 需要 Drop off，但车队不支持 → 兼容度低
+      // - daysDiff <= 1 → Live load 和 Drop off 都可 → 兼容度高
+      // - preferredUnloadMode 指定模式 → 与车队匹配度高
+      const calculateUnloadModeScore = (hasYard: boolean): number => {
+        if (!modeOptions?.lastFreeDate || !modeOptions?.basePickupDate) {
+          // 无模式偏好信息，默认 50 分
+          return 50;
+        }
+
+        // 计算延迟天数
+        const daysDiff = Math.ceil(
+          (modeOptions.lastFreeDate.getTime() - modeOptions.basePickupDate.getTime()) /
+            (1000 * 60 * 60 * 24)
+        );
+
+        const preferredMode = modeOptions.preferredUnloadMode || 'any';
+
+        // 如果延迟>1天且无堆场，但需要 Drop off → 低分
+        if (daysDiff > 1 && !hasYard && preferredMode === 'Drop off') {
+          return 20; // 需要 Drop off 但车队无堆场
+        }
+
+        // 如果延迟<=1天，Live load 是最优选择
+        if (daysDiff <= 1 && preferredMode === 'Live load') {
+          return hasYard ? 80 : 100; // 无堆场更匹配
+        }
+
+        // 如果延迟>1天，Drop off 是最优选择
+        if (daysDiff > 1 && preferredMode === 'Drop off') {
+          return hasYard ? 100 : 30; // 有堆场更匹配
+        }
+
+        // 无偏好或 any
+        return 50;
+      };
+
+      // Step 5: 对每个车队评分
       for (const candidate of candidates) {
         const cost = costMap.get(candidate.truckingCompanyId) || 100;
+        const hasYard = truckingYardMap.get(candidate.truckingCompanyId) ?? false;
 
-        // 成本评分（40% 权重）- 成本越低分数越高
+        // 成本评分（30% 权重）- 成本越低分数越高
         const costScore = ((maxCost - cost) / costRange) * 100;
 
-        // 能力评分（30% 权重）- 有剩余能力=100 分
+        // 能力评分（20% 权重）- 有剩余能力=100 分
         const capacityScore = candidate.hasCapacity ? 100 : 0;
 
-        // 关系评分（30% 权重）- 基于合作关系级别
+        // 关系评分（20% 权重）- 基于合作关系级别
         const relationshipScore = await this.calculateRelationshipScore(
           candidate.truckingCompanyId
         );
 
+        // 卸柜模式兼容度（30% 权重）
+        const unloadModeScore = calculateUnloadModeScore(hasYard);
+
         // 综合得分
-        const totalScore = costScore * 0.4 + capacityScore * 0.3 + relationshipScore * 0.3;
+        const totalScore =
+          costScore * 0.3 + capacityScore * 0.2 + relationshipScore * 0.2 + unloadModeScore * 0.3;
 
         scoredCandidates.push({
           truckingCompanyId: candidate.truckingCompanyId,
           costScore,
           capacityScore,
           relationshipScore,
+          unloadModeScore,
           totalScore,
-          transportCost: cost
+          transportCost: cost,
+          hasYard
         });
       }
 

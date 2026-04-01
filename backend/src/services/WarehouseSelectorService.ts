@@ -5,8 +5,15 @@ import { TruckingPortMapping } from '../entities/TruckingPortMapping';
 import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { ExtWarehouseDailyOccupancy } from '../entities/ExtWarehouseDailyOccupancy';
 import { logger } from '../utils/logger';
+import { CacheService } from './CacheService';
 import { SchedulingSorter } from './SchedulingSorter';
 import { OCCUPANCY_CONFIG } from '../config/scheduling.config';
+import {
+  SchedulingCacheKeys,
+  SchedulingCacheTTL,
+  getSchedulingCacheKey
+} from '../constants/SchedulingCacheStrategy';
+import type { TruckingPortMapping as PortTruckingMapping } from '../entities/TruckingPortMapping';
 
 /**
  * 仓库选择服务
@@ -64,6 +71,7 @@ export class WarehouseSelectorService {
   private warehouseRepo: Repository<Warehouse>;
   private warehouseOccupancyRepo: Repository<ExtWarehouseDailyOccupancy>;
   private sorter: SchedulingSorter;
+  private cacheService: CacheService;
 
   /**
    * 创建仓库选择服务实例
@@ -74,6 +82,7 @@ export class WarehouseSelectorService {
     this.warehouseRepo = AppDataSource.getRepository(Warehouse);
     this.warehouseOccupancyRepo = AppDataSource.getRepository(ExtWarehouseDailyOccupancy);
     this.sorter = new SchedulingSorter();
+    this.cacheService = new CacheService();
   }
 
   /**
@@ -112,10 +121,23 @@ export class WarehouseSelectorService {
         return [];
       }
 
-      // Step 1: 港口 → 车队（dict_trucking_port_mapping）
-      const portMappings = await this.truckingPortMappingRepo.find({
-        where: { portCode, country: countryCode, isActive: true }
-      });
+      // Step 1: 港口 → 车队（dict_trucking_port_mapping）- 带缓存
+      const portMappingCacheKey = getSchedulingCacheKey(
+        SchedulingCacheKeys.PORT_TRUCKING_MAPPING,
+        countryCode,
+        portCode
+      );
+      let portMappings = await this.cacheService.get<PortTruckingMapping[]>(portMappingCacheKey);
+      
+      if (!portMappings) {
+        portMappings = await this.truckingPortMappingRepo.find({
+          where: { portCode, country: countryCode, isActive: true }
+        });
+        // 缓存映射关系（6小时）
+        if (portMappings.length > 0) {
+          await this.cacheService.set(portMappingCacheKey, portMappings, SchedulingCacheTTL.MAPPING);
+        }
+      }
 
       if (portMappings.length === 0) {
         logger.warn('[WarehouseSelectorService] 港口无映射车队');
@@ -124,14 +146,27 @@ export class WarehouseSelectorService {
 
       const truckingCompanyIds = portMappings.map((m) => m.truckingCompanyId);
 
-      // Step 2: 车队 → 仓库（dict_warehouse_trucking_mapping）
-      const warehouseMappings = await this.warehouseTruckingMappingRepo.find({
-        where: {
-          truckingCompanyId: In(truckingCompanyIds),
-          country: countryCode,
-          isActive: true
+      // Step 2: 车队 → 仓库（dict_warehouse_trucking_mapping）- 带缓存
+      const warehouseMappingCacheKey = getSchedulingCacheKey(
+        SchedulingCacheKeys.WAREHOUSE_TRUCKING_MAPPING,
+        countryCode,
+        truckingCompanyIds.sort().join(',')
+      );
+      let warehouseMappings = await this.cacheService.get<WarehouseTruckingMapping[]>(warehouseMappingCacheKey);
+      
+      if (!warehouseMappings) {
+        warehouseMappings = await this.warehouseTruckingMappingRepo.find({
+          where: {
+            truckingCompanyId: In(truckingCompanyIds),
+            country: countryCode,
+            isActive: true
+          }
+        });
+        // 缓存映射关系（6小时）
+        if (warehouseMappings.length > 0) {
+          await this.cacheService.set(warehouseMappingCacheKey, warehouseMappings, SchedulingCacheTTL.MAPPING);
         }
-      });
+      }
 
       if (warehouseMappings.length === 0) {
         logger.warn('[WarehouseSelectorService] 车队无映射仓库');
@@ -153,7 +188,8 @@ export class WarehouseSelectorService {
       const sorted = this.sorter.sortWarehousesByPriority(warehouses, warehouseMappings);
 
       logger.info('[WarehouseSelectorService] 候选仓库查询完成', {
-        count: sorted.length
+        count: sorted.length,
+        fromCache: portMappings !== null
       });
 
       return sorted;

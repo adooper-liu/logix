@@ -55,12 +55,13 @@ services:
     image: redis:7-alpine
     container_name: logix-redis-dev
     restart: unless-stopped
+    command: redis-server --requirepass LogiX@Redis!2024
     volumes:
       - redis_dev_data:/data
     ports:
       - "6379:6379"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "LogiX@Redis!2024", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5

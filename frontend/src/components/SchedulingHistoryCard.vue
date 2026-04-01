@@ -189,7 +189,8 @@
 import api from '@/services/api'
 import { computed, ref, watch } from 'vue'
 
-interface SchedulingHistory {
+// 导出类型和组件实例
+export interface SchedulingHistory {
   id: number
   containerNumber: string
   schedulingVersion: number
@@ -218,6 +219,11 @@ interface SchedulingHistory {
   operatedAt: string
   operationType?: string
   schedulingStatus: 'CONFIRMED' | 'CANCELLED' | 'SUPERSEDED'
+}
+
+export interface SchedulingHistoryCardInstance {
+  toggleHistory: () => Promise<void>
+  historyCount: number | undefined
 }
 
 const props = defineProps<{
@@ -375,6 +381,12 @@ function hasFreeDays(record: SchedulingHistory): boolean {
 function hasAlternatives(record: SchedulingHistory): boolean {
   return !!(record.alternativeSolutions && record.alternativeSolutions.length > 0)
 }
+
+// 导出组件实例方法供外部调用
+defineExpose<SchedulingHistoryCardInstance>({
+  toggleHistory,
+  historyCount,
+})
 </script>
 
 <style scoped lang="scss">

@@ -12,6 +12,7 @@ import { Country } from '../entities/Country';
 import { DictSchedulingConfig } from '../entities/DictSchedulingConfig';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
+import { ExtTruckingSlotOccupancy } from '../entities/ExtTruckingSlotOccupancy'; // ✅ Phase 1: 新增
 import { ExtWarehouseDailyOccupancy } from '../entities/ExtWarehouseDailyOccupancy';
 import { PortOperation } from '../entities/PortOperation';
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
@@ -130,6 +131,7 @@ export class SchedulingCostOptimizerService {
   private warehouseTruckingMappingRepo: Repository<WarehouseTruckingMapping>;
   private truckingPortMappingRepo: Repository<TruckingPortMapping>;
   private truckingCompanyRepo: Repository<TruckingCompany>;
+  private truckingOccupancyRepo: Repository<ExtTruckingSlotOccupancy>; // ✅ Phase 1: 新增
   private containerRepo: Repository<Container>; // ← 新增
   private demurrageService: DemurrageService;
 
@@ -166,6 +168,7 @@ export class SchedulingCostOptimizerService {
     this.warehouseTruckingMappingRepo = AppDataSource.getRepository(WarehouseTruckingMapping);
     this.truckingPortMappingRepo = AppDataSource.getRepository(TruckingPortMapping);
     this.truckingCompanyRepo = AppDataSource.getRepository(TruckingCompany);
+    this.truckingOccupancyRepo = AppDataSource.getRepository(ExtTruckingSlotOccupancy); // ✅ Phase 1: 新增
     this.containerRepo = AppDataSource.getRepository(Container); // ← 新增
     this.demurrageService = new DemurrageService(
       AppDataSource.getRepository(ExtDemurrageStandard),
@@ -309,6 +312,58 @@ export class SchedulingCostOptimizerService {
       return available;
     } catch (error) {
       log.warn(`[CostOptimizer] Failed to check warehouse availability:`, error);
+      return true; // 出错时默认可用
+    }
+  }
+
+  /**
+   * 检查车队是否有档期
+   * 
+   * @param truckingCompany 车队信息
+   * @param date 日期
+   * @param portCode 港口代码
+   * @param warehouseCode 仓库代码
+   * @returns 是否可用
+   */
+  async isTruckingAvailable(
+    truckingCompany: TruckingCompany,
+    date: Date,
+    portCode: string,
+    warehouseCode: string
+  ): Promise<boolean> {
+    try {
+      // 格式化日期为 YYYY-MM-DD（去除时间部分）
+      const queryDate = new Date(date);
+      queryDate.setHours(0, 0, 0, 0);
+
+      // 查询车队档期记录
+      const occupancy = await this.truckingOccupancyRepo.findOne({
+        where: {
+          truckingCompanyId: truckingCompany.companyCode,
+          date: queryDate,
+          portCode,
+          warehouseCode
+        }
+      });
+
+      if (!occupancy) {
+        // 无记录：默认可用
+        return true;
+      }
+
+      // 检查剩余容量
+      const available = occupancy.remaining > 0;
+
+      if (!available) {
+        log.debug(
+          `[CostOptimizer] Trucking ${truckingCompany.companyCode} not available on ${queryDate.toISOString().split('T')[0]}: ` +
+            `capacity=${occupancy.capacity}, planned=${occupancy.plannedTrips}, remaining=${occupancy.remaining}`
+        );
+      }
+
+      return available;
+    } catch (error) {
+      log.warn(`[CostOptimizer] Failed to check trucking availability:`, error);
       return true; // 出错时默认可用
     }
   }
@@ -924,6 +979,22 @@ export class SchedulingCostOptimizerService {
               `[CostOptimizer] No capacity on ${candidateDateStr}, but must process (allowSkipIfNoCapacity=false)`
             );
             // 超期的必须处理，继续找其他日期
+          }
+        }
+        
+        // ✅ Phase 1: 检查车队档期
+        const destPort = container.portOperations?.find(po => po.portType === 'destination');
+        const portCode = destPort?.portCode || '';
+        if (!(await this.isTruckingAvailable(truckingCompany, candidateDate, portCode, warehouse.warehouseCode))) {
+          if (strategy.allowSkipIfNoCapacity) {
+            log.debug(
+              `[CostOptimizer] No trucking capacity on ${candidateDateStr}, skipping`
+            );
+            continue;
+          } else {
+            log.warn(
+              `[CostOptimizer] No trucking capacity on ${candidateDateStr}, but must process`
+            );
           }
         }
 

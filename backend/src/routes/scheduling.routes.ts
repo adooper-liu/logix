@@ -75,4 +75,10 @@ router.get('/history/latest', controller.getLatestSchedulingHistory);
 // 排产预览（不写库）- 放在最后，避免匹配其他具体路由
 router.post('/:id/schedule-preview', controller.schedulePreview);
 
+// ✅ Phase 3: 拖拽调度相关
+router.post('/cost/recalculate', controller.recalculateCost); // 重新计算成本
+router.post('/save', controller.saveSchedule); // 保存修改
+router.get('/optimizations', controller.getOptimizations); // 获取优化建议
+router.post('/optimization/apply', controller.applyOptimization); // 应用优化建议
+
 export default router;

@@ -22,6 +22,8 @@ const ROUTE_GROUPS = {
   shipments: () => import(/* webpackChunkName: "shipments" */ '@/views/shipments/Shipments.vue'),
   containerDetail: () =>
     import(/* webpackChunkName: "shipments" */ '@/views/shipments/ContainerDetailRefactored.vue'),
+  schedulingHistoryQuery: () =>
+    import(/* webpackChunkName: "shipments" */ '@/views/scheduling/HistoryQuery.vue'),
 
   // 数据导入组
   import: () => import(/* webpackChunkName: "import" */ '@/views/import/ExcelImport.vue'),
@@ -84,6 +86,16 @@ export const routes: RouteRecordRaw[] = [
         component: ROUTE_GROUPS.containerDetail(),
         meta: {
           title: '货柜详情',
+          requiresAuth: true,
+          preload: false,
+        },
+      },
+      {
+        path: 'scheduling-history',
+        name: 'SchedulingHistoryQuery',
+        component: ROUTE_GROUPS.schedulingHistoryQuery(),
+        meta: {
+          title: '排产历史查询',
           requiresAuth: true,
           preload: false,
         },

@@ -26,12 +26,17 @@ import { Warehouse } from '../entities/Warehouse';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { logger } from '../utils/logger';
+import { CacheService } from './CacheService';
 import {
   calculateLogisticsStatus,
   type LogisticsStatusResult,
   SimplifiedStatus
 } from '../utils/logisticsStatusMachine';
 import { buildKeyTimeline, type KeyTimelineResult } from './keyTimeline';
+import {
+  SchedulingCacheKeys,
+  SchedulingCacheTTL
+} from '../constants/SchedulingCacheStrategy';
 import { LastPickupSubqueryTemplates } from './statistics/LastPickupSubqueryTemplates';
 import { getDateRangeSubqueryRaw } from './statistics/common/DateRangeSubquery';
 
@@ -482,6 +487,8 @@ function isArrivedAtDestinationPortForDemurrage(ls: LogisticsStatusResult): bool
 }
 
 export class DemurrageService {
+  private cacheService: CacheService;
+
   constructor(
     private standardRepo: Repository<ExtDemurrageStandard>,
     private containerRepo: Repository<Container>,
@@ -492,7 +499,9 @@ export class DemurrageService {
     private orderRepo: Repository<ReplenishmentOrder>,
     private countryRepo: Repository<Country>,
     private recordRepo?: Repository<ExtDemurrageRecord>
-  ) {}
+  ) {
+    this.cacheService = new CacheService();
+  }
 
   /**
    * 与 `calculateLogisticsStatus`（logisticsStatusMachine）一致，供滞港费先判定是否到达目的港。
@@ -1043,8 +1052,47 @@ export class DemurrageService {
    * is_chargeable = 'N' 表示收费项，参与计算；Y = 不收费跳过
    *
    * 规则：先按四字段 + 有效期匹配；若有效期无一匹配但四字段有匹配，则取四字段匹配中「最新」的标准（按 effective_date 降序取最新）
+   * 
+   * 💡 优化：使用缓存减少数据库查询（缓存 1 小时）
    */
+  
+  /**
+   * 获取所有有效的滞港费标准（带缓存）
+   * 
+   * 缓存策略：
+   * - 全量标准列表变更不频繁，缓存 24 小时
+   * - 每次查询过滤有效期内的标准
+   */
+  private async getAllActiveStandards(): Promise<ExtDemurrageStandard[]> {
+    // ✅ 带缓存获取滞港费标准全量列表
+    const cacheKey = SchedulingCacheKeys.DEMURRAGE_ALL_STANDARDS;
+    
+    let allStandards = await this.cacheService.get<ExtDemurrageStandard[]>(cacheKey);
+    if (!allStandards) {
+      allStandards = await this.standardRepo.find({
+        order: { sequenceNumber: 'ASC', id: 'ASC' }
+      });
+      // 缓存 24 小时
+      if (allStandards.length > 0) {
+        await this.cacheService.set(cacheKey, allStandards, SchedulingCacheTTL.DEMURRAGE_STANDARD);
+        logger.debug(`[DemurrageService] Cached ${allStandards.length} standards`);
+      }
+    }
+    
+    return allStandards;
+  }
+
   async matchStandards(containerNumber: string): Promise<ExtDemurrageStandard[]> {
+    // 生成缓存键（基于 containerNumber 的唯一标识）
+    const cacheKey = `demurrage:standards:${containerNumber}`;
+    
+    // 先查缓存
+    const cached = await this.cacheService.get<ExtDemurrageStandard[]>(cacheKey);
+    if (cached && cached.length > 0) {
+      logger.debug(`[DemurrageService] Cache hit for ${containerNumber}`);
+      return cached;
+    }
+    
     const params = await this.getContainerMatchParams(containerNumber);
     const hasDemurrageRange = !!(params.startDate && params.endDate);
     const hasDetentionRange = !!(params.detentionStartDate && params.detentionEndDate);
@@ -1102,22 +1150,32 @@ export class DemurrageService {
       return true;
     });
 
-    if (validityMatched.length > 0) return validityMatched;
-
-    // 4. 有效期无一匹配，但四字段有匹配 → 取最新的标准（按 effective_date 降序，取最大 effective_date 的那批）
-    const withEffDate = fourFieldMatched.map((s) => ({
-      std: s,
-      effTime: s.effectiveDate ? toDateOnly(s.effectiveDate).getTime() : 0
-    }));
-    const maxEffTime = Math.max(...withEffDate.map((x) => x.effTime));
-    const latest = withEffDate
-      .filter((x) => x.effTime === maxEffTime)
-      .map((x) => x.std)
-      .sort(
-        (a, b) => (a.sequenceNumber ?? 0) - (b.sequenceNumber ?? 0) || (a.id ?? 0) - (b.id ?? 0)
-      );
-
-    return latest;
+    let result: ExtDemurrageStandard[];
+    if (validityMatched.length > 0) {
+      result = validityMatched;
+    } else {
+      // 4. 有效期无一匹配，但四字段有匹配 → 取最新的标准（按 effective_date 降序，取最大 effective_date 的那批）
+      const withEffDate = fourFieldMatched.map((s) => ({
+        std: s,
+        effTime: s.effectiveDate ? toDateOnly(s.effectiveDate).getTime() : 0
+      }));
+      const maxEffTime = Math.max(...withEffDate.map((x) => x.effTime));
+      const latest = withEffDate
+        .filter((x) => x.effTime === maxEffTime)
+        .map((x) => x.std)
+        .sort(
+          (a, b) => (a.sequenceNumber ?? 0) - (b.sequenceNumber ?? 0) || (a.id ?? 0) - (b.id ?? 0)
+        );
+      result = latest;
+    }
+    
+    // 写入缓存（1 小时过期）
+    if (result.length > 0) {
+      await this.cacheService.set(cacheKey, result, 3600);
+      logger.debug(`[DemurrageService] Cached ${result.length} standards for ${containerNumber}`);
+    }
+    
+    return result;
   }
 
   /**
@@ -1166,9 +1224,8 @@ export class DemurrageService {
     const resolvedParams = await this.getContainerMatchParams(containerNumber, true);
     const today = toDateOnly(new Date());
 
-    const allStandards = await this.standardRepo.find({
-      order: { sequenceNumber: 'ASC', id: 'ASC' }
-    });
+    // ✅ 带缓存获取滞港费标准全量列表
+    const allStandards = await this.getAllActiveStandards();
 
     const afterEffective = allStandards.filter((s) => {
       if (!s.effectiveDate) return true;
