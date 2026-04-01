@@ -26,16 +26,17 @@
 
 **状态判断逻辑**（优先级从高到低）：
 
-| 状态 | 判断条件 |
-|------|----------|
-| 已还箱 | `emptyReturn.returnTime` 存在 |
+| 状态   | 判断条件                                                    |
+| ------ | ----------------------------------------------------------- |
+| 已还箱 | `emptyReturn.returnTime` 存在                               |
 | 已卸柜 | `warehouseOp.unloadDate` 或 `warehouseOp.unboxingTime` 存在 |
-| 已提柜 | `trucking.pickupDate` 存在 |
-| 已到港 | `destinationPort.ata` 存在 |
-| 在途 | `destinationPort.eta` 存在 |
-| 未知 | 以上都不满足 |
+| 已提柜 | `trucking.pickupDate` 存在                                  |
+| 已到港 | `destinationPort.ata` 存在                                  |
+| 在途   | `destinationPort.eta` 存在                                  |
+| 未知   | 以上都不满足                                                |
 
 **状态标签颜色**：
+
 - success: 已还箱、已卸柜、已提柜、已到港
 - warning: 在途
 - info: 未知
@@ -43,10 +44,10 @@
 
 ### 2. 目的港信息
 
-| 字段 | 数据源 | 说明 |
-|------|--------|------|
-| ETA | `dest.eta` → `sf.eta` | 目的港预计到港 |
-| ATA | `dest.ata` → `sf.ata` | 目的港实际到港 |
+| 字段 | 数据源                | 说明           |
+| ---- | --------------------- | -------------- |
+| ETA  | `dest.eta` → `sf.eta` | 目的港预计到港 |
+| ATA  | `dest.ata` → `sf.ata` | 目的港实际到港 |
 
 优先级：先取 `destinationPortOperation`，若无则取 `SeaFreight`
 
@@ -55,6 +56,7 @@
 #### 3.1 预计提柜 (pickup)
 
 **计算逻辑**：
+
 ```
 IF trucking.pickupDate EXISTS:
   RETURN trucking.pickupDate
@@ -71,6 +73,7 @@ ELSE:
 #### 3.2 预计卸柜 (unloading)
 
 **计算逻辑**：
+
 ```
 IF warehouseOp.unloadDate OR warehouseOp.unboxingTime EXISTS:
   RETURN 实际卸柜日期
@@ -87,6 +90,7 @@ ELSE:
 #### 3.3 预计还箱 (return)
 
 **计算逻辑**：
+
 ```
 IF emptyReturn.returnTime EXISTS:
   RETURN emptyReturn.returnTime
@@ -103,6 +107,7 @@ ELSE:
 #### 3.4 预计流程完成 (completion)
 
 **计算逻辑**：
+
 ```
 RETURN predictedReturn
 ```
@@ -111,11 +116,11 @@ RETURN predictedReturn
 
 ### 4. 实际时间 (actualTimes)
 
-| 字段 | 数据源 | 说明 |
-|------|--------|------|
-| pickup | `trucking.pickupDate` | 实际提柜日期 |
+| 字段      | 数据源                                                 | 说明         |
+| --------- | ------------------------------------------------------ | ------------ |
+| pickup    | `trucking.pickupDate`                                  | 实际提柜日期 |
 | unloading | `warehouseOp.unloadDate` 或 `warehouseOp.unboxingTime` | 实际卸柜日期 |
-| return | `emptyReturn.returnTime` | 实际还箱时间 |
+| return    | `emptyReturn.returnTime`                               | 实际还箱时间 |
 
 ## 预测算法总结
 
@@ -136,13 +141,13 @@ RETURN predictedReturn
 
 ### 预测场景
 
-| 场景 | 提柜 | 卸柜 | 还箱 |
-|------|------|------|------|
-| 已到港 (有 ATA) | ATA+2 | ATA+3 | ATA+6 |
-| 在途 (有 ETA) | ETA+2 | ETA+3 | ETA+6 |
-| 已提柜 (有 pickupDate) | 实际 | pickup+1 | pickup+4 |
-| 已卸柜 (有 unboxingTime) | 实际 | 实际 | unboxing+3 |
-| 已还箱 (有 returnTime) | 实际 | 实际 | 实际 |
+| 场景                     | 提柜  | 卸柜     | 还箱       |
+| ------------------------ | ----- | -------- | ---------- |
+| 已到港 (有 ATA)          | ATA+2 | ATA+3    | ATA+6      |
+| 在途 (有 ETA)            | ETA+2 | ETA+3    | ETA+6      |
+| 已提柜 (有 pickupDate)   | 实际  | pickup+1 | pickup+4   |
+| 已卸柜 (有 unboxingTime) | 实际  | 实际     | unboxing+3 |
+| 已还箱 (有 returnTime)   | 实际  | 实际     | 实际       |
 
 ## 前端展示结构
 
@@ -171,25 +176,27 @@ RETURN predictedReturn
 ## 关键代码位置
 
 ### 前端
+
 - 组件：`frontend/src/views/shipments/components/TimePredictionTab.vue`
 - API 服务：`frontend/src/services/time.ts`
 - 接口定义：`TimePredictionPayload`
 
 ### 后端
+
 - 服务类：`backend/src/services/timeService.ts`
 - 方法：`getContainerTimePrediction()`
 - 路由：`/api/v1/time/predict/:containerNumber`
 
 ## 数据来源表
 
-| 实体 | 表名 | 主要字段 |
-|------|------|----------|
-| Container | `biz_containers` | containerNumber, billOfLadingNumber |
-| SeaFreight | `process_sea_freight` | eta, ata, mblNumber |
-| PortOperation | `process_port_operations` | portType, eta, ata, plannedCustomsDate |
-| TruckingTransport | `process_trucking_transport` | pickupDate, plannedPickupDate, plannedDeliveryDate |
-| WarehouseOperation | `process_warehouse_operations` | unloadDate, unboxingTime, plannedUnloadDate |
-| EmptyReturn | `process_empty_return` | returnTime, plannedReturnDate |
+| 实体               | 表名                           | 主要字段                                           |
+| ------------------ | ------------------------------ | -------------------------------------------------- |
+| Container          | `biz_containers`               | containerNumber, billOfLadingNumber                |
+| SeaFreight         | `process_sea_freight`          | eta, ata, mblNumber                                |
+| PortOperation      | `process_port_operations`      | portType, eta, ata, plannedCustomsDate             |
+| TruckingTransport  | `process_trucking_transport`   | pickupDate, plannedPickupDate, plannedDeliveryDate |
+| WarehouseOperation | `process_warehouse_operations` | unloadDate, unboxingTime, plannedUnloadDate        |
+| EmptyReturn        | `process_empty_return`         | returnTime, plannedReturnDate                      |
 
 ## 业务价值
 
@@ -237,14 +244,14 @@ RETURN predictedReturn
 async function predictWithSchedulingEngine(containerNumber: string) {
   // 1. 查询该货柜是否已有排产计划
   const scheduledPlan = await schedulingService.getContainerPlan(containerNumber)
-  
+
   if (scheduledPlan) {
     // 有排产：使用实际排产时间
     return {
       pickup: scheduledPlan.plannedPickupDate,
       unloading: scheduledPlan.plannedUnloadDate,
       return: scheduledPlan.plannedReturnDate,
-      completion: scheduledPlan.plannedCompletionDate
+      completion: scheduledPlan.plannedCompletionDate,
     }
   } else {
     // 无排产：调用排产引擎模拟排产
@@ -253,13 +260,14 @@ async function predictWithSchedulingEngine(containerNumber: string) {
       pickup: simulation.truckingDate,
       unloading: simulation.warehouseDate,
       return: simulation.returnDate,
-      completion: simulation.completionDate
+      completion: simulation.completionDate,
     }
   }
 }
 ```
 
 **优势**：
+
 - 预测结果与排产结果一致
 - 考虑产能约束（仓库/车队/堆场）
 - 考虑节假日和周末
@@ -275,15 +283,15 @@ async function predictWithCapacityCalendar(container: Container) {
   // 1. 确定目的港
   const destPort = container.portOperations?.find(op => op.portType === 'destination')
   const eta = destPort?.eta || container.seaFreight?.eta
-  
+
   if (!eta) return null
-  
+
   // 2. 获取销往国家
   const country = container.order?.sellToCountry
-  
+
   // 3. 获取默认资源（清关行、车队、仓库）
   const resources = await getDefaultResources(country, destPort.portCode)
-  
+
   // 4. 基于产能日历逐层推算
   let pickupDate = await findAvailableDate(
     eta,
@@ -291,21 +299,16 @@ async function predictWithCapacityCalendar(container: Container) {
     'trucking',
     2 // 最早可提柜日期偏移
   )
-  
-  let unloadDate = await findAvailableDate(
-    pickupDate,
-    resources.warehouseCode,
-    'warehouse',
-    1
-  )
-  
+
+  let unloadDate = await findAvailableDate(pickupDate, resources.warehouseCode, 'warehouse', 1)
+
   let returnDate = await findAvailableDate(
     unloadDate,
     resources.truckingCompanyId,
     'trucking-return',
     3
   )
-  
+
   return { pickupDate, unloadDate, returnDate }
 }
 
@@ -317,20 +320,20 @@ async function findAvailableDate(
   minOffset: number
 ) {
   let currentDate = addDays(startDate, minOffset)
-  
+
   while (true) {
     // 检查是否为工作日（排除周末/节假日）
     if (!isWorkingDay(currentDate)) {
       currentDate = addDays(currentDate, 1)
       continue
     }
-    
+
     // 检查产能是否可用
     const capacity = await getCapacity(resourceType, resourceId, currentDate)
     if (capacity.status !== '超负荷' && capacity.status !== '紧张') {
       return currentDate
     }
-    
+
     // 产能已满，尝试下一天
     currentDate = addDays(currentDate, 1)
   }
@@ -338,6 +341,7 @@ async function findAvailableDate(
 ```
 
 **优势**：
+
 - 考虑产能约束
 - 考虑工作日/节假日
 - 不依赖完整排产引擎
@@ -345,6 +349,7 @@ async function findAvailableDate(
 #### 方案 C：混合预测（过渡方案）
 
 **核心思路**：
+
 - 已有排产：使用排产时间
 - 无排产：使用当前简单预测 + 产能校验
 
@@ -355,16 +360,13 @@ async function predictHybrid(containerNumber: string) {
   if (plan) {
     return extractDatesFromPlan(plan)
   }
-  
+
   // 2. 无排产：使用简单预测，但校验产能
   const simplePrediction = predictSimple(containerNumber)
-  
+
   // 3. 校验产能，如不可用则顺延
-  const validatedPrediction = await validateAndAdjust(
-    simplePrediction,
-    containerNumber
-  )
-  
+  const validatedPrediction = await validateAndAdjust(simplePrediction, containerNumber)
+
   return validatedPrediction
 }
 ```
@@ -372,6 +374,7 @@ async function predictHybrid(containerNumber: string) {
 ### 实施建议
 
 **优先级排序**：
+
 1. **短期（1-2 周）**：方案 C（混合预测）
    - 最小改动
    - 立即提升准确性

@@ -248,11 +248,17 @@ const firstStd = computed(() => props.data?.matchedStandards?.[0] ?? null)
             effect="plain"
           >
             {{ getModeLabel(data.calculationMode).text }}
-            <el-tooltip v-if="data.calculationMode === 'forecast'" placement="bottom" trigger="hover">
+            <el-tooltip
+              v-if="data.calculationMode === 'forecast'"
+              placement="bottom"
+              trigger="hover"
+            >
               <template #content>
                 <div class="mode-explanation">
                   <p><strong>实际模式：</strong>基于实际业务节点数据计算（ATA、实际提柜日等）</p>
-                  <p><strong>计划模式：</strong>基于预测数据计算（ETA、计划提柜日等），每日滚动更新</p>
+                  <p>
+                    <strong>计划模式：</strong>基于预测数据计算（ETA、计划提柜日等），每日滚动更新
+                  </p>
                   <p class="hint">详细计算逻辑请查看下方费用明细中的「计算逻辑」表格</p>
                 </div>
               </template>
@@ -862,17 +868,17 @@ const firstStd = computed(() => props.data?.matchedStandards?.[0] ?? null)
   max-width: 400px;
   font-size: 13px;
   line-height: 1.6;
-  
+
   p {
     margin: 8px 0;
     color: #303133;
-    
+
     strong {
       color: #303133;
       font-weight: 600;
     }
   }
-  
+
   .hint {
     margin-top: 12px;
     padding-top: 8px;

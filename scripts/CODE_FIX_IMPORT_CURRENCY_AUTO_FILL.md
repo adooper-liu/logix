@@ -7,6 +7,7 @@
 ## 问题根因
 
 `import.controller.ts` 第 1638 行代码：
+
 ```typescript
 currency: resolvedRow.currency ?? 'USD',
 ```
@@ -24,11 +25,13 @@ currency: resolvedRow.currency ?? 'USD',
 **修改内容**:
 
 #### 1. 导入 Country 实体
+
 ```typescript
-import { Country } from '../entities/Country';
+import { Country } from "../entities/Country";
 ```
 
 #### 2. 添加 countryRepository
+
 ```typescript
 private countryRepository: Repository<Country>;
 
@@ -46,7 +49,7 @@ constructor() {
 // ✅ 预加载国家字典缓存（提高性能）
 const countryCurrencyCache = new Map<string, string>();
 const countries = await this.countryRepository.find({
-  select: ['code', 'currency']
+  select: ["code", "currency"],
 });
 for (const country of countries) {
   countryCurrencyCache.set(country.code, country.currency);
@@ -59,15 +62,15 @@ let currency = resolvedRow.currency;
 if (!currency && resolvedRow.destination_port_code) {
   const portCode = String(resolvedRow.destination_port_code).trim();
   const countryCode = portCode.substring(0, 2).toUpperCase();
-  
+
   // 从缓存获取货币
   currency = countryCurrencyCache.get(countryCode);
-  
+
   if (!currency) {
     // 缓存未命中，查询数据库
     const country = await this.countryRepository.findOne({
       where: { code: countryCode },
-      select: ['currency']
+      select: ["currency"],
     });
     if (country?.currency) {
       currency = country.currency;
@@ -77,12 +80,12 @@ if (!currency && resolvedRow.destination_port_code) {
 }
 
 // 最终回退到 USD
-currency = currency || 'USD';
+currency = currency || "USD";
 
 // 使用自动填充的货币创建 entity
 const entity = this.demurrageStandardRepository.create({
   // ... 其他字段
-  currency: currency,  // ✅ 使用自动填充的货币
+  currency: currency, // ✅ 使用自动填充的货币
 });
 ```
 
@@ -91,6 +94,7 @@ const entity = this.demurrageStandardRepository.create({
 ### 1. 智能填充策略
 
 **优先级**:
+
 1. Excel 中的 `currency` 字段（尊重手动指定）
 2. 根据目的港国家自动填充
 3. USD 作为兜底
@@ -98,6 +102,7 @@ const entity = this.demurrageStandardRepository.create({
 ### 2. 性能优化
 
 **缓存机制**:
+
 - 预先加载所有国家到 Map 缓存
 - 每行数据优先从缓存读取
 - 缓存未命中时才查询数据库
@@ -106,6 +111,7 @@ const entity = this.demurrageStandardRepository.create({
 ### 3. 容错处理
 
 **多层保护**:
+
 - 空值检查 (`!currency`)
 - 港口代码检查 (`destination_port_code`)
 - 国家代码提取 (`substring(0, 2)`)
@@ -114,14 +120,14 @@ const entity = this.demurrageStandardRepository.create({
 
 ## 测试用例
 
-| 输入数据 | 预期货币 | 说明 |
-|---------|---------|------|
-| `{ destination_port_code: "ITGIT" }` | EUR | 意大利 → EUR ✅ |
-| `{ destination_port_code: "DEHAM" }` | EUR | 德国 → EUR ✅ |
-| `{ destination_port_code: "GBFXT" }` | GBP | 英国 → GBP ✅ |
-| `{ destination_port_code: "USLAX", currency: "USD" }` | USD | 手动指定优先 ✅ |
-| `{ destination_port_code: "CNSHA" }` | CNY | 中国 → CNY ✅ |
-| `{ destination_port_code: "JPTYO" }` | JPY | 日本 → JPY ✅ |
+| 输入数据                                              | 预期货币 | 说明            |
+| ----------------------------------------------------- | -------- | --------------- |
+| `{ destination_port_code: "ITGIT" }`                  | EUR      | 意大利 → EUR ✅ |
+| `{ destination_port_code: "DEHAM" }`                  | EUR      | 德国 → EUR ✅   |
+| `{ destination_port_code: "GBFXT" }`                  | GBP      | 英国 → GBP ✅   |
+| `{ destination_port_code: "USLAX", currency: "USD" }` | USD      | 手动指定优先 ✅ |
+| `{ destination_port_code: "CNSHA" }`                  | CNY      | 中国 → CNY ✅   |
+| `{ destination_port_code: "JPTYO" }`                  | JPY      | 日本 → JPY ✅   |
 
 ## 与数据库修复的配合
 
@@ -140,11 +146,13 @@ const entity = this.demurrageStandardRepository.create({
 ### 未来效果
 
 **修复前**:
+
 ```
 Excel 导入 → currency: USD（默认） → 数据库存储 USD ❌
 ```
 
 **修复后**:
+
 ```
 Excel 导入 → 自动填充 EUR/GBP/CAD等 → 数据库存储正确货币 ✅
 ```
@@ -154,15 +162,13 @@ Excel 导入 → 自动填充 EUR/GBP/CAD等 → 数据库存储正确货币 ✅
 ### 1. 单元测试
 
 ```typescript
-describe('importDemurrageStandards', () => {
-  it('should auto-fill currency based on destination port', async () => {
-    const records = [
-      { destination_port_code: 'ITGIT', charge_name: 'Demurrage' }
-    ];
-    
+describe("importDemurrageStandards", () => {
+  it("should auto-fill currency based on destination port", async () => {
+    const records = [{ destination_port_code: "ITGIT", charge_name: "Demurrage" }];
+
     await controller.importDemurrageStandards(req, res);
-    
-    expect(savedEntity.currency).toBe('EUR');
+
+    expect(savedEntity.currency).toBe("EUR");
   });
 });
 ```
@@ -193,8 +199,9 @@ docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db -c \
 ```
 
 **预期输出**:
+
 ```
- destination_port_code | currency 
+ destination_port_code | currency
 -----------------------+----------
  ITGIT                 | EUR
 ```
@@ -204,6 +211,7 @@ docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db -c \
 ### 短期（本周）
 
 1. **添加日志记录**
+
    ```typescript
    logger.info(`[Import] 自动填充货币：${countryCode} -> ${currency}`);
    ```

@@ -7,6 +7,7 @@
 **根本原因**: 导入代码中没有根据国家自动填充货币的逻辑，完全依赖 Excel 输入。
 
 **问题代码** (`import.controller.ts` 第 1638 行):
+
 ```typescript
 currency: resolvedRow.currency ?? 'USD',
 ```
@@ -20,53 +21,55 @@ currency: resolvedRow.currency ?? 'USD',
 **修改位置**: `backend/src/controllers/import.controller.ts`
 
 **修改前**:
+
 ```typescript
 async importDemurrageStandards(req: Request, res: Response): Promise<void> {
   const { records } = req.body;
-  
+
   for (let i = 0; i < records.length; i++) {
     const row = records[i];
-    
+
     // ... 其他解析逻辑
-    
+
     const entity = this.demurrageStandardRepository.create({
       // ... 其他字段
       currency: resolvedRow.currency ?? 'USD',  // ❌ 问题：没有根据国家填充
     });
-    
+
     await this.demurrageStandardRepository.save(entity);
   }
 }
 ```
 
 **修改后**:
+
 ```typescript
 async importDemurrageStandards(req: Request, res: Response): Promise<void> {
   const { records } = req.body;
-  
+
   for (let i = 0; i < records.length; i++) {
     const row = records[i];
-    
+
     // ✅ 新增：根据目的港自动获取货币
     let currency = resolvedRow.currency;
     if (!currency) {
       const portCode = resolvedRow.destination_port_code;
       if (portCode) {
         const countryCode = portCode.substring(0, 2).toUpperCase();
-        const country = await this.countryRepo.findOne({ 
-          where: { code: countryCode } 
+        const country = await this.countryRepo.findOne({
+          where: { code: countryCode }
         });
         currency = country?.currency || 'USD';
       } else {
         currency = 'USD';
       }
     }
-    
+
     const entity = this.demurrageStandardRepository.create({
       // ... 其他字段
       currency: currency,  // ✅ 使用自动填充的货币
     });
-    
+
     await this.demurrageStandardRepository.save(entity);
   }
 }
@@ -85,6 +88,7 @@ async importDemurrageStandards(req: Request, res: Response): Promise<void> {
 | rate_per_day | 否 | 每日费率 | 100 |
 
 **导入验证逻辑**:
+
 ```typescript
 // 添加货币验证
 if (!resolvedRow.currency) {
@@ -156,7 +160,7 @@ async importDemurrageStandards(req: Request, res: Response): Promise<void> {
     try {
       const resolved = await this.resolveDemurrageCodesFromNames(row);
       const resolvedRow = { ...row };
-      
+
       // ... 其他解析逻辑 ...
 
       // ✅ 关键修复：根据目的港自动填充货币
@@ -165,10 +169,10 @@ async importDemurrageStandards(req: Request, res: Response): Promise<void> {
         const portCode = resolvedRow.destination_port_code;
         if (portCode) {
           const countryCode = portCode.substring(0, 2).toUpperCase();
-          
+
           // 从缓存获取货币
           currency = countryCache.get(countryCode);
-          
+
           if (!currency) {
             // 缓存未命中，查询数据库
             const country = await this.countryRepository.findOne({
@@ -180,7 +184,7 @@ async importDemurrageStandards(req: Request, res: Response): Promise<void> {
             }
           }
         }
-        
+
         // 最终回退到 USD
         currency = currency || 'USD';
       }
@@ -259,15 +263,15 @@ for (let i = 0; i < records.length; i++) {
   const row = records[i];
   const portCode = row.destination_port_code;
   const providedCurrency = row.currency;
-  
+
   if (portCode && providedCurrency) {
     const countryCode = portCode.substring(0, 2).toUpperCase();
     const country = await countryRepo.findOne({ where: { code: countryCode } });
-    
+
     if (country && country.currency !== providedCurrency) {
       errors.push({
         row: i + 1,
-        error: `货币配置错误：${country.name_cn} 应使用 ${country.currency}，而不是 ${providedCurrency}`
+        error: `货币配置错误：${country.name_cn} 应使用 ${country.currency}，而不是 ${providedCurrency}`,
       });
     }
   }
@@ -276,8 +280,8 @@ for (let i = 0; i < records.length; i++) {
 if (errors.length > 0) {
   res.status(400).json({
     success: false,
-    message: '数据验证失败',
-    errors
+    message: "数据验证失败",
+    errors,
   });
   return;
 }
@@ -289,7 +293,7 @@ if (errors.length > 0) {
 
 ```bash
 # scripts/query/verify-demurrage-currency.sql
-SELECT 
+SELECT
   LEFT(s.destination_port_code, 2) as country_code,
   s.currency as standard_currency,
   c.currency as expected_currency,
@@ -307,6 +311,7 @@ ORDER BY country_code;
 ### 测试场景 1: 意大利港口 - 自动填充 EUR
 
 **输入**:
+
 ```json
 {
   "destination_port_code": "ITGIT",
@@ -316,13 +321,15 @@ ORDER BY country_code;
 ```
 
 **预期结果**:
+
 ```typescript
-entity.currency === 'EUR'  // ✅ 自动填充
+entity.currency === "EUR"; // ✅ 自动填充
 ```
 
 ### 测试场景 2: 英国港口 - 自动填充 GBP
 
 **输入**:
+
 ```json
 {
   "destination_port_code": "GBFXT",
@@ -331,23 +338,26 @@ entity.currency === 'EUR'  // ✅ 自动填充
 ```
 
 **预期结果**:
+
 ```typescript
-entity.currency === 'GBP'  // ✅ 自动填充
+entity.currency === "GBP"; // ✅ 自动填充
 ```
 
 ### 测试场景 3: 手动指定货币优先
 
 **输入**:
+
 ```json
 {
   "destination_port_code": "ITGIT",
-  "currency": "USD"  // 特殊约定
+  "currency": "USD" // 特殊约定
 }
 ```
 
 **预期结果**:
+
 ```typescript
-entity.currency === 'USD'  // ✅ 尊重手动指定
+entity.currency === "USD"; // ✅ 尊重手动指定
 ```
 
 ## 经验教训

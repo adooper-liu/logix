@@ -6,6 +6,7 @@
 **现象**: 货柜详情页滞港费货币固定显示 USD，不随销往国家变化。
 
 **案例**:
+
 - 客户：AOSOM ITALY SRL（意大利）
 - 目的港：热那亚 (ITGIT)
 - **当前显示**: USD ❌
@@ -18,6 +19,7 @@
 **问题**: 前端两个组件使用不同的货币格式化逻辑。
 
 **修复**:
+
 - `ContainerSummary.vue`: 使用后端返回的 `currency` ✅
 - `DemurrageCalculationPanel.vue`: 删除局部货币函数，直接使用 `data.currency` ✅
 
@@ -35,7 +37,8 @@
 
 **问题**: `ext_demurrage_standards` 表中所有国家的货币都配置为 USD。
 
-**影响范围**: 
+**影响范围**:
+
 - 欧元区国家（IT, DE, FR, ES, NL, BE, PT）: 904 条 → 应为 EUR
 - 英国 (GB): 294 条 → 应为 GBP
 - 加拿大 (CA): 1,050 条 → 应为 CAD
@@ -45,6 +48,7 @@
 **根本原因**: Excel 导入代码没有根据国家自动填充货币的逻辑。
 
 **问题代码** (`import.controller.ts` 第 1638 行):
+
 ```typescript
 currency: resolvedRow.currency ?? 'USD',  // ❌ 完全依赖 Excel 输入
 ```
@@ -59,43 +63,48 @@ currency: resolvedRow.currency ?? 'USD',  // ❌ 完全依赖 Excel 输入
 **步骤**:
 
 1. **验证容器和配置**
+
    ```bash
    docker ps -a | grep postgres  # → logix-timescaledb-prod
    cat backend/.env  # → DB_USERNAME=logix_user, DB_DATABASE=logix_db
    ```
 
 2. **创建备份表**
+
    ```sql
    CREATE TABLE ext_demurrage_standards_currency_backup_20260331 AS
    SELECT id, destination_port_code, currency, updated_at
    FROM ext_demurrage_standards
    WHERE is_chargeable = 'N' AND destination_port_code IS NOT NULL;
    ```
+
    **结果**: 备份 3,408 条记录 ✅
 
 3. **分批更新**（事务包装）
+
    ```sql
    BEGIN;
-   
+
    -- 欧元区国家
-   UPDATE ext_demurrage_standards s 
-   SET currency = c.currency, updated_at = CURRENT_TIMESTAMP 
-   FROM dict_countries c 
-   WHERE LEFT(s.destination_port_code, 2) = c.code 
-     AND s.is_chargeable = 'N' 
-     AND s.currency != c.currency 
+   UPDATE ext_demurrage_standards s
+   SET currency = c.currency, updated_at = CURRENT_TIMESTAMP
+   FROM dict_countries c
+   WHERE LEFT(s.destination_port_code, 2) = c.code
+     AND s.is_chargeable = 'N'
+     AND s.currency != c.currency
      AND c.currency = 'EUR';
-   
+
    -- 英国、加拿大、罗马尼亚等...
-   
+
    COMMIT;
    ```
+
    **结果**: 成功更新 2,272 条记录 ✅
 
 4. **验证结果**
    ```sql
-   SELECT country, currency, COUNT(*) 
-   FROM ext_demurrage_standards 
+   SELECT country, currency, COUNT(*)
+   FROM ext_demurrage_standards
    GROUP BY country, currency;
    ```
    **结果**: 所有国家状态均为 OK ✅
@@ -131,14 +140,16 @@ currency: resolvedRow.currency ?? 'USD',  // ❌ 完全依赖 Excel 输入
 **关键修改**:
 
 1. **导入 Country 实体**
+
    ```typescript
-   import { Country } from '../entities/Country';
+   import { Country } from "../entities/Country";
    ```
 
 2. **添加 countryRepository**
+
    ```typescript
    private countryRepository: Repository<Country>;
-   
+
    constructor() {
      // ... 其他初始化
      this.countryRepository = AppDataSource.getRepository(Country);
@@ -146,27 +157,28 @@ currency: resolvedRow.currency ?? 'USD',  // ❌ 完全依赖 Excel 输入
    ```
 
 3. **货币自动填充逻辑** ✅
+
    ```typescript
    // 预加载国家字典缓存
    const countryCurrencyCache = new Map<string, string>();
-   const countries = await this.countryRepository.find({ select: ['code', 'currency'] });
+   const countries = await this.countryRepository.find({ select: ["code", "currency"] });
    for (const country of countries) {
      countryCurrencyCache.set(country.code, country.currency);
    }
-   
+
    // 在循环中根据目的港自动填充货币
    let currency = resolvedRow.currency;
    if (!currency && resolvedRow.destination_port_code) {
      const portCode = String(resolvedRow.destination_port_code).trim();
      const countryCode = portCode.substring(0, 2).toUpperCase();
-     
+
      // 从缓存获取货币
      currency = countryCurrencyCache.get(countryCode);
-     
+
      if (!currency) {
        const country = await this.countryRepository.findOne({
          where: { code: countryCode },
-         select: ['currency']
+         select: ["currency"],
        });
        if (country?.currency) {
          currency = country.currency;
@@ -174,16 +186,17 @@ currency: resolvedRow.currency ?? 'USD',  // ❌ 完全依赖 Excel 输入
        }
      }
    }
-   
-   currency = currency || 'USD';  // 兜底
-   
+
+   currency = currency || "USD"; // 兜底
+
    const entity = this.demurrageStandardRepository.create({
      // ... 其他字段
-     currency: currency,  // ✅ 使用自动填充的货币
+     currency: currency, // ✅ 使用自动填充的货币
    });
    ```
 
 **效果**:
+
 - ✅ 新导入的数据会自动填充正确货币
 - ✅ 使用缓存优化性能（1000 条记录只查询 1 次数据库）
 - ✅ 尊重手动指定（Excel 中有 currency 时不覆盖）

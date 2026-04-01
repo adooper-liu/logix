@@ -10,6 +10,7 @@
 货柜详情页显示滞港费时，货币符号固定为 USD，没有根据销往国家自动切换。
 
 **案例**：
+
 - 客户：AOSOM ITALY SRL（意大利客户）
 - 目的港：热那亚（ITGIT）
 - 销往国家：意大利（IT）
@@ -23,15 +24,15 @@
 **数据库查询结果**：
 
 ```sql
-SELECT LEFT(s.destination_port_code, 2) as country_code, s.currency, COUNT(*) 
-FROM ext_demurrage_standards s 
-WHERE s.is_chargeable = 'N' AND s.destination_port_code IS NOT NULL 
-GROUP BY LEFT(s.destination_port_code, 2), s.currency 
+SELECT LEFT(s.destination_port_code, 2) as country_code, s.currency, COUNT(*)
+FROM ext_demurrage_standards s
+WHERE s.is_chargeable = 'N' AND s.destination_port_code IS NOT NULL
+GROUP BY LEFT(s.destination_port_code, 2), s.currency
 ORDER BY country_code, count DESC;
 ```
 
 | country_code | currency | count | 正确货币 |
-|--------------|----------|-------|----------|
+| ------------ | -------- | ----- | -------- |
 | BE           | USD      | 168   | EUR      |
 | CA           | USD      | 1050  | CAD      |
 | DE           | USD      | 100   | EUR      |
@@ -53,7 +54,7 @@ ORDER BY country_code, count DESC;
 ```typescript
 // 货币优先级：滞港费标准配置的货币 > 销往国家货币 > USD 兜底
 const standardCurrency = std.currency ?? null;
-const curr = standardCurrency || defaultCurrency || 'USD';
+const curr = standardCurrency || defaultCurrency || "USD";
 currency = curr;
 ```
 
@@ -78,14 +79,14 @@ SELECT code, currency FROM dict_countries WHERE is_active = true;
 
 ```sql
 -- 查看需要更新的国家及其正确货币
-SELECT 
+SELECT
   LEFT(s.destination_port_code, 2) as country_code,
   c.currency as correct_currency,
   s.currency as current_currency,
   COUNT(*) as affected_rows
 FROM ext_demurrage_standards s
 LEFT JOIN dict_countries c ON LEFT(s.destination_port_code, 2) = c.code
-WHERE s.is_chargeable = 'N' 
+WHERE s.is_chargeable = 'N'
   AND s.destination_port_code IS NOT NULL
   AND s.currency != c.currency
 GROUP BY country_code, correct_currency, current_currency
@@ -107,9 +108,9 @@ WHERE LEFT(s.destination_port_code, 2) = c.code
   AND c.currency = 'EUR';
 
 -- 验证更新结果
-SELECT destination_port_code, currency, COUNT(*) 
-FROM ext_demurrage_standards 
-WHERE destination_port_code LIKE 'IT%' 
+SELECT destination_port_code, currency, COUNT(*)
+FROM ext_demurrage_standards
+WHERE destination_port_code LIKE 'IT%'
 GROUP BY destination_port_code, currency;
 ```
 
@@ -157,15 +158,16 @@ COMMIT;
 // 修改 demurrage.service.ts 第 1925-1927 行
 // 旧逻辑：标准货币 > 国家货币 > USD
 const standardCurrency = std.currency ?? null;
-const curr = standardCurrency || defaultCurrency || 'USD';
+const curr = standardCurrency || defaultCurrency || "USD";
 
 // 新逻辑：国家货币 > 标准货币 > USD
 const standardCurrency = std.currency ?? null;
-const curr = defaultCurrency || standardCurrency || 'USD';
+const curr = defaultCurrency || standardCurrency || "USD";
 ```
 
 **优点**：不需要修改数据库  
 **缺点**：
+
 1. 违反了"标准配置优先"的设计原则
 2. 如果某些标准确实需要特殊货币配置（如美元结算的特殊航线），将无法支持
 3. 历史数据的 `currency` 字段失去意义
@@ -175,6 +177,7 @@ const curr = defaultCurrency || standardCurrency || 'USD';
 **采用方案一：批量更新数据库**
 
 理由：
+
 1. 这是数据配置错误，应该修正数据本身
 2. 一次性解决所有问题，不留技术债
 3. 符合设计原则（标准配置优先级最高）
@@ -249,7 +252,7 @@ WHERE s.id = b.id;
 ```typescript
 // Excel 导入时自动填充货币
 const country = await countryRepo.findOne({ where: { code: portCode.substring(0, 2) } });
-standard.currency = country?.currency || 'USD';
+standard.currency = country?.currency || "USD";
 ```
 
 ### 2. 数据库约束
@@ -287,19 +290,19 @@ WHERE s.currency != c.currency
 
 ### 更新结果
 
-| 国家 | 更新行数 | 状态 |
-|------|---------|------|
-| 意大利 (IT) | 226 | ✅ EUR |
-| 德国 (DE) | 100 | ✅ EUR |
-| 法国 (FR) | 163 | ✅ EUR |
-| 西班牙 (ES) | 193 | ✅ EUR |
-| 荷兰 (NL) | 54 | ✅ EUR |
-| 比利时 (BE) | 168 | ✅ EUR |
-| 葡萄牙 (PT) | 2 | ✅ EUR (先修正 dict_countries) |
-| 英国 (GB) | 294 | ✅ GBP |
-| 加拿大 (CA) | 1,050 | ✅ CAD |
-| 罗马尼亚 (RO) | 22 | ✅ RON |
-| **总计** | **2,272** | ✅ |
+| 国家          | 更新行数  | 状态                           |
+| ------------- | --------- | ------------------------------ |
+| 意大利 (IT)   | 226       | ✅ EUR                         |
+| 德国 (DE)     | 100       | ✅ EUR                         |
+| 法国 (FR)     | 163       | ✅ EUR                         |
+| 西班牙 (ES)   | 193       | ✅ EUR                         |
+| 荷兰 (NL)     | 54        | ✅ EUR                         |
+| 比利时 (BE)   | 168       | ✅ EUR                         |
+| 葡萄牙 (PT)   | 2         | ✅ EUR (先修正 dict_countries) |
+| 英国 (GB)     | 294       | ✅ GBP                         |
+| 加拿大 (CA)   | 1,050     | ✅ CAD                         |
+| 罗马尼亚 (RO) | 22        | ✅ RON                         |
+| **总计**      | **2,272** | ✅                             |
 
 ### 验证结果
 

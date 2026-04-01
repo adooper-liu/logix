@@ -9,6 +9,7 @@
 货柜详情页显示滞港费时，货币符号固定为 USD，没有根据销往国家自动切换。
 
 **案例**:
+
 - 客户：AOSOM ITALY SRL（意大利客户）
 - 目的港：热那亚（ITGIT）
 - **当前显示**: USD ❌
@@ -20,20 +21,20 @@
 
 ## 修复统计
 
-| 国家 | 修复前 | 修复后 | 更新数量 |
-|------|-------|-------|---------|
-| BE (比利时) | USD | EUR | 168 |
-| CA (加拿大) | USD | CAD | 1,050 |
-| DE (德国) | USD | EUR | 100 |
-| ES (西班牙) | USD | EUR | 193 |
-| FR (法国) | USD | EUR | 163 |
-| GB (英国) | USD | GBP | 294 |
-| IT (意大利) | USD | EUR | 226 |
-| NL (荷兰) | USD | EUR | 54 |
-| PT (葡萄牙) | USD | EUR | 2 |
-| RO (罗马尼亚) | USD | RON | 22 |
-| US (美国) | USD | USD ✅ | 1,136（未更新） |
-| **总计** | - | - | **2,272** |
+| 国家          | 修复前 | 修复后 | 更新数量        |
+| ------------- | ------ | ------ | --------------- |
+| BE (比利时)   | USD    | EUR    | 168             |
+| CA (加拿大)   | USD    | CAD    | 1,050           |
+| DE (德国)     | USD    | EUR    | 100             |
+| ES (西班牙)   | USD    | EUR    | 193             |
+| FR (法国)     | USD    | EUR    | 163             |
+| GB (英国)     | USD    | GBP    | 294             |
+| IT (意大利)   | USD    | EUR    | 226             |
+| NL (荷兰)     | USD    | EUR    | 54              |
+| PT (葡萄牙)   | USD    | EUR    | 2               |
+| RO (罗马尼亚) | USD    | RON    | 22              |
+| US (美国)     | USD    | USD ✅ | 1,136（未更新） |
+| **总计**      | -      | -      | **2,272**       |
 
 ## 执行步骤
 
@@ -41,14 +42,14 @@
 
 ```sql
 -- 验证 dict_countries 表
-SELECT code, name_cn, name_en, currency 
-FROM dict_countries 
+SELECT code, name_cn, name_en, currency
+FROM dict_countries
 WHERE code IN ('IT','DE','FR','ES','NL','BE','PT','GB','CA','RO','US');
 
 -- 创建备份表
-CREATE TABLE ext_demurrage_standards_currency_backup_20260331 AS 
-SELECT id, destination_port_code, currency, updated_at 
-FROM ext_demurrage_standards 
+CREATE TABLE ext_demurrage_standards_currency_backup_20260331 AS
+SELECT id, destination_port_code, currency, updated_at
+FROM ext_demurrage_standards
 WHERE is_chargeable = 'N' AND destination_port_code IS NOT NULL;
 ```
 
@@ -60,14 +61,14 @@ WHERE is_chargeable = 'N' AND destination_port_code IS NOT NULL;
 BEGIN;
 
 -- 欧元区国家
-UPDATE ext_demurrage_standards s 
-SET currency = c.currency, updated_at = CURRENT_TIMESTAMP 
-FROM dict_countries c 
-WHERE LEFT(s.destination_port_code, 2) = c.code 
-  AND s.is_chargeable = 'N' 
-  AND s.destination_port_code IS NOT NULL 
-  AND s.currency != c.currency 
-  AND c.currency IN ('EUR') 
+UPDATE ext_demurrage_standards s
+SET currency = c.currency, updated_at = CURRENT_TIMESTAMP
+FROM dict_countries c
+WHERE LEFT(s.destination_port_code, 2) = c.code
+  AND s.is_chargeable = 'N'
+  AND s.destination_port_code IS NOT NULL
+  AND s.currency != c.currency
+  AND c.currency IN ('EUR')
   AND LEFT(s.destination_port_code, 2) IN ('IT','DE','FR','ES','NL','BE');
 
 -- 英国
@@ -91,7 +92,7 @@ COMMIT;
 ### 3. 验证结果
 
 ```sql
-SELECT 
+SELECT
   LEFT(s.destination_port_code, 2) as country,
   s.currency as standard_currency,
   c.currency as expected_currency,
@@ -124,7 +125,7 @@ ORDER BY country;
 ```typescript
 // Excel 导入时自动填充货币
 const country = await countryRepo.findOne({ where: { code: portCode.substring(0, 2) } });
-standard.currency = country?.currency || 'USD';
+standard.currency = country?.currency || "USD";
 ```
 
 ### 3. 定期审计

@@ -35,13 +35,13 @@ const API_BASE_URL = 'https://api.logix.com/api/v1
 
 ```typescript
 interface GanttDataRequest {
-  startDate?: string           // 开始日期（ISO 8601）
-  endDate?: string             // 结束日期（ISO 8601）
-  destinationPort?: string     // 目的港代码（可选）
-  logisticsStatus?: string     // 物流状态（可选）
+  startDate?: string // 开始日期（ISO 8601）
+  endDate?: string // 结束日期（ISO 8601）
+  destinationPort?: string // 目的港代码（可选）
+  logisticsStatus?: string // 物流状态（可选）
   inspectionRequired?: boolean // 是否只需查验柜（可选）
-  page?: number                // 页码（默认 1）
-  limit?: number               // 每页数量（默认 100）
+  page?: number // 页码（默认 1）
+  limit?: number // 每页数量（默认 100）
 }
 ```
 
@@ -49,66 +49,66 @@ interface GanttDataRequest {
 
 ```typescript
 interface GanttDataResponse {
-  success: boolean;
+  success: boolean
   data: {
     containers: Array<{
-      id: string;
-      containerNumber: string;
-      billOfLadingNumber: string;
-      destinationPort: string;
-      logisticsStatus: string;
-      
+      id: string
+      containerNumber: string
+      billOfLadingNumber: string
+      destinationPort: string
+      logisticsStatus: string
+
       // 清关信息
-      customsBroker?: string;
-      customsDeclarationTime?: string;
-      
+      customsBroker?: string
+      customsDeclarationTime?: string
+
       // 提柜信息
-      truckingCompany?: string;
-      actualPickupDate?: string;
-      plannedPickupDate?: string;
-      
+      truckingCompany?: string
+      actualPickupDate?: string
+      plannedPickupDate?: string
+
       // 卸柜信息
-      warehouseCode?: string;
-      actualUnloadDate?: string;
-      plannedUnloadDate?: string;
-      
+      warehouseCode?: string
+      actualUnloadDate?: string
+      plannedUnloadDate?: string
+
       // 还箱信息
-      actualReturnDate?: string;
-      plannedReturnDate?: string;
-      
+      actualReturnDate?: string
+      plannedReturnDate?: string
+
       // 查验信息
-      inspectionRequired: boolean;
-      
+      inspectionRequired: boolean
+
       // 免费期
-      lastFreeDate?: string;
-      lastReturnDate?: string;
-      
+      lastFreeDate?: string
+      lastReturnDate?: string
+
       // 甘特图 derived 字段
       ganttDerived?: {
         nodes: {
-          customs?: { status: 'planned' | 'actual'; plannedDate?: string; actualDate?: string };
-          pickup?: { status: 'planned' | 'actual'; plannedDate?: string; actualDate?: string };
-          unload?: { status: 'planned' | 'actual'; plannedDate?: string; actualDate?: string };
-          return?: { status: 'planned' | 'actual'; plannedDate?: string; actualDate?: string };
-        };
-        updatedAt: string;
-        version: 'v1' | 'v2+';
-      };
-      
+          customs?: { status: 'planned' | 'actual'; plannedDate?: string; actualDate?: string }
+          pickup?: { status: 'planned' | 'actual'; plannedDate?: string; actualDate?: string }
+          unload?: { status: 'planned' | 'actual'; plannedDate?: string; actualDate?: string }
+          return?: { status: 'planned' | 'actual'; plannedDate?: string; actualDate?: string }
+        }
+        updatedAt: string
+        version: 'v1' | 'v2+'
+      }
+
       // 预警信息
       alerts?: Array<{
-        rule: string;
-        level: 'warning' | 'danger';
-        message: string;
-      }>;
-    }>;
+        rule: string
+        level: 'warning' | 'danger'
+        message: string
+      }>
+    }>
     pagination: {
-      total: number;
-      page: number;
-      limit: number;
-      totalPages: number;
-    };
-  };
+      total: number
+      page: number
+      limit: number
+      totalPages: number
+    }
+  }
 }
 ```
 
@@ -124,44 +124,48 @@ async function loadGanttData() {
       endDate: '2026-04-20',
       destinationPort: 'USLAX',
       page: 1,
-      limit: 100
+      limit: 100,
     }
 
     const response = await api.get('/containers/gantt', { params })
-    
+
     console.log('甘特图数据:', response.data)
-    
+
     // 处理数据
     const { containers, pagination } = response.data.data
-    
+
     console.log(`总柜数：${pagination.total}`)
     console.log(`总页数：${pagination.totalPages}`)
-    
+
     // 显示每个货柜的详细信息
     containers.forEach(container => {
       console.log(`${container.containerNumber}:`)
       console.log(`  目的港：${container.destinationPort}`)
       console.log(`  状态：${container.logisticsStatus}`)
-      
+
       // 解析 ganttDerived
       if (container.ganttDerived) {
         const nodes = container.ganttDerived.nodes
-        
+
         if (nodes.customs) {
-          console.log(`  清关：${nodes.customs.status} - ${nodes.customs.actualDate || nodes.customs.plannedDate}`)
+          console.log(
+            `  清关：${nodes.customs.status} - ${nodes.customs.actualDate || nodes.customs.plannedDate}`
+          )
         }
-        
+
         if (nodes.pickup) {
-          console.log(`  提柜：${nodes.pickup.status} - ${nodes.pickup.actualDate || nodes.pickup.plannedDate}`)
+          console.log(
+            `  提柜：${nodes.pickup.status} - ${nodes.pickup.actualDate || nodes.pickup.plannedDate}`
+          )
         }
       }
-      
+
       // 显示预警
       if (container.alerts && container.alerts.length > 0) {
         console.log(`  预警：${container.alerts.map(a => a.message).join(', ')}`)
       }
     })
-    
+
     return response.data
   } catch (error) {
     console.error('加载甘特图数据失败:', error)
@@ -182,13 +186,13 @@ async function loadGanttData() {
 
 ```typescript
 interface UpdateDatesRequest {
-  customsDeclarationTime?: string   // 清关时间
-  actualPickupDate?: string         // 实际提柜日
-  plannedPickupDate?: string        // 计划提柜日
-  actualUnloadDate?: string         // 实际卸柜日
-  plannedUnloadDate?: string        // 计划卸柜日
-  actualReturnDate?: string         // 实际还箱日
-  plannedReturnDate?: string        // 计划还箱日
+  customsDeclarationTime?: string // 清关时间
+  actualPickupDate?: string // 实际提柜日
+  plannedPickupDate?: string // 计划提柜日
+  actualUnloadDate?: string // 实际卸柜日
+  plannedUnloadDate?: string // 计划卸柜日
+  actualReturnDate?: string // 实际还箱日
+  plannedReturnDate?: string // 计划还箱日
 }
 ```
 
@@ -196,13 +200,13 @@ interface UpdateDatesRequest {
 
 ```typescript
 interface UpdateDatesResponse {
-  success: boolean;
+  success: boolean
   data: {
-    containerNumber: string;
-    updatedFields: string[];
-    ganttDerivedUpdated: boolean;
-  };
-  message?: string;
+    containerNumber: string
+    updatedFields: string[]
+    ganttDerivedUpdated: boolean
+  }
+  message?: string
 }
 ```
 
@@ -215,18 +219,18 @@ async function updateContainerDates() {
     const newPickupDate = '2026-03-26'
 
     const response = await api.patch(`/containers/${containerNumber}/dates`, {
-      plannedPickupDate: newPickupDate
+      plannedPickupDate: newPickupDate,
     })
 
     console.log('日期更新成功:', response.data)
-    
+
     // 验证 gantt_derived 是否同步更新
     if (response.data.data.ganttDerivedUpdated) {
       console.log('✅ gantt_derived 已自动更新')
     } else {
       console.warn('⚠️ gantt_derived 未更新，可能需要手动重建快照')
     }
-    
+
     ElMessage.success('日期修改成功')
     return response.data
   } catch (error) {
@@ -239,14 +243,14 @@ async function updateContainerDates() {
 // 拖拽改期完整示例
 async function handleDragDrop(containerNumber: string, newDate: Date, nodeType: string) {
   const fieldMap = {
-    'customs': 'plannedPickupDate',
-    'pickup': 'plannedPickupDate',
-    'unload': 'plannedUnloadDate',
-    'return': 'plannedReturnDate'
+    customs: 'plannedPickupDate',
+    pickup: 'plannedPickupDate',
+    unload: 'plannedUnloadDate',
+    return: 'plannedReturnDate',
   }
 
   const field = fieldMap[nodeType]
-  
+
   if (!field) {
     ElMessage.warning('不支持的节点类型')
     return
@@ -254,11 +258,11 @@ async function handleDragDrop(containerNumber: string, newDate: Date, nodeType: 
 
   try {
     await api.patch(`/containers/${containerNumber}/dates`, {
-      [field]: newDate.toISOString()
+      [field]: newDate.toISOString(),
     })
 
     ElMessage.success('拖拽改期成功')
-    
+
     // 重新加载数据
     await loadGanttData()
   } catch (error) {
@@ -279,8 +283,8 @@ async function handleDragDrop(containerNumber: string, newDate: Date, nodeType: 
 
 ```typescript
 interface RebuildSnapshotRequest {
-  containerNumbers?: string[]  // 指定柜号列表（可选，不传则重建所有）
-  force?: boolean              // 强制重建（忽略缓存）
+  containerNumbers?: string[] // 指定柜号列表（可选，不传则重建所有）
+  force?: boolean // 强制重建（忽略缓存）
 }
 ```
 
@@ -288,17 +292,17 @@ interface RebuildSnapshotRequest {
 
 ```typescript
 interface RebuildSnapshotResponse {
-  success: boolean;
+  success: boolean
   data: {
-    totalContainers: number;
-    rebuiltCount: number;
-    failedCount: number;
+    totalContainers: number
+    rebuiltCount: number
+    failedCount: number
     errors?: Array<{
-      containerNumber: string;
-      error: string;
-    }>;
-  };
-  message?: string;
+      containerNumber: string
+      error: string
+    }>
+  }
+  message?: string
 }
 ```
 
@@ -307,25 +311,21 @@ interface RebuildSnapshotResponse {
 ```typescript
 async function rebuildGanttSnapshot() {
   try {
-    ElMessageBox.confirm(
-      '确定要重建甘特图快照吗？这可能需要几分钟时间。',
-      '提示',
-      {
-        confirmButtonText: '确定',
-        cancelButtonText: '取消',
-        type: 'warning'
-      }
-    )
+    ElMessageBox.confirm('确定要重建甘特图快照吗？这可能需要几分钟时间。', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
 
     const response = await api.post('/containers/gantt/rebuild-snapshot', {
-      force: true  // 强制重建
+      force: true, // 强制重建
     })
 
     const { totalContainers, rebuiltCount, failedCount } = response.data.data
 
     ElMessage.success({
       message: `快照重建完成：总计${totalContainers}个，成功${rebuiltCount}个，失败${failedCount}个`,
-      duration: 5000
+      duration: 5000,
     })
 
     console.log('重建结果:', response.data)
@@ -351,7 +351,7 @@ async function rebuildSingleContainer(containerNumber: string) {
   try {
     const response = await api.post('/containers/gantt/rebuild-snapshot', {
       containerNumbers: [containerNumber],
-      force: true
+      force: true,
     })
 
     if (response.data.success) {
@@ -378,18 +378,18 @@ async function rebuildSingleContainer(containerNumber: string) {
 
 ```typescript
 interface AlertRulesResponse {
-  success: boolean;
+  success: boolean
   data: Array<{
-    name: string;
-    code: string;
-    level: 'warning' | 'danger';
-    description: string;
-    enabled: boolean;
+    name: string
+    code: string
+    level: 'warning' | 'danger'
+    description: string
+    enabled: boolean
     config?: {
-      overdueDays?: number;    // 超期天数阈值
-      urgentDays?: number;     // 紧急天数阈值
-    };
-  }>;
+      overdueDays?: number // 超期天数阈值
+      urgentDays?: number // 紧急天数阈值
+    }
+  }>
 }
 ```
 
@@ -407,7 +407,7 @@ async function loadAlertRules() {
       console.log(`  级别：${rule.level}`)
       console.log(`  描述：${rule.description}`)
       console.log(`  启用：${rule.enabled ? '是' : '否'}`)
-      
+
       if (rule.config) {
         console.log(`  配置：超期=${rule.config.overdueDays}天，紧急=${rule.config.urgentDays}天`)
       }
@@ -433,11 +433,11 @@ async function loadAlertRules() {
 
 ```typescript
 interface ExportRequest {
-  containerNumbers?: string[]    // 指定柜号（不传则导出全部）
-  startDate?: string             // 开始日期
-  endDate?: string               // 结束日期
-  includeFields?: string[]       // 包含的字段
-  format?: 'excel' | 'csv'       // 导出格式（默认 excel）
+  containerNumbers?: string[] // 指定柜号（不传则导出全部）
+  startDate?: string // 开始日期
+  endDate?: string // 结束日期
+  includeFields?: string[] // 包含的字段
+  format?: 'excel' | 'csv' // 导出格式（默认 excel）
 }
 ```
 
@@ -448,39 +448,43 @@ interface ExportRequest {
 ```typescript
 async function exportGanttData() {
   try {
-    const response = await api.post('/containers/gantt/export', {
-      startDate: '2026-03-20',
-      endDate: '2026-04-20',
-      includeFields: [
-        'containerNumber',
-        'destinationPort',
-        'logisticsStatus',
-        'plannedPickupDate',
-        'actualPickupDate',
-        'plannedUnloadDate',
-        'actualUnloadDate',
-        'plannedReturnDate',
-        'actualReturnDate',
-        'lastFreeDate'
-      ],
-      format: 'excel'
-    }, {
-      responseType: 'blob'  // 重要：指定响应类型为 blob
-    })
+    const response = await api.post(
+      '/containers/gantt/export',
+      {
+        startDate: '2026-03-20',
+        endDate: '2026-04-20',
+        includeFields: [
+          'containerNumber',
+          'destinationPort',
+          'logisticsStatus',
+          'plannedPickupDate',
+          'actualPickupDate',
+          'plannedUnloadDate',
+          'actualUnloadDate',
+          'plannedReturnDate',
+          'actualReturnDate',
+          'lastFreeDate',
+        ],
+        format: 'excel',
+      },
+      {
+        responseType: 'blob', // 重要：指定响应类型为 blob
+      }
+    )
 
     // 创建下载链接
     const blob = new Blob([response.data], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     })
-    
+
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
     link.download = `甘特图数据_${dayjs().format('YYYYMMDD_HHmmss')}.xlsx`
     link.click()
-    
+
     window.URL.revokeObjectURL(url)
-    
+
     ElMessage.success('导出成功')
   } catch (error) {
     console.error('导出失败:', error)
@@ -514,26 +518,26 @@ async function batchUpdateDates(
 
     for (let i = 0; i < updates.length; i += BATCH_SIZE) {
       const batch = updates.slice(i, i + BATCH_SIZE)
-      
+
       const promises = batch.map(update =>
         api.patch(`/containers/${update.containerNumber}/dates`, {
-          [update.field]: update.date
+          [update.field]: update.date,
         })
       )
 
       const batchResults = await Promise.allSettled(promises)
-      
+
       batchResults.forEach((result, index) => {
         if (result.status === 'fulfilled') {
           results.push({
             success: true,
-            containerNumber: batch[index].containerNumber
+            containerNumber: batch[index].containerNumber,
           })
         } else {
           results.push({
             success: false,
             containerNumber: batch[index].containerNumber,
-            error: (result.reason as Error).message
+            error: (result.reason as Error).message,
           })
         }
       })
@@ -611,11 +615,12 @@ async function callWithRetry<T>(
 // 使用示例：重建快照（可能因网络波动失败）
 async function robustRebuildSnapshot(containerNumbers: string[]) {
   return callWithRetry(
-    () => api.post('/containers/gantt/rebuild-snapshot', {
-      containerNumbers,
-      force: true
-    }),
-    3,  // 最多重试 3 次
+    () =>
+      api.post('/containers/gantt/rebuild-snapshot', {
+        containerNumbers,
+        force: true,
+      }),
+    3, // 最多重试 3 次
     2000 // 初始延迟 2 秒
   )
 }
@@ -637,12 +642,12 @@ class GanttDataService {
    */
   connect() {
     this.socket = io('http://localhost:3001', {
-      transports: ['websocket']
+      transports: ['websocket'],
     })
 
-    this.socket.on('gantt-update', (data) => {
+    this.socket.on('gantt-update', data => {
       console.log('收到甘特图更新:', data)
-      
+
       // 通知所有监听器
       const containerListeners = this.listeners.get(data.containerNumber)
       if (containerListeners) {
@@ -682,12 +687,12 @@ const ganttService = new GanttDataService()
 ganttService.connect()
 
 // 监听货柜更新
-const unsubscribe = ganttService.onContainerUpdate('HMMU6232153', (data) => {
+const unsubscribe = ganttService.onContainerUpdate('HMMU6232153', data => {
   console.log(`${data.containerNumber} 更新了:`)
   console.log(`  字段：${data.field}`)
   console.log(`  旧值：${data.oldValue}`)
   console.log(`  新值：${data.newValue}`)
-  
+
   // 更新 UI
   // ...
 })
@@ -722,23 +727,25 @@ async function getGanttDataWithCache(key: string, fetcher: () => Promise<any>) {
   const data = await fetcher()
 
   // 写入缓存（TTL=5 分钟）
-  setTimeout(() => {
-    containerCache.delete(key)
-  }, 5 * 60 * 1000)
+  setTimeout(
+    () => {
+      containerCache.delete(key)
+    },
+    5 * 60 * 1000
+  )
 
   containerCache.set(key, data)
   return data
 }
 
 // 使用示例
-const data = await getGanttDataWithCache(
-  'USLAX_2026-03-20_2026-04-20',
-  () => api.get('/containers/gantt', {
+const data = await getGanttDataWithCache('USLAX_2026-03-20_2026-04-20', () =>
+  api.get('/containers/gantt', {
     params: {
       destinationPort: 'USLAX',
       startDate: '2026-03-20',
-      endDate: '2026-04-20'
-    }
+      endDate: '2026-04-20',
+    },
   })
 )
 ```
@@ -755,18 +762,22 @@ const GanttContainerSchema = z.object({
   id: z.string().uuid(),
   containerNumber: z.string().min(1),
   destinationPort: z.string().min(1),
-  ganttDerived: z.object({
-    nodes: z.object({
-      customs: z.object({
-        status: z.enum(['planned', 'actual']),
-        plannedDate: z.string().optional(),
-        actualDate: z.string().optional()
-      }).optional(),
-      // ... 其他节点
-    }),
-    updatedAt: z.string(),
-    version: z.enum(['v1', 'v2+'])
-  }).optional()
+  ganttDerived: z
+    .object({
+      nodes: z.object({
+        customs: z
+          .object({
+            status: z.enum(['planned', 'actual']),
+            plannedDate: z.string().optional(),
+            actualDate: z.string().optional(),
+          })
+          .optional(),
+        // ... 其他节点
+      }),
+      updatedAt: z.string(),
+      version: z.enum(['v1', 'v2+']),
+    })
+    .optional(),
 })
 
 /**

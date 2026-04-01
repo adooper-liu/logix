@@ -15,6 +15,7 @@ docker ps --filter "name=postgres" --format "{{.Names}}"
 ```
 
 **常见容器名**:
+
 - `logix-timescaledb-prod` (生产环境)
 - `logix-postgres` (开发环境)
 - `postgres` (默认)
@@ -29,6 +30,7 @@ $dbDatabase = (Get-Content $envFile | Where-Object { $_ -match "^DB_DATABASE=" }
 ```
 
 **典型配置**:
+
 ```ini
 DB_HOST=localhost
 DB_PORT=5432
@@ -45,6 +47,7 @@ docker exec -it <container_name> psql -U <username> -d <database> -c "\d <table_
 ```
 
 **示例**:
+
 ```bash
 docker exec -it logix-timescaledb-prod psql -U logix_user -d logix_db -c "\d dict_countries"
 ```
@@ -58,6 +61,7 @@ docker exec -i <container_name> psql -U <username> -d <database> -c "<SQL 语句
 ```
 
 **示例**:
+
 ```bash
 docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db -c "SELECT code, name_cn, currency FROM dict_countries WHERE code = 'IT';"
 ```
@@ -74,7 +78,7 @@ docker exec -i <container_name> psql -U <username> -d <database> -f /path/to/scr
 
 ```powershell
 $sqlQuery = @"
-SELECT 
+SELECT
   s.destination_port_code,
   s.currency,
   c.currency as expected_currency
@@ -92,12 +96,14 @@ docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db -c $sqlQuer
 ### 陷阱 1: PowerShell 中直接执行含中文的 SQL
 
 **错误示例**:
+
 ```powershell
 # ❌ 会导致编码错误，显示乱码
 docker exec ... -c "SELECT '测试' as test;"
 ```
 
 **解决方案**:
+
 1. 使用 SQL 文件（UTF-8 编码）
 2. 避免在 SQL 中使用中文
 3. 使用英文别名
@@ -105,6 +111,7 @@ docker exec ... -c "SELECT '测试' as test;"
 ### 陷阱 2: PowerShell Here-String 中的特殊字符
 
 **错误示例**:
+
 ```powershell
 # ❌ 双引号内的 $ 变量会被展开
 $sql = @"
@@ -113,6 +120,7 @@ SELECT * FROM table WHERE id = $id
 ```
 
 **正确做法**:
+
 ```powershell
 # ✅ 使用单引号或转义
 $sql = @"
@@ -127,12 +135,14 @@ SELECT * FROM table WHERE id = ``$id
 ### 陷阱 3: 管道传递 SQL 时的编码
 
 **错误示例**:
+
 ```powershell
 # ❌ PowerShell 默认编码可能导致问题
 Get-Content script.sql | docker exec ... psql ...
 ```
 
 **正确做法**:
+
 ```powershell
 # ✅ 指定 UTF-8 编码
 Get-Content script.sql -Encoding UTF8 | docker exec -i ... psql ...
@@ -169,6 +179,7 @@ SELECT * FROM original_table WHERE conditions;
 ```
 
 **示例**:
+
 ```bash
 docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db -c "CREATE TABLE ext_demurrage_standards_currency_backup_20260331 AS SELECT id, destination_port_code, currency, updated_at FROM ext_demurrage_standards WHERE is_chargeable = 'N' AND destination_port_code IS NOT NULL;"
 ```
@@ -188,7 +199,7 @@ WHERE o.id = b.id;
 
 ```bash
 docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db -c "
-SELECT 
+SELECT
   LEFT(s.destination_port_code, 2) as country,
   s.currency as standard_currency,
   c.currency as expected_currency,
@@ -206,12 +217,12 @@ ORDER BY country;
 
 ```bash
 docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db -c "
-UPDATE ext_demurrage_standards s 
-SET currency = c.currency, updated_at = CURRENT_TIMESTAMP 
-FROM dict_countries c 
-WHERE LEFT(s.destination_port_code, 2) = c.code 
-  AND s.is_chargeable = 'N' 
-  AND s.destination_port_code IS NOT NULL 
+UPDATE ext_demurrage_standards s
+SET currency = c.currency, updated_at = CURRENT_TIMESTAMP
+FROM dict_countries c
+WHERE LEFT(s.destination_port_code, 2) = c.code
+  AND s.is_chargeable = 'N'
+  AND s.destination_port_code IS NOT NULL
   AND s.currency != c.currency;
 "
 ```
@@ -220,10 +231,10 @@ WHERE LEFT(s.destination_port_code, 2) = c.code
 
 ```bash
 docker exec -i logix-timescaledb-prod psql -U logix_user -d logix_db -c "
-SELECT LEFT(destination_port_code, 2) as country, currency, COUNT(*) 
-FROM ext_demurrage_standards 
+SELECT LEFT(destination_port_code, 2) as country, currency, COUNT(*)
+FROM ext_demurrage_standards
 WHERE is_chargeable = 'N' AND destination_port_code IS NOT NULL
-GROUP BY country, currency 
+GROUP BY country, currency
 ORDER BY country;
 "
 ```
@@ -243,13 +254,13 @@ ORDER BY country;
 
 ## 常见错误与解决方案
 
-| 错误 | 原因 | 解决方案 |
-|------|------|----------|
-| `role "postgres" does not exist` | 用户名错误 | 从 .env 读取正确的用户名 |
-| `column "xxx" does not exist` | 字段名错误 | 使用 `\d table_name` 查看真实字段名 |
-| 中文显示乱码 | PowerShell 编码问题 | 使用 SQL 文件或避免中文 |
-| `No such container` | 容器名错误 | `docker ps -a` 确认容器名 |
-| 更新行数为 0 | WHERE 条件不匹配 | 先 SELECT 验证条件 |
+| 错误                             | 原因                | 解决方案                            |
+| -------------------------------- | ------------------- | ----------------------------------- |
+| `role "postgres" does not exist` | 用户名错误          | 从 .env 读取正确的用户名            |
+| `column "xxx" does not exist`    | 字段名错误          | 使用 `\d table_name` 查看真实字段名 |
+| 中文显示乱码                     | PowerShell 编码问题 | 使用 SQL 文件或避免中文             |
+| `No such container`              | 容器名错误          | `docker ps -a` 确认容器名           |
+| 更新行数为 0                     | WHERE 条件不匹配    | 先 SELECT 验证条件                  |
 
 ## 参考案例
 

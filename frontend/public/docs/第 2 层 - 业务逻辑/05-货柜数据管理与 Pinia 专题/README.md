@@ -57,11 +57,11 @@
 Step 1: 阅读 01-数据结构完整指南
        ↓ 理解 biz_containers 主表
        ↓ 掌握关联表关系
-       
+
 Step 2: 阅读 02-Pinia 状态管理指南
        ↓ 理解 app Store 作用
        ↓ 掌握 ganttFilters Store 用法
-       
+
 Step 3: 阅读 03-API 实战指南
        ↓ 学习 ContainerService 调用
        ↓ 掌握 Composables 模式
@@ -77,12 +77,12 @@ Step 3: 阅读 03-API 实战指南
 Step 1: 直接查阅 03-API 实战指南
        ↓ 重点看 Composables 模式
        ↓ 学习实际项目中的用法
-       
+
 Step 2: 针对问题查阅 01-数据结构
        ├── 表结构 → 01-数据结构 → 一、表结构
        ├── 类型定义 → 01-数据结构 → 二、TypeScript
        └── 关联查询 → 01-数据结构 → 三、数据流
-       
+
 Step 3: 深入研究 02-Pinia
        ↓ 理解持久化机制
        ↓ 掌握 watch 自动保存原理
@@ -97,12 +97,12 @@ Step 3: 深入研究 02-Pinia
 ```
 Step 1: 打开 03-API 实战指南
        ↓ 查看"常见问题排查"章节
-       
+
 Step 2: 根据错误现象定位
        ├── 401 错误 → 三、1 节
        ├── 缓存问题 → 三、2 节
        └── 国家筛选失效 → 三、3 节
-       
+
 Step 3: 执行 SQL 验证
        ↓ 使用提供的排查脚本
 ```
@@ -133,12 +133,12 @@ biz_containers (货柜主表，PK: container_number)
 
 #### 核心字段
 
-| 字段 | 类型 | 说明 | 用途 |
-|------|------|------|------|
-| `container_number` | VARCHAR(100) | 集装箱号（主键） | 全局唯一标识 |
-| `logistics_status` | VARCHAR(20) | 7 层简化状态 | 状态机计算结果 |
-| `gantt_derived` | JSONB | 甘特图五阶段快照 | 前端渲染依据 |
-| `schedule_status` | VARCHAR(20) | 排产状态 | 智能排柜引擎 |
+| 字段               | 类型         | 说明             | 用途           |
+| ------------------ | ------------ | ---------------- | -------------- |
+| `container_number` | VARCHAR(100) | 集装箱号（主键） | 全局唯一标识   |
+| `logistics_status` | VARCHAR(20)  | 7 层简化状态     | 状态机计算结果 |
+| `gantt_derived`    | JSONB        | 甘特图五阶段快照 | 前端渲染依据   |
+| `schedule_status`  | VARCHAR(20)  | 排产状态         | 智能排柜引擎   |
 
 ---
 
@@ -146,12 +146,12 @@ biz_containers (货柜主表，PK: container_number)
 
 ```typescript
 interface GanttDerived {
-  phase: 1|2|3|4|5;                // 五阶段
-  phaseLabel: string;               // 清关/提柜/卸柜/还箱/完成
-  primaryNode: GanttNodeKey|null;   // 主节点 key
-  nodes: GanttDerivedNode[];        // 节点数组
-  ruleVersion: string;              // 规则版本
-  derivedAt: string;                // 计算时间
+  phase: 1 | 2 | 3 | 4 | 5 // 五阶段
+  phaseLabel: string // 清关/提柜/卸柜/还箱/完成
+  primaryNode: GanttNodeKey | null // 主节点 key
+  nodes: GanttDerivedNode[] // 节点数组
+  ruleVersion: string // 规则版本
+  derivedAt: string // 计算时间
 }
 
 // 五阶段
@@ -172,19 +172,20 @@ interface GanttDerived {
 
 ```typescript
 export const useAppStore = defineStore('app', () => {
-  const scopedCountryCode = ref<string|null>(null);
-  
-  function setScopedCountryCode(code: string|null) {
+  const scopedCountryCode = ref<string | null>(null)
+
+  function setScopedCountryCode(code: string | null) {
     // 标准化 + 持久化
-    scopedCountryCode.value = normalizeCountryCode(code);
-    localStorage.setItem('logix_scoped_country_code', code);
+    scopedCountryCode.value = normalizeCountryCode(code)
+    localStorage.setItem('logix_scoped_country_code', code)
   }
-  
-  return { scopedCountryCode, setScopedCountryCode };
-});
+
+  return { scopedCountryCode, setScopedCountryCode }
+})
 ```
 
 **用途**:
+
 - 全局国家筛选
 - 所有 API 请求自动带上 `X-Country-Code` header
 - localStorage 持久化
@@ -210,13 +211,13 @@ export const useGanttFilterStore = defineStore('ganttFilters', () => {
   const startDate = ref('');
   const filterCondition = ref('');
   const timeDimension = ref('arrival');
-  
+
   // ⭐ 自动持久化 ⭐
   watch([startDate, ...], () => {
     persist();  // 保存到 localStorage
   });
-  
-  return { 
+
+  return {
     startDate, filterCondition, timeDimension,
     setFilters, clearFilters, initFromQuery, inferTimeDimension
   };
@@ -224,6 +225,7 @@ export const useGanttFilterStore = defineStore('ganttFilters', () => {
 ```
 
 **用途**:
+
 - 甘特图筛选条件管理
 - URL 参数初始化
 - localStorage 持久化
@@ -238,39 +240,39 @@ export const useGanttFilterStore = defineStore('ganttFilters', () => {
 ```typescript
 this.api.interceptors.request.use(config => {
   // 1. Token 认证
-  config.headers.Authorization = `Bearer ${token}`;
-  
+  config.headers.Authorization = `Bearer ${token}`
+
   // 2. ⭐ 国家筛选 ⭐
   if (appStore.scopedCountryCode) {
-    config.headers['X-Country-Code'] = appStore.scopedCountryCode;
+    config.headers['X-Country-Code'] = appStore.scopedCountryCode
   }
-  
+
   // 3. ⭐ 防止缓存 ⭐
   if (config.method === 'get') {
-    config.headers['Cache-Control'] = 'no-cache';
-    config.headers['Pragma'] = 'no-cache';
+    config.headers['Cache-Control'] = 'no-cache'
+    config.headers['Pragma'] = 'no-cache'
   }
-  
-  return config;
-});
+
+  return config
+})
 ```
 
 ---
 
 #### 核心方法清单
 
-| 方法 | 说明 | 参数 |
-|------|------|------|
-| `getContainers(filters)` | 获取货柜列表 | ContainerFilters |
-| `getContainerById(id)` | 获取单个详情 | containerNumber |
-| `createContainer(data)` | 创建货柜 | Container |
-| `updateContainer(id, data)` | 更新货柜 | id, Partial<Container> |
-| `deleteContainer(id)` | 删除货柜 | id |
-| `getStatistics()` | 获取统计 | - |
-| `getStatisticsDetailed(params)` | 详细统计 | StatisticsParams |
-| `getContainersByFilterCondition(condition)` | 按条件筛选 | filterCondition |
-| `writeBackDemurrageDatesForContainer(id)` | 写回滞港费日期 | containerNumber |
-| `batchWriteBackDemurrageDates(params)` | 批量写回 | BatchDemurrageParams |
+| 方法                                        | 说明           | 参数                   |
+| ------------------------------------------- | -------------- | ---------------------- |
+| `getContainers(filters)`                    | 获取货柜列表   | ContainerFilters       |
+| `getContainerById(id)`                      | 获取单个详情   | containerNumber        |
+| `createContainer(data)`                     | 创建货柜       | Container              |
+| `updateContainer(id, data)`                 | 更新货柜       | id, Partial<Container> |
+| `deleteContainer(id)`                       | 删除货柜       | id                     |
+| `getStatistics()`                           | 获取统计       | -                      |
+| `getStatisticsDetailed(params)`             | 详细统计       | StatisticsParams       |
+| `getContainersByFilterCondition(condition)` | 按条件筛选     | filterCondition        |
+| `writeBackDemurrageDatesForContainer(id)`   | 写回滞港费日期 | containerNumber        |
+| `batchWriteBackDemurrageDates(params)`      | 批量写回       | BatchDemurrageParams   |
 
 ---
 
@@ -282,30 +284,30 @@ this.api.interceptors.request.use(config => {
 
 ```typescript
 export function useContainerDetail() {
-  const route = useRoute();
-  const router = useRouter();
-  
+  const route = useRoute()
+  const router = useRouter()
+
   // 从路由参数获取货柜号
   const containerNumber = computed(() => {
-    const p = route.params.containerNumber as string;
-    return p ? decodeURIComponent(p) : '';
-  });
-  
+    const p = route.params.containerNumber as string
+    return p ? decodeURIComponent(p) : ''
+  })
+
   // 加载数据
-  const containerData = ref<Container|null>(null);
-  const loading = ref(false);
-  
+  const containerData = ref<Container | null>(null)
+  const loading = ref(false)
+
   async function loadContainerData() {
-    loading.value = true;
+    loading.value = true
     try {
-      const result = await containerService.getContainerById(containerNumber.value);
-      containerData.value = result.data;
+      const result = await containerService.getContainerById(containerNumber.value)
+      containerData.value = result.data
     } finally {
-      loading.value = false;
+      loading.value = false
     }
   }
-  
-  return { containerNumber, containerData, loading, loadContainerData };
+
+  return { containerNumber, containerData, loading, loadContainerData }
 }
 ```
 
@@ -320,24 +322,24 @@ export function useContainerDetail() {
 ```typescript
 export function useContainerCountdown() {
   function getCountdownInfo(container: Container): CountdownInfo {
-    const lastFreeDate = container.portOperations?.[0]?.lastFreeDate;
-    
+    const lastFreeDate = container.portOperations?.[0]?.lastFreeDate
+
     if (!lastFreeDate) {
-      return { status: 'no_data', daysLeft: null };
+      return { status: 'no_data', daysLeft: null }
     }
-    
-    const diffDays = calculateDiffDays(lastFreeDate);
-    
+
+    const diffDays = calculateDiffDays(lastFreeDate)
+
     if (diffDays < 0) {
-      return { status: 'expired', daysLeft: diffDays };  // 超期
+      return { status: 'expired', daysLeft: diffDays } // 超期
     } else if (diffDays <= 2) {
-      return { status: 'urgent', daysLeft: diffDays };   // 紧急
+      return { status: 'urgent', daysLeft: diffDays } // 紧急
     } else {
-      return { status: 'normal', daysLeft: diffDays };   // 正常
+      return { status: 'normal', daysLeft: diffDays } // 正常
     }
   }
-  
-  return { getCountdownInfo };
+
+  return { getCountdownInfo }
 }
 ```
 
@@ -349,27 +351,27 @@ export function useContainerCountdown() {
 
 ### 常见问题快速定位
 
-| 问题类型 | 推荐文档 | 章节 |
-|----------|----------|------|
-| **数据类型定义** | 01-数据结构指南 | 二、TypeScript 类型 |
-| **表结构查询** | 01-数据结构指南 | 一、数据库表结构 |
-| **国家筛选设置** | 02-Pinia 状态管理 | 一、app Store |
-| **甘特图筛选** | 02-Pinia 状态管理 | 二、ganttFilters Store |
-| **API 调用失败** | 03-API 实战指南 | 三、1 节 |
-| **数据不刷新** | 03-API 实战指南 | 三、2 节 |
-| **gantt_derived 未更新** | 01-数据结构指南 | 五、2 节 |
+| 问题类型                 | 推荐文档          | 章节                   |
+| ------------------------ | ----------------- | ---------------------- |
+| **数据类型定义**         | 01-数据结构指南   | 二、TypeScript 类型    |
+| **表结构查询**           | 01-数据结构指南   | 一、数据库表结构       |
+| **国家筛选设置**         | 02-Pinia 状态管理 | 一、app Store          |
+| **甘特图筛选**           | 02-Pinia 状态管理 | 二、ganttFilters Store |
+| **API 调用失败**         | 03-API 实战指南   | 三、1 节               |
+| **数据不刷新**           | 03-API 实战指南   | 三、2 节               |
+| **gantt_derived 未更新** | 01-数据结构指南   | 五、2 节               |
 
 ---
 
 ### 常见错误码定位
 
-| 错误现象 | 根因 | 解决文档 |
-|----------|------|----------|
-| **401 Unauthorized** | Token 失效 | 03-API 实战 → 三、1 节 |
-| **列表为空** | 国家筛选导致 | 02-Pinia → 一、4 节 |
-| **数据被缓存** | 缺少 Cache-Control | 03-API 实战 → 三、2 节 |
-| **路由参数乱码** | URL 编码问题 | 01-数据结构 → 五、3 节 |
-| **持久化失效** | watch 未注册 | 02-Pinia → 二、3 节 |
+| 错误现象             | 根因               | 解决文档               |
+| -------------------- | ------------------ | ---------------------- |
+| **401 Unauthorized** | Token 失效         | 03-API 实战 → 三、1 节 |
+| **列表为空**         | 国家筛选导致       | 02-Pinia → 一、4 节    |
+| **数据被缓存**       | 缺少 Cache-Control | 03-API 实战 → 三、2 节 |
+| **路由参数乱码**     | URL 编码问题       | 01-数据结构 → 五、3 节 |
+| **持久化失效**       | watch 未注册       | 02-Pinia → 二、3 节    |
 
 ---
 
@@ -377,11 +379,11 @@ export function useContainerCountdown() {
 
 ### 数量统计
 
-| 类别 | 文档数 | 总大小 |
-|------|--------|--------|
-| **核心文档** | 3 篇 | ~70KB |
-| **历史归档** | 1 篇 | ~9KB |
-| **总计** | **4 篇** | **~79KB** |
+| 类别         | 文档数   | 总大小    |
+| ------------ | -------- | --------- |
+| **核心文档** | 3 篇     | ~70KB     |
+| **历史归档** | 1 篇     | ~9KB      |
+| **总计**     | **4 篇** | **~79KB** |
 
 ---
 

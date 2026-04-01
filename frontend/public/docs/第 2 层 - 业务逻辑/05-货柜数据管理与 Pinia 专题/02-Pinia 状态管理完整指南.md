@@ -30,6 +30,7 @@ LogiX 使用 Pinia 作为 Vue 3 的状态管理库，主要管理两类状态：
 **用途**: 管理全局国家筛选（按国家过滤货柜数据）
 
 **业务场景**:
+
 - 用户在 Shipments 页面选择"美国"
 - 所有货柜列表、统计图表只显示美国相关数据
 - 切换国家后，数据自动刷新
@@ -60,7 +61,7 @@ const normalizeCountryCode = (code: string | null): string | null => {
 
 export const useAppStore = defineStore('app', () => {
   // ========== State ==========
-  
+
   /**
    * 全局筛选国家代码
    * - null 表示不过滤（显示所有国家）
@@ -78,9 +79,9 @@ export const useAppStore = defineStore('app', () => {
       }
     })()
   )
-  
+
   // ========== Actions ==========
-  
+
   /**
    * 设置全局筛选国家代码
    * @param code - 国家代码（如 'US', 'CA'）或 null
@@ -88,7 +89,7 @@ export const useAppStore = defineStore('app', () => {
   function setScopedCountryCode(code: string | null) {
     const normalized = normalizeCountryCode(code)
     scopedCountryCode.value = normalized
-    
+
     // 持久化到 localStorage
     try {
       if (normalized) {
@@ -100,7 +101,7 @@ export const useAppStore = defineStore('app', () => {
       // 忽略存储错误（隐私模式可能抛出）
     }
   }
-  
+
   /**
    * 清除国家筛选（显示所有国家）
    */
@@ -108,16 +109,16 @@ export const useAppStore = defineStore('app', () => {
     scopedCountryCode.value = null
     localStorage.removeItem(STORAGE_KEY)
   }
-  
+
   // ========== Return ==========
-  
+
   return {
     // State
     scopedCountryCode,
-    
+
     // Actions
     setScopedCountryCode,
-    clearScopedCountryCode
+    clearScopedCountryCode,
   }
 })
 ```
@@ -171,13 +172,13 @@ import { useAppStore } from '@/store/app'
 
 class ContainerService {
   private api: AxiosInstance
-  
+
   constructor() {
     this.api = axios.create({
       baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1',
       timeout: 120000,
     })
-    
+
     // 请求拦截器
     this.api.interceptors.request.use(config => {
       // 1. Token 认证
@@ -185,19 +186,19 @@ class ContainerService {
       if (token) {
         config.headers.Authorization = `Bearer ${token}`
       }
-      
+
       // 2. ⭐ 全局国家筛选 ⭐
       const appStore = useAppStore()
       if (appStore.scopedCountryCode) {
         config.headers['X-Country-Code'] = appStore.scopedCountryCode
       }
-      
+
       // 3. 避免浏览器缓存
       if (config.method?.toLowerCase() === 'get') {
         config.headers['Cache-Control'] = 'no-cache'
         config.headers['Pragma'] = 'no-cache'
       }
-      
+
       return config
     })
   }
@@ -215,21 +216,17 @@ class ContainerService {
 
 import { Request, Response, NextFunction } from 'express'
 
-export function scopedCountryMiddleware(
-  req: Request, 
-  res: Response, 
-  next: NextFunction
-) {
+export function scopedCountryMiddleware(req: Request, res: Response, next: NextFunction) {
   // 从请求头读取国家代码
   const countryCode = req.headers['x-country-code'] as string | undefined
-  
+
   if (countryCode) {
     // 写入请求上下文
-    (req as any).scopedCountryCode = countryCode.toUpperCase()
-    
+    ;(req as any).scopedCountryCode = countryCode.toUpperCase()
+
     console.log(`[ScopedCountry] 启用国家筛选：${countryCode.toUpperCase()}`)
   }
-  
+
   next()
 }
 ```
@@ -246,13 +243,13 @@ async getContainers(filters: ContainerFilters): Promise<ContainerListResult> {
     .createQueryBuilder('c')
     .leftJoinAndSelect('c.seaFreight', 'sf')
     .leftJoinAndSelect('c.portOperations', 'po')
-  
+
   // ⭐ 添加国家过滤 ⭐
   const countryCode = (this as any).scopedCountryCode
   if (countryCode) {
     qb.andWhere('c.country = :countryCode', { countryCode })
   }
-  
+
   // 其他筛选条件...
   if (filters.startDate && filters.endDate) {
     qb.andWhere('c.actual_ship_date BETWEEN :startDate AND :endDate', {
@@ -260,9 +257,9 @@ async getContainers(filters: ContainerFilters): Promise<ContainerListResult> {
       endDate: filters.endDate
     })
   }
-  
+
   const [items, total] = await qb.getManyAndCount()
-  
+
   return { items, total }
 }
 ```
@@ -276,6 +273,7 @@ async getContainers(filters: ContainerFilters): Promise<ContainerListResult> {
 **用途**: 管理甘特图的筛选条件和时间维度
 
 **业务场景**:
+
 - 用户在甘特图页面选择"最近 7 天"
 - 切换到"已到货柜"筛选条件
 - 刷新页面后，筛选条件保持不变
@@ -291,10 +289,10 @@ import { defineStore } from 'pinia'
 import { ref, watch } from 'vue'
 
 export interface GanttFilterState {
-  startDate: string           // 开始日期（ISO 字符串）
-  endDate: string             // 结束日期（ISO 字符串）
-  filterCondition: string     // 筛选条件代码
-  filterLabel: string         // 筛选条件标签
+  startDate: string // 开始日期（ISO 字符串）
+  endDate: string // 结束日期（ISO 字符串）
+  filterCondition: string // 筛选条件代码
+  filterLabel: string // 筛选条件标签
   selectedContainers: string[] // 选中的货柜号数组
   timeDimension: TimeDimension // 时间维度
 }
@@ -312,12 +310,12 @@ const getDefaultState = (): GanttFilterState => ({
   filterCondition: '',
   filterLabel: '',
   selectedContainers: [],
-  timeDimension: 'arrival'  // 默认为"到货"维度
+  timeDimension: 'arrival', // 默认为"到货"维度
 })
 
 export const useGanttFilterStore = defineStore('ganttFilters', () => {
   // ========== State ==========
-  
+
   /**
    * 从 localStorage 初始化状态
    */
@@ -333,9 +331,9 @@ export const useGanttFilterStore = defineStore('ganttFilters', () => {
     }
     return getDefaultState()
   }
-  
+
   const initialState = getInitialState()
-  
+
   // 创建响应式状态
   const startDate = ref(initialState.startDate)
   const endDate = ref(initialState.endDate)
@@ -343,9 +341,9 @@ export const useGanttFilterStore = defineStore('ganttFilters', () => {
   const filterLabel = ref(initialState.filterLabel)
   const selectedContainers = ref<string[]>([...initialState.selectedContainers])
   const timeDimension = ref<TimeDimension>(initialState.timeDimension)
-  
+
   // ========== Private Actions ==========
-  
+
   /**
    * 持久化到 localStorage
    */
@@ -357,14 +355,14 @@ export const useGanttFilterStore = defineStore('ganttFilters', () => {
         filterCondition: filterCondition.value,
         filterLabel: filterLabel.value,
         selectedContainers: [...selectedContainers.value],
-        timeDimension: timeDimension.value
+        timeDimension: timeDimension.value,
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(currentState))
     } catch (e) {
       console.warn('[GanttFilterStore] Failed to persist state:', e)
     }
   }
-  
+
   // ⭐ 监听所有状态变化，自动持久化 ⭐
   watch(
     [startDate, endDate, filterCondition, filterLabel, selectedContainers, timeDimension],
@@ -373,9 +371,9 @@ export const useGanttFilterStore = defineStore('ganttFilters', () => {
     },
     { deep: true }
   )
-  
+
   // ========== Public Actions ==========
-  
+
   /**
    * 设置筛选条件
    * @param filters - 部分或完整的筛选条件对象
@@ -390,7 +388,7 @@ export const useGanttFilterStore = defineStore('ganttFilters', () => {
     }
     if (filters.timeDimension !== undefined) timeDimension.value = filters.timeDimension
   }
-  
+
   /**
    * 清除所有筛选条件（恢复默认）
    */
@@ -403,7 +401,7 @@ export const useGanttFilterStore = defineStore('ganttFilters', () => {
     selectedContainers.value = [...defaultState.selectedContainers]
     timeDimension.value = defaultState.timeDimension
   }
-  
+
   /**
    * 从 URL query 参数初始化
    * @param query - Vue Router 的 query 对象
@@ -422,15 +420,13 @@ export const useGanttFilterStore = defineStore('ganttFilters', () => {
       filterLabel.value = String(query.filterLabel)
     }
     if (query.containers) {
-      selectedContainers.value = String(query.containers)
-        .split(',')
-        .filter(Boolean)
+      selectedContainers.value = String(query.containers).split(',').filter(Boolean)
     }
   }
-  
+
   /**
    * 根据 filterCondition 推断 timeDimension
-   * 
+   *
    * 推断规则:
    * - 包含 "arrival" → arrival
    * - 包含 "pickup" 且不包含 "last" → pickup
@@ -440,18 +436,18 @@ export const useGanttFilterStore = defineStore('ganttFilters', () => {
    */
   function inferTimeDimension(): TimeDimension {
     const condition = filterCondition.value.toLowerCase()
-    
+
     if (!condition) return 'arrival'
     if (condition.includes('arrival')) return 'arrival'
     if (condition.includes('pickup') && !condition.includes('last')) return 'pickup'
     if (condition.includes('last_pickup') || condition.includes('lastpickup')) return 'lastPickup'
     if (condition.includes('return')) return 'return'
-    
+
     return 'arrival'
   }
-  
+
   // ========== Return ==========
-  
+
   return {
     // State
     startDate,
@@ -460,12 +456,12 @@ export const useGanttFilterStore = defineStore('ganttFilters', () => {
     filterLabel,
     selectedContainers,
     timeDimension,
-    
+
     // Actions
     setFilters,
     clearFilters,
     initFromQuery,
-    inferTimeDimension
+    inferTimeDimension,
   }
 })
 ```
@@ -489,9 +485,9 @@ const route = useRoute()
 // ⭐ 从 URL 参数初始化筛选条件 ⭐
 watch(
   () => route.query,
-  (newQuery) => {
+  newQuery => {
     ganttFilterStore.initFromQuery(newQuery as Record<string, any>)
-    
+
     // 推断时间维度
     const dimension = ganttFilterStore.inferTimeDimension()
     ganttFilterStore.timeDimension = dimension
@@ -504,7 +500,7 @@ watch(
   [
     () => ganttFilterStore.startDate,
     () => ganttFilterStore.endDate,
-    () => ganttFilterStore.filterCondition
+    () => ganttFilterStore.filterCondition,
   ],
   async () => {
     await loadGanttData()
@@ -515,7 +511,7 @@ watch(
 function changeFilter(condition: string, label: string) {
   ganttFilterStore.setFilters({
     filterCondition: condition,
-    filterLabel: label
+    filterLabel: label,
   })
 }
 
@@ -523,7 +519,7 @@ function changeFilter(condition: string, label: string) {
 function setDateRange(start: string, end: string) {
   ganttFilterStore.setFilters({
     startDate: start,
-    endDate: end
+    endDate: end,
   })
 }
 </script>
@@ -566,10 +562,10 @@ router.push({
 
 ### 3.1 localStorage Key 规范
 
-| Store | Storage Key | 存储内容 |
-|-------|-------------|----------|
-| **app** | `logix_scoped_country_code` | 国家代码（如 'US'） |
-| **ganttFilters** | `logix_gantt_filters` | 完整的 GanttFilterState |
+| Store            | Storage Key                 | 存储内容                |
+| ---------------- | --------------------------- | ----------------------- |
+| **app**          | `logix_scoped_country_code` | 国家代码（如 'US'）     |
+| **ganttFilters** | `logix_gantt_filters`       | 完整的 GanttFilterState |
 
 ---
 
@@ -580,7 +576,7 @@ router.push({
 ```typescript
 function setScopedCountryCode(code: string | null) {
   scopedCountryCode.value = normalized
-  
+
   // ✅ 在 Action 中手动调用持久化
   try {
     if (normalized) {
@@ -588,7 +584,9 @@ function setScopedCountryCode(code: string | null) {
     } else {
       localStorage.removeItem(STORAGE_KEY)
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 ```
 
@@ -603,13 +601,14 @@ function setScopedCountryCode(code: string | null) {
 watch(
   [startDate, endDate, filterCondition, filterLabel, selectedContainers, timeDimension],
   () => {
-    persist()  // 自动保存
+    persist() // 自动保存
   },
   { deep: true }
 )
 ```
 
 **优点**:
+
 - 无需手动调用 save
 - 状态变化即保存
 - 不会遗漏
@@ -623,7 +622,7 @@ watch(
 ```typescript
 function clearScopedCountryCode() {
   scopedCountryCode.value = null
-  localStorage.removeItem(STORAGE_KEY)  // ✅ 同时清除存储
+  localStorage.removeItem(STORAGE_KEY) // ✅ 同时清除存储
 }
 ```
 
@@ -634,12 +633,12 @@ function clearScopedCountryCode() {
 ```typescript
 function clearFilters() {
   const defaultState = getDefaultState()
-  
+
   // 重置为默认值
   startDate.value = defaultState.startDate
   endDate.value = defaultState.endDate
   // ...
-  
+
   // ❌ 不需要手动清除 localStorage
   // ✅ watch 会自动持久化默认状态
 }
@@ -669,11 +668,13 @@ console.log('localStorage:', localStorage.getItem('logix_scoped_country_code'))
 ```
 
 **常见原因**:
+
 - ❌ app Store 未正确初始化
 - ❌ 请求拦截器未读取 appStore
 - ❌ 后端未配置 middleware
 
 **解决方案**:
+
 - ✅ 重启页面重新初始化
 - ✅ 检查 container.ts 拦截器代码
 - ✅ 验证后端 middleware 配置
@@ -699,11 +700,13 @@ console.log('gantt filters:', localStorage.getItem('logix_gantt_filters'))
 ```
 
 **常见原因**:
+
 - ❌ localStorage 被清除
 - ❌ watch 监听器未正确设置
 - ❌ initFromQuery 覆盖了本地状态
 
 **解决方案**:
+
 - ✅ 不要手动清除 localStorage
 - ✅ 确保 watch 在 Store 创建时注册
 - ✅ 调整 initFromQuery 的调用时机
@@ -719,7 +722,7 @@ console.log('gantt filters:', localStorage.getItem('logix_gantt_filters'))
 ```typescript
 // 监听 storage 事件（跨 Tab 同步）
 if (typeof window !== 'undefined') {
-  window.addEventListener('storage', (event) => {
+  window.addEventListener('storage', event => {
     if (event.key === STORAGE_KEY) {
       // 读取新值并更新
       const newCode = event.newValue

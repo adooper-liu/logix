@@ -41,27 +41,27 @@ import axios, { AxiosInstance } from 'axios'
 
 class ContainerService {
   private api: AxiosInstance
-  
+
   constructor() {
     // 创建 Axios 实例
     this.api = axios.create({
       baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1',
-      timeout: 120000,  // 2 分钟超时
+      timeout: 120000, // 2 分钟超时
     })
-    
+
     // ⭐ 注册请求拦截器 ⭐
     this.api.interceptors.request.use(
       config => this.handleRequest(config),
       error => Promise.reject(error)
     )
-    
+
     // 注册响应拦截器
     this.api.interceptors.response.use(
       response => this.handleResponse(response),
       error => this.handleError(error)
     )
   }
-  
+
   /**
    * 请求拦截器处理
    */
@@ -71,22 +71,22 @@ class ContainerService {
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-    
+
     // 2. ⭐ 全局国家筛选 ⭐
     const appStore = useAppStore()
     if (appStore.scopedCountryCode) {
       config.headers['X-Country-Code'] = appStore.scopedCountryCode
     }
-    
+
     // 3. ⭐ 避免浏览器缓存（GET 请求）⭐
     if (String(config.method || 'get').toLowerCase() === 'get') {
       config.headers['Cache-Control'] = 'no-cache'
       config.headers['Pragma'] = 'no-cache'
     }
-    
+
     return config
   }
-  
+
   /**
    * 响应拦截器处理
    */
@@ -94,19 +94,19 @@ class ContainerService {
     // 可以在这里做统一的错误处理、日志记录等
     return response
   }
-  
+
   /**
    * 错误处理
    */
   private handleError(error: any): never {
     console.error('[ContainerService] API Error:', error)
-    
+
     // 401 未授权 → 跳转登录
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
       window.location.href = '/login'
     }
-    
+
     throw error
   }
 }
@@ -131,9 +131,9 @@ async getContainers(filters: ContainerFilters): Promise<ContainerListResponse> {
   try {
     // 转换 camelCase 为 snake_case
     const snakeFilters = camelToSnake(filters)
-    
+
     const response = await this.api.get('/containers', { params: snakeFilters })
-    
+
     return {
       success: true,
       items: response.data.items || [],
@@ -168,7 +168,7 @@ async getContainers(filters: ContainerFilters): Promise<ContainerListResponse> {
 async getContainerById(containerNumber: string): Promise<ContainerDetailResponse> {
   try {
     const response = await this.api.get(`/containers/${encodeURIComponent(containerNumber)}`)
-    
+
     return {
       success: true,
       data: response.data
@@ -197,7 +197,7 @@ async getContainerById(containerNumber: string): Promise<ContainerDetailResponse
 async createContainer(container: Partial<Container>): Promise<ContainerResponse> {
   try {
     const response = await this.api.post('/containers', container)
-    
+
     return {
       success: true,
       data: response.data
@@ -225,15 +225,15 @@ async createContainer(container: Partial<Container>): Promise<ContainerResponse>
  * @returns 更新后的货柜
  */
 async updateContainer(
-  containerNumber: string, 
+  containerNumber: string,
   data: Partial<Container>
 ): Promise<ContainerResponse> {
   try {
     const response = await this.api.patch(
-      `/containers/${encodeURIComponent(containerNumber)}`, 
+      `/containers/${encodeURIComponent(containerNumber)}`,
       data
     )
-    
+
     return {
       success: true,
       data: response.data
@@ -262,7 +262,7 @@ async updateContainer(
 async deleteContainer(containerNumber: string): Promise<BaseResponse> {
   try {
     await this.api.delete(`/containers/${encodeURIComponent(containerNumber)}`)
-    
+
     return {
       success: true
     }
@@ -290,7 +290,7 @@ async deleteContainer(containerNumber: string): Promise<BaseResponse> {
 async getStatistics(): Promise<ContainerStatsResponse> {
   try {
     const response = await this.api.get('/containers/statistics')
-    
+
     return {
       success: true,
       data: response.data
@@ -319,10 +319,10 @@ async getStatistics(): Promise<ContainerStatsResponse> {
 async getStatisticsDetailed(params: StatisticsParams): Promise<ContainerStatsResponse> {
   try {
     const snakeParams = camelToSnake(params)
-    const response = await this.api.get('/containers/statistics-detailed', { 
-      params: snakeParams 
+    const response = await this.api.get('/containers/statistics-detailed', {
+      params: snakeParams
     })
-    
+
     return {
       success: true,
       data: response.data
@@ -355,7 +355,7 @@ async getContainersByFilterCondition(condition: string): Promise<ContainerListRe
     const response = await this.api.get('/containers/by-filter', {
       params: { condition }
     })
-    
+
     return {
       success: true,
       items: response.data.items || [],
@@ -390,7 +390,7 @@ async getContainersByFilterCondition(condition: string): Promise<ContainerListRe
 async writeBackDemurrageDatesForContainer(containerNumber: string): Promise<BaseResponse> {
   try {
     await this.api.post(`/containers/${encodeURIComponent(containerNumber)}/write-back-demurrage-dates`)
-    
+
     return {
       success: true
     }
@@ -418,7 +418,7 @@ async batchWriteBackDemurrageDates(params: BatchDemurrageParams): Promise<BatchO
   try {
     const snakeParams = camelToSnake(params)
     const response = await this.api.post('/containers/batch-write-back-demurrage-dates', snakeParams)
-    
+
     return {
       success: true,
       data: {
@@ -455,9 +455,9 @@ import type { Container } from '@/types/container'
 export function useContainerDetail() {
   const route = useRoute()
   const router = useRouter()
-  
+
   // ========== 计算属性 ==========
-  
+
   /**
    * 从路由参数获取货柜号
    */
@@ -465,15 +465,15 @@ export function useContainerDetail() {
     const p = route.params.containerNumber as string
     return p ? decodeURIComponent(p) : ''
   })
-  
+
   // ========== 状态 ==========
-  
+
   const containerData = ref<Container | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
-  
+
   // ========== 方法 ==========
-  
+
   /**
    * 加载货柜数据
    */
@@ -482,13 +482,13 @@ export function useContainerDetail() {
       error.value = '货柜号为空'
       return
     }
-    
+
     loading.value = true
     error.value = null
-    
+
     try {
       const result = await containerService.getContainerById(containerNumber.value)
-      
+
       if (result.success && result.data) {
         containerData.value = result.data
       } else {
@@ -500,34 +500,34 @@ export function useContainerDetail() {
       loading.value = false
     }
   }
-  
+
   /**
    * 刷新数据
    */
   async function refresh() {
     await loadContainerData()
   }
-  
+
   /**
    * 返回列表页
    */
   function goBack() {
     router.back()
   }
-  
+
   // ========== 返回 ==========
-  
+
   return {
     // State
     containerNumber,
     containerData,
     loading,
     error,
-    
+
     // Actions
     loadContainerData,
     refresh,
-    goBack
+    goBack,
   }
 }
 ```
@@ -543,14 +543,8 @@ export function useContainerDetail() {
 import { useContainerDetail } from '@/composables/useContainerDetail'
 import { onMounted } from 'vue'
 
-const { 
-  containerNumber, 
-  containerData, 
-  loading, 
-  error,
-  loadContainerData,
-  goBack
-} = useContainerDetail()
+const { containerNumber, containerData, loading, error, loadContainerData, goBack } =
+  useContainerDetail()
 
 onMounted(async () => {
   await loadContainerData()
@@ -560,9 +554,9 @@ onMounted(async () => {
 <template>
   <div>
     <h1>货柜详情：{{ containerNumber }}</h1>
-    
+
     <el-button @click="goBack">返回</el-button>
-    
+
     <div v-if="loading">加载中...</div>
     <div v-else-if="error">错误：{{ error }}</div>
     <div v-else-if="containerData">
@@ -601,29 +595,29 @@ export function useContainerCountdown() {
   function getCountdownInfo(container: Container): CountdownInfo {
     // 获取最晚提柜日
     const lastFreeDate = container.portOperations?.[0]?.lastFreeDate
-    
+
     if (!lastFreeDate) {
       return {
         status: 'no_data',
         daysLeft: null,
         hoursLeft: null,
-        isOverdue: false
+        isOverdue: false,
       }
     }
-    
+
     const now = new Date()
     const deadline = new Date(lastFreeDate)
     const diffMs = deadline.getTime() - now.getTime()
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
-    
+
     if (diffDays < 0) {
       // 已超期
       return {
         status: 'expired',
         daysLeft: diffDays,
         hoursLeft: diffHours,
-        isOverdue: true
+        isOverdue: true,
       }
     } else if (diffDays <= 2) {
       // 紧急（2 天内）
@@ -631,7 +625,7 @@ export function useContainerCountdown() {
         status: 'urgent',
         daysLeft: diffDays,
         hoursLeft: diffHours,
-        isOverdue: false
+        isOverdue: false,
       }
     } else {
       // 正常
@@ -639,18 +633,18 @@ export function useContainerCountdown() {
         status: 'normal',
         daysLeft: diffDays,
         hoursLeft: diffHours,
-        isOverdue: false
+        isOverdue: false,
       }
     }
   }
-  
+
   /**
    * 格式化倒计时显示
    */
   function formatCountdown(info: CountdownInfo): string {
     if (info.status === 'no_data') return '--'
     if (info.daysLeft === null) return '--'
-    
+
     if (info.isOverdue) {
       return `超期 ${Math.abs(info.daysLeft)} 天`
     } else if (info.status === 'urgent') {
@@ -659,10 +653,10 @@ export function useContainerCountdown() {
       return `${info.daysLeft} 天`
     }
   }
-  
+
   return {
     getCountdownInfo,
-    formatCountdown
+    formatCountdown,
   }
 }
 ```
@@ -740,6 +734,7 @@ console.log('Token:', localStorage.getItem('token'))
 ```
 
 **解决方案**:
+
 - ✅ 重新登录获取新 Token
 - ✅ 清除本地存储重新登录
 - ✅ 检查后端 JWT 配置
@@ -761,6 +756,7 @@ window.location.reload(true)
 ```
 
 **解决方案**:
+
 - ✅ 已在拦截器中设置 `Cache-Control: no-cache`
 - ✅ 如仍有问题，在 URL 后加时间戳参数
 - ✅ 清除浏览器缓存
@@ -786,6 +782,7 @@ tail -f backend.log | grep "X-Country-Code"
 ```
 
 **解决方案**:
+
 - ✅ 参考 02-Pinia 状态管理完整指南
 - ✅ 验证后端 middleware 配置
 - ✅ 清除 localStorage 重新设置
