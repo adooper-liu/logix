@@ -97,9 +97,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
-import { Box, Van, Connection, Clock } from '@element-plus/icons-vue'
 import { useAppStore } from '@/store/app'
+import { Box, Clock, Connection, Van } from '@element-plus/icons-vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 const props = defineProps<{
   country?: string

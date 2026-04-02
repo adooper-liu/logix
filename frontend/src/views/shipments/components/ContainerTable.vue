@@ -610,24 +610,22 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
-import {
-  ArrowDown,
-  Calendar,
-  Edit,
-  View,
-  Warning,
-} from '@element-plus/icons-vue'
-import { useI18n } from 'vue-i18n'
 import type { Container } from '@/types/container'
+import {
+    Calendar,
+    Edit,
+    View,
+    Warning
+} from '@element-plus/icons-vue'
+import { computed, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type {
-  ContainerTableProps,
-  ContainerTableEmits,
-  ColumnKey,
-  SortParams
+    ColumnKey,
+    ContainerTableEmits,
+    ContainerTableProps
 } from './types'
-import { useContainerTable } from './useContainerTable'
 import { COLUMN_LABELS, DEFAULT_COLUMN_ORDER } from './types'
+import { useContainerTable } from './useContainerTable'
 
 // Props & Emits
 const props = withDefaults(defineProps<ContainerTableProps>(), {

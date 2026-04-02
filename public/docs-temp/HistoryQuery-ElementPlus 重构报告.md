@@ -14,26 +14,27 @@
 
 #### 组件映射表
 
-| Ant Design Vue | Element Plus | 说明 |
-|---------------|-------------|------|
-| `<a-card>` | `<el-card>` | 卡片容器 |
-| `<a-form>` | `<el-form :inline="true">` | 行内表单 |
-| `<a-form-item>` | `<el-form-item>` | 表单项 |
-| `<a-input>` | `<el-input>` | 输入框 |
-| `<a-input allow-clear>` | `<el-input clearable>` | 可清空输入框 |
-| `<a-range-picker>` | `<el-date-picker type="daterange">` | 日期范围选择器 |
-| `<a-button>` | `<el-button>` | 按钮 |
-| `<a-table>` | `<el-table>` | 表格 |
-| `<a-table #bodyCell>` | `<el-table #default>` | 自定义列插槽 |
-| `<a-tag>` | `<el-tag>` | 标签 |
-| `<a-badge>` | `<el-tag>` | 徽章改为标签 |
-| `<a-descriptions>` | `<el-descriptions>` | 描述列表 |
-| `<a-descriptions-item>` | `<el-descriptions-item>` | 描述项 |
-| `<a-drawer>` | `<el-drawer>` | 抽屉面板 |
+| Ant Design Vue          | Element Plus                        | 说明           |
+| ----------------------- | ----------------------------------- | -------------- |
+| `<a-card>`              | `<el-card>`                         | 卡片容器       |
+| `<a-form>`              | `<el-form :inline="true">`          | 行内表单       |
+| `<a-form-item>`         | `<el-form-item>`                    | 表单项         |
+| `<a-input>`             | `<el-input>`                        | 输入框         |
+| `<a-input allow-clear>` | `<el-input clearable>`              | 可清空输入框   |
+| `<a-range-picker>`      | `<el-date-picker type="daterange">` | 日期范围选择器 |
+| `<a-button>`            | `<el-button>`                       | 按钮           |
+| `<a-table>`             | `<el-table>`                        | 表格           |
+| `<a-table #bodyCell>`   | `<el-table #default>`               | 自定义列插槽   |
+| `<a-tag>`               | `<el-tag>`                          | 标签           |
+| `<a-badge>`             | `<el-tag>`                          | 徽章改为标签   |
+| `<a-descriptions>`      | `<el-descriptions>`                 | 描述列表       |
+| `<a-descriptions-item>` | `<el-descriptions-item>`            | 描述项         |
+| `<a-drawer>`            | `<el-drawer>`                       | 抽屉面板       |
 
 #### 关键变更
 
 **搜索表单**:
+
 ```vue
 <!-- Before -->
 <a-form layout="inline">
@@ -64,6 +65,7 @@
 ```
 
 **表格重构**:
+
 ```vue
 <!-- Before: 使用 columns 定义 + bodyCell 插槽 -->
 <a-table :data-source="histories" :columns="columns">
@@ -93,6 +95,7 @@
 ```
 
 **分页组件**:
+
 ```vue
 <!-- Before: 依赖 a-table 内置分页 -->
 <a-table :pagination="pagination" @change="handleTableChange" />
@@ -114,81 +117,86 @@
 ### 2. Script 重构
 
 #### 图标导入
+
 ```typescript
 // 新增
-import { Search, Refresh } from '@element-plus/icons-vue'
+import { Search, Refresh } from "@element-plus/icons-vue";
 ```
 
 #### 移除 dayjs 依赖
+
 ```typescript
 // Before
-import dayjs, { Dayjs } from 'dayjs'
+import dayjs, { Dayjs } from "dayjs";
 
 const searchForm = reactive({
   dateRange: [] as Dayjs[],
-})
+});
 
 function formatDate(dateStr?: string): string {
-  return dayjs(dateStr).format('YYYY-MM-DD')
+  return dayjs(dateStr).format("YYYY-MM-DD");
 }
 
 // After
 const searchForm = reactive({
   dateRange: [] as string[],
-})
+});
 
 function formatDate(dateStr?: string): string {
-  if (!dateStr) return '-'
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  })
+  if (!dateStr) return "-";
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
 }
 ```
 
 #### API 响应处理优化
+
 ```typescript
 // Before
-const response = await api.get('/scheduling/history/latest', { params })
-histories.value = response.data.data
-pagination.total = response.data.data.length
+const response = await api.get("/scheduling/history/latest", { params });
+histories.value = response.data.data;
+pagination.total = response.data.data.length;
 
 // After
-const response = await api.get('/scheduling/history/latest', { params })
-histories.value = response.data.data.records || []
-pagination.total = response.data.data.total || 0
+const response = await api.get("/scheduling/history/latest", { params });
+histories.value = response.data.data.records || [];
+pagination.total = response.data.data.total || 0;
 ```
 
 #### 分页事件拆分
+
 ```typescript
 // Before: 单一事件处理
 function handleTableChange(pag: any) {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
-  handleSearch()
+  pagination.current = pag.current;
+  pagination.pageSize = pag.pageSize;
+  handleSearch();
 }
 
 // After: 拆分为两个独立事件
 function handleSizeChange(size: number) {
-  pagination.pageSize = size
-  pagination.current = 1
-  handleSearch()
+  pagination.pageSize = size;
+  pagination.current = 1;
+  handleSearch();
 }
 
 function handleCurrentChange(page: number) {
-  pagination.current = page
-  handleSearch()
+  pagination.current = page;
+  handleSearch();
 }
 ```
 
 #### 排序支持
+
 ```typescript
 // 新增排序事件处理
 function handleSortChange({ prop, order }: any) {
   // 可以在这里添加排序逻辑
-  console.log('排序变化:', prop, order)
+  console.log("排序变化:", prop, order);
 }
 ```
 
@@ -241,15 +249,16 @@ function handleSortChange({ prop, order }: any) {
 
 ### 数据绑定语法
 
-| Vue 2 + Ant Design | Vue 3 + Element Plus |
-|-------------------|---------------------|
-| `v-model:value` | `v-model` |
-| `@change` | `@current-change` / `@size-change` |
-| `:data-source` | `:data` |
+| Vue 2 + Ant Design | Vue 3 + Element Plus               |
+| ------------------ | ---------------------------------- |
+| `v-model:value`    | `v-model`                          |
+| `@change`          | `@current-change` / `@size-change` |
+| `:data-source`     | `:data`                            |
 
 ### 日期处理
 
 **Element Plus 日期选择器**:
+
 - `value-format="YYYY-MM-DD"`: 直接返回字符串数组
 - 无需手动格式化，简化代码
 - 内置国际化支持
@@ -257,6 +266,7 @@ function handleSortChange({ prop, order }: any) {
 ### 表格列定义
 
 **从对象数组到组件式**:
+
 ```typescript
 // Ant Design: 对象数组定义
 const columns = [
@@ -296,21 +306,21 @@ const columns = [
 
 ### 代码行数
 
-| 指标 | Before | After | 变化 |
-|------|--------|-------|------|
-| 模板行数 | ~143 行 | ~165 行 | +15% |
+| 指标        | Before  | After   | 变化 |
+| ----------- | ------- | ------- | ---- |
+| 模板行数    | ~143 行 | ~165 行 | +15% |
 | Script 行数 | ~218 行 | ~267 行 | +22% |
-| 总行数 | 379 行 | 432 行 | +14% |
+| 总行数      | 379 行  | 432 行  | +14% |
 
 ### 代码质量
 
-| 维度 | 改进 |
-|------|------|
-| 可读性 | ⭐⭐⭐⭐⭐ 组件式定义更直观 |
+| 维度     | 改进                           |
+| -------- | ------------------------------ |
+| 可读性   | ⭐⭐⭐⭐⭐ 组件式定义更直观    |
 | 可维护性 | ⭐⭐⭐⭐⭐ 符合 Vue 3 最佳实践 |
-| 类型安全 | ⭐⭐⭐⭐ 移除 dayjs 依赖 |
-| 性能 | ⭐⭐⭐⭐⭐ 虚拟滚动支持 |
-| 用户体验 | ⭐⭐⭐⭐⭐ 分页选项更丰富 |
+| 类型安全 | ⭐⭐⭐⭐ 移除 dayjs 依赖       |
+| 性能     | ⭐⭐⭐⭐⭐ 虚拟滚动支持        |
+| 用户体验 | ⭐⭐⭐⭐⭐ 分页选项更丰富      |
 
 ---
 

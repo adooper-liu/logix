@@ -2,7 +2,6 @@
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
 import CountdownCard from '@/components/CountdownCard.vue'
 import SchedulingHistoryCard from '@/components/SchedulingHistoryCard.vue'
-import ContainerTable from './components/ContainerTable.vue'
 import { useContainerCountdown } from '@/composables/useContainerCountdown'
 import { useLogisticsStatus } from '@/composables/useLogisticsStatus'
 import { useShipmentsExport } from '@/composables/useShipmentsExport'
@@ -11,26 +10,12 @@ import { useShipmentsTable } from '@/composables/useShipmentsTable'
 import { containerService } from '@/services/container'
 import { useAppStore } from '@/store/app'
 import { useGanttFilterStore } from '@/store/ganttFilters'
-import type { PortOperation } from '@/types/container'
-import { getCurrentLocationText } from '@/utils/logisticsStatusMachine'
-import {
-  ArrowDown,
-  ArrowRight,
-  Calendar,
-  CircleCheck,
-  CircleClose,
-  Download,
-  Edit,
-  Refresh,
-  Search,
-  View,
-  Warning,
-} from '@element-plus/icons-vue'
-import dayjs from 'dayjs'
+import { Calendar, Download, Edit, Refresh, Search, Warning } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import ContainerTable from './components/ContainerTable.vue'
 
 const getUtcDayNumber = (input: string | Date | null | undefined): number | null => {
   if (!input) return null
@@ -504,12 +489,8 @@ onUnmounted(() => {
             <el-descriptions-item label="清关行">
               {{ selectedRows.length }} 个货柜
             </el-descriptions-item>
-            <el-descriptions-item label="仓库">
-              根据能力和距离自动分配
-            </el-descriptions-item>
-            <el-descriptions-item label="车队">
-              根据能力和位置自动分配
-            </el-descriptions-item>
+            <el-descriptions-item label="仓库"> 根据能力和距离自动分配 </el-descriptions-item>
+            <el-descriptions-item label="车队"> 根据能力和位置自动分配 </el-descriptions-item>
           </el-descriptions>
         </div>
       </div>

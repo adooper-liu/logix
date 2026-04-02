@@ -23,7 +23,7 @@
         <!-- 历史记录列表 -->
         <div v-else class="history-timeline">
           <el-timeline>
-          <el-timeline-item
+            <el-timeline-item
               v-for="(record, index) in histories"
               :key="record.id"
               :timestamp="formatDateTime(record.operatedAt)"
@@ -186,8 +186,8 @@
 
 <script setup lang="ts">
 import api from '@/services/api'
-import { computed, ref, watch } from 'vue'
 import { Document } from '@element-plus/icons-vue'
+import { computed, ref, watch } from 'vue'
 
 // 导出类型和组件实例
 export interface SchedulingHistory {

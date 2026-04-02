@@ -21,14 +21,15 @@
    - 日期类型统一用 `string` (ISO 格式)
 
 **验证方法**:
+
 ```typescript
 // ✅ 正确：基于实体定义
-import type { Container } from '@/entities/Container'
-type ContainerRecord = Pick<Container, 'containerNumber' | 'billOfLadingNumber'>
+import type { Container } from "@/entities/Container";
+type ContainerRecord = Pick<Container, "containerNumber" | "billOfLadingNumber">;
 
 // ❌ 错误：凭空创造字段
 interface Container {
-  containerNo: string // 数据库无此字段
+  containerNo: string; // 数据库无此字段
 }
 ```
 
@@ -54,12 +55,13 @@ interface Container {
    - 出现问题可立即回滚
 
 **实施策略**:
+
 ```vue
 <!-- 过渡期：新旧并存 -->
 <template>
   <!-- 旧版本（待删除） -->
   <el-table v-if="!useNewTable" ...>...</el-table>
-  
+
   <!-- 新版本（默认隐藏） -->
   <ContainerTable v-else ... />
 </template>
@@ -87,6 +89,7 @@ interface Container {
    - 列组件：单列渲染逻辑
 
 **文件结构**:
+
 ```
 shipments/
 ├── Shipments.vue (页面容器 - ~800 行)
@@ -108,20 +111,22 @@ shipments/
 **强制要求**:
 
 1. **所有 Props 必须有类型定义**
+
    ```typescript
    interface ContainerTableProps {
-     data: readonly ContainerRecord[]
-     loading: boolean
-     pagination: PaginationParams
+     data: readonly ContainerRecord[];
+     loading: boolean;
+     pagination: PaginationParams;
      // ...
    }
    ```
 
 2. **所有 Emits 必须有类型签名**
+
    ```typescript
    interface ContainerTableEmits {
-     (e: 'update:page', page: number): void
-     (e: 'sort-change', sort: SortParams): void
+     (e: "update:page", page: number): void;
+     (e: "sort-change", sort: SortParams): void;
      // ...
    }
    ```
@@ -139,7 +144,7 @@ shipments/
     */
    export interface ContainerRecord {
      /** 集装箱号 (数据库字段：container_number) */
-     containerNumber: string
+     containerNumber: string;
    }
    ```
 
@@ -165,15 +170,16 @@ shipments/
    - 事件触发正确性
 
 **测试清单**:
+
 ```typescript
-describe('ContainerTable', () => {
-  it('应正确渲染所有可见列')
-  it('分页切换应触发 update:page 事件')
-  it('排序变化应触发 sort-change 事件')
-  it('选择行应触发 selection-change 事件')
-  it('展开行应正确显示详情')
+describe("ContainerTable", () => {
+  it("应正确渲染所有可见列");
+  it("分页切换应触发 update:page 事件");
+  it("排序变化应触发 sort-change 事件");
+  it("选择行应触发 selection-change 事件");
+  it("展开行应正确显示详情");
   // ... 至少 20 个测试用例
-})
+});
 ```
 
 ---
@@ -198,6 +204,7 @@ describe('ContainerTable', () => {
    - 合理使用 `markRaw`
 
 **性能指标**:
+
 - 首次渲染 < 500ms
 - 分页切换 < 200ms
 - 内存占用 < 50MB
@@ -225,31 +232,30 @@ describe('ContainerTable', () => {
    - 常见问题
 
 **文档模板**:
-```markdown
+
+````markdown
 # ContainerTable 组件
 
 ## Props
 
-| 属性 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| data | ContainerRecord[] | 是 | 表格数据 |
+| 属性 | 类型              | 必填 | 说明     |
+| ---- | ----------------- | ---- | -------- |
+| data | ContainerRecord[] | 是   | 表格数据 |
 
 ## Events
 
-| 事件名 | 参数 | 说明 |
-|--------|------|------|
+| 事件名      | 参数         | 说明     |
+| ----------- | ------------ | -------- |
 | update:page | page: number | 页码变化 |
 
 ## 使用示例
 
 ```vue
-<ContainerTable
-  :data="containers"
-  :loading="loading"
-  @update:page="handlePageChange"
-/>
+<ContainerTable :data="containers" :loading="loading" @update:page="handlePageChange" />
 ```
-```
+````
+
+````
 
 ---
 
@@ -307,9 +313,10 @@ describe('ContainerTable', () => {
 interface Container {
   containerNo: string // 应为 containerNumber
 }
-```
+````
 
 **解决**:
+
 ```typescript
 // ✅ 正确：使用 TypeORM 映射
 @Column({ name: 'container_number' })
@@ -321,11 +328,13 @@ containerNumber: string
 ### 陷阱二：过度设计
 
 **问题**:
+
 - 一次性重构所有功能
 - 引入过多抽象层
 - 代码难以理解
 
 **解决**:
+
 - 小步快跑，逐步迁移
 - 保持代码简单直观
 - 每个组件职责单一
@@ -335,11 +344,13 @@ containerNumber: string
 ### 陷阱三：测试不足
 
 **问题**:
+
 - 只测试 happy path
 - 忽略边界情况
 - 没有性能测试
 
 **解决**:
+
 - 覆盖所有功能点
 - 测试异常场景
 - 进行压力测试
@@ -349,15 +360,18 @@ containerNumber: string
 ## 📚 参考资源
 
 ### 数据库表结构
+
 - `backend/03_create_tables.sql`
 - `backend/src/entities/biz_container.ts`
 
 ### Vue 最佳实践
+
 - Vue 3 官方文档：Composition API
 - Element Plus 文档：Table 组件
 - 项目规范：`frontend/public/docs/DEVELOPMENT_STANDARDS.md`
 
 ### 相关文件
+
 - `frontend/src/views/shipments/Shipments.vue`
 - `frontend/src/services/container.ts`
 - `frontend/src/types/container.ts`
@@ -367,11 +381,13 @@ containerNumber: string
 ## 🔄 持续改进
 
 ### 回顾会议
+
 - 每个阶段完成后进行回顾
 - 记录经验教训
 - 更新本 SKILL 准则
 
 ### 质量指标
+
 - 代码行数减少比例
 - 测试覆盖率提升
 - 性能指标改善

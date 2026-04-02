@@ -60,7 +60,11 @@
         <!-- 排产概览 -->
         <div v-if="activeMenu === 'overview'" class="config-section">
           <h3>排产概览</h3>
-          <OverviewPanel :country="currentCountry" @navigate="handleNavigate" @go-to-schedule="handleGoToSchedule" />
+          <OverviewPanel
+            :country="currentCountry"
+            @navigate="handleNavigate"
+            @go-to-schedule="handleGoToSchedule"
+          />
         </div>
 
         <!-- 仓库管理 -->
@@ -105,7 +109,16 @@
 
 <script setup lang="ts">
 import { useAppStore } from '@/store/app'
-import { Box, Calendar, Connection, Cpu, House, OfficeBuilding, Van, Setting } from '@element-plus/icons-vue'
+import {
+  Box,
+  Calendar,
+  Connection,
+  Cpu,
+  House,
+  OfficeBuilding,
+  Setting,
+  Van,
+} from '@element-plus/icons-vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CalendarCapacityView from './components/CalendarCapacityView.vue'
@@ -169,8 +182,8 @@ const handleGoToSchedule = () => {
       filterCondition: route.query.filterCondition,
       filterLabel: route.query.filterLabel,
       containers: route.query.containers,
-      from: 'config'
-    }
+      from: 'config',
+    },
   })
 }
 
@@ -185,8 +198,8 @@ const handleGoToScheduleFromMenu = () => {
       filterCondition: route.query.filterCondition,
       filterLabel: route.query.filterLabel,
       containers: route.query.containers,
-      from: 'config'
-    }
+      from: 'config',
+    },
   })
 }
 

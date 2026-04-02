@@ -19,6 +19,7 @@
 - 任何包含 `表名 `、` 字段名`、`数据库`、`SQL`、`实体` 的问题
 
 **AI 执行流程**：
+
 1. 自动调用 `fix-verification`（验证规范）
 2. 自动调用 `database-query`（查询数据库）
 3. 读取 `backend/sql/schema/03_create_tables.sql`
@@ -41,6 +42,7 @@
 - 任何包含 `.vue`、`组件 `、` 前端`、`Vue` 的问题
 
 **AI 执行流程**：
+
 1. 自动调用 `vue-best-practices`
 2. 检查 Composition API 使用
 3. 检查 TypeScript 类型定义
@@ -60,6 +62,7 @@
 - 任何包含 `后端 `、`API`、`Controller`、`Service`、` 业务逻辑` 的问题
 
 **AI 执行流程**：
+
 1. 自动调用 `logix-development`
 2. 检查代码规范
 3. 检查业务逻辑
@@ -79,6 +82,7 @@
 - 任何表示不确定、需要验证的问题
 
 **AI 执行流程**：
+
 1. 自动调用 `fix-verification`
 2. 读取权威源（数据库、实体、API 路由）
 3. 逐项验证
@@ -95,6 +99,7 @@
 3. **第三次违规**：用户可以向系统报告 AI 不遵循规范
 
 **违规判定标准**：
+
 - ❌ 只说"会调用"但没有实际调用
 - ❌ 用 AI 幻觉编造答案，而不是读取真实代码
 - ❌ 违反"先验证，后修改"原则
@@ -120,13 +125,13 @@
 
 ## 📋 快速参考表
 
-| 你说什么 | AI 自动调用 | 验证内容 |
-|---------|-----------|---------|
-| "字段名/表名" | `fix-verification` + `database-query` | SQL、实体定义 |
-| "前端/Vue/组件" | `vue-best-practices` | Composition API、TypeScript |
-| "后端/API/Service" | `logix-development` | 代码规范、业务逻辑 |
-| "检查一下/对吗" | `fix-verification` | 权威源验证 |
-| "保存失败/报错" | `fix-verification` + 对应技能 | 数据完整性、字段映射 |
+| 你说什么           | AI 自动调用                           | 验证内容                    |
+| ------------------ | ------------------------------------- | --------------------------- |
+| "字段名/表名"      | `fix-verification` + `database-query` | SQL、实体定义               |
+| "前端/Vue/组件"    | `vue-best-practices`                  | Composition API、TypeScript |
+| "后端/API/Service" | `logix-development`                   | 代码规范、业务逻辑          |
+| "检查一下/对吗"    | `fix-verification`                    | 权威源验证                  |
+| "保存失败/报错"    | `fix-verification` + 对应技能         | 数据完整性、字段映射        |
 
 ---
 
@@ -145,16 +150,16 @@ when: user_asks_question
   auto_detect:
     - if contains "字段" OR "表" OR "数据库" OR "SQL":
         call: [fix-verification, database-query]
-    
+
     - if contains "前端" OR "Vue" OR "组件" OR ".vue":
         call: [vue-best-practices]
-    
+
     - if contains "后端" OR "API" OR "Service" OR "Controller":
         call: [logix-development]
-    
+
     - if contains "检查" OR "验证" OR "对吗" OR "有问题":
         call: [fix-verification]
-    
+
     - if contains "保存失败" OR "报错" OR "错误":
         call: [fix-verification]
         then: call corresponding skill based on context

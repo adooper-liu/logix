@@ -16,7 +16,7 @@
 
 ```typescript
 // frontend/src/views/shipments/Shipments.vue
-import ContainerTable from './components/ContainerTable.vue'
+import ContainerTable from "./components/ContainerTable.vue";
 ```
 
 **位置**: 第 5 行  
@@ -30,7 +30,7 @@ import ContainerTable from './components/ContainerTable.vue'
 
 ```vue
 <!-- ⚠️ 旧表格代码（暂时保留，待验证后删除） -->
-<!-- 
+<!--
 <el-table
   ref="tableRef"
   :data="filteredContainers"
@@ -81,32 +81,32 @@ import ContainerTable from './components/ContainerTable.vue'
 
 ### 功能完整性验证
 
-| 功能模块 | 旧实现 | 新实现 | 状态 |
-|---------|--------|--------|------|
-| 数据展示 | el-table | ContainerTable | ✅ 完整 |
-| 展开行详情 | ✅ | ✅ | ✅ 完整 |
-| 分页功能 | el-pagination | el-pagination (内置) | ✅ 完整 |
-| 排序功能 | @sort-change | @sort-change | ✅ 完整 |
-| 多选功能 | @selection-change | @selection-change | ✅ 完整 |
-| 列显示设置 | el-drawer | ContainerTable 内置 | ✅ 完整 |
-| 本地持久化 | localStorage | localStorage | ✅ 完整 |
-| 加载状态 | v-loading | v-loading | ✅ 完整 |
-| 空状态 | el-empty | el-empty | ✅ 完整 |
-| 特殊列渲染 | 自定义模板 | 自定义模板 | ✅ 完整 |
+| 功能模块   | 旧实现            | 新实现               | 状态    |
+| ---------- | ----------------- | -------------------- | ------- |
+| 数据展示   | el-table          | ContainerTable       | ✅ 完整 |
+| 展开行详情 | ✅                | ✅                   | ✅ 完整 |
+| 分页功能   | el-pagination     | el-pagination (内置) | ✅ 完整 |
+| 排序功能   | @sort-change      | @sort-change         | ✅ 完整 |
+| 多选功能   | @selection-change | @selection-change    | ✅ 完整 |
+| 列显示设置 | el-drawer         | ContainerTable 内置  | ✅ 完整 |
+| 本地持久化 | localStorage      | localStorage         | ✅ 完整 |
+| 加载状态   | v-loading         | v-loading            | ✅ 完整 |
+| 空状态     | el-empty          | el-empty             | ✅ 完整 |
+| 特殊列渲染 | 自定义模板        | 自定义模板           | ✅ 完整 |
 
 ### 事件映射
 
-| 事件类型 | 旧实现 | 新实现 | 处理方法 |
-|---------|--------|--------|----------|
-| 页码变化 | @current-change | @update:page | handlePageChangeWithLoad |
-| 每页条数 | @size-change | @update:pageSize | handlePageSizeChangeWithLoad |
-| 排序变化 | @sort-change | @sort-change | handleSortChange |
-| 选择变化 | @selection-change | @selection-change | handleSelectionChange |
-| 查看历史 | - | @view-history | viewSchedulingHistory |
-| 查看详情 | - | @view-detail | viewDetails |
-| 编辑 | - | @edit | editContainer |
-| 免费日回写 | - | @free-date-writeback | handleSingleFreeDateWriteBack |
-| LFD 维护 | - | @manual-lfd | handleManualLfdUpdate |
+| 事件类型   | 旧实现            | 新实现               | 处理方法                      |
+| ---------- | ----------------- | -------------------- | ----------------------------- |
+| 页码变化   | @current-change   | @update:page         | handlePageChangeWithLoad      |
+| 每页条数   | @size-change      | @update:pageSize     | handlePageSizeChangeWithLoad  |
+| 排序变化   | @sort-change      | @sort-change         | handleSortChange              |
+| 选择变化   | @selection-change | @selection-change    | handleSelectionChange         |
+| 查看历史   | -                 | @view-history        | viewSchedulingHistory         |
+| 查看详情   | -                 | @view-detail         | viewDetails                   |
+| 编辑       | -                 | @edit                | editContainer                 |
+| 免费日回写 | -                 | @free-date-writeback | handleSingleFreeDateWriteBack |
+| LFD 维护   | -                 | @manual-lfd          | handleManualLfdUpdate         |
 
 ---
 
@@ -114,24 +114,24 @@ import ContainerTable from './components/ContainerTable.vue'
 
 ### 行数对比
 
-| 文件 | Before | After | 变化 |
-|------|--------|-------|------|
-| Shipments.vue | 2250 行 | ~1490 行 | **-760 行 (-34%)** |
-| ContainerTable.vue | - | 1085 行 | +1085 行 (新增) |
-| types.ts | - | 236 行 | +236 行 (新增) |
-| useContainerTable.ts | - | 250 行 | +250 行 (新增) |
-| **总计** | 2250 行 | 3061 行 | **+811 行** |
+| 文件                 | Before  | After    | 变化               |
+| -------------------- | ------- | -------- | ------------------ |
+| Shipments.vue        | 2250 行 | ~1490 行 | **-760 行 (-34%)** |
+| ContainerTable.vue   | -       | 1085 行  | +1085 行 (新增)    |
+| types.ts             | -       | 236 行   | +236 行 (新增)     |
+| useContainerTable.ts | -       | 250 行   | +250 行 (新增)     |
+| **总计**             | 2250 行 | 3061 行  | **+811 行**        |
 
 ### 复杂度分析
 
-| 指标 | Before | After | 改进 |
-|------|--------|-------|------|
-| Shipments.vue 行数 | 2250 | ~1490 | **-34%** |
-| 表格相关代码 | ~780 行 (混合) | 1085 行 (独立) | 职责分离 |
-| 组件职责 | 多职责 | 单一职责 | ⭐⭐⭐⭐⭐ |
-| 可测试性 | ⭐⭐ | ⭐⭐⭐⭐⭐ | ⬆️ 150% |
-| 可维护性 | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⬆️ 67% |
-| 可复用性 | ❌ | ✅ 多页面 | ∞ |
+| 指标               | Before         | After          | 改进       |
+| ------------------ | -------------- | -------------- | ---------- |
+| Shipments.vue 行数 | 2250           | ~1490          | **-34%**   |
+| 表格相关代码       | ~780 行 (混合) | 1085 行 (独立) | 职责分离   |
+| 组件职责           | 多职责         | 单一职责       | ⭐⭐⭐⭐⭐ |
+| 可测试性           | ⭐⭐           | ⭐⭐⭐⭐⭐     | ⬆️ 150%    |
+| 可维护性           | ⭐⭐⭐         | ⭐⭐⭐⭐⭐     | ⬆️ 67%     |
+| 可复用性           | ❌             | ✅ 多页面      | ∞          |
 
 ---
 
@@ -140,9 +140,11 @@ import ContainerTable from './components/ContainerTable.vue'
 ### 1. 零破坏性设计
 
 **实现策略**:
+
 ```vue
 <!-- 新旧并存，通过注释控制 -->
-<ContainerTable ... />  <!-- 新 -->
+<ContainerTable ... />
+<!-- 新 -->
 
 <!-- 
 <el-table ...>         <!-- 旧（待删除）
@@ -152,6 +154,7 @@ import ContainerTable from './components/ContainerTable.vue'
 ```
 
 **优势**:
+
 - ✅ 随时可以回滚
 - ✅ 降低风险
 - ✅ 便于对比验证
@@ -160,16 +163,17 @@ import ContainerTable from './components/ContainerTable.vue'
 
 ```typescript
 const props = {
-  data: filteredContainers,           // 过滤后的数据
-  loading: loading,                   // 加载状态
-  currentPage: pagination.page,       // 当前页码
-  pageSize: pagination.pageSize,      // 每页条数
-  total: pagination.total,            // 总记录数
-  defaultSort: {                      // 默认排序
+  data: filteredContainers, // 过滤后的数据
+  loading: loading, // 加载状态
+  currentPage: pagination.page, // 当前页码
+  pageSize: pagination.pageSize, // 每页条数
+  total: pagination.total, // 总记录数
+  defaultSort: {
+    // 默认排序
     prop: tableSort.prop || undefined,
-    order: tableSort.order || undefined
-  }
-}
+    order: tableSort.order || undefined,
+  },
+};
 ```
 
 ### 3. Events 处理
@@ -213,6 +217,7 @@ Warning: 已声明但未使用的变量（共 81 个）
 #### 1. 功能测试清单
 
 **基础功能**:
+
 - [ ] 数据加载和显示正常
 - [ ] 分页切换正常（页码、每页条数）
 - [ ] 排序功能正常（前端、后端）
@@ -220,6 +225,7 @@ Warning: 已声明但未使用的变量（共 81 个）
 - [ ] 展开行详情正常
 
 **高级功能**:
+
 - [ ] 列显示/隐藏正常
 - [ ] 列拖拽排序正常
 - [ ] localStorage 持久化正常
@@ -227,6 +233,7 @@ Warning: 已声明但未使用的变量（共 81 个）
 - [ ] 空状态显示正常
 
 **按钮事件**:
+
 - [ ] 查看排产历史正常
 - [ ] 查看详情正常
 - [ ] 编辑正常
@@ -236,12 +243,14 @@ Warning: 已声明但未使用的变量（共 81 个）
 #### 2. 性能测试
 
 **指标要求**:
+
 - 首次渲染 < 500ms
 - 分页切换 < 200ms
 - 内存占用 < 50MB
 - 100+ 条数据流畅滚动
 
 **测试工具**:
+
 - Chrome DevTools Performance
 - Vue Devtools
 - Lighthouse
@@ -249,6 +258,7 @@ Warning: 已声明但未使用的变量（共 81 个）
 #### 3. 浏览器兼容性
 
 **目标浏览器**:
+
 - Chrome (最新版)
 - Firefox (最新版)
 - Safari (最新版)
@@ -261,6 +271,7 @@ Warning: 已声明但未使用的变量（共 81 个）
 #### 清理任务
 
 1. **删除废弃代码**
+
    ```vue
    <!-- 删除整个注释块 -->
    <!-- 
@@ -271,6 +282,7 @@ Warning: 已声明但未使用的变量（共 81 个）
    ```
 
 2. **清理未使用的 import**
+
    ```typescript
    // 删除未使用的导入
    import DateRangePicker from ...  // ❌
@@ -279,6 +291,7 @@ Warning: 已声明但未使用的变量（共 81 个）
    ```
 
 3. **清理未使用的变量**
+
    ```typescript
    const tableSort = ref(...)        // ❌
    const tableSize = ref(...)        // ❌
@@ -292,12 +305,14 @@ Warning: 已声明但未使用的变量（共 81 个）
 #### 优化建议
 
 1. **按需导入图标**
+
    ```typescript
    // 只导入实际使用的图标
-   import { View, Edit, Calendar } from '@element-plus/icons-vue'
+   import { View, Edit, Calendar } from "@element-plus/icons-vue";
    ```
 
 2. **使用 TypeScript 严格模式**
+
    ```json
    {
      "compilerOptions": {
@@ -340,6 +355,7 @@ Warning: 已声明但未使用的变量（共 81 个）
 #### Git 提交
 
 **提交规范**:
+
 ```bash
 git add .
 git commit -m "refactor(shipments): 将表格重构为 ContainerTable 组件
@@ -364,29 +380,32 @@ Refs: #123"
 ### 核心成就
 
 ✅ **成功集成 ContainerTable 组件**
+
 - 所有功能正常工作
 - 零破坏性重构
 - 向后完全兼容
 
 ✅ **代码质量显著提升**
+
 - Shipments.vue 从 2250 行 减少到 ~1490 行
 - 职责清晰分离
 - 易于测试和维护
 
 ✅ **可复用性大幅提升**
+
 - ContainerTable 可在其他页面复用
 - Composable 逻辑可独立使用
 - 类型定义完整
 
 ### 关键指标
 
-| 维度 | Before | After | 改进 |
-|------|--------|-------|------|
-| 代码行数 | 2250 | ~1490 | **-34%** |
-| 职责分离 | ⭐⭐ | ⭐⭐⭐⭐⭐ | ⬆️ 150% |
-| 可测试性 | ⭐⭐ | ⭐⭐⭐⭐⭐ | ⬆️ 150% |
-| 可维护性 | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⬆️ 67% |
-| 可复用性 | ❌ | ✅ | ∞ |
+| 维度     | Before | After      | 改进     |
+| -------- | ------ | ---------- | -------- |
+| 代码行数 | 2250   | ~1490      | **-34%** |
+| 职责分离 | ⭐⭐   | ⭐⭐⭐⭐⭐ | ⬆️ 150%  |
+| 可测试性 | ⭐⭐   | ⭐⭐⭐⭐⭐ | ⬆️ 150%  |
+| 可维护性 | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⬆️ 67%   |
+| 可复用性 | ❌     | ✅         | ∞        |
 
 ---
 
@@ -407,11 +426,13 @@ Refs: #123"
 ### 风险提示
 
 ⚠️ **低风险项**:
+
 - 功能完整性已验证
 - 向后兼容
 - 可随时回滚
 
 ⚠️ **需要注意**:
+
 - 测试覆盖率需提升
 - 性能测试待执行
 - 浏览器兼容性待验证

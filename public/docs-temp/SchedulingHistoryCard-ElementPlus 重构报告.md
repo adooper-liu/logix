@@ -14,24 +14,25 @@
 
 #### 组件映射表
 
-| Ant Design Vue | Element Plus | 说明 |
-|---------------|-------------|------|
-| `<a-button>` | `<el-button>` | 按钮组件 |
-| `<a-drawer>` | `<el-drawer>` | 抽屉面板 |
-| `<a-spin>` | `<div v-loading>` | 加载状态 |
-| `<a-empty>` | `<el-empty>` | 空状态 |
-| `<a-timeline>` | `<el-timeline>` | 时间线 |
-| `<a-timeline-item>` | `<el-timeline-item>` | 时间线项目 |
-| `<a-tag>` | `<el-tag>` | 标签 |
-| `<a-descriptions>` | `<el-descriptions>` | 描述列表 |
-| `<a-descriptions-item>` | `<el-descriptions-item>` | 描述项 |
-| `<a-collapse>` | `<el-collapse>` | 折叠面板 |
-| `<a-collapse-panel>` | `<el-collapse-panel>` | 折叠面板项 |
-| `<a-divider>` | `<el-divider>` | 分割线 |
+| Ant Design Vue          | Element Plus             | 说明       |
+| ----------------------- | ------------------------ | ---------- |
+| `<a-button>`            | `<el-button>`            | 按钮组件   |
+| `<a-drawer>`            | `<el-drawer>`            | 抽屉面板   |
+| `<a-spin>`              | `<div v-loading>`        | 加载状态   |
+| `<a-empty>`             | `<el-empty>`             | 空状态     |
+| `<a-timeline>`          | `<el-timeline>`          | 时间线     |
+| `<a-timeline-item>`     | `<el-timeline-item>`     | 时间线项目 |
+| `<a-tag>`               | `<el-tag>`               | 标签       |
+| `<a-descriptions>`      | `<el-descriptions>`      | 描述列表   |
+| `<a-descriptions-item>` | `<el-descriptions-item>` | 描述项     |
+| `<a-collapse>`          | `<el-collapse>`          | 折叠面板   |
+| `<a-collapse-panel>`    | `<el-collapse-panel>`    | 折叠面板项 |
+| `<a-divider>`           | `<el-divider>`           | 分割线     |
 
 #### 关键变更
 
 **按钮组件**:
+
 ```vue
 <!-- Before -->
 <a-button type="link" @click="toggleHistory" :loading="loading">
@@ -48,6 +49,7 @@
 ```
 
 **抽屉组件**:
+
 ```vue
 <!-- Before -->
 <a-drawer
@@ -69,6 +71,7 @@
 ```
 
 **加载状态**:
+
 ```vue
 <!-- Before -->
 <a-spin :spinning="loading" tip="加载中...">
@@ -78,11 +81,10 @@
 ```
 
 **时间线布局优化**:
+
 ```vue
 <!-- Before: 时间显示在右侧 -->
-<a-timeline-item
-  :color="record.schedulingStatus === 'CONFIRMED' ? 'green' : 'gray'"
->
+<a-timeline-item :color="record.schedulingStatus === 'CONFIRMED' ? 'green' : 'gray'">
   <div class="timeline-item-content">
     <div class="timeline-header">
       <div class="operation-time">{{ formatDateTime(record.operatedAt) }}</div>
@@ -91,10 +93,7 @@
 </a-timeline-item>
 
 <!-- After: 时间显示为时间戳 -->
-<el-timeline-item
-  :timestamp="formatDateTime(record.operatedAt)"
-  placement="top"
->
+<el-timeline-item :timestamp="formatDateTime(record.operatedAt)" placement="top">
   <el-card shadow="hover" class="timeline-item-content">
     <!-- 内容 -->
   </el-card>
@@ -106,32 +105,34 @@
 ### 2. Script 部分修改
 
 **图标导入**:
+
 ```typescript
 // 新增
-import { Document } from '@element-plus/icons-vue'
+import { Document } from "@element-plus/icons-vue";
 ```
 
 **类型修复**:
+
 ```typescript
 // Before
 export interface SchedulingHistoryCardInstance {
-  toggleHistory: () => Promise<void>
-  historyCount: number | undefined
+  toggleHistory: () => Promise<void>;
+  historyCount: number | undefined;
 }
 
 // After
 export interface SchedulingHistoryCardInstance {
-  toggleHistory: () => Promise<void>
-  historyCount: number
+  toggleHistory: () => Promise<void>;
+  historyCount: number;
 }
 
 // 使用 getter 返回计算值
 defineExpose<SchedulingHistoryCardInstance>({
   toggleHistory,
   get historyCount() {
-    return histories.value.length
+    return histories.value.length;
   },
-})
+});
 ```
 
 ---
@@ -141,12 +142,13 @@ defineExpose<SchedulingHistoryCardInstance>({
 **文件**: `frontend/src/main.ts`
 
 移除 Ant Design Vue 注册:
+
 ```typescript
 // 删除
-import Antd from 'ant-design-vue'
-import 'ant-design-vue/dist/reset.css'
+import Antd from "ant-design-vue";
+import "ant-design-vue/dist/reset.css";
 
-app.use(Antd)
+app.use(Antd);
 ```
 
 ---
@@ -156,6 +158,7 @@ app.use(Antd)
 **文件**: `frontend/package.json`
 
 移除未使用的依赖:
+
 ```json
 {
   "dependencies": {
@@ -180,7 +183,7 @@ Element Plus 和 Ant Design Vue 的样式系统基本兼容，原有 SCSS 样式
     padding: 16px;
     margin-top: 8px;
   }
-  
+
   // ... 其他样式保持不变
 }
 ```
@@ -188,6 +191,7 @@ Element Plus 和 Ant Design Vue 的样式系统基本兼容，原有 SCSS 样式
 ### 功能完整性
 
 所有功能完全保留：
+
 - ✅ 货柜号监听与数据刷新
 - ✅ 历史记录加载
 - ✅ 日期格式化

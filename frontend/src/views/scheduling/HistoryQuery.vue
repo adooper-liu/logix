@@ -45,7 +45,7 @@
         @sort-change="handleSortChange"
       >
         <el-table-column prop="containerNumber" label="货柜号" width="120" />
-        
+
         <el-table-column label="版本" width="80" align="center">
           <template #default="{ row }">
             <el-tag :type="row.schedulingStatus === 'CONFIRMED' ? 'success' : 'info'">
@@ -53,13 +53,13 @@
             </el-tag>
           </template>
         </el-table-column>
-        
+
         <el-table-column label="策略" width="100">
           <template #default="{ row }">
             <el-tag type="primary">{{ translateStrategy(row.strategy) }}</el-tag>
           </template>
         </el-table-column>
-        
+
         <el-table-column label="总费用" width="100" align="right">
           <template #default="{ row }">
             <span v-if="row.totalCost" class="cost-highlight">
@@ -68,7 +68,7 @@
             <span v-else>-</span>
           </template>
         </el-table-column>
-        
+
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="getStatusTagType(row.schedulingStatus)">
@@ -76,20 +76,15 @@
             </el-tag>
           </template>
         </el-table-column>
-        
+
         <el-table-column prop="operatedBy" label="操作人" width="100" />
-        
-        <el-table-column 
-          prop="operatedAt" 
-          label="操作时间" 
-          width="160"
-          sortable="custom"
-        >
+
+        <el-table-column prop="operatedAt" label="操作时间" width="160" sortable="custom">
           <template #default="{ row }">
             {{ formatDateTime(row.operatedAt) }}
           </template>
         </el-table-column>
-        
+
         <el-table-column label="操作" width="100" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click="viewDetail(row)">
@@ -114,12 +109,7 @@
     </el-card>
 
     <!-- 详情抽屉 -->
-    <el-drawer 
-      v-model="detailVisible" 
-      title="排产记录详情" 
-      direction="rtl" 
-      size="600px"
-    >
+    <el-drawer v-model="detailVisible" title="排产记录详情" direction="rtl" size="600px">
       <el-descriptions :column="1" bordered v-if="currentRecord">
         <el-descriptions-item label="货柜号">
           {{ currentRecord.containerNumber }}
@@ -196,8 +186,8 @@
 
 <script setup lang="ts">
 import api from '@/services/api'
+import { Refresh, Search } from '@element-plus/icons-vue'
 import { onMounted, reactive, ref } from 'vue'
-import { Search, Refresh } from '@element-plus/icons-vue'
 
 interface SchedulingHistory {
   id: number

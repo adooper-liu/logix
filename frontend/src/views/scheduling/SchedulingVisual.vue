@@ -1838,15 +1838,16 @@ const handlePreviewSchedule = async () => {
           warehouseName: r.plannedData?.warehouseName || null,
           truckingCompany: r.plannedData?.truckingCompany || null,
           unloadModePlan: r.plannedData?.unloadModePlan || null, // ✅ 与数据库字段 unload_mode_plan 一致
-          estimatedCosts: r.plannedData?.estimatedCosts || r.estimatedCosts || {
-            transportationCost: 0,
-            handlingCost: 0,
-            storageCost: 0,
-            demurrageCost: 0,
-            detentionCost: 0,
-            totalCost: 0,
-            currency: 'USD',
-          },
+          estimatedCosts: r.plannedData?.estimatedCosts ||
+            r.estimatedCosts || {
+              transportationCost: 0,
+              handlingCost: 0,
+              storageCost: 0,
+              demurrageCost: 0,
+              detentionCost: 0,
+              totalCost: 0,
+              currency: 'USD',
+            },
         },
         warehouseName: r.warehouseName || r.plannedData?.warehouseName || '-',
         truckingCompany: r.plannedData?.truckingCompany || r.truckingCompany || '未分配车队',
@@ -1876,7 +1877,8 @@ const handlePreviewSchedule = async () => {
           // 确保这些字段存在（用于后端验证）
           plannedCustomsDate: r.plannedData.plannedCustomsDate || null,
           warehouseId: r.plannedData.warehouseId || r.plannedData.warehouseCode || null,
-          truckingCompanyId: r.plannedData.truckingCompanyId || r.plannedData.truckingCompanyCode || null,
+          truckingCompanyId:
+            r.plannedData.truckingCompanyId || r.plannedData.truckingCompanyCode || null,
           unloadModePlan: r.plannedData.unloadModePlan || null, // ✅ 与数据库字段一致
         }
       }

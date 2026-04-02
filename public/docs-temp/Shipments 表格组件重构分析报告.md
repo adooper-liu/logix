@@ -3,6 +3,7 @@
 ## 📊 当前代码分析
 
 ### 文件信息
+
 - **文件路径**: `frontend/src/views/shipments/Shipments.vue`
 - **总行数**: 2250 行
 - **表格模板行数**: 约 680 行（1125-1800 行）
@@ -17,15 +18,15 @@
 
 #### 表格列数量统计
 
-| 列类型 | 列数 | 说明 |
-|--------|------|------|
-| 固定列 | 3 列 | 选择、展开、序号 |
-| 基础信息列 | 8 列 | 柜号、提单号、SKU 数量等 |
-| 状态列 | 4 列 | 预警、清关状态、排产状态等 |
-| 日期列 | 6 组 | 到港日期、提柜日期、还箱日期等 |
-| 费用列 | 2 列 | 总费用、滞港费 |
-| 操作列 | 1 列 | 5 个操作按钮 |
-| **总计** | **~24 列** | 动态显示/隐藏 |
+| 列类型     | 列数       | 说明                           |
+| ---------- | ---------- | ------------------------------ |
+| 固定列     | 3 列       | 选择、展开、序号               |
+| 基础信息列 | 8 列       | 柜号、提单号、SKU 数量等       |
+| 状态列     | 4 列       | 预警、清关状态、排产状态等     |
+| 日期列     | 6 组       | 到港日期、提柜日期、还箱日期等 |
+| 费用列     | 2 列       | 总费用、滞港费                 |
+| 操作列     | 1 列       | 5 个操作按钮                   |
+| **总计**   | **~24 列** | 动态显示/隐藏                  |
 
 #### 表格模板复杂度
 
@@ -125,7 +126,7 @@ Shipments.vue (页面容器)
   >
     <!-- 表格列定义 -->
   </el-table>
-  
+
   <div class="pagination-container">
     <el-pagination
       v-model:current-page="currentPage"
@@ -150,9 +151,9 @@ const emit = defineEmits<{
 }>()
 
 // 表格逻辑封装到 composable
-const { 
-  sortedVisibleColumnKeys, 
-  columnLabels, 
+const {
+  sortedVisibleColumnKeys,
+  columnLabels,
   handleDragStart,
   // ...
 } = useContainerTable(props)
@@ -165,33 +166,33 @@ const {
 // frontend/src/views/shipments/components/types.ts
 export interface ContainerTableProps {
   // 数据
-  data: ContainerRecord[]
-  loading: boolean
-  
+  data: ContainerRecord[];
+  loading: boolean;
+
   // 分页
-  currentPage: number
-  pageSize: number
-  total: number
-  
+  currentPage: number;
+  pageSize: number;
+  total: number;
+
   // 排序
-  defaultSort?: { prop: string; order: string }
-  
+  defaultSort?: { prop: string; order: string };
+
   // 列配置
-  visibleColumns?: Record<string, boolean>
-  columnOrder?: string[]
-  
+  visibleColumns?: Record<string, boolean>;
+  columnOrder?: string[];
+
   // 国际化
-  i18n?: any
-  
+  i18n?: any;
+
   // 工具函数（可选）
-  formatDate?: (date: string) => string
-  getDestinationPortDisplay?: (row: ContainerRecord) => string
+  formatDate?: (date: string) => string;
+  getDestinationPortDisplay?: (row: ContainerRecord) => string;
 }
 
 export interface ContainerRecord {
   // 货柜记录类型定义
-  containerNumber: string
-  billOfLadingNumber: string
+  containerNumber: string;
+  billOfLadingNumber: string;
   // ... 其他字段
 }
 ```
@@ -242,6 +243,7 @@ Shipments.vue
 #### 第一阶段：准备与规划（1-2 天）
 
 1. **创建类型定义**
+
    ```typescript
    // src/views/shipments/components/types.ts
    export interface ContainerTableProps { ... }
@@ -249,6 +251,7 @@ Shipments.vue
    ```
 
 2. **创建 Composable**
+
    ```typescript
    // src/views/shipments/components/useContainerTable.ts
    export function useContainerTable(props: ContainerTableProps) { ... }
@@ -279,6 +282,7 @@ Shipments.vue
 #### 第三阶段：集成测试（1-2 天）
 
 1. **在 Shipments.vue 中集成**
+
    ```vue
    <ContainerTable
      :data="filteredContainers"
@@ -319,10 +323,11 @@ Shipments.vue
 ### 性能优化策略
 
 1. **虚拟滚动**
+
    ```typescript
    // 使用 Element Plus 虚拟滚动
    import { ElTableV2 } from 'element-plus'
-   
+
    <el-table-v2
      :columns="columns"
      :data="data"
@@ -332,6 +337,7 @@ Shipments.vue
    ```
 
 2. **懒加载展开行**
+
    ```vue
    <el-table-column type="expand">
      <template #default="{ row }">
@@ -342,7 +348,7 @@ Shipments.vue
 
 3. **Memoization**
    ```typescript
-   const formattedDate = useMemo(() => formatDate(row.date), [row.date])
+   const formattedDate = useMemo(() => formatDate(row.date), [row.date]);
    ```
 
 ### 类型安全
@@ -350,15 +356,15 @@ Shipments.vue
 ```typescript
 // 强类型 Props
 interface ContainerTableProps {
-  data: readonly ContainerRecord[]
-  loading: boolean
-  pagination: PaginationParams
-  onPaginationChange: (pagination: PaginationParams) => void
+  data: readonly ContainerRecord[];
+  loading: boolean;
+  pagination: PaginationParams;
+  onPaginationChange: (pagination: PaginationParams) => void;
 }
 
 // 泛型支持
 interface ContainerTable<T extends ContainerRecord = ContainerRecord> {
-  data: readonly T[]
+  data: readonly T[];
 }
 ```
 
@@ -368,12 +374,12 @@ interface ContainerTable<T extends ContainerRecord = ContainerRecord> {
 
 ### 代码质量提升
 
-| 指标 | Before | After | 改进 |
-|------|--------|-------|------|
-| Shipments.vue 行数 | 2250 | ~1200 | -47% |
-| 表格复杂度 | 高 | 低 | ⭐⭐⭐⭐⭐ |
-| 可测试性 | 中 | 高 | ⭐⭐⭐⭐⭐ |
-| 可维护性 | 中 | 高 | ⭐⭐⭐⭐⭐ |
+| 指标               | Before | After | 改进       |
+| ------------------ | ------ | ----- | ---------- |
+| Shipments.vue 行数 | 2250   | ~1200 | -47%       |
+| 表格复杂度         | 高     | 低    | ⭐⭐⭐⭐⭐ |
+| 可测试性           | 中     | 高    | ⭐⭐⭐⭐⭐ |
+| 可维护性           | 中     | 高    | ⭐⭐⭐⭐⭐ |
 
 ### 开发效率提升
 

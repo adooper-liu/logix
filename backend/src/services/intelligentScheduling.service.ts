@@ -5,20 +5,19 @@
  * 实现规则引擎（阶段一）：先到先得 + 约束校验
  */
 
+import { In } from 'typeorm';
 import {
   CONCURRENCY_CONFIG,
-  COST_OPTIMIZATION_CONFIG,
   DATE_CALCULATION_CONFIG,
   OCCUPANCY_CONFIG
 } from '../config/scheduling.config';
 import {
-  SCHEDULING_RULES,
-  SCORING_WEIGHTS,
+  getPartnershipLevelBonus,
   RELATIONSHIP_SCORING,
-  getPartnershipLevelBonus
+  SCHEDULING_RULES,
+  SCORING_WEIGHTS
 } from '../constants/SchedulingRules';
 import { AppDataSource } from '../database';
-import { In } from 'typeorm';
 import { Container } from '../entities/Container';
 import { Country } from '../entities/Country';
 import { Customer } from '../entities/Customer';
@@ -47,12 +46,12 @@ import { ContainerStatusService } from './containerStatus.service';
 import { CostEstimationService } from './CostEstimationService';
 import { DemurrageService } from './demurrage.service';
 import { OccupancyCalculator } from './OccupancyCalculator';
+import { ruleEngineService, RuleExecutionContext } from './RuleEngineService';
 import { SchedulingCostOptimizerService } from './schedulingCostOptimizer.service';
 import { SchedulingDateCalculator } from './SchedulingDateCalculator';
 import { SchedulingSorter } from './SchedulingSorter';
 import { TruckingSelectorService } from './TruckingSelectorService';
 import { WarehouseSelectorService } from './WarehouseSelectorService';
-import { ruleEngineService, RuleExecutionContext } from './RuleEngineService';
 
 /**
  * 批量优化结果接口
@@ -363,13 +362,13 @@ export class IntelligentSchedulingService {
       }
 
       // 4. ✅ 批量预加载货柜关联数据（减少 N+1 查询）
-      const containerNumbers = toProcess.map(c => c.containerNumber);
+      const containerNumbers = toProcess.map((c) => c.containerNumber);
       const [truckingTransports, emptyReturns] = await Promise.all([
         this.truckingTransportRepo.find({ where: { containerNumber: In(containerNumbers) } }),
         this.emptyReturnRepo.find({ where: { containerNumber: In(containerNumbers) } })
       ]);
-      const truckingTransportMap = new Map(truckingTransports.map(t => [t.containerNumber, t]));
-      const emptyReturnMap = new Map(emptyReturns.map(e => [e.containerNumber, e]));
+      const truckingTransportMap = new Map(truckingTransports.map((t) => [t.containerNumber, t]));
+      const emptyReturnMap = new Map(emptyReturns.map((e) => [e.containerNumber, e]));
 
       // 5. 并行排产（使用 CONCURRENCY 控制并发数）
       const scheduleResults: Promise<ScheduleResult>[] = [];
@@ -385,7 +384,7 @@ export class IntelligentSchedulingService {
           )
         );
       }
-      
+
       // 分批并发执行，避免一次性创建过多 Promise
       for (let i = 0; i < scheduleResults.length; i += CONCURRENCY) {
         const batch = scheduleResults.slice(i, i + CONCURRENCY);
@@ -802,7 +801,10 @@ export class IntelligentSchedulingService {
         unloadMode
       );
     } catch (error: any) {
-      logger.error(`[IntelligentScheduling] scheduleSingleContainerWithCache error for ${container.containerNumber}:`, error);
+      logger.error(
+        `[IntelligentScheduling] scheduleSingleContainerWithCache error for ${container.containerNumber}:`,
+        error
+      );
       return {
         containerNumber: container.containerNumber,
         success: false,
@@ -927,7 +929,12 @@ export class IntelligentSchedulingService {
     unloadMode: 'Drop off' | 'Live load'
   ): Promise<ScheduleResult> {
     // 保存拖卡运输记录
-    await this.saveTruckingTransport(container, truckingCompany, plannedPickupDate, plannedCustomsDate);
+    await this.saveTruckingTransport(
+      container,
+      truckingCompany,
+      plannedPickupDate,
+      plannedCustomsDate
+    );
 
     // 保存仓库操作记录
     await this.saveWarehouseOperation(container, warehouse, plannedUnloadDate);
@@ -942,7 +949,12 @@ export class IntelligentSchedulingService {
     };
   }
 
-  private async saveTruckingTransport(container: Container, truckingCompany: any, plannedPickupDate: Date, plannedCustomsDate: Date): Promise<void> {
+  private async saveTruckingTransport(
+    container: Container,
+    truckingCompany: any,
+    plannedPickupDate: Date,
+    plannedCustomsDate: Date
+  ): Promise<void> {
     let trucking = await this.truckingTransportRepo.findOne({
       where: { containerNumber: container.containerNumber }
     });
@@ -957,7 +969,11 @@ export class IntelligentSchedulingService {
     await this.truckingTransportRepo.save(trucking);
   }
 
-  private async saveWarehouseOperation(container: Container, warehouse: any, plannedUnloadDate: Date): Promise<void> {
+  private async saveWarehouseOperation(
+    container: Container,
+    warehouse: any,
+    plannedUnloadDate: Date
+  ): Promise<void> {
     let warehouseOp = await this.warehouseOperationRepo.findOne({
       where: { containerNumber: container.containerNumber }
     });
@@ -1263,13 +1279,17 @@ export class IntelligentSchedulingService {
       if (request.unloadMode) {
         // 用户指定了卸柜方式，直接使用
         unloadMode = request.unloadMode;
-        logger.info(`[Scheduling] Container ${container.containerNumber}: Using user-specified unloadMode: ${unloadMode}`);
+        logger.info(
+          `[Scheduling] Container ${container.containerNumber}: Using user-specified unloadMode: ${unloadMode}`
+        );
       } else {
         // 系统自动决策：根据车队是否有堆场决定
         // has_yard = true → 支持 Drop off（提<送=卸）
         // has_yard = false → 必须 Live load（提=送=卸）
         unloadMode = truckingCompany.hasYard ? 'Drop off' : 'Live load';
-        logger.info(`[Scheduling] Container ${container.containerNumber}: Auto-determined unloadMode: ${unloadMode} (hasYard=${truckingCompany.hasYard})`);
+        logger.info(
+          `[Scheduling] Container ${container.containerNumber}: Auto-determined unloadMode: ${unloadMode} (hasYard=${truckingCompany.hasYard})`
+        );
       }
 
       // ✅ Fast Path: 检查是否需要进行成本优化
@@ -1294,7 +1314,10 @@ export class IntelligentSchedulingService {
         );
 
         // 使用优化后的提柜日（如果找到更优方案）
-        if (optimization.suggestedPickupDate && optimization.optimizedCost < optimization.originalCost) {
+        if (
+          optimization.suggestedPickupDate &&
+          optimization.optimizedCost < optimization.originalCost
+        ) {
           logger.info(
             `[IntelligentScheduling] Cost optimization applied for ${container.containerNumber}: ${optimization.originalCost} -> ${optimization.optimizedCost}`
           );
@@ -2273,15 +2296,16 @@ export class IntelligentSchedulingService {
     if (filter.portCode) occupancyWhere.portCode = filter.portCode;
     if (filter.warehouseCode) occupancyWhere.warehouseCode = filter.warehouseCode;
 
-    const allOccupancies = candidateIds.length > 0
-      ? await this.truckingOccupancyRepo.find({
-          where: occupancyWhere
-        })
-      : [];
+    const allOccupancies =
+      candidateIds.length > 0
+        ? await this.truckingOccupancyRepo.find({
+            where: occupancyWhere
+          })
+        : [];
 
     // 构建 Map 用于快速查找
     const occupancyMap = new Map<string, ExtTruckingSlotOccupancy>();
-    allOccupancies.forEach(o => {
+    allOccupancies.forEach((o) => {
       const key = `${o.truckingCompanyId}`;
       occupancyMap.set(key, o);
     });
@@ -2323,7 +2347,7 @@ export class IntelligentSchedulingService {
   > {
     if (candidates.length === 0) return [];
 
-    const truckingIds = candidates.map(c => c.truckingCompanyId);
+    const truckingIds = candidates.map((c) => c.truckingCompanyId);
 
     // ========== 批量加载阶段：一次查询所有数据 ==========
 
@@ -2332,7 +2356,7 @@ export class IntelligentSchedulingService {
       where: { warehouseCode, isActive: true }
     });
     const wtMappingMap = new Map<string, WarehouseTruckingMapping>();
-    warehouseTruckingMappings.forEach(m => wtMappingMap.set(m.truckingCompanyId, m));
+    warehouseTruckingMappings.forEach((m) => wtMappingMap.set(m.truckingCompanyId, m));
 
     // 2. 批量查询 trucking-port 映射关系（如果指定了港口）
     const truckingPortMappings: TruckingPortMapping[] = [];
@@ -2341,11 +2365,13 @@ export class IntelligentSchedulingService {
         where: { portCode, isActive: true }
       });
       // 只保留候选车队相关的映射
-      const portTruckingIds = new Set(foundMappings.map(m => m.truckingCompanyId));
-      truckingPortMappings.push(...foundMappings.filter(m => portTruckingIds.has(m.truckingCompanyId)));
+      const portTruckingIds = new Set(foundMappings.map((m) => m.truckingCompanyId));
+      truckingPortMappings.push(
+        ...foundMappings.filter((m) => portTruckingIds.has(m.truckingCompanyId))
+      );
     }
     const tpMappingMap = new Map<string, TruckingPortMapping>();
-    truckingPortMappings.forEach(m => tpMappingMap.set(m.truckingCompanyId, m));
+    truckingPortMappings.forEach((m) => tpMappingMap.set(m.truckingCompanyId, m));
 
     // 3. 批量查询车队信息
     const truckingCompanies = await AppDataSource.getRepository(TruckingCompany)
@@ -2354,8 +2380,11 @@ export class IntelligentSchedulingService {
       .select(['tc.company_code', 'tc.has_yard', 'tc.daily_capacity', 'tc.partnership_level'])
       .getRawMany();
 
-    const truckingMap = new Map<string, { hasYard: boolean; dailyCapacity: number; partnershipLevel: string }>();
-    truckingCompanies.forEach(tc => {
+    const truckingMap = new Map<
+      string,
+      { hasYard: boolean; dailyCapacity: number; partnershipLevel: string }
+    >();
+    truckingCompanies.forEach((tc) => {
       truckingMap.set(tc.tc_company_code, {
         hasYard: tc.tc_has_yard || false,
         dailyCapacity: Number(tc.tc_daily_capacity) || 0,
@@ -2377,7 +2406,7 @@ export class IntelligentSchedulingService {
       .getRawMany();
 
     const collaborationMap = new Map<string, number>();
-    collaborationCounts.forEach(cc => {
+    collaborationCounts.forEach((cc) => {
       collaborationMap.set(cc.truckingCompanyId, parseInt(cc.count) || 0);
     });
 
@@ -2415,20 +2444,19 @@ export class IntelligentSchedulingService {
     }
 
     // ========== 获取动态评分权重（规则引擎） ==========
-    const scoringWeights = await this.getScoringWeights(
-      warehouseCode,
-      portCode
-    );
+    const scoringWeights = await this.getScoringWeights(warehouseCode, portCode);
 
     // ========== 最终评分阶段 ==========
-    const scoredCandidates = candidates.map(candidate => {
+    const scoredCandidates = candidates.map((candidate) => {
       const cost = costMap.get(candidate.truckingCompanyId) || 100;
       const costScore = ((maxCost - cost) / costRange) * 100;
       const capacityScore = candidate.hasCapacity ? scoringWeights.capacity * 100 : 0;
-      const relationshipScore = relationshipScoreMap.get(candidate.truckingCompanyId) || RELATIONSHIP_SCORING.BASE_SCORE;
-      const totalScore = costScore * scoringWeights.cost +
-                        capacityScore +
-                        relationshipScore * scoringWeights.relationship;
+      const relationshipScore =
+        relationshipScoreMap.get(candidate.truckingCompanyId) || RELATIONSHIP_SCORING.BASE_SCORE;
+      const totalScore =
+        costScore * scoringWeights.cost +
+        capacityScore +
+        relationshipScore * scoringWeights.relationship;
 
       return {
         truckingCompanyId: candidate.truckingCompanyId,
@@ -2498,7 +2526,9 @@ export class IntelligentSchedulingService {
     score += levelBonus;
 
     // 3. 大运力加分
-    if ((trucking?.dailyCapacity || 0) >= SCHEDULING_RULES.CAPACITY_SCORING.LARGE_CAPACITY_THRESHOLD) {
+    if (
+      (trucking?.dailyCapacity || 0) >= SCHEDULING_RULES.CAPACITY_SCORING.LARGE_CAPACITY_THRESHOLD
+    ) {
       score += SCHEDULING_RULES.CAPACITY_SCORING.LARGE_CAPACITY_BONUS;
     }
 
@@ -2535,7 +2565,11 @@ export class IntelligentSchedulingService {
 
       if (result.matchedRule?.actions) {
         const weights = result.adjustedScores.weights;
-        if (weights?.cost !== undefined && weights?.capacity !== undefined && weights?.relationship !== undefined) {
+        if (
+          weights?.cost !== undefined &&
+          weights?.capacity !== undefined &&
+          weights?.relationship !== undefined
+        ) {
           logger.debug(
             `[RuleEngine] Using dynamic weights: cost=${weights.cost}, capacity=${weights.capacity}, relationship=${weights.relationship}`
           );
@@ -2689,11 +2723,15 @@ export class IntelligentSchedulingService {
       if (_request.unloadMode) {
         // 用户指定了卸柜方式，直接使用
         unloadMode = _request.unloadMode;
-        logger.info(`[Scheduling] Container ${container.containerNumber}: Using user-specified unloadMode: ${unloadMode}`);
+        logger.info(
+          `[Scheduling] Container ${container.containerNumber}: Using user-specified unloadMode: ${unloadMode}`
+        );
       } else {
         // 系统自动决策：根据车队是否有堆场决定
         unloadMode = truckingCompany.hasYard ? 'Drop off' : 'Live load';
-        logger.info(`[Scheduling] Container ${container.containerNumber}: Auto-determined unloadMode: ${unloadMode} (hasYard=${truckingCompany.hasYard})`);
+        logger.info(
+          `[Scheduling] Container ${container.containerNumber}: Auto-determined unloadMode: ${unloadMode} (hasYard=${truckingCompany.hasYard})`
+        );
       }
 
       // 7. 计算送仓日
