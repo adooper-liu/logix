@@ -2,21 +2,21 @@
  * @vitest-environment jsdom
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import {
-  getUtcDayNumber,
+  escapeHtml,
+  formatAlertTypeBadge,
+  formatCostItemName,
+  formatCostModeText,
+  getCostDetailsText,
+  getCustomsStatusText,
   getDateTagType,
   getDestinationPortDisplay,
+  getEtaCorrection,
   getFiveNodeKinds,
   getFiveNodeRows,
-  getCustomsStatusText,
-  getEtaCorrection,
-  formatAlertTypeBadge,
-  formatCostModeText,
-  formatCostItemName,
   getRowCurrencyPrefix,
-  escapeHtml,
-  getCostDetailsText,
+  getUtcDayNumber,
 } from '../containerDisplay'
 
 describe('containerDisplay utils', () => {
@@ -285,18 +285,14 @@ describe('containerDisplay utils', () => {
     })
 
     it('should use portOperations parameter when provided', () => {
-      const portOps: any = [
-        { portType: 'destination', etaCorrection: '2024-03-25' },
-      ]
+      const portOps: any = [{ portType: 'destination', etaCorrection: '2024-03-25' }]
       const result = getEtaCorrection(null, portOps)
       expect(result).toBe('2024-03-25')
     })
 
     it('should return null when no destination port operation', () => {
       const container = {
-        portOperations: [
-          { portType: 'origin', etaCorrection: '2024-03-15' },
-        ],
+        portOperations: [{ portType: 'origin', etaCorrection: '2024-03-15' }],
       }
       const result = getEtaCorrection(container as any)
       expect(result).toBeNull()

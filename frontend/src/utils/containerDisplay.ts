@@ -1,12 +1,12 @@
 /**
  * 集装箱展示工具函数
- * 
+ *
  * 提供集装箱列表展示相关的纯函数工具，包括：
  * - 日期计算和格式化
  * - 状态文本转换
  * - 费用展示
  * - 五节点状态判断
- * 
+ *
  * @packageDocumentation
  */
 
@@ -14,13 +14,13 @@ import type { PortOperation } from '@/types/container'
 
 /**
  * 获取 UTC 天数（用于日期比较）
- * 
+ *
  * 将日期字符串或 Date 对象转换为 UTC 天数（从 Unix 纪元开始的天数）。
  * 主要用于日期差异计算，避免时区问题。
- * 
+ *
  * @param input - 日期字符串 (YYYY-MM-DD) 或 Date 对象
  * @returns UTC 天数，如果输入无效则返回 null
- * 
+ *
  * @example
  * ```typescript
  * getUtcDayNumber('2024-03-15') // 19796
@@ -48,32 +48,32 @@ export const getUtcDayNumber = (input: string | Date | null | undefined): number
 
 /**
  * 获取日期标签类型
- * 
+ *
  * 根据日期与最晚日期的差异，返回 Element Plus Tag 组件的类型：
  * - success (绿色): 早于或等于最晚日期
  * - warning (黄色): 晚于最晚日期 1-3 天
  * - danger (红色): 晚于最晚日期 >3 天
  * - info (灰色): 其他情况或无日期
- * 
+ *
  * @param date - 要判断的日期
  * @param _actualDate - 实际日期（保留参数，暂未使用）
  * @param type - 日期类型：'eta' | 'pickup' | 'return' | 'shipment' | 'update' | 'delivery' | 'unload'
  * @param lastDate - 最晚日期（提柜日/还箱日）
  * @returns Tag 类型：'success' | 'warning' | 'danger' | 'info'
- * 
+ *
  * @remarks
  * 特殊规则：
  * - 提柜日和还箱日：如果等于最晚日期，显示为灰色（info）
  * - 其他日期类型：统一显示为灰色（info）
- * 
+ *
  * @example
  * ```typescript
  * // 早于最晚提柜日
  * getDateTagType('2024-03-10', undefined, 'pickup', '2024-03-15') // 'success'
- * 
+ *
  * // 晚于最晚还箱日 2 天
  * getDateTagType('2024-03-17', undefined, 'return', '2024-03-15') // 'warning'
- * 
+ *
  * // 晚于最晚提柜日 5 天
  * getDateTagType('2024-03-20', undefined, 'pickup', '2024-03-15') // 'danger'
  * ```
@@ -116,14 +116,14 @@ export const getDateTagType = (
 
 /**
  * 获取目的地港口显示文本
- * 
+ *
  * 优先使用港口名称，如果没有则使用港口代码，最后降级为 '-'
- * 
+ *
  * @param row - 集装箱数据行
  * @param row.destinationPortName - 目的港名称
  * @param row.destinationPort - 目的港代码
  * @returns 港口显示文本
- * 
+ *
  * @example
  * ```typescript
  * getDestinationPortDisplay({ destinationPortName: '洛杉矶港', destinationPort: 'USLAX' }) // '洛杉矶港'
@@ -137,7 +137,7 @@ export const getDestinationPortDisplay = (row: any): string => {
 
 /**
  * 五节点状态类型
- * 
+ *
  * @remarks
  * - ok: 已完成/正常状态（绿色图标）
  * - bad: 未完成/异常状态（红色图标）
@@ -147,14 +147,14 @@ export type FiveNodeKind = 'ok' | 'bad' | 'warn'
 
 /**
  * 获取五节点状态图标类型
- * 
+ *
  * 根据集装箱数据判断五个关键节点的状态：
  * 1. 清关状态 (customs)
  * 2. 提柜状态 (pickup)
  * 3. 卸柜状态 (unload)
  * 4. 还箱状态 (emptyReturn)
  * 5. 查验状态 (inspection)
- * 
+ *
  * @param row - 集装箱数据行
  * @param row.customsStatus - 清关状态：'COMPLETED' | 'IN_PROGRESS' | 'FAILED' | 'PENDING'
  * @param row.plannedPickupDate - 计划提柜日期
@@ -163,7 +163,7 @@ export type FiveNodeKind = 'ok' | 'bad' | 'warn'
  * @param row.returnTime - 还箱时间
  * @param row.inspectionRequired - 是否需要查验
  * @returns 五个节点的状态类型对象
- * 
+ *
  * @example
  * ```typescript
  * getFiveNodeKinds({
@@ -212,12 +212,12 @@ export const getFiveNodeKinds = (
 
 /**
  * 获取五节点行数据
- * 
+ *
  * 生成用于展示的五个节点的完整信息，包括状态图标类型、标签类型和显示文本。
- * 
+ *
  * @param row - 集装箱数据行
  * @returns 五个节点的展示数据数组
- * 
+ *
  * @example
  * ```typescript
  * getFiveNodeRows(containerData)
@@ -266,12 +266,12 @@ export const getFiveNodeRows = (row: any) => {
 
 /**
  * 获取清关状态文本
- * 
+ *
  * 将清关状态枚举值转换为中文显示文本。
- * 
+ *
  * @param status - 清关状态：'COMPLETED' | 'IN_PROGRESS' | 'FAILED' | 'PENDING'
  * @returns 中文状态文本
- * 
+ *
  * @example
  * ```typescript
  * getCustomsStatusText('COMPLETED') // '已完成'
@@ -294,24 +294,27 @@ export const getCustomsStatusText = (status?: string): string => {
 
 /**
  * 获取修正 ETA（从港口操作记录中获取）
- * 
+ *
  * 从目的港的港口操作记录中提取修正后的预计到港时间（ETA Correction）。
- * 
+ *
  * @param container - 集装箱数据对象
  * @param container.portOperations - 港口操作记录数组
  * @param portOperations - 可选的港口操作记录数组（优先使用此参数）
  * @returns 修正 ETA 日期，如果没有则返回 null
- * 
+ *
  * @example
  * ```typescript
  * // 从容器对象中获取
  * getEtaCorrection(container)
- * 
+ *
  * // 直接传入港口操作记录
  * getEtaCorrection(null, portOperations)
  * ```
  */
-export const getEtaCorrection = (container: any, portOperations?: PortOperation[]): string | Date | null => {
+export const getEtaCorrection = (
+  container: any,
+  portOperations?: PortOperation[]
+): string | Date | null => {
   const portOps = portOperations || (container.portOperations as PortOperation[] | undefined)
   if (!portOps) return null
 
@@ -321,12 +324,12 @@ export const getEtaCorrection = (container: any, portOperations?: PortOperation[
 
 /**
  * 列表预警列徽章文案
- * 
+ *
  * 将预警类型枚举值转换为中文显示文本，用于列表预警列的徽章展示。
- * 
+ *
  * @param type - 预警类型
  * @returns 中文预警类型文本
- * 
+ *
  * @example
  * ```typescript
  * formatAlertTypeBadge('customs') // '清关'
@@ -354,12 +357,12 @@ export const formatAlertTypeBadge = (type: string | undefined): string => {
 
 /**
  * 费用模式文本
- * 
+ *
  * 将费用模式转换为中文显示文本。
- * 
+ *
  * @param mode - 费用模式：'actual' (实际) | 'forecast' (预计)
  * @returns 中文费用模式文本
- * 
+ *
  * @example
  * ```typescript
  * formatCostModeText('actual') // '实际'
@@ -374,14 +377,14 @@ export const formatCostModeText = (mode?: 'actual' | 'forecast' | string): strin
 
 /**
  * 费用项名称
- * 
+ *
  * 获取费用项的显示名称，优先使用 chargeName，否则根据 chargeType 映射为标准名称。
- * 
+ *
  * @param item - 费用项对象
  * @param item.chargeName - 费用名称（优先使用）
  * @param item.chargeType - 费用类型代码
  * @returns 中文费用项名称
- * 
+ *
  * @example
  * ```typescript
  * formatCostItemName({ chargeName: '码头操作费', chargeType: 'THC' }) // '码头操作费'
@@ -389,7 +392,10 @@ export const formatCostModeText = (mode?: 'actual' | 'forecast' | string): strin
  * formatCostItemName({ chargeType: 'DETENTION' }) // '滞箱费'
  * ```
  */
-export const formatCostItemName = (item: { chargeType?: string | null; chargeName?: string | null }): string => {
+export const formatCostItemName = (item: {
+  chargeType?: string | null
+  chargeName?: string | null
+}): string => {
   if (item.chargeName) return item.chargeName
   const type = String(item.chargeType || '').toUpperCase()
   const typeMap: Record<string, string> = {
@@ -406,21 +412,21 @@ export const formatCostItemName = (item: { chargeType?: string | null; chargeNam
 
 /**
  * 获取货币前缀
- * 
+ *
  * 根据销往国家、国家货币或费用明细中的货币，返回对应的货币符号。
- * 
+ *
  * 优先级顺序：
  * 1. countryCurrency（国家货币）
  * 2. sellToCountry（销往国家）→ 国家对应货币
  * 3. costBreakdown.currency（费用明细货币）
  * 4. 默认：'$' (美元)
- * 
+ *
  * @param row - 集装箱数据行
  * @param row.countryCurrency - 国家货币代码
  * @param row.sellToCountry - 销往国家代码
  * @param row.costBreakdown.currency - 费用明细货币代码
  * @returns 货币符号（如 '$', '¥', '€' 等）
- * 
+ *
  * @example
  * ```typescript
  * getRowCurrencyPrefix({ countryCurrency: 'USD' }) // '$'
@@ -481,17 +487,17 @@ export const getRowCurrencyPrefix = (row: any): string => {
 
 /**
  * HTML 转义
- * 
+ *
  * 将字符串中的特殊字符转换为 HTML 实体，防止 XSS 攻击。
- * 
+ *
  * @param s - 要转义的字符串
  * @returns 转义后的字符串
- * 
+ *
  * @example
  * ```typescript
  * escapeHtml('<script>alert("XSS")</script>')
  * // '&lt;script&gt;alert(&quot;XSS&quot;)&lt;/script&gt;'
- * 
+ *
  * escapeHtml('Tom & Jerry')
  * // 'Tom &amp; Jerry'
  * ```
@@ -506,9 +512,9 @@ export const escapeHtml = (s: string): string =>
 
 /**
  * 获取费用详情文本
- * 
+ *
  * 生成包含所有费用项的 HTML 格式详情文本，用于 Tooltip 或弹窗展示。
- * 
+ *
  * @param row - 集装箱数据行
  * @param row.costBreakdown.items - 费用项数组
  * @param row.costBreakdown.items[].mode - 费用模式：'actual' | 'forecast'
@@ -516,7 +522,7 @@ export const escapeHtml = (s: string): string =>
  * @param row.costBreakdown.items[].chargeType - 费用类型
  * @param row.costBreakdown.items[].chargeName - 费用名称
  * @returns HTML 格式的费用详情文本（使用<br/>分隔各项）
- * 
+ *
  * @example
  * ```typescript
  * getCostDetailsText({
