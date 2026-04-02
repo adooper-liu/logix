@@ -89,7 +89,8 @@ export class SchedulingController {
         portCode: typeof portCode === 'string' ? portCode : undefined,
         unloadMode: unloadMode as 'Drop off' | 'Live load' | undefined, // ✅ 新增：卸柜方式参数
         designatedWarehouseMode: !!designatedWarehouseMode,
-        designatedWarehouseCode: typeof designatedWarehouseCode === 'string' ? designatedWarehouseCode : undefined
+        designatedWarehouseCode:
+          typeof designatedWarehouseCode === 'string' ? designatedWarehouseCode : undefined
       });
 
       res.json(result);
@@ -263,11 +264,11 @@ export class SchedulingController {
   getSchedulingOverview = async (req: Request, res: Response): Promise<void> => {
     try {
       const { startDate, endDate, country, portCode } = req.query;
-      
+
       // 查询待排产货柜数量（与 batchSchedule 口径一致）
       // ✅ 性能优化：将 3 个独立 COUNT 查询合并为 1 个，使用 FILTER 子句
       const containerRepo = AppDataSource.getRepository(Container);
-      
+
       // 构建参数数组（按顺序添加）
       const params: any[] = [];
       let paramIndex = 1;
@@ -277,7 +278,7 @@ export class SchedulingController {
       const dateCondition = hasDateRange
         ? `AND (COALESCE(po.ata, po.eta)::date >= $${paramIndex}::date AND COALESCE(po.ata, po.eta)::date <= $${paramIndex + 1}::date)`
         : '';
-      
+
       if (hasDateRange) {
         params.push(String(startDate), String(endDate));
         paramIndex += 2;
@@ -2829,7 +2830,7 @@ export class SchedulingController {
         // 使用 DemurrageService 重新计算滞港费
         const { DemurrageService } = require('../services/demurrage.service');
         const demurrageService = new DemurrageService();
-        
+
         // 更新日期信息（基于拖拽后的新日期）
         if (container.nodes) {
           for (const node of container.nodes) {
@@ -2846,8 +2847,10 @@ export class SchedulingController {
         }
 
         // 重新计算滞港费和滞箱费
-        const demurrageResult = await demurrageService.calculateForContainer(container.containerNumber);
-        
+        const demurrageResult = await demurrageService.calculateForContainer(
+          container.containerNumber
+        );
+
         // 累加成本
         const demurrageCost = latestHistory.demurrageCost || 0;
         const detentionCost = latestHistory.detentionCost || 0;
@@ -2874,7 +2877,7 @@ export class SchedulingController {
 
         // 生成优化建议（基于新的日期）
         const pickupDate = latestHistory.plannedPickupDate;
-        
+
         if (pickupDate) {
           const isWeekend = this.isWeekend(pickupDate);
           const nextWorkday = this.getNextWorkday(new Date(pickupDate));
@@ -2892,9 +2895,15 @@ export class SchedulingController {
               optimizedCost: totalCost - savings,
               savings: savings,
               originalPickupDate: this.formatDate(new Date(pickupDate)),
-              originalDeliveryDate: latestHistory.plannedDeliveryDate ? this.formatDate(latestHistory.plannedDeliveryDate) : '',
-              originalUnloadDate: latestHistory.plannedUnloadDate ? this.formatDate(latestHistory.plannedUnloadDate) : '',
-              originalReturnDate: latestHistory.plannedReturnDate ? this.formatDate(latestHistory.plannedReturnDate) : '',
+              originalDeliveryDate: latestHistory.plannedDeliveryDate
+                ? this.formatDate(latestHistory.plannedDeliveryDate)
+                : '',
+              originalUnloadDate: latestHistory.plannedUnloadDate
+                ? this.formatDate(latestHistory.plannedUnloadDate)
+                : '',
+              originalReturnDate: latestHistory.plannedReturnDate
+                ? this.formatDate(latestHistory.plannedReturnDate)
+                : '',
               optimizedPickupDate: this.formatDate(nextWorkday),
               optimizedDeliveryDate: this.formatDate(this.addDays(nextWorkday, 1)),
               optimizedUnloadDate: this.formatDate(this.addDays(nextWorkday, 2)),

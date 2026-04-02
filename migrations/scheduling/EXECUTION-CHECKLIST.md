@@ -5,10 +5,12 @@
 解决前端访问智能排产页面时的 120 秒超时问题。
 
 **受影响的 API**:
+
 - [ ] `GET /api/v1/countries` - 获取国家列表
 - [ ] `GET /api/v1/scheduling/overview` - 获取排产概览
 
 **预期效果**:
+
 - 响应时间从 >120 秒降低到 <3 秒
 - 数据库 CPU 使用率从 ~100% 降低到 <30%
 
@@ -24,6 +26,7 @@
 - [ ] 后端服务已停止（避免迁移冲突）
 
 **验证命令**:
+
 ```bash
 # 测试数据库连接
 psql -U postgres -d logix -c "SELECT version();"
@@ -39,6 +42,7 @@ cd migrations/scheduling
 - [ ] 记录当前性能基线（用于对比）
 
 **记录当前性能**:
+
 ```bash
 # 使用 curl 测试（记录时间）
 time curl http://localhost:3001/api/v1/countries
@@ -74,6 +78,7 @@ psql -U postgres -d logix -f add_scheduling_performance_indexes.sql
 ```
 
 **执行成功的标志**:
+
 - 输出显示创建了 16+ 个索引
 - 没有严重错误（忽略"索引已存在"的警告）
 - 最后显示"统计信息更新完成"
@@ -87,9 +92,9 @@ psql -U postgres -d logix -f add_scheduling_performance_indexes.sql
 psql -U postgres -d logix
 
 -- 查看新创建的索引
-SELECT indexname, tablename 
-FROM pg_indexes 
-WHERE indexname LIKE 'idx_%scheduling%' 
+SELECT indexname, tablename
+FROM pg_indexes
+WHERE indexname LIKE 'idx_%scheduling%'
    OR indexname LIKE 'idx_%containers%'
    OR indexname LIKE 'idx_%port_ops%'
 ORDER BY tablename;
@@ -98,6 +103,7 @@ ORDER BY tablename;
 ```
 
 **预期输出**:
+
 ```
 indexname                          | tablename
 -----------------------------------+----------------------------------
@@ -123,6 +129,7 @@ npm run start
 ```
 
 **验证后端启动成功**:
+
 - 日志显示数据库连接成功
 - 没有报错
 - 监听在正确的端口（默认 3001）
@@ -157,6 +164,7 @@ curl -w "\n响应时间：%{time_total}s\n" "http://localhost:3001/api/v1/schedu
 5. 查看 `/api/v1/countries` 和 `/api/v1/scheduling/overview` 的响应时间
 
 **性能达标标准**:
+
 - [ ] `/countries` API: < 100ms
 - [ ] `/scheduling/overview` API: < 3000ms (3 秒)
 - [ ] 没有超时错误
@@ -169,7 +177,7 @@ curl -w "\n响应时间：%{time_total}s\n" "http://localhost:3001/api/v1/schedu
 ```sql
 -- 分析查询计划，确认使用索引
 EXPLAIN ANALYZE
-SELECT 
+SELECT
   COUNT(*) FILTER (WHERE c.schedule_status IN ('initial', 'issued')) as pending_count,
   COUNT(*) FILTER (WHERE c.schedule_status = 'initial') as initial_count,
   COUNT(*) FILTER (WHERE c.schedule_status = 'issued') as issued_count
@@ -178,6 +186,7 @@ WHERE c.schedule_status IN ('initial', 'issued');
 ```
 
 **预期输出**（关键看是否使用索引）:
+
 ```
 Aggregate  (cost=234.56..234.57 rows=1 width=8) (actual time=1.234..1.235 ms)
   ->  Index Scan using idx_containers_schedule_status on biz_containers c  (cost=0.43..230.00 rows=1000 width=1) (actual time=0.123..1.000 ms)
@@ -187,6 +196,7 @@ Execution Time: 1.500 ms  -- 应该在几毫秒级别
 ```
 
 如果看到 `Seq Scan` 而不是 `Index Scan`，执行：
+
 ```sql
 ANALYZE biz_containers;
 ```
@@ -222,6 +232,7 @@ ANALYZE biz_containers;
 **原因**: 表不存在或数据库名称错误
 
 **解决**:
+
 ```sql
 -- 确认当前数据库
 SELECT current_database();
@@ -236,16 +247,18 @@ psql -U postgres -d logix -f backend/sql/schema/03_create_tables.sql
 ### 问题 2: 性能没有提升
 
 **检查**:
+
 ```sql
 -- 查看索引是否被使用
-SELECT indexname, idx_scan 
-FROM pg_stat_user_indexes 
+SELECT indexname, idx_scan
+FROM pg_stat_user_indexes
 WHERE indexname LIKE 'idx_%';
 
 -- 如果 idx_scan 为 0，说明索引未被使用
 ```
 
 **解决**:
+
 ```sql
 -- 强制更新统计信息
 ANALYZE VERBOSE;
@@ -259,6 +272,7 @@ pg_ctl restart -D "C:\Program Files\PostgreSQL\data"
 **错误**: `Cannot connect to database`
 
 **解决**:
+
 ```bash
 # 检查数据库连接配置
 cd backend
@@ -323,10 +337,10 @@ git checkout HEAD -- backend/src/controllers/scheduling.controller.ts
 
 ### 性能对比
 
-| API | 优化前 | 优化后 | 改善 |
-|-----|--------|--------|------|
-| `/countries` | >120s | _____ms | _____x |
-| `/scheduling/overview` | >120s | _____ms | _____x |
+| API                    | 优化前 | 优化后   | 改善    |
+| ---------------------- | ------ | -------- | ------- |
+| `/countries`           | >120s  | **\_**ms | **\_**x |
+| `/scheduling/overview` | >120s  | **\_**ms | **\_**x |
 
 ### 遇到的问题
 
@@ -342,14 +356,15 @@ git checkout HEAD -- backend/src/controllers/scheduling.controller.ts
 
 ---
 
-**执行人**: ______________  
-**执行日期**: ______________  
-**总耗时**: ______________ 分钟  
+**执行人**: ******\_\_******  
+**执行日期**: ******\_\_******  
+**总耗时**: ******\_\_****** 分钟  
 **结果**: [ ] 成功 [ ] 部分成功 [ ] 失败
 
 ---
 
 **相关文档**:
+
 - 详细方案：`README-scheduling-performance.md`
 - 修复总结：`FIX-SUMMARY.md`
 - 问题排查：`../../public/docs-temp/scheduling-api-timeout-issue.md`

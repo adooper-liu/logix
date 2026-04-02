@@ -1,28 +1,94 @@
 <template>
-  <div class="container-table-component">
-    <!-- 表格主体 -->
+  <el-card class="table-card">
+    <div class="table-toolbar">
+      <el-radio-group v-model="tableSize" size="small">
+        <el-radio-button value="small">紧凑</el-radio-button>
+        <el-radio-button value="default">默认</el-radio-button>
+        <el-radio-button value="large">宽松</el-radio-button>
+      </el-radio-group>
+      <span class="toolbar-label">{{ t('container.logisticsStatus') }}：</span>
+      <el-select
+        v-model="quickStatusFilter"
+        multiple
+        collapse-tags
+        collapse-tags-tooltip
+        :placeholder="t('common.all')"
+        clearable
+        size="small"
+        style="width: 220px; margin-right: 12px"
+      >
+        <el-option
+          :label="t('container.status.notShipped')"
+          :value="SimplifiedStatus.NOT_SHIPPED"
+        />
+        <el-option :label="t('container.status.shipped')" :value="SimplifiedStatus.SHIPPED" />
+        <el-option :label="t('container.status.inTransit')" :value="SimplifiedStatus.IN_TRANSIT" />
+        <el-option :label="t('container.status.arrivedAtTransit')" :value="'arrived_at_transit'" />
+        <el-option :label="t('container.status.atPort')" :value="'arrived_at_destination'" />
+        <el-option :label="t('container.status.pickedUp')" :value="SimplifiedStatus.PICKED_UP" />
+        <el-option :label="t('container.status.unloaded')" :value="SimplifiedStatus.UNLOADED" />
+        <el-option
+          :label="t('container.status.returnedEmpty')"
+          :value="SimplifiedStatus.RETURNED_EMPTY"
+        />
+      </el-select>
+      <el-checkbox v-model="alertFilter" size="small" style="margin-right: 12px">
+        <el-icon><Warning /></el-icon>
+        预警数量 > 0
+      </el-checkbox>
+      <el-button type="default" plain @click="columnSettingOpen = true">
+        <el-icon><Setting /></el-icon>
+        列设置
+      </el-button>
+      <el-button
+        type="success"
+        plain
+        :disabled="selectedRows.length === 0"
+        @click="handleBatchExport"
+      >
+        <el-icon><Download /></el-icon>
+        批量{{ t('common.export') }}
+      </el-button>
+      <!-- 甘特图按钮 -->
+      <el-button type="success" @click="goGanttChart()">
+        <el-icon><Calendar /></el-icon>
+        甘特图
+      </el-button>
+      <el-button type="primary" plain :loading="batchScheduleLoading" @click="handleBatchSchedule">
+        <el-icon><Edit /></el-icon>
+        一键排产
+      </el-button>
+      <el-button
+        type="info"
+        plain
+        :loading="demurrageWriteBackLoading"
+        @click="handleDemurrageWriteBackWrapper"
+      >
+        <el-icon><Calendar /></el-icon>
+        免费日更新
+      </el-button>
+    </div>
     <el-table
       ref="tableRef"
-      :data="data"
+      :data="props.data"
       :size="tableSize"
-      :default-sort="defaultSort"
-      v-loading="loading"
+      :default-sort="props.defaultSort"
+      v-loading="props.loading"
       stripe
       height="calc(100vh - 380px)"
       style="width: 100%"
       @sort-change="handleSortChange"
       @selection-change="handleSelectionChange"
     >
-      <!-- 选择列 -->
       <el-table-column type="selection" width="45" fixed="left" />
-      
-      <!-- 展开列 -->
       <el-table-column type="expand" width="45" fixed="left">
         <template #default="{ row }">
           <div class="table-expand-detail">
             <div class="expand-row">
-              <span class="expand-label">到港日期</span>
-              <span>
+              <!-- <span class="expand-label">目的港</span
+                ><span>{{ getDestinationPortDisplay(row) }}</span> -->
+              <span class="expand-label">到港日期</span
+              ><span>
                 {{ row.etaDestPort ? formatDate(row.etaDestPort) : '-' }} eta /
                 {{
                   (row.etaCorrection ?? getEtaCorrection(row))
@@ -31,39 +97,35 @@
                 }}
                 rev / {{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }} ata
               </span>
-            </div>
-            <div class="expand-row">
-              <span class="expand-label">提柜日期</span>
-              <span>
+              <!-- </div>
+              <div class="expand-row"> -->
+              <span class="expand-label">提柜日期</span
+              ><span>
                 {{ row.lastFreeDate ? formatDate(row.lastFreeDate) : '-' }} lfd /
                 {{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }} plan /
                 {{ row.pickupDate ? formatDate(row.pickupDate) : '-' }} act
               </span>
-            </div>
-            <div class="expand-row">
-              <span class="expand-label">还箱日期</span>
-              <span>
+              <span class="expand-label">还箱日期</span
+              ><span>
                 {{ row.lastReturnDate ? formatDate(row.lastReturnDate) : '-' }} lrd /
                 {{ row.plannedReturnDate ? formatDate(row.plannedReturnDate) : '-' }} plan /
                 {{ row.returnTime ? formatDate(row.returnTime) : '-' }} act
               </span>
             </div>
             <div class="expand-row">
-              <span class="expand-label">货物描述</span>
-              <span>{{ row.cargoDescription || '-' }}</span>
+              <span class="expand-label">货物描述</span
+              ><span>{{ row.cargoDescription || '-' }}</span>
             </div>
           </div>
         </template>
       </el-table-column>
-
-      <!-- 空状态 -->
       <template #empty>
         <div class="table-empty">
           <el-empty description="暂无数据">
-            <template v-if="activeFilter?.type">
-              <span class="empty-hint">
-                当前筛选条件下没有货柜记录，可尝试调整日期范围或清除筛选。
-              </span>
+            <template v-if="activeFilter.type">
+              <span class="empty-hint"
+                >当前筛选条件下没有货柜记录，可尝试调整日期范围或清除筛选。</span
+              >
             </template>
             <template v-else>
               <span class="empty-hint">在所选日期范围内暂无出运记录。</span>
@@ -71,204 +133,204 @@
           </el-empty>
         </div>
       </template>
+      <template v-for="key in sortedVisibleColumnKeys" :key="key">
+        <!-- 集装箱号、备货单号 -->
+        <el-table-column v-if="key === 'containerNumber'" label="货柜号/备货单号" width="180" fixed>
+          <template #default="{ row }">
+            <div class="combined-numbers">
+              <div class="number-item">
+                <span>{{ row.containerNumber || '-' }}</span>
+              </div>
+              <div class="number-item">
+                <span>{{ row.orderNumber || '-' }}</span>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
 
-      <!-- 动态列渲染 -->
-      <el-table-column
-        v-for="key in sortedVisibleColumnKeys"
-        :key="key"
-        v-if="key === 'containerNumber'"
-        label="货柜号/备货单号"
-        width="180"
-        fixed
-      >
-        <template #default="{ row }">
-          <div class="combined-numbers">
-            <div class="number-item">
-              <span class="number-label">{{ t('container.containerNumber') }}:</span>
-              <span class="number-value highlight">{{ row.containerNumber }}</span>
+        <!-- 提单号、MBL -->
+        <el-table-column v-else-if="key === 'billOfLadingNumber'" label="提单号/MBL" width="150">
+          <template #default="{ row }">
+            <div class="bbl-mbl-container">
+              <div class="number-item">
+                <span>{{ row.billOfLadingNumber || '-' }}</span>
+              </div>
+              <div class="number-item">
+                <span>{{ row.mblNumber || '-' }}</span>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+
+        <!-- 出运日期 -->
+        <el-table-column
+          v-else-if="key === 'actualShipDate'"
+          prop="actualShipDate"
+          label="出运日期"
+          width="120"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <span
+              class="date-text"
+              :class="getDateColorClass(row.actualShipDate || row.createdAt, null, 'shipment')"
+            >
+              {{ formatShipmentDate(row.actualShipDate || row.createdAt) }}
+            </span>
+          </template>
+        </el-table-column>
+
+        <!-- 柜型 -->
+        <el-table-column
+          v-else-if="key === 'containerTypeCode'"
+          prop="containerTypeCode"
+          label="柜型"
+          width="80"
+        >
+          <template #default="{ row }">
+            <el-tag size="small">{{ row.containerTypeCode || '-' }}</el-tag>
+          </template>
+        </el-table-column>
+
+        <!-- 物流状态 -->
+        <el-table-column
+          v-else-if="key === 'logisticsStatus'"
+          prop="logisticsStatus"
+          :label="t('container.logisticsStatus')"
+          width="120"
+        >
+          <template #default="{ row }">
+            <el-tag :type="getStatusType(row.logisticsStatus)" size="small">
+              {{ getLogisticsStatusText(row) || '-' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <!-- 五节点状态 -->
+        <el-table-column
+          v-else-if="key === 'fiveNodeStatus'"
+          label="五节点状态"
+          width="200"
+          align="left"
+        >
+          <template #default="{ row }">
+            <div class="five-node-status">
+              <el-tag
+                v-for="(node, idx) in getFiveNodeRows(row)"
+                :key="idx"
+                size="small"
+                :type="node.type"
+                class="status-tag five-node-tag"
+              >
+                <span class="five-node-icon-wrap" :class="`kind-${node.kind}`">
+                  <el-icon class="five-node-icon" :size="13">
+                    <CircleCheck v-if="node.kind === 'ok'" />
+                    <CircleClose v-else-if="node.kind === 'bad'" />
+                    <Warning v-else />
+                  </el-icon>
+                </span>
+                <span class="five-node-status-text">{{ node.text }}</span>
+              </el-tag>
+            </div>
+          </template>
+        </el-table-column>
+
+        <!-- 预警 -->
+        <el-table-column v-else-if="key === 'alerts'" label="预警" width="70" align="center">
+          <template #default="{ row }">
+            <div v-if="row.alerts && row.alerts.length > 0" class="alerts-container">
+              <el-tooltip
+                v-for="(alert, index) in row.alerts"
+                :key="alert.id || index"
+                :content="alert.message"
+                placement="top"
+                effect="light"
+              >
+                <el-badge
+                  :value="formatAlertTypeBadge(alert.type)"
+                  :type="alert.resolved ? 'info' : 'danger'"
+                  class="alert-badge"
+                  :class="{ 'resolved-alert': alert.resolved }"
+                >
+                  <el-icon :size="14"><Warning /></el-icon>
+                </el-badge>
+              </el-tooltip>
+            </div>
+            <div v-else-if="row.alertCount && row.alertCount > 0" class="alerts-container">
+              <el-tooltip content="点击查看详细预警信息" placement="top" effect="light">
+                <el-badge
+                  :value="row.alertCount"
+                  :type="row.hasResolvedAlerts ? 'info' : 'danger'"
+                  class="alert-badge"
+                >
+                  <el-icon :size="14"><Warning /></el-icon>
+                </el-badge>
+              </el-tooltip>
             </div>
             <div
-              v-if="row.allOrders && row.allOrders.length > 0"
-              class="number-item"
+              v-else-if="row.resolvedAlertCount && row.resolvedAlertCount > 0"
+              class="alerts-container"
             >
-              <span class="number-label">{{ t('container.orderNumber') }}:</span>
-              <span class="number-value">{{ row.allOrders[0].orderNumber }}</span>
+              <el-tooltip content="已处理的预警" placement="top" effect="light">
+                <el-badge
+                  :value="row.resolvedAlertCount"
+                  type="info"
+                  class="alert-badge resolved-alert"
+                >
+                  <el-icon :size="14"><Warning /></el-icon>
+                </el-badge>
+              </el-tooltip>
             </div>
-          </div>
-        </template>
-      </el-table-column>
-      
-      <el-table-column
-        v-for="key in sortedVisibleColumnKeys"
-        :key="key"
-        v-if="key === 'billOfLadingNumber'"
-        label="提单号/MBL"
-        width="150"
-      >
-        <template #default="{ row }">
-          <div class="bbl-mbl-container">
-            <div class="bbl-mbl-item">
-              <span class="bbl-mbl-label">BBL:</span>
-              <span class="bbl-mbl-value">{{ row.billOfLadingNumber || '-' }}</span>
-            </div>
-            <div v-if="row.seaFreight?.mblNumber" class="bbl-mbl-item">
-              <span class="bbl-mbl-label">MBL:</span>
-              <span class="bbl-mbl-value">{{ row.seaFreight.mblNumber }}</span>
-            </div>
-          </div>
-        </template>
-      </el-table-column>
-      
-      <el-table-column
-        v-for="key in sortedVisibleColumnKeys"
-        :key="key"
-        v-if="key === 'skuSummary'"
-        label="SKU 数量/体积/重量"
-        width="150"
-      >
-        <template #default="{ row }">
-          <div v-if="row.summary" class="combined-numbers">
-            <div class="number-item">
-              <span class="number-label">总毛重:</span>
-              <span class="number-value">
-                {{ Number(row.summary.totalGrossWeight || 0).toFixed(2) }} kg
-              </span>
-            </div>
-            <div class="number-item">
-              <span class="number-label">总体积:</span>
-              <span class="number-value">
-                {{ Number(row.summary.totalCbm || 0).toFixed(2) }} cbm
-              </span>
-            </div>
-            <div class="number-item">
-              <span class="number-label">总箱数:</span>
-              <span class="number-value">{{ row.summary.totalBoxes || 0 }}</span>
-            </div>
-          </div>
-          <span v-else>-</span>
-        </template>
-      </el-table-column>
-      
-      <el-table-column
-        v-for="key in sortedVisibleColumnKeys"
-        :key="key"
-        v-if="key === 'alerts'"
-        label="预警"
-        width="70"
-        align="center"
-      >
-        <template #default="{ row }">
-          <div v-if="row.alerts && row.alerts.length > 0" class="alerts-container">
-            <el-tooltip
-              v-for="(alert, index) in row.alerts"
-              :key="alert.id || index"
-              :content="alert.message"
-              placement="top"
-              effect="light"
-            >
-              <el-badge
-                :value="formatAlertTypeBadge(alert.type)"
-                :type="alert.resolved ? 'info' : 'danger'"
-                class="alert-badge"
-                :class="{ 'resolved-alert': alert.resolved }"
-              >
-                <el-icon :size="14"><Warning /></el-icon>
-              </el-badge>
-            </el-tooltip>
-          </div>
-          <div v-else-if="row.alertCount && row.alertCount > 0" class="alerts-container">
-            <el-tooltip content="点击查看详细预警信息" placement="top" effect="light">
-              <el-badge
-                :value="row.alertCount"
-                :type="row.hasResolvedAlerts ? 'info' : 'danger'"
-                class="alert-badge"
-              >
-                <el-icon :size="14"><Warning /></el-icon>
-              </el-badge>
-            </el-tooltip>
-          </div>
-          <div
-            v-else-if="row.resolvedAlertCount && row.resolvedAlertCount > 0"
-            class="alerts-container"
-          >
-            <el-tooltip content="已处理的预警" placement="top" effect="light">
-              <el-badge
-                :value="row.resolvedAlertCount"
-                type="info"
-                class="alert-badge resolved-alert"
-              >
-                <el-icon :size="14"><Warning /></el-icon>
-              </el-badge>
-            </el-tooltip>
-          </div>
-          <template v-else>
-            <el-icon :size="14" style="color: #ccc"><Warning /></el-icon>
+            <template v-else>
+              <el-icon :size="14" style="color: #ccc"><Warning /></el-icon>
+            </template>
           </template>
-        </template>
-      </el-table-column>
-      
-      <el-table-column
-        v-for="key in sortedVisibleColumnKeys"
-        :key="key"
-        v-if="key === 'totalCost'"
-        label="总费用"
-        width="100"
-        align="right"
-      >
-        <template #default="{ row }">
-          <el-tooltip
-            v-if="row.totalCost != null"
-            :content="getCostDetailsText(row)"
-            placement="top-start"
-            effect="light"
-            raw-content
-          >
-            <span class="cost-total-text">
-              {{ getRowCurrencyPrefix(row) }}{{ Number(row.totalCost || 0).toFixed(2) }}
-            </span>
-          </el-tooltip>
-          <span v-else>-</span>
-        </template>
-      </el-table-column>
-      
-      <el-table-column
-        v-for="key in sortedVisibleColumnKeys"
-        :key="key"
-        v-if="key === 'inspectionRequired'"
-        label="查验/开箱"
-        width="120"
-        align="center"
-      >
-        <template #default="{ row }">
-          <div class="inspection-unboxing">
-            <span class="inspection-text">
-              查验：{{ row.inspectionRequired ? '是' : '否' }}
-            </span>
-            <span class="inspection-text">
-              开箱：{{ row.isUnboxing ? '是' : '否' }}
-            </span>
-          </div>
-        </template>
-      </el-table-column>
-      
-      <el-table-column
-        v-for="key in sortedVisibleColumnKeys"
-        :key="key"
-        v-if="key === 'destinationPort'"
-        label="目的港"
-        width="100"
-      >
-        <template #default="{ row }">
-          {{ getDestinationPortDisplay(row) }}
-        </template>
-      </el-table-column>
+        </el-table-column>
+
+        <!-- 总费用 -->
+        <el-table-column v-else-if="key === 'totalCost'" label="总费用" width="100" align="right">
+          <template #default="{ row }">
+            <el-tooltip
+              v-if="row.totalCost != null"
+              :content="getCostDetailsText(row)"
+              placement="top-start"
+              effect="light"
+              raw-content
+            >
+              <span class="cost-total-text"
+                >{{ getRowCurrencyPrefix(row) }}{{ Number(row.totalCost || 0).toFixed(2) }}</span
+              >
+            </el-tooltip>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
+
+        <!-- 查验 & 开箱 -->
+        <el-table-column
+          v-else-if="key === 'inspectionRequired'"
+          label="查验/开箱"
+          width="120"
+          align="center"
+        >
+          <template #default="{ row }">
+            <div class="inspection-unboxing">
+              <span class="inspection-text">
+                查验：{{ row.inspectionRequired ? '是' : '否' }}
+              </span>
+              <span class="inspection-text">开箱：{{ row.isUnboxing ? '是' : '否' }}</span>
+            </div>
+          </template>
+        </el-table-column>
+
+        <!-- 目的港 -->
+        <el-table-column v-else-if="key === 'destinationPort'" label="目的港" width="100">
+          <template #default="{ row }">
+            {{ getDestinationPortDisplay(row) }}
+          </template>
+        </el-table-column>
 
         <!-- 当前位置 -->
-        <el-table-column
-          v-else-if="key === 'location'"
-          label="当前位置"
-          width="100"
-        >
+        <el-table-column v-else-if="key === 'location'" label="当前位置" width="100">
           <template #default="{ row }">
             {{
               getCurrentLocationText(
@@ -280,7 +342,7 @@
           </template>
         </el-table-column>
 
-        <!-- 到港日期（ETA、修正 ETA、ATA） -->
+        <!-- 到港日期（ETA、修正ETA、ATA） -->
         <el-table-column
           v-else-if="key === 'etaDestPort'"
           label="到港日期"
@@ -316,10 +378,7 @@
                 <span class="date-label">rev</span>
               </div>
               <div class="date-item">
-                <span
-                  class="date-text"
-                  :class="getDateColorClass(row.ataDestPort, null, 'eta')"
-                >
+                <span class="date-text" :class="getDateColorClass(row.ataDestPort, null, 'eta')">
                   {{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }}
                 </span>
                 <span class="date-label">ata</span>
@@ -360,12 +419,7 @@
                 <span
                   class="date-text"
                   :class="
-                    getDateColorClass(
-                      row.lastFreeDate,
-                      row.pickupDate,
-                      'pickup',
-                      row.lastFreeDate
-                    )
+                    getDateColorClass(row.lastFreeDate, row.pickupDate, 'pickup', row.lastFreeDate)
                   "
                 >
                   {{ row.lastFreeDate ? formatDate(row.lastFreeDate) : '-' }}
@@ -386,12 +440,12 @@
                 >
                   {{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }}
                 </span>
-                <span class="date-label">plan</span>
+                <span class="date-label">pla</span>
               </div>
               <div class="date-item">
                 <span
                   class="date-text"
-                  :class="getDateColorClass(row.pickupDate, null, 'pickup')"
+                  :class="getDateColorClass(row.pickupDate, null, 'pickup', row.lastFreeDate)"
                 >
                   {{ row.pickupDate ? formatDate(row.pickupDate) : '-' }}
                 </span>
@@ -401,9 +455,115 @@
           </template>
         </el-table-column>
 
+        <!-- 送仓日期 -->
+        <el-table-column
+          v-else-if="key === 'plannedDeliveryDate'"
+          label="送仓日期"
+          width="180"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <div class="delivery-dates-container">
+              <div class="date-item">
+                <span
+                  class="date-text"
+                  :class="
+                    getDateColorClass(
+                      row.truckingTransports?.[0]?.plannedDeliveryDate,
+                      row.truckingTransports?.[0]?.deliveryDate,
+                      'delivery',
+                      null
+                    )
+                  "
+                >
+                  {{
+                    row.truckingTransports?.[0]?.plannedDeliveryDate
+                      ? formatDate(row.truckingTransports[0].plannedDeliveryDate)
+                      : '-'
+                  }}
+                </span>
+                <span class="date-label">pla</span>
+              </div>
+              <div class="date-item">
+                <span
+                  class="date-text"
+                  :class="
+                    getDateColorClass(
+                      row.truckingTransports?.[0]?.deliveryDate,
+                      null,
+                      'delivery',
+                      null
+                    )
+                  "
+                >
+                  {{
+                    row.truckingTransports?.[0]?.deliveryDate
+                      ? formatDate(row.truckingTransports[0].deliveryDate)
+                      : '-'
+                  }}
+                </span>
+                <span class="date-label">act</span>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+
+        <!-- 卸柜日期 -->
+        <el-table-column
+          v-else-if="key === 'plannedUnloadDate'"
+          label="卸柜日期"
+          width="180"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            <div class="unload-dates-container">
+              <div class="date-item">
+                <span
+                  class="date-text"
+                  :class="
+                    getDateColorClass(
+                      row.warehouseOperations?.[0]?.plannedUnloadDate,
+                      row.warehouseOperations?.[0]?.unloadDate,
+                      'unload',
+                      null
+                    )
+                  "
+                >
+                  {{
+                    row.warehouseOperations?.[0]?.plannedUnloadDate
+                      ? formatDate(row.warehouseOperations[0].plannedUnloadDate)
+                      : '-'
+                  }}
+                </span>
+                <span class="date-label">pla</span>
+              </div>
+              <div class="date-item">
+                <span
+                  class="date-text"
+                  :class="
+                    getDateColorClass(
+                      row.warehouseOperations?.[0]?.unloadDate,
+                      null,
+                      'unload',
+                      null
+                    )
+                  "
+                >
+                  {{
+                    row.warehouseOperations?.[0]?.unloadDate
+                      ? formatDate(row.warehouseOperations[0].unloadDate)
+                      : '-'
+                  }}
+                </span>
+                <span class="date-label">act</span>
+              </div>
+            </div>
+          </template>
+        </el-table-column>
+
         <!-- 还箱日期 -->
         <el-table-column
-          v-else-if="key === 'plannedReturnDate'"
+          v-else-if="key === 'lastReturnDate'"
           label="还箱日期"
           width="180"
           sortable="custom"
@@ -440,12 +600,12 @@
                 >
                   {{ row.plannedReturnDate ? formatDate(row.plannedReturnDate) : '-' }}
                 </span>
-                <span class="date-label">plan</span>
+                <span class="date-label">pla</span>
               </div>
               <div class="date-item">
                 <span
                   class="date-text"
-                  :class="getDateColorClass(row.returnTime, null, 'return')"
+                  :class="getDateColorClass(row.returnTime, null, 'return', row.lastReturnDate)"
                 >
                   {{ row.returnTime ? formatDate(row.returnTime) : '-' }}
                 </span>
@@ -455,37 +615,25 @@
           </template>
         </el-table-column>
 
-        <!-- 排产状态 -->
+        <!-- 货物描述 -->
         <el-table-column
-          v-else-if="key === 'scheduleStatus'"
-          prop="scheduleStatus"
-          label="排产状态"
-          width="100"
-        >
-          <template #default="{ row }">
-            <el-tag
-              :type="scheduleStatusMap[row.scheduleStatus]?.type || 'info'"
-              size="small"
-              v-if="row.scheduleStatus"
-            >
-              {{ getScheduleStatusText(row.scheduleStatus) }}
-            </el-tag>
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
+          v-else-if="key === 'cargoDescription'"
+          prop="cargoDescription"
+          :label="t('container.cargoDescription')"
+          min-width="150"
+          show-overflow-tooltip
+        />
 
-        <!-- 更新日期 -->
+        <!-- 最后更新 -->
         <el-table-column
           v-else-if="key === 'lastUpdated'"
-          label="更新日期"
-          width="120"
+          prop="lastUpdated"
+          label="最后更新"
+          width="160"
           sortable="custom"
         >
           <template #default="{ row }">
-            <span
-              class="date-text"
-              :class="getDateColorClass(row.lastUpdated, null, 'update')"
-            >
+            <span class="date-text" :class="getDateColorClass(row.lastUpdated, null, 'update')">
               {{ row.lastUpdated ? formatDate(row.lastUpdated) : '-' }}
             </span>
           </template>
@@ -495,7 +643,7 @@
         <el-table-column
           v-else-if="key === 'actions'"
           :label="t('common.actions')"
-          width="110"
+          width="150"
           fixed="right"
           align="center"
         >
@@ -507,27 +655,16 @@
                 size="small"
                 type="info"
                 circle
-                @click="$emit('view-history', row)"
+                @click="viewSchedulingHistory(row)"
                 title="查看排产历史"
               >
                 📋
               </el-button>
 
-              <el-button
-                size="small"
-                type="primary"
-                circle
-                @click="$emit('view-detail', row)"
-                title="查看"
-              >
+              <el-button size="small" type="primary" circle @click="viewDetails(row)" title="查看">
                 <el-icon><View /></el-icon>
               </el-button>
-              <el-button
-                size="small"
-                circle
-                @click="$emit('edit', row)"
-                title="编辑"
-              >
+              <el-button size="small" circle @click="editContainer(row)" title="编辑">
                 <el-icon><Edit /></el-icon>
               </el-button>
               <el-button
@@ -536,11 +673,11 @@
                 circle
                 :loading="singleFreeDateWriteBackLoading === row.containerNumber"
                 :title="t('container.shipmentsList.singleFreeDateWriteBack')"
-                @click="$emit('free-date-writeback', row)"
+                @click="handleSingleFreeDateWriteBack(row)"
               >
-                <el-icon v-if="singleFreeDateWriteBackLoading !== row.containerNumber">
-                  <Calendar />
-                </el-icon>
+                <el-icon v-if="singleFreeDateWriteBackLoading !== row.containerNumber"
+                  ><Calendar
+                /></el-icon>
               </el-button>
               <el-button
                 size="small"
@@ -548,11 +685,9 @@
                 circle
                 :loading="manualLfdLoading === row.containerNumber"
                 title="LFD 手工维护"
-                @click="$emit('manual-lfd', row)"
+                @click="handleManualLfdUpdate(row)"
               >
-                <el-icon v-if="manualLfdLoading !== row.containerNumber">
-                  <Edit />
-                </el-icon>
+                <el-icon v-if="manualLfdLoading !== row.containerNumber"><Edit /></el-icon>
               </el-button>
             </div>
           </template>
@@ -560,25 +695,8 @@
       </template>
     </el-table>
 
-    <!-- 分页 -->
-    <div class="pagination-container">
-      <el-pagination
-        v-model:current-page="internalCurrentPage"
-        v-model:page-size="internalPageSize"
-        :page-sizes="[10, 20, 50, 100]"
-        :total="total"
-        layout="total, sizes, prev, pager, next, jumper"
-        @current-change="handlePageChange"
-        @size-change="handleSizeChange"
-      />
-    </div>
-
     <!-- 列设置抽屉 -->
-    <el-drawer
-      v-model="columnSettingOpen"
-      title="列显示设置"
-      size="400px"
-    >
+    <el-drawer v-model="columnSettingOpen" title="列显示设置" size="400px">
       <div class="column-setting-body">
         <p class="column-setting-hint">拖动列项调整顺序，勾选显示/隐藏列</p>
         <div class="column-setting-list">
@@ -593,11 +711,9 @@
             @dragend="handleDragEnd"
           >
             <el-icon class="drag-handle"><ArrowDown /></el-icon>
-            <el-checkbox
-              v-model="columnVisible[key]"
-              @mousedown.stop
-              :label="getColumnLabel(key)"
-            />
+            <el-checkbox v-model="columnVisible[key]" @mousedown.stop :label="key">
+              {{ columnLabels[key].includes('.') ? t(columnLabels[key]) : columnLabels[key] }}
+            </el-checkbox>
           </div>
         </div>
       </div>
@@ -606,177 +722,84 @@
         <el-button type="primary" @click="saveColumnVisible">保存</el-button>
       </template>
     </el-drawer>
-  </div>
+
+    <!-- 分页 -->
+    <div class="pagination-container">
+      <el-pagination
+        v-model:current-page="pagination.page"
+        v-model:page-size="pagination.pageSize"
+        :page-sizes="[10, 20, 50, 100]"
+        :total="props.total || 0"
+        layout="total, sizes, prev, pager, next, jumper"
+        @current-change="handlePageChangeWithLoad"
+        @size-change="handlePageSizeChangeWithLoad"
+      />
+    </div>
+  </el-card>
 </template>
 
+<!-- 集装箱表格 -->
 <script setup lang="ts">
-import type { Container } from '@/types/container'
+import SchedulingHistoryCard from '@/components/SchedulingHistoryCard.vue'
+import { useLogisticsStatus } from '@/composables/useLogisticsStatus'
+import { useShipmentsExport } from '@/composables/useShipmentsExport'
+import { useShipmentsSchedule } from '@/composables/useShipmentsSchedule'
+import { useShipmentsTable } from '@/composables/useShipmentsTable'
+import { useGanttFilterStore } from '@/store/ganttFilters'
 import {
-    Calendar,
-    Edit,
-    View,
-    Warning
-} from '@element-plus/icons-vue'
-import { computed, ref, watch } from 'vue'
+  formatAlertTypeBadge,
+  getCostDetailsText,
+  getCustomsStatusText,
+  getDestinationPortDisplay,
+  getEtaCorrection,
+  getFiveNodeRows,
+  getRowCurrencyPrefix,
+} from '@/utils/containerDisplay'
+import { getCurrentLocationText } from '@/utils/logisticsStatusMachine'
+import { ArrowDown, Download, Edit } from '@element-plus/icons-vue'
+import dayjs from 'dayjs'
+import { ElMessage } from 'element-plus'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type {
-    ColumnKey,
-    ContainerTableEmits,
-    ContainerTableProps
-} from './types'
-import { COLUMN_LABELS, DEFAULT_COLUMN_ORDER } from './types'
-import { useContainerTable } from './useContainerTable'
+import { useRoute, useRouter } from 'vue-router'
 
-// Props & Emits
-const props = withDefaults(defineProps<ContainerTableProps>(), {
-  tableSize: 'default',
-  virtualScroll: false,
+// ==================== Props 定义 ====================
+interface Props {
+  data?: any[]
+  loading?: boolean
+  currentPage?: number
+  pageSize?: number
+  total?: number
+  defaultSort?: { prop: string; order: string | null }
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  data: () => [],
+  loading: false,
+  currentPage: 1,
+  pageSize: 10,
+  total: 0,
   defaultSort: () => ({ prop: '', order: null }),
-  columnVisible: () => ({}),
-  columnOrder: () => [...DEFAULT_COLUMN_ORDER]
 })
 
-const emit = defineEmits<ContainerTableEmits & {
-  'view-history': [row: Container]
-  'view-detail': [row: Container]
-  'edit': [row: Container]
-  'free-date-writeback': [row: Container]
-  'manual-lfd': [row: Container]
-}>()
-
-// i18n
-const { t } = useI18n()
-
-// 内部状态
-const tableRef = ref<any>()
-const internalCurrentPage = ref(props.currentPage)
-const internalPageSize = ref(props.pageSize)
-const singleFreeDateWriteBackLoading = ref<string | null>(null)
-const manualLfdLoading = ref<string | null>(null)
-const activeFilter = ref<any>(null)
-
-// 使用 Composable
-const {
-  columnVisible,
-  columnOrder,
-  columnSettingOpen,
-  draggedColumn,
-  toggleColumnVisible,
-  resetColumnVisible,
-  saveColumnVisible,
-  handleDragStart,
-  handleDragOver,
-  handleDrop,
-  handleDragEnd
-} = useContainerTable(props)
-
-// 计算属性：可见且排序后的列
-const sortedVisibleColumnKeys = computed(() => {
-  return columnOrder.value.filter(key => columnVisible.value[key])
-})
-
-// 监听外部变化
-watch(() => props.currentPage, val => {
-  internalCurrentPage.value = val
-})
-
-watch(() => props.pageSize, val => {
-  internalPageSize.value = val
-})
-
-/**
- * 格式化日期
- */
-function formatDate(dateStr?: string | Date): string {
-  if (!dateStr) return '-'
-  const date = typeof dateStr === 'string' ? new Date(dateStr) : dateStr
-  return date.toLocaleDateString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit'
-  })
+// ==================== Emits 定义 ====================
+interface Emits {
+  (e: 'update:page', page: number): void
+  (e: 'update:pageSize', pageSize: number): void
+  (e: 'sort-change', data: { prop: string; order: string | null }): void
+  (e: 'selection-change', rows: any[]): void
+  (e: 'view-history', row: any): void
+  (e: 'view-detail', row: any): void
+  (e: 'edit', row: any): void
+  (e: 'free-date-writeback', row: any): void
+  (e: 'manual-lfd', row: any): void
+  (e: 'batch-schedule'): void
+  (e: 'demurrage-writeback'): void
 }
 
-/**
- * 获取 ETA 修正值
- */
-function getEtaCorrection(row: Container): string | Date | null {
-  return row.etaCorrection || null
-}
+const emit = defineEmits<Emits>()
 
-/**
- * 获取目的地港口显示文本
- */
-function getDestinationPortDisplay(row: Container): string {
-  return row.destinationPort || row.etaDestPort || '-'
-}
-
-/**
- * 获取当前位置文本
- */
-function getCurrentLocationText(
-  status: string,
-  destination: string,
-  portType?: string
-): string {
-  if (!status) return '-'
-  // 简化实现，实际应该使用 logisticsStatusMachine
-  return portType || status
-}
-
-/**
- * 获取日期标签类型
- */
-function getDateColorClass(
-  date: string | Date | null | undefined,
-  actualDate?: string | Date | null | undefined,
-  type?: 'eta' | 'pickup' | 'return' | 'shipment' | 'update' | 'delivery' | 'unload',
-  lastDate?: string | Date | null | undefined
-): string {
-  const tagType = getDateTagType(date, actualDate, type, lastDate)
-  return `date-color-${tagType}`
-}
-
-/**
- * 获取日期标签类型（内部函数）
- */
-function getDateTagType(
-  date: string | Date | null | undefined,
-  _actualDate?: string | Date | null | undefined,
-  type?: 'eta' | 'pickup' | 'return',
-  lastDate?: string | Date | null | undefined
-): 'success' | 'warning' | 'danger' | 'info' {
-  if (!date) return 'info'
-
-  if (type === 'pickup' || type === 'return') {
-    if ((type === 'pickup' && date === lastDate) || 
-        (type === 'return' && date === lastDate)) {
-      return 'info'
-    }
-
-    if (lastDate) {
-      const dateDay = getUtcDayNumber(date)
-      const lastDateDay = getUtcDayNumber(lastDate)
-      if (dateDay == null || lastDateDay == null) return 'info'
-      const diffDays = dateDay - lastDateDay
-
-      if (diffDays <= 0) {
-        return 'success'
-      } else if (diffDays <= 3) {
-        return 'warning'
-      } else {
-        return 'danger'
-      }
-    }
-  }
-
-  return 'info'
-}
-
-/**
- * 获取 UTC 日序号
- */
-function getUtcDayNumber(input: string | Date | null | undefined): number | null {
+const getUtcDayNumber = (input: string | Date | null | undefined): number | null => {
   if (!input) return null
   if (typeof input === 'string') {
     const m = input.match(/^(\d{4})-(\d{2})-(\d{2})/)
@@ -794,136 +817,440 @@ function getUtcDayNumber(input: string | Date | null | undefined): number | null
   )
 }
 
-/**
- * 格式化预警徽章
- */
-function formatAlertTypeBadge(type: string): string | number {
-  return type || 1
+// 获取日期标签类型
+const getDateTagType = (
+  date: string | Date | null | undefined,
+  _actualDate?: string | Date | null | undefined,
+  type?: 'eta' | 'pickup' | 'return' | 'shipment' | 'update' | 'delivery' | 'unload',
+  lastDate?: string | Date | null | undefined
+): 'success' | 'warning' | 'danger' | 'info' => {
+  if (!date) return 'info'
+
+  // 提柜日和还箱日的特殊规则
+  if (type === 'pickup' || type === 'return') {
+    // 最晚提柜日或最晚还箱日固定为灰色
+    if ((type === 'pickup' && date === lastDate) || (type === 'return' && date === lastDate)) {
+      return 'info'
+    }
+
+    // 计划提柜日、实际提柜日、计划还箱日、实际还箱日
+    if (lastDate) {
+      const dateDay = getUtcDayNumber(date)
+      const lastDateDay = getUtcDayNumber(lastDate)
+      if (dateDay == null || lastDateDay == null) return 'info'
+      const diffDays = dateDay - lastDateDay
+
+      if (diffDays <= 0) {
+        return 'success' // 早于或等于最晚提柜日/还箱日为绿色
+      } else if (diffDays <= 3) {
+        return 'warning' // 晚于最晚提柜日/还箱日 3 天内为黄色
+      } else {
+        return 'danger' // 晚于最晚提柜日/还箱日>3 天为红色
+      }
+    }
+  }
+
+  // 其他日期（包括 ETA、修正 ETA、ATA、出运日期、更新日期、送仓日期、卸柜日期）都显示为灰色
+  return 'info'
 }
 
-/**
- * 获取费用详情文本
- */
-function getCostDetailsText(row: Container): string {
-  // 简化实现
-  return `总费用：$${Number(row.totalCost || 0).toFixed(2)}`
+// 获取日期颜色类
+const getDateColorClass = (
+  date: string | Date | null | undefined,
+  actualDate?: string | Date | null | undefined,
+  type?: 'eta' | 'pickup' | 'return' | 'shipment' | 'update' | 'delivery' | 'unload',
+  lastDate?: string | Date | null | undefined
+): string => {
+  const tagType = getDateTagType(date, actualDate, type, lastDate)
+  return `date-color-${tagType}`
 }
 
-/**
- * 获取币种前缀
- */
-function getRowCurrencyPrefix(row: Container): string {
-  return '$'
+const router = useRouter()
+const ganttFilterStore = useGanttFilterStore()
+const { t } = useI18n()
+
+// 使用物流状态 composable
+const { getLogisticsStatusText, getStatusType } = useLogisticsStatus()
+
+// 使用表格相关 composable
+const {
+  loading,
+  pagination,
+  activeFilter,
+  tableSort,
+  tableSize,
+  columnOrder,
+  columnVisible,
+  columnSettingOpen,
+  quickStatusFilter,
+  alertFilter,
+  sortedVisibleColumnKeys,
+  saveColumnVisible,
+  resetColumnVisible,
+  handleDragStart,
+  handleDragOver,
+  handleDragEnd,
+  handleDrop,
+  columnLabels,
+  SimplifiedStatus,
+} = useShipmentsTable()
+
+// 使用导出相关 composable
+const { handleBatchExport, formatDate, formatShipmentDate, customsStatusMap } = useShipmentsExport()
+
+// 使用排产相关 composable
+const { batchScheduleLoading, scheduleDialogVisible, demurrageWriteBackLoading } =
+  useShipmentsSchedule()
+
+// 组件卸载标记，防止卸载后响应式更新
+const isUnmounted = ref(false)
+
+/** 单柜「免费日更新」按钮 loading（按柜号） */
+const singleFreeDateWriteBackLoading = ref<string | null>(null)
+/** 单柜「LFD 手工维护」按钮 loading（按柜号） */
+const manualLfdLoading = ref<string | null>(null)
+/** 统计卡片组折叠状态 */
+const statisticsCollapsed = ref(false)
+
+/** 排产历史记录相关 */
+const showHistoryDrawer = ref(false)
+const selectedContainerForHistory = ref<string>('')
+
+// 统计数据（从后端API获取，不依赖全量数据）
+const statisticsData = ref<{
+  statusDistribution: Record<string, number>
+  arrivalDistribution: Record<string, number>
+  pickupDistribution: Record<string, number>
+  lastPickupDistribution: Record<string, number>
+  returnDistribution: Record<string, number>
+} | null>(null)
+
+// 时间筛选（Dashboard风格的日期范围选择器）
+// 顶部时间窗口默认为本年（出运日期口径）
+const shipmentDateRange = ref<[Date, Date]>([
+  dayjs().startOf('year').toDate(),
+  dayjs().endOf('day').toDate(),
+])
+
+// 多选与批量导出
+const tableRef = ref<InstanceType<typeof import('element-plus').ElTable>>()
+const selectedRows = ref<any[]>([])
+
+// 从URL参数初始化过滤条件
+const initFiltersFromUrl = () => {
+  const route = useRoute()
+  const filterCondition = route.query.filterCondition as string
+  const startDate = route.query.startDate as string
+  const endDate = route.query.endDate as string
+
+  if (startDate && endDate) {
+    shipmentDateRange.value = [dayjs(startDate).toDate(), dayjs(endDate).toDate()]
+  }
+
+  if (filterCondition) {
+    activeFilter.value.days = filterCondition
+    // 根据过滤条件设置类型
+    if (filterCondition.includes('status')) {
+      activeFilter.value.type = '按状态'
+    } else if (filterCondition.includes('arrival')) {
+      activeFilter.value.type = '按到港'
+    } else if (filterCondition.includes('pickup')) {
+      activeFilter.value.type = '按提柜计划'
+    } else if (filterCondition.includes('last_pickup')) {
+      activeFilter.value.type = '按最晚提柜'
+    } else if (filterCondition.includes('return')) {
+      activeFilter.value.type = '按最晚还箱'
+    }
+  }
 }
 
-/**
- * 清关状态映射
- */
-const customsStatusMap: Record<string, { type: 'success' | 'warning' | 'danger' | 'info'; text: string }> = {
-  pending: { type: 'warning', text: '待清关' },
-  cleared: { type: 'success', text: '已清关' },
-  hold: { type: 'danger', text: '查验中' }
-}
-
-/**
- * 获取清关状态文本
- */
-function getCustomsStatusText(status: string): string {
-  return customsStatusMap[status]?.text || status
-}
-
-/**
- * 排产状态映射
- */
-const scheduleStatusMap: Record<string, { type: 'success' | 'warning' | 'danger' | 'info'; text: string }> = {
-  initial: { type: 'info', text: '待排产' },
-  issued: { type: 'success', text: '已排产' },
-  dispatched: { type: 'warning', text: '已派工' },
-  adjusted: { type: 'info', text: '已调整' }
-}
-
-/**
- * 获取排产状态文本
- */
-function getScheduleStatusText(status: string): string {
-  return scheduleStatusMap[status]?.text || status
-}
-
-/**
- * 处理排序变化
- */
-function handleSortChange({ prop, order }: any) {
+// ==================== 表格事件处理（向父组件发送事件）====================
+const handleSortChange = ({ prop, order }: { prop: string; order: string | null }) => {
   emit('sort-change', { prop, order })
 }
 
-/**
- * 处理选择变化
- */
-function handleSelectionChange(selection: Container[]) {
-  emit('selection-change', selection)
+const handleSelectionChange = (rows: any[]) => {
+  emit('selection-change', rows)
 }
 
-/**
- * 处理页码变化
- */
-function handlePageChange(page: number) {
+const handlePageChangeWithLoad = (page: number) => {
   emit('update:page', page)
 }
 
-/**
- * 处理每页条数变化
- */
-function handleSizeChange(size: number) {
-  emit('update:pageSize', size)
+const handlePageSizeChangeWithLoad = (pageSize: number) => {
+  emit('update:pageSize', pageSize)
 }
 
-/**
- * 获取列标签
- */
-function getColumnLabel(key: ColumnKey): string {
-  const label = COLUMN_LABELS[key]
-  return label.includes('.') ? t(label) : label
+// 操作列事件包装器（仅用于 emit）
+const handleSingleFreeDateWriteBack = (row: any) => {
+  emit('free-date-writeback', row)
 }
+
+const handleManualLfdUpdate = (row: any) => {
+  emit('manual-lfd', row)
+}
+
+// 查看详情（兼容 containerNumber / container_number，并对柜号做 URL 编码）
+const viewDetails = (container: any) => {
+  const id = container?.containerNumber ?? container?.container_number
+  if (!id) {
+    ElMessage.warning('无法获取集装箱号')
+    return
+  }
+  // 改为 emit 事件，由父组件处理路由跳转
+  emit('view-detail', container)
+}
+
+// 查看排产历史记录
+const viewSchedulingHistory = (container: any) => {
+  // 改为 emit 事件，由父组件处理
+  emit('view-history', container)
+}
+
+// 历史记录组件引用
+const historyCardRef = ref<InstanceType<typeof SchedulingHistoryCard>>()
+
+// 编辑集装箱
+const editContainer = (container: any) => {
+  // 改为 emit 事件，由父组件处理
+  emit('edit', container)
+}
+
+// 获取过滤条件标签
+const getFilterLabel = (days: string): string => {
+  const labels: Record<string, string> = {
+    all: '全部',
+    overdue: '已逾期未到港',
+    transit: '已到中转港',
+    today: '今日到港',
+    arrivedBeforeTodayNotPickedUp: '今日之前到港未提柜',
+    arrivedBeforeTodayPickedUp: '今日之前到港已提柜',
+    arrivedBeforeTodayNoATA: '今日之前到港，但无ATA',
+    other: '其他记录',
+    '0': '已超时',
+    '0-3': '3天内',
+    '4-7': '7天内',
+    '7+': '7天以上',
+    '8+': '还箱日倒计时>7天',
+    overduePickup: '逾期未提柜',
+    todayPlanned: '今日计划提柜',
+    pending: '待安排提柜',
+    'no-last-free-date': '最晚提柜日为空',
+    'no-last-return-date': '最后还箱日为空',
+    '1-3': '1-3天',
+  }
+  return labels[days] || days
+}
+
+// 一键排产（智能排柜）
+const handleBatchSchedule = () => {
+  emit('batch-schedule')
+}
+
+// 执行免费日更新（包装函数）
+const handleDemurrageWriteBackWrapper = async () => {
+  emit('demurrage-writeback')
+}
+
+// 跳转到排产页面
+const goToSchedulingPage = () => {
+  scheduleDialogVisible.value = false
+
+  // 获取当前选中的货柜
+  const selectedContainerNumbers = selectedRows.value.length
+    ? selectedRows.value.map((r: any) => r.containerNumber).filter(Boolean)
+    : []
+
+  // 从选中的货柜中提取国家信息（销往国家）
+  const countryFromSelection =
+    selectedRows.value.length > 0 ? (selectedRows.value[0] as any)?.sellToCountry : undefined
+
+  // 注意：appStore 已移除，需要由父组件处理国家逻辑
+  const country = countryFromSelection || ''
+
+  const startDate = dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD')
+  const endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
+  const filterCondition = activeFilter.value.days
+  const filterLabel = getFilterLabel(filterCondition)
+
+  // 跳转到排产配置页面，并默认打开 visual 标签页
+  router.push({
+    path: '/scheduling',
+    query: {
+      tab: 'visual', // 指定打开 visual 标签页
+      country,
+      startDate,
+      endDate,
+      filterCondition,
+      filterLabel,
+      containers: selectedContainerNumbers.join(','),
+      from: 'shipments',
+      timestamp: Date.now(),
+    },
+  })
+}
+
+// 辅助函数：根据筛选条件确定时间维度
+const getTimeDimensionFromFilter = (
+  filterCondition: string
+): 'arrival' | 'pickup' | 'lastPickup' | 'return' => {
+  if (!filterCondition) return 'arrival'
+  if (filterCondition.includes('arrival')) return 'arrival'
+  if (filterCondition.includes('pickup') && !filterCondition.includes('last')) return 'pickup'
+  if (filterCondition.includes('last_pickup')) return 'lastPickup'
+  if (filterCondition.includes('return')) return 'return'
+  return 'arrival'
+}
+
+// 跳转甘特图：与统计卡片一致，带出运日期、卡片筛选条件、选中柜号
+const goGanttChart = () => {
+  const ids = selectedRows.value.length
+    ? selectedRows.value.map((r: any) => r.containerNumber).filter(Boolean)
+    : []
+
+  const startDate = dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD')
+  const endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
+  const filterCondition = activeFilter.value.days
+  const filterLabel = getFilterLabel(filterCondition)
+
+  // 1. 保存到全局 Store（自动持久化到 localStorage）
+  ganttFilterStore.setFilters({
+    startDate: startDate,
+    endDate: endDate,
+    filterCondition: filterCondition || '',
+    filterLabel: filterLabel || '',
+    selectedContainers: ids,
+    timeDimension: getTimeDimensionFromFilter(filterCondition),
+  })
+
+  // 2. 构建 query 参数（用于 URL 显示和分享）
+  const query: Record<string, string> = {
+    startDate,
+    endDate,
+  }
+  if (filterCondition) {
+    query.filterCondition = filterCondition
+    query.filterLabel = filterLabel
+  }
+  if (ids.length) query.containers = ids.join(',')
+
+  // 3. 在同窗口打开甘特图（使用 router.push）
+  router.push({ path: '/gantt-chart', query })
+}
+
+onMounted(() => {
+  // 从 localStorage 加载列顺序
+  try {
+    const savedOrder = localStorage.getItem('shipments-table-column-order')
+    if (savedOrder) {
+      const parsed = JSON.parse(savedOrder)
+      // 验证保存的顺序是否包含所有列
+      if (Array.isArray(parsed) && parsed.length === Object.keys(columnLabels).length) {
+        columnOrder.value = parsed
+      }
+    }
+  } catch (_) {}
+
+  // 组件已改为纯展示组件，不再自动加载数据
+  // 数据由父组件通过 props.data 传入
+})
+
+onUnmounted(() => {
+  isUnmounted.value = true
+})
 </script>
 
 <style scoped lang="scss">
 @use '@/assets/styles/variables' as *;
 
-.container-table-component {
-  width: 100%;
+.table-card {
+  .table-toolbar {
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    .toolbar-label {
+      font-size: 13px;
+      color: var(--el-text-color-regular);
+      margin-left: 8px;
+    }
+  }
+
+  .table-empty {
+    padding: 24px 0;
+
+    .empty-hint {
+      display: block;
+      margin-top: 8px;
+      font-size: 13px;
+      color: var(--el-text-color-secondary);
+    }
+  }
+
+  .pagination-container {
+    margin-top: 20px;
+    display: flex;
+    justify-content: flex-end;
+  }
 }
 
+/* 表格展开详情 */
 .table-expand-detail {
-  padding: 16px;
-  
+  padding: 12px 16px;
+  background: var(--el-fill-color-light);
+
   .expand-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
     margin-bottom: 8px;
     font-size: 13px;
-    
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
     .expand-label {
-      font-weight: 600;
-      color: #606266;
-      margin-right: 8px;
+      color: var(--el-text-color-secondary);
       min-width: 80px;
-      display: inline-block;
-    }
-    
-    span:last-child {
-      color: #303133;
     }
   }
 }
 
-.table-empty {
-  padding: 40px;
-  text-align: center;
-  
-  .empty-hint {
-    color: #909399;
-    font-size: 13px;
+/* 日期显示容器 */
+.eta-ata-container,
+.pickup-dates-container,
+.delivery-dates-container,
+.unload-dates-container,
+.return-dates-container {
+  text-align: right;
+
+  .date-item {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    margin-bottom: 4px;
+    font-size: 12px;
+    line-height: 1.4;
+
+    .date-label {
+      font-size: 10px;
+      font-weight: 500;
+      font-style: italic;
+      line-height: 1;
+      vertical-align: sub;
+      position: relative;
+      top: 1px;
+      margin-left: 3px;
+      color: #606266;
+      min-width: auto;
+    }
   }
 }
 
+/* 组合数字显示 */
 .combined-numbers {
   .number-item {
     display: flex;
@@ -931,157 +1258,212 @@ function getColumnLabel(key: ColumnKey): string {
     margin-bottom: 4px;
     font-size: 12px;
     line-height: 1.4;
-    
+
     .number-label {
       font-weight: 500;
       margin-right: 4px;
       color: #606266;
       min-width: 60px;
     }
-    
-    .number-value {
-      color: #303133;
-      
-      &.highlight {
-        color: #409EFF;
-        font-weight: 600;
-      }
-    }
   }
 }
 
 .bbl-mbl-container {
-  .bbl-mbl-item {
-    margin-bottom: 4px;
-    font-size: 12px;
-    
-    .bbl-mbl-label {
-      font-weight: 500;
-      color: #606266;
-      margin-right: 4px;
-    }
-    
-    .bbl-mbl-value {
-      color: #303133;
-    }
-  }
-}
-
-.alerts-container {
-  display: flex;
-  gap: 4px;
-  justify-content: center;
-  
-  .alert-badge {
-    cursor: pointer;
-    
-    &.resolved-alert {
-      opacity: 0.6;
-    }
-  }
-}
-
-.cost-total-text {
-  color: #67C23A;
-  font-weight: 600;
-  font-size: 13px;
-}
-
-.inspection-unboxing {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 12px;
-  
-  .inspection-text {
-    color: #303133;
-  }
-}
-
-.eta-ata-container,
-.pickup-dates-container,
-.return-dates-container {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  
-  .date-item {
+  .number-item {
     display: flex;
     align-items: center;
-    gap: 6px;
+    margin-bottom: 4px;
     font-size: 12px;
-    
-    .date-text {
-      flex: 1;
-      color: #303133;
-      
-      &.date-color-success {
-        color: #67C23A;
-      }
-      
-      &.date-color-warning {
-        color: #E6A23C;
-      }
-      
-      &.date-color-danger {
-        color: #F56C6C;
-      }
-      
-      &.date-color-info {
-        color: #909399;
-      }
+    line-height: 1.4;
+  }
+
+  .number-label {
+    font-weight: 500;
+    margin-right: 4px;
+    color: #606266;
+    min-width: 52px;
+  }
+}
+
+/* 五节点状态 */
+.five-node-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  width: 100%;
+  gap: 8px;
+  text-align: left;
+
+  .five-node-tag.status-tag {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    width: calc(50% - 4px);
+    box-sizing: border-box;
+    gap: 14px;
+    font-size: 11px;
+    padding: 2px 8px 2px 6px;
+    margin-inline: 0;
+  }
+
+  .five-node-icon-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    flex-shrink: 0;
+
+    &.kind-ok {
+      background: var(--el-color-success-light-8);
+      color: var(--el-color-success);
     }
-    
-    .date-label {
-      color: #909399;
-      font-size: 11px;
-      min-width: 24px;
+
+    &.kind-bad {
+      background: var(--el-color-danger-light-8);
+      color: var(--el-color-danger);
+    }
+
+    &.kind-warn {
+      background: var(--el-color-warning-light-8);
+      color: var(--el-color-warning);
+    }
+  }
+
+  .five-node-icon {
+    display: block;
+  }
+
+  .five-node-status-text {
+    min-width: 0;
+    line-height: 1.25;
+    text-align: left;
+  }
+}
+
+/* 预警徽章 */
+.alerts-container {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
+  width: 100%;
+  max-width: 100%;
+  min-height: 24px;
+  white-space: normal;
+  word-wrap: break-word;
+
+  .alert-badge {
+    margin-right: 0;
+    transform: scale(0.85);
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    align-self: flex-start;
+
+    &:hover {
+      transform: scale(0.95);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .el-icon {
+      font-size: 14px;
+    }
+
+    .el-badge__content {
+      font-size: 10px;
+      padding: 0 6px;
+      min-width: 16px;
+      height: 16px;
+      line-height: 16px;
+    }
+  }
+
+  .el-badge {
+    margin-right: 0;
+  }
+
+  .resolved-alert {
+    opacity: 0.7;
+
+    &:hover {
+      opacity: 1;
     }
   }
 }
 
+/* 费用显示 */
+.cost-total-text {
+  cursor: pointer;
+  text-decoration: underline dotted;
+  text-underline-offset: 2px;
+}
+
+/* 操作列图标网格 */
 .action-icons-grid {
-  display: flex;
-  gap: 4px;
+  display: grid;
+  grid-template-columns: repeat(2, 28px);
+  gap: 6px;
   justify-content: center;
+  justify-items: center;
+  align-items: center;
 }
 
-.pagination-container {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
+.action-icons-grid :deep(.el-button) {
+  margin: 0;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
 }
 
+/* 列设置抽屉 */
 .column-setting-body {
+  padding: 0 8px;
+
   .column-setting-hint {
-    color: #909399;
+    color: var(--el-text-color-secondary);
     font-size: 13px;
     margin-bottom: 16px;
   }
-  
+
   .column-setting-list {
-    .column-setting-item {
-      display: flex;
-      align-items: center;
-      padding: 8px 12px;
-      border-radius: 4px;
-      margin-bottom: 8px;
-      background: #f5f7fa;
+    max-height: 600px;
+    overflow-y: auto;
+  }
+
+  .column-setting-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: var(--el-fill-color-light);
+    border-radius: 4px;
+    cursor: move;
+    transition: all 0.2s;
+    user-select: none;
+
+    &:hover {
+      background: var(--el-fill-color-lighter);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    &.is-dragging {
+      opacity: 0.4;
+      background: var(--el-color-primary-light-9);
+      transform: scale(0.98);
+    }
+
+    .drag-handle {
+      color: var(--el-text-color-secondary);
       cursor: move;
-      
-      &:hover {
-        background: #e4e7ed;
-      }
-      
-      .drag-handle {
-        margin-right: 8px;
-        cursor: move;
-        color: #606266;
-      }
-      
-      .el-checkbox {
-        flex: 1;
-      }
+      flex-shrink: 0;
+    }
+
+    .el-checkbox {
+      flex: 1;
     }
   }
 }

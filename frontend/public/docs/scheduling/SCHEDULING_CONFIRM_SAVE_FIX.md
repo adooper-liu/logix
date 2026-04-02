@@ -56,6 +56,7 @@ private validatePreviewResult(preview: any): boolean {
 ```
 
 但前端在转换预览数据时：
+
 - 保留了 `r.plannedData` 原对象（spread 运算符）
 - 但未确保 `warehouseId` 和 `truckingCompanyId` 存在
 - 后端返回的可能是 `warehouseCode` 或 `truckingCompanyCode`，而非 ID
@@ -115,6 +116,7 @@ if (r.plannedData) {
 ```
 
 **修复逻辑**:
+
 - 如果 `warehouseId` 不存在，尝试使用 `warehouseCode`
 - 如果 `truckingCompanyId` 不存在，尝试使用 `truckingCompanyCode`
 - 保持其他字段不变
@@ -146,7 +148,7 @@ for (const result of selectedResults) {
       truckingCompanyId: plannedData.truckingCompanyId,
       plannedPickupDate: plannedData.plannedPickupDate,
       plannedUnloadDate: plannedData.plannedUnloadDate,
-      plannedReturnDate: plannedData.plannedReturnDate
+      plannedReturnDate: plannedData.plannedReturnDate,
     })
     ElMessage.error(`货柜 ${result.containerNumber} 的计划数据不完整`)
     return
@@ -155,6 +157,7 @@ for (const result of selectedResults) {
 ```
 
 **修复逻辑**:
+
 - 在调用 API 前进行前端验证
 - 提前发现数据问题，避免无效请求
 - 提供详细的错误日志，便于调试
@@ -173,6 +176,7 @@ for (const result of selectedResults) {
 6. 点击"确认保存"
 
 **预期结果**:
+
 - 显示"成功保存 X 个货柜"
 - 数据库表更新：
   - `biz_containers.schedule_status = 'issued'`
@@ -183,12 +187,14 @@ for (const result of selectedResults) {
 ### 2. 日志检查
 
 **前端控制台**应输出：
+
 ```
 [handleConfirmSave] 保存的预览数据：[...]
 [handleConfirmSave] 验证通过，开始提交
 ```
 
 **后端日志**应输出：
+
 ```
 [Scheduling] Confirm schedule request: { containerNumbers: [...], hasPreviewResults: true }
 [Scheduling] savePlannedDates for CNTR001: { ... }
@@ -200,12 +206,12 @@ for (const result of selectedResults) {
 
 ```sql
 -- 检查货柜状态
-SELECT container_number, schedule_status 
-FROM biz_containers 
+SELECT container_number, schedule_status
+FROM biz_containers
 WHERE container_number IN ('CNTR001', 'CNTR002');
 
 -- 检查车队运输记录
-SELECT container_number, trucking_company_id, 
+SELECT container_number, trucking_company_id,
        planned_pickup_date, planned_delivery_date, planned_return_date
 FROM process_trucking_transport
 WHERE container_number IN ('CNTR001', 'CNTR002');
@@ -225,12 +231,12 @@ WHERE container_number IN ('CNTR001', 'CNTR002');
 ✅ 修复确认保存失败问题  
 ✅ 提高数据验证的透明度  
 ✅ 改善用户体验（明确的错误提示）  
-✅ 减少后端无效请求  
+✅ 减少后端无效请求
 
 ### 潜在风险
 
 ⚠️ 如果后端返回的数据既没有 `warehouseId` 也没有 `warehouseCode`，仍会验证失败  
-⚠️ 需要确保后端 `schedulePreview` 或 `batchSchedule` 返回的 `plannedData` 中包含正确的字段名  
+⚠️ 需要确保后端 `schedulePreview` 或 `batchSchedule` 返回的 `plannedData` 中包含正确的字段名
 
 ---
 
@@ -240,7 +246,8 @@ WHERE container_number IN ('CNTR001', 'CNTR002');
 
 **问题**: 后端返回的可能是 `warehouseCode` 或 `warehouseId`，不一致
 
-**建议**: 
+**建议**:
+
 - 后端 API 统一返回 `warehouseId` 和 `truckingCompanyId`
 - 或者在前端做一次统一的字段映射转换
 
@@ -249,6 +256,7 @@ WHERE container_number IN ('CNTR001', 'CNTR002');
 **当前**: 简单的 `ElMessage.error()`
 
 **建议**:
+
 - 提供更详细的错误信息（哪个货柜、缺少什么字段）
 - 允许用户选择"跳过错误项继续保存"
 - 批量保存时支持部分成功
@@ -256,6 +264,7 @@ WHERE container_number IN ('CNTR001', 'CNTR002');
 ### 3. 添加单元测试
 
 **测试用例**:
+
 ```typescript
 describe('handleConfirmSave', () => {
   it('应该验证 plannedData 完整性', async () => {

@@ -8,6 +8,7 @@
 - `/api/v1/scheduling/overview` - 获取排产概览超时
 
 错误日志：
+
 ```
 AxiosError: timeout of 120000ms exceeded
 ```
@@ -17,6 +18,7 @@ AxiosError: timeout of 120000ms exceeded
 ### 1. /countries API 超时
 
 可能原因：
+
 - 数据库连接池耗尽
 - PostgreSQL 服务未启动或连接中断
 - `dict_countries` 表被锁
@@ -54,35 +56,35 @@ AxiosError: timeout of 120000ms exceeded
 -- === 智能排产相关索引 ===
 
 -- 货柜状态索引（用于快速过滤 initial/issued 状态）
-CREATE INDEX IF NOT EXISTS idx_containers_schedule_status 
+CREATE INDEX IF NOT EXISTS idx_containers_schedule_status
 ON biz_containers(schedule_status);
 
 -- 港口操作表索引（用于快速定位目的港操作）
-CREATE INDEX IF NOT EXISTS idx_port_ops_container_port_type 
+CREATE INDEX IF NOT EXISTS idx_port_ops_container_port_type
 ON process_port_operations(container_number, port_type);
 
 -- 补货订单索引（用于快速关联客户信息）
-CREATE INDEX IF NOT EXISTS idx_replenishment_container_customer 
+CREATE INDEX IF NOT EXISTS idx_replenishment_container_customer
 ON biz_replenishment_orders(container_number, customer_code);
 
 -- 拖卡运输索引（用于快速排除已提柜）
-CREATE INDEX IF NOT EXISTS idx_trucking_transport_container_pickup 
+CREATE INDEX IF NOT EXISTS idx_trucking_transport_container_pickup
 ON process_trucking_transport(container_number, pickup_date);
 
 -- 客户国家索引（用于按国家过滤）
-CREATE INDEX IF NOT EXISTS idx_customers_country 
+CREATE INDEX IF NOT EXISTS idx_customers_country
 ON biz_customers(customer_code, country);
 
 -- 仓库映射索引（用于按国家快速过滤）
-CREATE INDEX IF NOT EXISTS idx_warehouse_trucking_country_active 
+CREATE INDEX IF NOT EXISTS idx_warehouse_trucking_country_active
 ON dict_warehouse_trucking_mapping(country, is_active);
 
 -- 车队港口映射索引（用于按国家快速过滤）
-CREATE INDEX IF NOT EXISTS idx_trucking_port_country_active 
+CREATE INDEX IF NOT EXISTS idx_trucking_port_country_active
 ON dict_trucking_port_mapping(country, is_active);
 
 -- 港口统计优化索引（用于 GROUP BY 优化）
-CREATE INDEX IF NOT EXISTS idx_port_ops_code_name 
+CREATE INDEX IF NOT EXISTS idx_port_ops_code_name
 ON process_port_operations(port_code, port_name);
 ```
 
@@ -103,14 +105,17 @@ const initialCountResult = await containerRepo.query(`...`, params);
 const issuedCountResult = await containerRepo.query(`...`, params);
 
 // 优化后：1 次查询同时返回 3 个值
-const statsResult = await containerRepo.query(`
+const statsResult = await containerRepo.query(
+  `
   SELECT 
     COUNT(*) FILTER (WHERE c.schedule_status IN ('initial', 'issued')) as pending_count,
     COUNT(*) FILTER (WHERE c.schedule_status = 'initial') as initial_count,
     COUNT(*) FILTER (WHERE c.schedule_status = 'issued') as issued_count
   FROM biz_containers c
   WHERE ...
-`, params);
+`,
+  params,
+);
 ```
 
 ### 方案三：后端添加超时保护
@@ -130,20 +135,22 @@ export const AppDataSource = new DataSource({
 ## 验证步骤
 
 1. **检查数据库连接**
+
    ```bash
    # 进入 backend 目录
    cd backend
-   
+
    # 测试数据库连接
    npm run db:test-connection
    ```
 
 2. **查看慢查询日志**
+
    ```sql
    -- 启用慢查询日志
    ALTER SYSTEM SET log_min_duration_statement = 1000; -- 记录超过 1 秒的查询
    SELECT pg_reload_conf();
-   
+
    -- 查看慢查询
    SELECT query, calls, total_exec_time, mean_exec_time
    FROM pg_stat_statements
@@ -152,22 +159,24 @@ export const AppDataSource = new DataSource({
    ```
 
 3. **手动测试 API**
+
    ```bash
    # 测试 countries API
    curl http://localhost:3001/api/v1/countries
-   
+
    # 测试 scheduling overview API（带计时）
    time curl http://localhost:3001/api/v1/scheduling/overview?startDate=2026-01-01&endDate=2026-04-02&country=IT
    ```
 
 4. **应用索引后验证**
+
    ```sql
    -- 查看索引使用情况
    SELECT schemaname, tablename, indexname, indexdef
    FROM pg_indexes
    WHERE tablename IN ('biz_containers', 'process_port_operations', 'biz_replenishment_orders')
    ORDER BY tablename, indexname;
-   
+
    -- 分析查询计划
    EXPLAIN ANALYZE
    SELECT COUNT(*) FROM biz_containers c
@@ -183,6 +192,7 @@ export const AppDataSource = new DataSource({
 如果无法立即添加索引，可以采取以下临时措施：
 
 1. **增加前端超时时间**
+
    ```typescript
    // frontend/src/services/container.ts
    const api = axios.create({

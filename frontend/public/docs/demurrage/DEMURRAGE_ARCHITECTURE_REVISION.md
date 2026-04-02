@@ -12,11 +12,13 @@
 
 ### 1. 架构图 API 方法修正 (§2)
 
-**问题**: 
+**问题**:
+
 - 图中写 `GET /batch-write-back`，实际为 `POST`
 - 遗漏 `POST /standards`、`POST /batch-compute-records`
 
 **修订**:
+
 ```diff
 │  DemurrageController           # 控制器（路由入口）           │
 │  ├─ GET /calculate/:containerNumber                        │
@@ -37,13 +39,15 @@
 **问题**: 未提及预计算记录表，易误解为汇总始终实时全量计算
 
 **修订**:
+
 ```diff
 │  ext_demurrage_standards       # 收费标准表                  │
 +│  ext_demurrage_records         # 预计算记录表（汇总/统计用） │
 │  biz_containers                # 货柜主表                    │
 ```
 
-**说明**: 
+**说明**:
+
 - `summary`、`top-containers`、`batch-compute-records` 接口与该表关系密切
 - 汇总类接口优先读预计算记录，无记录时再实时计算
 
@@ -53,15 +57,19 @@
 
 **问题**: 表中写实际提柜依赖 `process_port_operations.pickup_date`
 
-**真相**: 
+**真相**:
+
 - PortOperation 实体中没有 `pickup_date` 字段
 - 实际提柜统一来自 `process_trucking_transport.pickup_date`
 
 **修订**:
+
 ```diff
 | **滞港费** | actual | ATA 或卸船日 | 实际提柜日或今天 | `process_port_operations.pickup_date` |
 ```
+
 改为：
+
 ```diff
 +| **滞港费** | actual | ATA 或卸船日 | 实际提柜日或今天 | `process_trucking_transport.pickup_date` |
 ```
@@ -74,11 +82,13 @@
 
 **问题**: 文档多处将其描述为对外可调用的步骤入口
 
-**真相**: 
+**真相**:
+
 - 该方法是 `private async getContainerMatchParams`
 - 仅服务内部使用，不对外暴露
 
 **修订**:
+
 ```diff
 -**DemurrageService.getContainerMatchParams()** 方法负责从数据库提取计算所需的所有日期和维度信息：
 +**DemurrageService.getContainerMatchParams()** 方法负责从数据库提取计算所需的所有日期和维度信息（服务内部方法，不对外暴露）：
@@ -91,19 +101,21 @@
 **问题**: 文档示例使用带空格的 `'工作 + 自然'`
 
 **实现**:
+
 ```typescript
 function freePeriodUsesWorkingDays(basis: string | null | undefined): boolean {
-  const b = (basis ?? '').toLowerCase();
+  const b = (basis ?? '').toLowerCase()
   return (
-    b.includes('工作 + 自然') ||  // 注意：加号两侧无空格
-    b.includes('natural+working') || 
-    b === '工作日' || 
+    b.includes('工作 + 自然') || // 注意：加号两侧无空格
+    b.includes('natural+working') ||
+    b === '工作日' ||
     b === 'working'
-  );
+  )
 }
 ```
 
 **修订**:
+
 - 在代码注释中明确标注「注意：加号两侧无空格」
 - 补充 `chargePeriodUsesWorkingDays` 函数实现
 - 添加重要注意事项：
@@ -117,11 +129,13 @@ function freePeriodUsesWorkingDays(basis: string | null | undefined): boolean {
 
 **问题**: §5.3 写总费用 $1050，且「第 15–21 天：7 天×$100」——在截止日为 3/22 时，3/22 仍属计费日，应再计 1 天×$100
 
-**真相**: 
+**真相**:
+
 - 附录 A 的 $1150 与按 15 个计费日、阶梯 8–14 / 15+ 的拆分一致
 - §5.3 示例算错
 
 **修订**:
+
 - 在§5.3 末尾添加注释：「注意：若截止日为 3/22，则 3/22 仍属计费日，应再计 1 天×$100，总计$1150。详见附录 A 的正确示例。」
 - 保留§5.3 的计算步骤演示，但注明以附录 A 为准
 
@@ -133,11 +147,13 @@ function freePeriodUsesWorkingDays(basis: string | null | undefined): boolean {
 
 **问题**: 文档写「最晚提柜日 (DB)」，易误解为直接来自数据库
 
-**实现**: 
+**实现**:
+
 - 该字段仅在 `process_port_operations.last_free_date` 且 `last_free_date_source === 'manual'` 时才有值
 - 非手工时多为 null，计算用 LFD 来自后续 `lastPickupDateComputed` 等逻辑
 
 **修订**:
+
 ```diff
 -    lastPickupDate: Date | null;           // 最晚提柜日 (DB)
 +    lastPickupDate: Date | null;           // 最晚提柜日（仅在 last_free_date_source='manual' 时有值）
@@ -147,12 +163,14 @@ function freePeriodUsesWorkingDays(basis: string | null | undefined): boolean {
 
 ### 8. plannedPickupDate 数据来源修正 (§3.2)
 
-**问题**: 
+**问题**:
+
 - `getContainerMatchParams` 内 JSDoc（约 605–606 行）写来自 `last_pickup_date`
 - 实际读取的是 `planned_pickup_date`（724–728 行）
 - 796–797 行注释也写成了 `last_pickup_date`，与代码不一致
 
 **修订**:
+
 ```diff
 -    plannedPickupDate: Date | null;        // 计划提柜日
 +    plannedPickupDate: Date | null;        // 计划提柜日（来自 planned_pickup_date）
@@ -167,6 +185,7 @@ function freePeriodUsesWorkingDays(basis: string | null | undefined): boolean {
 **问题**: 文档列举 `'discharged_time'`，实现里更多出现 `dest_port_unload_date / discharged_time` 组合，且存在 `'process_sea_freight.eta'` 等分支
 
 **修订**:
+
 ```diff
 | `process_port_operations` | 港口操作记录 | `ata` (实际到港), `eta` (预计到港), `revised_eta` (修正 ETA), `dest_port_unload_date` (卸船日), `discharged_time` (卸船时间), `last_free_date` (最晚提柜日) |
 ```
@@ -179,11 +198,13 @@ function freePeriodUsesWorkingDays(basis: string | null | undefined): boolean {
 
 **问题**: 文档§6.2 把写回放在 `demurrageService` 下
 
-**实现**: 
+**实现**:
+
 - `frontend/src/services/demurrage.ts` 未封装 `batch-write-back` / `write-back/:containerNumber`
 - 这两类调用在 `frontend/src/services/container.ts`
 
 **修订**:
+
 ```diff
 #### `demurrageService` - 滞港费 API 服务
 
@@ -199,6 +220,7 @@ function freePeriodUsesWorkingDays(basis: string | null | undefined): boolean {
 ### 11. API 表补充 POST /batch-compute-records (§8.2)
 
 **修订**:
+
 ```diff
 | 方法 | 路径 | 说明 | 超时 |
 |------|------|------|------|
@@ -218,6 +240,7 @@ function freePeriodUsesWorkingDays(basis: string | null | undefined): boolean {
 ### 12. 核心文件路径补充 (§8.1)
 
 **修订**:
+
 ```diff
 | 文件 | 路径 | 用途 |
 |------|------|------|
@@ -242,6 +265,7 @@ function freePeriodUsesWorkingDays(basis: string | null | undefined): boolean {
 **问题**: 文档中的类型定义是简化版，实际还有更多字段
 
 **修订**:
+
 ```diff
 interface DemurrageCalculationResponse {
   success: boolean
@@ -261,6 +285,7 @@ interface DemurrageCalculationResponse {
 **问题**: 文档写 `logger.debug`，代码中阶梯相关多为 `logger.info`
 
 **修订**:
+
 ```diff
 -logger.debug('[Demurrage] Charge days calculation:', {
 +logger.info('[Demurrage] Tier calculation:', {
@@ -284,6 +309,7 @@ interface DemurrageCalculationResponse {
 **问题**: JSDoc 注释写 `plannedPickupDate` 来自 `last_pickup_date`，实际读取的是 `planned_pickup_date`
 
 **建议修正**:
+
 ```diff
 -/** 计划提柜日（从 process_trucking_transport.last_pickup_date 读取，用于预测模式前置条件） */
 +/** 计划提柜日（从 process_trucking_transport.planned_pickup_date 读取，用于预测模式） */
@@ -333,6 +359,7 @@ interface DemurrageCalculationResponse {
 ## 下一步行动
 
 ### 已完成
+
 - [x] 修正架构图 API 方法
 - [x] 补充数据源层说明
 - [x] 修正实际提柜日字段
@@ -349,6 +376,7 @@ interface DemurrageCalculationResponse {
 - [x] 修正日志级别
 
 ### 待完成
+
 - [ ] 修正 `demurrage.service.ts` 第 605、797 行的注释错误
 - [ ] 在数据导入 UI 层添加 `free_days_basis` 空格校验
 - [ ] 考虑在文档中添加「具体枚举值以代码为准」的通用声明

@@ -3,6 +3,7 @@
 ## 问题描述
 
 前端访问智能排产页面时出现 120 秒超时错误：
+
 - `/api/v1/countries` - 获取国家列表超时
 - `/api/v1/scheduling/overview` - 获取排产概览超时
 
@@ -27,6 +28,7 @@ npm run db:migrate:scheduling-indexes
 **执行的 SQL 文件**: `migrations/scheduling/add_scheduling_performance_indexes.sql`
 
 该脚本会创建以下关键索引：
+
 - `idx_containers_schedule_status` - 货柜状态索引
 - `idx_replenishment_container_customer` - 补货订单关联索引
 - `idx_port_ops_container_port_type` - 港口操作查询索引
@@ -117,7 +119,7 @@ ORDER BY tablename, indexname;
 
 -- 分析查询计划（确认使用索引）
 EXPLAIN ANALYZE
-SELECT 
+SELECT
   COUNT(*) FILTER (WHERE c.schedule_status IN ('initial', 'issued')) as pending_count,
   COUNT(*) FILTER (WHERE c.schedule_status = 'initial') as initial_count,
   COUNT(*) FILTER (WHERE c.schedule_status = 'issued') as issued_count
@@ -132,12 +134,14 @@ AND EXISTS (
 ## 预期效果
 
 ### 优化前
+
 - `/countries`: 120 秒超时
 - `/scheduling/overview`: 120 秒超时
 - 数据库 CPU: 100%
 - 查询计划：全表扫描（Seq Scan）
 
 ### 优化后
+
 - `/countries`: < 100ms
 - `/scheduling/overview`: < 3 秒（取决于数据量）
 - 数据库 CPU: < 30%
@@ -150,6 +154,7 @@ AND EXISTS (
 **错误**: `ERROR: relation "biz_containers" does not exist`
 
 **解决**: 确认数据库名称正确，表已创建
+
 ```sql
 \dt  -- 查看所有表
 ```
@@ -157,6 +162,7 @@ AND EXISTS (
 ### 问题 2: 性能没有提升
 
 **检查**: 确认 ANALYZE 已执行
+
 ```sql
 SELECT relname, last_analyze, last_autoanalyze
 FROM pg_stat_user_tables
@@ -164,6 +170,7 @@ WHERE relname IN ('biz_containers', 'process_port_operations');
 ```
 
 **解决**: 手动执行 ANALYZE
+
 ```sql
 ANALYZE biz_containers;
 ```
@@ -171,11 +178,13 @@ ANALYZE biz_containers;
 ### 问题 3: 索引未被使用
 
 **检查**: 查看查询计划
+
 ```sql
 EXPLAIN ANALYZE SELECT ...;
 ```
 
-**解决**: 
+**解决**:
+
 1. 确认统计信息已更新（执行 ANALYZE）
 2. 检查查询条件是否与索引匹配
 3. 考虑使用 `SET enable_seqscan = off;` 强制测试索引性能
@@ -208,12 +217,14 @@ DROP INDEX IF EXISTS idx_countries_active_sort;
 ## 后续优化建议
 
 1. **定期维护**: 每月执行一次 VACUUM ANALYZE
+
    ```sql
    VACUUM ANALYZE biz_containers;
    VACUUM ANALYZE process_port_operations;
    ```
 
 2. **监控慢查询**: 开启 pg_stat_statements 扩展
+
    ```sql
    CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
    ```

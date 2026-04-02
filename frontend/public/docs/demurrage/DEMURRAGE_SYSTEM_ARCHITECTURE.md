@@ -26,16 +26,16 @@
 
 ### 1.2 核心概念
 
-| 术语 | 英文 | 说明 |
-|------|------|------|
-| 滞港费 | Demurrage | 货物在港区内堆存产生的费用 |
-| 滞箱费 | Detention | 超期使用集装箱产生的费用 |
-| 堆存费 | Storage | 港区堆存服务费用 |
-| 合并费用 | D&D (Demurrage & Detention) | 滞港费和滞箱费合并计费 |
-| 免费期 | Free Period | 不产生费用的时间段 |
-| 计费期 | Charge Period | 按阶梯费率计费的时间段 |
-| 起算日 | Start Date | 免费期开始计算的基准日期 |
-| 截止日 | End Date | 费用计算截止日期 |
+| 术语     | 英文                        | 说明                       |
+| -------- | --------------------------- | -------------------------- |
+| 滞港费   | Demurrage                   | 货物在港区内堆存产生的费用 |
+| 滞箱费   | Detention                   | 超期使用集装箱产生的费用   |
+| 堆存费   | Storage                     | 港区堆存服务费用           |
+| 合并费用 | D&D (Demurrage & Detention) | 滞港费和滞箱费合并计费     |
+| 免费期   | Free Period                 | 不产生费用的时间段         |
+| 计费期   | Charge Period               | 按阶梯费率计费的时间段     |
+| 起算日   | Start Date                  | 免费期开始计算的基准日期   |
+| 截止日   | End Date                    | 费用计算截止日期           |
 
 ---
 
@@ -100,46 +100,46 @@
 
 **关键字段**：
 
-| 字段名 | 类型 | 说明 | 示例 |
-|--------|------|------|------|
-| `id` | INTEGER | 主键 | 123 |
-| `foreign_company_code` | VARCHAR | 客户编码（境外公司） | 'MH_UK' |
-| `foreign_company_name` | VARCHAR | 客户名称 | 'MH UK LIMITED' |
-| `destination_port_code` | VARCHAR | 目的港编码 | 'GBFXT' |
-| `destination_port_name` | VARCHAR | 目的港名称 | 'FELIXSTOWE' |
-| `shipping_company_code` | VARCHAR | 船公司编码 | 'CMA' |
-| `shipping_company_name` | VARCHAR | 船公司名称 | 'CMA CGM' |
-| `origin_forwarder_code` | VARCHAR | 起运港货代编码 | 'FORWARDER001' |
-| `charge_type_code` | VARCHAR | 费用类型编码 | 'DEMURRAGE' |
-| `charge_name` | VARCHAR | 费用名称 | '滞港费' |
-| `free_days` | INTEGER | 免费天数 | 7 |
-| `free_days_basis` | VARCHAR | 免费天数计算基础 | '自然日'/'工作日' |
-| `calculation_basis` | VARCHAR | 起算口径 | '按到港'/'按卸船' |
-| `rate_per_day` | DECIMAL | 单日费率（无阶梯时） | 50.00 |
-| `tiers` | JSONB | 阶梯费率配置 | `[{"fromDay":1,"toDay":7,"ratePerDay":50}]` |
-| `currency` | VARCHAR | 币种 | 'USD' |
-| `is_chargeable` | CHAR | 是否收费 | 'N'=收费，'Y'=不收费 |
-| `effective_date` | DATE | 生效日期 | '2026-01-01' |
-| `expiry_date` | DATE | 失效日期 | NULL |
+| 字段名                  | 类型    | 说明                 | 示例                                        |
+| ----------------------- | ------- | -------------------- | ------------------------------------------- |
+| `id`                    | INTEGER | 主键                 | 123                                         |
+| `foreign_company_code`  | VARCHAR | 客户编码（境外公司） | 'MH_UK'                                     |
+| `foreign_company_name`  | VARCHAR | 客户名称             | 'MH UK LIMITED'                             |
+| `destination_port_code` | VARCHAR | 目的港编码           | 'GBFXT'                                     |
+| `destination_port_name` | VARCHAR | 目的港名称           | 'FELIXSTOWE'                                |
+| `shipping_company_code` | VARCHAR | 船公司编码           | 'CMA'                                       |
+| `shipping_company_name` | VARCHAR | 船公司名称           | 'CMA CGM'                                   |
+| `origin_forwarder_code` | VARCHAR | 起运港货代编码       | 'FORWARDER001'                              |
+| `charge_type_code`      | VARCHAR | 费用类型编码         | 'DEMURRAGE'                                 |
+| `charge_name`           | VARCHAR | 费用名称             | '滞港费'                                    |
+| `free_days`             | INTEGER | 免费天数             | 7                                           |
+| `free_days_basis`       | VARCHAR | 免费天数计算基础     | '自然日'/'工作日'                           |
+| `calculation_basis`     | VARCHAR | 起算口径             | '按到港'/'按卸船'                           |
+| `rate_per_day`          | DECIMAL | 单日费率（无阶梯时） | 50.00                                       |
+| `tiers`                 | JSONB   | 阶梯费率配置         | `[{"fromDay":1,"toDay":7,"ratePerDay":50}]` |
+| `currency`              | VARCHAR | 币种                 | 'USD'                                       |
+| `is_chargeable`         | CHAR    | 是否收费             | 'N'=收费，'Y'=不收费                        |
+| `effective_date`        | DATE    | 生效日期             | '2026-01-01'                                |
+| `expiry_date`           | DATE    | 失效日期             | NULL                                        |
 
 **阶梯费率格式** (`tiers` JSONB)：
 
 ```json
 [
-  {"fromDay": 1, "toDay": 7, "ratePerDay": 0},
-  {"fromDay": 8, "toDay": 14, "ratePerDay": 50},
-  {"fromDay": 15, "toDay": null, "ratePerDay": 100}
+  { "fromDay": 1, "toDay": 7, "ratePerDay": 0 },
+  { "fromDay": 8, "toDay": 14, "ratePerDay": 50 },
+  { "fromDay": 15, "toDay": null, "ratePerDay": 100 }
 ]
 ```
 
 #### 3.1.2 物流流程表（用于提取时间节点）
 
-| 表名 | 用途 | 关键日期字段 |
-|------|------|--------------|
-| `process_port_operations` | 港口操作记录 | `ata` (实际到港), `eta` (预计到港), `revised_eta` (修正 ETA), `dest_port_unload_date` (卸船日), `last_free_date` (最晚提柜日) |
-| `process_trucking_transport` | 拖卡运输记录 | `pickup_date` (实际提柜), `planned_pickup_date` (计划提柜), `last_pickup_date` (最晚提柜) |
-| `process_empty_return` | 还箱记录 | `return_time` (实际还箱), `planned_return_date` (计划还箱), `last_return_date` (最晚还箱) |
-| `biz_replenishment_orders` | 备货订单 | `actual_ship_date` (实际出运), `sell_to_country` (销往国家) |
+| 表名                         | 用途         | 关键日期字段                                                                                                                  |
+| ---------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `process_port_operations`    | 港口操作记录 | `ata` (实际到港), `eta` (预计到港), `revised_eta` (修正 ETA), `dest_port_unload_date` (卸船日), `last_free_date` (最晚提柜日) |
+| `process_trucking_transport` | 拖卡运输记录 | `pickup_date` (实际提柜), `planned_pickup_date` (计划提柜), `last_pickup_date` (最晚提柜)                                     |
+| `process_empty_return`       | 还箱记录     | `return_time` (实际还箱), `planned_return_date` (计划还箱), `last_return_date` (最晚还箱)                                     |
+| `biz_replenishment_orders`   | 备货订单     | `actual_ship_date` (实际出运), `sell_to_country` (销往国家)                                                                   |
 
 ### 3.2 数据获取流程
 
@@ -152,19 +152,19 @@ async getContainerMatchParams(containerNumber: string): Promise<{
   shippingCompanyCode: string | null;      // 船公司
   originForwarderCode: string | null;      // 起运港货代
   foreignCompanyCode: string | null;       // 客户/境外公司
-  
+
   // 滞港费起算日
   startDate: Date | null;                  // ATA/ETA/卸船日
   startDateSource: string | null;          // 'ata' | 'eta' | 'discharged_time'
-  
+
   // 滞港费截止日
   endDate: Date | null;                    // 实际提柜日或今天
   endDateSource: string | null;            // 'pickup_date' | '当前日期'
-  
+
   // 滞箱费起止日
   detentionStartDate: Date | null;         // 提柜日
   detentionEndDate: Date | null;           // 还箱日或今天
-  
+
   // 关键日期集合
   calculationDates: {
     ataDestPort: Date | null;              // 目的港 ATA
@@ -210,26 +210,29 @@ async getContainerMatchParams(containerNumber: string): Promise<{
 **计算步骤**：
 
 1. **计算最晚免费日**
+
    ```typescript
-   const n = Math.max(0, freeDays - 1);
+   const n = Math.max(0, freeDays - 1)
    const lastFreeDate = freePeriodUsesWorkingDays(freeDaysBasis)
-     ? addWorkingDays(startDate, n)  // 工作日模式
-     : addDays(startDate, n);         // 自然日模式
+     ? addWorkingDays(startDate, n) // 工作日模式
+     : addDays(startDate, n) // 自然日模式
    ```
 
 2. **判断是否在免费期内**
+
    ```typescript
    if (endDate <= lastFreeDate) {
-     return { lastFreeDate, chargeDays: 0, totalAmount: 0, tierBreakdown: [] };
+     return { lastFreeDate, chargeDays: 0, totalAmount: 0, tierBreakdown: [] }
    }
    ```
 
 3. **计算计费天数**
+
    ```typescript
-   const chargeStart = addDays(lastFreeDate, 1);
+   const chargeStart = addDays(lastFreeDate, 1)
    const chargeDays = chargePeriodUsesWorkingDays(freeDaysBasis)
-     ? workingDaysBetween(chargeStart, endDate)  // 工作日模式
-     : daysBetween(chargeStart, endDate);         // 自然日模式
+     ? workingDaysBetween(chargeStart, endDate) // 工作日模式
+     : daysBetween(chargeStart, endDate) // 自然日模式
    ```
 
 4. **按阶梯费率计算费用**
@@ -247,15 +250,16 @@ async getContainerMatchParams(containerNumber: string): Promise<{
 
 ```typescript
 {
-  lastFreeDate: Date;           // 免费期截止日
-  chargeDays: number;           // 计费天数
-  totalAmount: number;          // 总费用
-  tierBreakdown: Array<{        // 阶梯明细
-    fromDay: number;
-    toDay: number;
-    days: number;
-    ratePerDay: number;
-    subtotal: number;
+  lastFreeDate: Date // 免费期截止日
+  chargeDays: number // 计费天数
+  totalAmount: number // 总费用
+  tierBreakdown: Array<{
+    // 阶梯明细
+    fromDay: number
+    toDay: number
+    days: number
+    ratePerDay: number
+    subtotal: number
   }>
 }
 ```
@@ -264,11 +268,11 @@ async getContainerMatchParams(containerNumber: string): Promise<{
 
 系统通过以下函数判断费用类型，决定计算区间：
 
-| 函数 | 判断条件 | 计算区间 |
-|------|----------|----------|
-| `isDemurrageCharge(std)` | 纯滞港费 | 到港/卸船 → 实际提柜/今天 |
-| `isDetentionCharge(std)` | 纯滞箱费 | 实际提柜 → 实际还箱/今天 |
-| `isStorageCharge(std)` | 堆存费 | 到港/卸船/ETA → 实际提柜/计划提柜 |
+| 函数                                | 判断条件 | 计算区间                          |
+| ----------------------------------- | -------- | --------------------------------- |
+| `isDemurrageCharge(std)`            | 纯滞港费 | 到港/卸船 → 实际提柜/今天         |
+| `isDetentionCharge(std)`            | 纯滞箱费 | 实际提柜 → 实际还箱/今天          |
+| `isStorageCharge(std)`              | 堆存费   | 到港/卸船/ETA → 实际提柜/计划提柜 |
 | `isCombinedDemurrageDetention(std)` | 合并 D&D | 到港/卸船/ETA → 实际还箱/计划还箱 |
 
 ### 4.3 计算模式判定 (actual vs forecast)
@@ -277,23 +281,23 @@ async getContainerMatchParams(containerNumber: string): Promise<{
 
 ```typescript
 // 第一步：状态机判定
-const logisticsSnapshot = await this.getLogisticsStatusSnapshot(containerNumber);
+const logisticsSnapshot = await this.getLogisticsStatusSnapshot(containerNumber)
 const arrivedAtDestinationPort = logisticsSnapshot
   ? isArrivedAtDestinationPortForDemurrage(logisticsSnapshot)
-  : false;
+  : false
 
-const calculationMode: 'actual' | 'forecast' = arrivedAtDestinationPort ? 'actual' : 'forecast';
+const calculationMode: 'actual' | 'forecast' = arrivedAtDestinationPort ? 'actual' : 'forecast'
 ```
 
 **判定标准**：
 
-| 状态 | 模式 | 说明 |
-|------|------|------|
-| `PICKED_UP` (已提柜) | actual | 已进入提柜环节 |
-| `UNLOADED` (已卸柜) | actual | 已在目的港卸柜 |
-| `RETURNED_EMPTY` (已还箱) | actual | 已完成还箱 |
-| `AT_PORT` + `destination` (在目的港) | actual | 已到目的港 |
-| 其他状态 | forecast | 未到达目的港，使用预测逻辑 |
+| 状态                                 | 模式     | 说明                       |
+| ------------------------------------ | -------- | -------------------------- |
+| `PICKED_UP` (已提柜)                 | actual   | 已进入提柜环节             |
+| `UNLOADED` (已卸柜)                  | actual   | 已在目的港卸柜             |
+| `RETURNED_EMPTY` (已还箱)            | actual   | 已完成还箱                 |
+| `AT_PORT` + `destination` (在目的港) | actual   | 已到目的港                 |
+| 其他状态                             | forecast | 未到达目的港，使用预测逻辑 |
 
 ---
 
@@ -362,16 +366,16 @@ DemurrageService.calculateForContainer()
 
 ### 5.2 各费用类型计算区间对照表
 
-| 费用类型 | 模式 | 起算日 | 截止日 | 依赖字段 |
-|----------|------|--------|--------|----------|
-| **滞港费** | actual | ATA 或卸船日 | 实际提柜日或今天 | `process_port_operations.pickup_date` |
-| **滞港费** | forecast | ETA 或修正 ETA | max(计划提柜日，今天) | `process_trucking_transport.planned_pickup_date` |
-| **滞箱费** | actual | 实际提柜日 | 实际还箱日或今天 | `process_empty_return.return_time` |
-| **滞箱费** | forecast | 计划提柜日 | max(计划还箱日，今天) | `process_empty_return.planned_return_date` |
-| **堆存费** | actual | ATA 或卸船日 | 实际提柜日或今天 | 同滞港费 |
-| **堆存费** | forecast | ETA 或修正 ETA | max(计划提柜日，今天) | 同滞港费 forecast |
-| **D&D 合并** | actual | ATA 或卸船日 | 实际还箱日或今天 | `process_empty_return.return_time` |
-| **D&D 合并** | forecast | ETA 或修正 ETA | max(计划还箱日，今天) | `process_empty_return.planned_return_date` |
+| 费用类型     | 模式     | 起算日         | 截止日                | 依赖字段                                         |
+| ------------ | -------- | -------------- | --------------------- | ------------------------------------------------ |
+| **滞港费**   | actual   | ATA 或卸船日   | 实际提柜日或今天      | `process_port_operations.pickup_date`            |
+| **滞港费**   | forecast | ETA 或修正 ETA | max(计划提柜日，今天) | `process_trucking_transport.planned_pickup_date` |
+| **滞箱费**   | actual   | 实际提柜日     | 实际还箱日或今天      | `process_empty_return.return_time`               |
+| **滞箱费**   | forecast | 计划提柜日     | max(计划还箱日，今天) | `process_empty_return.planned_return_date`       |
+| **堆存费**   | actual   | ATA 或卸船日   | 实际提柜日或今天      | 同滞港费                                         |
+| **堆存费**   | forecast | ETA 或修正 ETA | max(计划提柜日，今天) | 同滞港费 forecast                                |
+| **D&D 合并** | actual   | ATA 或卸船日   | 实际还箱日或今天      | `process_empty_return.return_time`               |
+| **D&D 合并** | forecast | ETA 或修正 ETA | max(计划还箱日，今天) | `process_empty_return.planned_return_date`       |
 
 ### 5.3 日期计算示例
 
@@ -432,6 +436,7 @@ DemurrageService.calculateForContainer()
 **关键代码**：
 
 ``vue
+
 <script setup lang="ts">
 const props = defineProps<{
   containerNumber: string
@@ -459,7 +464,8 @@ async function load() {
   }
 }
 </script>
-```
+
+````
 
 #### 6.1.2 `DemurrageCalculationPanel.vue` - 计算结果面板
 
@@ -508,72 +514,73 @@ async function load() {
 class DemurrageService {
   // 单柜计算
   async calculateForContainer(containerNumber: string): Promise<DemurrageCalculationResponse>
-  
+
   // 获取收费标准列表
   async getStandards(params?: { port?: string, shippingCompany?: string }): Promise<...>
-  
+
   // 汇总统计
   async getSummary(params?: { startDate?: string, endDate?: string }): Promise<...>
-  
+
   // 高费用货柜 Top N
   async getTopContainers(params?: { topN?: number }): Promise<...>
-  
+
   // 诊断匹配失败原因
   async diagnoseMatch(containerNumber: string): Promise<...>
 }
-```
+````
 
 ### 6.3 数据类型定义
 
 ``typescript
 interface DemurrageCalculationResponse {
-  success: boolean
-  data?: {
-    containerNumber: string
-    calculationMode: 'actual' | 'forecast'
-    startDate: string
-    endDate: string
-    calculationDates: {
-      ataDestPort?: string | null
-      etaDestPort?: string | null
-      lastPickupDate?: string | null
-      plannedPickupDate?: string | null
-      pickupDateActual?: string | null
-      // ...
-    }
-    matchedStandards: Array<{
-      id: number
-      chargeName: string
-      freeDays: number
-      freeDaysBasis?: string
-      ratePerDay?: number
-      tiers?: Array<{ fromDay: number; toDay: number | null; ratePerDay: number }>
-      currency: string
-    }>
-    items: Array<{
-      standardId: number
-      chargeName: string
-      freeDays: number
-      startDate: string
-      endDate: string
-      lastFreeDate: string
-      chargeDays: number
-      amount: number
-      currency: string
-      tierBreakdown: Array<{
-        fromDay: number
-        toDay: number
-        days: number
-        ratePerDay: number
-        subtotal: number
-      }>
-    }>
-    totalAmount: number
-    currency: string
-  }
-  reason?: 'no_arrival_at_dest' | 'missing_dates' | 'no_matching_standards' | ...
+success: boolean
+data?: {
+containerNumber: string
+calculationMode: 'actual' | 'forecast'
+startDate: string
+endDate: string
+calculationDates: {
+ataDestPort?: string | null
+etaDestPort?: string | null
+lastPickupDate?: string | null
+plannedPickupDate?: string | null
+pickupDateActual?: string | null
+// ...
 }
-```
+matchedStandards: Array<{
+id: number
+chargeName: string
+freeDays: number
+freeDaysBasis?: string
+ratePerDay?: number
+tiers?: Array<{ fromDay: number; toDay: number | null; ratePerDay: number }>
+currency: string
+}>
+items: Array<{
+standardId: number
+chargeName: string
+freeDays: number
+startDate: string
+endDate: string
+lastFreeDate: string
+chargeDays: number
+amount: number
+currency: string
+tierBreakdown: Array<{
+fromDay: number
+toDay: number
+days: number
+ratePerDay: number
+subtotal: number
+}>
+}>
+totalAmount: number
+currency: string
+}
+reason?: 'no_arrival_at_dest' | 'missing_dates' | 'no_matching_standards' | ...
+}
+
+````
 
 ---
 
@@ -593,7 +600,7 @@ const lastFreeDate = addDays(startDate, freeDays - 1);
 
 // ❌ 错误（会多算 1 天）
 const lastFreeDate = addDays(startDate, freeDays);
-```
+````
 
 #### 7.1.2 计费天数起始点
 
@@ -604,6 +611,7 @@ const lastFreeDate = addDays(startDate, freeDays);
 let currentDay = freeDays + 1;
 
 // 例如：免费 7 天，计费从第 8 天开始
+
 ```
 
 **影响**：阶梯费率计算必须遵循此规则，否则会将第 1-7 天重复计入阶梯
@@ -622,25 +630,27 @@ let currentDay = freeDays + 1;
 **实现细节**：
 
 ```
+
 function freePeriodUsesWorkingDays(basis: string | null | undefined): boolean {
-  const b = (basis ?? '').toLowerCase();
-  return (
-    b.includes('工作 + 自然') ||  // 注意：加号两侧无空格
-    b.includes('natural+working') || 
-    b === '工作日' || 
-    b === 'working'
-  );
+const b = (basis ?? '').toLowerCase();
+return (
+b.includes('工作 + 自然') || // 注意：加号两侧无空格
+b.includes('natural+working') ||
+b === '工作日' ||
+b === 'working'
+);
 }
 
 function chargePeriodUsesWorkingDays(basis: string | null | undefined): boolean {
-  const b = (basis ?? '').toLowerCase();
-  return (
-    b.includes('自然 + 工作') ||  // 注意：加号两侧无空格
-    b.includes('working+natural') || 
-    b === '工作日' || 
-    b === 'working'
-  );
+const b = (basis ?? '').toLowerCase();
+return (
+b.includes('自然 + 工作') || // 注意：加号两侧无空格
+b.includes('working+natural') ||
+b === '工作日' ||
+b === 'working'
+);
 }
+
 ```
 
 **重要注意事项**：
@@ -660,10 +670,12 @@ function chargePeriodUsesWorkingDays(basis: string | null | undefined): boolean 
 **解决方案**：
 
 ```
+
 // 货币优先级
-const standardCurrency = std.currency ?? null;         // 1. 标准配置货币
-const defaultCurrency = await getContainerCurrency();  // 2. 销往国货币
+const standardCurrency = std.currency ?? null; // 1. 标准配置货币
+const defaultCurrency = await getContainerCurrency(); // 2. 销往国货币
 const curr = standardCurrency || defaultCurrency || 'USD'; // 3. USD 兜底
+
 ```
 
 #### 错误 2：时间解析不一致
@@ -675,14 +687,16 @@ const curr = standardCurrency || defaultCurrency || 'USD'; // 3. USD 兜底
 **解决方案**：
 
 ```
+
 // ✅ 统一使用 Date-only 模式（忽略时分秒）
 function toDateOnly(d: Date | string): Date {
-  const date = typeof d === 'string' ? new Date(d) : d;
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+const date = typeof d === 'string' ? new Date(d) : d;
+return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
 
 // ❌ 避免直接比较带时区的 Date 对象
 if (endDate <= lastFreeDate) { ... }
+
 ```
 
 #### 错误 3：is_chargeable 字段理解错误
@@ -699,11 +713,13 @@ if (endDate <= lastFreeDate) { ... }
 **代码体现**：
 
 ```
+
 // 过滤收费项
 const allChargeable = await this.standardRepo
-  .createQueryBuilder('s')
-  .where('s.is_chargeable = :chargeable', { chargeable: 'N' }) // N=收费
-  .getMany();
+.createQueryBuilder('s')
+.where('s.is_chargeable = :chargeable', { chargeable: 'N' }) // N=收费
+.getMany();
+
 ```
 
 ### 7.3 性能优化建议
@@ -715,17 +731,19 @@ const allChargeable = await this.standardRepo
 **方案**：使用 `CacheService` 缓存全量标准列表（24 小时）
 
 ```
+
 private async getAllActiveStandards(): Promise<ExtDemurrageStandard[]> {
-  const cacheKey = SchedulingCacheKeys.DEMURRAGE_ALL_STANDARDS;
-  
-  let allStandards = await this.cacheService.get<ExtDemurrageStandard[]>(cacheKey);
-  if (!allStandards) {
-    allStandards = await this.standardRepo.find({ order: { sequenceNumber: 'ASC' } });
-    await this.cacheService.set(cacheKey, allStandards, SchedulingCacheTTL.DEMURRAGE_STANDARD);
-  }
-  
-  return allStandards;
+const cacheKey = SchedulingCacheKeys.DEMURRAGE_ALL_STANDARDS;
+
+let allStandards = await this.cacheService.get<ExtDemurrageStandard[]>(cacheKey);
+if (!allStandards) {
+allStandards = await this.standardRepo.find({ order: { sequenceNumber: 'ASC' } });
+await this.cacheService.set(cacheKey, allStandards, SchedulingCacheTTL.DEMURRAGE_STANDARD);
 }
+
+return allStandards;
+}
+
 ```
 
 #### 7.3.2 并发控制
@@ -735,12 +753,14 @@ private async getAllActiveStandards(): Promise<ExtDemurrageStandard[]> {
 **方案**：限制并发数为 10，避免数据库连接池耗尽
 
 ```
+
 const CONCURRENCY = 10;
 for (let i = 0; i < toProcess.length; i += CONCURRENCY) {
-  const batch = toProcess.slice(i, i + CONCURRENCY);
-  const batchResults = await Promise.all(batch.map(cn => this.calculateForContainer(cn)));
-  // 处理结果...
+const batch = toProcess.slice(i, i + CONCURRENCY);
+const batchResults = await Promise.all(batch.map(cn => this.calculateForContainer(cn)));
+// 处理结果...
 }
+
 ```
 
 ### 7.4 调试技巧
@@ -748,15 +768,17 @@ for (let i = 0; i < toProcess.length; i += CONCURRENCY) {
 #### 7.4.1 启用调试日志
 
 ```
+
 // backend/src/utils/logger.ts
 logger.debug('[Demurrage] Charge days calculation:', {
-  lastFreeDate,
-  endDate,
-  freeDaysBasis,
-  chargeStart,
-  chargeDays,
-  isWorkingDaysOnly
+lastFreeDate,
+endDate,
+freeDaysBasis,
+chargeStart,
+chargeDays,
+isWorkingDaysOnly
 });
+
 ```
 
 #### 7.4.2 诊断匹配失败
@@ -766,24 +788,26 @@ logger.debug('[Demurrage] Charge days calculation:', {
 **返回**：
 
 ```
+
 {
-  "containerParams": {
-    "destinationPortCode": "GBFXT",
-    "shippingCompanyCode": "CMA",
-    "resolvedForMatch": { ... }
-  },
-  "standardsTotal": 50,
-  "standardsAfterEffectiveDate": 45,
-  "excludedByIsChargeable": 5,
-  "standardsAfterFourFieldMatch": 3,
-  "allStandardsSample": [
-    {
-      "id": 123,
-      "destinationPortCode": "USLAX",
-      "excludeReasons": ["目的港不匹配：货柜=GBFXT 标准=USLAX"]
-    }
-  ]
+"containerParams": {
+"destinationPortCode": "GBFXT",
+"shippingCompanyCode": "CMA",
+"resolvedForMatch": { ... }
+},
+"standardsTotal": 50,
+"standardsAfterEffectiveDate": 45,
+"excludedByIsChargeable": 5,
+"standardsAfterFourFieldMatch": 3,
+"allStandardsSample": [
+{
+"id": 123,
+"destinationPortCode": "USLAX",
+"excludeReasons": ["目的港不匹配：货柜=GBFXT 标准=USLAX"]
 }
+]
+}
+
 ```
 
 ---
@@ -836,28 +860,34 @@ logger.debug('[Demurrage] Charge days calculation:', {
 **是否到达目的港？**
 
 ```
+
 查看物流状态
-  ├─ PICKED_UP / UNLOADED / RETURNED_EMPTY → actual 模式
-  ├─ AT_PORT + destination → actual 模式
-  └─ 其他 → forecast 模式
+├─ PICKED_UP / UNLOADED / RETURNED_EMPTY → actual 模式
+├─ AT_PORT + destination → actual 模式
+└─ 其他 → forecast 模式
+
 ```
 
 **选择起算日？**
 
 ```
+
 按标准 calculationBasis:
-  ├─ 「按卸船」→ dischargeDate
-  └─ 「按到港」→ 
-       ├─ actual 模式 → ATA 优先，无则卸船日
-       └─ forecast 模式 → ATA 优先，无则卸船日，再无则 ETA/修正 ETA
+├─ 「按卸船」→ dischargeDate
+└─ 「按到港」→
+├─ actual 模式 → ATA 优先，无则卸船日
+└─ forecast 模式 → ATA 优先，无则卸船日，再无则 ETA/修正 ETA
+
 ```
 
 **货币选择优先级？**
 
 ```
+
 1. 收费标准配置的 currency
 2. 销往国家对应的货币（从 biz_customers 或 dict_overseas_companies）
 3. USD 兜底
+
 ```
 
 ---
@@ -867,30 +897,32 @@ logger.debug('[Demurrage] Charge days calculation:', {
 ### A.1 单元测试（后端）
 
 ```
+
 describe('calculateSingleDemurrage', () => {
-  it('应该计算统一费率的费用', () => {
-    const result = calculateSingleDemurrage(
-      new Date('2026-03-01'),  // startDate
-      new Date('2026-03-15'),  // endDate
-      7,                       // freeDays
-      50,                      // ratePerDay
-      null,                    // tiers
-      'USD',                   // currency
-      '自然日'                  // freeDaysBasis
-    );
-    
+it('应该计算统一费率的费用', () => {
+const result = calculateSingleDemurrage(
+new Date('2026-03-01'), // startDate
+new Date('2026-03-15'), // endDate
+7, // freeDays
+50, // ratePerDay
+null, // tiers
+'USD', // currency
+'自然日' // freeDaysBasis
+);
+
     expect(result.lastFreeDate).toEqual(new Date('2026-03-07'));
     expect(result.chargeDays).toBe(8);
     expect(result.totalAmount).toBe(400); // 8 * 50
-  });
-  
-  it('应该计算阶梯费率的费用', () => {
-    const tiers = [
-      { fromDay: 1, toDay: 7, ratePerDay: 0 },
-      { fromDay: 8, toDay: 14, ratePerDay: 50 },
-      { fromDay: 15, toDay: null, ratePerDay: 100 }
-    ];
-    
+
+});
+
+it('应该计算阶梯费率的费用', () => {
+const tiers = [
+{ fromDay: 1, toDay: 7, ratePerDay: 0 },
+{ fromDay: 8, toDay: 14, ratePerDay: 50 },
+{ fromDay: 15, toDay: null, ratePerDay: 100 }
+];
+
     const result = calculateSingleDemurrage(
       new Date('2026-03-01'),
       new Date('2026-03-22'),  // 21 天
@@ -900,14 +932,16 @@ describe('calculateSingleDemurrage', () => {
       'USD',
       '自然日'
     );
-    
+
     // 免费期：3/1 - 3/7
     // 计费期：3/8 - 3/22 = 15 天
     // 第 8-14 天：7 天 * 50 = 350
     // 第 15-21 天：8 天 * 100 = 800
     expect(result.totalAmount).toBe(1150);
-  });
+
 });
+});
+
 ```
 
 ---
@@ -917,54 +951,74 @@ describe('calculateSingleDemurrage', () => {
 ### B.1 查询某客户的所有有效收费标准
 
 ```
-SELECT 
-  s.id,
-  s.charge_name,
-  s.charge_type_code,
-  s.free_days,
-  s.free_days_basis,
-  s.calculation_basis,
-  s.rate_per_day,
-  s.tiers,
-  s.currency,
-  s.effective_date,
-  s.expiry_date
+
+SELECT
+s.id,
+s.charge_name,
+s.charge_type_code,
+s.free_days,
+s.free_days_basis,
+s.calculation_basis,
+s.rate_per_day,
+s.tiers,
+s.currency,
+s.effective_date,
+s.expiry_date
 FROM ext_demurrage_standards s
-WHERE s.is_chargeable = 'N'  -- N=收费项
-  AND (s.effective_date IS NULL OR s.effective_date <= CURRENT_DATE)
-  AND (s.expiry_date IS NULL OR s.expiry_date >= CURRENT_DATE)
-  AND (
-    s.foreign_company_code = 'MH_UK' 
-    OR s.destination_port_code = 'GBFXT'
-    OR s.shipping_company_code = 'CMA'
-  )
+WHERE s.is_chargeable = 'N' -- N=收费项
+AND (s.effective_date IS NULL OR s.effective_date <= CURRENT_DATE)
+AND (s.expiry_date IS NULL OR s.expiry_date >= CURRENT_DATE)
+AND (
+s.foreign_company_code = 'MH_UK'
+OR s.destination_port_code = 'GBFXT'
+OR s.shipping_company_code = 'CMA'
+)
 ORDER BY s.sequence_number ASC, s.id ASC;
+
 ```
 
 ### B.2 查询货柜的关键日期
 
 ```
-SELECT 
-  c.container_number,
-  po.ata AS dest_ata,
-  po.eta AS dest_eta,
-  po.revised_eta,
-  po.dest_port_unload_date,
-  po.discharged_time,
-  po.last_free_date,
-  tt.pickup_date,
-  tt.planned_pickup_date,
-  er.return_time,
-  er.planned_return_date,
-  ro.actual_ship_date
+
+SELECT
+c.container_number,
+po.ata AS dest_ata,
+po.eta AS dest_eta,
+po.revised_eta,
+po.dest_port_unload_date,
+po.discharged_time,
+po.last_free_date,
+tt.pickup_date,
+tt.planned_pickup_date,
+er.return_time,
+er.planned_return_date,
+ro.actual_ship_date
 FROM biz_containers c
-LEFT JOIN process_port_operations po 
-  ON c.container_number = po.container_number AND po.port_type = 'destination'
-LEFT JOIN process_trucking_transport tt 
+LEFT JOIN process_port_operations po
+ON c.container_number = po.container_number AND po.port_type = 'destination'
+LEFT JOIN process_trucking_transport tt
+ON c.container_number = tt.container_number
+LEFT JOIN process_empty_return er
+ON c.container_number = er.container_number
+LEFT JOIN biz_replenishment_orders ro
+ON c.container_number = ro.container_number
+WHERE c.container_number = 'CNTR001';
+
+```
+
+---
+
+**文档版本**: v1.0
+**创建时间**: 2026-04-02
+**最后更新**: 2026-04-02
+**作者**: 刘志高
+**状态**: 完整
+LEFT JOIN process_trucking_transport tt
   ON c.container_number = tt.container_number
-LEFT JOIN process_empty_return er 
+LEFT JOIN process_empty_return er
   ON c.container_number = er.container_number
-LEFT JOIN biz_replenishment_orders ro 
+LEFT JOIN biz_replenishment_orders ro
   ON c.container_number = ro.container_number
 WHERE c.container_number = 'CNTR001';
 ```
@@ -976,40 +1030,26 @@ WHERE c.container_number = 'CNTR001';
 **最后更新**: 2026-04-02  
 **作者**: 刘志高  
 **状态**: 完整
-LEFT JOIN process_trucking_transport tt 
-  ON c.container_number = tt.container_number
-LEFT JOIN process_empty_return er 
-  ON c.container_number = er.container_number
-LEFT JOIN biz_replenishment_orders ro 
-  ON c.container_number = ro.container_number
-WHERE c.container_number = 'CNTR001';
-```
-
----
-
-**文档版本**: v1.0  
-**创建时间**: 2026-04-02  
-**最后更新**: 2026-04-02  
-**作者**: 刘志高  
-**状态**: 完整
-  er.planned_return_date,
-  ro.actual_ship_date
+er.planned_return_date,
+ro.actual_ship_date
 FROM biz_containers c
-LEFT JOIN process_port_operations po 
-  ON c.container_number = po.container_number AND po.port_type = 'destination'
-LEFT JOIN process_trucking_transport tt 
-  ON c.container_number = tt.container_number
-LEFT JOIN process_empty_return er 
-  ON c.container_number = er.container_number
-LEFT JOIN biz_replenishment_orders ro 
-  ON c.container_number = ro.container_number
+LEFT JOIN process_port_operations po
+ON c.container_number = po.container_number AND po.port_type = 'destination'
+LEFT JOIN process_trucking_transport tt
+ON c.container_number = tt.container_number
+LEFT JOIN process_empty_return er
+ON c.container_number = er.container_number
+LEFT JOIN biz_replenishment_orders ro
+ON c.container_number = ro.container_number
 WHERE c.container_number = 'CNTR001';
+
 ```
 
 ---
 
-**文档版本**: v1.0  
-**创建时间**: 2026-04-02  
-**最后更新**: 2026-04-02  
-**作者**: 刘志高  
+**文档版本**: v1.0
+**创建时间**: 2026-04-02
+**最后更新**: 2026-04-02
+**作者**: 刘志高
 **状态**: 完整
+```

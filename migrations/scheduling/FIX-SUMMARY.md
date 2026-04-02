@@ -11,6 +11,7 @@ at ContainerService.getCountries (container.ts:513:22)
 ```
 
 **受影响的 API**:
+
 - `GET /api/v1/countries` - 获取国家列表
 - `GET /api/v1/scheduling/overview` - 获取排产概览
 
@@ -19,6 +20,7 @@ at ContainerService.getCountries (container.ts:513:22)
 ### 1. 数据库索引缺失
 
 `getSchedulingOverview` 方法执行了多个复杂 SQL 查询，涉及以下表的 JOIN 和过滤：
+
 - `biz_containers` (货柜表)
 - `process_port_operations` (港口操作表)
 - `biz_replenishment_orders` (补货订单表)
@@ -32,6 +34,7 @@ at ContainerService.getCountries (container.ts:513:22)
 ### 2. 重复查询过多
 
 原始代码执行了 3 次独立的 COUNT 查询来获取统计信息：
+
 - pendingCount: `SELECT COUNT(*) ... WHERE schedule_status IN ('initial', 'issued')`
 - initialCount: `SELECT COUNT(*) ... WHERE schedule_status = 'initial'`
 - issuedCount: `SELECT COUNT(*) ... WHERE schedule_status = 'issued'`
@@ -46,55 +49,60 @@ at ContainerService.getCountries (container.ts:513:22)
 
 创建了 16 个关键索引：
 
-| 索引名称 | 表 | 字段 | 用途 |
-|---------|-----|------|------|
-| `idx_containers_schedule_status` | biz_containers | schedule_status | 快速过滤货柜状态 |
-| `idx_containers_number` | biz_containers | container_number | 货柜号关联查询 |
-| `idx_replenishment_container_customer` | biz_replenishment_orders | container_number, customer_code | 补货订单关联客户 |
-| `idx_customers_country` | biz_customers | customer_code, country | 按国家过滤客户 |
-| `idx_port_ops_container_port_type` | process_port_operations | container_number, port_type | 快速定位目的港操作 |
-| `idx_port_ops_container` | process_port_operations | container_number | 港口操作关联 |
-| `idx_port_ops_code_name` | process_port_operations | port_code, port_name | 港口分组统计 |
-| `idx_trucking_transport_container_pickup` | process_trucking_transport | container_number, pickup_date | 排除已提柜货柜 |
-| `idx_warehouse_trucking_country_active` | dict_warehouse_trucking_mapping | UPPER(country), is_active | 按国家过滤映射 |
-| `idx_warehouse_trucking_warehouse_code` | dict_warehouse_trucking_mapping | warehouse_code | 仓库查找 |
-| `idx_warehouse_trucking_trucking_company_id` | dict_warehouse_trucking_mapping | trucking_company_id | 车队查找 |
-| `idx_trucking_port_country_active` | dict_trucking_port_mapping | UPPER(country), is_active | 按国家过滤映射 |
-| `idx_trucking_port_trucking_company_id` | dict_trucking_port_mapping | trucking_company_id | 车队查找 |
-| `idx_trucking_port_port_code` | dict_trucking_port_mapping | port_code | 港口查找 |
-| `idx_warehouses_country_status` | dict_warehouses | country, status | 按国家过滤仓库 |
-| `idx_trucking_companies_country_status` | dict_trucking_companies | country, status | 按国家过滤车队 |
-| `idx_countries_active_sort` | dict_countries | is_active, sort_order, code | 国家列表排序 |
+| 索引名称                                     | 表                              | 字段                            | 用途               |
+| -------------------------------------------- | ------------------------------- | ------------------------------- | ------------------ |
+| `idx_containers_schedule_status`             | biz_containers                  | schedule_status                 | 快速过滤货柜状态   |
+| `idx_containers_number`                      | biz_containers                  | container_number                | 货柜号关联查询     |
+| `idx_replenishment_container_customer`       | biz_replenishment_orders        | container_number, customer_code | 补货订单关联客户   |
+| `idx_customers_country`                      | biz_customers                   | customer_code, country          | 按国家过滤客户     |
+| `idx_port_ops_container_port_type`           | process_port_operations         | container_number, port_type     | 快速定位目的港操作 |
+| `idx_port_ops_container`                     | process_port_operations         | container_number                | 港口操作关联       |
+| `idx_port_ops_code_name`                     | process_port_operations         | port_code, port_name            | 港口分组统计       |
+| `idx_trucking_transport_container_pickup`    | process_trucking_transport      | container_number, pickup_date   | 排除已提柜货柜     |
+| `idx_warehouse_trucking_country_active`      | dict_warehouse_trucking_mapping | UPPER(country), is_active       | 按国家过滤映射     |
+| `idx_warehouse_trucking_warehouse_code`      | dict_warehouse_trucking_mapping | warehouse_code                  | 仓库查找           |
+| `idx_warehouse_trucking_trucking_company_id` | dict_warehouse_trucking_mapping | trucking_company_id             | 车队查找           |
+| `idx_trucking_port_country_active`           | dict_trucking_port_mapping      | UPPER(country), is_active       | 按国家过滤映射     |
+| `idx_trucking_port_trucking_company_id`      | dict_trucking_port_mapping      | trucking_company_id             | 车队查找           |
+| `idx_trucking_port_port_code`                | dict_trucking_port_mapping      | port_code                       | 港口查找           |
+| `idx_warehouses_country_status`              | dict_warehouses                 | country, status                 | 按国家过滤仓库     |
+| `idx_trucking_companies_country_status`      | dict_trucking_companies         | country, status                 | 按国家过滤车队     |
+| `idx_countries_active_sort`                  | dict_countries                  | is_active, sort_order, code     | 国家列表排序       |
 
 ### 修复 2: 优化 SQL 查询逻辑
 
 **文件**: `backend/src/controllers/scheduling.controller.ts`
 
 **优化前** (3 次独立查询):
+
 ```typescript
 const pendingCountResult = await containerRepo.query(`SELECT COUNT(*) ...`, params);
 const initialCountResult = await containerRepo.query(`SELECT COUNT(*) ...`, params);
 const issuedCountResult = await containerRepo.query(`SELECT COUNT(*) ...`, params);
 
-const pendingCount = parseInt(pendingCountResult[0]?.count || '0');
-const initialCount = parseInt(initialCountResult[0]?.count || '0');
-const issuedCount = parseInt(issuedCountResult[0]?.count || '0');
+const pendingCount = parseInt(pendingCountResult[0]?.count || "0");
+const initialCount = parseInt(initialCountResult[0]?.count || "0");
+const issuedCount = parseInt(issuedCountResult[0]?.count || "0");
 ```
 
 **优化后** (1 次合并查询):
+
 ```typescript
-const statsResult = await containerRepo.query(`
+const statsResult = await containerRepo.query(
+  `
   SELECT 
     COUNT(*) FILTER (WHERE c.schedule_status IN ('initial', 'issued')) as pending_count,
     COUNT(*) FILTER (WHERE c.schedule_status = 'initial') as initial_count,
     COUNT(*) FILTER (WHERE c.schedule_status = 'issued') as issued_count
   FROM biz_containers c
   WHERE ...
-`, params);
+`,
+  params,
+);
 
-const pendingCount = parseInt(statsResult[0]?.pending_count || '0');
-const initialCount = parseInt(statsResult[0]?.initial_count || '0');
-const issuedCount = parseInt(statsResult[0]?.issued_count || '0');
+const pendingCount = parseInt(statsResult[0]?.pending_count || "0");
+const initialCount = parseInt(statsResult[0]?.initial_count || "0");
+const issuedCount = parseInt(statsResult[0]?.issued_count || "0");
 ```
 
 **性能提升**: 减少 66% 的数据库往返次数
@@ -134,17 +142,18 @@ curl "http://localhost:3001/api/v1/scheduling/overview?country=IT&startDate=2026
 
 ### 性能对比
 
-| 指标 | 优化前 | 优化后 | 改善幅度 |
-|------|--------|--------|----------|
-| `/countries` 响应时间 | > 120s (超时) | < 100ms | **1200x+** |
-| `/scheduling/overview` 响应时间 | > 120s (超时) | < 3s | **40x+** |
-| 数据库 CPU 使用率 | ~100% | < 30% | **70%↓** |
-| 查询计划 | 全表扫描 | 索引扫描 | - |
-| SQL 查询次数 | 3 次 COUNT | 1 次 COUNT | **66%↓** |
+| 指标                            | 优化前        | 优化后     | 改善幅度   |
+| ------------------------------- | ------------- | ---------- | ---------- |
+| `/countries` 响应时间           | > 120s (超时) | < 100ms    | **1200x+** |
+| `/scheduling/overview` 响应时间 | > 120s (超时) | < 3s       | **40x+**   |
+| 数据库 CPU 使用率               | ~100%         | < 30%      | **70%↓**   |
+| 查询计划                        | 全表扫描      | 索引扫描   | -          |
+| SQL 查询次数                    | 3 次 COUNT    | 1 次 COUNT | **66%↓**   |
 
 ### 查询计划对比
 
 **优化前**:
+
 ```
 Seq Scan on biz_containers c  (cost=0.00..12345.67 rows=1 width=8)
   Filter: ((schedule_status)::ANY(ARRAY['initial'::character varying, 'issued'::character varying]))
@@ -152,6 +161,7 @@ Seq Scan on biz_containers c  (cost=0.00..12345.67 rows=1 width=8)
 ```
 
 **优化后**:
+
 ```
 Index Scan using idx_containers_schedule_status on biz_containers c  (cost=0.43..234.56 rows=1 width=8)
   Index Cond: ((schedule_status)::ANY(ARRAY['initial'::character varying, 'issued'::character varying]))
@@ -173,7 +183,7 @@ ORDER BY tablename, indexname;
 
 ```sql
 EXPLAIN ANALYZE
-SELECT 
+SELECT
   COUNT(*) FILTER (WHERE c.schedule_status IN ('initial', 'issued')) as pending_count,
   COUNT(*) FILTER (WHERE c.schedule_status = 'initial') as initial_count,
   COUNT(*) FILTER (WHERE c.schedule_status = 'issued') as issued_count
@@ -200,6 +210,7 @@ AND EXISTS (
 ### 1. 定期统计信息更新
 
 每周执行一次（或数据量大变更时）：
+
 ```sql
 ANALYZE biz_containers;
 ANALYZE process_port_operations;
