@@ -44,6 +44,24 @@
           <span class="unit-label">天</span>
         </div>
       </el-tooltip>
+      
+      <!-- 卸柜方式选择 -->
+      <el-tooltip content="手动指定卸柜方式，优先于系统自动决策" placement="bottom">
+        <div class="advanced-setting">
+          <span class="filter-label">卸柜方式：</span>
+          <el-select
+            v-model="unloadMode"
+            placeholder="自动决策"
+            clearable
+            size="small"
+            style="width: 140px"
+          >
+            <el-option label="Drop off (甩挂)" value="Drop off" />
+            <el-option label="Live load (直提)" value="Live load" />
+          </el-select>
+        </div>
+      </el-tooltip>
+      
       <el-button type="info" size="small" @click="$emit('show-logic')" title="查看智能排产逻辑">
         <el-icon><InfoFilled /></el-icon>
         逻辑
@@ -102,6 +120,7 @@ defineProps<{
   ports: Port[]
   loading: boolean
   disabled: boolean
+  unloadMode?: 'Drop off' | 'Live load' | ''
 }>()
 
 defineEmits<{

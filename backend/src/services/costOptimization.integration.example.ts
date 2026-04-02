@@ -52,7 +52,8 @@ export class CostOptimizationIntegrationService {
       const currentOption: UnloadOption = {
         containerNumber: container.containerNumber,
         warehouse: {} as any, // 假设已经有仓库信息
-        unloadDate: plannedUnloadDate,
+        plannedPickupDate: plannedPickupDate, // 使用 plannedPickupDate
+        plannedUnloadDate: plannedUnloadDate, // 使用 plannedUnloadDate
         strategy: 'Direct',
         isWithinFreePeriod: plannedUnloadDate <= lastFreeDate
       };

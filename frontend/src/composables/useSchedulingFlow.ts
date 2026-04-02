@@ -37,6 +37,8 @@ export interface ScheduleParams {
   dryRun?: boolean
   /** ETA 顺延天数 */
   etaBufferDays?: number
+  /** 卸柜方式 */
+  unloadMode?: 'Drop off' | 'Live load'
 }
 
 export function useSchedulingFlow(options: UseSchedulingFlowOptions) {
@@ -66,6 +68,7 @@ export function useSchedulingFlow(options: UseSchedulingFlowOptions) {
         endDate: params.endDate,
         dryRun: params.dryRun ?? false,
         etaBufferDays: params.etaBufferDays,
+        unloadMode: params.unloadMode, // ✅ 新增：卸柜方式参数
       })
 
       if (!result.success) {

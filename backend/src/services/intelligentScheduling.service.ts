@@ -11,7 +11,14 @@ import {
   DATE_CALCULATION_CONFIG,
   OCCUPANCY_CONFIG
 } from '../config/scheduling.config';
+import {
+  SCHEDULING_RULES,
+  SCORING_WEIGHTS,
+  RELATIONSHIP_SCORING,
+  getPartnershipLevelBonus
+} from '../constants/SchedulingRules';
 import { AppDataSource } from '../database';
+import { In } from 'typeorm';
 import { Container } from '../entities/Container';
 import { Country } from '../entities/Country';
 import { Customer } from '../entities/Customer';
@@ -45,6 +52,7 @@ import { SchedulingDateCalculator } from './SchedulingDateCalculator';
 import { SchedulingSorter } from './SchedulingSorter';
 import { TruckingSelectorService } from './TruckingSelectorService';
 import { WarehouseSelectorService } from './WarehouseSelectorService';
+import { ruleEngineService, RuleExecutionContext } from './RuleEngineService';
 
 /**
  * 批量优化结果接口
@@ -81,6 +89,9 @@ export interface ScheduleRequest {
   designatedWarehouseMode?: boolean; // 是否为手工指定模式
   designatedWarehouseCode?: string; // 手工指定的仓库代码
   designatedContainerNumbers?: string[]; // 手工指定仓库的柜号列表（可选，为空则全部）
+
+  // ✅ 新增：卸柜方式（可选，优先于系统自动决策）
+  unloadMode?: 'Drop off' | 'Live load'; // 用户指定的卸柜方式
 }
 
 export interface ScheduleResult {
@@ -337,10 +348,41 @@ export class IntelligentSchedulingService {
         logger.warn('[IntelligentScheduling] Pre-schedule write-back failed (continuing):', e);
       }
 
-      // 4. 对每个货柜进行排产（dryRun 模式下只计算不保存）
+      // 4. ✅ 批量预加载货柜关联数据（减少 N+1 查询）
+      const containerNumbers = toProcess.map(c => c.containerNumber);
+      const [truckingTransports, emptyReturns] = await Promise.all([
+        this.truckingTransportRepo.find({ where: { containerNumber: In(containerNumbers) } }),
+        this.emptyReturnRepo.find({ where: { containerNumber: In(containerNumbers) } })
+      ]);
+      const truckingTransportMap = new Map(truckingTransports.map(t => [t.containerNumber, t]));
+      const emptyReturnMap = new Map(emptyReturns.map(e => [e.containerNumber, e]));
+
+      // 5. 并行排产（使用 CONCURRENCY 控制并发数）
+      const scheduleResults: Promise<ScheduleResult>[] = [];
       for (const container of toProcess) {
-        const result = await this.scheduleSingleContainer(container, request);
-        results.push(result);
+        const truckingTransport = truckingTransportMap.get(container.containerNumber);
+        const emptyReturn = emptyReturnMap.get(container.containerNumber);
+        scheduleResults.push(
+          this.scheduleSingleContainerWithCache(
+            container,
+            request,
+            truckingTransport || null,
+            emptyReturn || null
+          )
+        );
+      }
+      
+      // 分批并发执行，避免一次性创建过多 Promise
+      for (let i = 0; i < scheduleResults.length; i += CONCURRENCY) {
+        const batch = scheduleResults.slice(i, i + CONCURRENCY);
+        const settled = await Promise.allSettled(batch);
+        for (const s of settled) {
+          if (s.status === 'fulfilled') {
+            results.push(s.value);
+          } else {
+            logger.error('[IntelligentScheduling] Container scheduling failed:', s.reason);
+          }
+        }
       }
 
       // ✅ Task 2.1: 对成功的排产结果附加成本优化建议
@@ -486,6 +528,391 @@ export class IntelligentSchedulingService {
       const bLastFree = bDestPo?.lastFreeDate ? new Date(bDestPo.lastFreeDate).getTime() : 0;
       return aLastFree - bLastFree;
     });
+  }
+
+  /**
+   * ✅ 新增：使用预加载数据的单个货柜排产
+   * 减少数据库查询，提升批量排产性能
+   */
+  private async scheduleSingleContainerWithCache(
+    container: Container,
+    request: ScheduleRequest,
+    truckingTransport: TruckingTransport | null,
+    emptyReturn: EmptyReturn | null
+  ): Promise<ScheduleResult> {
+    try {
+      // ✅ 业务规则检查①：如果已有实际还箱日，不参与排产（使用预加载数据）
+      const actualPickupDate = truckingTransport?.pickupDate || null;
+      const actualReturnDate = emptyReturn?.returnTime || null;
+
+      if (actualReturnDate) {
+        logger.info(
+          `[IntelligentScheduling] Skip scheduling for ${container.containerNumber}: already returned (actual return date: ${actualReturnDate.toISOString()})`
+        );
+        return {
+          containerNumber: container.containerNumber,
+          success: false,
+          message: '货柜已还箱，无需排产',
+          destinationPort: '',
+          destinationPortName: '',
+          etaDestPort: '',
+          ataDestPort: ''
+        };
+      }
+
+      // ✅ 业务规则检查②：如果已有实际提柜日，锁定提/送/卸日期，只计算还箱日
+      if (actualPickupDate) {
+        logger.info(
+          `[IntelligentScheduling] Scheduling with actual pickup date for ${container.containerNumber}: pickup=${actualPickupDate.toISOString()}`
+        );
+      }
+
+      // ✅ 检查是否为手工指定仓库模式
+      if (request.designatedWarehouseMode && request.designatedWarehouseCode) {
+        const destPo = container.portOperations?.find((po: any) => po.portType === 'destination');
+        if (!destPo) {
+          return {
+            containerNumber: container.containerNumber,
+            success: false,
+            message: '无目的港操作记录',
+            destinationPort: '',
+            destinationPortName: '',
+            etaDestPort: '',
+            ataDestPort: ''
+          };
+        }
+
+        // 使用手工指定仓库逻辑
+        return this.scheduleWithDesignatedWarehouse(
+          container,
+          destPo,
+          request.designatedWarehouseCode,
+          request
+        );
+      }
+
+      // 原有智能排产逻辑...
+      // 获取目的港操作记录
+      const destPo = container.portOperations?.find((po: any) => po.portType === 'destination');
+
+      // 提取货柜基本信息用于前端展示
+      const containerInfo = {
+        destinationPort: destPo?.portCode || '',
+        destinationPortName: destPo?.portName || '',
+        etaDestPort: destPo?.eta ? new Date(destPo.eta).toISOString().split('T')[0] : '',
+        ataDestPort: destPo?.ata ? new Date(destPo.ata).toISOString().split('T')[0] : ''
+      };
+
+      if (!destPo) {
+        return {
+          containerNumber: container.containerNumber,
+          success: false,
+          message: '无目的港操作记录',
+          ...containerInfo
+        };
+      }
+
+      // 1. 清关计划日默认等于 ETA（无 ETA 时回退 ATA）
+      const clearanceDate = destPo.eta || destPo.ata;
+      if (!clearanceDate) {
+        return {
+          containerNumber: container.containerNumber,
+          success: false,
+          message: '无到港日期（ATA/ETA），无法排产',
+          ...containerInfo
+        };
+      }
+
+      // 2. 计算计划清关日、提柜日（若 ATA/ETA 已过，提柜日至少为今天）
+      let plannedCustomsDate: Date;
+
+      if (clearanceDate instanceof Date) {
+        plannedCustomsDate = new Date(clearanceDate);
+      } else if (typeof clearanceDate === 'string') {
+        plannedCustomsDate = new Date(`${clearanceDate}T00:00:00`);
+      } else {
+        return {
+          containerNumber: container.containerNumber,
+          success: false,
+          message: '到港日期类型错误',
+          ...containerInfo
+        };
+      }
+
+      if (!plannedCustomsDate || isNaN(plannedCustomsDate.getTime())) {
+        return {
+          containerNumber: container.containerNumber,
+          success: false,
+          message: '清关日期解析失败',
+          ...containerInfo
+        };
+      }
+
+      // ✅ 新增：ETA 顺延天数
+      const etaBufferDays = request.etaBufferDays || 0;
+      if (etaBufferDays > 0) {
+        plannedCustomsDate.setDate(plannedCustomsDate.getDate() + etaBufferDays);
+      }
+
+      let plannedPickupDate = await this.dateCalculator.calculatePlannedPickupDate(
+        plannedCustomsDate,
+        destPo.lastFreeDate
+      );
+
+      if (!plannedPickupDate || isNaN(plannedPickupDate.getTime())) {
+        return {
+          containerNumber: container.containerNumber,
+          success: false,
+          message: '计算提柜日失败',
+          ...containerInfo
+        };
+      }
+
+      // ✅ 业务规则：如果已有实际提柜日，锁定计划提柜日=实际提柜日
+      if (actualPickupDate) {
+        plannedPickupDate = new Date(actualPickupDate);
+        plannedCustomsDate = new Date(plannedPickupDate);
+        plannedCustomsDate.setUTCDate(plannedCustomsDate.getUTCDate() - 1);
+      }
+
+      // ✅ 使用 UTC 日期比较
+      const today = new Date();
+      const todayStr = `${today.getUTCFullYear()}-${String(today.getUTCMonth() + 1).padStart(2, '0')}-${String(today.getUTCDate()).padStart(2, '0')}`;
+      const pickupDateStr = `${plannedPickupDate.getUTCFullYear()}-${String(plannedPickupDate.getUTCMonth() + 1).padStart(2, '0')}-${String(plannedPickupDate.getUTCDate()).padStart(2, '0')}`;
+
+      if (pickupDateStr <= todayStr) {
+        const tomorrow = new Date(`${todayStr}T00:00:00Z`);
+        tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+        plannedPickupDate = tomorrow;
+        plannedCustomsDate.setTime(plannedPickupDate.getTime());
+        plannedCustomsDate.setUTCDate(plannedCustomsDate.getUTCDate() - 1);
+      }
+
+      // 4. 确定候选仓库
+      const countryCode = await this.resolveCountryCode(container.replenishmentOrders?.[0] as any);
+      const warehouses = await this.warehouseSelectorService.getCandidateWarehouses(
+        countryCode,
+        destPo.portCode
+      );
+      if (warehouses.length === 0) {
+        return {
+          containerNumber: container.containerNumber,
+          success: false,
+          message: '无映射关系中的仓库',
+          ...containerInfo
+        };
+      }
+
+      // 5. 找最早可用的仓库和卸柜日
+      const { warehouse, plannedUnloadDate } = await this.findEarliestAvailableWarehouse(
+        warehouses,
+        plannedPickupDate
+      );
+
+      if (!warehouse || !plannedUnloadDate) {
+        return {
+          containerNumber: container.containerNumber,
+          success: false,
+          message: '仓库产能不足，无法排产',
+          ...containerInfo
+        };
+      }
+
+      // 6. 判断卸柜模式偏好
+      let preferredUnloadMode: 'Drop off' | 'Live load' | 'any' = 'any';
+      if (destPo.lastFreeDate) {
+        const lastFreeDate = new Date(destPo.lastFreeDate);
+        const daysDiff = Math.ceil(
+          (lastFreeDate.getTime() - plannedPickupDate.getTime()) / (1000 * 60 * 60 * 24)
+        );
+        if (daysDiff > 1) {
+          preferredUnloadMode = 'Drop off';
+        } else if (plannedPickupDate > lastFreeDate) {
+          preferredUnloadMode = 'Drop off';
+        }
+      }
+
+      // 6.1 选择车队
+      const truckingCompany = await this.truckingSelectorService.selectTruckingCompany({
+        warehouseCode: warehouse.warehouseCode,
+        portCode: destPo.portCode,
+        countryCode: warehouse.country,
+        plannedDate: plannedPickupDate,
+        preferredUnloadMode,
+        lastFreeDate: destPo.lastFreeDate ? new Date(destPo.lastFreeDate) : undefined,
+        basePickupDate: plannedPickupDate
+      });
+
+      if (!truckingCompany) {
+        return {
+          containerNumber: container.containerNumber,
+          success: false,
+          message: '无映射关系中的车队',
+          ...containerInfo
+        };
+      }
+
+      // 7. 确定卸柜方式
+      let unloadMode: 'Drop off' | 'Live load';
+      if (request.unloadMode) {
+        unloadMode = request.unloadMode;
+      } else {
+        unloadMode = truckingCompany.hasYard ? 'Drop off' : 'Live load';
+      }
+
+      // 8. ✅ 快速路径：dryRun 模式直接返回估算成本，不调用成本优化算法
+      if (request.dryRun) {
+        const result = this.buildScheduleResult(
+          container,
+          warehouse,
+          truckingCompany,
+          plannedCustomsDate,
+          plannedPickupDate,
+          plannedUnloadDate,
+          unloadMode,
+          containerInfo
+        );
+        return result;
+      }
+
+      // 9. 非 dryRun 模式，保存到数据库
+      return await this.saveScheduleToDatabase(
+        container,
+        warehouse,
+        truckingCompany,
+        plannedCustomsDate,
+        plannedPickupDate,
+        plannedUnloadDate,
+        unloadMode
+      );
+    } catch (error: any) {
+      logger.error(`[IntelligentScheduling] scheduleSingleContainerWithCache error for ${container.containerNumber}:`, error);
+      return {
+        containerNumber: container.containerNumber,
+        success: false,
+        message: `排产失败: ${error.message}`,
+        destinationPort: '',
+        destinationPortName: '',
+        etaDestPort: '',
+        ataDestPort: ''
+      };
+    }
+  }
+
+  /**
+   * 构建排产结果
+   */
+  private buildScheduleResult(
+    container: Container,
+    warehouse: any,
+    truckingCompany: any,
+    plannedCustomsDate: Date,
+    plannedPickupDate: Date,
+    plannedUnloadDate: Date,
+    unloadMode: 'Drop off' | 'Live load',
+    containerInfo: any
+  ): ScheduleResult {
+    const plannedReturnDate = this.calculatePlannedReturnDate(plannedUnloadDate, container);
+
+    return {
+      containerNumber: container.containerNumber,
+      success: true,
+      ...containerInfo,
+      lastFreeDate: (container.portOperations?.find((po: any) => po.portType === 'destination') as any)?.lastFreeDate,
+      lastReturnDate: plannedReturnDate?.toISOString().split('T')[0],
+      plannedData: {
+        plannedCustomsDate: plannedCustomsDate.toISOString().split('T')[0],
+        plannedPickupDate: plannedPickupDate.toISOString().split('T')[0],
+        plannedDeliveryDate: plannedPickupDate.toISOString().split('T')[0],
+        plannedUnloadDate: plannedUnloadDate.toISOString().split('T')[0],
+        plannedReturnDate: plannedReturnDate?.toISOString().split('T')[0],
+        truckingCompanyId: truckingCompany.companyCode,
+        truckingCompany: truckingCompany.companyName,
+        warehouseId: warehouse.warehouseCode,
+        warehouseName: warehouse.warehouseName,
+        warehouseCountry: warehouse.country,
+        unloadMode
+      }
+    };
+  }
+
+  /**
+   * 计算计划还箱日
+   */
+  private calculatePlannedReturnDate(plannedUnloadDate: Date, container: Container): Date {
+    const destPo = container.portOperations?.find((po: any) => po.portType === 'destination');
+    // 使用 last_free_date + 7 天作为还箱日
+    const lastFreeDate = destPo?.lastFreeDate;
+    if (lastFreeDate) {
+      const lfd = new Date(lastFreeDate);
+      lfd.setDate(lfd.getDate() + 7); // 默认加 7 天
+      return lfd;
+    }
+    const returnDate = new Date(plannedUnloadDate);
+    returnDate.setDate(returnDate.getDate() + 14); // 默认卸柜后 14 天还箱
+    return returnDate;
+  }
+
+  /**
+   * 保存排产到数据库
+   */
+  private async saveScheduleToDatabase(
+    container: Container,
+    warehouse: any,
+    truckingCompany: any,
+    plannedCustomsDate: Date,
+    plannedPickupDate: Date,
+    plannedUnloadDate: Date,
+    unloadMode: 'Drop off' | 'Live load'
+  ): Promise<ScheduleResult> {
+    // 保存拖卡运输记录
+    await this.saveTruckingTransport(container, truckingCompany, plannedPickupDate, plannedCustomsDate);
+
+    // 保存仓库操作记录
+    await this.saveWarehouseOperation(container, warehouse, plannedUnloadDate);
+
+    // 更新货柜状态
+    await this.updateContainerStatus(container, warehouse);
+
+    return {
+      containerNumber: container.containerNumber,
+      success: true,
+      message: '排产成功'
+    };
+  }
+
+  private async saveTruckingTransport(container: Container, truckingCompany: any, plannedPickupDate: Date, plannedCustomsDate: Date): Promise<void> {
+    let trucking = await this.truckingTransportRepo.findOne({
+      where: { containerNumber: container.containerNumber }
+    });
+    if (!trucking) {
+      trucking = new TruckingTransport();
+      trucking.containerNumber = container.containerNumber;
+    }
+    trucking.truckingCompanyId = truckingCompany.companyCode;
+    trucking.plannedPickupDate = plannedPickupDate;
+    trucking.plannedDeliveryDate = plannedPickupDate;
+    trucking.scheduleStatus = 'issued'; // 使用正确的枚举值
+    await this.truckingTransportRepo.save(trucking);
+  }
+
+  private async saveWarehouseOperation(container: Container, warehouse: any, plannedUnloadDate: Date): Promise<void> {
+    let warehouseOp = await this.warehouseOperationRepo.findOne({
+      where: { containerNumber: container.containerNumber }
+    });
+    if (!warehouseOp) {
+      warehouseOp = new WarehouseOperation();
+      warehouseOp.containerNumber = container.containerNumber;
+    }
+    warehouseOp.warehouseId = warehouse.warehouseCode; // 使用 warehouseId 而非 warehouseCode
+    warehouseOp.plannedUnloadDate = plannedUnloadDate;
+    await this.warehouseOperationRepo.save(warehouseOp);
+  }
+
+  private async updateContainerStatus(container: Container, warehouse: any): Promise<void> {
+    container.scheduleStatus = 'issued'; // 使用正确的枚举值
+    // 移除 assignedWarehouseCode，因为 Container 实体没有这个字段
+    await this.containerRepo.save(container);
   }
 
   /**
@@ -769,10 +1196,20 @@ export class IntelligentSchedulingService {
         };
       }
 
-      // 7. 根据车队是否有堆场决定卸柜方式（见 04-五节点调度 2.3.1）
-      // has_yard = true → 支持 Drop off（提<送=卸）
-      // has_yard = false → 必须 Live load（提=送=卸）
-      const unloadMode = truckingCompany.hasYard ? 'Drop off' : 'Live load';
+      // 7. 确定卸柜方式（优先级：用户指定 > 系统自动决策）
+      // ✅ 新增：支持用户手动指定卸柜方式
+      let unloadMode: 'Drop off' | 'Live load';
+      if (request.unloadMode) {
+        // 用户指定了卸柜方式，直接使用
+        unloadMode = request.unloadMode;
+        logger.info(`[Scheduling] Container ${container.containerNumber}: Using user-specified unloadMode: ${unloadMode}`);
+      } else {
+        // 系统自动决策：根据车队是否有堆场决定
+        // has_yard = true → 支持 Drop off（提<送=卸）
+        // has_yard = false → 必须 Live load（提=送=卸）
+        unloadMode = truckingCompany.hasYard ? 'Drop off' : 'Live load';
+        logger.info(`[Scheduling] Container ${container.containerNumber}: Auto-determined unloadMode: ${unloadMode} (hasYard=${truckingCompany.hasYard})`);
+      }
 
       // ✅ Fast Path: 检查是否需要进行成本优化
       // 只有在可能出现成本问题时才调用成本优化算法
@@ -1223,10 +1660,10 @@ export class IntelligentSchedulingService {
       }
     }
 
-    // 条件2: 卸柜延迟天数（仅适用于有堆场的车队）
-    // 如果提柜日和卸柜日相差超过1天，可能产生堆场费，需要优化
+    // 条件 2: 卸柜延迟天数（仅适用于有堆场的车队）
+    // 如果提柜日和卸柜日相差超过 1 天，可能产生堆场费，需要优化
     // 注意：Live load 模式（hasYard=false）提=卸=送，daysDiff 永远是 0，无需评估堆场费
-    if (plannedUnloadDate && truckingCompany?.hasYard) {
+    if (plannedUnloadDate && hasYard) {
       const pickupDateOnly = new Date(plannedPickupDate);
       pickupDateOnly.setHours(0, 0, 0, 0);
       const unloadDateOnly = new Date(plannedUnloadDate);
@@ -1767,17 +2204,30 @@ export class IntelligentSchedulingService {
       candidateIds = candidateIds.filter((id) => portTruckingIds.has(id));
     }
 
-    // 3. 检查每个车队的可用性（能力约束）
-    for (const truckingId of candidateIds) {
-      const occupancy = await this.truckingOccupancyRepo.findOne({
-        where: {
-          truckingCompanyId: truckingId,
-          date: filter.plannedDate,
-          portCode: filter.portCode ?? undefined,
-          warehouseCode: filter.warehouseCode
-        }
-      });
+    // 3. 批量查询所有候选车队的档期占用情况（N+1优化）
+    const occupancyWhere: any = {
+      date: filter.plannedDate,
+      isActive: true
+    };
+    if (filter.portCode) occupancyWhere.portCode = filter.portCode;
+    if (filter.warehouseCode) occupancyWhere.warehouseCode = filter.warehouseCode;
 
+    const allOccupancies = candidateIds.length > 0
+      ? await this.truckingOccupancyRepo.find({
+          where: occupancyWhere
+        })
+      : [];
+
+    // 构建 Map 用于快速查找
+    const occupancyMap = new Map<string, ExtTruckingSlotOccupancy>();
+    allOccupancies.forEach(o => {
+      const key = `${o.truckingCompanyId}`;
+      occupancyMap.set(key, o);
+    });
+
+    // 筛选有可用能力的车队
+    for (const truckingId of candidateIds) {
+      const occupancy = occupancyMap.get(truckingId);
       const hasCapacity = !occupancy || occupancy.plannedTrips < occupancy.capacity;
 
       if (hasCapacity) {
@@ -1792,8 +2242,9 @@ export class IntelligentSchedulingService {
   }
 
   /**
-   * 阶段 2: 综合评分
+   * 阶段 2: 综合评分（N+1优化版）
    * 对候选车队进行成本、能力、关系多维度评分
+   * 优化：批量加载所有数据，避免循环内查询
    */
   private async scoreTruckingCompanies(
     candidates: Array<{ truckingCompanyId: string; hasCapacity: boolean }>,
@@ -1809,199 +2260,241 @@ export class IntelligentSchedulingService {
       transportCost: number;
     }>
   > {
-    const scoredCandidates: Array<{
-      truckingCompanyId: string;
-      costScore: number;
-      capacityScore: number;
-      relationshipScore: number;
-      totalScore: number;
-      transportCost: number;
-    }> = [];
+    if (candidates.length === 0) return [];
 
-    // 1. 计算每个车队的运输成本
+    const truckingIds = candidates.map(c => c.truckingCompanyId);
+
+    // ========== 批量加载阶段：一次查询所有数据 ==========
+
+    // 1. 批量查询 warehouse-trucking 映射关系
+    const warehouseTruckingMappings = await this.warehouseTruckingMappingRepo.find({
+      where: { warehouseCode, isActive: true }
+    });
+    const wtMappingMap = new Map<string, WarehouseTruckingMapping>();
+    warehouseTruckingMappings.forEach(m => wtMappingMap.set(m.truckingCompanyId, m));
+
+    // 2. 批量查询 trucking-port 映射关系（如果指定了港口）
+    const truckingPortMappings: TruckingPortMapping[] = [];
+    if (portCode) {
+      const foundMappings = await this.truckingPortMappingRepo.find({
+        where: { portCode, isActive: true }
+      });
+      // 只保留候选车队相关的映射
+      const portTruckingIds = new Set(foundMappings.map(m => m.truckingCompanyId));
+      truckingPortMappings.push(...foundMappings.filter(m => portTruckingIds.has(m.truckingCompanyId)));
+    }
+    const tpMappingMap = new Map<string, TruckingPortMapping>();
+    truckingPortMappings.forEach(m => tpMappingMap.set(m.truckingCompanyId, m));
+
+    // 3. 批量查询车队信息
+    const truckingCompanies = await AppDataSource.getRepository(TruckingCompany)
+      .createQueryBuilder('tc')
+      .where('tc.company_code IN (:...ids)', { ids: truckingIds })
+      .select(['tc.company_code', 'tc.has_yard', 'tc.daily_capacity', 'tc.partnership_level'])
+      .getRawMany();
+
+    const truckingMap = new Map<string, { hasYard: boolean; dailyCapacity: number; partnershipLevel: string }>();
+    truckingCompanies.forEach(tc => {
+      truckingMap.set(tc.tc_company_code, {
+        hasYard: tc.tc_has_yard || false,
+        dailyCapacity: Number(tc.tc_daily_capacity) || 0,
+        partnershipLevel: tc.tc_partnership_level || 'NORMAL'
+      });
+    });
+
+    // 4. 批量查询历史合作数据
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - RELATIONSHIP_SCORING.COLLABORATION_DAYS);
+
+    const collaborationCounts = await AppDataSource.getRepository(Container)
+      .createQueryBuilder('container')
+      .select('container.trucking_company_id', 'truckingCompanyId')
+      .addSelect('COUNT(*)', 'count')
+      .where('container.trucking_company_id IN (:...ids)', { ids: truckingIds })
+      .andWhere('container.created_at >= :cutoffDate', { cutoffDate: cutoffDate.toISOString() })
+      .groupBy('container.trucking_company_id')
+      .getRawMany();
+
+    const collaborationMap = new Map<string, number>();
+    collaborationCounts.forEach(cc => {
+      collaborationMap.set(cc.truckingCompanyId, parseInt(cc.count) || 0);
+    });
+
+    // ========== 内存计算阶段：使用 Map 进行高效计算 ==========
+
+    // 计算成本 Map
     const costMap = new Map<string, number>();
     for (const candidate of candidates) {
-      const cost = await this.calculateTruckingCost(
+      const cost = this.calculateTruckingCostFromCache(
         candidate.truckingCompanyId,
         warehouseCode,
-        portCode
+        portCode,
+        wtMappingMap,
+        truckingMap,
+        tpMappingMap
       );
       costMap.set(candidate.truckingCompanyId, cost);
     }
 
-    // 2. 归一化成本评分（最低成本=100 分）
+    // 归一化成本评分（最低成本=100 分）
     const costs = Array.from(costMap.values());
     const minCost = Math.min(...costs);
     const maxCost = Math.max(...costs);
     const costRange = maxCost - minCost || 1;
 
-    // 3. 对每个车队评分
+    // 计算关系评分 Map
+    const relationshipScoreMap = new Map<string, number>();
     for (const candidate of candidates) {
+      const score = this.calculateRelationshipScoreFromCache(
+        candidate.truckingCompanyId,
+        collaborationMap,
+        truckingMap
+      );
+      relationshipScoreMap.set(candidate.truckingCompanyId, score);
+    }
+
+    // ========== 获取动态评分权重（规则引擎） ==========
+    const scoringWeights = await this.getScoringWeights(
+      warehouseCode,
+      portCode
+    );
+
+    // ========== 最终评分阶段 ==========
+    const scoredCandidates = candidates.map(candidate => {
       const cost = costMap.get(candidate.truckingCompanyId) || 100;
-
-      // 成本评分（40% 权重）- 成本越低分数越高
       const costScore = ((maxCost - cost) / costRange) * 100;
+      const capacityScore = candidate.hasCapacity ? scoringWeights.capacity * 100 : 0;
+      const relationshipScore = relationshipScoreMap.get(candidate.truckingCompanyId) || RELATIONSHIP_SCORING.BASE_SCORE;
+      const totalScore = costScore * scoringWeights.cost +
+                        capacityScore +
+                        relationshipScore * scoringWeights.relationship;
 
-      // 能力评分（30% 权重）- 有剩余能力=100 分
-      const capacityScore = candidate.hasCapacity ? 100 : 0;
-
-      // 关系评分（30% 权重）- ✅ Phase 2: 增强关系评分逻辑
-      const relationshipScore = await this.calculateRelationshipScore(candidate.truckingCompanyId);
-
-      // 综合得分
-      const totalScore = costScore * 0.4 + capacityScore * 0.3 + relationshipScore * 0.3;
-
-      scoredCandidates.push({
+      return {
         truckingCompanyId: candidate.truckingCompanyId,
         costScore,
         capacityScore,
         relationshipScore,
         totalScore,
         transportCost: cost
-      });
-    }
+      };
+    });
 
     return scoredCandidates;
   }
 
   /**
-   * 计算单个车队的运输成本
+   * 从缓存数据计算单个车队的运输成本
    */
-  private async calculateTruckingCost(
+  private calculateTruckingCostFromCache(
     truckingCompanyId: string,
     warehouseCode: string,
-    portCode?: string
-  ): Promise<number> {
-    try {
-      // 从 warehouse_trucking_mapping 获取基础运费
-      const mapping = await this.warehouseTruckingMappingRepo.findOne({
-        where: {
-          warehouseCode,
-          truckingCompanyId,
-          isActive: true
-        }
-      });
+    portCode: string | undefined,
+    wtMappingMap: Map<string, WarehouseTruckingMapping>,
+    truckingMap: Map<string, { hasYard: boolean; dailyCapacity: number; partnershipLevel: string }>,
+    tpMappingMap: Map<string, TruckingPortMapping>
+  ): number {
+    // 从缓存获取 warehouse-trucking 映射
+    const wtMapping = wtMappingMap.get(truckingCompanyId);
+    let transportFee = Number(wtMapping?.transportFee || 100);
 
-      let transportFee = Number(mapping?.transportFee || 100);
-
-      // 如果车队有堆场且需要 Drop off，考虑堆场费
-      if (portCode) {
-        const trucking = await AppDataSource.getRepository(TruckingCompany).findOne({
-          where: { companyCode: truckingCompanyId },
-          select: ['hasYard']
-        });
-
-        if (trucking?.hasYard) {
-          const tpMapping = await this.truckingPortMappingRepo.findOne({
-            where: {
-              truckingCompanyId,
-              portCode,
-              isActive: true
-            }
-          });
-
-          // 堆场操作费（一次性）
-          const yardOperationFee = Number(tpMapping?.yardOperationFee || 0);
-
-          // 堆场堆存费（按配置天数估算）
-          const dailyYardRate = Number(tpMapping?.standardRate || 0);
-          const estimatedYardDays = DATE_CALCULATION_CONFIG.DEFAULT_ESTIMATED_YARD_DAYS; // 配置化：默认值为 2
-          const yardStorageCost = dailyYardRate * estimatedYardDays;
-
-          transportFee += yardOperationFee + yardStorageCost;
-        }
+    // 如果车队有堆场且指定了港口，计算堆场费
+    if (portCode) {
+      const trucking = truckingMap.get(truckingCompanyId);
+      if (trucking?.hasYard) {
+        const tpMapping = tpMappingMap.get(truckingCompanyId);
+        const yardOperationFee = Number(tpMapping?.yardOperationFee || 0);
+        const dailyYardRate = Number(tpMapping?.standardRate || 0);
+        const estimatedYardDays = DATE_CALCULATION_CONFIG.DEFAULT_ESTIMATED_YARD_DAYS;
+        const yardStorageCost = dailyYardRate * estimatedYardDays;
+        transportFee += yardOperationFee + yardStorageCost;
       }
-
-      return transportFee;
-    } catch (error) {
-      logger.warn(`[IntelligentScheduling] calculateTruckingCost error:`, error);
-      return 100; // 默认成本
     }
+
+    return transportFee;
   }
 
   /**
-   * Phase 2: 计算关系评分
-   * 基于历史合作情况、战略重要性等因素
+   * 从缓存数据计算单个车队的关系评分
    */
-  private async calculateRelationshipScore(truckingCompanyId: string): Promise<number> {
+  private calculateRelationshipScoreFromCache(
+    truckingCompanyId: string,
+    collaborationMap: Map<string, number>,
+    truckingMap: Map<string, { hasYard: boolean; dailyCapacity: number; partnershipLevel: string }>
+  ): number {
+    let score = RELATIONSHIP_SCORING.BASE_SCORE;
+
+    // 1. 历史合作加分
+    const recentCollaboration = collaborationMap.get(truckingCompanyId) || 0;
+    const collaborationBonus = Math.min(
+      recentCollaboration * RELATIONSHIP_SCORING.COLLABORATION_BONUS_FACTOR,
+      RELATIONSHIP_SCORING.COLLABORATION_BONUS_MAX
+    );
+    score += collaborationBonus;
+
+    // 2. 合作关系级别加分（使用配置化规则）
+    const trucking = truckingMap.get(truckingCompanyId);
+    const levelBonus = getPartnershipLevelBonus(trucking?.partnershipLevel);
+    score += levelBonus;
+
+    // 3. 大运力加分
+    if ((trucking?.dailyCapacity || 0) >= SCHEDULING_RULES.CAPACITY_SCORING.LARGE_CAPACITY_THRESHOLD) {
+      score += SCHEDULING_RULES.CAPACITY_SCORING.LARGE_CAPACITY_BONUS;
+    }
+
+    // 4. 服务质量加分
+    score += RELATIONSHIP_SCORING.SERVICE_QUALITY_BONUS;
+
+    // 确保分数在 0-100 范围内
+    return Math.max(0, Math.min(100, score));
+  }
+
+  /**
+   * 获取动态评分权重（规则引擎集成）
+   * 优先从规则引擎获取，fallback 到静态配置
+   */
+  private async getScoringWeights(
+    warehouseCode: string,
+    portCode?: string
+  ): Promise<{
+    cost: number;
+    capacity: number;
+    relationship: number;
+  }> {
     try {
-      let score = 50; // 基础分
-
-      // 1. 历史合作频次（过去 30 天合作的货柜数）
-      const recentCollaboration = await this.countRecentCollaborations(truckingCompanyId, 30);
-      // 合作越多分数越高（上限 +20 分）
-      const collaborationBonus = Math.min(recentCollaboration * 2, 20);
-      score += collaborationBonus;
-
-      // 2. 车队合作关系级别 ✅ Phase 2: 新增
-      const trucking = await AppDataSource.getRepository(TruckingCompany).findOne({
-        where: { companyCode: truckingCompanyId },
-        select: ['dailyCapacity', 'partnershipLevel']
-      });
-
-      // 关系级别加分映射表
-      const levelBonusMap: Record<string, number> = {
-        STRATEGIC: 30, // 战略合作伙伴 +30 分
-        CORE: 20, // 核心合作伙伴 +20 分
-        NORMAL: 10, // 普通合作伙伴 +10 分
-        TEMPORARY: 0 // 临时合作伙伴 +0 分
+      // 构建执行上下文
+      const context: RuleExecutionContext = {
+        executionId: `weight-${Date.now()}`,
+        warehouseCode,
+        portCode,
+        executionDate: new Date()
       };
 
-      const levelBonus = levelBonusMap[trucking?.partnershipLevel || 'NORMAL'] || 10;
-      score += levelBonus;
+      // 调用规则引擎
+      const result = await ruleEngineService.executeRules(context);
 
-      logger.debug(
-        `[IntelligentScheduling] Partnership level for ${truckingCompanyId}: ${trucking?.partnershipLevel} (+${levelBonus})`
-      );
-
-      // 3. 运力规模加分（保留原有逻辑）
-      if ((trucking?.dailyCapacity || 0) >= 50) {
-        score += 15; // 大运力车队加分
+      if (result.matchedRule?.actions) {
+        const weights = result.adjustedScores.weights;
+        if (weights?.cost !== undefined && weights?.capacity !== undefined && weights?.relationship !== undefined) {
+          logger.debug(
+            `[RuleEngine] Using dynamic weights: cost=${weights.cost}, capacity=${weights.capacity}, relationship=${weights.relationship}`
+          );
+          return {
+            cost: weights.cost,
+            capacity: weights.capacity,
+            relationship: weights.relationship
+          };
+        }
       }
-
-      // 4. 服务质量评分（使用配置值）
-      // TODO: 可以基于准点率、投诉率等计算
-      const serviceQualityBonus = COST_OPTIMIZATION_CONFIG.BASE_SERVICE_QUALITY_SCORE; // 配置化：基础服务质量分
-      score += serviceQualityBonus;
-
-      // 确保分数在 0-100 范围内
-      score = Math.max(0, Math.min(100, score));
-
-      logger.debug(
-        `[IntelligentScheduling] Relationship score for ${truckingCompanyId}: ${score.toFixed(2)} ` +
-          `(collaboration: ${recentCollaboration}, level: ${levelBonus}, base: 50)`
-      );
-
-      return score;
     } catch (error) {
-      logger.warn(`[IntelligentScheduling] calculateRelationshipScore error:`, error);
-      return 50; // 返回基础分
+      logger.warn(`[RuleEngine] Failed to get dynamic weights, using static config:`, error);
     }
-  }
 
-  /**
-   * 统计车队最近 N 天的合作货柜数
-   */
-  private async countRecentCollaborations(
-    truckingCompanyId: string,
-    days: number
-  ): Promise<number> {
-    try {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - days);
-
-      // 查询 Container 表中最近使用该队队的货柜数
-      const containerCount = await AppDataSource.getRepository(Container)
-        .createQueryBuilder('container')
-        .where('container.trucking_company_id = :truckingId', { truckingId: truckingCompanyId })
-        .andWhere('container.created_at >= :cutoffDate', { cutoffDate: cutoffDate.toISOString() })
-        .getCount();
-
-      return containerCount;
-    } catch (error) {
-      logger.warn(`[IntelligentScheduling] countRecentCollaborations error:`, error);
-      return 0;
-    }
+    // Fallback 到静态配置
+    return {
+      cost: SCORING_WEIGHTS.COST,
+      capacity: SCORING_WEIGHTS.CAPACITY,
+      relationship: SCORING_WEIGHTS.RELATIONSHIP
+    };
   }
 
   /**
@@ -2129,8 +2622,18 @@ export class IntelligentSchedulingService {
         };
       }
 
-      // 6. 根据车队是否有堆场决定卸柜方式
-      const unloadMode = truckingCompany.hasYard ? 'Drop off' : 'Live load';
+      // 6. 确定卸柜方式（优先级：用户指定 > 系统自动决策）
+      // ✅ 新增：支持用户手动指定卸柜方式
+      let unloadMode: 'Drop off' | 'Live load';
+      if (_request.unloadMode) {
+        // 用户指定了卸柜方式，直接使用
+        unloadMode = _request.unloadMode;
+        logger.info(`[Scheduling] Container ${container.containerNumber}: Using user-specified unloadMode: ${unloadMode}`);
+      } else {
+        // 系统自动决策：根据车队是否有堆场决定
+        unloadMode = truckingCompany.hasYard ? 'Drop off' : 'Live load';
+        logger.info(`[Scheduling] Container ${container.containerNumber}: Auto-determined unloadMode: ${unloadMode} (hasYard=${truckingCompany.hasYard})`);
+      }
 
       // 7. 计算送仓日
       const plannedDeliveryDate = this.dateCalculator.calculatePlannedDeliveryDate(

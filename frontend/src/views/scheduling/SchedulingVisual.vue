@@ -46,6 +46,24 @@
             <span class="unit-label">天</span>
           </div>
         </el-tooltip>
+        
+        <!-- 卸柜方式选择 -->
+        <el-tooltip content="手动指定卸柜方式，优先于系统自动决策" placement="bottom">
+          <div class="advanced-setting">
+            <span class="filter-label">卸柜方式：</span>
+            <el-select
+              v-model="unloadMode"
+              placeholder="自动决策"
+              clearable
+              size="small"
+              style="width: 140px"
+            >
+              <el-option label="Drop off (甩挂)" value="Drop off" />
+              <el-option label="Live load (直提)" value="Live load" />
+            </el-select>
+          </div>
+        </el-tooltip>
+        
         <el-button
           type="info"
           size="small"
@@ -1145,6 +1163,7 @@ const dateRange = ref<[Date, Date]>(
 // 操作说明相关
 const showLogicDialog = ref(false)
 const etaBufferDays = ref<number>(0) // ✅ 新增：ETA 顺延天数
+const unloadMode = ref<'Drop off' | 'Live load' | ''>('') // ✅ 新增：卸柜方式选择
 const writeDataInfo = [
   {
     table: 'process_trucking_transport',
@@ -1715,6 +1734,7 @@ const handlePreviewSchedule = async () => {
       endDate: dateRange.value?.[1] ? dayjs(dateRange.value[1]).format('YYYY-MM-DD') : undefined,
       dryRun: true, // ← 关键：预览模式
       etaBufferDays: etaBufferDays.value,
+      unloadMode: unloadMode.value || undefined, // ✅ 新增：卸柜方式参数
     })
 
     if (!result.success) {

@@ -8,6 +8,7 @@
 
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
+import { Country } from '../entities/Country';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
 import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
@@ -25,14 +26,15 @@ export class DemurrageWriteBackScheduler {
 
   constructor() {
     this.demurrageService = new DemurrageService(
-      AppDataSource.getRepository(ExtDemurrageStandard),
-      AppDataSource.getRepository(Container),
-      AppDataSource.getRepository(PortOperation),
-      AppDataSource.getRepository(SeaFreight),
-      AppDataSource.getRepository(TruckingTransport),
-      AppDataSource.getRepository(EmptyReturn),
-      AppDataSource.getRepository(ReplenishmentOrder),
-      AppDataSource.getRepository(ExtDemurrageRecord)
+      AppDataSource.getRepository (ExtDemurrageStandard),
+      AppDataSource.getRepository (Container),
+      AppDataSource.getRepository (PortOperation),
+      AppDataSource.getRepository (SeaFreight),
+      AppDataSource.getRepository (TruckingTransport),
+      AppDataSource.getRepository (EmptyReturn),
+      AppDataSource.getRepository (ReplenishmentOrder),
+      AppDataSource.getRepository (Country), // 使用 Country repository
+      AppDataSource.getRepository (ExtDemurrageRecord)
     );
   }
 

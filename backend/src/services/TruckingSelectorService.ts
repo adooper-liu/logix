@@ -1,4 +1,4 @@
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { AppDataSource } from '../database';
 import { TruckingCompany } from '../entities/TruckingCompany';
 import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
@@ -334,15 +334,21 @@ export class TruckingSelectorService {
     const scoredCandidates: TruckingScoreResult[] = [];
 
     try {
-      // Step 1: 计算每个车队的运输成本
+      // Step 1: 批量计算每个车队的运输成本（优化 N+1 问题）
       const costMap = new Map<string, number>();
-      for (const candidate of candidates) {
-        const cost = await this.calculateTruckingCost(
-          candidate.truckingCompanyId,
+      // 批量获取所有映射关系
+      const allMappings = await this.warehouseTruckingMappingRepo.find({
+        where: {
           warehouseCode,
-          portCode
-        );
-        costMap.set(candidate.truckingCompanyId, cost);
+          truckingCompanyId: In(candidates.map(c => c.truckingCompanyId)),
+          isActive: true
+        }
+      });
+      const mappingByTrucking = new Map(allMappings.map(m => [m.truckingCompanyId, m]));
+      
+      for (const candidate of candidates) {
+        const mapping = mappingByTrucking.get(candidate.truckingCompanyId);
+        costMap.set(candidate.truckingCompanyId, Number(mapping?.transportFee || 100));
       }
 
       // Step 2: 归一化成本评分（最低成本=100 分）
@@ -351,15 +357,13 @@ export class TruckingSelectorService {
       const maxCost = Math.max(...costs);
       const costRange = maxCost - minCost || 1;
 
-      // Step 3: 获取所有车队的 hasYard 信息
-      const truckingYardMap = new Map<string, boolean>();
-      for (const candidate of candidates) {
-        const trucking = await this.truckingCompanyRepo.findOne({
-          where: { companyCode: candidate.truckingCompanyId },
-          select: ['companyCode', 'hasYard']
-        });
-        truckingYardMap.set(candidate.truckingCompanyId, trucking?.hasYard ?? false);
-      }
+      // Step 3: 批量获取所有车队的 hasYard 和 partnershipLevel 信息（优化 N+1 问题）
+      const truckingCompanies = await this.truckingCompanyRepo.find({
+        where: { companyCode: In(candidates.map(c => c.truckingCompanyId)) },
+        select: ['companyCode', 'hasYard', 'partnershipLevel']
+      });
+      const truckingYardMap = new Map(truckingCompanies.map(t => [t.companyCode, t?.hasYard ?? false]));
+      const truckingLevelMap = new Map(truckingCompanies.map(t => [t.companyCode, t?.partnershipLevel]));
 
       // Step 4: 计算卸柜模式兼容度
       // 评估逻辑：
@@ -400,7 +404,7 @@ export class TruckingSelectorService {
         return 50;
       };
 
-      // Step 5: 对每个车队评分
+      // Step 5: 对每个车队评分（使用已批量加载的数据，无需额外查询）
       for (const candidate of candidates) {
         const cost = costMap.get(candidate.truckingCompanyId) || 100;
         const hasYard = truckingYardMap.get(candidate.truckingCompanyId) ?? false;
@@ -411,10 +415,16 @@ export class TruckingSelectorService {
         // 能力评分（20% 权重）- 有剩余能力=100 分
         const capacityScore = candidate.hasCapacity ? 100 : 0;
 
-        // 关系评分（20% 权重）- 基于合作关系级别
-        const relationshipScore = await this.calculateRelationshipScore(
-          candidate.truckingCompanyId
-        );
+        // 关系评分（20% 权重）- 基于合作关系级别（使用已加载的 truckingLevelMap）
+        const partnershipLevel = truckingLevelMap.get(candidate.truckingCompanyId);
+        let relationshipScore: number;
+        switch (partnershipLevel) {
+          case 'STRATEGIC': relationshipScore = 100; break;
+          case 'CORE': relationshipScore = 80; break;
+          case 'NORMAL': relationshipScore = 60; break;
+          case 'TEMPORARY': relationshipScore = 40; break;
+          default: relationshipScore = 50;
+        }
 
         // 卸柜模式兼容度（30% 权重）
         const unloadModeScore = calculateUnloadModeScore(hasYard);

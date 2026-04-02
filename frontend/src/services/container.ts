@@ -198,6 +198,7 @@ class ContainerService {
     containerNumbers?: string[]
     etaBufferDays?: number // ✅ 新增：ETA 顺延天数
     portCode?: string // ✅ 新增：港口过滤
+    unloadMode?: 'Drop off' | 'Live load' // ✅ 新增：卸柜方式参数
 
     // ✅ 新增：手工指定仓库模式（可选）
     designatedWarehouseMode?: boolean

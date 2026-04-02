@@ -5,9 +5,11 @@
 
 import { Router } from 'express';
 import { SchedulingController } from '../controllers/scheduling.controller';
+import { SchedulingRuleController } from '../controllers/SchedulingRule.controller';
 
 const router = Router();
 const controller = new SchedulingController();
+const ruleController = new SchedulingRuleController();
 
 // 批量排产
 router.post('/batch-schedule', controller.batchSchedule);
@@ -80,5 +82,19 @@ router.post('/cost/recalculate', controller.recalculateCost); // 重新计算成
 router.post('/save', controller.saveSchedule); // 保存修改
 router.get('/optimizations', controller.getOptimizations); // 获取优化建议
 router.post('/optimization/apply', controller.applyOptimization); // 应用优化建议
+
+// ========== 规则引擎管理 ==========
+// 规则 CRUD
+router.post('/rules', ruleController.createRule);
+router.put('/rules/:ruleId', ruleController.updateRule);
+router.delete('/rules/:ruleId', ruleController.deleteRule);
+router.get('/rules', ruleController.queryRules);
+router.get('/rules/active', ruleController.getActiveRules);
+router.get('/rules/:ruleId', ruleController.getRuleById);
+router.get('/rules/:ruleId/history', ruleController.getRuleHistory);
+router.post('/rules/:ruleId/activate', ruleController.activateRule);
+router.post('/rules/:ruleId/deactivate', ruleController.deactivateRule);
+router.post('/rules/reload', ruleController.reloadRules);
+router.post('/rules/test-execute', ruleController.testExecuteRule);
 
 export default router;

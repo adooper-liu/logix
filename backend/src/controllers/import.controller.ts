@@ -1358,7 +1358,8 @@ export class ImportController {
           this.truckingRepository,
           this.emptyReturnRepository,
           this.orderRepository,
-          AppDataSource.getRepository(ExtDemurrageRecord)
+          AppDataSource.getRepository (Country), // 使用 Country repository
+          AppDataSource.getRepository (ExtDemurrageRecord)
         );
         const wb = await demurrageService.batchWriteBackComputedDates({
           limitLastFree: 30,

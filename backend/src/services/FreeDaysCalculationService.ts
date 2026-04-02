@@ -122,16 +122,13 @@ export class FreeDaysCalculationService {
    * // 返回：{ 'CNTR001': { pickupFreeDays: 5, returnFreeDays: 7 }, ... }
    */
   async batchCalculateFreeDays(
-    containerDataList: Array<{ containerNumber: string; portCode: string; country: string }>
+    containerDataList: Array<{ containerNumber: string; portCode?: string; country?: string }>
   ): Promise<Record<string, FreeDaysResult>> {
     const results: Record<string, FreeDaysResult> = {};
 
     for (const data of containerDataList) {
-      results[data.containerNumber] = await this.calculateFreeDays(
-        data.containerNumber,
-        data.portCode,
-        data.country
-      );
+      // 直接调用 calculateFreeDays，它会自动从 Container 实体中获取港口和国家信息
+      results[data.containerNumber] = await this.calculateFreeDays(data.containerNumber);
     }
 
     return results;

@@ -15,6 +15,7 @@ import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
 import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
+import { Country } from '../entities/Country';
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { AppDataSource } from '../database';
 import { logger } from '../utils/logger';
@@ -34,14 +35,15 @@ export class ExternalDataController {
   private warehouseOperationRepository = AppDataSource.getRepository(WarehouseOperation);
   private emptyReturnRepository = AppDataSource.getRepository(EmptyReturn);
   private demurrageService = new DemurrageService(
-    AppDataSource.getRepository(ExtDemurrageStandard),
-    AppDataSource.getRepository(Container),
-    AppDataSource.getRepository(PortOperation),
-    AppDataSource.getRepository(SeaFreight),
-    AppDataSource.getRepository(TruckingTransport),
-    AppDataSource.getRepository(EmptyReturn),
-    AppDataSource.getRepository(ReplenishmentOrder),
-    AppDataSource.getRepository(ExtDemurrageRecord)
+    AppDataSource.getRepository (ExtDemurrageStandard),
+    AppDataSource.getRepository (Container),
+    AppDataSource.getRepository (PortOperation),
+    AppDataSource.getRepository (SeaFreight),
+    AppDataSource.getRepository (TruckingTransport),
+    AppDataSource.getRepository (EmptyReturn),
+    AppDataSource.getRepository (ReplenishmentOrder),
+    AppDataSource.getRepository (Country), // 使用 Country repository
+    AppDataSource.getRepository (ExtDemurrageRecord)
   );
   /**
    * 同步单个货柜的状态事件

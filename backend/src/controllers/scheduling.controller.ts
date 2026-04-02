@@ -44,8 +44,21 @@ export class SchedulingController {
    */
   batchSchedule = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { country, startDate, endDate, forceSchedule, containerNumbers, limit, skip, dryRun } =
-        req.body;
+      const {
+        country,
+        startDate,
+        endDate,
+        forceSchedule,
+        containerNumbers,
+        limit,
+        skip,
+        dryRun,
+        etaBufferDays,
+        portCode,
+        unloadMode, // ✅ 新增：卸柜方式参数
+        designatedWarehouseMode,
+        designatedWarehouseCode
+      } = req.body;
 
       logger.info(`[Scheduling] Batch schedule request:`, {
         country,
@@ -55,7 +68,12 @@ export class SchedulingController {
         containerNumbers,
         limit,
         skip,
-        dryRun
+        dryRun,
+        etaBufferDays,
+        portCode,
+        unloadMode, // ✅ 新增：卸柜方式参数
+        designatedWarehouseMode,
+        designatedWarehouseCode
       });
 
       const result = await intelligentSchedulingService.batchSchedule({
@@ -66,7 +84,12 @@ export class SchedulingController {
         containerNumbers: Array.isArray(containerNumbers) ? containerNumbers : undefined,
         limit: typeof limit === 'number' ? limit : undefined,
         skip: typeof skip === 'number' ? skip : undefined,
-        dryRun: !!dryRun
+        dryRun: !!dryRun,
+        etaBufferDays: typeof etaBufferDays === 'number' ? etaBufferDays : undefined,
+        portCode: typeof portCode === 'string' ? portCode : undefined,
+        unloadMode: unloadMode as 'Drop off' | 'Live load' | undefined, // ✅ 新增：卸柜方式参数
+        designatedWarehouseMode: !!designatedWarehouseMode,
+        designatedWarehouseCode: typeof designatedWarehouseCode === 'string' ? designatedWarehouseCode : undefined
       });
 
       res.json(result);

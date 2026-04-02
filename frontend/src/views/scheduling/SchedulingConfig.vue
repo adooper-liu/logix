@@ -37,6 +37,11 @@
               <el-icon><Connection /></el-icon>
             </el-menu-item>
           </el-tooltip>
+          <el-tooltip content="规则引擎" placement="right">
+            <el-menu-item index="rules">
+              <el-icon><Setting /></el-icon>
+            </el-menu-item>
+          </el-tooltip>
           <el-tooltip content="产能日历" placement="right">
             <el-menu-item index="capacity">
               <el-icon><Calendar /></el-icon>
@@ -82,6 +87,12 @@
           <MappingManagement :country="currentCountry" />
         </div>
 
+        <!-- 规则引擎 -->
+        <div v-if="activeMenu === 'rules'" class="config-section">
+          <h3>规则引擎管理</h3>
+          <RuleManagement />
+        </div>
+
         <!-- 产能日历 -->
         <div v-if="activeMenu === 'capacity'" class="config-section">
           <h3>产能日历配置</h3>
@@ -104,7 +115,7 @@
 
 <script setup lang="ts">
 import { useAppStore } from '@/store/app'
-import { Box, Calendar, Connection, Cpu, House, OfficeBuilding, Van } from '@element-plus/icons-vue'
+import { Box, Calendar, Connection, Cpu, House, OfficeBuilding, Van, Setting } from '@element-plus/icons-vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CalendarCapacityView from './components/CalendarCapacityView.vue'
@@ -113,6 +124,7 @@ import SchedulingVisual from './SchedulingVisual.vue'
 // 导入子组件
 import MappingManagement from './components/MappingManagement.vue'
 import OverviewPanel from './components/OverviewPanel.vue'
+import RuleManagement from './components/RuleManagement.vue'
 import TruckingManagement from './components/TruckingManagement.vue'
 import WarehouseManagement from './components/WarehouseManagement.vue'
 import YardManagement from './components/YardManagement.vue'

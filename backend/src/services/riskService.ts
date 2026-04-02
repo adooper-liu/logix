@@ -8,6 +8,7 @@ import { InspectionRecord } from '../entities/InspectionRecord';
 import { ContainerRiskAssessment, RiskLevel } from '../entities/ContainerRiskAssessment';
 import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
 import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
+import { Country } from '../entities/Country';
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { AppDataSource } from '../database';
 import { logger } from '../utils/logger';
@@ -61,14 +62,15 @@ export class RiskService {
   private inspectionRepository = AppDataSource.getRepository(InspectionRecord);
   private riskRepository = AppDataSource.getRepository(ContainerRiskAssessment);
   private demurrageService = new DemurrageService(
-    AppDataSource.getRepository(ExtDemurrageStandard),
-    AppDataSource.getRepository(Container),
-    AppDataSource.getRepository(PortOperation),
-    AppDataSource.getRepository(SeaFreight),
-    AppDataSource.getRepository(TruckingTransport),
-    AppDataSource.getRepository(EmptyReturn),
-    AppDataSource.getRepository(ReplenishmentOrder),
-    AppDataSource.getRepository(ExtDemurrageRecord)
+    AppDataSource.getRepository (ExtDemurrageStandard),
+    AppDataSource.getRepository (Container),
+    AppDataSource.getRepository (PortOperation),
+    AppDataSource.getRepository (SeaFreight),
+    AppDataSource.getRepository (TruckingTransport),
+    AppDataSource.getRepository (EmptyReturn),
+    AppDataSource.getRepository (ReplenishmentOrder),
+    AppDataSource.getRepository (Country), // 使用 Country repository
+    AppDataSource.getRepository (ExtDemurrageRecord)
   );
 
   // 获取货柜风险评估

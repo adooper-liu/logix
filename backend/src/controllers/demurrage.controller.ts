@@ -7,6 +7,7 @@ import { Request, Response } from 'express';
 import { AppDataSource } from '../database';
 import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
 import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
+import { Country } from '../entities/Country';
 import { snakeToCamel } from '../utils/snakeToCamel';
 import { Container } from '../entities/Container';
 import { PortOperation } from '../entities/PortOperation';
@@ -18,14 +19,15 @@ import { DemurrageService } from '../services/demurrage.service';
 import { logger } from '../utils/logger';
 
 const demurrageService = new DemurrageService(
-  AppDataSource.getRepository(ExtDemurrageStandard),
-  AppDataSource.getRepository(Container),
-  AppDataSource.getRepository(PortOperation),
-  AppDataSource.getRepository(SeaFreight),
-  AppDataSource.getRepository(TruckingTransport),
-  AppDataSource.getRepository(EmptyReturn),
-  AppDataSource.getRepository(ReplenishmentOrder),
-  AppDataSource.getRepository(ExtDemurrageRecord)
+  AppDataSource.getRepository (ExtDemurrageStandard),
+  AppDataSource.getRepository (Container),
+  AppDataSource.getRepository (PortOperation),
+  AppDataSource.getRepository (SeaFreight),
+  AppDataSource.getRepository (TruckingTransport),
+  AppDataSource.getRepository (EmptyReturn),
+  AppDataSource.getRepository (ReplenishmentOrder),
+  AppDataSource.getRepository (Country), // 使用 Country repository
+  AppDataSource.getRepository (ExtDemurrageRecord)
 );
 
 export class DemurrageController {
