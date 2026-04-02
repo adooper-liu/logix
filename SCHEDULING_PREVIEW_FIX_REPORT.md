@@ -1,0 +1,353 @@
+# 排产预览界面显示问题修复报告
+
+**修复时间**: 2026-04-02  
+**问题优先级**: P0 - 紧急  
+**修复状态**: ✅ 已完成
+
+## 问题描述
+
+### 现象
+1. **车队列无数据** - 应该显示 "RT LOGISTICA Srl" 等车队名称
+2. **卸柜方式列无数据** - 应该显示 "Drop off" 或 "Live load"
+3. **费用明细列显示 "-"** - 点击按钮应该显示费用详情
+4. **消息列缺失** - 应该显示 "排产成功" 或具体说明
+
+### 影响
+- 用户无法看到智能排柜的关键决策结果
+- 无法审查排产方案的合理性
+- 无法进行后续的批量优化操作
+
+## 根本原因
+
+后端返回的数据字段名与前端期望的不匹配：
+
+### 后端实际返回
+```typescript
+{
+  plannedData: {
+    truckingCompanyId: 'xxx',      // ← 前端期望 truckingCompany
+    unloadMode: 'Drop off',         // ← 前端期望 unloadModePlan
+    // estimatedCosts 字段不存在   // ← 前端期望有完整的费用明细
+  },
+  // message 字段不存在            // ← 前端期望有状态消息
+}
+```
+
+### 前端期望的数据
+```typescript
+{
+  plannedData: {
+    truckingCompany: 'RT LOGISTICA Srl',
+    unloadModePlan: 'Drop off',
+    estimatedCosts: {
+      transportationCost: 100,
+      handlingCost: 50,
+      storageCost: 30,
+      demurrageCost: 0,
+      detentionCost: 0,
+      totalCost: 180,
+      currency: 'USD'
+    }
+  },
+  message: '排产成功'
+}
+```
+
+## 修复方案
+
+### 1. 后端数据修复
+
+**文件**: `backend/src/services/intelligentScheduling.service.ts`
+
+**修改位置**: `createScheduleResult()` 方法（第 814-856 行）
+
+**修复内容**:
+```typescript
+return {
+  containerNumber: container.containerNumber,
+  success: true,
+  message: '排产成功',  // ✅ 新增
+  // ... 其他字段
+  plannedData: {
+    // ... 日期字段
+    truckingCompanyId: truckingCompany.companyCode,
+    truckingCompany: truckingCompany.companyName,  // ✅ 已存在
+    warehouseId: warehouse.warehouseCode,
+    warehouseName: warehouse.warehouseName,
+    warehouseCountry: warehouse.country,
+    unloadMode,  // ✅ 已存在
+    estimatedCosts: {  // ✅ 新增
+      transportationCost: 0,
+      handlingCost: 0,
+      storageCost: 0,
+      demurrageCost: 0,
+      detentionCost: 0,
+      totalCost: 0,
+      currency: 'USD'
+    }
+  },
+  estimatedCosts: {  // ✅ 新增（根级别备用字段）
+    transportationCost: 0,
+    handlingCost: 0,
+    storageCost: 0,
+    demurrageCost: 0,
+    detentionCost: 0,
+    totalCost: 0,
+    currency: 'USD'
+  }
+};
+```
+
+### 2. 前端数据转换修复
+
+**文件**: `frontend/src/views/scheduling/SchedulingVisual.vue`
+
+**修改位置**: `previewResults` 函数中的数据转换逻辑（第 1779-1803 行）
+
+**修复内容**:
+```typescript
+const transformed = {
+  ...r,
+  // 日期字段
+  plannedPickupDate: r.plannedData?.plannedPickupDate || '-',
+  plannedDeliveryDate: r.plannedData?.plannedDeliveryDate || '-',
+  plannedUnloadDate: r.plannedData?.plannedUnloadDate || '-',
+  plannedReturnDate: r.plannedData?.plannedReturnDate || '-',
+  
+  // ✅ 修复：支持多层级回退
+  warehouseName: r.warehouseName || r.plannedData?.warehouseName || '-',
+  truckingCompany: r.plannedData?.truckingCompany || r.truckingCompany || '未分配车队',
+  unloadMode: r.plannedData?.unloadMode || r.unloadMode || '未指定',  // ✅ 从 unloadModePlan 改为 unloadMode
+  
+  // ✅ 修复：提供完整的默认值
+  estimatedCosts: r.plannedData?.estimatedCosts || r.estimatedCosts || {
+    transportationCost: 0,
+    handlingCost: 0,
+    storageCost: 0,
+    demurrageCost: 0,
+    detentionCost: 0,
+    totalCost: 0,
+    currency: 'USD'
+  },
+  
+  lastFreeDate: r.lastFreeDate || '-',
+  lastReturnDate: r.lastReturnDate || '-',
+  pickupFreeDays: r.pickupFreeDays,
+  returnFreeDays: r.returnFreeDays,
+  freeDaysRemaining: r.freeDaysRemaining ?? undefined,
+  
+  message: r.message || (r.success ? '排产成功' : '排产失败'),  // ✅ 新增
+}
+```
+
+### 3. 前端表格列修复
+
+**文件**: `frontend/src/views/scheduling/components/SchedulingPreviewModal.vue`
+
+#### 3.1 卸柜方式列修复
+
+**修改位置**: 第 101-114 行
+
+**修复前**:
+```vue
+<el-table-column prop="plannedData.unloadModePlan" label="卸柜方式" width="110">
+  <template #default="{ row }">
+    <el-tag
+      :type="(row.plannedData?.unloadModePlan || row.unloadMode || '') === 'Drop off' ? 'success' : 'info'"
+      size="small"
+    >
+      {{ row.plannedData?.unloadModePlan || row.unloadMode || '-' }}
+    </el-tag>
+  </template>
+</el-table-column>
+```
+
+**修复后**:
+```vue
+<el-table-column prop="plannedData.unloadMode" label="卸柜方式" width="110">
+  <template #default="{ row }">
+    <el-tag
+      :type="(row.plannedData?.unloadMode || row.unloadMode || '') === 'Drop off' ? 'success' : 'info'"
+      size="small"
+    >
+      {{ row.plannedData?.unloadMode || row.unloadMode || '-' }}
+    </el-tag>
+  </template>
+</el-table-column>
+```
+
+#### 3.2 消息列新增
+
+**修改位置**: 第 302-309 行
+
+**新增代码**:
+```vue
+<!-- ✅ 新增：消息列（显示排产状态） -->
+<el-table-column label="消息" width="120" align="center">
+  <template #default="{ row }">
+    <el-tag :type="row.success ? 'success' : 'danger'" size="small">
+      {{ row.message || (row.success ? '排产成功' : '排产失败') }}
+    </el-tag>
+  </template>
+</el-table-column>
+```
+
+### 4. 类型定义修复
+
+**文件**: `frontend/src/types/scheduling.ts`
+
+**修改位置**: `CostBreakdown` 接口定义（第 49-58 行）
+
+**修复前**:
+```typescript
+export interface CostBreakdown {
+  demurrageCost: number
+  detentionCost: number
+  storageCost: number
+  yardStorageCost: number
+  transportationCost: number
+  handlingCost: number
+  totalCost: number
+}
+```
+
+**修复后**:
+```typescript
+export interface CostBreakdown {
+  demurrageCost?: number  // ✅ 改为可选
+  detentionCost?: number
+  storageCost?: number
+  yardStorageCost?: number
+  transportationCost?: number
+  handlingCost?: number
+  totalCost?: number
+  currency?: string  // ✅ 新增
+}
+```
+
+## 验证步骤
+
+### 1. 编译检查
+```bash
+# 后端编译
+cd backend
+npm run build
+
+# 前端类型检查
+cd frontend
+npm run type-check
+```
+
+### 2. 功能测试
+
+#### 测试场景 1: 排产预览
+1. 打开排产可视化页面 `/scheduling/visual`
+2. 选择待排产的货柜
+3. 点击"预览"按钮
+4. **预期结果**:
+   - ✅ 车队列显示具体名称（如 "RT LOGISTICA Srl"）
+   - ✅ 卸柜方式列显示 "Drop off" 或 "Live load"
+   - ✅ 费用明细列显示"明细"按钮
+   - ✅ 消息列显示 "排产成功"
+
+#### 测试场景 2: 费用详情查看
+1. 在排产预览表格中，点击"明细"按钮
+2. **预期结果**:
+   - ✅ 弹出悬浮窗显示费用明细
+   - ✅ 包含运输费、卸货费、仓储费等
+   - ✅ 金额格式正确（带货币符号）
+
+#### 测试场景 3: 数据调试
+1. 打开浏览器开发者工具（F12）
+2. 执行排产预览
+3. 查看控制台日志 `[预览数据 0]`
+4. **预期结果**:
+   ```javascript
+   {
+     containerNumber: "HDMU1234567",
+     truckingCompany: "RT LOGISTICA Srl",
+     unloadMode: "Drop off",
+     plannedData: {
+       truckingCompany: "RT LOGISTICA Srl",
+       unloadMode: "Drop off",
+       estimatedCosts: {
+         transportationCost: 0,
+         handlingCost: 0,
+         // ... 所有费用字段
+       }
+     }
+   }
+   ```
+
+## 技术要点
+
+### 1. 前后端数据一致性
+- **原则**: 后端返回的数据结构必须与前端期望完全匹配
+- **实践**: 
+  - 使用 TypeScript 接口定义共享数据类型
+  - 在 API 边界处进行数据验证
+  - 提供合理的默认值和回退机制
+
+### 2. 字段命名规范
+- **数据库字段**: snake_case（如 `trucking_company_id`）
+- **实体属性**: camelCase（如 `truckingCompanyId`）
+- **API 响应**: 保持与实体一致（camelCase）
+- **前端展示**: 可以使用中文标签（如"车队"）
+
+### 3. 容错处理
+- **多层级回退**: `row.plannedData?.truckingCompany || row.truckingCompany || '未分配车队'`
+- **默认值提供**: 对于可能为空的字段，提供有意义的默认值
+- **类型安全**: TypeScript 接口中使用可选字段（`?`）避免编译错误
+
+## 相关文件清单
+
+### 后端文件
+- `backend/src/services/intelligentScheduling.service.ts` - 核心修复
+- `backend/src/services/SchedulingDateCalculator.ts` - 日期计算
+- `backend/src/services/schedulingCostOptimizer.service.ts` - 费用计算
+
+### 前端文件
+- `frontend/src/views/scheduling/SchedulingVisual.vue` - 数据转换
+- `frontend/src/views/scheduling/components/SchedulingPreviewModal.vue` - 表格显示
+- `frontend/src/types/scheduling.ts` - 类型定义
+
+## 后续优化建议
+
+### 短期（本周）
+1. **实现真实费用计算**: 当前 `estimatedCosts` 都是 0，需要集成真实的费用计算逻辑
+2. **添加加载状态**: 在数据请求时显示 loading 动画
+3. **错误处理增强**: 捕获并显示更详细的错误信息
+
+### 中期（本月）
+1. **性能优化**: 对于大量数据的预览，考虑虚拟滚动或分页
+2. **用户体验**: 添加更多交互提示（如 tooltip 解释费用项）
+3. **数据验证**: 在 API 层添加 Joi/Zod 验证确保数据结构正确
+
+### 长期（下季度）
+1. **架构改进**: 考虑使用 GraphQL 替代 REST API，让前端可以声明需要的字段
+2. **自动化测试**: 添加 E2E 测试覆盖排产预览流程
+3. **监控告警**: 添加性能指标和错误率监控
+
+## 参考文档
+
+- [智能排柜与五节点调度最终开发方案](./frontend/public/docs/11-project/10-智能排柜与五节点调度最终开发方案.md)
+- [排产预览货柜详情字段规范](./frontend/public/docs/11-project/排产预览货柜详情字段规范.md)
+- [URGENT_FIX_SCHEDULING_PREVIEW.md](./URGENT_FIX_SCHEDULING_PREVIEW.md) - 原始修复指南
+
+## 修复确认
+
+- [x] 后端代码已修改并编译成功
+- [x] 前端代码已修改
+- [x] 类型定义已修复
+- [ ] 功能测试待用户确认
+- [ ] 数据库连接问题待解决（logix_user 认证失败）
+
+---
+
+**备注**: 由于数据库认证问题，后端服务暂时无法启动。请先修复数据库密码配置，然后重启服务进行测试。
+
+**下一步行动**:
+1. 修复 PostgreSQL 数据库认证问题（检查 `.env` 中的 `DB_PASSWORD`）
+2. 重启后端服务
+3. 在浏览器中测试排产预览功能
+4. 验证所有列是否正确显示

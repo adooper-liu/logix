@@ -46,7 +46,7 @@
             <span class="unit-label">天</span>
           </div>
         </el-tooltip>
-        
+
         <!-- 卸柜方式选择 -->
         <el-tooltip content="手动指定卸柜方式，优先于系统自动决策" placement="bottom">
           <div class="advanced-setting">
@@ -63,7 +63,7 @@
             </el-select>
           </div>
         </el-tooltip>
-        
+
         <el-button
           type="info"
           size="small"
@@ -186,7 +186,7 @@
               <span class="log-time">{{ log.time }}</span>
               <span class="log-message">{{ log.message }}</span>
             </div>
-            <div v-if="logs.length === 0" class="log-empty">点击"预览排产"执行排产流程</div>
+            <div v-if="logs.length === 0" class="log-empty">点击"智能排产"执行排产流程</div>
           </div>
         </el-card>
       </el-col>
@@ -424,6 +424,33 @@
                   width="120"
                   show-overflow-tooltip
                 />
+                <!-- ✅ 新增：车队和卸柜方式列 -->
+                <el-table-column
+                  prop="truckingCompany"
+                  label="车队"
+                  min-width="150"
+                  show-overflow-tooltip
+                >
+                  <template #default="{ row }">
+                    <span>{{
+                      row.truckingCompany || row.plannedData?.truckingCompany || '-'
+                    }}</span>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="unloadMode" label="卸柜方式" width="110">
+                  <template #default="{ row }">
+                    <el-tag
+                      :type="
+                        (row.unloadMode || row.plannedData?.unloadMode || '') === 'Drop off'
+                          ? 'success'
+                          : 'info'
+                      "
+                      size="small"
+                    >
+                      {{ row.unloadMode || row.plannedData?.unloadMode || '-' }}
+                    </el-tag>
+                  </template>
+                </el-table-column>
                 <el-table-column prop="etaDestPort" label="ETA" width="100" />
                 <el-table-column prop="ataDestPort" label="ATA" width="100" />
                 <!-- ✅ 优化：免费期信息 - 显示最晚提柜日、最晚还箱日两列 -->
@@ -586,7 +613,7 @@
                 <el-table-column label="费用明细" min-width="210">
                   <template #default="{ row }">
                     <el-tree
-                      v-if="row.estimatedCosts && row.estimatedCosts.totalCost"
+                      v-if="row.estimatedCosts"
                       :data="
                         buildCostTree(row.estimatedCosts, row.plannedData?.warehouseCountry || 'US')
                       "
@@ -1039,73 +1066,66 @@ const costTreeProps = {
   value: 'value',
 }
 
-// ✅ 构建费用树形结构
+// ✅ 构建费用树形结构（显示所有费用项，包括 0 值）
 const buildCostTree = (costs: any, _country: string) => {
   const tree: any[] = []
 
-  // 添加子节点（分项费用）
+  // 添加子节点（分项费用）- 所有费用项都显示，包括 0 值
   const children: any[] = []
 
-  if (costs.demurrageCost) {
-    children.push({
-      label: '滞港费',
-      value: costs.demurrageCost,
-      level: 1,
-    })
-  }
+  // 滞港费
+  children.push({
+    label: '滞港费',
+    value: costs.demurrageCost ?? 0,
+    level: 1,
+  })
 
-  if (costs.detentionCost) {
-    children.push({
-      label: '滞箱费',
-      value: costs.detentionCost,
-      level: 1,
-    })
-  }
+  // 滞箱费
+  children.push({
+    label: '滞箱费',
+    value: costs.detentionCost ?? 0,
+    level: 1,
+  })
 
-  if (costs.ddCombinedCost) {
-    children.push({
-      label: 'D&D 合并费',
-      value: costs.ddCombinedCost,
-      level: 1,
-    })
-  }
+  // D&D 合并费
+  children.push({
+    label: 'D&D 合并费',
+    value: costs.ddCombinedCost ?? 0,
+    level: 1,
+  })
 
-  if (costs.storageCost) {
-    children.push({
-      label: '港口存储费',
-      value: costs.storageCost,
-      level: 1,
-    })
-  }
+  // 港口存储费
+  children.push({
+    label: '港口存储费',
+    value: costs.storageCost ?? 0,
+    level: 1,
+  })
 
-  if (costs.transportationCost) {
-    children.push({
-      label: '运输费',
-      value: costs.transportationCost,
-      level: 1,
-    })
-  }
+  // 运输费
+  children.push({
+    label: '运输费',
+    value: costs.transportationCost ?? 0,
+    level: 1,
+  })
 
-  if (costs.yardStorageCost) {
-    children.push({
-      label: '堆场堆存费',
-      value: costs.yardStorageCost,
-      level: 1,
-    })
-  }
+  // 堆场堆存费
+  children.push({
+    label: '堆场堆存费',
+    value: costs.yardStorageCost ?? 0,
+    level: 1,
+  })
 
-  if (costs.handlingCost) {
-    children.push({
-      label: '操作费',
-      value: costs.handlingCost,
-      level: 1,
-    })
-  }
+  // 操作费
+  children.push({
+    label: '操作费',
+    value: costs.handlingCost ?? 0,
+    level: 1,
+  })
 
   // 添加根节点（总费用）
   tree.push({
     label: '总费用',
-    value: costs.totalCost,
+    value: costs.totalCost ?? 0,
     level: 0,
     children: children,
   })
@@ -1783,26 +1803,38 @@ const handlePreviewSchedule = async () => {
         plannedUnloadDate: r.plannedData?.plannedUnloadDate || '-',
         plannedReturnDate: r.plannedData?.plannedReturnDate || '-',
         warehouseName: r.warehouseName || r.plannedData?.warehouseName || '-',
-        truckingCompany: r.plannedData?.truckingCompany || '-',
-        unloadMode: r.plannedData?.unloadModePlan || '-',
-        estimatedCosts: r.plannedData?.estimatedCosts || r.estimatedCosts || undefined,
+        truckingCompany: r.plannedData?.truckingCompany || r.truckingCompany || '未分配车队',
+        unloadMode: r.plannedData?.unloadMode || r.unloadMode || '未指定',
+        estimatedCosts: r.plannedData?.estimatedCosts ||
+          r.estimatedCosts || {
+            transportationCost: 0,
+            handlingCost: 0,
+            storageCost: 0,
+            demurrageCost: 0,
+            detentionCost: 0,
+            totalCost: 0,
+            currency: 'USD',
+          },
         lastFreeDate: r.lastFreeDate || '-',
         lastReturnDate: r.lastReturnDate || '-',
         pickupFreeDays: r.pickupFreeDays,
         returnFreeDays: r.returnFreeDays,
         freeDaysRemaining: r.freeDaysRemaining ?? undefined,
+        message: r.message || (r.success ? '排产成功' : '排产失败'),
       }
-      
+
       // ✅ 调试：输出前 3 条数据的完整结构
       if (index < 3) {
         console.log(`[预览数据 ${index}]`, {
           containerNumber: r.containerNumber,
           truckingCompany: transformed.truckingCompany,
           unloadMode: transformed.unloadMode,
+          estimatedCosts: transformed.estimatedCosts,
+          message: transformed.message,
           plannedData: r.plannedData,
         })
       }
-      
+
       return transformed
     })
 

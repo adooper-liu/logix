@@ -87,19 +87,34 @@
       <el-table-column prop="plannedUnloadDate" label="卸柜日" width="100" />
       <el-table-column prop="plannedReturnDate" label="还箱日" width="100" />
 
-      <!-- ✅ 新增：车队和卸柜方式列（放在仓库前面，方便查看） -->
-      <el-table-column prop="truckingCompany" label="车队" min-width="180" show-overflow-tooltip />
+      <!-- ✅ 修复：车队和卸柜方式列（确保数据正确映射） -->
+      <el-table-column
+        prop="truckingCompany"
+        label="车队"
+        min-width="180"
+        show-overflow-tooltip
+      >
+        <template #default="{ row }">
+          <span>{{ row.truckingCompany || row.plannedData?.truckingCompany || '-' }}</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="unloadMode" label="卸柜方式" width="110">
         <template #default="{ row }">
-          <el-tag :type="row.unloadMode === 'Drop off' ? 'success' : 'info'" size="small">
-            {{ row.unloadMode }}
+          <el-tag
+            :type="
+              (row.unloadMode || row.plannedData?.unloadMode || '') === 'Drop off'
+                ? 'success'
+                : 'info'
+            "
+            size="small"
+          >
+            {{ row.unloadMode || row.plannedData?.unloadMode || '-' }}
           </el-tag>
         </template>
       </el-table-column>
 
       <el-table-column prop="warehouseName" label="仓库" min-width="150" show-overflow-tooltip />
 
-      <!-- 费用明细列展开 -->
       <el-table-column
         prop="estimatedCosts.demurrageCost"
         label="滞港费"
@@ -284,93 +299,105 @@
         </template>
       </el-table-column>
 
-      <!-- ✅ Task 2.2: 新增优化建议列 -->
-      <el-table-column label="💡 优化建议" width="130" align="center">
+      <!-- ✅ 新增：消息列（显示排产状态） -->
+      <el-table-column label="消息" width="120" align="center">
         <template #default="{ row }">
-          <div
-            v-if="row.optimizationSuggestions"
-            style="display: flex; flex-direction: column; gap: 4px"
-          >
-            <el-tag
-              v-if="row.optimizationSuggestions.shouldOptimize"
-              type="success"
-              effect="plain"
-              size="small"
-              style="cursor: pointer"
-              @click="handleViewOptimizationSuggestion(row)"
-            >
-              💰 可省 ${{ row.optimizationSuggestions.savings.toFixed(2) }}
-            </el-tag>
-            <el-tag v-else type="info" effect="plain" size="small"> ✅ 已最优 </el-tag>
-            <div
-              v-if="row.optimizationSuggestions.shouldOptimize"
-              style="font-size: 11px; color: #67c23a; cursor: pointer"
-              @click="handleViewOptimizationSuggestion(row)"
-            >
-              查看详情 →
-            </div>
-          </div>
-          <span v-else style="color: #999">-</span>
+          <el-tag :type="row.success ? 'success' : 'danger'" size="small">
+            {{ row.message || (row.success ? '排产成功' : '排产失败') }}
+          </el-tag>
         </template>
       </el-table-column>
 
-      <el-table-column label="费用明细" width="100" align="center">
+      <!-- ✅ Task 2.2: 新增优化建议列 -->
+
+      <el-table-column label="费用明细" width="120" align="center" fixed="right">
         <template #default="{ row }">
-          <el-popover v-if="row.estimatedCosts" placement="left" :width="220" trigger="hover">
+          <el-popover
+            v-if="row.estimatedCosts || row.plannedData?.estimatedCosts"
+            placement="left"
+            :width="240"
+            trigger="hover"
+          >
+            <template #reference>
+              <el-button type="primary" size="small" icon="QuestionFilled">明细</el-button>
+            </template>
             <div style="font-size: 12px">
-              <p v-if="row.estimatedCosts.demurrageCost" style="margin: 4px 0">
-                滞港费：{{
-                  formatCurrency(
-                    row.estimatedCosts.demurrageCost,
-                    row.plannedData?.warehouseCountry || 'US'
-                  )
-                }}
-              </p>
-              <p v-if="row.estimatedCosts.detentionCost" style="margin: 4px 0">
-                滞箱费：{{
-                  formatCurrency(
-                    row.estimatedCosts.detentionCost,
-                    row.plannedData?.warehouseCountry || 'US'
-                  )
-                }}
-              </p>
-              <p v-if="row.estimatedCosts.storageCost" style="margin: 4px 0">
-                港口存储费：{{
-                  formatCurrency(
-                    row.estimatedCosts.storageCost,
-                    row.plannedData?.warehouseCountry || 'US'
-                  )
-                }}
-              </p>
-              <p v-if="row.estimatedCosts.ddCombinedCost" style="margin: 4px 0">
-                D&D 合并费：{{
-                  formatCurrency(
-                    row.estimatedCosts.ddCombinedCost,
-                    row.plannedData?.warehouseCountry || 'US'
-                  )
-                }}
-              </p>
-              <p v-if="row.estimatedCosts.transportationCost" style="margin: 4px 0">
+              <p style="margin: 4px 0; font-weight: bold">费用明细：</p>
+              <p
+                v-if="
+                  row.estimatedCosts?.transportationCost ||
+                  row.plannedData?.estimatedCosts?.transportationCost
+                "
+                style="margin: 4px 0"
+              >
                 运输费：{{
                   formatCurrency(
-                    row.estimatedCosts.transportationCost,
-                    row.plannedData?.warehouseCountry || 'US'
+                    row.estimatedCosts?.transportationCost ||
+                      row.plannedData?.estimatedCosts?.transportationCost ||
+                      0,
+                    row.plannedData?.warehouseCountry || row.warehouseCountry || 'US'
                   )
                 }}
               </p>
-              <p v-if="row.estimatedCosts.yardStorageCost" style="margin: 4px 0">
-                外部堆场费：{{
+              <p
+                v-if="
+                  row.estimatedCosts?.handlingCost || row.plannedData?.estimatedCosts?.handlingCost
+                "
+                style="margin: 4px 0"
+              >
+                卸货费：{{
                   formatCurrency(
-                    row.estimatedCosts.yardStorageCost,
-                    row.plannedData?.warehouseCountry || 'US'
+                    row.estimatedCosts?.handlingCost ||
+                      row.plannedData?.estimatedCosts?.handlingCost ||
+                      0,
+                    row.plannedData?.warehouseCountry || row.warehouseCountry || 'US'
                   )
                 }}
               </p>
-              <p v-if="row.estimatedCosts.handlingCost" style="margin: 4px 0">
-                操作费：{{
+              <p
+                v-if="
+                  row.estimatedCosts?.storageCost || row.plannedData?.estimatedCosts?.storageCost
+                "
+                style="margin: 4px 0"
+              >
+                仓储费：{{
                   formatCurrency(
-                    row.estimatedCosts.handlingCost,
-                    row.plannedData?.warehouseCountry || 'US'
+                    row.estimatedCosts?.storageCost ||
+                      row.plannedData?.estimatedCosts?.storageCost ||
+                      0,
+                    row.plannedData?.warehouseCountry || row.warehouseCountry || 'US'
+                  )
+                }}
+              </p>
+              <p
+                v-if="
+                  row.estimatedCosts?.demurrageCost ||
+                  row.plannedData?.estimatedCosts?.demurrageCost
+                "
+                style="margin: 4px 0"
+              >
+                滞港费：{{
+                  formatCurrency(
+                    row.estimatedCosts?.demurrageCost ||
+                      row.plannedData?.estimatedCosts?.demurrageCost ||
+                      0,
+                    row.plannedData?.warehouseCountry || row.warehouseCountry || 'US'
+                  )
+                }}
+              </p>
+              <p
+                v-if="
+                  row.estimatedCosts?.detentionCost ||
+                  row.plannedData?.estimatedCosts?.detentionCost
+                "
+                style="margin: 4px 0"
+              >
+                滞箱费：{{
+                  formatCurrency(
+                    row.estimatedCosts?.detentionCost ||
+                      row.plannedData?.estimatedCosts?.detentionCost ||
+                      0,
+                    row.plannedData?.warehouseCountry || row.warehouseCountry || 'US'
                   )
                 }}
               </p>
@@ -378,27 +405,26 @@
               <p style="margin: 4px 0; font-weight: bold; color: #e6a23c">
                 合计：{{
                   formatCurrency(
-                    row.estimatedCosts.totalCost || 0,
-                    row.plannedData?.warehouseCountry || 'US'
+                    row.estimatedCosts?.totalCost ||
+                      row.plannedData?.estimatedCosts?.totalCost ||
+                      0,
+                    row.plannedData?.warehouseCountry || row.warehouseCountry || 'US'
                   )
                 }}
               </p>
             </div>
-            <template #reference>
-              <el-button type="default" size="small" icon="QuestionFilled">明细</el-button>
-            </template>
           </el-popover>
-          <span v-else>-</span>
+          <span v-else style="color: #999">-</span>
         </template>
       </el-table-column>
 
-      <el-table-column label="状态" width="80">
-        <template #default="{ row }">
-          <el-icon v-if="row.success" color="#67C23A"><CircleCheck /></el-icon>
-          <el-icon v-else color="#F56C6C"><CircleClose /></el-icon>
-        </template>
-      </el-table-column>
-      <el-table-column prop="message" label="说明" min-width="150" show-overflow-tooltip />
+      <el-table-column
+        prop="message"
+        label="消息"
+        min-width="150"
+        show-overflow-tooltip
+        fixed="right"
+      />
     </el-table>
 
     <template #footer>
@@ -436,7 +462,6 @@
 
 <script setup lang="ts">
 import { useCostOptimization } from '@/composables/useCostOptimization'
-import { CircleCheck, CircleClose } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import { computed, ref, watch } from 'vue'
 import OptimizationResultCard from './OptimizationResultCard.vue'

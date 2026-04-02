@@ -122,14 +122,18 @@ export interface ScheduleResult {
     warehouseCountry?: string; // ✅ 仓库国家代码，用于前端货币格式化
     unloadMode?: 'Drop off' | 'Live load';
     customsBrokerCode?: string;
+    /** 与 DemurrageService.calculateTotalCost 一致的费用分项 */
+    estimatedCosts?: ScheduleResult['estimatedCosts'];
   };
-  // 预估费用（dryRun 模式下计算）
+  // 预估费用（dryRun 模式下计算；与 DemurrageService.calculateTotalCost / calculateEstimatedCosts 对齐）
   estimatedCosts?: {
     demurrageCost?: number;
     detentionCost?: number;
     storageCost?: number;
+    ddCombinedCost?: number;
     transportationCost?: number;
     yardStorageCost?: number; // 外部堆场堆存费（Drop off 模式专属）
+    handlingCost?: number;
     totalCost?: number;
     currency?: string;
   };
@@ -226,7 +230,12 @@ export class IntelligentSchedulingService {
         for (let i = 0; i < numbers.length; i += CONCURRENCY) {
           const batch = numbers.slice(i, i + CONCURRENCY);
           const settled = await Promise.allSettled(
-            batch.map((cn) => this.demurrageService.calculateForContainer(cn))
+            batch.map((cn) =>
+              this.demurrageService.calculateForContainer(cn, {
+                // 预览不写库；正式排产仍按 batch 规则写回计算免费日
+                freeDateWriteMode: request.dryRun ? 'none' : 'batch'
+              })
+            )
           );
           for (let j = 0; j < batch.length; j++) {
             const s = settled[j];
@@ -385,60 +394,62 @@ export class IntelligentSchedulingService {
         }
       }
 
-      // ✅ Task 2.1: 对成功的排产结果附加成本优化建议
-      const successfulResults = results.filter((r) => r.success && r.plannedData);
-      for (const result of successfulResults) {
-        try {
-          const plannedData = result.plannedData!;
-          const warehouseCode = plannedData.warehouseId; // ✅ warehouseId 就是 warehouseCode
-          const truckingCompanyId = plannedData.truckingCompanyId;
+      // ✅ Task 2.1: 正式排产附加优化建议。预览已在方案中计算真实费用，跳过以免重复调用 calculateTotalCost
+      let totalOptimizationSavings = 0;
+      if (!request.dryRun) {
+        const successfulResults = results.filter((r) => r.success && r.plannedData);
+        for (const result of successfulResults) {
+          try {
+            const plannedData = result.plannedData!;
+            const warehouseCode = plannedData.warehouseId; // ✅ warehouseId 就是 warehouseCode
+            const truckingCompanyId = plannedData.truckingCompanyId;
 
-          if (!warehouseCode || !truckingCompanyId || !plannedData.plannedPickupDate) {
-            continue; // 缺少必要参数，跳过优化
+            if (!warehouseCode || !truckingCompanyId || !plannedData.plannedPickupDate) {
+              continue; // 缺少必要参数，跳过优化
+            }
+
+            // 获取仓库和车队信息
+            const warehouse = await this.warehouseRepo.findOne({ where: { warehouseCode } });
+            const truckingCompany = await this.truckingCompanyRepo.findOne({
+              where: { companyCode: truckingCompanyId }
+            });
+
+            if (!warehouse || !truckingCompany) {
+              continue; // 找不到实体，跳过优化
+            }
+
+            // 调用成本优化服务
+            const optimization = await this.costOptimizerService.suggestOptimalUnloadDate(
+              result.containerNumber,
+              warehouse,
+              truckingCompany,
+              new Date(plannedData.plannedPickupDate)
+            );
+
+            // 附加优化建议
+            (result as any).optimizationSuggestions = {
+              originalCost: optimization.originalCost,
+              optimizedCost: optimization.optimizedCost,
+              savings: optimization.savings,
+              suggestedPickupDate: optimization.suggestedPickupDate.toISOString().split('T')[0],
+              suggestedStrategy: optimization.suggestedStrategy,
+              shouldOptimize: optimization.savings > 0
+            };
+          } catch (error: any) {
+            logger.warn(
+              `[IntelligentScheduling] Cost optimization suggestion failed for ${result.containerNumber}:`,
+              error.message
+            );
+            // 优化失败不影响排产结果，继续处理下一个
           }
-
-          // 获取仓库和车队信息
-          const warehouse = await this.warehouseRepo.findOne({ where: { warehouseCode } });
-          const truckingCompany = await this.truckingCompanyRepo.findOne({
-            where: { companyCode: truckingCompanyId }
-          });
-
-          if (!warehouse || !truckingCompany) {
-            continue; // 找不到实体，跳过优化
-          }
-
-          // 调用成本优化服务
-          const optimization = await this.costOptimizerService.suggestOptimalUnloadDate(
-            result.containerNumber,
-            warehouse,
-            truckingCompany,
-            new Date(plannedData.plannedPickupDate)
-          );
-
-          // 附加优化建议
-          (result as any).optimizationSuggestions = {
-            originalCost: optimization.originalCost,
-            optimizedCost: optimization.optimizedCost,
-            savings: optimization.savings,
-            suggestedPickupDate: optimization.suggestedPickupDate.toISOString().split('T')[0],
-            suggestedStrategy: optimization.suggestedStrategy,
-            shouldOptimize: optimization.savings > 0
-          };
-        } catch (error: any) {
-          logger.warn(
-            `[IntelligentScheduling] Cost optimization suggestion failed for ${result.containerNumber}:`,
-            error.message
-          );
-          // 优化失败不影响排产结果，继续处理下一个
         }
+
+        totalOptimizationSavings = successfulResults.reduce((sum, r: any) => {
+          return sum + (r.optimizationSuggestions?.savings || 0);
+        }, 0);
       }
 
       const successCount = results.filter((r) => r.success).length;
-
-      // ✅ 计算总优化节省金额
-      const totalOptimizationSavings = successfulResults.reduce((sum, r: any) => {
-        return sum + (r.optimizationSuggestions?.savings || 0);
-      }, 0);
 
       return {
         success: true,
@@ -760,19 +771,19 @@ export class IntelligentSchedulingService {
         unloadMode = truckingCompany.hasYard ? 'Drop off' : 'Live load';
       }
 
-      // 8. ✅ 快速路径：dryRun 模式直接返回估算成本，不调用成本优化算法
+      // 8. dryRun：返回方案 + 真实费用（复用 DemurrageService.calculateTotalCost，见 calculateEstimatedCosts）
       if (request.dryRun) {
-        const result = this.buildScheduleResult(
+        return await this.buildScheduleResultWithRealCosts(
           container,
-          warehouse,
-          truckingCompany,
+          warehouse as Warehouse,
+          truckingCompany as TruckingCompany,
           plannedCustomsDate,
           plannedPickupDate,
           plannedUnloadDate,
           unloadMode,
-          containerInfo
+          containerInfo,
+          emptyReturn
         );
-        return result;
       }
 
       // 9. 非 dryRun 模式，保存到数据库
@@ -800,57 +811,100 @@ export class IntelligentSchedulingService {
   }
 
   /**
-   * 构建排产结果
+   * 构建预览排产结果（dryRun）：计划日期 + 与详情页一致的滞港/滞箱/堆存/D&D/运输等费用
+   * 统一复用 calculateEstimatedCosts → DemurrageService.calculateTotalCost（plannedDates 覆盖）
    */
-  private buildScheduleResult(
+  private async buildScheduleResultWithRealCosts(
     container: Container,
-    warehouse: any,
-    truckingCompany: any,
+    warehouse: Warehouse,
+    truckingCompany: TruckingCompany,
     plannedCustomsDate: Date,
     plannedPickupDate: Date,
     plannedUnloadDate: Date,
     unloadMode: 'Drop off' | 'Live load',
-    containerInfo: any
-  ): ScheduleResult {
-    const plannedReturnDate = this.calculatePlannedReturnDate(plannedUnloadDate, container);
+    containerInfo: Record<string, unknown>,
+    emptyReturn: EmptyReturn | null
+  ): Promise<ScheduleResult> {
+    const destPo = container.portOperations?.find((po: any) => po.portType === 'destination');
+
+    const plannedDeliveryDate = this.dateCalculator.calculatePlannedDeliveryDate(
+      plannedPickupDate,
+      unloadMode,
+      plannedUnloadDate
+    );
+
+    let lastReturnDateHint: Date | undefined;
+    if (emptyReturn?.lastReturnDate) {
+      lastReturnDateHint = new Date(emptyReturn.lastReturnDate);
+    } else if (destPo?.lastFreeDate) {
+      lastReturnDateHint = new Date(destPo.lastFreeDate);
+      lastReturnDateHint.setDate(lastReturnDateHint.getDate() + 7);
+    }
+
+    const returnDateResult = await this.dateCalculator.calculatePlannedReturnDate(
+      plannedUnloadDate,
+      unloadMode,
+      truckingCompany.companyCode,
+      lastReturnDateHint,
+      plannedPickupDate
+    );
+
+    let effectiveUnloadDate = plannedUnloadDate;
+    if (returnDateResult.adjustedUnloadDate) {
+      effectiveUnloadDate = returnDateResult.adjustedUnloadDate;
+    }
+
+    const plannedReturnDate = returnDateResult.returnDate;
+
+    const costBreakdown = await this.calculateEstimatedCosts(
+      container.containerNumber,
+      plannedPickupDate,
+      effectiveUnloadDate,
+      plannedReturnDate,
+      unloadMode,
+      warehouse,
+      truckingCompany
+    );
+
+    const estimatedCosts: NonNullable<ScheduleResult['estimatedCosts']> = {
+      demurrageCost: costBreakdown.demurrageCost ?? 0,
+      detentionCost: costBreakdown.detentionCost ?? 0,
+      storageCost: costBreakdown.storageCost ?? 0,
+      ddCombinedCost: costBreakdown.ddCombinedCost ?? 0,
+      transportationCost: costBreakdown.transportationCost ?? 0,
+      yardStorageCost: costBreakdown.yardStorageCost ?? 0,
+      handlingCost: costBreakdown.handlingCost ?? 0,
+      totalCost: costBreakdown.totalCost ?? 0,
+      currency: costBreakdown.currency ?? 'USD'
+    };
+
+    const lfdStr = destPo?.lastFreeDate
+      ? new Date(destPo.lastFreeDate).toISOString().split('T')[0]
+      : undefined;
 
     return {
       containerNumber: container.containerNumber,
       success: true,
+      message: '排产成功',
       ...containerInfo,
-      lastFreeDate: (container.portOperations?.find((po: any) => po.portType === 'destination') as any)?.lastFreeDate,
-      lastReturnDate: plannedReturnDate?.toISOString().split('T')[0],
+      lastFreeDate: lfdStr,
+      lastReturnDate: plannedReturnDate.toISOString().split('T')[0],
       plannedData: {
         plannedCustomsDate: plannedCustomsDate.toISOString().split('T')[0],
         plannedPickupDate: plannedPickupDate.toISOString().split('T')[0],
-        plannedDeliveryDate: plannedPickupDate.toISOString().split('T')[0],
-        plannedUnloadDate: plannedUnloadDate.toISOString().split('T')[0],
-        plannedReturnDate: plannedReturnDate?.toISOString().split('T')[0],
+        plannedDeliveryDate: plannedDeliveryDate.toISOString().split('T')[0],
+        plannedUnloadDate: effectiveUnloadDate.toISOString().split('T')[0],
+        plannedReturnDate: plannedReturnDate.toISOString().split('T')[0],
         truckingCompanyId: truckingCompany.companyCode,
         truckingCompany: truckingCompany.companyName,
         warehouseId: warehouse.warehouseCode,
         warehouseName: warehouse.warehouseName,
         warehouseCountry: warehouse.country,
-        unloadMode
-      }
+        unloadMode,
+        estimatedCosts: { ...estimatedCosts }
+      },
+      estimatedCosts: { ...estimatedCosts }
     };
-  }
-
-  /**
-   * 计算计划还箱日
-   */
-  private calculatePlannedReturnDate(plannedUnloadDate: Date, container: Container): Date {
-    const destPo = container.portOperations?.find((po: any) => po.portType === 'destination');
-    // 使用 last_free_date + 7 天作为还箱日
-    const lastFreeDate = destPo?.lastFreeDate;
-    if (lastFreeDate) {
-      const lfd = new Date(lastFreeDate);
-      lfd.setDate(lfd.getDate() + 7); // 默认加 7 天
-      return lfd;
-    }
-    const returnDate = new Date(plannedUnloadDate);
-    returnDate.setDate(returnDate.getDate() + 14); // 默认卸柜后 14 天还箱
-    return returnDate;
   }
 
   /**
@@ -2666,6 +2720,33 @@ export class IntelligentSchedulingService {
       const pickupFreeDays = (destPo as any).pickupFreeDays ?? undefined; // 提柜免费天数
       const returnFreeDays = (destPo as any).returnFreeDays ?? undefined; // 还箱免费天数
 
+      const effectiveUnloadDate = returnDateResult.adjustedUnloadDate ?? plannedUnloadDate;
+
+      // 预览：与智能排产主路径一致，复用 calculateEstimatedCosts → DemurrageService.calculateTotalCost
+      let plannedEstimated: ScheduleResult['estimatedCosts'] | undefined;
+      if (_request.dryRun) {
+        const cb = await this.calculateEstimatedCosts(
+          container.containerNumber,
+          plannedPickupDate,
+          effectiveUnloadDate,
+          returnDateResult.returnDate,
+          unloadMode,
+          warehouse,
+          truckingCompany
+        );
+        plannedEstimated = {
+          demurrageCost: cb.demurrageCost ?? 0,
+          detentionCost: cb.detentionCost ?? 0,
+          storageCost: cb.storageCost ?? 0,
+          ddCombinedCost: cb.ddCombinedCost ?? 0,
+          transportationCost: cb.transportationCost ?? 0,
+          yardStorageCost: cb.yardStorageCost ?? 0,
+          handlingCost: cb.handlingCost ?? 0,
+          totalCost: cb.totalCost ?? 0,
+          currency: cb.currency ?? 'USD'
+        };
+      }
+
       // 9. 构建结果
       return {
         containerNumber: container.containerNumber,
@@ -2685,21 +2766,23 @@ export class IntelligentSchedulingService {
         lastFreeDate: destPo.lastFreeDate
           ? new Date(destPo.lastFreeDate).toISOString().split('T')[0]
           : undefined,
-        lastReturnDate: lastReturnDate ? lastReturnDate.toISOString().split('T')[0] : undefined,
+        lastReturnDate: returnDateResult.returnDate.toISOString().split('T')[0],
         pickupFreeDays, // ✅ 提柜免费天数
         returnFreeDays, // ✅ 还箱免费天数
+        ...(plannedEstimated ? { estimatedCosts: plannedEstimated } : {}),
         plannedData: {
           plannedCustomsDate: plannedCustomsDate.toISOString().split('T')[0],
           plannedPickupDate: plannedPickupDate.toISOString().split('T')[0],
           plannedDeliveryDate: plannedDeliveryDate.toISOString().split('T')[0],
-          plannedUnloadDate: plannedUnloadDate.toISOString().split('T')[0],
+          plannedUnloadDate: effectiveUnloadDate.toISOString().split('T')[0],
           plannedReturnDate: returnDateResult.returnDate.toISOString().split('T')[0],
           truckingCompanyId: truckingCompany.companyCode,
           truckingCompany: truckingCompany.companyName,
           warehouseId: warehouse.warehouseCode,
           warehouseName: warehouse.warehouseName,
           warehouseCountry: warehouse.country,
-          unloadMode
+          unloadMode,
+          ...(plannedEstimated ? { estimatedCosts: plannedEstimated } : {})
         }
       };
     } catch (error) {
