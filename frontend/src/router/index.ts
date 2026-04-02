@@ -22,6 +22,7 @@ const Login = () => import('@/views/Login.vue')
 const AIChat = () => import('@/views/ai/Chat.vue')
 const KnowledgeBase = () => import('@/views/ai/KnowledgeBase.vue')
 const FlowManagement = () => import('@/views/ai/FlowManagement.vue')
+const SchedulingHistory = () => import('@/views/scheduling/HistoryQuery.vue')
 
 const routes: RouteRecordRaw[] = [
   {
@@ -96,7 +97,17 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
-        path: 'scheduling',
+        path: 'scheduling/visual',
+        name: 'SchedulingVisual',
+        component: () => import('@/views/scheduling/SchedulingVisual.vue'),
+        meta: {
+          title: '智能排产',
+          icon: 'Cpu',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'scheduling/config',
         name: 'SchedulingConfig',
         component: () => import('@/views/scheduling/SchedulingConfig.vue'),
         meta: {
@@ -106,14 +117,18 @@ const routes: RouteRecordRaw[] = [
         },
       },
       {
-        path: 'scheduling/visual',
-        name: 'SchedulingVisual',
-        component: () => import('@/views/scheduling/SchedulingVisual.vue'),
+        path: 'scheduling/history',
+        name: 'SchedulingHistory',
+        component: SchedulingHistory,
         meta: {
-          title: '智能排产',
-          icon: 'Cpu',
+          title: '排产历史',
+          icon: 'Clock',
           requiresAuth: true,
         },
+      },
+      {
+        path: 'scheduling',
+        redirect: '/scheduling/visual',
       },
       {
         path: 'import',

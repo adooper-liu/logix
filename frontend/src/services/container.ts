@@ -515,6 +515,16 @@ class ContainerService {
   }
 
   /**
+   * 获取国别字典列表（带本地缓存；防止 /countries 接口偶发超时导致全局下拉为空）
+   */
+  getCountriesWithCache = cacheManager.createCachedFunction(
+    'countries',
+    this.getCountries.bind(this),
+    () => 'all',
+    24 * 60 * 60 * 1000 // 24 小时
+  )
+
+  /**
    * 根据统计条件获取货柜列表（与统计查询使用相同逻辑）
    * Get containers by filter condition (same logic as statistics queries)
    */

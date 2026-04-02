@@ -1,151 +1,203 @@
 <template>
   <div class="scheduling-history-page">
-    <a-card title="📋 排产历史记录查询">
+    <el-card shadow="never" header="📋 排产历史记录查询">
       <!-- 搜索区域 -->
       <div class="search-area">
-        <a-form layout="inline">
-          <a-form-item label="货柜号">
-            <a-input
-              v-model:value="searchForm.containerNumber"
+        <el-form :inline="true">
+          <el-form-item label="货柜号">
+            <el-input
+              v-model="searchForm.containerNumber"
               placeholder="请输入货柜号"
               style="width: 200px"
-              allow-clear
+              clearable
             />
-          </a-form-item>
+          </el-form-item>
 
-          <a-form-item label="时间范围">
-            <a-range-picker v-model:value="searchForm.dateRange" />
-          </a-form-item>
+          <el-form-item label="时间范围">
+            <el-date-picker
+              v-model="searchForm.dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              value-format="YYYY-MM-DD"
+            />
+          </el-form-item>
 
-          <a-form-item>
-            <a-button type="primary" @click="handleSearch" :loading="loading"> 🔍 查询 </a-button>
-            <a-button style="margin-left: 8px" @click="handleReset"> 🔄 重置 </a-button>
-          </a-form-item>
-        </a-form>
+          <el-form-item>
+            <el-button type="primary" @click="handleSearch" :loading="loading">
+              <el-icon><Search /></el-icon>
+              查询
+            </el-button>
+            <el-button @click="handleReset">
+              <el-icon><Refresh /></el-icon>
+              重置
+            </el-button>
+          </el-form-item>
+        </el-form>
       </div>
 
       <!-- 结果表格 -->
-      <a-table
-        :loading="loading"
-        :data-source="histories"
-        :columns="columns"
-        :pagination="pagination"
-        @change="handleTableChange"
-        row-key="id"
+      <el-table
+        v-loading="loading"
+        :data="histories"
+        style="width: 100%"
+        @sort-change="handleSortChange"
       >
-        <!-- 版本号列 -->
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.key === 'version'">
-            <a-tag :color="record.schedulingStatus === 'CONFIRMED' ? 'success' : 'default'">
-              v{{ record.schedulingVersion }}
-            </a-tag>
+        <el-table-column prop="containerNumber" label="货柜号" width="120" />
+        
+        <el-table-column label="版本" width="80" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.schedulingStatus === 'CONFIRMED' ? 'success' : 'info'">
+              v{{ row.schedulingVersion }}
+            </el-tag>
           </template>
-
-          <template v-else-if="column.key === 'strategy'">
-            <a-tag color="blue">{{ translateStrategy(record.strategy) }}</a-tag>
+        </el-table-column>
+        
+        <el-table-column label="策略" width="100">
+          <template #default="{ row }">
+            <el-tag type="primary">{{ translateStrategy(row.strategy) }}</el-tag>
           </template>
-
-          <template v-else-if="column.key === 'status'">
-            <a-badge
-              :status="getStatusBadgeType(record.schedulingStatus)"
-              :text="translateStatus(record.schedulingStatus)"
-            />
-          </template>
-
-          <template v-else-if="column.key === 'cost'">
-            <span v-if="record.totalCost" class="cost-highlight">
-              ${{ record.totalCost.toFixed(2) }}
+        </el-table-column>
+        
+        <el-table-column label="总费用" width="100" align="right">
+          <template #default="{ row }">
+            <span v-if="row.totalCost" class="cost-highlight">
+              ${{ row.totalCost.toFixed(2) }}
             </span>
             <span v-else>-</span>
           </template>
-
-          <template v-else-if="column.key === 'action'">
-            <a-button type="link" size="small" @click="viewDetail(record)"> 查看详情 </a-button>
+        </el-table-column>
+        
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="getStatusTagType(row.schedulingStatus)">
+              {{ translateStatus(row.schedulingStatus) }}
+            </el-tag>
           </template>
-        </template>
-      </a-table>
-    </a-card>
+        </el-table-column>
+        
+        <el-table-column prop="operatedBy" label="操作人" width="100" />
+        
+        <el-table-column 
+          prop="operatedAt" 
+          label="操作时间" 
+          width="160"
+          sortable="custom"
+        >
+          <template #default="{ row }">
+            {{ formatDateTime(row.operatedAt) }}
+          </template>
+        </el-table-column>
+        
+        <el-table-column label="操作" width="100" fixed="right">
+          <template #default="{ row }">
+            <el-button type="primary" link size="small" @click="viewDetail(row)">
+              查看详情
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- 分页 -->
+      <div class="pagination-container">
+        <el-pagination
+          v-model:current-page="pagination.current"
+          v-model:page-size="pagination.pageSize"
+          :total="pagination.total"
+          :page-sizes="[10, 20, 50, 100]"
+          layout="total, sizes, prev, pager, next, jumper"
+          @size-change="handleSizeChange"
+          @current-change="handleCurrentChange"
+        />
+      </div>
+    </el-card>
 
     <!-- 详情抽屉 -->
-    <a-drawer v-model:visible="detailVisible" title="排产记录详情" placement="right" :width="600">
-      <a-descriptions :column="1" bordered v-if="currentRecord">
-        <a-descriptions-item label="货柜号">
+    <el-drawer 
+      v-model="detailVisible" 
+      title="排产记录详情" 
+      direction="rtl" 
+      size="600px"
+    >
+      <el-descriptions :column="1" bordered v-if="currentRecord">
+        <el-descriptions-item label="货柜号">
           {{ currentRecord.containerNumber }}
-        </a-descriptions-item>
-        <a-descriptions-item label="版本号">
+        </el-descriptions-item>
+        <el-descriptions-item label="版本号">
           v{{ currentRecord.schedulingVersion }}
-        </a-descriptions-item>
-        <a-descriptions-item label="策略">
+        </el-descriptions-item>
+        <el-descriptions-item label="策略">
           {{ translateStrategy(currentRecord.strategy) }}
-        </a-descriptions-item>
-        <a-descriptions-item label="状态">
+        </el-descriptions-item>
+        <el-descriptions-item label="状态">
           {{ translateStatus(currentRecord.schedulingStatus) }}
-        </a-descriptions-item>
+        </el-descriptions-item>
 
         <!-- 日期信息 -->
-        <a-descriptions-item label="提柜日期" v-if="currentRecord.plannedPickupDate">
+        <el-descriptions-item label="提柜日期" v-if="currentRecord.plannedPickupDate">
           {{ formatDate(currentRecord.plannedPickupDate) }}
-        </a-descriptions-item>
-        <a-descriptions-item label="送仓日期" v-if="currentRecord.plannedDeliveryDate">
+        </el-descriptions-item>
+        <el-descriptions-item label="送仓日期" v-if="currentRecord.plannedDeliveryDate">
           {{ formatDate(currentRecord.plannedDeliveryDate) }}
-        </a-descriptions-item>
-        <a-descriptions-item label="卸柜日期" v-if="currentRecord.plannedUnloadDate">
+        </el-descriptions-item>
+        <el-descriptions-item label="卸柜日期" v-if="currentRecord.plannedUnloadDate">
           {{ formatDate(currentRecord.plannedUnloadDate) }}
-        </a-descriptions-item>
-        <a-descriptions-item label="还箱日期" v-if="currentRecord.plannedReturnDate">
+        </el-descriptions-item>
+        <el-descriptions-item label="还箱日期" v-if="currentRecord.plannedReturnDate">
           {{ formatDate(currentRecord.plannedReturnDate) }}
-        </a-descriptions-item>
+        </el-descriptions-item>
 
         <!-- 资源信息 -->
-        <a-descriptions-item
+        <el-descriptions-item
           label="仓库"
           v-if="currentRecord.warehouseName || currentRecord.warehouseCode"
         >
           {{ currentRecord.warehouseName || currentRecord.warehouseCode }}
-        </a-descriptions-item>
-        <a-descriptions-item
+        </el-descriptions-item>
+        <el-descriptions-item
           label="车队"
           v-if="currentRecord.truckingCompanyName || currentRecord.truckingCompanyCode"
         >
           {{ currentRecord.truckingCompanyName || currentRecord.truckingCompanyCode }}
-        </a-descriptions-item>
+        </el-descriptions-item>
 
         <!-- 费用信息 -->
-        <a-descriptions-item label="总费用" v-if="currentRecord.totalCost">
+        <el-descriptions-item label="总费用" v-if="currentRecord.totalCost">
           <span class="cost-highlight">${{ currentRecord.totalCost.toFixed(2) }}</span>
-        </a-descriptions-item>
-        <a-descriptions-item label="滞港费" v-if="currentRecord.demurrageCost">
+        </el-descriptions-item>
+        <el-descriptions-item label="滞港费" v-if="currentRecord.demurrageCost">
           ${{ currentRecord.demurrageCost.toFixed(2) }}
-        </a-descriptions-item>
-        <a-descriptions-item label="滞箱费" v-if="currentRecord.detentionCost">
+        </el-descriptions-item>
+        <el-descriptions-item label="滞箱费" v-if="currentRecord.detentionCost">
           ${{ currentRecord.detentionCost.toFixed(2) }}
-        </a-descriptions-item>
-        <a-descriptions-item label="堆存费" v-if="currentRecord.storageCost">
+        </el-descriptions-item>
+        <el-descriptions-item label="堆存费" v-if="currentRecord.storageCost">
           ${{ currentRecord.storageCost.toFixed(2) }}
-        </a-descriptions-item>
-        <a-descriptions-item label="运输费" v-if="currentRecord.transportationCost">
+        </el-descriptions-item>
+        <el-descriptions-item label="运输费" v-if="currentRecord.transportationCost">
           ${{ currentRecord.transportationCost.toFixed(2) }}
-        </a-descriptions-item>
+        </el-descriptions-item>
 
         <!-- 审计信息 -->
-        <a-descriptions-item label="操作人">
+        <el-descriptions-item label="操作人">
           {{ currentRecord.operatedBy || 'SYSTEM' }}
-        </a-descriptions-item>
-        <a-descriptions-item label="操作时间">
+        </el-descriptions-item>
+        <el-descriptions-item label="操作时间">
           {{ formatDateTime(currentRecord.operatedAt) }}
-        </a-descriptions-item>
-        <a-descriptions-item label="操作类型">
+        </el-descriptions-item>
+        <el-descriptions-item label="操作类型">
           {{ translateOperationType(currentRecord.operationType) }}
-        </a-descriptions-item>
-      </a-descriptions>
-    </a-drawer>
+        </el-descriptions-item>
+      </el-descriptions>
+    </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
 import api from '@/services/api'
-import dayjs, { Dayjs } from 'dayjs'
 import { onMounted, reactive, ref } from 'vue'
+import { Search, Refresh } from '@element-plus/icons-vue'
 
 interface SchedulingHistory {
   id: number
@@ -162,7 +214,7 @@ interface SchedulingHistory {
 // 搜索表单
 const searchForm = reactive({
   containerNumber: '',
-  dateRange: [] as Dayjs[],
+  dateRange: [] as string[],
 })
 
 // 表格数据
@@ -177,57 +229,6 @@ const pagination = reactive({
 // 详情
 const detailVisible = ref(false)
 const currentRecord = ref<SchedulingHistory | null>(null)
-
-// 表格列定义
-const columns = [
-  {
-    title: '货柜号',
-    dataIndex: 'containerNumber',
-    key: 'containerNumber',
-    width: 120,
-  },
-  {
-    title: '版本',
-    key: 'version',
-    width: 80,
-    align: 'center',
-  },
-  {
-    title: '策略',
-    key: 'strategy',
-    width: 100,
-  },
-  {
-    title: '总费用',
-    key: 'cost',
-    width: 100,
-    align: 'right',
-  },
-  {
-    title: '状态',
-    key: 'status',
-    width: 100,
-  },
-  {
-    title: '操作人',
-    dataIndex: 'operatedBy',
-    key: 'operatedBy',
-    width: 100,
-  },
-  {
-    title: '操作时间',
-    dataIndex: 'operatedAt',
-    key: 'operatedAt',
-    width: 160,
-    sorter: true,
-  },
-  {
-    title: '操作',
-    key: 'action',
-    width: 100,
-    fixed: 'right',
-  },
-]
 
 onMounted(() => {
   handleSearch()
@@ -250,14 +251,14 @@ async function handleSearch() {
     }
 
     if (searchForm.dateRange && searchForm.dateRange.length === 2) {
-      params.startDate = searchForm.dateRange[0].format('YYYY-MM-DD')
-      params.endDate = searchForm.dateRange[1].format('YYYY-MM-DD')
+      params.startDate = searchForm.dateRange[0]
+      params.endDate = searchForm.dateRange[1]
     }
 
     const response = await api.get('/scheduling/history/latest', { params })
 
-    histories.value = response.data.data
-    pagination.total = response.data.data.length
+    histories.value = response.data.data.records || []
+    pagination.total = response.data.data.total || 0
   } catch (error: any) {
     console.error('查询失败:', error)
   } finally {
@@ -276,12 +277,28 @@ function handleReset() {
 }
 
 /**
- * 分页变化
+ * 分页大小变化
  */
-function handleTableChange(pag: any) {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
+function handleSizeChange(size: number) {
+  pagination.pageSize = size
+  pagination.current = 1
   handleSearch()
+}
+
+/**
+ * 页码变化
+ */
+function handleCurrentChange(page: number) {
+  pagination.current = page
+  handleSearch()
+}
+
+/**
+ * 排序变化
+ */
+function handleSortChange({ prop, order }: any) {
+  // 可以在这里添加排序逻辑
+  console.log('排序变化:', prop, order)
 }
 
 /**
@@ -319,16 +336,16 @@ function translateStatus(status?: string): string {
 }
 
 /**
- * 获取状态徽章类型
+ * 获取状态标签类型
  */
-function getStatusBadgeType(status?: string): 'success' | 'error' | 'default' {
+function getStatusTagType(status?: string): 'success' | 'danger' | 'info' {
   switch (status) {
     case 'CONFIRMED':
       return 'success'
     case 'CANCELLED':
-      return 'error'
+      return 'danger'
     default:
-      return 'default'
+      return 'info'
   }
 }
 
@@ -350,7 +367,12 @@ function translateOperationType(type?: string): string {
  */
 function formatDate(dateStr?: string): string {
   if (!dateStr) return '-'
-  return dayjs(dateStr).format('YYYY-MM-DD')
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  })
 }
 
 /**
@@ -358,7 +380,14 @@ function formatDate(dateStr?: string): string {
  */
 function formatDateTime(dateStr?: string): string {
   if (!dateStr) return '-'
-  return dayjs(dateStr).format('YYYY-MM-DD HH:mm:ss')
+  const date = new Date(dateStr)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 </script>
 
@@ -371,8 +400,14 @@ function formatDateTime(dateStr?: string): string {
   }
 
   .cost-highlight {
-    color: #52c41a;
+    color: var(--el-color-success);
     font-weight: 600;
+  }
+
+  .pagination-container {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 16px;
   }
 }
 </style>

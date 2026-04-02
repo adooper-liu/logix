@@ -110,6 +110,8 @@ export interface ScheduleResult {
   returnFreeDays?: number; // ✅ 还箱免费天数（D&D 或 滞箱）
   freeDaysRemaining?: number; // ✅ 还箱免费天数（动态计算：最晚还箱日 - 提柜日）
   plannedData?: {
+    // confirm 保存路径需要 plannedData 内也包含 containerNumber
+    containerNumber?: string;
     plannedCustomsDate?: string;
     plannedPickupDate?: string;
     plannedDeliveryDate?: string;
@@ -120,7 +122,7 @@ export interface ScheduleResult {
     warehouseId?: string;
     warehouseName?: string;
     warehouseCountry?: string; // ✅ 仓库国家代码，用于前端货币格式化
-    unloadMode?: 'Drop off' | 'Live load';
+    unloadModePlan?: 'Drop off' | 'Live load'; // ✅ 与数据库字段 unload_mode_plan 一致
     customsBrokerCode?: string;
     /** 与 DemurrageService.calculateTotalCost 一致的费用分项 */
     estimatedCosts?: ScheduleResult['estimatedCosts'];
@@ -220,8 +222,11 @@ export class IntelligentSchedulingService {
       const toProcess = sortedContainers.slice(skip, skip + limit);
       const hasMore = skip + limit < sortedContainers.length;
 
-      // 3. 仅对本批货柜做滞港费写回（避免全量写回导致首批迟迟不返回）
-      const CONCURRENCY = CONCURRENCY_CONFIG.BATCH_OPERATIONS; // 配置化：默认值为 5
+      // 3. 仅对本批货柜做滞港费相关计算/（正式排产时）写回
+      // 预览（dryRun）会额外计算真实费用，为避免压垮后端并导致其他 API 超时，降低并发
+      const CONCURRENCY = request.dryRun
+        ? Math.max(1, Math.min(2, CONCURRENCY_CONFIG.BATCH_OPERATIONS))
+        : CONCURRENCY_CONFIG.BATCH_OPERATIONS; // 配置化：默认值为 5
       const lastFreeByCn: Record<string, Date> = {};
       const pickupFreeDaysByCn: Record<string, number> = {}; // ✅ 提柜免费天数
       const returnFreeDaysByCn: Record<string, number> = {}; // ✅ 还箱免费天数
@@ -890,6 +895,8 @@ export class IntelligentSchedulingService {
       lastFreeDate: lfdStr,
       lastReturnDate: plannedReturnDate.toISOString().split('T')[0],
       plannedData: {
+        // confirm 保存路径需要 plannedData 内也包含 containerNumber
+        containerNumber: container.containerNumber,
         plannedCustomsDate: plannedCustomsDate.toISOString().split('T')[0],
         plannedPickupDate: plannedPickupDate.toISOString().split('T')[0],
         plannedDeliveryDate: plannedDeliveryDate.toISOString().split('T')[0],
@@ -900,7 +907,7 @@ export class IntelligentSchedulingService {
         warehouseId: warehouse.warehouseCode,
         warehouseName: warehouse.warehouseName,
         warehouseCountry: warehouse.country,
-        unloadMode,
+        unloadModePlan: unloadMode, // ✅ 与数据库字段 unload_mode_plan 一致
         estimatedCosts: { ...estimatedCosts }
       },
       estimatedCosts: { ...estimatedCosts }
@@ -1481,7 +1488,7 @@ export class IntelligentSchedulingService {
         warehouseId: warehouse.warehouseCode,
         warehouseName: warehouse.warehouseName || warehouse.warehouseCode,
         warehouseCountry: warehouse.country || countryCode, // ✅ 添加仓库国家信息，用于前端货币格式化
-        unloadModePlan: unloadMode,
+        unloadModePlan: unloadMode, // ✅ 与数据库字段 unload_mode_plan 一致
         customsBrokerCode,
         lastFreeDate: destPo.lastFreeDate
           ? new Date(destPo.lastFreeDate).toISOString().split('T')[0]
@@ -1872,7 +1879,7 @@ export class IntelligentSchedulingService {
             plannedPickupDate: plannedData.plannedPickupDate,
             plannedDeliveryDate: plannedData.plannedDeliveryDate,
             truckingCompanyId: plannedData.truckingCompanyId,
-            unloadModePlan: plannedData.unloadModePlan,
+            unloadModePlan: plannedData.unloadMode, // 数据库字段是 unload_mode_plan
             scheduleStatus: 'issued'
           }
         );
@@ -1883,7 +1890,7 @@ export class IntelligentSchedulingService {
           plannedPickupDate: plannedData.plannedPickupDate,
           plannedDeliveryDate: plannedData.plannedDeliveryDate,
           truckingCompanyId: plannedData.truckingCompanyId,
-          unloadModePlan: plannedData.unloadModePlan,
+          unloadModePlan: plannedData.unloadMode, // 数据库字段是 unload_mode_plan
           scheduleStatus: 'issued'
         });
         await queryRunner.manager.save(TruckingTransport, truckingTransport);
@@ -2771,6 +2778,8 @@ export class IntelligentSchedulingService {
         returnFreeDays, // ✅ 还箱免费天数
         ...(plannedEstimated ? { estimatedCosts: plannedEstimated } : {}),
         plannedData: {
+          // confirm 保存路径需要 plannedData 内也包含 containerNumber
+          containerNumber: container.containerNumber,
           plannedCustomsDate: plannedCustomsDate.toISOString().split('T')[0],
           plannedPickupDate: plannedPickupDate.toISOString().split('T')[0],
           plannedDeliveryDate: plannedDeliveryDate.toISOString().split('T')[0],
@@ -2781,7 +2790,7 @@ export class IntelligentSchedulingService {
           warehouseId: warehouse.warehouseCode,
           warehouseName: warehouse.warehouseName,
           warehouseCountry: warehouse.country,
-          unloadMode,
+          unloadModePlan: unloadMode, // ✅ 与数据库字段 unload_mode_plan 一致
           ...(plannedEstimated ? { estimatedCosts: plannedEstimated } : {})
         }
       };

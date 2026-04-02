@@ -263,17 +263,25 @@ export class SchedulingController {
   getSchedulingOverview = async (req: Request, res: Response): Promise<void> => {
     try {
       const { startDate, endDate, country, portCode } = req.query;
-      const hasDateRange = startDate && endDate;
-      // 注意：日期范围是可选的过滤条件，用于限定统计的时间窗口
-      // 如果提供了日期范围，则只统计该时间范围内的 ATA/ETA
-      const dateCondition = hasDateRange
-        ? `AND (COALESCE(po.ata, po.eta)::date >= $1::date AND COALESCE(po.ata, po.eta)::date <= $2::date)`
-        : '';
-
+      
       // 查询待排产货柜数量（与 batchSchedule 口径一致）
+      // ✅ 性能优化：将 3 个独立 COUNT 查询合并为 1 个，使用 FILTER 子句
       const containerRepo = AppDataSource.getRepository(Container);
-      const params: any[] = hasDateRange ? [String(startDate), String(endDate)] : [];
-      let paramIndex = hasDateRange ? 3 : 1;
+      
+      // 构建参数数组（按顺序添加）
+      const params: any[] = [];
+      let paramIndex = 1;
+
+      // 构建日期过滤条件
+      const hasDateRange = startDate && endDate;
+      const dateCondition = hasDateRange
+        ? `AND (COALESCE(po.ata, po.eta)::date >= $${paramIndex}::date AND COALESCE(po.ata, po.eta)::date <= $${paramIndex + 1}::date)`
+        : '';
+      
+      if (hasDateRange) {
+        params.push(String(startDate), String(endDate));
+        paramIndex += 2;
+      }
 
       // 构建国家过滤条件
       const countryCondition = country
@@ -289,7 +297,7 @@ export class SchedulingController {
         paramIndex++;
       }
 
-      // ✅ 新增：构建港口过滤条件
+      // 构建港口过滤条件
       const portCondition = portCode
         ? `AND EXISTS (
             SELECT 1 FROM process_port_operations po
@@ -303,26 +311,24 @@ export class SchedulingController {
         paramIndex++;
       }
 
-      // 遵循 SKILL：验证 SQL 查询条件的正确性
-      // 问题 1: port_type = 'destination' 可能没有数据
-      // 解决 1: 改为 port_type IN ('destination', 'transit') 或者不限制 port_type
-      // 问题 2: 没有过滤已提柜的货柜（实际业务中只有未提柜的才能排产）
-      // 解决 2: 添加 NOT EXISTS(pickup_date) 条件
-      // 注意：不需要强制要求 ATA/ETA，因为未到港但有 ETA 的也可以排产（预测性排产）
-      //       但如果用户指定了日期范围，则在该范围内过滤
-      // ✅ 修复：待排产应该包括 initial 和 issued（已发布但未提柜的也可以重新排产）
-      const pendingCountResult = await containerRepo.query(
-        `SELECT COUNT(*) as count FROM biz_containers c
-         WHERE c.schedule_status IN ('initial', 'issued')  -- ✅ 包括 initial 和 issued
+      // ✅ 性能优化：单次查询返回所有统计值（减少 66% 数据库往返）
+      // 使用 PostgreSQL 9.4+ 的 FILTER 子句进行条件聚合
+      const statsResult = await containerRepo.query(
+        `SELECT 
+           COUNT(*) FILTER (WHERE c.schedule_status IN ('initial', 'issued')) as pending_count,
+           COUNT(*) FILTER (WHERE c.schedule_status = 'initial') as initial_count,
+           COUNT(*) FILTER (WHERE c.schedule_status = 'issued') as issued_count
+         FROM biz_containers c
+         WHERE c.schedule_status IN ('initial', 'issued')
          ${countryCondition}
-         ${portCondition}  -- ✅ 应用港口过滤
+         ${portCondition}
          AND (
            -- 有目的港操作记录（port_type 为空或为 destination/transit）
            EXISTS (
              SELECT 1 FROM process_port_operations po
              WHERE po.container_number = c.container_number 
                AND (po.port_type IS NULL OR po.port_type = 'destination' OR po.port_type = 'transit')
-               ${dateCondition}  -- 如果有日期范围，则在此过滤
+               ${dateCondition}
            )
          )
          -- 排除已提柜的货柜
@@ -331,58 +337,12 @@ export class SchedulingController {
            WHERE tt.container_number = c.container_number
            AND tt.pickup_date IS NOT NULL
          )`,
-        params.length ? params : undefined
+        params.length > 0 ? params : undefined
       );
 
-      const initialCountResult = await containerRepo.query(
-        `SELECT COUNT(*) as count FROM biz_containers c
-         WHERE c.schedule_status = 'initial'
-         ${countryCondition}
-         ${portCondition}  -- ✅ 应用港口过滤
-         AND (
-           -- 有目的港操作记录（port_type 为空或为 destination/transit）
-           EXISTS (
-             SELECT 1 FROM process_port_operations po
-             WHERE po.container_number = c.container_number 
-               AND (po.port_type IS NULL OR po.port_type = 'destination' OR po.port_type = 'transit')
-               ${dateCondition}  -- 如果有日期范围，则在此过滤
-           )
-         )
-         -- 排除已提柜的货柜
-         AND NOT EXISTS (
-           SELECT 1 FROM process_trucking_transport tt
-           WHERE tt.container_number = c.container_number
-           AND tt.pickup_date IS NOT NULL
-         )`,
-        params.length ? params : undefined
-      );
-
-      const issuedCountResult = await containerRepo.query(
-        `SELECT COUNT(*) as count FROM biz_containers c
-         WHERE c.schedule_status = 'issued'
-         ${countryCondition}
-         ${portCondition}  -- ✅ 应用港口过滤
-         AND (
-           -- 有目的港操作记录（port_type 为空或为 destination/transit）
-           EXISTS (
-             SELECT 1 FROM process_port_operations po
-             WHERE po.container_number = c.container_number 
-               AND (po.port_type IS NULL OR po.port_type = 'destination' OR po.port_type = 'transit')
-               ${dateCondition}  -- 如果有日期范围，则在此过滤
-           )
-         )
-         -- 排除已提柜的货柜
-         AND NOT EXISTS (
-           SELECT 1 FROM process_trucking_transport tt
-           WHERE tt.container_number = c.container_number
-           AND tt.pickup_date IS NOT NULL
-         )`,
-        params.length ? params : undefined
-      );
-
-      const pendingCount = parseInt(pendingCountResult[0]?.count || '0');
-      const initialCount = parseInt(initialCountResult[0]?.count || '0');
-      const issuedCount = parseInt(issuedCountResult[0]?.count || '0');
+      const pendingCount = parseInt(statsResult[0]?.pending_count || '0');
+      const initialCount = parseInt(statsResult[0]?.initial_count || '0');
+      const issuedCount = parseInt(statsResult[0]?.issued_count || '0');
 
       // 导入映射实体
       const { WarehouseTruckingMapping } = require('../entities/WarehouseTruckingMapping');
@@ -623,16 +583,17 @@ export class SchedulingController {
       }
 
       // ✅ 新增：获取港口分布统计（用于前端下拉选择器）
+      // ✅ 性能优化：使用 idx_port_ops_container_port_type 索引加速 JOIN
       const portStatsQuery = `
         SELECT po.port_code, po.port_name, COUNT(DISTINCT c.container_number) as count
         FROM biz_containers c
-        JOIN process_port_operations po ON c.container_number = po.container_number
+        INNER JOIN process_port_operations po ON c.container_number = po.container_number
         WHERE c.schedule_status IN ('initial', 'issued')
           ${
             country
               ? `AND EXISTS (
             SELECT 1 FROM biz_replenishment_orders ro
-            JOIN biz_customers cu ON ro.customer_code = cu.customer_code
+            INNER JOIN biz_customers cu ON ro.customer_code = cu.customer_code
             WHERE ro.container_number = c.container_number AND cu.country = $1
           )`
               : ''

@@ -35,7 +35,7 @@
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card" @click="emit('navigate', 'schedule')">
+        <el-card shadow="hover" class="stat-card" @click="handleScheduleClick">
           <div class="stat-content">
             <el-icon class="stat-icon pending"><Clock /></el-icon>
             <div class="stat-info">
@@ -107,6 +107,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'navigate', target: string): void
+  (e: 'go-to-schedule'): void
 }>()
 
 const appStore = useAppStore()
@@ -153,6 +154,11 @@ const loadMappingCount = async () => {
 const reloadOverviewData = () => {
   loadOverview()
   loadMappingCount()
+}
+
+const handleScheduleClick = () => {
+  // 点击"待排产"时，跳转到独立的排产可视化页面
+  emit('go-to-schedule')
 }
 
 onMounted(() => {

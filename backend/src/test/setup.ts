@@ -74,8 +74,23 @@ jest.mock('../utils/logger', () => ({
   logger: {
     info: jest.fn(),
     error: jest.fn(),
+    warn: jest.fn(),
     debug: jest.fn()
   }
+}));
+
+// Mock Redis to avoid real ioredis connection & open handles
+jest.mock('../database/redis', () => ({
+  redisClient: {
+    on: jest.fn(),
+    get: jest.fn().mockResolvedValue(null),
+    setex: jest.fn().mockResolvedValue('OK'),
+    keys: jest.fn().mockResolvedValue([]),
+    del: jest.fn().mockResolvedValue(0),
+    exists: jest.fn().mockResolvedValue(0),
+    quit: jest.fn().mockResolvedValue(undefined)
+  },
+  cachePrefix: 'logix:'
 }));
 
 // Mock countryCode utility

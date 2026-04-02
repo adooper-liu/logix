@@ -30,6 +30,10 @@
 
       <!-- ② 中间：高级设置 -->
       <div class="advanced-group">
+        <el-button type="default" size="small" @click="goToSchedulingConfig" title="排产配置">
+          <el-icon><Setting /></el-icon>
+          配置
+        </el-button>
         <el-tooltip content="排产时自动在 ETA 基础上顺延的天数" placement="bottom">
           <div class="advanced-setting">
             <span class="filter-label">ETA 顺延：</span>
@@ -77,6 +81,28 @@
 
       <!-- ③ 右侧：操作按钮组 -->
       <div class="action-group">
+        <!-- ✅ 新增：历史排产记录按钮 -->
+        <el-button
+          type="info"
+          size="default"
+          @click="router.push('/scheduling/history')"
+          title="查看历史排产记录"
+        >
+          <el-icon><Clock /></el-icon>
+          历史
+        </el-button>
+
+        <!-- ✅ 新增：甘特图按钮 -->
+        <el-button
+          type="success"
+          size="default"
+          @click="router.push('/gantt-chart')"
+          title="查看甘特图"
+        >
+          <el-icon><View /></el-icon>
+          甘特图
+        </el-button>
+
         <!-- ✅ 新增：批量保存优化按钮 -->
         <el-button
           v-if="optimizedContainers.size > 0"
@@ -98,7 +124,7 @@
           title="预览排产方案，确认后保存"
         >
           <el-icon><Cpu /></el-icon>
-          预览排产
+          排产
         </el-button>
         <el-button
           type="warning"
@@ -619,7 +645,6 @@
                       "
                       :props="costTreeProps"
                       :expand-on-click-node="false"
-                      default-expand-all
                       size="small"
                       class="cost-tree"
                     >
@@ -1375,6 +1400,11 @@ const handlePortChange = (portCode: string | null) => {
   loadOverview()
 }
 
+// ✅ 新增：跳转到排产配置页面
+const goToSchedulingConfig = () => {
+  router.push('/scheduling/config')
+}
+
 // ✅ 新增：获取结果标签类型
 const getResultTagType = (): 'success' | 'warning' | 'danger' | 'info' => {
   // 预览模式：基于预览结果计算
@@ -1771,7 +1801,7 @@ const handlePreviewSchedule = async () => {
         if (r.plannedData) {
           addLog(`  - 仓库：${r.warehouseName || r.plannedData.warehouseName || '-'}`)
           addLog(`  - 车队：${r.plannedData.truckingCompany || '-'}`)
-          addLog(`  - 卸柜方式：${r.plannedData.unloadModePlan || '-'}`)
+          addLog(`  - 卸柜方式：${r.plannedData.unloadMode || r.plannedData.unloadModePlan || '-'}`)
           if (r.estimatedCosts) {
             addLog(`  - 预估费用：$${r.estimatedCosts.totalCost?.toString() || '0.00'}`)
             addLog(`    • 运输费：$${r.estimatedCosts.transportationCost?.toString() || '0.00'}`)
@@ -1798,13 +1828,29 @@ const handlePreviewSchedule = async () => {
 
       const transformed = {
         ...r,
-        plannedPickupDate: r.plannedData?.plannedPickupDate || '-',
-        plannedDeliveryDate: r.plannedData?.plannedDeliveryDate || '-',
-        plannedUnloadDate: r.plannedData?.plannedUnloadDate || '-',
-        plannedReturnDate: r.plannedData?.plannedReturnDate || '-',
+        plannedData: {
+          ...r.plannedData,
+          plannedCustomsDate: r.plannedData?.plannedCustomsDate || null,
+          plannedPickupDate: r.plannedData?.plannedPickupDate || null,
+          plannedDeliveryDate: r.plannedData?.plannedDeliveryDate || null,
+          plannedUnloadDate: r.plannedData?.plannedUnloadDate || null,
+          plannedReturnDate: r.plannedData?.plannedReturnDate || null,
+          warehouseName: r.plannedData?.warehouseName || null,
+          truckingCompany: r.plannedData?.truckingCompany || null,
+          unloadModePlan: r.plannedData?.unloadModePlan || null, // ✅ 与数据库字段 unload_mode_plan 一致
+          estimatedCosts: r.plannedData?.estimatedCosts || r.estimatedCosts || {
+            transportationCost: 0,
+            handlingCost: 0,
+            storageCost: 0,
+            demurrageCost: 0,
+            detentionCost: 0,
+            totalCost: 0,
+            currency: 'USD',
+          },
+        },
         warehouseName: r.warehouseName || r.plannedData?.warehouseName || '-',
         truckingCompany: r.plannedData?.truckingCompany || r.truckingCompany || '未分配车队',
-        unloadMode: r.plannedData?.unloadMode || r.unloadMode || '未指定',
+        unloadMode: r.plannedData?.unloadModePlan || '-', // ✅ 显示用，与数据库字段一致
         estimatedCosts: r.plannedData?.estimatedCosts ||
           r.estimatedCosts || {
             transportationCost: 0,
@@ -1821,6 +1867,18 @@ const handlePreviewSchedule = async () => {
         returnFreeDays: r.returnFreeDays,
         freeDaysRemaining: r.freeDaysRemaining ?? undefined,
         message: r.message || (r.success ? '排产成功' : '排产失败'),
+      }
+
+      // ✅ 关键修复：确保 plannedData 中包含后端需要的 ID 字段
+      if (r.plannedData) {
+        transformed.plannedData = {
+          ...r.plannedData,
+          // 确保这些字段存在（用于后端验证）
+          plannedCustomsDate: r.plannedData.plannedCustomsDate || null,
+          warehouseId: r.plannedData.warehouseId || r.plannedData.warehouseCode || null,
+          truckingCompanyId: r.plannedData.truckingCompanyId || r.plannedData.truckingCompanyCode || null,
+          unloadModePlan: r.plannedData.unloadModePlan || null, // ✅ 与数据库字段一致
+        }
       }
 
       // ✅ 调试：输出前 3 条数据的完整结构
@@ -1878,6 +1936,34 @@ const handleConfirmSave = async () => {
     const selectedResults = previewResults.value.filter((r: any) =>
       selectedPreviewContainers.value.includes(r.containerNumber)
     )
+
+    // ✅ 新增：验证 plannedData 完整性
+    for (const result of selectedResults) {
+      if (!result.plannedData) {
+        console.error('[handleConfirmSave] 缺少 plannedData:', result.containerNumber)
+        ElMessage.error(`货柜 ${result.containerNumber} 缺少计划数据`)
+        return
+      }
+      const { plannedData } = result
+      if (
+        !plannedData.warehouseId ||
+        !plannedData.truckingCompanyId ||
+        !plannedData.plannedPickupDate ||
+        !plannedData.plannedUnloadDate ||
+        !plannedData.plannedReturnDate
+      ) {
+        console.error('[handleConfirmSave] plannedData 字段缺失:', {
+          containerNumber: result.containerNumber,
+          warehouseId: plannedData.warehouseId,
+          truckingCompanyId: plannedData.truckingCompanyId,
+          plannedPickupDate: plannedData.plannedPickupDate,
+          plannedUnloadDate: plannedData.plannedUnloadDate,
+          plannedReturnDate: plannedData.plannedReturnDate,
+        })
+        ElMessage.error(`货柜 ${result.containerNumber} 的计划数据不完整`)
+        return
+      }
+    }
 
     console.log('[handleConfirmSave] 保存的预览数据:', selectedResults)
 

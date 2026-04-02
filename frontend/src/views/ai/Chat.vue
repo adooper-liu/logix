@@ -390,7 +390,7 @@ onMounted(() => {
             排产结果
           </span>
           <div class="preview-actions">
-            <el-button size="small" type="primary" @click="router.push('/scheduling')">
+            <el-button size="small" type="primary" @click="router.push('/scheduling/visual')">
               查看详情
             </el-button>
             <el-button size="small" @click="showScheduleResult = false" :icon="Close"

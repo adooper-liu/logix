@@ -43,6 +43,7 @@ const { t } = useI18n()
 const userStore = useUserStore()
 const appStore = useAppStore()
 
+// 默认先渲染“全部国家”，避免 /countries 超时导致下拉显示“无数据”
 const countryOptions = ref<Array<{ value: string; label: string }>>([])
 const getAllCountriesLabel = () => {
   const label = t('common.allCountries')
@@ -53,14 +54,27 @@ const getCountryFilterPlaceholder = () => {
   return typeof label === 'string' && label.trim() ? label : '国家筛选'
 }
 
+// 初始化默认选项
+countryOptions.value = [{ value: '', label: getAllCountriesLabel() }]
+
 onMounted(async () => {
+  // 优先渲染缓存，避免 /countries 超时导致 dropdown 空白或看似“消失”
   try {
-    console.log('[国家筛选] 开始加载国家列表...')
-    const res = await containerService.getCountries()
-    console.log('[国家筛选] API响应:', res)
+    const cached = localStorage.getItem('logix_countries_options_v1')
+    if (cached) {
+      const parsed = JSON.parse(cached) as Array<{ value: string; label: string }>
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        countryOptions.value = parsed
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  try {
+    const res = await containerService.getCountriesWithCache()
 
     if (res?.success && Array.isArray(res.data)) {
-      console.log('[国家筛选] 成功获取国家数据，数量:', res.data.length)
       const fromApi = res.data.map((c: { code: string; nameCn: string; nameEn: string }) => ({
         value: c.code,
         label: c.nameCn || c.nameEn || c.code,
@@ -74,14 +88,22 @@ onMounted(async () => {
       if (currentCode && !countryOptions.value.some(o => o.value === currentCode)) {
         countryOptions.value.push({ value: currentCode, label: currentCode })
       }
-      console.log('[国家筛选] 国家选项设置完成，总数:', countryOptions.value.length)
+
+      // 写入缓存（用于后续接口超时兜底）
+      try {
+        localStorage.setItem('logix_countries_options_v1', JSON.stringify(countryOptions.value))
+      } catch {
+        // ignore
+      }
     } else {
-      console.error('[国家筛选] API返回数据格式不正确:', res)
-      countryOptions.value = [{ value: '', label: getAllCountriesLabel() }]
+      if (!countryOptions.value.length) {
+        countryOptions.value = [{ value: '', label: getAllCountriesLabel() }]
+      }
     }
   } catch (error) {
-    console.error('[国家筛选] 加载国家列表失败:', error)
-    countryOptions.value = [{ value: '', label: getAllCountriesLabel() }]
+    if (!countryOptions.value.length) {
+      countryOptions.value = [{ value: '', label: getAllCountriesLabel() }]
+    }
   }
 })
 
@@ -102,7 +124,7 @@ const menuGroups = computed(() => [
         meta: { title: t('nav.containerManagement'), icon: 'Box' },
       },
       {
-        path: '/scheduling',
+        path: '/scheduling/visual',
         name: 'SchedulingVisual',
         meta: { title: '智能排产', icon: 'Cpu' },
       },

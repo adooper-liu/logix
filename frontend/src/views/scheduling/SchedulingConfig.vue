@@ -4,7 +4,7 @@
       <h2>排产配置</h2>
       <el-breadcrumb separator="/">
         <el-breadcrumb-item :to="{ path: '/' }">首页</el-breadcrumb-item>
-        <el-breadcrumb-item>排产配置</el-breadcrumb-item>
+        <el-breadcrumb-item :to="{ path: '/scheduling/config' }">排产配置</el-breadcrumb-item>
       </el-breadcrumb>
     </div>
 
@@ -48,7 +48,7 @@
             </el-menu-item>
           </el-tooltip>
           <el-tooltip content="开始排产" placement="right">
-            <el-menu-item index="visual">
+            <el-menu-item index="visual" @click="handleGoToScheduleFromMenu">
               <el-icon><Cpu /></el-icon>
             </el-menu-item>
           </el-tooltip>
@@ -60,7 +60,7 @@
         <!-- 排产概览 -->
         <div v-if="activeMenu === 'overview'" class="config-section">
           <h3>排产概览</h3>
-          <OverviewPanel :country="currentCountry" @navigate="handleNavigate" />
+          <OverviewPanel :country="currentCountry" @navigate="handleNavigate" @go-to-schedule="handleGoToSchedule" />
         </div>
 
         <!-- 仓库管理 -->
@@ -98,16 +98,6 @@
           <h3>产能日历配置</h3>
           <CalendarCapacityView ref="calendarRef" />
         </div>
-
-        <!-- 排产执行 -->
-        <div v-if="activeMenu === 'visual'" class="config-section">
-          <h3>排产执行</h3>
-          <SchedulingVisual
-            :country="route.query.country as string"
-            :initial-date-range="dateRangeFromQuery"
-            :containers="route.query.containers as string"
-          />
-        </div>
       </div>
     </div>
   </div>
@@ -119,7 +109,6 @@ import { Box, Calendar, Connection, Cpu, House, OfficeBuilding, Van, Setting } f
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CalendarCapacityView from './components/CalendarCapacityView.vue'
-import SchedulingVisual from './SchedulingVisual.vue'
 
 // 导入子组件
 import MappingManagement from './components/MappingManagement.vue'
@@ -153,16 +142,52 @@ const dateRangeFromQuery = computed<[Date, Date] | undefined>(() => {
 
 const breadcrumbs = computed(() => [
   { name: '首页', path: '/' },
-  { name: '排产配置', path: '/scheduling-config' },
+  { name: '排产配置', path: '/scheduling/config' },
 ])
 
 // 方法
 const handleMenuSelect = (index: string) => {
+  // 如果点击的是"开始排产"，不处理（已经在 handleGoToScheduleFromMenu 中处理跳转）
+  if (index === 'visual') {
+    return
+  }
   activeMenu.value = index
 }
 
 const handleNavigate = (target: string) => {
   activeMenu.value = target
+}
+
+const handleGoToSchedule = () => {
+  // 跳转到独立的排产可视化路由，并保留当前查询参数
+  router.push({
+    path: '/scheduling/visual',
+    query: {
+      country: route.query.country,
+      startDate: route.query.startDate,
+      endDate: route.query.endDate,
+      filterCondition: route.query.filterCondition,
+      filterLabel: route.query.filterLabel,
+      containers: route.query.containers,
+      from: 'config'
+    }
+  })
+}
+
+const handleGoToScheduleFromMenu = () => {
+  // 从左侧菜单点击"开始排产"时，跳转到独立路由
+  router.push({
+    path: '/scheduling/visual',
+    query: {
+      country: route.query.country,
+      startDate: route.query.startDate,
+      endDate: route.query.endDate,
+      filterCondition: route.query.filterCondition,
+      filterLabel: route.query.filterLabel,
+      containers: route.query.containers,
+      from: 'config'
+    }
+  })
 }
 
 // 监听路由参数变化，根据 tab 参数设置默认激活的菜单

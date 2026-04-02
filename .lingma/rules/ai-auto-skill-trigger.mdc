@@ -1,0 +1,188 @@
+# AI 自动 Skill 调用
+
+## 目标
+
+让用户**完全忘记 Skill 名称**，AI 自动识别场景并调用相应的 Skill。
+
+## 触发规则
+
+### 规则 1：数据库相关 → 自动验证
+
+**触发条件**：
+- 用户提到 "字段"、"表"、"数据库"、"SQL"、"实体"
+- 用户询问字段名、表结构、数据保存
+- 用户报告数据库相关错误
+
+**AI 必须自动调用**：
+1. `fix-verification` - 验证修改规范
+2. `database-query` - 查询数据库结构
+
+**验证步骤**：
+1. 读取 `backend/sql/schema/03_create_tables.sql`
+2. 读取对应的实体文件 `backend/src/entities/*.ts`
+3. 对比验证字段名、表名、类型
+4. 输出验证报告
+
+---
+
+### 规则 2：前端相关 → 自动检查
+
+**触发条件**：
+- 用户提到 "前端"、"Vue"、"组件"、".vue"
+- 用户询问 Vue 组件开发
+- 用户报告前端错误
+
+**AI 必须自动调用**：
+- `vue-best-practices`
+
+**检查步骤**：
+1. 检查 Composition API 使用
+2. 检查 TypeScript 类型定义
+3. 检查代码规范
+
+---
+
+### 规则 3：后端相关 → 自动检查
+
+**触发条件**：
+- 用户提到 "后端"、"API"、"Service"、"Controller"
+- 用户询问后端开发
+- 用户报告 API 错误
+
+**AI 必须自动调用**：
+- `logix-development`
+
+**检查步骤**：
+1. 检查代码规范
+2. 检查业务逻辑
+3. 检查 API 设计
+
+---
+
+### 规则 4：验证/检查 → 自动验证
+
+**触发条件**：
+- 用户提到 "检查"、"验证"、"对吗"、"有问题"
+- 用户表示不确定
+- 用户要求确认
+
+**AI 必须自动调用**：
+- `fix-verification`
+
+**验证步骤**：
+1. 读取权威源（数据库、实体、API 路由）
+2. 逐项验证
+3. 输出验证报告
+
+---
+
+## 违规处罚
+
+**如果 AI 没有自动调用 Skill**：
+
+1. **第一次**：用户提醒 → AI 立即调用
+2. **第二次**：用户警告 → AI 重新执行并调用
+3. **第三次**：用户报告 → 系统记录违规
+
+**违规判定**：
+- ❌ 只说"会调用"但没有实际调用
+- ❌ 用 AI 幻觉编造答案
+- ❌ 没有读取权威源就修改代码
+- ❌ 违反"先验证，后修改"原则
+
+---
+
+## 用户指南
+
+**你只需要**：
+
+1. ✅ 用自然语言描述问题（例如："这个字段名对吗？"）
+2. ✅ 监督 AI 是否自动调用 Skill
+3. ✅ 检查 AI 是否读取真实代码验证
+
+**你不需要**：
+
+- ❌ 记住任何 Skill 名称
+- ❌ 手动指定调用哪个 Skill
+- ❌ 担心 AI 幻觉（它必须验证）
+
+---
+
+## 示例
+
+### 示例 1：数据库字段验证
+
+**用户**："unload_mode_plan 这个字段名对吗？"
+
+**AI 应该**：
+1. [自动调用 fix-verification]
+2. [自动调用 database-query]
+3. [读取 03_create_tables.sql 第 495 行]
+4. [读取 TruckingTransport.ts 第 59-60 行]
+5. 输出："✅ 验证通过：数据库字段是 unload_mode_plan，实体属性是 unloadModePlan"
+
+---
+
+### 示例 2：前端组件开发
+
+**用户**："这个 Vue 组件怎么写？"
+
+**AI 应该**：
+1. [自动调用 vue-best-practices]
+2. [检查 Composition API]
+3. [检查 TypeScript]
+4. 输出组件代码
+
+---
+
+### 示例 3：保存失败排查
+
+**用户**："保存失败，是不是字段有问题？"
+
+**AI 应该**：
+1. [自动调用 fix-verification]
+2. [自动调用 database-query]
+3. [检查前端传递的数据结构]
+4. [检查后端需要的数据结构]
+5. 输出对比报告
+
+---
+
+## 自动化工具
+
+### PowerShell 检查脚本
+
+```powershell
+function Test-AISkillAutoTrigger {
+    param([string]$LogFile)
+    
+    $content = Get-Content $LogFile -Raw
+    
+    # 检查是否自动调用 Skill
+    $skillCalls = [regex]::Matches($content, '\[自动调用 (\w+-\w+) skill\]')
+    
+    if ($skillCalls.Count -eq 0) {
+        Write-Host "FAIL: AI 没有自动调用 Skill" -ForegroundColor Red
+        return $false
+    }
+    
+    Write-Host "OK: AI 自动调用了 $($skillCalls.Count) 个 Skill" -ForegroundColor Green
+    return $true
+}
+```
+
+---
+
+## 持续改进
+
+**如果发现 AI 没有自动调用 Skill**：
+
+1. 提醒 AI："请自动调用相应的 Skill"
+2. 记录到本文件
+3. 更新触发规则
+
+---
+
+**版本**: v1.0  
+**创建时间**: 2026-04-02  
+**目标**: 零学习成本，AI 自动遵循规范

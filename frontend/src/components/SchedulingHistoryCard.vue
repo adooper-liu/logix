@@ -1,52 +1,50 @@
 <template>
   <div class="scheduling-history-card">
     <!-- 触发按钮 -->
-    <a-button type="link" @click="toggleHistory" :loading="loading">
-      <span v-if="historyCount > 0">📋 {{ historyCount }}条历史</span>
-      <span v-else>📝 查看历史</span>
-    </a-button>
+    <el-button type="info" link @click="toggleHistory" :loading="loading">
+      <el-icon v-if="historyCount > 0"><Document /></el-icon>
+      <span v-if="historyCount > 0">{{ historyCount }}条历史</span>
+      <span v-else>查看历史</span>
+    </el-button>
 
     <!-- 历史记录面板 -->
-    <a-drawer
-      v-model:visible="visible"
+    <el-drawer
+      v-model="visible"
       title="排产历史记录"
-      placement="right"
-      :width="600"
+      direction="rtl"
+      size="600px"
       :destroy-on-close="true"
     >
       <!-- 加载状态 -->
-      <a-spin :spinning="loading" tip="加载中...">
+      <div v-loading="loading" tip="加载中...">
         <!-- 空状态 -->
-        <a-empty v-if="!loading && histories.length === 0" description="该货柜暂无排产历史" />
+        <el-empty v-if="!loading && histories.length === 0" description="该货柜暂无排产历史" />
 
         <!-- 历史记录列表 -->
         <div v-else class="history-timeline">
-          <a-timeline>
-            <a-timeline-item
+          <el-timeline>
+          <el-timeline-item
               v-for="(record, index) in histories"
               :key="record.id"
-              :color="record.schedulingStatus === 'CONFIRMED' ? 'green' : 'gray'"
+              :timestamp="formatDateTime(record.operatedAt)"
+              placement="top"
             >
-              <!-- 时间线卡片 -->
-              <div class="timeline-item-content">
+              <el-card shadow="hover" class="timeline-item-content">
                 <!-- 头部：版本号和状态 -->
                 <div class="timeline-header">
                   <div class="version-badge">
-                    <a-tag :color="record.schedulingStatus === 'CONFIRMED' ? 'success' : 'default'">
+                    <el-tag :type="record.schedulingStatus === 'CONFIRMED' ? 'success' : 'info'">
                       v{{ record.schedulingVersion }}
-                      <span v-if="record.schedulingStatus === 'CONFIRMED'">✅ 当前生效</span>
-                      <span v-else-if="record.schedulingStatus === 'SUPERSEDED'">⚠️ 已作废</span>
-                    </a-tag>
-                  </div>
-                  <div class="operation-time">
-                    {{ formatDateTime(record.operatedAt) }}
+                      <span v-if="record.schedulingStatus === 'CONFIRMED'"> 当前生效</span>
+                      <span v-else-if="record.schedulingStatus === 'SUPERSEDED'"> 已作废</span>
+                    </el-tag>
                   </div>
                 </div>
 
                 <!-- 策略信息 -->
                 <div class="info-row">
                   <span class="label">排产策略：</span>
-                  <a-tag color="blue">{{ translateStrategy(record.strategy) }}</a-tag>
+                  <el-tag type="primary">{{ translateStrategy(record.strategy) }}</el-tag>
                   <span class="sub-label" v-if="record.schedulingMode">
                     ({{ record.schedulingMode === 'AUTO' ? '自动' : '手动' }})
                   </span>
@@ -55,39 +53,39 @@
                 <!-- 计划日期 -->
                 <div class="info-section" v-if="hasDates(record)">
                   <div class="section-title">📅 计划日期</div>
-                  <a-descriptions :column="1" size="small">
-                    <a-descriptions-item label="提柜日期" v-if="record.plannedPickupDate">
+                  <el-descriptions :column="1" size="small">
+                    <el-descriptions-item label="提柜日期" v-if="record.plannedPickupDate">
                       {{ formatDate(record.plannedPickupDate) }}
-                    </a-descriptions-item>
-                    <a-descriptions-item label="送仓日期" v-if="record.plannedDeliveryDate">
+                    </el-descriptions-item>
+                    <el-descriptions-item label="送仓日期" v-if="record.plannedDeliveryDate">
                       {{ formatDate(record.plannedDeliveryDate) }}
-                    </a-descriptions-item>
-                    <a-descriptions-item label="卸柜日期" v-if="record.plannedUnloadDate">
+                    </el-descriptions-item>
+                    <el-descriptions-item label="卸柜日期" v-if="record.plannedUnloadDate">
                       {{ formatDate(record.plannedUnloadDate) }}
-                    </a-descriptions-item>
-                    <a-descriptions-item label="还箱日期" v-if="record.plannedReturnDate">
+                    </el-descriptions-item>
+                    <el-descriptions-item label="还箱日期" v-if="record.plannedReturnDate">
                       {{ formatDate(record.plannedReturnDate) }}
-                    </a-descriptions-item>
-                  </a-descriptions>
+                    </el-descriptions-item>
+                  </el-descriptions>
                 </div>
 
                 <!-- 资源信息 -->
                 <div class="info-section" v-if="hasResources(record)">
                   <div class="section-title">🏭 资源安排</div>
-                  <a-descriptions :column="1" size="small">
-                    <a-descriptions-item
+                  <el-descriptions :column="1" size="small">
+                    <el-descriptions-item
                       label="仓库"
                       v-if="record.warehouseName || record.warehouseCode"
                     >
                       {{ record.warehouseName || record.warehouseCode }}
-                    </a-descriptions-item>
-                    <a-descriptions-item
+                    </el-descriptions-item>
+                    <el-descriptions-item
                       label="车队"
                       v-if="record.truckingCompanyName || record.truckingCompanyCode"
                     >
                       {{ record.truckingCompanyName || record.truckingCompanyCode }}
-                    </a-descriptions-item>
-                  </a-descriptions>
+                    </el-descriptions-item>
+                  </el-descriptions>
                 </div>
 
                 <!-- 费用明细 -->
@@ -100,44 +98,44 @@
                     </div>
 
                     <!-- 费用细分（展开） -->
-                    <a-collapse :bordered="false" ghost>
-                      <a-collapse-panel key="1" header="查看详情">
-                        <a-descriptions :column="1" size="small">
-                          <a-descriptions-item label="滞港费" v-if="record.demurrageCost">
+                    <el-collapse>
+                      <el-collapse-panel title="查看详情" name="1">
+                        <el-descriptions :column="1" size="small">
+                          <el-descriptions-item label="滞港费" v-if="record.demurrageCost">
                             ${{ record.demurrageCost.toFixed(2) }}
-                          </a-descriptions-item>
-                          <a-descriptions-item label="滞箱费" v-if="record.detentionCost">
+                          </el-descriptions-item>
+                          <el-descriptions-item label="滞箱费" v-if="record.detentionCost">
                             ${{ record.detentionCost.toFixed(2) }}
-                          </a-descriptions-item>
-                          <a-descriptions-item label="堆存费" v-if="record.storageCost">
+                          </el-descriptions-item>
+                          <el-descriptions-item label="堆存费" v-if="record.storageCost">
                             ${{ record.storageCost.toFixed(2) }}
-                          </a-descriptions-item>
-                          <a-descriptions-item label="运输费" v-if="record.transportationCost">
+                          </el-descriptions-item>
+                          <el-descriptions-item label="运输费" v-if="record.transportationCost">
                             ${{ record.transportationCost.toFixed(2) }}
-                          </a-descriptions-item>
-                          <a-descriptions-item label="操作费" v-if="record.handlingCost">
+                          </el-descriptions-item>
+                          <el-descriptions-item label="操作费" v-if="record.handlingCost">
                             ${{ record.handlingCost.toFixed(2) }}
-                          </a-descriptions-item>
-                        </a-descriptions>
-                      </a-collapse-panel>
-                    </a-collapse>
+                          </el-descriptions-item>
+                        </el-descriptions>
+                      </el-collapse-panel>
+                    </el-collapse>
                   </div>
                 </div>
 
                 <!-- 免费期信息 -->
                 <div class="info-section" v-if="hasFreeDays(record)">
                   <div class="section-title">⏰ 免费期信息</div>
-                  <a-descriptions :column="1" size="small">
-                    <a-descriptions-item label="最后免费日" v-if="record.lastFreeDate">
+                  <el-descriptions :column="1" size="small">
+                    <el-descriptions-item label="最后免费日" v-if="record.lastFreeDate">
                       {{ formatDate(record.lastFreeDate) }}
                       <span class="sub-label" v-if="record.remainingFreeDays">
                         (剩余 {{ record.remainingFreeDays }} 天)
                       </span>
-                    </a-descriptions-item>
-                    <a-descriptions-item label="最晚还箱日" v-if="record.lastReturnDate">
+                    </el-descriptions-item>
+                    <el-descriptions-item label="最晚还箱日" v-if="record.lastReturnDate">
                       {{ formatDate(record.lastReturnDate) }}
-                    </a-descriptions-item>
-                  </a-descriptions>
+                    </el-descriptions-item>
+                  </el-descriptions>
                 </div>
 
                 <!-- 备选方案 -->
@@ -148,27 +146,28 @@
                       >({{ record.alternativeSolutions?.length || 0 }}个)</span
                     >
                   </div>
-                  <a-collapse :bordered="false" ghost>
-                    <a-collapse-panel
+                  <el-collapse>
+                    <el-collapse-panel
                       v-for="(alt, altIndex) in record.alternativeSolutions"
                       :key="altIndex"
-                      :header="`方案 ${altIndex + 1}`"
+                      :title="`方案 ${altIndex + 1}`"
+                      :name="altIndex"
                     >
-                      <a-descriptions :column="1" size="small">
-                        <a-descriptions-item label="策略">
+                      <el-descriptions :column="1" size="small">
+                        <el-descriptions-item label="策略">
                           {{ translateStrategy(alt.strategy) }}
-                        </a-descriptions-item>
-                        <a-descriptions-item label="总费用" v-if="alt.totalCost">
+                        </el-descriptions-item>
+                        <el-descriptions-item label="总费用" v-if="alt.totalCost">
                           ${{ alt.totalCost.toFixed(2) }}
-                        </a-descriptions-item>
-                      </a-descriptions>
-                    </a-collapse-panel>
-                  </a-collapse>
+                        </el-descriptions-item>
+                      </el-descriptions>
+                    </el-collapse-panel>
+                  </el-collapse>
                 </div>
 
                 <!-- 审计信息 -->
                 <div class="audit-info">
-                  <a-divider style="margin: 12px 0" />
+                  <el-divider style="margin: 12px 0" />
                   <div class="audit-row">
                     <span>👤 操作人：{{ record.operatedBy || 'SYSTEM' }}</span>
                     <span v-if="record.operationType">
@@ -176,18 +175,19 @@
                     </span>
                   </div>
                 </div>
-              </div>
-            </a-timeline-item>
-          </a-timeline>
+              </el-card>
+            </el-timeline-item>
+          </el-timeline>
         </div>
-      </a-spin>
-    </a-drawer>
+      </div>
+    </el-drawer>
   </div>
 </template>
 
 <script setup lang="ts">
 import api from '@/services/api'
 import { computed, ref, watch } from 'vue'
+import { Document } from '@element-plus/icons-vue'
 
 // 导出类型和组件实例
 export interface SchedulingHistory {
@@ -223,7 +223,7 @@ export interface SchedulingHistory {
 
 export interface SchedulingHistoryCardInstance {
   toggleHistory: () => Promise<void>
-  historyCount: number | undefined
+  historyCount: number
 }
 
 const props = defineProps<{
@@ -385,7 +385,9 @@ function hasAlternatives(record: SchedulingHistory): boolean {
 // 导出组件实例方法供外部调用
 defineExpose<SchedulingHistoryCardInstance>({
   toggleHistory,
-  historyCount,
+  get historyCount() {
+    return histories.value.length
+  },
 })
 </script>
 

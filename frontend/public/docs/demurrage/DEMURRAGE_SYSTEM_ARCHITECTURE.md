@@ -797,12 +797,14 @@ logger.debug('[Demurrage] Charge days calculation:', {
 | **后端核心服务** | `backend/src/services/demurrage.service.ts` | 主计算逻辑 |
 | **后端控制器** | `backend/src/controllers/demurrage.controller.ts` | API 入口 |
 | **后端路由** | `backend/src/routes/demurrage.routes.ts` | 路由定义 |
-| **前端服务** | `frontend/src/services/demurrage.ts` | API 调用封装 |
+| **前端服务** | `frontend/src/services/demurrage.ts` | API 调用封装（读） |
+| **前端服务** | `frontend/src/services/container.ts` | 写回 API 调用 |
 | **前端主导组件** | `frontend/src/components/demurrage/DemurrageDetailSection.vue` | 详情页展示 |
 | **前端计算面板** | `frontend/src/components/demurrage/DemurrageCalculationPanel.vue` | 结果可视化 |
 | **前端可复用组件** | `frontend/src/components/demurrage/DemurrageCalculator.vue` | 轻量计算器 |
 | **前端组合式** | `frontend/src/composables/useDemurrageCalculation.ts` | 前端计算逻辑 |
 | **实体定义** | `backend/src/entities/ExtDemurrageStandard.ts` | 收费标准实体 |
+| **实体定义** | `backend/src/entities/ExtDemurrageRecord.ts` | 预计算记录实体 |
 | **工具函数** | `backend/src/utils/demurrageTiers.ts` | 阶梯费率处理 |
 
 ### 8.2 关键 API 接口
@@ -811,11 +813,13 @@ logger.debug('[Demurrage] Charge days calculation:', {
 |------|------|------|------|
 | GET | `/api/v1/demurrage/calculate/:containerNumber` | 单柜计算 | 默认 |
 | GET | `/api/v1/demurrage/standards` | 获取收费标准列表 | 默认 |
+| POST | `/api/v1/demurrage/standards` | 创建收费标准 | 默认 |
 | GET | `/api/v1/demurrage/summary` | 汇总统计 | 90s |
 | GET | `/api/v1/demurrage/top-containers` | 高费用货柜 Top N | 90s |
 | GET | `/api/v1/demurrage/diagnose/:containerNumber` | 诊断匹配失败 | 默认 |
 | POST | `/api/v1/demurrage/batch-write-back` | 批量写回免费日期 | 90s |
 | POST | `/api/v1/demurrage/write-back/:containerNumber` | 单条写回免费日期 | 默认 |
+| POST | `/api/v1/demurrage/batch-compute-records` | 批量预计算并写入记录表 | 90s |
 
 ### 8.3 关键业务公式
 
