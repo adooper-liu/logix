@@ -63,6 +63,13 @@ export enum PathStatus {
   COMPLETED = 'COMPLETED'
 }
 
+// 运输模式枚举
+export enum TransportMode {
+  STANDARD = 'STANDARD',      // 纯海运
+  SEA_RAIL = 'SEA_RAIL',      // 海铁联运（美加线）
+  FEEDER = 'FEEDER'           // 驳船联运
+}
+
 // 地理位置类型
 export enum LocationType {
   PORT = 'PORT',
@@ -100,6 +107,7 @@ export interface StatusPath {
   containerNumber: string;
   nodes: StatusNode[];
   overallStatus: PathStatus;
+  transportMode: TransportMode;  // 运输模式
   eta?: Date;
   startedAt?: Date;
   completedAt?: Date;

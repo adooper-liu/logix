@@ -3,15 +3,9 @@
  * 物流状态可视化 GraphQL 解析器
  */
 
-import { StatusPath, StatusNode, StandardStatus, PathStatus, NodeStatus, LocationType } from '../types';
-import {
-  processStatusPath,
-  validateStatusPath
-} from '../utils/pathValidator';
-import {
-  getStatusPathByContainerFromDb,
-  validatePathFromDb
-} from '../services/statusPathFromDb';
+import { getStatusPathByContainerFromDb, validatePathFromDb } from "../services/statusPathFromDb";
+import { NodeStatus, PathStatus, StandardStatus, StatusNode, StatusPath } from "../types/index.js";
+import { processStatusPath, validateStatusPath } from "../utils/pathValidator";
 
 // 模拟数据库（无主库数据时回退）
 const mockDatabase: Map<string, StatusPath> = new Map();
@@ -23,113 +17,113 @@ const generateMockPath = (containerNumber: string): StatusPath => {
     {
       id: `node-${containerNumber}-1`,
       status: StandardStatus.NOT_SHIPPED,
-      description: '未出运',
+      description: "未出运",
       timestamp: new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000),
       location: {
-        id: 'loc-1',
-        name: '深圳港',
-        code: 'SZX',
-        type: 'PORT',
-        country: '中国'
+        id: "loc-1",
+        name: "深圳港",
+        code: "SZX",
+        type: "PORT",
+        country: "中国",
       },
       nodeStatus: NodeStatus.COMPLETED,
       isAlert: false,
-      rawData: { eventCode: 'BOOKING' }
+      rawData: { eventCode: "BOOKING" },
     },
     {
       id: `node-${containerNumber}-2`,
       status: StandardStatus.EMPTY_PICKED_UP,
-      description: '已提空箱',
+      description: "已提空箱",
       timestamp: new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000),
       location: {
-        id: 'loc-2',
-        name: '深圳堆场',
-        code: 'SZX-YD',
-        type: 'TERMINAL'
+        id: "loc-2",
+        name: "深圳堆场",
+        code: "SZX-YD",
+        type: "TERMINAL",
       },
       nodeStatus: NodeStatus.COMPLETED,
       isAlert: false,
-      rawData: { eventCode: 'STSP' }
+      rawData: { eventCode: "STSP" },
     },
     {
       id: `node-${containerNumber}-3`,
       status: StandardStatus.GATE_IN,
-      description: '已进港',
+      description: "已进港",
       timestamp: new Date(now.getTime() - 13 * 24 * 60 * 60 * 1000),
       location: {
-        id: 'loc-1',
-        name: '深圳港',
-        code: 'SZX',
-        type: 'PORT',
-        country: '中国'
+        id: "loc-1",
+        name: "深圳港",
+        code: "SZX",
+        type: "PORT",
+        country: "中国",
       },
       nodeStatus: NodeStatus.COMPLETED,
       isAlert: false,
-      rawData: { eventCode: 'GTIN' }
+      rawData: { eventCode: "GTIN" },
     },
     {
       id: `node-${containerNumber}-4`,
       status: StandardStatus.LOADED,
-      description: '已装船',
+      description: "已装船",
       timestamp: new Date(now.getTime() - 12 * 24 * 60 * 60 * 1000),
       location: {
-        id: 'loc-1',
-        name: '深圳港',
-        code: 'SZX',
-        type: 'PORT',
-        country: '中国'
+        id: "loc-1",
+        name: "深圳港",
+        code: "SZX",
+        type: "PORT",
+        country: "中国",
       },
       nodeStatus: NodeStatus.COMPLETED,
       isAlert: false,
-      rawData: { eventCode: 'LOBD' }
+      rawData: { eventCode: "LOBD" },
     },
     {
       id: `node-${containerNumber}-5`,
       status: StandardStatus.DEPARTED,
-      description: '已离港',
+      description: "已离港",
       timestamp: new Date(now.getTime() - 11 * 24 * 60 * 60 * 1000),
       location: {
-        id: 'loc-1',
-        name: '深圳港',
-        code: 'SZX',
-        type: 'PORT',
-        country: '中国'
+        id: "loc-1",
+        name: "深圳港",
+        code: "SZX",
+        type: "PORT",
+        country: "中国",
       },
       nodeStatus: NodeStatus.COMPLETED,
       isAlert: false,
-      rawData: { eventCode: 'DLPT' }
+      rawData: { eventCode: "DLPT" },
     },
     {
       id: `node-${containerNumber}-6`,
       status: StandardStatus.SAILING,
-      description: '航行中',
+      description: "航行中",
       timestamp: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000),
       location: {
-        id: 'loc-3',
-        name: '太平洋',
-        code: 'PACIFIC',
-        type: 'PORT'
+        id: "loc-3",
+        name: "太平洋",
+        code: "PACIFIC",
+        type: "PORT",
       },
       nodeStatus: NodeStatus.COMPLETED,
       isAlert: false,
-      rawData: { eventCode: 'RDSI' }
+      rawData: { eventCode: "RDSI" },
     },
     {
       id: `node-${containerNumber}-7`,
       status: StandardStatus.ARRIVED,
-      description: '已抵港',
+      description: "已抵港",
       timestamp: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000),
       location: {
-        id: 'loc-4',
-        name: '洛杉矶港',
-        code: 'LAX',
-        type: 'PORT',
-        country: '美国'
+        id: "loc-4",
+        name: "洛杉矶港",
+        code: "LAX",
+        type: "PORT",
+        country: "美国",
       },
       nodeStatus: NodeStatus.IN_PROGRESS,
       isAlert: false,
-      rawData: { eventCode: 'ARVD' }
-    }
+      rawData: { eventCode: "ARVD" },
+    },
   ];
 
   const processed = processStatusPath({
@@ -137,7 +131,7 @@ const generateMockPath = (containerNumber: string): StatusPath => {
     overallStatus: PathStatus.ON_TIME,
     eta: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000),
     startedAt: null,
-    completedAt: null
+    completedAt: null,
   });
   return {
     ...processed,
@@ -145,7 +139,7 @@ const generateMockPath = (containerNumber: string): StatusPath => {
     containerNumber,
     createdAt: now,
     updatedAt: now,
-    isMock: true
+    isMock: true,
   };
 };
 
@@ -191,22 +185,19 @@ export const Query = {
   },
 
   // 获取所有物流路径（分页）
-  getStatusPaths: async (
-    _: any,
-    { first = 10, after, filter }: any
-  ) => {
+  getStatusPaths: async (_: any, { first = 10, after, filter }: any) => {
     const allPaths = Array.from(mockDatabase.values());
     let filteredPaths = allPaths;
 
     // 应用过滤器
     if (filter) {
       if (filter.containerNumber) {
-        filteredPaths = filteredPaths.filter(p =>
-          p.nodes[0]?.rawData?.containerNumber?.includes(filter.containerNumber)
+        filteredPaths = filteredPaths.filter((p) =>
+          p.nodes[0]?.rawData?.containerNumber?.includes(filter.containerNumber),
         );
       }
       if (filter.overallStatus) {
-        filteredPaths = filteredPaths.filter(p => p.overallStatus === filter.overallStatus);
+        filteredPaths = filteredPaths.filter((p) => p.overallStatus === filter.overallStatus);
       }
     }
 
@@ -218,36 +209,33 @@ export const Query = {
     return {
       edges: paginatedPaths.map((path, index) => ({
         node: path,
-        cursor: btoa((startIndex + index).toString())
+        cursor: btoa((startIndex + index).toString()),
       })),
       pageInfo: {
         hasNextPage: endIndex < filteredPaths.length,
         hasPreviousPage: startIndex > 0,
         startCursor: startIndex > 0 ? btoa(startIndex.toString()) : null,
-        endCursor: paginatedPaths.length > 0 ? btoa((endIndex - 1).toString()) : null
+        endCursor: paginatedPaths.length > 0 ? btoa((endIndex - 1).toString()) : null,
       },
-      totalCount: filteredPaths.length
+      totalCount: filteredPaths.length,
     };
   },
 
   // 获取状态事件列表（模拟）
-  getStatusEvents: async (
-    _: any,
-    { containerNumber, limit = 50, offset = 0 }: any
-  ) => {
+  getStatusEvents: async (_: any, { containerNumber, limit = 50, offset = 0 }: any) => {
     const path = mockDatabase.get(containerNumber);
     if (!path) return [];
 
-    return path.nodes.map(node => ({
+    return path.nodes.map((node) => ({
       id: `event-${node.id}`,
       containerNumber,
       eventCode: node.rawData.eventCode,
       eventName: node.description,
       eventTime: node.timestamp,
       location: node.location,
-      remarks: '',
+      remarks: "",
       rawData: node.rawData,
-      createdAt: new Date()
+      createdAt: new Date(),
     }));
   },
 
@@ -258,18 +246,16 @@ export const Query = {
       if (result) return result;
     }
 
-    const path = Array.from(mockDatabase.values()).find(p =>
-      p.id === pathId || p.nodes[0]?.id.startsWith(pathId)
-    );
+    const path = Array.from(mockDatabase.values()).find((p) => p.id === pathId || p.nodes[0]?.id.startsWith(pathId));
     if (!path) {
       return {
         isValid: false,
-        errors: ['路径不存在'],
-        warnings: []
+        errors: ["路径不存在"],
+        warnings: [],
       };
     }
     return validateStatusPath(path);
-  }
+  },
 };
 
 // Mutation Resolvers
@@ -281,7 +267,7 @@ export const Mutation = {
       overallStatus: PathStatus.ON_TIME,
       eta: input.eta || null,
       startedAt: null,
-      completedAt: null
+      completedAt: null,
     });
 
     const containerNumber = input.containerNumber;
@@ -296,14 +282,14 @@ export const Mutation = {
     const existingPath = mockDatabase.get(id);
 
     if (!existingPath) {
-      throw new Error('路径不存在');
+      throw new Error("路径不存在");
     }
 
     const updatedPath = processStatusPath({
       ...existingPath,
       nodes: input.nodes || existingPath.nodes,
       overallStatus: input.overallStatus || existingPath.overallStatus,
-      eta: input.eta !== undefined ? input.eta : existingPath.eta
+      eta: input.eta !== undefined ? input.eta : existingPath.eta,
     });
 
     mockDatabase.set(id, updatedPath);
@@ -321,7 +307,7 @@ export const Mutation = {
     const path = mockDatabase.get(pathId);
 
     if (!path) {
-      throw new Error('路径不存在');
+      throw new Error("路径不存在");
     }
 
     const newNode: StatusNode = {
@@ -332,13 +318,13 @@ export const Mutation = {
       location: null,
       nodeStatus: NodeStatus.COMPLETED,
       isAlert: false,
-      rawData: input.rawData || {}
+      rawData: input.rawData || {},
     };
 
     const updatedNodes = [...path.nodes, newNode];
     const updatedPath = processStatusPath({
       ...path,
-      nodes: updatedNodes
+      nodes: updatedNodes,
     });
 
     mockDatabase.set(pathId, updatedPath);
@@ -349,7 +335,7 @@ export const Mutation = {
   // 同步外部数据
   syncExternalData: async (
     _: any,
-    { source, data, containerNumber }: { source: string; data: any; containerNumber: string }
+    { source, data, containerNumber }: { source: string; data: any; containerNumber: string },
   ) => {
     // 这里应该调用适配器层处理外部数据
     const path = generateMockPath(containerNumber);
@@ -359,10 +345,7 @@ export const Mutation = {
   },
 
   // 批量同步外部数据
-  batchSyncExternalData: async (
-    _: any,
-    { source, dataList }: { source: string; dataList: any[] }
-  ) => {
+  batchSyncExternalData: async (_: any, { source, dataList }: { source: string; dataList: any[] }) => {
     const results = [];
 
     for (const data of dataList) {
@@ -374,25 +357,25 @@ export const Mutation = {
         results.push({
           containerNumber,
           success: true,
-          message: '同步成功',
-          pathId: containerNumber
+          message: "同步成功",
+          pathId: containerNumber,
         });
       } catch (error) {
         results.push({
           containerNumber: data.containerNumber,
           success: false,
-          message: error instanceof Error ? error.message : '同步失败',
-          pathId: null
+          message: error instanceof Error ? error.message : "同步失败",
+          pathId: null,
         });
       }
     }
 
     return {
-      successCount: results.filter(r => r.success).length,
-      failureCount: results.filter(r => !r.success).length,
-      results
+      successCount: results.filter((r) => r.success).length,
+      failureCount: results.filter((r) => !r.success).length,
+      results,
     };
-  }
+  },
 };
 
 // Subscription Resolvers（使用 PubSub）
@@ -401,19 +384,19 @@ export const Subscription = {
     subscribe: (_: any, { containerNumber }: { containerNumber: string }) => {
       // 实际应该使用 PubSub
       return null;
-    }
+    },
   },
   statusNodeAdded: {
     subscribe: (_: any, { containerNumber }: { containerNumber: string }) => {
       // 实际应该使用 PubSub
       return null;
-    }
-  }
+    },
+  },
 };
 
 // 导出完整的 resolvers 对象
 export const resolvers = {
   Query,
   Mutation,
-  Subscription
+  Subscription,
 };

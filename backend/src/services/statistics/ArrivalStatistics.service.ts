@@ -8,10 +8,10 @@
 
 import { Repository } from 'typeorm';
 import { Container } from '../../entities/Container';
+import { ArrivalSubqueryTemplates } from './ArrivalSubqueryTemplates';
 import { ContainerQueryBuilder } from './common/ContainerQueryBuilder';
 import { DateFilterBuilder } from './common/DateFilterBuilder';
 import { createDateRangeSubQuery } from './common/DateRangeSubquery';
-import { ArrivalSubqueryTemplates } from './ArrivalSubqueryTemplates';
 
 export class ArrivalStatisticsService {
   constructor(private containerRepository: Repository<Container>) {}

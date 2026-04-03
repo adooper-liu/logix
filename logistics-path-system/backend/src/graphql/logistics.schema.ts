@@ -96,12 +96,20 @@ export const typeDefs = `#graphql
     rawData: JSON
   }
 
+  # 运输模式
+  enum TransportMode {
+    STANDARD      # 纯海运
+    SEA_RAIL      # 海铁联运（美加线）
+    FEEDER        # 驳船联运
+  }
+
   # 物流状态路径
   type StatusPath {
     id: ID!
     containerNumber: String!
     nodes: [StatusNode!]!
     overallStatus: PathStatus!
+    transportMode: TransportMode!  # 运输模式
     eta: DateTime
     startedAt: DateTime
     completedAt: DateTime

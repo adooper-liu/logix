@@ -37,7 +37,23 @@ interface ProcessSupplement {
 }
 
 /** 完整路径阶段模板：未出运 → 还箱 */
-const FULL_PATH_TEMPLATE: { order: number; status: StandardStatus; label: string; statuses: StandardStatus[] }[] = [
+/**
+ * 运输模式枚举
+ */
+export enum TransportMode {
+  /** 纯海运：起运港 -> 海运 -> 目的港 -> 提柜 */
+  STANDARD = 'STANDARD',
+  /** 海铁联运：海运到目的港后，铁路转运到内陆点（美加线） */
+  SEA_RAIL = 'SEA_RAIL',
+  /** 驳船联运：驳船从支线港到枢纽港，再海运 */
+  FEEDER = 'FEEDER',
+}
+
+/**
+ * 纯海运模式模板
+ * 起运 -> 装船 -> 离港 -> 海运 -> 抵港 -> 靠泊 -> 卸船 -> 可提 -> 提柜 -> 交货 -> 还箱
+ */
+const STANDARD_MODE_TEMPLATE: { order: number; status: StandardStatus; label: string; statuses: StandardStatus[] }[] = [
   { order: 1, status: StandardStatus.NOT_SHIPPED, label: "未出运", statuses: [StandardStatus.NOT_SHIPPED] },
   { order: 2, status: StandardStatus.EMPTY_PICKED_UP, label: "提空箱", statuses: [StandardStatus.EMPTY_PICKED_UP] },
   {
@@ -50,30 +66,19 @@ const FULL_PATH_TEMPLATE: { order: number; status: StandardStatus; label: string
     order: 4,
     status: StandardStatus.LOADED,
     label: "装船",
-    statuses: [StandardStatus.LOADED, StandardStatus.RAIL_LOADED, StandardStatus.FEEDER_LOADED],
+    statuses: [StandardStatus.LOADED],
   },
   {
     order: 5,
     status: StandardStatus.DEPARTED,
     label: "离港",
-    statuses: [StandardStatus.DEPARTED, StandardStatus.RAIL_DEPARTED, StandardStatus.FEEDER_DEPARTED],
+    statuses: [StandardStatus.DEPARTED],
   },
   {
     order: 6,
     status: StandardStatus.SAILING,
-    label: "航行",
-    statuses: [
-      StandardStatus.SAILING,
-      StandardStatus.TRANSIT_ARRIVED,
-      StandardStatus.TRANSIT_BERTHED,
-      StandardStatus.TRANSIT_DISCHARGED,
-      StandardStatus.TRANSIT_LOADED,
-      StandardStatus.TRANSIT_DEPARTED,
-      StandardStatus.FEEDER_ARRIVED,
-      StandardStatus.FEEDER_DISCHARGED,
-      StandardStatus.RAIL_ARRIVED,
-      StandardStatus.RAIL_DISCHARGED,
-    ],
+    label: "海运",
+    statuses: [StandardStatus.SAILING],
   },
   {
     order: 7,
@@ -82,7 +87,7 @@ const FULL_PATH_TEMPLATE: { order: number; status: StandardStatus; label: string
     statuses: [StandardStatus.ARRIVED, StandardStatus.BERTHED],
   },
   { order: 8, status: StandardStatus.DISCHARGED, label: "卸船", statuses: [StandardStatus.DISCHARGED] },
-  { order: 9, status: StandardStatus.AVAILABLE, label: "可提货", statuses: [StandardStatus.AVAILABLE] },
+  { order: 9, status: StandardStatus.AVAILABLE, label: "可提", statuses: [StandardStatus.AVAILABLE] },
   {
     order: 10,
     status: StandardStatus.GATE_OUT,
@@ -96,6 +101,133 @@ const FULL_PATH_TEMPLATE: { order: number; status: StandardStatus; label: string
   },
   {
     order: 11,
+    status: StandardStatus.RETURNED_EMPTY,
+    label: "还箱",
+    statuses: [StandardStatus.RETURNED_EMPTY, StandardStatus.COMPLETED],
+  },
+];
+
+/**
+ * 海铁联运模式模板（美加线）
+ * 起运 -> 装船 -> 离港 -> 海运 -> 抵港 -> 靠泊 -> 卸船 -> 铁路装车 -> 铁路运输 -> 铁路卸箱 -> 提柜 -> 交货 -> 还箱
+ */
+const SEA_RAIL_MODE_TEMPLATE: { order: number; status: StandardStatus; label: string; statuses: StandardStatus[] }[] = [
+  { order: 1, status: StandardStatus.NOT_SHIPPED, label: "未出运", statuses: [StandardStatus.NOT_SHIPPED] },
+  { order: 2, status: StandardStatus.EMPTY_PICKED_UP, label: "提空箱", statuses: [StandardStatus.EMPTY_PICKED_UP] },
+  {
+    order: 3,
+    status: StandardStatus.GATE_IN,
+    label: "进港",
+    statuses: [StandardStatus.GATE_IN, StandardStatus.CONTAINER_STUFFED],
+  },
+  {
+    order: 4,
+    status: StandardStatus.LOADED,
+    label: "装船",
+    statuses: [StandardStatus.LOADED],
+  },
+  {
+    order: 5,
+    status: StandardStatus.DEPARTED,
+    label: "离港",
+    statuses: [StandardStatus.DEPARTED],
+  },
+  {
+    order: 6,
+    status: StandardStatus.SAILING,
+    label: "海运",
+    statuses: [StandardStatus.SAILING],
+  },
+  {
+    order: 7,
+    status: StandardStatus.ARRIVED,
+    label: "抵港",
+    statuses: [StandardStatus.ARRIVED, StandardStatus.BERTHED],
+  },
+  { order: 8, status: StandardStatus.DISCHARGED, label: "卸船", statuses: [StandardStatus.DISCHARGED] },
+  // 铁路运输段（卸船后，提柜前）
+  { order: 9, status: StandardStatus.RAIL_LOADED, label: "铁路装车", statuses: [StandardStatus.RAIL_LOADED] },
+  { order: 10, status: StandardStatus.RAIL_DEPARTED, label: "铁路运输", statuses: [StandardStatus.RAIL_DEPARTED] },
+  { order: 11, status: StandardStatus.RAIL_ARRIVED, label: "铁路到达", statuses: [StandardStatus.RAIL_ARRIVED] },
+  { order: 12, status: StandardStatus.RAIL_DISCHARGED, label: "铁路卸箱", statuses: [StandardStatus.RAIL_DISCHARGED] },
+  // 提柜交货段
+  {
+    order: 13,
+    status: StandardStatus.GATE_OUT,
+    label: "提柜",
+    statuses: [
+      StandardStatus.GATE_OUT,
+      StandardStatus.IN_TRANSIT_TO_DEST,
+      StandardStatus.DELIVERY_ARRIVED,
+      StandardStatus.STRIPPED,
+    ],
+  },
+  {
+    order: 14,
+    status: StandardStatus.RETURNED_EMPTY,
+    label: "还箱",
+    statuses: [StandardStatus.RETURNED_EMPTY, StandardStatus.COMPLETED],
+  },
+];
+
+/**
+ * 驳船联运模式模板
+ * 起运 -> 驳船装船 -> 驳船离港 -> 驳船抵达 -> 驳船卸船 -> 海运装船 -> 海运离港 -> 海运 -> 抵港 -> 靠泊 -> 卸船 -> 可提 -> 提柜 -> 交货 -> 还箱
+ */
+const FEEDER_MODE_TEMPLATE: { order: number; status: StandardStatus; label: string; statuses: StandardStatus[] }[] = [
+  { order: 1, status: StandardStatus.NOT_SHIPPED, label: "未出运", statuses: [StandardStatus.NOT_SHIPPED] },
+  { order: 2, status: StandardStatus.EMPTY_PICKED_UP, label: "提空箱", statuses: [StandardStatus.EMPTY_PICKED_UP] },
+  {
+    order: 3,
+    status: StandardStatus.GATE_IN,
+    label: "进港",
+    statuses: [StandardStatus.GATE_IN, StandardStatus.CONTAINER_STUFFED],
+  },
+  // 驳船运输段（海运前）
+  { order: 4, status: StandardStatus.FEEDER_LOADED, label: "驳船装船", statuses: [StandardStatus.FEEDER_LOADED] },
+  { order: 5, status: StandardStatus.FEEDER_DEPARTED, label: "驳船离港", statuses: [StandardStatus.FEEDER_DEPARTED] },
+  { order: 6, status: StandardStatus.FEEDER_ARRIVED, label: "驳船抵达", statuses: [StandardStatus.FEEDER_ARRIVED] },
+  { order: 7, status: StandardStatus.FEEDER_DISCHARGED, label: "驳船卸船", statuses: [StandardStatus.FEEDER_DISCHARGED] },
+  // 海运段
+  {
+    order: 8,
+    status: StandardStatus.LOADED,
+    label: "海运装船",
+    statuses: [StandardStatus.LOADED],
+  },
+  {
+    order: 9,
+    status: StandardStatus.DEPARTED,
+    label: "海运离港",
+    statuses: [StandardStatus.DEPARTED],
+  },
+  {
+    order: 10,
+    status: StandardStatus.SAILING,
+    label: "海运",
+    statuses: [StandardStatus.SAILING],
+  },
+  {
+    order: 11,
+    status: StandardStatus.ARRIVED,
+    label: "抵港",
+    statuses: [StandardStatus.ARRIVED, StandardStatus.BERTHED],
+  },
+  { order: 12, status: StandardStatus.DISCHARGED, label: "卸船", statuses: [StandardStatus.DISCHARGED] },
+  { order: 13, status: StandardStatus.AVAILABLE, label: "可提", statuses: [StandardStatus.AVAILABLE] },
+  {
+    order: 14,
+    status: StandardStatus.GATE_OUT,
+    label: "提柜",
+    statuses: [
+      StandardStatus.GATE_OUT,
+      StandardStatus.IN_TRANSIT_TO_DEST,
+      StandardStatus.DELIVERY_ARRIVED,
+      StandardStatus.STRIPPED,
+    ],
+  },
+  {
+    order: 15,
     status: StandardStatus.RETURNED_EMPTY,
     label: "还箱",
     statuses: [StandardStatus.RETURNED_EMPTY, StandardStatus.COMPLETED],
@@ -159,9 +291,50 @@ function eventToNode(e: DbEvent): StatusNode {
   };
 }
 
+/** 根据运输模式获取对应的阶段模板 */
+function getTemplateByMode(mode: TransportMode) {
+  switch (mode) {
+    case TransportMode.SEA_RAIL:
+      return SEA_RAIL_MODE_TEMPLATE;
+    case TransportMode.FEEDER:
+      return FEEDER_MODE_TEMPLATE;
+    default:
+      return STANDARD_MODE_TEMPLATE;
+  }
+}
+
+/**
+ * 识别运输模式
+ * 基于实际发生的事件来判断
+ */
+function identifyTransportMode(events: DbEvent[]): TransportMode {
+  const statusCodes = events.map(e => e.status_code).filter(Boolean) as string[];
+  
+  // 检查铁路事件（海铁联运：海运后铁路转运）
+  const hasRailEvents = statusCodes.some(code => 
+    ['IRLB', 'IRDP', 'IRAR', 'IRDS'].includes(code)
+  );
+  
+  // 检查驳船事件（驳船联运：海运前驳船集疏）
+  const hasFeederEvents = statusCodes.some(code => 
+    ['FDLB', 'FDDP', 'FDBA', 'FDDC'].includes(code)
+  );
+  
+  // 优先级：海铁联运 > 驳船联运 > 纯海运
+  if (hasRailEvents) {
+    return TransportMode.SEA_RAIL;
+  }
+  
+  if (hasFeederEvents) {
+    return TransportMode.FEEDER;
+  }
+  
+  return TransportMode.STANDARD;
+}
+
 function createPlaceholderNode(
   stageOrder: number,
-  template: (typeof FULL_PATH_TEMPLATE)[0],
+  template: { order: number; status: StandardStatus; label: string; statuses: StandardStatus[] },
   refTimestamp: Date,
   orderOffset: number,
 ): StatusNode {
@@ -189,7 +362,7 @@ const SUPPLEMENT_DISPLAY: Record<number, string> = {
 /** 从流程表创建补充节点（抵港/卸船/可提货/提柜/还箱） */
 function createSupplementNode(
   stageOrder: number,
-  template: (typeof FULL_PATH_TEMPLATE)[0],
+  template: { order: number; status: StandardStatus; label: string; statuses: StandardStatus[] },
   occurredAt: Date,
   locationCode: string | null,
   locationName: string | null,
@@ -214,13 +387,19 @@ function createSupplementNode(
   };
 }
 
-/** 将事件按阶段分组，每阶段取最早事件；缺数据时用 process 表补充 */
+/** 将事件按阶段分组，支持三种运输模式；缺数据时用 process 表补充 */
 function buildFullPathNodes(
   events: DbEvent[],
   supplement: ProcessSupplement | null,
   portName: string | null,
   portCode: string | null,
 ): StatusNode[] {
+  // 1. 识别运输模式
+  const mode = identifyTransportMode(events);
+  
+  // 2. 根据模式选择模板
+  const template = getTemplateByMode(mode);
+  
   const nodes: StatusNode[] = [];
   const eventNodes = events.map(eventToNode);
   const now = new Date();
@@ -243,24 +422,25 @@ function buildFullPathNodes(
     11: supplement?.return_time ? { ts: new Date(supplement.return_time), locCode: portCode, locName: portName } : null,
   };
 
-  for (const template of FULL_PATH_TEMPLATE) {
-    const matching = eventNodes.filter((n) => template.statuses.includes(n.status));
+  for (const templateItem of template) {
+    const matching = eventNodes.filter((n) => templateItem.statuses.includes(n.status));
     if (matching.length > 0) {
+      // 按时间顺序排序，取最早的事件
       const sorted = matching.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
       const chosen = sorted[0];
       lastTimestamp = new Date(chosen.timestamp);
       nodes.push({
         ...chosen,
-        rawData: { ...chosen.rawData, stageOrder: template.order },
+        rawData: { ...chosen.rawData, stageOrder: templateItem.order, transportMode: mode },
       });
     } else {
-      const supp = stageToSupplement[template.order as keyof typeof stageToSupplement];
+      const supp = stageToSupplement[templateItem.order as keyof typeof stageToSupplement];
       if (supp) {
         lastTimestamp = supp.ts;
-        nodes.push(createSupplementNode(template.order, template, supp.ts, supp.locCode, supp.locName));
+        nodes.push(createSupplementNode(templateItem.order, templateItem, supp.ts, supp.locCode, supp.locName));
       } else {
         const refTs = lastTimestamp.getTime() > 0 ? lastTimestamp : now;
-        nodes.push(createPlaceholderNode(template.order, template, refTs, placeholderIndex++));
+        nodes.push(createPlaceholderNode(templateItem.order, templateItem, refTs, placeholderIndex++));
       }
     }
   }
@@ -337,10 +517,13 @@ export async function getStatusPathByContainerFromDb(containerNumber: string): P
     const portName = lastFreeResult.rows[0]?.port_name ?? null;
     const portCode = lastFreeResult.rows[0]?.port_code ?? null;
 
+    // 无事件且无补充数据时，用模板生成占位节点（根据实际事件识别模式）
+    const mode = identifyTransportMode(events);
+    const template = getTemplateByMode(mode);
     const nodes =
       events.length > 0 || supplement
         ? buildFullPathNodes(events, supplement, portName, portCode)
-        : FULL_PATH_TEMPLATE.map((t, i) => createPlaceholderNode(t.order, t, new Date(), i));
+        : template.map((t, i) => createPlaceholderNode(t.order, t, new Date(), i));
 
     const processed = processStatusPath({
       nodes,
@@ -365,6 +548,7 @@ export async function getStatusPathByContainerFromDb(containerNumber: string): P
       ...processed,
       id: `path-${containerNumber}-${Date.now()}`,
       containerNumber,
+      transportMode: mode,  // 运输模式
       createdAt: new Date(),
       updatedAt: new Date(),
       lastFreeDate: lastFreeDate ?? undefined,
