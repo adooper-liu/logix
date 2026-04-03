@@ -1,6 +1,6 @@
+import { useAppStore } from '@/store/app'
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios'
 import { ElMessage } from 'element-plus'
-import { useAppStore } from '@/store/app'
 
 // 创建axios实例
 const apiClient: AxiosInstance = axios.create({

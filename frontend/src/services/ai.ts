@@ -178,33 +178,33 @@ export const aiService = {
   async getStatsOverview() {
     return api.get<{ success: boolean; data?: any }>('/ai/stats/overview')
   },
-  
+
   async getStatsByStatus() {
     return api.get<{ success: boolean; data?: any }>('/ai/stats/status')
   },
-  
+
   async getStatsByArrival(start?: string, end?: string) {
     return api.get<{ success: boolean; data?: any }>('/ai/stats/arrival', {
       params: { start, end },
     })
   },
-  
+
   async getStatsByETA() {
     return api.get<{ success: boolean; data?: any }>('/ai/stats/eta')
   },
-  
+
   async getStatsByLastFreeDate() {
     return api.get<{ success: boolean; data?: any }>('/ai/stats/last-free-date')
   },
-  
+
   async getStatsDemurrage() {
     return api.get<{ success: boolean; data?: any }>('/ai/stats/demurrage')
   },
-  
+
   async getStatsByShippingCompany() {
     return api.get<{ success: boolean; data?: any }>('/ai/stats/shipping-company')
   },
-  
+
   async getStatsByDestinationPort() {
     return api.get<{ success: boolean; data?: any }>('/ai/stats/destination-port')
   },

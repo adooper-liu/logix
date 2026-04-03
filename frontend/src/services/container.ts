@@ -3,7 +3,6 @@
  * Container Service
  */
 
-import { api } from './api'
 import type {
   Container,
   ContainerFilters,
@@ -12,6 +11,7 @@ import type {
 } from '@/types/container'
 import { cacheManager } from '@/utils/cacheManager'
 import { camelToSnake } from '@/utils/camelToSnake'
+import { api } from './api'
 
 // 使用全局 api 实例，自动包含国家代码等请求头
 
@@ -42,7 +42,7 @@ export const containerService = {
   async getContainerById(id: string): Promise<{ success: boolean; data: Container }> {
     const response = await api.get(`/containers/${id}`)
     return response
-  },  // 添加逗号
+  }, // 添加逗号
 
   /**
    * 创建货柜
@@ -51,15 +51,12 @@ export const containerService = {
   async createContainer(
     container: Partial<Container>
   ): Promise<{ success: boolean; data: Container }> {
-    const response = await api.post(
-      '/containers',
-      camelToSnake(container as Record<string, any>)
-    )
+    const response = await api.post('/containers', camelToSnake(container as Record<string, any>))
     // 清除相关缓存
     cacheManager.clearContainersCache()
     cacheManager.clearStatisticsCache()
     return response
-  },  // 添加逗号
+  }, // 添加逗号
 
   /**
    * 更新货柜
@@ -77,7 +74,7 @@ export const containerService = {
     cacheManager.clearContainersCache()
     cacheManager.clearStatisticsCache()
     return response
-  },  // 添加逗号
+  }, // 添加逗号
 
   /**
    * 删除货柜
@@ -89,7 +86,7 @@ export const containerService = {
     cacheManager.clearContainersCache()
     cacheManager.clearStatisticsCache()
     return response
-  },  // 添加逗号
+  }, // 添加逗号
 
   /**
    * 手工重算 gantt_derived（gantt-v2）及物流状态；全表或前 N 条
@@ -290,9 +287,7 @@ export const containerService = {
     }
     message?: string
   }> {
-    const response = await api.post(
-      `/demurrage/write-back/${encodeURIComponent(containerNumber)}`
-    )
+    const response = await api.post(`/demurrage/write-back/${encodeURIComponent(containerNumber)}`)
     cacheManager.clearContainersCache()
     cacheManager.clearStatisticsCache()
     return response
@@ -533,13 +528,9 @@ export const containerService = {
     }
   }> {
     const { containerNumber, ...data } = params
-    const response = await api.post(
-      `/scheduling/optimize-container/${containerNumber}`,
-      data,
-      {
-        timeout: 60000, // 60 秒超时
-      }
-    )
+    const response = await api.post(`/scheduling/optimize-container/${containerNumber}`, data, {
+      timeout: 60000, // 60 秒超时
+    })
     return response
   },
 
@@ -555,16 +546,22 @@ export const containerService = {
         portName: string
         country: string
       }>
-      truckingByPort: Record<string, Array<{
-        truckingCompanyId: string
-        truckingCompanyName: string
-        isDefault: boolean
-      }>>
-      warehousesByTrucking: Record<string, Array<{
-        warehouseCode: string
-        warehouseName: string
-        isDefault: boolean
-      }>>
+      truckingByPort: Record<
+        string,
+        Array<{
+          truckingCompanyId: string
+          truckingCompanyName: string
+          isDefault: boolean
+        }>
+      >
+      warehousesByTrucking: Record<
+        string,
+        Array<{
+          warehouseCode: string
+          warehouseName: string
+          isDefault: boolean
+        }>
+      >
     }
   }> {
     const response = await api.get('/warehouse-trucking-mapping/static')
