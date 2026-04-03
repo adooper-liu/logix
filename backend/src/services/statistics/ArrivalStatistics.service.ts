@@ -513,8 +513,16 @@ export class ArrivalStatisticsService {
     ContainerQueryBuilder.joinLatestDestinationWithAta(query);
     ContainerQueryBuilder.filterTargetStatus(query);
     query.andWhere('DATE(latest_po.latest_ata) = :today', { today });
-    ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
-    ContainerQueryBuilder.addCountryFilters(query);
+    if (startDate && endDate) {
+      const subQuery = createDateRangeSubQuery(this.containerRepository, startDate, endDate);
+      query.andWhere(`container.containerNumber IN (${subQuery.getQuery()})`).setParameters({
+        ...subQuery.getParameters(),
+        today
+      });
+    } else {
+      ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
+      ContainerQueryBuilder.addCountryFilters(query);
+    }
     return query.getMany();
   }
 
@@ -536,8 +544,16 @@ export class ArrivalStatisticsService {
       WHERE tt.container_number = container.container_number
       AND tt.pickup_date IS NOT NULL
     )`);
-    ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
-    ContainerQueryBuilder.addCountryFilters(query);
+    if (startDate && endDate) {
+      const subQuery = createDateRangeSubQuery(this.containerRepository, startDate, endDate);
+      query.andWhere(`container.containerNumber IN (${subQuery.getQuery()})`).setParameters({
+        ...subQuery.getParameters(),
+        today
+      });
+    } else {
+      ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
+      ContainerQueryBuilder.addCountryFilters(query);
+    }
     return query.getMany();
   }
 
@@ -559,8 +575,16 @@ export class ArrivalStatisticsService {
       WHERE tt.container_number = container.container_number
       AND tt.pickup_date IS NOT NULL
     )`);
-    ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
-    ContainerQueryBuilder.addCountryFilters(query);
+    if (startDate && endDate) {
+      const subQuery = createDateRangeSubQuery(this.containerRepository, startDate, endDate);
+      query.andWhere(`container.containerNumber IN (${subQuery.getQuery()})`).setParameters({
+        ...subQuery.getParameters(),
+        today
+      });
+    } else {
+      ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
+      ContainerQueryBuilder.addCountryFilters(query);
+    }
     return query.getMany();
   }
 

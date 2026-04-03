@@ -232,8 +232,9 @@ export class LastReturnStatisticsService {
     this.joinEmptyReturn(query);
     query.andWhere('er.last_return_date IS NOT NULL');
     query.andWhere('er.last_return_date < :today', { today });
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, { today });
 
-    return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
+    return query.getMany();
   }
 
   private async getContainersByReturnUrgent(
@@ -249,8 +250,12 @@ export class LastReturnStatisticsService {
     query.andWhere('er.last_return_date IS NOT NULL');
     query.andWhere('er.last_return_date >= :today', { today });
     query.andWhere('er.last_return_date <= :threeDays', { threeDays: threeDaysLater });
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, {
+      today,
+      threeDays: threeDaysLater
+    });
 
-    return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
+    return query.getMany();
   }
 
   private async getContainersByReturnWarning(
@@ -267,8 +272,12 @@ export class LastReturnStatisticsService {
     query.andWhere('er.last_return_date IS NOT NULL');
     query.andWhere('er.last_return_date > :threeDays', { threeDays: threeDaysLater });
     query.andWhere('er.last_return_date <= :sevenDays', { sevenDays: sevenDaysLater });
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, {
+      threeDays: threeDaysLater,
+      sevenDays: sevenDaysLater
+    });
 
-    return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
+    return query.getMany();
   }
 
   private async getContainersByReturnNormal(
@@ -283,8 +292,11 @@ export class LastReturnStatisticsService {
     this.joinEmptyReturn(query);
     query.andWhere('er.last_return_date IS NOT NULL');
     query.andWhere('er.last_return_date > :sevenDays', { sevenDays: sevenDaysLater });
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, {
+      sevenDays: sevenDaysLater
+    });
 
-    return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
+    return query.getMany();
   }
 
   private async getContainersByNoLastReturnDate(
@@ -296,7 +308,8 @@ export class LastReturnStatisticsService {
     this.filterTargetSet(query);
     this.joinEmptyReturn(query);
     query.andWhere('er.last_return_date IS NULL');
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate);
 
-    return ContainerQueryBuilder.addDateFilters(query, startDate, endDate).getMany();
+    return query.getMany();
   }
 }

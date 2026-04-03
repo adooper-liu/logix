@@ -261,8 +261,10 @@ export class EtaStatisticsService {
     query.andWhere('DATE(latest_po.latest_eta) >= :today', { today });
     query.andWhere('DATE(latest_po.latest_eta) <= :threeDays', { threeDays: threeDaysLater });
     this.excludeContainersArrivedAtTransit(query);
-    ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
-    ContainerQueryBuilder.addCountryFilters(query);
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, {
+      today,
+      threeDays: threeDaysLater
+    });
     return query.getMany();
   }
 
@@ -279,8 +281,10 @@ export class EtaStatisticsService {
     query.andWhere('DATE(latest_po.latest_eta) > :threeDays', { threeDays: threeDaysLater });
     query.andWhere('DATE(latest_po.latest_eta) <= :sevenDays', { sevenDays: sevenDaysLater });
     this.excludeContainersArrivedAtTransit(query);
-    ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
-    ContainerQueryBuilder.addCountryFilters(query);
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, {
+      threeDays: threeDaysLater,
+      sevenDays: sevenDaysLater
+    });
     return query.getMany();
   }
 
@@ -295,8 +299,9 @@ export class EtaStatisticsService {
     ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.ETA_TARGET);
     query.andWhere('DATE(latest_po.latest_eta) > :sevenDays', { sevenDays: sevenDaysLater });
     this.excludeContainersArrivedAtTransit(query);
-    ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
-    ContainerQueryBuilder.addCountryFilters(query);
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, {
+      sevenDays: sevenDaysLater
+    });
     return query.getMany();
   }
 
@@ -310,8 +315,7 @@ export class EtaStatisticsService {
     ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.ETA_TARGET);
     query.andWhere('DATE(latest_po.latest_eta) < :today', { today });
     this.excludeContainersArrivedAtTransit(query);
-    ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
-    ContainerQueryBuilder.addCountryFilters(query);
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate, { today });
     return query.getMany();
   }
 
@@ -341,8 +345,7 @@ export class EtaStatisticsService {
 
     ContainerQueryBuilder.filterByLogisticsStatus(query, ContainerQueryBuilder.STATUSES.ETA_TARGET);
     this.excludeContainersArrivedAtTransit(query);
-    ContainerQueryBuilder.addDateFilters(query, startDate, endDate);
-    ContainerQueryBuilder.addCountryFilters(query);
+    applyDateFilterToQuery(query, this.containerRepository, startDate, endDate);
     return query.getMany();
   }
 }
