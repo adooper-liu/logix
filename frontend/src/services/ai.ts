@@ -1,6 +1,6 @@
 import { api } from './api'
 
-// 注意：api.ts 已设置 baseURL: '/api'，此处只需写相对路径
+// 注意：api.ts 已设置 baseURL: '/api/v1'，此处只需写相对路径 /ai/...
 
 // AI消息类型
 export interface ChatMessage {
@@ -78,7 +78,7 @@ export interface ScheduleResult {
 
 // AI服务
 export const aiService = {
-  // AI对话（支持自动SQL执行和智能排产）
+  // AI 对话（支持自动 SQL 执行和智能排产）
   async chat(
     message: string,
     context?: Record<string, any>,
@@ -91,17 +91,17 @@ export const aiService = {
       sqlResult?: SqlResult
       scheduleResult?: ScheduleResult
       error?: string
-    }>('/v1/ai/chat', { message, context, options }, { timeout: 120000 })
+    }>('/ai/chat', { message, context, options }, { timeout: 120000 })
   },
 
-  // Text-to-SQL：生成SQL（超时 60s）
+  // Text-to-SQL：生成 SQL（超时 60s）
   async textToSqlPreview(query: string, tables?: string[]) {
     return api.post<{
       success: boolean
       sql?: string
       explanation?: string
       error?: string
-    }>('/v1/ai/text-to-sql', { query, tables, execute: false }, { timeout: 60000 })
+    }>('/ai/text-to-sql', { query, tables, execute: false }, { timeout: 60000 })
   },
 
   // Text-to-SQL：执行原始 SQL（预览后确认执行，超时 60s）
@@ -112,7 +112,7 @@ export const aiService = {
       results?: any[]
       rowCount?: number
       error?: string
-    }>('/v1/ai/execute-sql', { sql, limit }, { timeout: 60000 })
+    }>('/ai/execute-sql', { sql, limit }, { timeout: 60000 })
   },
 
   // Text-to-SQL：自然语言生成并执行（保留兼容）
@@ -124,7 +124,7 @@ export const aiService = {
       rowCount?: number
       explanation?: string
       error?: string
-    }>('/v1/ai/text-to-sql', { query, tables, limit, execute: true })
+    }>('/ai/text-to-sql', { query, tables, limit, execute: true })
   },
 
   // 获取表列表
@@ -132,7 +132,7 @@ export const aiService = {
     return api.get<{
       success: boolean
       data?: string[]
-    }>('/v1/ai/tables')
+    }>('/ai/tables')
   },
 
   // 获取表字段信息
@@ -140,7 +140,7 @@ export const aiService = {
     return api.get<{
       success: boolean
       data?: ColumnInfo[]
-    }>(`/v1/ai/tables/${tableName}/columns`)
+    }>(`/ai/tables/${tableName}/columns`)
   },
 
   // 获取数据库结构
@@ -151,10 +151,10 @@ export const aiService = {
         tables: TableInfo[]
         relationships: any[]
       }
-    }>('/v1/ai/schema', { params: { keyword } })
+    }>('/ai/schema', { params: { keyword } })
   },
 
-  // 验证SQL
+  // 验证 SQL
   async validateSql(sql: string) {
     return api.post<{
       success: boolean
@@ -163,7 +163,7 @@ export const aiService = {
       warnings?: string[]
       tables?: string[]
       complexity?: any
-    }>('/v1/ai/validate-sql', { sql })
+    }>('/ai/validate-sql', { sql })
   },
 
   // 健康检查
@@ -171,111 +171,111 @@ export const aiService = {
     return api.get<{
       success: boolean
       data?: AIHealthStatus
-    }>('/v1/ai/health')
+    }>('/ai/health')
   },
 
-  // 业务统计API
+  // 业务统计 API
   async getStatsOverview() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/overview')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/overview')
   },
-
+  
   async getStatsByStatus() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/status')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/status')
   },
-
+  
   async getStatsByArrival(start?: string, end?: string) {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/arrival', {
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/arrival', {
       params: { start, end },
     })
   },
-
+  
   async getStatsByETA() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/eta')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/eta')
   },
-
+  
   async getStatsByLastFreeDate() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/last-free-date')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/last-free-date')
   },
-
+  
   async getStatsDemurrage() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/demurrage')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/demurrage')
   },
-
+  
   async getStatsByShippingCompany() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/shipping-company')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/shipping-company')
   },
-
+  
   async getStatsByDestinationPort() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/destination-port')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/destination-port')
   },
 
   async searchContainers(keyword: string, limit?: number) {
-    return api.get<{ success: boolean; data?: any[] }>('/v1/ai/containers/search', {
+    return api.get<{ success: boolean; data?: any[] }>('/ai/containers/search', {
       params: { keyword, limit },
     })
   },
 
   // 新增统计维度
   async getStatsByCountry() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/country')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/country')
   },
 
   async getStatsByFreightForwarder() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/freight-forwarder')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/freight-forwarder')
   },
 
   async getStatsByContainerType() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/container-type')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/container-type')
   },
 
   async getStatsByCustomsStatus() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/customs-status')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/customs-status')
   },
 
   async getStatsByTransitPort() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/transit-port')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/transit-port')
   },
 
   async getStatsByWarehouse() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/warehouse')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/warehouse')
   },
 
   async getStatsDemurrageByCountry() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/demurrage-by-country')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/demurrage-by-country')
   },
 
   async getStatsDemurrageByShippingCompany() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/demurrage-by-shipping-company')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/demurrage-by-shipping-company')
   },
 
   async getStatsDemurrageByPort() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/demurrage-by-port')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/demurrage-by-port')
   },
 
   async getStatsPendingScheduling() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/pending-scheduling')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/pending-scheduling')
   },
 
   async getStatsEmptyReturn() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/empty-return')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/empty-return')
   },
 
   async getStatsByReplenishmentOrder() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/replenishment-order')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/replenishment-order')
   },
 
   async getStatsTrucking() {
-    return api.get<{ success: boolean; data?: any }>('/v1/ai/stats/trucking')
+    return api.get<{ success: boolean; data?: any }>('/ai/stats/trucking')
   },
 
   async getPendingCustomsContainers(limit?: number) {
-    return api.get<{ success: boolean; data?: any[] }>('/v1/ai/containers/pending-customs', {
+    return api.get<{ success: boolean; data?: any[] }>('/ai/containers/pending-customs', {
       params: { limit },
     })
   },
 
   async getDemurrageAlerts(limit?: number) {
-    return api.get<{ success: boolean; data?: any[] }>('/v1/ai/alerts/demurrage', {
+    return api.get<{ success: boolean; data?: any[] }>('/ai/alerts/demurrage', {
       params: { limit },
     })
   },

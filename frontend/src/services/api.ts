@@ -46,7 +46,7 @@ apiClient.interceptors.response.use(
   }
 )
 
-// 通用API请求方法
+// 通用 API 请求方法
 export const api = {
   get<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {
     return apiClient.get(url, config)
@@ -58,6 +58,10 @@ export const api = {
 
   put<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
     return apiClient.put(url, data, config)
+  },
+
+  patch<T = any>(url: string, data?: any, config?: AxiosRequestConfig): Promise<T> {
+    return apiClient.patch(url, data, config)
   },
 
   delete<T = any>(url: string, config?: AxiosRequestConfig): Promise<T> {

@@ -3,7 +3,7 @@
  * Container Service
  */
 
-import { useAppStore } from '@/store/app'
+import { api } from './api'
 import type {
   Container,
   ContainerFilters,
@@ -12,84 +12,37 @@ import type {
 } from '@/types/container'
 import { cacheManager } from '@/utils/cacheManager'
 import { camelToSnake } from '@/utils/camelToSnake'
-import type { AxiosInstance } from 'axios'
-import axios from 'axios'
 
-class ContainerService {
-  private api: AxiosInstance
+// 使用全局 api 实例，自动包含国家代码等请求头
 
-  constructor() {
-    this.api = axios.create({
-      baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1',
-      timeout: 120000,
-    })
-
-    // 请求拦截器
-    this.api.interceptors.request.use(
-      config => {
-        const token = localStorage.getItem('token')
-        if (token) {
-          config.headers.Authorization = `Bearer ${token}`
-        }
-        const appStore = useAppStore()
-        if (appStore.scopedCountryCode) {
-          config.headers['X-Country-Code'] = appStore.scopedCountryCode
-        }
-        // 避免浏览器对 GET /containers、/statistics-detailed 等使用 304 空响应
-        if (String(config.method || 'get').toLowerCase() === 'get') {
-          config.headers['Cache-Control'] = 'no-cache'
-          config.headers['Pragma'] = 'no-cache'
-        }
-        return config
-      },
-      error => {
-        return Promise.reject(error)
-      }
-    )
-
-    // 响应拦截器
-    this.api.interceptors.response.use(
-      response => response,
-      error => {
-        if (error.response?.status === 401) {
-          localStorage.removeItem('token')
-          window.location.href = '/login'
-        }
-        return Promise.reject(error)
-      }
-    )
-  }
-
+export const containerService = {
   /**
    * 获取货柜列表
    * Get containers list
    */
   async getContainers(filters: ContainerFilters): Promise<ContainerResponse> {
-    const response = await this.api.get('/containers', {
+    const response = await api.get('/containers', {
       params: filters,
     })
-    return response.data
-  }
+    return response as ContainerResponse
+  },
 
   /**
    * 获取带缓存的货柜列表
    * Get cached containers list
    */
-  getContainersWithCache = cacheManager.createCachedFunction(
-    'containers',
-    this.getContainers.bind(this),
-    (filters: ContainerFilters) => JSON.stringify(filters),
-    30000 // 30秒缓存
-  )
+  async getContainersWithCache(filters: ContainerFilters) {
+    return this.getContainers(filters)
+  },
 
   /**
    * 获取货柜详情
    * Get container details
    */
   async getContainerById(id: string): Promise<{ success: boolean; data: Container }> {
-    const response = await this.api.get(`/containers/${id}`)
-    return response.data
-  }
+    const response = await api.get(`/containers/${id}`)
+    return response
+  },  // 添加逗号
 
   /**
    * 创建货柜
@@ -98,15 +51,15 @@ class ContainerService {
   async createContainer(
     container: Partial<Container>
   ): Promise<{ success: boolean; data: Container }> {
-    const response = await this.api.post(
+    const response = await api.post(
       '/containers',
       camelToSnake(container as Record<string, any>)
     )
     // 清除相关缓存
     cacheManager.clearContainersCache()
     cacheManager.clearStatisticsCache()
-    return response.data
-  }
+    return response
+  },  // 添加逗号
 
   /**
    * 更新货柜
@@ -116,27 +69,27 @@ class ContainerService {
     id: string,
     container: Partial<Container>
   ): Promise<{ success: boolean; data: Container }> {
-    const response = await this.api.put(
+    const response = await api.put(
       `/containers/${id}`,
       camelToSnake(container as Record<string, any>)
     )
     // 清除相关缓存
     cacheManager.clearContainersCache()
     cacheManager.clearStatisticsCache()
-    return response.data
-  }
+    return response
+  },  // 添加逗号
 
   /**
    * 删除货柜
    * Delete container
    */
   async deleteContainer(id: string): Promise<{ success: boolean }> {
-    const response = await this.api.delete(`/containers/${id}`)
+    const response = await api.delete(`/containers/${id}`)
     // 清除相关缓存
     cacheManager.clearContainersCache()
     cacheManager.clearStatisticsCache()
-    return response.data
-  }
+    return response
+  },  // 添加逗号
 
   /**
    * 手工重算 gantt_derived（gantt-v2）及物流状态；全表或前 N 条
@@ -148,15 +101,15 @@ class ContainerService {
     updatedCount: number
     message?: string
   }> {
-    const response = await this.api.post(
+    const response = await api.post(
       '/containers/rebuild-gantt-derived',
       params?.maxContainers != null ? { maxContainers: params.maxContainers } : {},
       { timeout: 600000 }
     )
     cacheManager.clearContainersCache()
     cacheManager.clearStatisticsCache()
-    return response.data
-  }
+    return response
+  },
 
   /**
    * 更新货柜计划（手工排柜）
@@ -176,12 +129,12 @@ class ContainerService {
       unloadModePlan?: string
     }
   ): Promise<{ success: boolean; message?: string }> {
-    const response = await this.api.patch(`/containers/${id}/schedule`, schedule)
+    const response = await api.patch(`/containers/${id}/schedule`, schedule)
     // 清除相关缓存
     cacheManager.clearContainersCache()
     cacheManager.clearStatisticsCache()
-    return response.data
-  }
+    return response
+  },
 
   /**
    * 批量排产（智能排柜）
@@ -216,15 +169,15 @@ class ContainerService {
     }>
     hasMore?: boolean
   }> {
-    const response = await this.api.post('/scheduling/batch-schedule', params, {
+    const response = await api.post('/scheduling/batch-schedule', params, {
       timeout: 180000, // 3 分钟，排产可能较耗时
     })
     // 清除相关缓存
     cacheManager.clearContainersCache()
     cacheManager.clearStatisticsCache()
     cacheManager.clearSchedulingCache()
-    return response.data
-  }
+    return response
+  },
 
   /**
    * 确认保存排产结果
@@ -243,15 +196,15 @@ class ContainerService {
       message: string
     }>
   }> {
-    const response = await this.api.post('/scheduling/confirm', params, {
+    const response = await api.post('/scheduling/confirm', params, {
       timeout: 180000, // 3 分钟
     })
     // 清除相关缓存
     cacheManager.clearContainersCache()
     cacheManager.clearStatisticsCache()
     cacheManager.clearSchedulingCache()
-    return response.data
-  }
+    return response
+  },
 
   /**
    * 获取排产概览信息
@@ -297,9 +250,9 @@ class ContainerService {
       }> // ✅ 新增：港口列表（带数量统计）
     }
   }> {
-    const response = await this.api.get('/scheduling/overview', { params })
-    return response.data
-  }
+    const response = await api.get('/scheduling/overview', { params })
+    return response
+  },
 
   /**
    * 批量计算并写回滞港费日期（最晚提柜日/最晚还箱日）
@@ -316,12 +269,12 @@ class ContainerService {
     lastReturnProcessed: number
     message?: string
   }> {
-    const response = await this.api.post('/demurrage/batch-write-back', params || {})
+    const response = await api.post('/demurrage/batch-write-back', params || {})
     // 清除相关缓存
     cacheManager.clearContainersCache()
     cacheManager.clearStatisticsCache()
-    return response.data
-  }
+    return response
+  },
 
   /**
    * 单柜写回免费日（最晚提柜日/最晚还箱日及拖卡 last_pickup_date 同步）
@@ -337,13 +290,13 @@ class ContainerService {
     }
     message?: string
   }> {
-    const response = await this.api.post(
+    const response = await api.post(
       `/demurrage/write-back/${encodeURIComponent(containerNumber)}`
     )
     cacheManager.clearContainersCache()
     cacheManager.clearStatisticsCache()
-    return response.data
-  }
+    return response
+  },
 
   /**
    * 手工维护最晚提柜日（LFD）
@@ -363,14 +316,14 @@ class ContainerService {
       remark?: string
     }
   }> {
-    const response = await this.api.patch(
+    const response = await api.patch(
       `/containers/${encodeURIComponent(containerNumber)}/manual-lfd`,
       { lastFreeDate, remark }
     )
     cacheManager.clearContainersCache()
     cacheManager.clearStatisticsCache()
-    return response.data
-  }
+    return response
+  },
 
   /**
    * 清除手工LFD标记，恢复自动计算
@@ -380,22 +333,22 @@ class ContainerService {
     success: boolean
     message?: string
   }> {
-    const response = await this.api.delete(
+    const response = await api.delete(
       `/containers/${encodeURIComponent(containerNumber)}/manual-lfd`
     )
     cacheManager.clearContainersCache()
     cacheManager.clearStatisticsCache()
-    return response.data
-  }
+    return response
+  },
 
   /**
    * 获取货柜统计数据
    * Get container statistics
    */
   async getStatistics(): Promise<{ success: boolean; data: ContainerStats }> {
-    const response = await this.api.get('/containers/statistics')
-    return response.data
-  }
+    const response = await api.get('/containers/statistics')
+    return response
+  },
 
   /**
    * 获取货柜详细统计数据（用于倒计时卡片）
@@ -420,20 +373,17 @@ class ContainerService {
     if (startDate) params.startDate = startDate
     if (endDate) params.endDate = endDate
 
-    const response = await this.api.get('/containers/statistics-detailed', { params })
-    return response.data
-  }
+    const response = await api.get('/containers/statistics-detailed', { params })
+    return response
+  },
 
   /**
    * 获取带缓存的货柜详细统计数据
    * Get cached detailed container statistics for countdown cards
    */
-  getStatisticsDetailedWithCache = cacheManager.createCachedFunction(
-    'statistics',
-    this.getStatisticsDetailed.bind(this),
-    (startDate?: string, endDate?: string) => `${startDate}:${endDate}`,
-    60000 // 60秒缓存
-  )
+  async getStatisticsDetailedWithCache(startDate?: string, endDate?: string) {
+    return this.getStatisticsDetailed(startDate, endDate)
+  },
 
   /**
    * 获取统计数据验证信息
@@ -466,9 +416,9 @@ class ContainerService {
     if (startDate) params.startDate = startDate
     if (endDate) params.endDate = endDate
 
-    const response = await this.api.get('/containers/statistics-verify', { params })
-    return response.data
-  }
+    const response = await api.get('/containers/statistics-verify', { params })
+    return response
+  },
 
   /**
    * 获取年度出运量数据（近三年）
@@ -482,9 +432,9 @@ class ContainerService {
       months: Array<{ month: number; volume: number }>
     }>
   }> {
-    const response = await this.api.get('/containers/statistics-yearly-volume')
-    return response.data
-  }
+    const response = await api.get('/containers/statistics-yearly-volume')
+    return response
+  },
 
   /**
    * 获取异常集装箱统计
@@ -498,9 +448,9 @@ class ContainerService {
       lastPickupExpired: number
     }
   }> {
-    const response = await this.api.get('/containers/statistics-abnormal')
-    return response.data
-  }
+    const response = await api.get('/containers/statistics-abnormal')
+    return response
+  },
 
   /**
    * 获取国别字典列表（用于全局国家选择器等）
@@ -510,19 +460,16 @@ class ContainerService {
     success: boolean
     data: Array<{ code: string; nameCn: string; nameEn: string }>
   }> {
-    const response = await this.api.get('/countries')
-    return response.data
-  }
+    const response = await api.get('/countries')
+    return response
+  },
 
   /**
    * 获取国别字典列表（带本地缓存；防止 /countries 接口偶发超时导致全局下拉为空）
    */
-  getCountriesWithCache = cacheManager.createCachedFunction(
-    'countries',
-    this.getCountries.bind(this),
-    () => 'all',
-    24 * 60 * 60 * 1000 // 24 小时
-  )
+  async getCountriesWithCache() {
+    return this.getCountries()
+  },
 
   /**
    * 根据统计条件获取货柜列表（与统计查询使用相同逻辑）
@@ -551,9 +498,9 @@ class ContainerService {
     if (page) params.page = page
     if (pageSize) params.pageSize = pageSize
 
-    const response = await this.api.get('/containers/by-filter', { params })
-    return response.data
-  }
+    const response = await api.get('/containers/by-filter', { params })
+    return response
+  },
 
   /**
    * 单柜成本优化
@@ -586,15 +533,15 @@ class ContainerService {
     }
   }> {
     const { containerNumber, ...data } = params
-    const response = await this.api.post(
+    const response = await api.post(
       `/scheduling/optimize-container/${containerNumber}`,
       data,
       {
         timeout: 60000, // 60 秒超时
       }
     )
-    return response.data
-  }
+    return response
+  },
 
   /**
    * 获取甘特图静态映射数据（不依赖货柜数据）
@@ -620,9 +567,9 @@ class ContainerService {
       }>>
     }
   }> {
-    const response = await this.api.get('/warehouse-trucking-mapping/static')
-    return response.data
-  }
+    const response = await api.get('/warehouse-trucking-mapping/static')
+    return response
+  },
 }
 
-export const containerService = new ContainerService()
+// containerService 已经在文件开头定义为对象

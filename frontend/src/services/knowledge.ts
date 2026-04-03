@@ -27,19 +27,19 @@ export interface KnowledgeResponse {
 export const knowledgeService = {
   // 获取所有类别
   async getCategories() {
-    return api.get<KnowledgeResponse>('/v1/ai/knowledge')
+    return api.get<KnowledgeResponse>('/ai/knowledge')
   },
 
   // 按类别获取知识
   async getByCategory(category: string) {
-    return api.get<KnowledgeResponse>('/v1/ai/knowledge', {
+    return api.get<KnowledgeResponse>('/ai/knowledge', {
       params: { category },
     })
   },
 
   // 搜索知识
   async search(keyword: string) {
-    return api.get<KnowledgeResponse>('/v1/ai/knowledge', {
+    return api.get<KnowledgeResponse>('/ai/knowledge', {
       params: { keyword },
     })
   },
