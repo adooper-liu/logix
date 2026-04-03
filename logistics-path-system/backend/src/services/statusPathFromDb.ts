@@ -42,11 +42,11 @@ interface ProcessSupplement {
  */
 export enum TransportMode {
   /** 纯海运：起运港 -> 海运 -> 目的港 -> 提柜 */
-  STANDARD = 'STANDARD',
+  STANDARD = "STANDARD",
   /** 海铁联运：海运到目的港后，铁路转运到内陆点（美加线） */
-  SEA_RAIL = 'SEA_RAIL',
+  SEA_RAIL = "SEA_RAIL",
   /** 驳船联运：驳船从支线港到枢纽港，再海运 */
-  FEEDER = 'FEEDER',
+  FEEDER = "FEEDER",
 }
 
 /**
@@ -187,7 +187,12 @@ const FEEDER_MODE_TEMPLATE: { order: number; status: StandardStatus; label: stri
   { order: 4, status: StandardStatus.FEEDER_LOADED, label: "驳船装船", statuses: [StandardStatus.FEEDER_LOADED] },
   { order: 5, status: StandardStatus.FEEDER_DEPARTED, label: "驳船离港", statuses: [StandardStatus.FEEDER_DEPARTED] },
   { order: 6, status: StandardStatus.FEEDER_ARRIVED, label: "驳船抵达", statuses: [StandardStatus.FEEDER_ARRIVED] },
-  { order: 7, status: StandardStatus.FEEDER_DISCHARGED, label: "驳船卸船", statuses: [StandardStatus.FEEDER_DISCHARGED] },
+  {
+    order: 7,
+    status: StandardStatus.FEEDER_DISCHARGED,
+    label: "驳船卸船",
+    statuses: [StandardStatus.FEEDER_DISCHARGED],
+  },
   // 海运段
   {
     order: 8,
@@ -308,27 +313,23 @@ function getTemplateByMode(mode: TransportMode) {
  * 基于实际发生的事件来判断
  */
 function identifyTransportMode(events: DbEvent[]): TransportMode {
-  const statusCodes = events.map(e => e.status_code).filter(Boolean) as string[];
-  
+  const statusCodes = events.map((e) => e.status_code).filter(Boolean) as string[];
+
   // 检查铁路事件（海铁联运：海运后铁路转运）
-  const hasRailEvents = statusCodes.some(code => 
-    ['IRLB', 'IRDP', 'IRAR', 'IRDS'].includes(code)
-  );
-  
+  const hasRailEvents = statusCodes.some((code) => ["IRLB", "IRDP", "IRAR", "IRDS"].includes(code));
+
   // 检查驳船事件（驳船联运：海运前驳船集疏）
-  const hasFeederEvents = statusCodes.some(code => 
-    ['FDLB', 'FDDP', 'FDBA', 'FDDC'].includes(code)
-  );
-  
+  const hasFeederEvents = statusCodes.some((code) => ["FDLB", "FDDP", "FDBA", "FDDC"].includes(code));
+
   // 优先级：海铁联运 > 驳船联运 > 纯海运
   if (hasRailEvents) {
     return TransportMode.SEA_RAIL;
   }
-  
+
   if (hasFeederEvents) {
     return TransportMode.FEEDER;
   }
-  
+
   return TransportMode.STANDARD;
 }
 
@@ -396,10 +397,10 @@ function buildFullPathNodes(
 ): StatusNode[] {
   // 1. 识别运输模式
   const mode = identifyTransportMode(events);
-  
+
   // 2. 根据模式选择模板
   const template = getTemplateByMode(mode);
-  
+
   const nodes: StatusNode[] = [];
   const eventNodes = events.map(eventToNode);
   const now = new Date();
@@ -548,7 +549,7 @@ export async function getStatusPathByContainerFromDb(containerNumber: string): P
       ...processed,
       id: `path-${containerNumber}-${Date.now()}`,
       containerNumber,
-      transportMode: mode,  // 运输模式
+      transportMode: mode, // 运输模式
       createdAt: new Date(),
       updatedAt: new Date(),
       lastFreeDate: lastFreeDate ?? undefined,
