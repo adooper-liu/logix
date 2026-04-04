@@ -13,12 +13,12 @@
 
 ### 检查结果概览
 
-| 统计模块 | 文档章节 | 一致性 | 问题数 | 状态 |
-|----------|----------|--------|--------|------|
-| 按到港统计 | 第 1 节 | ⚠️ 部分一致 | 2 | 需更新 |
-| 按计划提柜统计 | 第 2 节 | ✅ 一致 | 0 | 通过 |
-| 按最晚提柜统计 | 第 3 节 | ✅ 一致 | 0 | 通过 |
-| 按最晚还箱统计 | 第 4 节 | ✅ 一致 | 0 | 通过 |
+| 统计模块       | 文档章节 | 一致性      | 问题数 | 状态   |
+| -------------- | -------- | ----------- | ------ | ------ |
+| 按到港统计     | 第 1 节  | ⚠️ 部分一致 | 2      | 需更新 |
+| 按计划提柜统计 | 第 2 节  | ✅ 一致     | 0      | 通过   |
+| 按最晚提柜统计 | 第 3 节  | ✅ 一致     | 0      | 通过   |
+| 按最晚还箱统计 | 第 4 节  | ✅ 一致     | 0      | 通过   |
 
 ---
 
@@ -32,12 +32,12 @@
 #### 文档描述
 
 ```markdown
-| 维度 | 筛选条件 | 说明 |
-|------|----------|------|
-| arrivalToday | ATA = today | 今日到港 |
+| 维度                     | 筛选条件            | 说明         |
+| ------------------------ | ------------------- | ------------ |
+| arrivalToday             | ATA = today         | 今日到港     |
 | arrivedBeforeNotPickedUp | ATA < today, 未提柜 | 之前到港未提 |
-| arrivedBeforePickedUp | ATA < today, 已提柜 | 之前到港已提 |
-| arrivedAtTransit | 有中转港记录 | 已到中转港 |
+| arrivedBeforePickedUp    | ATA < today, 已提柜 | 之前到港已提 |
+| arrivedAtTransit         | 有中转港记录        | 已到中转港   |
 ```
 
 #### 实际代码统计维度
@@ -48,19 +48,19 @@
 
 ```typescript
 return {
-  today: arrivedToday,                    // 今日到港
-  beforeTodayNotPickedUp: arrivedBeforeNotPickedUp,  // 之前到港未提
-  beforeTodayPickedUp: arrivedBeforePickedUp,        // 之前到港已提
-  arrivedAtTransit,                       // 已到中转港
-  arrivedBeforeTodayNoATA: arrivedBeforeNoATA,       // 之前到港无 ATA（新增）
+  today: arrivedToday, // 今日到港
+  beforeTodayNotPickedUp: arrivedBeforeNotPickedUp, // 之前到港未提
+  beforeTodayPickedUp: arrivedBeforePickedUp, // 之前到港已提
+  arrivedAtTransit, // 已到中转港
+  arrivedBeforeTodayNoATA: arrivedBeforeNoATA, // 之前到港无 ATA（新增）
   // 中转港细分
-  transitOverdue,                         // 中转港已逾期
-  transitWithin3Days,                     // 中转港 3 天内
-  transitWithin7Days,                     // 中转港 7 天内
-  transitOver7Days,                       // 中转港超过 7 天
-  transitNoETA,                           // 中转港无 ETA
-  total
-}
+  transitOverdue, // 中转港已逾期
+  transitWithin3Days, // 中转港 3 天内
+  transitWithin7Days, // 中转港 7 天内
+  transitOver7Days, // 中转港超过 7 天
+  transitNoETA, // 中转港无 ETA
+  total,
+};
 ```
 
 #### 不一致点
@@ -91,23 +91,23 @@ return {
 
 #### 主要维度（目的港 + 中转港）
 
-| 维度代码 | 筛选条件 | 说明 |
-|----------|----------|------|
-| `today` | ATA = today | 今日到港（目的港） |
-| `beforeTodayNotPickedUp` | ATA < today, 未提柜 | 之前到港未提（目的港） |
-| `beforeTodayPickedUp` | ATA < today, 已提柜 | 之前到港已提（目的港） |
+| 维度代码                  | 筛选条件                 | 说明                       |
+| ------------------------- | ------------------------ | -------------------------- |
+| `today`                   | ATA = today              | 今日到港（目的港）         |
+| `beforeTodayNotPickedUp`  | ATA < today, 未提柜      | 之前到港未提（目的港）     |
+| `beforeTodayPickedUp`     | ATA < today, 已提柜      | 之前到港已提（目的港）     |
 | `arrivedBeforeTodayNoATA` | ATA < today, 无 ATA 记录 | 之前到港但无 ATA（目的港） |
-| `arrivedAtTransit` | 有中转港 ATA 记录 | 已到中转港 |
+| `arrivedAtTransit`        | 有中转港 ATA 记录        | 已到中转港                 |
 
 #### 中转港细分维度
 
-| 维度代码 | 筛选条件 | 说明 |
-|----------|----------|------|
-| `transitOverdue` | ETA < today | 中转港已逾期 |
-| `transitWithin3Days` | today ≤ ETA ≤ today+3 | 中转港 3 天内到 |
-| `transitWithin7Days` | today+3 < ETA ≤ today+7 | 中转港 3-7 天到 |
-| `transitOver7Days` | ETA > today+7 | 中转港超过 7 天到 |
-| `transitNoETA` | 无 ETA 记录 | 中转港无预计时间 |
+| 维度代码             | 筛选条件                | 说明              |
+| -------------------- | ----------------------- | ----------------- |
+| `transitOverdue`     | ETA < today             | 中转港已逾期      |
+| `transitWithin3Days` | today ≤ ETA ≤ today+3   | 中转港 3 天内到   |
+| `transitWithin7Days` | today+3 < ETA ≤ today+7 | 中转港 3-7 天到   |
+| `transitOver7Days`   | ETA > today+7           | 中转港超过 7 天到 |
+| `transitNoETA`       | 无 ETA 记录             | 中转港无预计时间  |
 ```
 
 ---
@@ -120,13 +120,13 @@ return {
 #### 文档描述
 
 ```markdown
-| 维度 | 筛选条件 |
-|------|----------|
-| overduePlanned | plannedPickupDate < today, 未提柜 |
-| todayPlanned | plannedPickupDate = today |
-| plannedWithin3Days | today < plannedPickupDate ≤ today+3 |
+| 维度               | 筛选条件                              |
+| ------------------ | ------------------------------------- |
+| overduePlanned     | plannedPickupDate < today, 未提柜     |
+| todayPlanned       | plannedPickupDate = today             |
+| plannedWithin3Days | today < plannedPickupDate ≤ today+3   |
 | plannedWithin7Days | today+3 < plannedPickupDate ≤ today+7 |
-| pendingArrangement | 无计划提柜日 |
+| pendingArrangement | 无计划提柜日                          |
 ```
 
 #### 实际代码统计维度
@@ -173,13 +173,13 @@ return {
 #### 文档描述
 
 ```markdown
-| 维度 | 筛选条件 |
-|------|----------|
-| expiredLastFree | lastFreeDate < today (已超期) |
-| urgentLastFree | today ≤ lastFreeDate ≤ today+3 (即将超期) |
-| warningLastFree | today+3 < lastFreeDate ≤ today+7 (预警) |
-| normalLastFree | lastFreeDate > today+7 (时间充裕) |
-| noLastFreeDate | 无 lastFreeDate |
+| 维度            | 筛选条件                                  |
+| --------------- | ----------------------------------------- |
+| expiredLastFree | lastFreeDate < today (已超期)             |
+| urgentLastFree  | today ≤ lastFreeDate ≤ today+3 (即将超期) |
+| warningLastFree | today+3 < lastFreeDate ≤ today+7 (预警)   |
+| normalLastFree  | lastFreeDate > today+7 (时间充裕)         |
+| noLastFreeDate  | 无 lastFreeDate                           |
 ```
 
 #### 实际代码统计维度
@@ -187,23 +187,22 @@ return {
 **代码位置**: `LastPickupStatistics.service.ts:35-63`
 
 ```typescript
-const [expiredCount, urgentCount, warningCount, normalCount, noLastFreeDateCount] =
-  await Promise.all([
-    this.getExpiredCount(todayStr, startDate, endDate),
-    this.getUrgentCount(todayStr, threeDaysLaterStr, startDate, endDate),
-    this.getWarningCount(todayStr, threeDaysLaterStr, sevenDaysLaterStr, startDate, endDate),
-    this.getNormalCount(sevenDaysLaterStr, startDate, endDate),
-    this.getNoLastFreeDateCount(startDate, endDate)
-  ]);
+const [expiredCount, urgentCount, warningCount, normalCount, noLastFreeDateCount] = await Promise.all([
+  this.getExpiredCount(todayStr, startDate, endDate),
+  this.getUrgentCount(todayStr, threeDaysLaterStr, startDate, endDate),
+  this.getWarningCount(todayStr, threeDaysLaterStr, sevenDaysLaterStr, startDate, endDate),
+  this.getNormalCount(sevenDaysLaterStr, startDate, endDate),
+  this.getNoLastFreeDateCount(startDate, endDate),
+]);
 
 return {
-  expired: expiredCount,           // 已超期
-  urgent: urgentCount,             // 即将超期
-  warning: warningCount,           // 预警
-  normal: normalCount,             // 时间充裕
-  noLastFreeDate: noLastFreeDateCount,  // 无最晚提柜日
-  total
-}
+  expired: expiredCount, // 已超期
+  urgent: urgentCount, // 即将超期
+  warning: warningCount, // 预警
+  normal: normalCount, // 时间充裕
+  noLastFreeDate: noLastFreeDateCount, // 无最晚提柜日
+  total,
+};
 ```
 
 #### 验证结果
@@ -224,12 +223,12 @@ return {
 #### 文档描述
 
 ```markdown
-| 维度 | 筛选条件 |
-|------|----------|
-| expiredReturn | lastReturnDate < today (已超期) |
-| urgentReturn | today ≤ lastReturnDate ≤ today+3 (即将超期) |
-| warningReturn | today+3 < lastReturnDate ≤ today+7 (预警) |
-| normalReturn | lastReturnDate > today+7 (时间充裕) |
+| 维度          | 筛选条件                                    |
+| ------------- | ------------------------------------------- |
+| expiredReturn | lastReturnDate < today (已超期)             |
+| urgentReturn  | today ≤ lastReturnDate ≤ today+3 (即将超期) |
+| warningReturn | today+3 < lastReturnDate ≤ today+7 (预警)   |
+| normalReturn  | lastReturnDate > today+7 (时间充裕)         |
 ```
 
 #### 实际代码统计维度
@@ -242,16 +241,16 @@ const results = await Promise.all([
   this.getReturnUrgentCount(today, threeDaysLater, startDate, endDate),
   this.getReturnWarningCount(today, threeDaysLater, sevenDaysLater, startDate, endDate),
   this.getReturnNormalCount(today, sevenDaysLater, startDate, endDate),
-  this.getNoLastReturnDateCount(startDate, endDate)
+  this.getNoLastReturnDateCount(startDate, endDate),
 ]);
 
 return {
-  expired: expiredCount,           // 已过期
-  urgent: urgentCount,             // 紧急
-  warning: warningCount,           // 警告
-  normal: normalCount,             // 正常
-  noLastReturnDate: noLastReturnDateCount  // 无最晚还箱日
-}
+  expired: expiredCount, // 已过期
+  urgent: urgentCount, // 紧急
+  warning: warningCount, // 警告
+  normal: normalCount, // 正常
+  noLastReturnDate: noLastReturnDateCount, // 无最晚还箱日
+};
 ```
 
 #### 验证结果
@@ -267,13 +266,13 @@ return {
 ```markdown
 ### 统计维度
 
-| 维度代码 | 筛选条件 | 说明 |
-|----------|----------|------|
-| `expired` | lastReturnDate < today | 已超期 |
-| `urgent` | today ≤ lastReturnDate ≤ today+3 | 即将超期 |
-| `warning` | today+3 < lastReturnDate ≤ today+7 | 预警 |
-| `normal` | lastReturnDate > today+7 | 时间充裕 |
-| `noLastReturnDate` | lastReturnDate IS NULL | 无最晚还箱日 |
+| 维度代码           | 筛选条件                           | 说明         |
+| ------------------ | ---------------------------------- | ------------ |
+| `expired`          | lastReturnDate < today             | 已超期       |
+| `urgent`           | today ≤ lastReturnDate ≤ today+3   | 即将超期     |
+| `warning`          | today+3 < lastReturnDate ≤ today+7 | 预警         |
+| `normal`           | lastReturnDate > today+7           | 时间充裕     |
+| `noLastReturnDate` | lastReturnDate IS NULL             | 无最晚还箱日 |
 ```
 
 ---
@@ -305,12 +304,12 @@ return {
 
 ### 评估维度
 
-| 维度 | 评分 | 说明 |
-|------|------|------|
-| **准确性** | 75% | 部分维度描述不完整 |
-| **完整性** | 60% | 缺少 3 个统计维度 |
-| **一致性** | 80% | 2 个模块完全一致，2 个有部分差异 |
-| **可读性** | 90% | 结构清晰，表格友好 |
+| 维度       | 评分 | 说明                             |
+| ---------- | ---- | -------------------------------- |
+| **准确性** | 75%  | 部分维度描述不完整               |
+| **完整性** | 60%  | 缺少 3 个统计维度                |
+| **一致性** | 80%  | 2 个模块完全一致，2 个有部分差异 |
+| **可读性** | 90%  | 结构清晰，表格友好               |
 
 ### 综合评分
 
@@ -368,7 +367,7 @@ code backend/src/services/statistics/
 
 ```sql
 -- 验证按到港统计
-SELECT 
+SELECT
   logistics_status,
   current_port_type,
   COUNT(*) as count
@@ -377,8 +376,8 @@ WHERE logistics_status IN ('at_port', 'in_transit')
 GROUP BY logistics_status, current_port_type;
 
 -- 验证按最晚提柜统计
-SELECT 
-  CASE 
+SELECT
+  CASE
     WHEN last_free_date < CURRENT_DATE THEN 'expired'
     WHEN last_free_date BETWEEN CURRENT_DATE AND CURRENT_DATE + 3 THEN 'urgent'
     WHEN last_free_date BETWEEN CURRENT_DATE + 3 AND CURRENT_DATE + 7 THEN 'warning'
@@ -404,11 +403,10 @@ GROUP BY category;
 
 1. **维度遗漏**: 文档编写时可能只关注了主要维度，忽略了细分维度
    - 对策：对照代码逐行验证所有统计维度
-   
 2. **代码演进**: 代码迭代后文档未及时更新
    - 对策：建立文档定期审查机制（每季度一次）
 
-3. **命名不一致**: 
+3. **命名不一致**:
    - 文档用 `expiredLastFree`
    - 代码返回 `expired`
    - 建议：统一使用代码中的返回字段名

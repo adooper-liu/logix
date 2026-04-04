@@ -13,13 +13,13 @@
 
 ### 新增内容统计
 
-| 类别 | 数量 | 说明 |
-|------|------|------|
-| **新增小节** | 6 个（5.1-5.6） | 完整的知识体系 |
-| **代码示例** | 4 个 | 核心函数 + 应用示例 |
-| **表格** | 9 个 | 规则对照表 + 关系总表 |
-| **代码位置引用** | 6 处 | 准确定位源码 |
-| **字数增加** | ~1800 字 | 从 10 行扩展到 200+ 行 |
+| 类别             | 数量            | 说明                   |
+| ---------------- | --------------- | ---------------------- |
+| **新增小节**     | 6 个（5.1-5.6） | 完整的知识体系         |
+| **代码示例**     | 4 个            | 核心函数 + 应用示例    |
+| **表格**         | 9 个            | 规则对照表 + 关系总表  |
+| **代码位置引用** | 6 处            | 准确定位源码           |
+| **字数增加**     | ~1800 字        | 从 10 行扩展到 200+ 行 |
 
 ---
 
@@ -40,6 +40,7 @@
 | returned_empty | ❌ 不计算 | ✅ 计算   | ❌ 不计算 | 已还箱         |
 
 **特点**:
+
 - ✅ 简洁直观，一目了然
 - ✅ 快速判断某状态下是否计算某费用
 - ✅ 保留原有表格结构，方便老用户查阅
@@ -60,6 +61,7 @@
 #### 关键要点
 
 **状态分类**:
+
 - ✅ **Actual 模式**（4 种）: `at_port` / `picked_up` / `unloaded` / `returned_empty`
 - ⏳ **Forecast 模式**（3 种）: `not_shipped` / `shipped` / `in_transit`
 
@@ -93,11 +95,9 @@
 
 ```typescript
 // 第一步：状态机判定是否到达目的港（或提柜/卸柜/还箱），再决定 actual vs forecast
-const logisticsSnapshot = await this.getLogisticsStatusSnapshot(containerNumber)
-const arrivedAtDestinationPort = logisticsSnapshot
-  ? isArrivedAtDestinationPortForDemurrage(logisticsSnapshot)
-  : false
-const calculationMode: 'actual' | 'forecast' = arrivedAtDestinationPort ? 'actual' : 'forecast'
+const logisticsSnapshot = await this.getLogisticsStatusSnapshot(containerNumber);
+const arrivedAtDestinationPort = logisticsSnapshot ? isArrivedAtDestinationPortForDemurrage(logisticsSnapshot) : false;
+const calculationMode: "actual" | "forecast" = arrivedAtDestinationPort ? "actual" : "forecast";
 ```
 
 #### 关键要点
@@ -135,32 +135,32 @@ logisticsStatusSnapshot?: {
 
 ```typescript
 // 分项评分
-const portScore = Math.min(Math.round(portChargeDays) * 5, 50)   // 港区超期
-const boxScore = Math.min(Math.round(boxChargeDays) * 5, 50)     // 用箱超期
-const storageScore = Math.min(Math.round(storageChargeDays) * 3, 25) // 堆存超期
+const portScore = Math.min(Math.round(portChargeDays) * 5, 50); // 港区超期
+const boxScore = Math.min(Math.round(boxChargeDays) * 5, 50); // 用箱超期
+const storageScore = Math.min(Math.round(storageChargeDays) * 3, 25); // 堆存超期
 
 // 总分计算
-let score = Math.min(100, portScore + boxScore + storageScore)
+let score = Math.min(100, portScore + boxScore + storageScore);
 ```
 
 #### 费用类型识别
 
-| 费用类型 | 识别函数 | 计费天数分配 |
-|----------|----------|--------------|
-| 堆存费 | `isStorageCharge()` | 单独计算 |
+| 费用类型 | 识别函数                         | 计费天数分配      |
+| -------- | -------------------------------- | ----------------- |
+| 堆存费   | `isStorageCharge()`              | 单独计算          |
 | 合并 D&D | `isCombinedDemurrageDetention()` | 港区 + 用箱各 50% |
-| 纯滞箱费 | `isDetentionCharge()` | 全部计入用箱 |
-| 纯滞港费 | `isDemurrageCharge()` | 全部计入港区 |
+| 纯滞箱费 | `isDetentionCharge()`            | 全部计入用箱      |
+| 纯滞港费 | `isDemurrageCharge()`            | 全部计入港区      |
 
 #### 风险等级划分
 
-| 总分范围 | 风险等级 | 说明 |
-|----------|----------|------|
-| 0 | 无风险 | 已还箱或无超期计费 |
-| 1-25 | 低风险 | 轻微超期 |
-| 26-50 | 中风险 | 中度超期 |
-| 51-75 | 高风险 | 严重超期 |
-| 76-100 | 极高风险 | 极度超期，需立即处理 |
+| 总分范围 | 风险等级 | 说明                 |
+| -------- | -------- | -------------------- |
+| 0        | 无风险   | 已还箱或无超期计费   |
+| 1-25     | 低风险   | 轻微超期             |
+| 26-50    | 中风险   | 中度超期             |
+| 51-75    | 高风险   | 严重超期             |
+| 76-100   | 极高风险 | 极度超期，需立即处理 |
 
 ---
 
@@ -168,15 +168,15 @@ let score = Math.min(100, portScore + boxScore + storageScore)
 
 #### 完整关系映射
 
-| 状态 | 计算模式 | 滞港费 | 滞箱费 | 堆存费 | 风险评分 | 说明 |
-|------|----------|--------|--------|--------|----------|------|
-| not_shipped | forecast | ❌ | ❌ | ❌ | 0 分 | 尚未出运 |
-| shipped | forecast | ❌ | ❌ | ❌ | 0 分 | 已出运未到港 |
-| in_transit | forecast | ❌ | ❌ | ❌ | 0 分 | 航行中 |
-| at_port | actual | ✅ | ❌ | ✅ | 可能高分 | 已到港未提柜 |
-| picked_up | actual | ✅ | ✅ | ❌ | 可能高分 | 已提柜未卸柜 |
-| unloaded | actual | ✅ | ✅ | ❌ | 可能高分 | 已卸柜未还箱 |
-| returned_empty | actual | ❌ | ✅ | ❌ | 0 分 | 已还箱 |
+| 状态           | 计算模式 | 滞港费 | 滞箱费 | 堆存费 | 风险评分 | 说明         |
+| -------------- | -------- | ------ | ------ | ------ | -------- | ------------ |
+| not_shipped    | forecast | ❌     | ❌     | ❌     | 0 分     | 尚未出运     |
+| shipped        | forecast | ❌     | ❌     | ❌     | 0 分     | 已出运未到港 |
+| in_transit     | forecast | ❌     | ❌     | ❌     | 0 分     | 航行中       |
+| at_port        | actual   | ✅     | ❌     | ✅     | 可能高分 | 已到港未提柜 |
+| picked_up      | actual   | ✅     | ✅     | ❌     | 可能高分 | 已提柜未卸柜 |
+| unloaded       | actual   | ✅     | ✅     | ❌     | 可能高分 | 已卸柜未还箱 |
+| returned_empty | actual   | ❌     | ✅     | ❌     | 0 分     | 已还箱       |
 
 ---
 
@@ -243,12 +243,12 @@ let score = Math.min(100, portScore + boxScore + storageScore)
 
 ### 评估维度
 
-| 维度 | 更新前 | 更新后 | 改善 |
-|------|--------|--------|------|
-| **准确性** | 90% | 100% | ⬆️ 10% |
-| **完整性** | 20% | 100% | ⬆️ 80% |
-| **一致性** | 100% | 100% | - |
-| **可读性** | 85% | 98% | ⬆️ 13% |
+| 维度       | 更新前 | 更新后 | 改善   |
+| ---------- | ------ | ------ | ------ |
+| **准确性** | 90%    | 100%   | ⬆️ 10% |
+| **完整性** | 20%    | 100%   | ⬆️ 80% |
+| **一致性** | 100%   | 100%   | -      |
+| **可读性** | 85%    | 98%    | ⬆️ 13% |
 
 ### 综合评分
 
@@ -271,10 +271,9 @@ let score = Math.min(100, portScore + boxScore + storageScore)
 
 ### 踩坑记录
 
-1. **状态判定复杂**: 
+1. **状态判定复杂**:
    - 问题：7 种状态对应不同的费用计算逻辑
    - 对策：使用表格清晰对照
-   
 2. **费用类型多样**:
    - 问题：4 种费用类型有不同的起止日规则
    - 对策：分别列表说明，避免混淆
@@ -290,7 +289,7 @@ let score = Math.min(100, portScore + boxScore + storageScore)
 ### 核心文件
 
 - **更新报告**: `public/docs-temp/state-machine-dnd-update-complete.md` (本文档)
-- **后端代码**: 
+- **后端代码**:
   - `backend/src/services/demurrage.service.ts`
   - `backend/src/services/riskService.ts`
 - **前端代码**: `frontend/src/services/demurrage.ts`

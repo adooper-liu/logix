@@ -75,21 +75,21 @@ async enrichContainersList(containers: Container[]): Promise<any[]> {
 
 ### 2.2 查询的 13 类数据
 
-| 数据类型 | 查询方法 | 用途 |
-|---------|---------|------|
-| 备货单信息 | `batchFetchOrders()` | 订单号、客户信息、贸易条款等 |
-| 状态事件 | `batchFetchStatusEvents()` | 物流状态事件时间线 |
-| 港口操作 | `batchFetchPortOperations()` | 到港、卸货、报关等信息 |
-| 拖车运输 | `batchFetchTruckingTransports()` | 车队、司机、运输状态 |
-| 仓库操作 | `batchFetchWarehouseOperations()` | 仓库、卸货日期 |
-| 空箱返还 | `batchFetchEmptyReturns()` | 还箱日期、堆场 |
-| 预警信息 | `batchFetchAlerts()` | 滞港费预警、查验预警 |
-| 清关行信息 | `batchFetchCustomsBrokers()` | 清关行名称 |
-| 车队信息 | `batchFetchTruckingCompanies()` | 车队公司名称 |
-| 仓库信息 | `batchFetchWarehouses()` | 仓库名称、地址 |
-| 国家信息 | `batchFetchCountries()` | 国家名称 |
-| 港口名称 | `batchFetchPortNames()` | 港口中文/英文名称 |
-| 费用明细 | `batchFetchCostBreakdown()` | 滞港费、运费等费用构成 |
+| 数据类型   | 查询方法                          | 用途                         |
+| ---------- | --------------------------------- | ---------------------------- |
+| 备货单信息 | `batchFetchOrders()`              | 订单号、客户信息、贸易条款等 |
+| 状态事件   | `batchFetchStatusEvents()`        | 物流状态事件时间线           |
+| 港口操作   | `batchFetchPortOperations()`      | 到港、卸货、报关等信息       |
+| 拖车运输   | `batchFetchTruckingTransports()`  | 车队、司机、运输状态         |
+| 仓库操作   | `batchFetchWarehouseOperations()` | 仓库、卸货日期               |
+| 空箱返还   | `batchFetchEmptyReturns()`        | 还箱日期、堆场               |
+| 预警信息   | `batchFetchAlerts()`              | 滞港费预警、查验预警         |
+| 清关行信息 | `batchFetchCustomsBrokers()`      | 清关行名称                   |
+| 车队信息   | `batchFetchTruckingCompanies()`   | 车队公司名称                 |
+| 仓库信息   | `batchFetchWarehouses()`          | 仓库名称、地址               |
+| 国家信息   | `batchFetchCountries()`           | 国家名称                     |
+| 港口名称   | `batchFetchPortNames()`           | 港口中文/英文名称            |
+| 费用明细   | `batchFetchCostBreakdown()`       | 滞港费、运费等费用构成       |
 
 ---
 
@@ -104,66 +104,66 @@ interface RichContainer extends Container {
   containerNumber: string
   orderNumber: string
   containerTypeCode: string
-  
+
   // === 备货单关联 ===
-  order?: ReplenishmentOrder           // 首个备货单
-  allOrders?: ReplenishmentOrder[]     // 所有备货单
+  order?: ReplenishmentOrder // 首个备货单
+  allOrders?: ReplenishmentOrder[] // 所有备货单
   summary?: {
-    totalGrossWeight: number           // 总毛重
-    totalCbm: number                   // 总体积
-    totalBoxes: number                 // 总箱数
-    shipmentTotalValue: number         // 出货总值
-    fobAmount: number                  // FOB 金额
-    cifAmount: number                  // CIF 金额
-    negotiationAmount: number          // 议付金额
-    orderCount: number                 // 备货单数量
+    totalGrossWeight: number // 总毛重
+    totalCbm: number // 总体积
+    totalBoxes: number // 总箱数
+    shipmentTotalValue: number // 出货总值
+    fobAmount: number // FOB 金额
+    cifAmount: number // CIF 金额
+    negotiationAmount: number // 议付金额
+    orderCount: number // 备货单数量
   }
-  
+
   // === 海运信息 ===
   seaFreight?: SeaFreight[]
-  
+
   // === 流程信息 ===
-  portOperations?: PortOperation[]     // 港口操作
-  truckingTransports?: TruckingTransport[]  // 拖车运输
+  portOperations?: PortOperation[] // 港口操作
+  truckingTransports?: TruckingTransport[] // 拖车运输
   warehouseOperations?: WarehouseOperation[] // 仓库操作
-  emptyReturns?: EmptyReturn[]         // 空箱返还
-  
+  emptyReturns?: EmptyReturn[] // 空箱返还
+
   // === 状态信息 ===
-  statusEvents?: StatusEvent[]         // 状态事件
-  logisticsStatus: string              // 计算后的物流状态
-  currentStatusDescCn?: string         // 当前状态中文描述
-  currentStatusDescEn?: string         // 当前状态英文描述
-  
+  statusEvents?: StatusEvent[] // 状态事件
+  logisticsStatus: string // 计算后的物流状态
+  currentStatusDescCn?: string // 当前状态中文描述
+  currentStatusDescEn?: string // 当前状态英文描述
+
   // === 甘特图数据 ===
-  ganttDerived?: GanttDerived          // 甘特图阶段/主任务
-  
+  ganttDerived?: GanttDerived // 甘特图阶段/主任务
+
   // === 排产信息 ===
   scheduleStatus?: 'initial' | 'issued' | 'dispatched' | 'adjusted'
-  
+
   // === 预警信息 ===
   alerts?: ContainerAlert[]
-  
+
   // === 费用信息 ===
   costBreakdown?: {
-    demurrage: number                  // 滞港费
-    detention: number                  // 滞箱费
-    storage: number                    // 堆存费
-    total: number                      // 总费用
+    demurrage: number // 滞港费
+    detention: number // 滞箱费
+    storage: number // 堆存费
+    total: number // 总费用
   }
-  
+
   // === 字典映射 ===
-  customsBrokerName?: string           // 清关行名称
-  truckingCompanyName?: string         // 车队名称
-  warehouseName?: string               // 仓库名称
-  countryName?: string                 // 销往国家名称
-  portName?: string                    // 目的港名称
-  
+  customsBrokerName?: string // 清关行名称
+  truckingCompanyName?: string // 车队名称
+  warehouseName?: string // 仓库名称
+  countryName?: string // 销往国家名称
+  portName?: string // 目的港名称
+
   // === 其他扩展 ===
-  inspectionRequired: boolean          // 是否需要查验
-  isUnboxing: boolean                  // 是否已拆箱
-  isRolled: boolean                    // 是否已翻箱
-  operator?: string                    // 操作员
-  containerHolder?: string             // 持柜人
+  inspectionRequired: boolean // 是否需要查验
+  isUnboxing: boolean // 是否已拆箱
+  isRolled: boolean // 是否已翻箱
+  operator?: string // 操作员
+  containerHolder?: string // 持柜人
 }
 ```
 
@@ -191,10 +191,10 @@ interface RichContainer extends Container {
 
 ```typescript
 interface GanttDerived {
-  stage: 'ocean' | 'trucking' | 'warehouse' | 'return'  // 主阶段
-  startDate: Date                                        // 阶段开始日期
-  endDate: Date                                          // 阶段结束日期
-  progress: number                                       // 进度百分比
+  stage: 'ocean' | 'trucking' | 'warehouse' | 'return' // 主阶段
+  startDate: Date // 阶段开始日期
+  endDate: Date // 阶段结束日期
+  progress: number // 进度百分比
 }
 ```
 
@@ -212,8 +212,8 @@ const { containers, loading } = useShipmentsTable()
 
 // containers 已经是 Rich Container 数据
 containers.value.forEach(container => {
-  console.log(container.orderNumber)        // 备货单号
-  console.log(container.logisticsStatus)    // 物流状态
+  console.log(container.orderNumber) // 备货单号
+  console.log(container.logisticsStatus) // 物流状态
   console.log(container.seaFreight?.[0]?.eta) // 预计到港时间
 })
 ```
@@ -226,7 +226,7 @@ containers.value.forEach(container => {
 async getContainersForStats(params: IStatsParams) {
   const qb = ContainerQueryBuilder.createListQuery(this.containerRepository, params);
   const containers = await qb.getMany();
-  
+
   // 返回 Rich Container 用于统计
   const enriched = await this.containerService.enrichContainersList(containers);
   return enriched;
@@ -271,8 +271,8 @@ const loadContainers = async () => {
     startDate,
     endDate,
   })
-  
-  containers.value = response.items  // Rich Container
+
+  containers.value = response.items // Rich Container
   // 使用 ganttDerived 字段绘制甘特图
   containers.value.forEach(c => {
     if (c.ganttDerived) {
@@ -293,6 +293,7 @@ GET /api/v1/containers
 ```
 
 **请求参数**:
+
 ```typescript
 {
   page: number
@@ -304,10 +305,13 @@ GET /api/v1/containers
 ```
 
 **响应数据**:
+
 ```json
 {
   "success": true,
-  "items": [/* Rich Container[] */],
+  "items": [
+    /* Rich Container[] */
+  ],
   "pagination": {
     "page": 1,
     "pageSize": 20,
@@ -324,10 +328,13 @@ GET /api/v1/containers/:id
 ```
 
 **响应数据**:
+
 ```json
 {
   "success": true,
-  "data": { /* Rich Container */ }
+  "data": {
+    /* Rich Container */
+  }
 }
 ```
 
@@ -346,6 +353,7 @@ GET /api/v1/containers/:id/list-row
 ### 6.1 批量查询优化
 
 **优化前** (N+1 查询):
+
 ```typescript
 // ❌ 错误示例：循环查询
 for (const container of containers) {
@@ -356,6 +364,7 @@ for (const container of containers) {
 ```
 
 **优化后** (批量查询):
+
 ```typescript
 // ✅ 正确示例：批量查询
 const containerNumbers = containers.map(c => c.containerNumber)
@@ -372,7 +381,7 @@ const [orders, events, portOps, truckings, warehouses] = await Promise.all([
   batchFetchStatusEvents(containerNumbers),
   batchFetchPortOperations(containerNumbers),
   batchFetchTruckingTransports(containerNumbers),
-  batchFetchWarehouseOperations(containerNumbers)
+  batchFetchWarehouseOperations(containerNumbers),
 ])
 ```
 
@@ -407,12 +416,12 @@ console.log('Rich Container:', JSON.stringify(row, null, 2))
 // backend/src/services/container.service.ts
 async enrichContainersList(containers: Container[]) {
   const startTime = Date.now();
-  
+
   // ... enrich 逻辑
-  
+
   const endTime = Date.now();
   logger.info(`[enrichContainersList] Processed ${containers.length} containers in ${endTime - startTime}ms`);
-  
+
   return enriched;
 }
 ```
@@ -420,11 +429,13 @@ async enrichContainersList(containers: Container[]) {
 ### 7.3 常见问题排查
 
 **问题 1: 某个字段为 undefined**
+
 - 检查该字段是否在 enrich 逻辑中查询
 - 检查关联表是否有对应数据
 - 检查字段名拼写是否正确
 
 **问题 2: 性能慢**
+
 - 检查是否使用了批量查询
 - 检查数据库索引是否建立
 - 检查是否查询了不必要的数据
@@ -438,8 +449,8 @@ async enrichContainersList(containers: Container[]) {
 ```typescript
 // ✅ 推荐：直接使用 Rich Container
 const { containers } = useShipmentsTable()
-const grossWeight = computed(() => 
-  containerData.value?.summary?.totalGrossWeight ?? containerData.value?.grossWeight
+const grossWeight = computed(
+  () => containerData.value?.summary?.totalGrossWeight ?? containerData.value?.grossWeight
 )
 
 // ❌ 不推荐：自己再查询一遍
@@ -465,7 +476,7 @@ const newFieldMap = await batchFetchNewField(containerNumbers)
 // 2. 在循环中添加到结果对象
 containers.map(container => ({
   ...container,
-  newField: newFieldMap.get(container.containerNumber)
+  newField: newFieldMap.get(container.containerNumber),
 }))
 
 // 3. 更新 TypeScript 类型定义
@@ -498,6 +509,7 @@ interface RichContainer {
 **Rich Container** 是 LogiX项目中的核心数据结构，它通过精心设计的 enrich 逻辑，为前端提供了完整、准确、易用的货柜数据。理解并正确使用 Rich Container，对于开发高质量的 LogiX 应用至关重要。
 
 **关键要点**:
+
 - ✅ 批量查询替代 N+1 查询
 - ✅ 并行处理提升性能
 - ✅ Map 结构优化查找

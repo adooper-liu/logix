@@ -13,13 +13,13 @@
 
 ### 新增内容统计
 
-| 类别 | 数量 | 说明 |
-|------|------|------|
-| **新增章节** | 4 个小节 | 5.1-5.4 |
-| **代码示例** | 4 个 | 核心函数 + 应用示例 |
-| **表格** | 8 个 | 规则对照表 |
-| **代码位置引用** | 6 处 | 准确定位源码 |
-| **字数增加** | ~1500 字 | 完整知识体系 |
+| 类别             | 数量     | 说明                |
+| ---------------- | -------- | ------------------- |
+| **新增章节**     | 4 个小节 | 5.1-5.4             |
+| **代码示例**     | 4 个     | 核心函数 + 应用示例 |
+| **表格**         | 8 个     | 规则对照表          |
+| **代码位置引用** | 6 处     | 准确定位源码        |
+| **字数增加**     | ~1500 字 | 完整知识体系        |
 
 ---
 
@@ -47,11 +47,13 @@
 #### 关键要点
 
 **状态优先原则**:
+
 ```
 状态机判定 -> 计算模式选择 -> 日期区间确定 -> 费用计算
 ```
 
 **模式切换点**:
+
 - ✅ **Actual 模式**: `at_port` / `picked_up` / `unloaded` / `returned_empty`
 - ⏳ **Forecast 模式**: `not_shipped` / `shipped` / `in_transit`
 
@@ -62,12 +64,11 @@
 #### 核心内容
 
 1. **费用计算第一步**: 获取状态快照
+
    ```typescript
    const logisticsSnapshot = await this.getLogisticsStatusSnapshot(containerNumber);
-   const arrivedAtDestinationPort = logisticsSnapshot
-     ? isArrivedAtDestinationPortForDemurrage(logisticsSnapshot)
-     : false;
-   const calculationMode: 'actual' | 'forecast' = arrivedAtDestinationPort ? 'actual' : 'forecast';
+   const arrivedAtDestinationPort = logisticsSnapshot ? isArrivedAtDestinationPortForDemurrage(logisticsSnapshot) : false;
+   const calculationMode: "actual" | "forecast" = arrivedAtDestinationPort ? "actual" : "forecast";
    ```
 
 2. **关键要点**
@@ -122,8 +123,8 @@ logisticsStatusSnapshot?: {
 
 ```typescript
 // 分项评分
-const portScore = Math.min(Math.round(portChargeDays) * 5, 50);   // 港区超期
-const boxScore = Math.min(Math.round(boxChargeDays) * 5, 50);     // 用箱超期
+const portScore = Math.min(Math.round(portChargeDays) * 5, 50); // 港区超期
+const boxScore = Math.min(Math.round(boxChargeDays) * 5, 50); // 用箱超期
 const storageScore = Math.min(Math.round(storageChargeDays) * 3, 25); // 堆存超期
 
 // 总分计算
@@ -132,22 +133,22 @@ let score = Math.min(100, portScore + boxScore + storageScore);
 
 #### 费用类型识别
 
-| 费用类型 | 识别函数 | 计费天数分配 |
-|----------|----------|--------------|
-| **堆存费** | `isStorageCharge()` | 单独计算 |
+| 费用类型     | 识别函数                         | 计费天数分配        |
+| ------------ | -------------------------------- | ------------------- |
+| **堆存费**   | `isStorageCharge()`              | 单独计算            |
 | **合并 D&D** | `isCombinedDemurrageDetention()` | 港区 50% + 用箱 50% |
-| **纯滞箱费** | `isDetentionCharge()` | 全部计入用箱 |
-| **纯滞港费** | `isDemurrageCharge()` | 全部计入港区 |
+| **纯滞箱费** | `isDetentionCharge()`            | 全部计入用箱        |
+| **纯滞港费** | `isDemurrageCharge()`            | 全部计入港区        |
 
 #### 风险等级划分
 
-| 总分范围 | 风险等级 | 业务含义 |
-|----------|----------|----------|
-| 0 | **无风险** | 已还箱或无超期计费 |
-| 1-25 | **低风险** | 轻微超期，关注即可 |
-| 26-50 | **中风险** | 中度超期，需安排提柜 |
-| 51-75 | **高风险** | 严重超期，立即处理 |
-| 76-100 | **极高风险** | 极度超期，紧急处理 |
+| 总分范围 | 风险等级     | 业务含义             |
+| -------- | ------------ | -------------------- |
+| 0        | **无风险**   | 已还箱或无超期计费   |
+| 1-25     | **低风险**   | 轻微超期，关注即可   |
+| 26-50    | **中风险**   | 中度超期，需安排提柜 |
+| 51-75    | **高风险**   | 严重超期，立即处理   |
+| 76-100   | **极高风险** | 极度超期，紧急处理   |
 
 ---
 
@@ -158,17 +159,14 @@ let score = Math.min(100, portScore + boxScore + storageScore);
 **文档描述**: `demurrage.service.ts:474-487`
 
 **实际代码**:
+
 ```typescript
 function isArrivedAtDestinationPortForDemurrage(ls: LogisticsStatusResult): boolean {
   const { status, currentPortType } = ls;
-  if (
-    status === SimplifiedStatus.PICKED_UP ||
-    status === SimplifiedStatus.UNLOADED ||
-    status === SimplifiedStatus.RETURNED_EMPTY
-  ) {
+  if (status === SimplifiedStatus.PICKED_UP || status === SimplifiedStatus.UNLOADED || status === SimplifiedStatus.RETURNED_EMPTY) {
     return true;
   }
-  if (status === SimplifiedStatus.AT_PORT && currentPortType === 'destination') {
+  if (status === SimplifiedStatus.AT_PORT && currentPortType === "destination") {
     return true;
   }
   return false;
@@ -184,12 +182,11 @@ function isArrivedAtDestinationPortForDemurrage(ls: LogisticsStatusResult): bool
 **文档描述**: `demurrage.service.ts:1430-1434`
 
 **实际代码**:
+
 ```typescript
 const logisticsSnapshot = await this.getLogisticsStatusSnapshot(containerNumber);
-const arrivedAtDestinationPort = logisticsSnapshot
-  ? isArrivedAtDestinationPortForDemurrage(logisticsSnapshot)
-  : false;
-const calculationMode: 'actual' | 'forecast' = arrivedAtDestinationPort ? 'actual' : 'forecast';
+const arrivedAtDestinationPort = logisticsSnapshot ? isArrivedAtDestinationPortForDemurrage(logisticsSnapshot) : false;
+const calculationMode: "actual" | "forecast" = arrivedAtDestinationPort ? "actual" : "forecast";
 ```
 
 **验证结果**: ✅ 完全一致
@@ -201,6 +198,7 @@ const calculationMode: 'actual' | 'forecast' = arrivedAtDestinationPort ? 'actua
 **文档描述**: `demurrage.ts:171-176`
 
 **实际代码**:
+
 ```typescript
 logisticsStatusSnapshot?: {
   status: string
@@ -219,6 +217,7 @@ logisticsStatusSnapshot?: {
 **文档描述**: `riskService.ts:401-472`
 
 **实际代码**:
+
 ```typescript
 const portScore = Math.min(Math.round(portChargeDays) * 5, 50);
 const boxScore = Math.min(Math.round(boxChargeDays) * 5, 50);
@@ -259,12 +258,12 @@ let score = Math.min(100, portScore + boxScore + storageScore);
 
 ### 评估维度
 
-| 维度 | 更新前 | 更新后 | 改善 |
-|------|--------|--------|------|
-| **准确性** | 95% | 100% | ⬆️ 5% |
-| **完整性** | 60% | 100% | ⬆️ 40% |
-| **一致性** | 100% | 100% | - |
-| **可读性** | 90% | 95% | ⬆️ 5% |
+| 维度       | 更新前 | 更新后 | 改善   |
+| ---------- | ------ | ------ | ------ |
+| **准确性** | 95%    | 100%   | ⬆️ 5%  |
+| **完整性** | 60%    | 100%   | ⬆️ 40% |
+| **一致性** | 100%   | 100%   | -      |
+| **可读性** | 90%    | 95%    | ⬆️ 5%  |
 
 ### 综合评分
 
@@ -287,10 +286,9 @@ let score = Math.min(100, portScore + boxScore + storageScore);
 
 ### 踩坑记录
 
-1. **状态判定复杂**: 
+1. **状态判定复杂**:
    - 问题：7 种状态对应不同的费用计算逻辑
    - 对策：使用表格清晰对照
-   
 2. **费用类型多样**:
    - 问题：4 种费用类型有不同的起止日规则
    - 对策：分别列表说明，避免混淆
@@ -306,7 +304,7 @@ let score = Math.min(100, portScore + boxScore + storageScore);
 ### 核心文件
 
 - **更新报告**: `public/docs-temp/dnd-fees-update-complete.md` (本文档)
-- **后端代码**: 
+- **后端代码**:
   - `backend/src/services/demurrage.service.ts`
   - `backend/src/services/riskService.ts`
 - **前端代码**: `frontend/src/services/demurrage.ts`

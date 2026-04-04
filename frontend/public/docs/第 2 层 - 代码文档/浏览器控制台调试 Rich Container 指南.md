@@ -23,25 +23,31 @@ const row = await containerService.getListRowByContainerNumber('CAIU1234567')
 #### 方法 A：查看列表数据
 
 **Step 1**: 打开 Network 面板
+
 - 按 `F12` → 切换到 **Network** 标签
 
 **Step 2**: 清空现有记录
+
 - 点击 🚫 按钮（Clear）清空所有记录
 - 或按快捷键 `Ctrl + E`（Windows）/ `Cmd + E`（Mac）
 
 **Step 3**: 刷新页面或触发查询
+
 - 按 `F5` 刷新页面
 - 或在 Shipments 页面修改筛选条件（如日期范围、关键词）
 
 **Step 4**: 筛选请求
+
 - 在 **Filter** 输入框输入：`containers`
 - 或输入具体箱号：`CAIU1234567`
 
 **Step 5**: 找到目标请求
+
 - 查找请求：`GET /api/v1/containers?page=1&pageSize=20&...`
 - 这是获取货柜列表的 API
 
 **Step 6**: 查看响应数据
+
 - 点击该请求
 - 切换到 **Response** 标签
 - 展开 JSON 数据 → 查看完整的 `items[]` 数组
@@ -51,17 +57,21 @@ const row = await containerService.getListRowByContainerNumber('CAIU1234567')
 #### 方法 B：查看单个货柜详情
 
 **Step 1**: 打开 Network 面板并清空
+
 - 按 `F12` → Network → 🚫 清空
 
 **Step 2**: 进入货柜详情页
+
 - 在 Shipments 列表中点击某个货柜
 - 进入 ContainerDetailRefactored 页面
 
 **Step 3**: 筛选详情请求
+
 - 在 Filter 输入：`containers/CAIU`（或具体箱号）
 - 找到请求：`GET /api/v1/containers/CAIU1234567`
 
 **Step 4**: 查看完整详情
+
 - 点击该请求 → Response 标签
 - 查看完整的 Rich Container JSON 对象
 
@@ -72,32 +82,35 @@ const row = await containerService.getListRowByContainerNumber('CAIU1234567')
 **Q: 为什么 Filter 无效？**
 
 A: 可能的原因：
+
 1. **页面已加载完成**：Network 面板只显示当前会话的请求
    - ✅ 解决：清空记录（🚫）后刷新页面
-   
 2. **Filter 关键字不对**：
    - ✅ 解决：尝试更具体的关键字，如 `containers` 或完整箱号
-   
 3. **请求已被过滤**：
    - ✅ 解决：检查 Filter 右侧的下拉菜单，确保选择了 "All" 或 "XHR"
 
 **Q: 如何查看特定箱号的数据？**
 
 A: 两种方法：
+
 1. **方法 1**：在 Shipments 页面搜索该箱号，刷新后查看列表请求
 2. **方法 2**：直接进入该箱柜的详情页，查看详情请求
 
 **Q: Response 数据太多怎么办？**
 
 A: 使用格式化查看：
+
 1. 点击 Response 标签右上角的 `{}` 按钮（Pretty Print）
 2. JSON 会自动格式化，便于阅读
 3. 或使用 Console 面板：
    ```javascript
    // 右键 Response → Copy → Copy response
    // 然后在 Console 执行：
-   const data = {/* 粘贴 */}
-   console.table(data.data)  // 表格形式查看
+   const data = {
+     /* 粘贴 */
+   }
+   console.table(data.data) // 表格形式查看
    ```
 
 ### ✅ 正确写法二：临时暴露到全局（推荐 ⭐⭐⭐⭐）
@@ -107,10 +120,10 @@ A: 使用格式化查看：
 ```typescript
 const loadContainerDetail = async () => {
   const response = await containerService.getContainerById(props.containerNumber)
-  
+
   // 🔍 添加这行 - 暴露到全局供调试
   window.debugContainerDetail = response.data
-  
+
   containerData.value = response.data
 }
 ```
@@ -123,10 +136,10 @@ const row = window.debugContainerDetail
 console.log('Rich Container:', JSON.stringify(row, null, 2))
 
 // 查看特定字段
-row.orderNumber         // 备货单号
-row.logisticsStatus     // 物流状态
-row.seaFreight          // 海运信息
-row.ganttDerived        // 甘特图数据
+row.orderNumber // 备货单号
+row.logisticsStatus // 物流状态
+row.seaFreight // 海运信息
+row.ganttDerived // 甘特图数据
 ```
 
 ### ✅ 正确写法三：永久暴露 Service（开发环境专用）
@@ -192,7 +205,7 @@ import { containerService } from '@/services/container'
 
 ```javascript
 // 尝试访问全局变量
-window.__APP__          // 检查是否有全局应用实例
+window.__APP__ // 检查是否有全局应用实例
 window.containerService // 检查是否暴露了 service
 ```
 
@@ -225,6 +238,7 @@ console.log('Shipments Component:', shipmentsVM)
 点击请求 → Response 标签 → 查看完整的 Rich Container 数据
 
 **优点**:
+
 - ✅ 无需写代码
 - ✅ 数据最真实（原始 API 响应）
 - ✅ 可以看到完整的数据结构
@@ -244,11 +258,11 @@ const loadContainers = async () => {
     page: 1,
     pageSize: 20,
   })
-  
+
   // 🔍 临时调试代码
   console.log('[DEBUG] Rich Container Data:', response.items)
-  window.debugContainers = response.items  // 暴露到全局
-  
+  window.debugContainers = response.items // 暴露到全局
+
   containers.value = response.items
 }
 ```
@@ -257,7 +271,7 @@ const loadContainers = async () => {
 
 ```javascript
 // 现在可以在控制台访问了
-window.debugContainers[0]  // 查看第一个货柜的 Rich Container 数据
+window.debugContainers[0] // 查看第一个货柜的 Rich Container 数据
 ```
 
 ### 2.4 方法四：使用 Vue DevTools（最专业）
@@ -304,11 +318,11 @@ const loadContainerDetail = async () => {
   loading.value = true
   try {
     const response = await containerService.getContainerById(props.containerNumber)
-    
+
     // 🔍 调试代码
     console.log('[DEBUG] Container Detail:', response.data)
     window.debugContainerDetail = response.data
-    
+
     containerData.value = response.data
   } catch (error) {
     console.error('Failed to load container detail:', error)
@@ -325,10 +339,10 @@ const loadContainerDetail = async () => {
 window.debugContainerDetail
 
 // 查看特定字段
-window.debugContainerDetail.orderNumber      // 备货单号
-window.debugContainerDetail.logisticsStatus  // 物流状态
-window.debugContainerDetail.seaFreight       // 海运信息
-window.debugContainerDetail.ganttDerived     // 甘特图数据
+window.debugContainerDetail.orderNumber // 备货单号
+window.debugContainerDetail.logisticsStatus // 物流状态
+window.debugContainerDetail.seaFreight // 海运信息
+window.debugContainerDetail.ganttDerived // 甘特图数据
 ```
 
 ### 3.2 调试列表数据
@@ -349,11 +363,11 @@ const loadContainers = async () => {
       startDate: shipmentDateRange.value[0].toISOString(),
       endDate: shipmentDateRange.value[1].toISOString(),
     })
-    
+
     // 🔍 调试代码 - 暴露到全局
     window.debugContainersList = response.items
     window.debugContainersPagination = response.pagination
-    
+
     console.log('[DEBUG] Containers List:')
     console.table(response.items.map(c => ({
       箱号：c.containerNumber,
@@ -361,7 +375,7 @@ const loadContainers = async () => {
       状态：c.logisticsStatus,
       目的港：c.portOperations?.find(p => p.portType === 'destination')?.portName
     })))
-    
+
     containers.value = response.items
     pagination.value.total = response.pagination.total
   } catch (error) {
@@ -419,13 +433,13 @@ async enrichContainersList(containers: Container[]): Promise<any[]> {
 
   const endTime = Date.now();
   const duration = endTime - startTime;
-  
+
   console.log(`[PERF] Enrich completed in ${duration}ms`, {
     total: containers.length,
     avgMsPerContainer: duration / containers.length,
     itemsPerSecond: Math.round(containers.length / (duration / 1000))
   });
-  
+
   return enriched;
 }
 ```
@@ -464,7 +478,7 @@ window.debugContainerDetail.truckingTransports
 ```javascript
 // 对比前端显示与后端数据
 const container = window.debugContainerDetail
-console.log('Frontend cbm:', container.cbm)           // 前端显示的 cbm
+console.log('Frontend cbm:', container.cbm) // 前端显示的 cbm
 console.log('Summary cbm:', container.summary?.totalCbm) // 汇总的 cbm
 
 // 检查 ganttDerived 是否正确
@@ -479,14 +493,10 @@ console.log('Expected stage:', calculateExpectedStage(container))
 window.debugContainersList.filter(c => !c.orderNumber)
 
 // 查找状态异常的货柜
-window.debugContainersList.filter(c => 
-  c.logisticsStatus === 'unknown'
-)
+window.debugContainersList.filter(c => c.logisticsStatus === 'unknown')
 
 // 查找费用为 0 的货柜
-window.debugContainersList.filter(c => 
-  !c.costBreakdown || c.costBreakdown.total === 0
-)
+window.debugContainersList.filter(c => !c.costBreakdown || c.costBreakdown.total === 0)
 ```
 
 ---
@@ -515,11 +525,13 @@ debug('Rich Container:', container)
 ### 5.3 清理调试代码
 
 ✅ **推荐做法**:
+
 - 使用环境变量控制
 - 调试代码集中管理
 - 提交前移除调试代码
 
 ❌ **不推荐做法**:
+
 - 在生产环境保留调试代码
 - 到处散落 console.log
 - 忘记清理调试代码
@@ -541,7 +553,7 @@ debug('Rich Container:', container)
 import { containerService } from '@/services/container'
 
 if (import.meta.env.DEV) {
-  (window as any).containerService = containerService
+  ;(window as any).containerService = containerService
 }
 ```
 
@@ -582,7 +594,7 @@ console.table(data)
 console.log({
   containerNumber: data.containerNumber,
   orderNumber: data.orderNumber,
-  logisticsStatus: data.logisticsStatus
+  logisticsStatus: data.logisticsStatus,
 })
 
 // 分组展示
@@ -598,12 +610,12 @@ console.groupEnd()
 
 ### 7.1 调试方法对比
 
-| 方法 | 难度 | 适用场景 | 推荐度 |
-|------|------|---------|--------|
-| Network 面板 | ⭐ | 查看 API 原始数据 | ⭐⭐⭐⭐⭐ |
-| Vue DevTools | ⭐⭐ | 查看组件响应式数据 | ⭐⭐⭐⭐⭐ |
-| 临时调试代码 | ⭐⭐ | 深度调试特定逻辑 | ⭐⭐⭐⭐ |
-| 全局变量暴露 | ⭐⭐⭐ | 频繁调试多个数据 | ⭐⭐⭐ |
+| 方法         | 难度   | 适用场景           | 推荐度     |
+| ------------ | ------ | ------------------ | ---------- |
+| Network 面板 | ⭐     | 查看 API 原始数据  | ⭐⭐⭐⭐⭐ |
+| Vue DevTools | ⭐⭐   | 查看组件响应式数据 | ⭐⭐⭐⭐⭐ |
+| 临时调试代码 | ⭐⭐   | 深度调试特定逻辑   | ⭐⭐⭐⭐   |
+| 全局变量暴露 | ⭐⭐⭐ | 频繁调试多个数据   | ⭐⭐⭐     |
 
 ### 7.2 核心要点
 

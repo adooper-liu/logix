@@ -13,13 +13,13 @@
 
 ### 修复统计
 
-| 类别 | 发现问题数 | 已修复数 | 待修复数 | 修复率 |
-|------|------------|----------|----------|--------|
-| **按到港统计** | 2 | 2 | 0 | 100% |
-| **按计划提柜** | 0 | 0 | 0 | - |
-| **按最晚提柜** | 0 | 0 | 0 | - |
-| **按最晚还箱** | 1 | 1 | 0 | 100% |
-| **总计** | **3** | **3** | **0** | **100%** |
+| 类别           | 发现问题数 | 已修复数 | 待修复数 | 修复率   |
+| -------------- | ---------- | -------- | -------- | -------- |
+| **按到港统计** | 2          | 2        | 0        | 100%     |
+| **按计划提柜** | 0          | 0        | 0        | -        |
+| **按最晚提柜** | 0          | 0        | 0        | -        |
+| **按最晚还箱** | 1          | 1        | 0        | 100%     |
+| **总计**       | **3**      | **3**    | **0**    | **100%** |
 
 ---
 
@@ -35,12 +35,12 @@
 只有 4 个主要维度：
 
 ```markdown
-| 维度 | 筛选条件 | 说明 |
-|------|----------|------|
-| arrivalToday | ATA = today | 今日到港 |
+| 维度                     | 筛选条件            | 说明         |
+| ------------------------ | ------------------- | ------------ |
+| arrivalToday             | ATA = today         | 今日到港     |
 | arrivedBeforeNotPickedUp | ATA < today, 未提柜 | 之前到港未提 |
-| arrivedBeforePickedUp | ATA < today, 已提柜 | 之前到港已提 |
-| arrivedAtTransit | 有中转港记录 | 已到中转港 |
+| arrivedBeforePickedUp    | ATA < today, 已提柜 | 之前到港已提 |
+| arrivedAtTransit         | 有中转港记录        | 已到中转港   |
 ```
 
 #### 修复后
@@ -48,25 +48,27 @@
 补充为完整的维度体系：
 
 **主要维度（5 个）**：
+
 ```markdown
-| 维度代码 | 筛选条件 | 说明 |
-|----------|----------|------|
-| `today` | ATA = today | 今日到港（目的港） |
-| `beforeTodayNotPickedUp` | ATA < today, 未提柜 | 之前到港未提（目的港） |
-| `beforeTodayPickedUp` | ATA < today, 已提柜 | 之前到港已提（目的港） |
+| 维度代码                  | 筛选条件                 | 说明                       |
+| ------------------------- | ------------------------ | -------------------------- |
+| `today`                   | ATA = today              | 今日到港（目的港）         |
+| `beforeTodayNotPickedUp`  | ATA < today, 未提柜      | 之前到港未提（目的港）     |
+| `beforeTodayPickedUp`     | ATA < today, 已提柜      | 之前到港已提（目的港）     |
 | `arrivedBeforeTodayNoATA` | ATA < today, 无 ATA 记录 | 之前到港但无 ATA（目的港） |
-| `arrivedAtTransit` | 有中转港 ATA 记录 | 已到中转港 |
+| `arrivedAtTransit`        | 有中转港 ATA 记录        | 已到中转港                 |
 ```
 
 **中转港细分维度（5 个）**：
+
 ```markdown
-| 维度代码 | 筛选条件 | 说明 |
-|----------|----------|------|
-| `transitOverdue` | ETA < today | 中转港已逾期 |
-| `transitWithin3Days` | today ≤ ETA ≤ today+3 | 中转港 3 天内到 |
-| `transitWithin7Days` | today+3 < ETA ≤ today+7 | 中转港 3-7 天到 |
-| `transitOver7Days` | ETA > today+7 | 中转港超过 7 天到 |
-| `transitNoETA` | 无 ETA 记录 | 中转港无预计时间 |
+| 维度代码             | 筛选条件                | 说明              |
+| -------------------- | ----------------------- | ----------------- |
+| `transitOverdue`     | ETA < today             | 中转港已逾期      |
+| `transitWithin3Days` | today ≤ ETA ≤ today+3   | 中转港 3 天内到   |
+| `transitWithin7Days` | today+3 < ETA ≤ today+7 | 中转港 3-7 天到   |
+| `transitOver7Days`   | ETA > today+7           | 中转港超过 7 天到 |
+| `transitNoETA`       | 无 ETA 记录             | 中转港无预计时间  |
 ```
 
 #### 修复价值
@@ -87,13 +89,13 @@
 命名不统一：
 
 ```markdown
-| 维度 | 筛选条件 |
-|------|----------|
-| expiredLastFree | lastFreeDate < today (已超期) |
-| urgentLastFree | today ≤ lastFreeDate ≤ today+3 (即将超期) |
-| warningLastFree | today+3 < lastFreeDate ≤ today+7 (预警) |
-| normalLastFree | lastFreeDate > today+7 (时间充裕) |
-| noLastFreeDate | 无 lastFreeDate |
+| 维度            | 筛选条件                                  |
+| --------------- | ----------------------------------------- |
+| expiredLastFree | lastFreeDate < today (已超期)             |
+| urgentLastFree  | today ≤ lastFreeDate ≤ today+3 (即将超期) |
+| warningLastFree | today+3 < lastFreeDate ≤ today+7 (预警)   |
+| normalLastFree  | lastFreeDate > today+7 (时间充裕)         |
+| noLastFreeDate  | 无 lastFreeDate                           |
 ```
 
 #### 修复后
@@ -101,13 +103,13 @@
 与代码返回值保持一致：
 
 ```markdown
-| 维度代码 | 筛选条件 | 说明 |
-|----------|----------|------|
-| `expired` | lastFreeDate < today | 已超期 |
-| `urgent` | today ≤ lastFreeDate ≤ today+3 | 即将超期 |
-| `warning` | today+3 < lastFreeDate ≤ today+7 | 预警 |
-| `normal` | lastFreeDate > today+7 | 时间充裕 |
-| `noLastFreeDate` | 无 lastFreeDate | 无最晚提柜日 |
+| 维度代码         | 筛选条件                         | 说明         |
+| ---------------- | -------------------------------- | ------------ |
+| `expired`        | lastFreeDate < today             | 已超期       |
+| `urgent`         | today ≤ lastFreeDate ≤ today+3   | 即将超期     |
+| `warning`        | today+3 < lastFreeDate ≤ today+7 | 预警         |
+| `normal`         | lastFreeDate > today+7           | 时间充裕     |
+| `noLastFreeDate` | 无 lastFreeDate                  | 无最晚提柜日 |
 ```
 
 #### 修复价值
@@ -128,12 +130,12 @@
 缺少 1 个维度：
 
 ```markdown
-| 维度 | 筛选条件 |
-|------|----------|
-| expiredReturn | lastReturnDate < today (已超期) |
-| urgentReturn | today ≤ lastReturnDate ≤ today+3 (即将超期) |
-| warningReturn | today+3 < lastReturnDate ≤ today+7 (预警) |
-| normalReturn | lastReturnDate > today+7 (时间充裕) |
+| 维度          | 筛选条件                                    |
+| ------------- | ------------------------------------------- |
+| expiredReturn | lastReturnDate < today (已超期)             |
+| urgentReturn  | today ≤ lastReturnDate ≤ today+3 (即将超期) |
+| warningReturn | today+3 < lastReturnDate ≤ today+7 (预警)   |
+| normalReturn  | lastReturnDate > today+7 (时间充裕)         |
 ```
 
 #### 修复后
@@ -141,13 +143,13 @@
 补充完整的 5 个维度：
 
 ```markdown
-| 维度代码 | 筛选条件 | 说明 |
-|----------|----------|------|
-| `expired` | lastReturnDate < today | 已超期 |
-| `urgent` | today ≤ lastReturnDate ≤ today+3 | 即将超期 |
-| `warning` | today+3 < lastReturnDate ≤ today+7 | 预警 |
-| `normal` | lastReturnDate > today+7 | 时间充裕 |
-| `noLastReturnDate` | lastReturnDate IS NULL | 无最晚还箱日 |
+| 维度代码           | 筛选条件                           | 说明         |
+| ------------------ | ---------------------------------- | ------------ |
+| `expired`          | lastReturnDate < today             | 已超期       |
+| `urgent`           | today ≤ lastReturnDate ≤ today+3   | 即将超期     |
+| `warning`          | today+3 < lastReturnDate ≤ today+7 | 预警         |
+| `normal`           | lastReturnDate > today+7           | 时间充裕     |
+| `noLastReturnDate` | lastReturnDate IS NULL             | 无最晚还箱日 |
 ```
 
 #### 修复价值
@@ -239,12 +241,12 @@ WHERE er.last_return_date < CURRENT_DATE
 
 ### 评估维度
 
-| 维度 | 修复前 | 修复后 | 改善 |
-|------|--------|--------|------|
-| **准确性** | 75% | 100% | ⬆️ 25% |
-| **完整性** | 60% | 100% | ⬆️ 40% |
-| **一致性** | 80% | 100% | ⬆️ 20% |
-| **可读性** | 90% | 95% | ⬆️ 5% |
+| 维度       | 修复前 | 修复后 | 改善   |
+| ---------- | ------ | ------ | ------ |
+| **准确性** | 75%    | 100%   | ⬆️ 25% |
+| **完整性** | 60%    | 100%   | ⬆️ 40% |
+| **一致性** | 80%    | 100%   | ⬆️ 20% |
+| **可读性** | 90%    | 95%    | ⬆️ 5%  |
 
 ### 综合评分
 
@@ -294,8 +296,7 @@ WHERE er.last_return_date < CURRENT_DATE
 
 1. **维度遗漏**: 文档编写时只关注了主要维度
    - 对策：对照代码逐行验证所有统计维度
-   
-2. **命名不一致**: 
+2. **命名不一致**:
    - 文档用 `expiredLastFree`
    - 代码返回 `expired`
    - 对策：统一使用代码中的返回字段名
