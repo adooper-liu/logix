@@ -389,7 +389,7 @@ const days = Math.floor((now - date) / (1000 * 60 * 60 * 24))
 ### Step 4: 更新索引
 
 ```bash
-# 添加到 SKILL_INDEX.md
+# 添加到 DOCS_INDEX.md
 # 更新相关链接
 # 提交 git
 ```

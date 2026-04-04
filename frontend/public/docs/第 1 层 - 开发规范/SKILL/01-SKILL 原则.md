@@ -31,8 +31,9 @@
 
 ```typescript
 // 错误：违反单一职责
+// 文件：backend/src/services/intelligentScheduling.service.ts
 class IntelligentSchedulingService {
-  // 2371 行，60+ 方法混在一起
+  // 3024 行，60+ 方法混在一起
   filterContainers() {
     /* ... */
   }
@@ -49,8 +50,9 @@ class IntelligentSchedulingService {
 }
 
 // 正确：符合单一职责
+// 文件：backend/src/services/ContainerFilterService.ts
 class ContainerFilterService {
-  // 只负责筛选，125 行
+  // 只负责筛选，124 行
   filterByDate() {
     /* ... */
   }
@@ -59,8 +61,9 @@ class ContainerFilterService {
   }
 }
 
+// 文件：backend/src/services/SchedulingSorter.ts
 class SchedulingSorter {
-  // 只负责排序，188 行
+  // 只负责排序，181 行
   sortByETA() {
     /* ... */
   }

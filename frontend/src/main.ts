@@ -1,25 +1,25 @@
-import { createApp } from 'vue'
-import { createPinia } from 'pinia'
-import ElementPlus from 'element-plus'
-import zhCn from 'element-plus/es/locale/lang/zh-cn'
-import en from 'element-plus/es/locale/lang/en'
-import de from 'element-plus/es/locale/lang/de'
-import fr from 'element-plus/es/locale/lang/fr'
-import es from 'element-plus/es/locale/lang/es'
-import 'element-plus/dist/index.css'
 import * as ElementPlusIconsVue from '@element-plus/icons-vue'
+import ElementPlus from 'element-plus'
+import 'element-plus/dist/index.css'
+import de from 'element-plus/es/locale/lang/de'
+import en from 'element-plus/es/locale/lang/en'
+import es from 'element-plus/es/locale/lang/es'
+import fr from 'element-plus/es/locale/lang/fr'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
+import { createPinia } from 'pinia'
+import { createApp } from 'vue'
 import App from './App.vue'
-import router from './router'
 import i18n from './locales'
+import router from './router'
 
 // 全局样式
 import './assets/styles/global.scss'
 
 // 性能优化工具
-import { registerLazyDirective } from './utils/lazyLoader'
-import { performanceMonitorPlugin } from './utils/performanceMonitor'
 import dateTimePlugin from './plugins/dateTime'
 import { initSentry } from './plugins/sentry'
+import { registerLazyDirective } from './utils/lazyLoader'
+import { performanceMonitorPlugin } from './utils/performanceMonitor'
 
 // 环境变量
 const enablePerformanceMonitor = import.meta.env.VITE_ENABLE_PERFORMANCE_MONITOR === 'true'

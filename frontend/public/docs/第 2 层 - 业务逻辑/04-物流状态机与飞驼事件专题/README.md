@@ -7,7 +7,7 @@
 
 ---
 
-## 📋 概述
+## 概述
 
 本专题整合物流状态机和飞驼事件映射的完整知识体系，包括：
 
@@ -18,7 +18,7 @@
 
 ---
 
-## 📁 文件夹结构
+## 文件夹结构
 
 ```
 04-物流状态机与飞驼事件专题/
@@ -40,7 +40,7 @@
 
 ---
 
-## 🎯 学习路径
+## 学习路径
 
 ### 初学者路径（快速上手）
 
@@ -103,7 +103,7 @@ Step 4: 如需详细信息
 
 ---
 
-## 📚 核心知识体系
+## 核心知识体系
 
 ### 一、物流状态机（7 层简化状态）
 
@@ -237,7 +237,7 @@ if ((!status.isEstimated || isFinalStatus) && status.occurredAt) {
 
 ---
 
-## 🔍 快速查找表
+## 快速查找表
 
 ### 常见问题快速定位
 
@@ -264,7 +264,7 @@ if ((!status.isEstimated || isFinalStatus) && status.occurredAt) {
 
 ---
 
-## 📊 文档统计
+## 文档统计
 
 ### 数量统计
 
@@ -287,7 +287,7 @@ if ((!status.isEstimated || isFinalStatus) && status.occurredAt) {
 
 ---
 
-## 🎓 使用建议
+## 使用建议
 
 ### 第一次使用
 
@@ -327,7 +327,7 @@ if ((!status.isEstimated || isFinalStatus) && status.occurredAt) {
 
 ---
 
-## 🔄 维护机制
+## 维护机制
 
 ### 文档更新
 
@@ -353,7 +353,7 @@ if ((!status.isEstimated || isFinalStatus) && status.occurredAt) {
 
 ---
 
-## 📞 反馈与建议
+## 反馈与建议
 
 ### 发现问题
 
@@ -375,7 +375,7 @@ if ((!status.isEstimated || isFinalStatus) && status.occurredAt) {
 
 ---
 
-## ✨ 文档演进历史
+## 文档演进历史
 
 ### v1.0 (2026-03-31)
 

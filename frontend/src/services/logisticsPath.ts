@@ -5,9 +5,9 @@
  * 调用主服务代理的 /logistics-path/* 接口（主服务转发至 logistics-path-system 微服务）
  */
 
-import axios from 'axios'
-import type { AxiosInstance } from 'axios'
 import { useAppStore } from '@/store/app'
+import type { AxiosInstance } from 'axios'
+import axios from 'axios'
 
 /** 地理位置 */
 export interface Location {
@@ -30,12 +30,16 @@ export interface StatusNode {
   rawData?: Record<string, unknown>
 }
 
+/** 运输模式 */
+export type TransportMode = 'STANDARD' | 'SEA_RAIL' | 'FEEDER'
+
 /** 物流状态路径 */
 export interface StatusPath {
   id: string
   containerNumber: string
   nodes: StatusNode[]
   overallStatus: string
+  transportMode?: TransportMode // 运输模式（新增）
   eta?: string | null
   startedAt?: string | null
   completedAt?: string | null

@@ -8,6 +8,13 @@
       <el-alert type="warning" :title="error" show-icon />
     </div>
     <div v-else-if="path" class="path-content">
+      <!-- 运输模式标识 -->
+      <div v-if="path.transportMode" class="transport-mode-badge">
+        <el-tag :type="getTransportModeTagType(path.transportMode)" size="normal" effect="plain">
+          {{ getTransportModeLabel(path.transportMode) }}
+        </el-tag>
+      </div>
+
       <!-- 超期预警（仅阶段分组视图显示） -->
       <el-alert
         v-if="variant === 'grouped' && path.isOverdue"
@@ -87,14 +94,37 @@
                 :class="{
                   'stage-node-no-data': isNoDataNode(item.node),
                   'stage-node-alert': item.node.isAlert,
+                  'stage-node-rail': [
+                    'RAIL_LOADED',
+                    'RAIL_DEPARTED',
+                    'RAIL_ARRIVED',
+                    'RAIL_DISCHARGED',
+                  ].includes(item.node.status),
+                  'stage-node-feeder': [
+                    'FEEDER_LOADED',
+                    'FEEDER_DEPARTED',
+                    'FEEDER_ARRIVED',
+                    'FEEDER_DISCHARGED',
+                  ].includes(item.node.status),
                 }"
                 @click="selectedNode = item.node"
               >
                 <span class="stage-node-icon">{{ getStatusIcon(item.node.status) }}</span>
                 <div class="stage-node-body">
                   <div class="stage-node-desc-row">
-                    <span class="stage-node-desc">{{ item.node.description }}</span>
+                    <span class="stage-node-desc">
+                      {{ (item.node.rawData as any)?.eventCode || '' }}
+                      {{ item.node.description }}
+                    </span>
                     <span v-if="item.node.isAlert" class="alert-badge">异常</span>
+                    <el-tag
+                      v-if="isEstimatedNode(item.node)"
+                      size="small"
+                      type="warning"
+                      class="estimated-tag"
+                    >
+                      预计
+                    </el-tag>
                   </div>
                   <div class="stage-node-meta">
                     <span class="stage-node-time">{{
@@ -103,24 +133,6 @@
                     <span v-if="item.node.location" class="stage-node-loc"
                       >{{ item.node.location.name }} ({{ item.node.location.code }})</span
                     >
-                    <!-- 使用 NodeDurationDisplay 组件显示节点时长 -->
-                    <NodeDurationDisplay
-                      :timestamp="item.node.timestamp"
-                      :prev-timestamp="
-                        item.globalIndex > 0 ? path.nodes[item.globalIndex - 1]?.timestamp : null
-                      "
-                      :next-timestamp="
-                        item.globalIndex < (path.nodes?.length ?? 0) - 1
-                          ? path.nodes[item.globalIndex + 1]?.timestamp
-                          : null
-                      "
-                      :index="item.globalIndex"
-                      :total-count="path.nodes?.length ?? 0"
-                      :node-status="item.node.status"
-                      :standard-hours="STANDARD_DURATIONS[item.node.status] ?? 0"
-                      :is-in-progress="isCurrentNode(item.node, item.globalIndex)"
-                      :is-no-data="isNoDataNode(item.node)"
-                    />
                   </div>
                   <el-tag
                     v-if="getNodeDataSource(item.node)"
@@ -272,6 +284,14 @@
               class="detail-no-data-tag"
             >
               {{ getNoDataNodeLabel(selectedNode) }}
+            </el-tag>
+            <el-tag
+              v-if="isEstimatedNode(selectedNode)"
+              type="warning"
+              size="small"
+              class="detail-estimated-tag"
+            >
+              预计
             </el-tag>
           </div>
           <div class="detail-item">
@@ -574,6 +594,39 @@ const overdueAlertText = computed(() => {
 
 const isNoDataNode = (node: StatusNode): boolean => !!(node.rawData as { noData?: boolean })?.noData
 
+/** 判断是否为预计节点（isEstimated=true） */
+const isEstimatedNode = (node: StatusNode): boolean => {
+  return !!(node.rawData as { isEstimated?: boolean })?.isEstimated
+}
+
+/** 获取运输模式标签类型 */
+const getTransportModeTagType = (mode: string) => {
+  switch (mode) {
+    case 'STANDARD':
+      return 'success' // 绿色 - 纯海运
+    case 'SEA_RAIL':
+      return 'warning' // 橙色 - 海铁联运
+    case 'FEEDER':
+      return '' // 蓝色 - 驳船联运
+    default:
+      return 'info'
+  }
+}
+
+/** 获取运输模式显示文本 */
+const getTransportModeLabel = (mode: string) => {
+  switch (mode) {
+    case 'STANDARD':
+      return t('container.logisticsPath.transportMode.standard') || '纯海运'
+    case 'SEA_RAIL':
+      return t('container.logisticsPath.transportMode.seaRail') || '海铁联运'
+    case 'FEEDER':
+      return t('container.logisticsPath.transportMode.feeder') || '驳船联运'
+    default:
+      return mode
+  }
+}
+
 /** 无数据节点的展示文案：显示具体缺数据的节点名（如「进港 缺数据」） */
 const getNoDataNodeLabel = (node: StatusNode | null): string => {
   if (!node || !isNoDataNode(node)) return ''
@@ -603,36 +656,89 @@ const pathProgress = computed(() => {
 
 /** 4. 阶段分组：状态 -> 阶段 */
 const STAGE_MAP: Record<string, { stage: string; label: string; order: number }> = {
+  // 起运阶段
   NOT_SHIPPED: { stage: 'origin', label: '起运', order: 1 },
   EMPTY_PICKED_UP: { stage: 'origin', label: '起运', order: 1 },
   CONTAINER_STUFFED: { stage: 'origin', label: '起运', order: 1 },
   GATE_IN: { stage: 'origin', label: '起运', order: 1 },
   LOADED: { stage: 'origin', label: '起运', order: 1 },
   DEPARTED: { stage: 'origin', label: '起运', order: 1 },
-  RAIL_LOADED: { stage: 'origin', label: '起运', order: 1 },
-  RAIL_DEPARTED: { stage: 'origin', label: '起运', order: 1 },
-  FEEDER_LOADED: { stage: 'origin', label: '起运', order: 1 },
-  FEEDER_DEPARTED: { stage: 'origin', label: '起运', order: 1 },
-  SAILING: { stage: 'sea', label: '海运', order: 2 },
+
+  // 驳船联运阶段（海运前，order 4-7）
+  FEEDER_LOADED: { stage: 'feeder', label: '驳船', order: 4 },
+  FEEDER_DEPARTED: { stage: 'feeder', label: '驳船', order: 4 },
+  FEEDER_ARRIVED: { stage: 'feeder', label: '驳船', order: 4 },
+  FEEDER_DISCHARGED: { stage: 'feeder', label: '驳船', order: 4 },
+
+  // 海运阶段
+  SAILING: { stage: 'sea', label: '海运', order: 5 },
+
+  // 中转阶段
   TRANSIT_ARRIVED: { stage: 'transit', label: '中转', order: 3 },
   TRANSIT_BERTHED: { stage: 'transit', label: '中转', order: 3 },
   TRANSIT_DISCHARGED: { stage: 'transit', label: '中转', order: 3 },
   TRANSIT_LOADED: { stage: 'transit', label: '中转', order: 3 },
   TRANSIT_DEPARTED: { stage: 'transit', label: '中转', order: 3 },
-  ARRIVED: { stage: 'arrival', label: '到港', order: 4 },
-  BERTHED: { stage: 'arrival', label: '到港', order: 4 },
-  DISCHARGED: { stage: 'arrival', label: '到港', order: 4 },
-  AVAILABLE: { stage: 'arrival', label: '到港', order: 4 },
-  GATE_OUT: { stage: 'pickup', label: '提柜', order: 5 },
-  IN_TRANSIT_TO_DEST: { stage: 'pickup', label: '提柜', order: 5 },
-  DELIVERY_ARRIVED: { stage: 'pickup', label: '提柜', order: 5 },
-  STRIPPED: { stage: 'pickup', label: '提柜', order: 5 },
-  RETURNED_EMPTY: { stage: 'return', label: '还箱', order: 6 },
-  COMPLETED: { stage: 'return', label: '还箱', order: 6 },
+
+  // 到港阶段
+  ARRIVED: { stage: 'arrival', label: '到港', order: 6 },
+  BERTHED: { stage: 'arrival', label: '到港', order: 6 }, // POCA 靠泊
+  DELIVERY_ARRIVED: { stage: 'arrival', label: '到港', order: 6 }, // FETA 交货地抵达
+  DISCHARGED: { stage: 'arrival', label: '到港', order: 6 },
+  AVAILABLE: { stage: 'arrival', label: '到港', order: 6 },
+
+  // 海铁联运阶段（卸船后，order 9-12）
+  RAIL_LOADED: { stage: 'rail', label: '铁路', order: 9 },
+  RAIL_DEPARTED: { stage: 'rail', label: '铁路', order: 9 },
+  RAIL_ARRIVED: { stage: 'rail', label: '铁路', order: 9 },
+  RAIL_DISCHARGED: { stage: 'rail', label: '铁路', order: 9 },
+
+  // 提柜阶段
+  GATE_OUT: { stage: 'pickup', label: '提柜', order: 10 },
+  IN_TRANSIT_TO_DEST: { stage: 'pickup', label: '提柜', order: 10 }, // STCS 已提柜
+  STRIPPED: { stage: 'pickup', label: '提柜', order: 10 },
+
+  // 还箱阶段
+  RETURNED_EMPTY: { stage: 'return', label: '还箱', order: 11 },
+  COMPLETED: { stage: 'return', label: '还箱', order: 11 },
 }
 
 const nodesByStage = computed(() => {
   if (!path.value?.nodes?.length) return []
+
+  // 根据运输模式确定应该显示的阶段
+  const transportMode = path.value.transportMode
+  const shouldShowStage = (stage: string) => {
+    // 如果没有指定运输模式，显示所有阶段
+    if (!transportMode) return true
+
+    // 纯海运：不显示铁路和驳船阶段
+    if (transportMode === 'STANDARD') {
+      return !['rail', 'feeder'].includes(stage)
+    }
+
+    // 海铁联运：显示铁路阶段
+    if (transportMode === 'SEA_RAIL') {
+      return stage !== 'feeder' // 不显示驳船阶段
+    }
+
+    // 驳船联运：显示驳船阶段
+    if (transportMode === 'FEEDER') {
+      return stage !== 'rail' // 不显示铁路阶段
+    }
+
+    return true
+  }
+
+  // 过滤掉不需要显示的节点（如"未出运 缺数据"）
+  const shouldShowNode = (node: StatusNode) => {
+    // 不显示"未出运 缺数据"节点
+    if (node.status === 'NOT_SHIPPED' && (node.rawData as { noData?: boolean })?.noData) {
+      return false
+    }
+    return true
+  }
+
   const groups: Record<
     string,
     {
@@ -642,12 +748,21 @@ const nodesByStage = computed(() => {
       nodes: { node: StatusNode; globalIndex: number }[]
     }
   > = {}
+
   path.value!.nodes.forEach((node, globalIndex) => {
+    // 先过滤掉不需要显示的节点
+    if (!shouldShowNode(node)) return
+
     const info = STAGE_MAP[node.status] || { stage: 'other', label: '其他', order: 99 }
     const key = info.stage
+
+    // 再过滤掉不应该显示的阶段
+    if (!shouldShowStage(key)) return
+
     if (!groups[key]) groups[key] = { stage: key, label: info.label, order: info.order, nodes: [] }
     groups[key].nodes.push({ node, globalIndex })
   })
+
   return Object.values(groups).sort((a, b) => a.order - b.order)
 })
 
@@ -1133,7 +1248,7 @@ const STANDARD_DURATIONS: Record<string, number> = {
 /** 判断是否为当前正在进行的节点 */
 const isCurrentNode = (node: StatusNode, index: number): boolean => {
   // 节点状态为进行中 或 是最后一个节点
-  return node.nodeStatus === 'IN_PROGRESS' || index === path.value.nodes.length - 1
+  return node.nodeStatus === 'IN_PROGRESS' || index === (path.value?.nodes.length ?? 0) - 1
 }
 
 const getPathStatusLabel = (status?: string): string => {
@@ -1354,6 +1469,31 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
     border-left-color: var(--el-color-warning);
     background: rgba($warning-color, 0.04);
   }
+
+  &.stage-node-estimated {
+    border-left-color: var(--el-color-warning);
+    background: rgba($warning-color, 0.08);
+  }
+
+  // 铁路运输节点特殊样式
+  &.stage-node-rail {
+    border-left-color: var(--el-color-info);
+    background: rgba($info-color, 0.08);
+
+    .stage-node-icon::before {
+      content: '🚂'; // 火车图标
+    }
+  }
+
+  // 驳船运输节点特殊样式
+  &.stage-node-feeder {
+    border-left-color: var(--el-color-success);
+    background: rgba($success-color, 0.08);
+
+    .stage-node-icon::before {
+      content: '⛴️'; // 小船图标
+    }
+  }
 }
 
 .stage-node-icon {
@@ -1411,6 +1551,11 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
   font-weight: 500;
 }
 
+/* 预计标签 - 警示标识 */
+.estimated-tag {
+  margin-left: 4px;
+}
+
 /* 超期标签 - 负面指标（用于干预） */
 .stage-node-overdue-tag {
   color: var(--el-color-danger-dark-2);
@@ -1464,6 +1609,11 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
 /* 超期预警 */
 .overdue-alert {
   margin-bottom: $spacing-lg;
+}
+
+/* 运输模式标识 */
+.transport-mode-badge {
+  margin-bottom: $spacing-md;
 }
 
 /* 地图 */
@@ -1774,6 +1924,11 @@ const getNodeDataSourceTagType = (ds: string | null): 'primary' | 'success' | 'i
   .value {
     color: var(--el-text-color-primary);
   }
+}
+
+/* 详情面板中的预计标签 */
+.detail-estimated-tag {
+  margin-left: 4px;
 }
 
 .raw-data-section {

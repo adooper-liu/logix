@@ -20,6 +20,7 @@ interface DbEvent {
   description: string | null;
   data_source: string | null;
   raw_data: Record<string, unknown> | null;
+  is_estimated: boolean | null; // 是否为预计状态
 }
 
 interface LastFreeRow {
@@ -84,19 +85,29 @@ const STANDARD_MODE_TEMPLATE: { order: number; status: StandardStatus; label: st
     order: 7,
     status: StandardStatus.ARRIVED,
     label: "抵港",
-    statuses: [StandardStatus.ARRIVED, StandardStatus.BERTHED],
+    statuses: [
+      StandardStatus.ARRIVED, // BDAR 抵港
+      StandardStatus.BERTHED, // POCA 靠泊
+      StandardStatus.DELIVERY_ARRIVED, // FETA 交货地抵达
+    ],
   },
   { order: 8, status: StandardStatus.DISCHARGED, label: "卸船", statuses: [StandardStatus.DISCHARGED] },
-  { order: 9, status: StandardStatus.AVAILABLE, label: "可提", statuses: [StandardStatus.AVAILABLE] },
+  {
+    order: 9,
+    status: StandardStatus.AVAILABLE,
+    label: "可提",
+    statuses: [
+      StandardStatus.AVAILABLE, // PCAB 可提货
+      StandardStatus.IN_TRANSIT_TO_DEST, // STCS 提柜后运输中
+    ],
+  },
   {
     order: 10,
     status: StandardStatus.GATE_OUT,
     label: "提柜",
     statuses: [
-      StandardStatus.GATE_OUT,
-      StandardStatus.IN_TRANSIT_TO_DEST,
-      StandardStatus.DELIVERY_ARRIVED,
-      StandardStatus.STRIPPED,
+      StandardStatus.GATE_OUT, // GTOT 提柜
+      StandardStatus.STRIPPED, // STRP 拆箱
     ],
   },
   {
@@ -142,7 +153,11 @@ const SEA_RAIL_MODE_TEMPLATE: { order: number; status: StandardStatus; label: st
     order: 7,
     status: StandardStatus.ARRIVED,
     label: "抵港",
-    statuses: [StandardStatus.ARRIVED, StandardStatus.BERTHED],
+    statuses: [
+      StandardStatus.ARRIVED, // BDAR 抵港
+      StandardStatus.BERTHED, // POCA 靠泊
+      StandardStatus.DELIVERY_ARRIVED, // FETA 交货地抵达
+    ],
   },
   { order: 8, status: StandardStatus.DISCHARGED, label: "卸船", statuses: [StandardStatus.DISCHARGED] },
   // 铁路运输段（卸船后，提柜前）
@@ -216,19 +231,29 @@ const FEEDER_MODE_TEMPLATE: { order: number; status: StandardStatus; label: stri
     order: 11,
     status: StandardStatus.ARRIVED,
     label: "抵港",
-    statuses: [StandardStatus.ARRIVED, StandardStatus.BERTHED],
+    statuses: [
+      StandardStatus.ARRIVED, // BDAR 抵港
+      StandardStatus.BERTHED, // POCA 靠泊
+      StandardStatus.DELIVERY_ARRIVED, // FETA 交货地抵达
+    ],
   },
   { order: 12, status: StandardStatus.DISCHARGED, label: "卸船", statuses: [StandardStatus.DISCHARGED] },
-  { order: 13, status: StandardStatus.AVAILABLE, label: "可提", statuses: [StandardStatus.AVAILABLE] },
+  {
+    order: 13,
+    status: StandardStatus.AVAILABLE,
+    label: "可提",
+    statuses: [
+      StandardStatus.AVAILABLE, // PCAB 可提货
+      StandardStatus.IN_TRANSIT_TO_DEST, // STCS 提柜后运输中
+    ],
+  },
   {
     order: 14,
     status: StandardStatus.GATE_OUT,
     label: "提柜",
     statuses: [
-      StandardStatus.GATE_OUT,
-      StandardStatus.IN_TRANSIT_TO_DEST,
-      StandardStatus.DELIVERY_ARRIVED,
-      StandardStatus.STRIPPED,
+      StandardStatus.GATE_OUT, // GTOT 提柜
+      StandardStatus.STRIPPED, // STRP 拆箱
     ],
   },
   {
@@ -239,18 +264,23 @@ const FEEDER_MODE_TEMPLATE: { order: number; status: StandardStatus; label: stri
   },
 ];
 
-/** 状态码优先展示的中文描述 */
+/** 状态码优先展示的中文描述（与图片 description_cn 一致） */
 const STATUS_CODE_DISPLAY: Record<string, string> = {
-  STCS: "已提柜",
+  STSP: "提空箱",
+  GITM: "进场",
+  GTIN: "卡车进场",
+  LOBD: "装船",
+  DLPT: "离港",
+  BDAR: "抵港",
+  FETA: "交货地抵达",
+  POCA: "靠泊",
+  DSCH: "卸船",
+  STCS: "提柜 (货)",
   GTOT: "已提柜",
   GATE_OUT: "已提柜",
+  RCVE: "还空箱",
+  RTNE: "还空箱",
   PCAB: "可提货",
-  DSCH: "卸船",
-  BDAR: "抵港",
-  LOBD: "装船",
-  RCVE: "已还空箱",
-  RTNE: "已还空箱",
-  GITM: "进场",
   CUIP: "海关滞留",
   PASS: "海关放行",
 };
@@ -291,6 +321,7 @@ function eventToNode(e: DbEvent): StatusNode {
       eventCode: e.status_code,
       eventId: e.id,
       dataSource: e.data_source,
+      isEstimated: e.is_estimated ?? false, // 预计状态标识
       ...(e.raw_data || {}),
     },
   };
@@ -455,7 +486,7 @@ export async function getStatusPathByContainerFromDb(containerNumber: string): P
   try {
     const [eventsResult, lastFreeResult, portResult, truckResult, returnResult] = await Promise.all([
       query<DbEvent>(
-        `SELECT id, container_number, status_code, status_name, occurred_at, location, description, data_source, raw_data
+        `SELECT id, container_number, status_code, status_name, occurred_at, location, description, data_source, raw_data, is_estimated
          FROM ext_container_status_events
          WHERE container_number = $1
          ORDER BY occurred_at ASC NULLS LAST, id ASC

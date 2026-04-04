@@ -3,11 +3,11 @@
 **创建时间**: 2026-03-31  
 **最后更新**: 2026-04-01  
 **作者**: 刘志高  
-**状态**: ✅ 完整文档体系
+**状态**: 完整文档体系
 
 ---
 
-## 📋 概述
+## 概述
 
 智能排柜系统是 LogiX 物流系统的核心决策引擎，基于规则和算法自动分派仓库和车队，实现成本优化和资源高效利用。
 
@@ -20,23 +20,23 @@
 
 ---
 
-## 📁 文档结构
+## 文档结构
 
 ```
 08-智能排柜系统专题/
 │
-├── 核心文档（必读）⭐
+├── 核心文档（必读）
 │   ├── 01-智能排柜系统架构完整指南.md ← 新手入门，建立系统概念
-│   │   └── ✅ 核心组件职责
+│   │   └── 核心组件职责
 │   │   └── ✅ 数据流与业务流程
-│   │   └── ✅ 数据库表结构
-│   │   └── ✅ 核心算法
+│   │   └── 数据库表结构
+│   │   └── 核心算法
 │   │
 │   ├── 02-智能排柜成本优化完整指南.md ← 核心逻辑
 │   │   └── ✅ 三种卸柜策略详解
-│   │   └── ✅ 成本构成与计算
-│   │   └── ✅ 优化算法
-│   │   └── ✅ 决策树
+│   │   └── 成本构成与计算
+│   │   └── 优化算法
+│   │   └── 决策树
 │   │
 │   ├── 03-日历配置与产能管理指南.md ← 实战配置
 │   │   └── ✅ 仓库能力配置
@@ -44,7 +44,7 @@
 │   │   └── ✅ 档期扣减机制
 │   │   └── ✅ 可用日期查找
 │   │
-│   ├── 04-智能排柜 API 实战.md ← API 调用 ⭐ NEW
+│   ├── 04-智能排柜 API 实战.md ← API 调用 NEW
 │   │   └── ✅ 批量排产 API
 │   │   └── ✅ 成本优化 API
 │   │   └── ✅ 能力查询 API
@@ -82,17 +82,17 @@ Step 1: 阅读 01-系统架构指南 (1-1.5 小时)
        ↓ 理解智能排柜的业务目标
        ↓ 掌握 6 大核心组件职责
        ↓ 了解数据流和业务流程
-       
+
 Step 2: 阅读 02-成本优化指南 (1.5-2 小时)
        ↓ 理解 Direct/Drop off/Expedited 三种策略
        ↓ 掌握成本构成和计算公式
        ↓ 了解优化算法和决策树
-       
+
 Step 3: 阅读 03-日历配置指南 (1 小时)
        ↓ 理解仓库和车队能力配置
        ↓ 掌握档期扣减机制
        ↓ 学会可用日期查找算法
-       
+
 Step 4: 实战演练 (0.5-1 小时)
        ↓ 调用批量排产 API
        ↓ 查看成本优化建议
@@ -109,21 +109,21 @@ Step 4: 实战演练 (0.5-1 小时)
 需要修改排产逻辑 → 查阅 01-架构 → 一、核心组件
        ↓ 定位具体服务
        ↓ 理解方法签名和参数
-       
+
 需要优化成本计算 → 查阅 02-成本优化 → 三、成本计算
        ↓ 检查费率配置
        ↓ 验证计算公式
-       
+
 需要调整产能 → 查阅 03-日历配置 → 二、能力管理
        ↓ 修改仓库容量
        ↓ 配置休息日
        ↓ 调整车队映射
-       
+
 需要深入了解费用计算 → 查阅 07-费用计算专项 → 二、费用口径
        ↓ 5 种免费天数基准详解
        ↓ last_free_date 计算机制
        ↓ 滞箱费免费截止日计算
-       
+
 遇到问题排查 → 查阅 06-排柜历史 → 七、实施坑点
        ↓ Top 5 常见问题
        ↓ 诊断 SQL 脚本
@@ -138,11 +138,11 @@ Step 4: 实战演练 (0.5-1 小时)
 ```
 Step 1: 打开 06-排柜历史索引与问题排查
        ↓ 根据错误现象找到对应章节
-       
+
 Step 2: 执行 SQL 验证脚本
        ↓ 检查数据库状态
        ↓ 验证配置数据
-       
+
 Step 3: 查看日志定位根因
        ↓ [IntelligentScheduling] 前缀日志
        ↓ [CostOptimizer] 前缀日志
@@ -159,14 +159,14 @@ Step 3: 查看日志定位根因
 
 #### 6 大核心组件
 
-| 组件 | 职责 | 关键方法 |
-|------|------|----------|
-| **IntelligentSchedulingService** | 规则引擎，总协调器 | batchSchedule() |
-| **SchedulingCostOptimizerService** | 优化引擎，成本评估 | suggestOptimalUnloadDate() |
-| **WarehouseSelectorService** | 仓库选择 | selectWarehouseForPort() |
-| **TruckingSelectorService** | 车队选择 | selectTruckingCompany() |
-| **OccupancyCalculator** | 产能计算 | getRemainingCapacity() |
-| **SchedulingDateCalculator** | 日期计算 | calculatePlannedPickupDate() |
+| 组件                               | 职责               | 关键方法                     |
+| ---------------------------------- | ------------------ | ---------------------------- |
+| **IntelligentSchedulingService**   | 规则引擎，总协调器 | batchSchedule()              |
+| **SchedulingCostOptimizerService** | 优化引擎，成本评估 | suggestOptimalUnloadDate()   |
+| **WarehouseSelectorService**       | 仓库选择           | selectWarehouseForPort()     |
+| **TruckingSelectorService**        | 车队选择           | selectTruckingCompany()      |
+| **OccupancyCalculator**            | 产能计算           | getRemainingCapacity()       |
+| **SchedulingDateCalculator**       | 日期计算           | calculatePlannedPickupDate() |
 
 ---
 
@@ -216,9 +216,8 @@ totalCost = demurrageCost + detentionCost + transportationCost
 
 ```typescript
 // 成本计算
-totalCost = demurrageCost + detentionCost + 
-            yardStorageCost + yardOperationFee + 
-            transportationCost * 2.0
+totalCost =
+  demurrageCost + detentionCost + yardStorageCost + yardOperationFee + transportationCost * 2.0
 ```
 
 ---
@@ -271,12 +270,12 @@ totalCost = handlingCost + transportationCost
 
 ```typescript
 interface WarehouseCapacity {
-  warehouseCode: string;
-  date: Date;
-  totalCapacity: number;      // 总容量（如：20）
-  usedCapacity: number;       // 已使用容量
-  remainingCapacity: number;  // 剩余容量
-  isRestDay: boolean;         // 是否休息日
+  warehouseCode: string
+  date: Date
+  totalCapacity: number // 总容量（如：20）
+  usedCapacity: number // 已使用容量
+  remainingCapacity: number // 剩余容量
+  isRestDay: boolean // 是否休息日
 }
 ```
 
@@ -289,27 +288,27 @@ async findEarliestAvailableDay(
 ): Promise<Date | null> {
   let currentDate = startDate;
   const maxDaysToSearch = 30;
-  
+
   for (let i = 0; i < maxDaysToSearch; i++) {
     // 跳过周末
     if (isWeekend(currentDate)) {
       currentDate = addDays(currentDate, 1);
       continue;
     }
-    
+
     // 检查剩余产能
     const capacity = await getRemainingCapacity(
       warehouseCode,
       currentDate
     );
-    
+
     if (capacity > 0) {
       return currentDate; // 找到可用日期
     }
-    
+
     currentDate = addDays(currentDate, 1);
   }
-  
+
   return null; // 30 天内无可用日期
 }
 ```
@@ -341,40 +340,40 @@ async findEarliestAvailableDay(
 
 ### 常见问题快速定位
 
-| 问题类型 | 推荐文档 | 章节 |
-|----------|----------|------|
-| **排产失败** | 01-系统架构指南 | 五、1 节 |
-| **成本计算错误** | 02-成本优化指南 | 五、1 节 |
-| **仓库产能不足** | 03-日历配置指南 | 二、1 节 |
-| **找不到合适车队** | 01-系统架构指南 | 四、2 节 |
-| **日期计算错误** | 03-日历配置指南 | 三、1 节 |
-| **优化建议不准确** | 02-成本优化指南 | 四、3 节 |
-| **费用口径疑问** | 07-费用计算专项 | 二、费用口径 |
-| **免费天数基准** | 07-费用计算专项 | 二、2.1 节 |
+| 问题类型           | 推荐文档        | 章节         |
+| ------------------ | --------------- | ------------ |
+| **排产失败**       | 01-系统架构指南 | 五、1 节     |
+| **成本计算错误**   | 02-成本优化指南 | 五、1 节     |
+| **仓库产能不足**   | 03-日历配置指南 | 二、1 节     |
+| **找不到合适车队** | 01-系统架构指南 | 四、2 节     |
+| **日期计算错误**   | 03-日历配置指南 | 三、1 节     |
+| **优化建议不准确** | 02-成本优化指南 | 四、3 节     |
+| **费用口径疑问**   | 07-费用计算专项 | 二、费用口径 |
+| **免费天数基准**   | 07-费用计算专项 | 二、2.1 节   |
 | **Top 5 常见问题** | 06-排柜历史索引 | 七、实施坑点 |
 
 ---
 
 ### 常见错误码定位
 
-| 错误现象 | 根因 | 解决文档 |
-|----------|------|----------|
-| **No available capacity** | 仓库档期已满 | 03-日历配置 → 二、1 节 |
-| **No suitable trucking company** | 车队映射缺失 | 01-架构 → 四、2 节 |
-| **Cost calculation failed** | 费率配置缺失 | 02-成本优化 → 五、1 节 |
-| **Date calculation error** | 周末/节假日处理错误 | 03-日历配置 → 三、1 节 |
-| **Demurrage standard not found** | 滞港费标准缺失 | 07-费用计算专项 → 五、1 节 |
+| 错误现象                         | 根因                | 解决文档                   |
+| -------------------------------- | ------------------- | -------------------------- |
+| **No available capacity**        | 仓库档期已满        | 03-日历配置 → 二、1 节     |
+| **No suitable trucking company** | 车队映射缺失        | 01-架构 → 四、2 节         |
+| **Cost calculation failed**      | 费率配置缺失        | 02-成本优化 → 五、1 节     |
+| **Date calculation error**       | 周末/节假日处理错误 | 03-日历配置 → 三、1 节     |
+| **Demurrage standard not found** | 滞港费标准缺失      | 07-费用计算专项 → 五、1 节 |
 
 ---
 
 ### API 接口速查
 
-| 端点 | 方法 | 说明 | 文档 |
-|------|------|------|------|
-| `/scheduling/batch` | POST | 批量排产 | [04-API 实战](./04-智能排柜 API 实战.md#11-批量排产) |
+| 端点                                  | 方法 | 说明         | 文档                                                     |
+| ------------------------------------- | ---- | ------------ | -------------------------------------------------------- |
+| `/scheduling/batch`                   | POST | 批量排产     | [04-API 实战](./04-智能排柜 API 实战.md#11-批量排产)     |
 | `/scheduling/schedule-with-warehouse` | POST | 指定仓库排产 | [04-API 实战](./04-智能排柜 API 实战.md#12-指定仓库排产) |
-| `/scheduling/optimize-cost` | POST | 成本优化建议 | [04-API 实战](./04-智能排柜 API 实战.md#13-成本优化) |
-| `/scheduling/optimize-container/:id` | POST | 单柜成本优化 | [04-API 实战](./04-智能排柜 API 实战.md#14-单柜优化) |
+| `/scheduling/optimize-cost`           | POST | 成本优化建议 | [04-API 实战](./04-智能排柜 API 实战.md#13-成本优化)     |
+| `/scheduling/optimize-container/:id`  | POST | 单柜成本优化 | [04-API 实战](./04-智能排柜 API 实战.md#14-单柜优化)     |
 
 ---
 
@@ -382,13 +381,13 @@ async findEarliestAvailableDay(
 
 ### 数量统计
 
-| 类别 | 文档数 | 总大小 |
-|------|--------|--------|
-| **核心文档** | 5 篇 | ~95KB |
-| **历史与专项** | 2 篇 | ~43KB |
-| **对比分析** | 1 篇 | ~35KB |
-| **导航文档** | 1 篇 | ~13KB |
-| **总计** | **9 篇** | **~186KB** |
+| 类别           | 文档数   | 总大小     |
+| -------------- | -------- | ---------- |
+| **核心文档**   | 5 篇     | ~95KB      |
+| **历史与专项** | 2 篇     | ~43KB      |
+| **对比分析**   | 1 篇     | ~35KB      |
+| **导航文档**   | 1 篇     | ~13KB      |
+| **总计**       | **9 篇** | **~186KB** |
 
 ---
 

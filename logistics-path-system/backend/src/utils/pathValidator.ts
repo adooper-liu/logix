@@ -41,6 +41,7 @@ const STATUS_TRANSITIONS: Record<StandardStatus, StandardStatus[]> = {
   ],
   [StandardStatus.DISCHARGED]: [
     StandardStatus.AVAILABLE,
+    StandardStatus.IN_TRANSIT_TO_DEST,  // STCS 提柜 (货) - 跳过可提货直接提柜
     StandardStatus.GATE_OUT,
     StandardStatus.CUSTOMS_HOLD,
     StandardStatus.CARRIER_HOLD,
@@ -114,11 +115,11 @@ const STATUS_TRANSITIONS: Record<StandardStatus, StandardStatus[]> = {
   [StandardStatus.RAIL_LOADED]: [StandardStatus.RAIL_DEPARTED, StandardStatus.HOLD],
   [StandardStatus.RAIL_DEPARTED]: [StandardStatus.RAIL_ARRIVED, StandardStatus.HOLD],
   [StandardStatus.RAIL_ARRIVED]: [StandardStatus.RAIL_DISCHARGED, StandardStatus.HOLD],
-  [StandardStatus.RAIL_DISCHARGED]: [StandardStatus.GATE_OUT, StandardStatus.HOLD],
+  [StandardStatus.RAIL_DISCHARGED]: [StandardStatus.GATE_OUT, StandardStatus.IN_TRANSIT_TO_DEST, StandardStatus.HOLD],
   [StandardStatus.FEEDER_LOADED]: [StandardStatus.FEEDER_DEPARTED, StandardStatus.HOLD],
   [StandardStatus.FEEDER_DEPARTED]: [StandardStatus.FEEDER_ARRIVED, StandardStatus.HOLD],
   [StandardStatus.FEEDER_ARRIVED]: [StandardStatus.FEEDER_DISCHARGED, StandardStatus.HOLD],
-  [StandardStatus.FEEDER_DISCHARGED]: [StandardStatus.GATE_OUT, StandardStatus.HOLD],
+  [StandardStatus.FEEDER_DISCHARGED]: [StandardStatus.GATE_OUT, StandardStatus.IN_TRANSIT_TO_DEST, StandardStatus.HOLD],
   [StandardStatus.BERTHED]: [StandardStatus.DISCHARGED, StandardStatus.AVAILABLE, StandardStatus.HOLD],
   [StandardStatus.UNKNOWN]: [
     StandardStatus.NOT_SHIPPED,
@@ -302,13 +303,24 @@ export const validateStatusPath = (path: StatusPath): ValidationResult => {
     return { isValid: false, errors, warnings };
   }
 
-  // 检查节点时间顺序
+  // 检查节点时间顺序（跳过缺数据节点）
   for (let i = 1; i < nodes.length; i++) {
-    const prevTime = new Date(nodes[i - 1].timestamp);
-    const currTime = new Date(nodes[i].timestamp);
+    const prevNode = nodes[i - 1];
+    const currNode = nodes[i];
+    
+    // 跳过缺数据节点的时间检查
+    const isPrevNoData = (prevNode.rawData as { noData?: boolean })?.noData;
+    const isCurrNoData = (currNode.rawData as { noData?: boolean })?.noData;
+    
+    if (isPrevNoData || isCurrNoData) {
+      continue;
+    }
+    
+    const prevTime = new Date(prevNode.timestamp);
+    const currTime = new Date(currNode.timestamp);
 
     if (currTime < prevTime) {
-      warnings.push(`节点时间顺序异常：${nodes[i].description} 时间早于 ${nodes[i - 1].description}`);
+      warnings.push(`节点时间顺序异常：${currNode.description} 时间早于 ${prevNode.description}`);
     }
   }
 
