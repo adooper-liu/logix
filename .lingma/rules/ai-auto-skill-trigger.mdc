@@ -59,7 +59,43 @@
 
 ---
 
-### 规则 4：验证/检查 → 自动验证
+### 规则 4：文档生成 → 自动调用 code-to-doc
+
+**触发条件**：
+- 用户提到 "分析...计算逻辑"、"生成文档"、"场景模拟"
+- 用户询问复杂业务逻辑（费用计算、排产调度、状态机等）
+- 用户要求理解某个 Service 或模块的计算方式
+- 用户打开 Service 文件并要求解释
+
+**AI 必须自动调用**：
+- `code-to-doc`
+
+**执行步骤**：
+1. 识别目标模块类型（费用计算/智能排柜/成本优化/状态机/统计分析）
+2. 读取源代码（Service 层、工具函数、实体定义）
+3. 提取核心计算公式和参数
+4. 设计场景矩阵（正常/边界/异常）
+5. 手工验算每个场景
+6. 生成标准格式的 Markdown 文档
+7. 标注权威来源
+
+**典型触发语句**：
+- "帮我分析 demurrage.service.ts 的计算逻辑"
+- "生成一份场景模拟文档"
+- "这个模块是怎么计算费用的？"
+- "用 code-to-doc 技能分析 intelligentScheduling.service.ts"
+- "我想了解 [模块名] 的计算逻辑"
+
+**生成的文档必须包含**：
+- ✅ 核心计算公式
+- ✅ 关键参数表（注明数据库来源）
+- ✅ 至少 3 个场景模拟（含详细计算过程）
+- ✅ 对比表格（如存在多模式）
+- ✅ 权威源代码引用
+
+---
+
+### 规则 5：验证/检查 → 自动验证
 
 **触发条件**：
 - 用户提到 "检查"、"验证"、"对吗"、"有问题"
@@ -73,6 +109,222 @@
 1. 读取权威源（数据库、实体、API 路由）
 2. 逐项验证
 3. 输出验证报告
+
+---
+
+### 规则 6：滞港费计算 → 自动调用 logix-demurrage
+
+**触发条件**：
+- 用户提到 "滞港费"、"demurrage"、"滞箱费"、"detention"
+- 用户询问费用计算逻辑、起算日、截止日
+- 用户提到 last_free_date、last_return_date
+- 用户询问 actual/forecast 计算模式
+
+**AI 必须自动调用**：
+- `logix-demurrage`
+
+**执行步骤**：
+1. 判断计算模式（actual vs forecast）
+2. 确定费用类型（Demurrage/Detention/合并 D&D）
+3. 查找对应的起算日和截止日
+4. 应用免费天数和费率
+5. 计算总费用
+6. 标注数据来源表字段
+
+**典型触发语句**：
+- "滞港费是怎么计算的？"
+- "demurrage 的起算日是什么时候？"
+- "actual 模式和 forecast 模式有什么区别？"
+- "last_free_date 怎么算出来的？"
+
+**数据来源**：
+- 目的港 ATA：`process_port_operations.ata_dest_port`
+- 修正 ETA：`process_port_operations.revised_eta`
+- 计划提柜日：`process_trucking_transport.planned_pickup_date`
+- 实际提柜日：`process_trucking_transport.pickup_date`
+- 最晚提柜日：`process_port_operations.last_free_date`
+
+---
+
+### 规则 7：智能排产 → 自动调用 intelligent-scheduling-mapping
+
+**触发条件**：
+- 用户提到 "智能排产"、"排柜"、"调度"
+- 用户询问仓库选择、车队选择逻辑
+- 用户提到 dict_warehouse_trucking_mapping
+- 用户询问 CA-S003/FBW_CA 等排产规则
+
+**AI 必须自动调用**：
+- `intelligent-scheduling-mapping`
+
+**执行步骤**：
+1. 识别销往国家（sell_to_country）
+2. 查找对应的清关行/车队/仓库映射
+3. 检查车队能力和仓库能力
+4. 考虑 ETA 约束
+5. 生成排产方案
+6. 标注映射来源
+
+**典型触发语句**：
+- "智能排产是怎么选择仓库的？"
+- "CA-S003 这个仓库是怎么分配的？"
+- "dict_warehouse_trucking_mapping 怎么用？"
+- "销往英国的货柜应该去哪个仓库？"
+
+---
+
+### 规则 8：物流状态机 → 自动调用 container-alerts-state-machine
+
+**触发条件**：
+- 用户提到 "状态机"、"物流状态"、"7 层状态"
+- 用户询问 returned_empty、unloaded、picked_up 等状态
+- 用户提到 ext_container_alerts 预警
+- 用户询问状态优先级判断
+
+**AI 必须自动调用**：
+- `container-alerts-state-machine`
+
+**执行步骤**：
+1. 列出 7 层状态优先级
+2. 检查每个状态的触发条件
+3. 确定当前应处的状态
+4. 关联预警规则
+5. 说明状态与费用计算的关联
+
+**典型触发语句**：
+- "状态机的优先级是怎么判断的？"
+- "为什么这个货柜是 returned_empty 状态？"
+- "ext_container_alerts 是怎么触发预警的？"
+- "状态机和滞港费计算有什么关系？"
+
+---
+
+### 规则 9：飞驼 ETA 验证 → 自动调用 feituo-eta-ata-validation
+
+**触发条件**：
+- 用户提到 "飞驼"、"ETA 验证"、"ATA 数据"
+- 用户询问飞驼 API 数据准确性
+- 用户提到 status_code、ata_time 等字段
+- 用户报告飞驼数据异常
+
+**AI 必须自动调用**：
+- `feituo-eta-ata-validation`
+
+**执行步骤**：
+1. 读取飞驼 API 原始数据
+2. 验证 status_code 映射
+3. 检查 ata_time 合理性
+4. 对比本地数据
+5. 输出验证报告
+
+**典型触发语句**：
+- "飞驼的 ETA 数据准确吗？"
+- "status_code 是怎么映射到本地状态的？"
+- "ATA 时间为什么对不上？"
+
+---
+
+### 规则 10：代码审查 → 自动调用 code-review
+
+**触发条件**：
+- 用户提到 "代码审查"、"review"、"检查代码"
+- 用户请求检查代码质量
+- 用户提交 PR 前请求审查
+- 用户提到命名规范、代码风格
+
+**AI 必须自动调用**：
+- `code-review`
+
+**检查步骤**：
+1. 检查核心原则（数据库表结构为唯一基准）
+2. 检查命名与映射（snake_case vs camelCase）
+3. 检查数据展示与日期筛选
+4. 检查前端规范（颜色、文案、性能）
+5. 检查单一职责（组件/函数大小）
+6. 检查代码风格（缩进、引号、魔法数字）
+
+**典型触发语句**：
+- "帮我 review 一下这段代码"
+- "这个 PR 有什么问题吗？"
+- "代码符合规范吗？"
+
+---
+
+### 规则 11：Git 提交 → 自动调用 commit-message
+
+**触发条件**：
+- 用户提到 "commit message"、"提交信息"
+- 用户请求生成提交信息
+- 用户询问提交格式
+- 用户准备 git commit
+
+**AI 必须自动调用**：
+- `commit-message`
+
+**执行步骤**：
+1. 分析 git diff
+2. 识别变更类型（feat/fix/docs/style/refactor/test/chore）
+3. 生成规范的 commit message
+4. 包含简短描述和详细说明（如需要）
+
+**典型触发语句**：
+- "帮我写个 commit message"
+- "这个提交怎么写？"
+- "git commit 格式是什么？"
+
+---
+
+## 文档生成路径规范
+
+### 正式文档路径
+
+**固定位置**: `frontend/public/docs/`
+
+**文档类型与路径**:
+
+| 文档类型 | 保存路径 | 示例 |
+|----------|----------|------|
+| **计算逻辑场景模拟** | `frontend/public/docs/第 2 层 - 代码文档/` | `frontend/public/docs/第 2 层 - 代码文档/滞港费计算场景模拟.md` |
+| **开发规范** | `frontend/public/docs/01-standards/` | `frontend/public/docs/01-standards/SKILL/code-to-doc-usage.md` |
+| **业务逻辑文档** | `frontend/public/docs/02-business-logic/` | `frontend/public/docs/02-business-logic/demurrage-calculation.md` |
+| **架构设计文档** | `frontend/public/docs/03-architecture/` | `frontend/public/docs/03-architecture/system-design.md` |
+
+### code-to-doc 生成文档要求
+
+当调用 `code-to-doc` 技能生成文档时，**必须**：
+
+1. **询问用户保存位置**:
+   ```
+   请问您希望将文档保存在哪个目录？
+   - frontend/public/docs/第 2 层 - 代码文档/ (推荐)
+   - 其他位置 (请指定)
+   ```
+
+2. **如用户未指定，默认保存至**:
+   ```
+   frontend/public/docs/第 2 层 - 代码文档/[模块名称] 计算逻辑场景模拟.md
+   ```
+
+3. **文档命名规范**:
+   - 使用中文名称
+   - 包含模块名称和文档类型
+   - 使用短横线分隔（如：`demurrage-calculation-scenarios.md`）
+
+4. **文档末尾标注**:
+   ```markdown
+   ---
+   
+   **保存路径**: `frontend/public/docs/第 2 层 - 代码文档/[文件名].md`
+   **生成时间**: YYYY-MM-DD
+   **代码来源**: `backend/src/services/[文件名].ts`
+   ```
+
+### 禁止行为
+
+- ❌ 在项目根目录创建文档
+- ❌ 在 `backend/` 或 `scripts/` 目录创建文档
+- ❌ 使用临时文档路径（除非明确标注为临时）
+- ❌ 不标注保存路径
 
 ---
 
@@ -145,6 +397,73 @@
 3. [检查前端传递的数据结构]
 4. [检查后端需要的数据结构]
 5. 输出对比报告
+
+---
+
+### 示例 4：文档生成请求
+
+**用户**："帮我分析 demurrage.service.ts 的计算逻辑，生成场景模拟文档"
+
+**AI 应该**：
+1. [自动调用 code-to-doc]
+2. [读取 backend/src/services/demurrage.service.ts]
+3. [提取核心计算公式]
+4. [设计 3-5 个典型场景]
+5. [手工验算每个场景]
+6. [生成标准格式的 Markdown 文档]
+7. 输出：完整的计算逻辑场景模拟文档
+
+---
+
+### 示例 5：滞港费计算咨询
+
+**用户**："滞港费是怎么计算的？actual 模式和 forecast 模式有什么区别？"
+
+**AI 应该**：
+1. [自动调用 logix-demurrage]
+2. [解释计算模式判定逻辑]
+3. [说明起算日和截止日的差异]
+4. [提供数据来源表字段]
+5. 输出：详细的计算逻辑说明
+
+---
+
+### 示例 6：智能排产问题
+
+**用户**："CA-S003 这个仓库是怎么分配的？销往英国的货柜应该去哪个仓库？"
+
+**AI 应该**：
+1. [自动调用 intelligent-scheduling-mapping]
+2. [识别销往国家]
+3. [查找 dict_warehouse_trucking_mapping]
+4. [检查车队和仓库能力]
+5. 输出：排产分配逻辑
+
+---
+
+### 示例 7：状态机优先级
+
+**用户**："状态机的优先级是怎么判断的？为什么这个货柜是 returned_empty 状态？"
+
+**AI 应该**：
+1. [自动调用 container-alerts-state-machine]
+2. [列出 7 层状态优先级]
+3. [检查每个状态的触发条件]
+4. [确定当前应处的状态]
+5. 输出：状态判断逻辑
+
+---
+
+### 示例 8：代码审查请求
+
+**用户**："帮我 review 一下这段代码，看看有什么问题吗？"
+
+**AI 应该**：
+1. [自动调用 code-review]
+2. [检查核心原则]
+3. [检查命名与映射]
+4. [检查代码规范]
+5. 输出：审查报告（Critical/Suggestion/Nice to have）
 
 ---
 
