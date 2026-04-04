@@ -134,7 +134,7 @@
                   }"
                   :style="{ width: getDateCellWidth(date) }"
                   @dragover.prevent="handleDragOver($event)"
-                  @drop="handleDrop(date)"
+                  @drop="handleDrop(date, '未分类')"
                 >
                   <div class="dots-container">
                     <div
@@ -174,7 +174,7 @@
                   }"
                   :style="{ width: getDateCellWidth(date) }"
                   @dragover.prevent="handleDragOver($event)"
-                  @drop="handleDrop(date)"
+                  @drop="handleDrop(date, '未分类')"
                 >
                   <div class="dots-container">
                     <div
@@ -286,7 +286,7 @@
                       }"
                       :style="{ width: getDateCellWidth(date) }"
                       @dragover.prevent="handleDragOver($event)"
-                      @drop="handleDrop(date)"
+                      @drop="handleDrop(date, node)"
                     >
                       <div class="dots-container">
                         <div
@@ -338,7 +338,9 @@
                       style="cursor: default"
                     >
                       <span class="available-supplier-icon">◇</span>
-                      <span class="available-supplier-name">{{ availableSupplier.supplierName }}</span>
+                      <span class="available-supplier-name">{{
+                        availableSupplier.supplierName
+                      }}</span>
                       <span class="group-count">({{ availableSupplier.count }})</span>
                     </div>
                     <!-- 空日期列 -->
@@ -403,7 +405,9 @@
         <div class="tooltip-row">
           <span class="label">船名/航次：</span>
           <span class="value">
-            {{ tooltipContainer?.seaFreight?.vesselName || '-' }}/{{ tooltipContainer?.seaFreight?.voyageNumber || '-' }}
+            {{ tooltipContainer?.seaFreight?.vesselName || '-' }}/{{
+              tooltipContainer?.seaFreight?.voyageNumber || '-'
+            }}
           </span>
         </div>
       </div>
@@ -485,7 +489,13 @@
       </div>
 
       <!-- 候选供应商区（基于映射关系） -->
-      <div v-if="tooltipContainer?.availableTruckingCompanies?.length || tooltipContainer?.availableWarehouses?.length" class="tooltip-section candidate-section">
+      <div
+        v-if="
+          tooltipContainer?.availableTruckingCompanies?.length ||
+          tooltipContainer?.availableWarehouses?.length
+        "
+        class="tooltip-section candidate-section"
+      >
         <div class="tooltip-section-title">可用供应商（基于映射）</div>
         <!-- 候选车队 -->
         <div v-if="tooltipContainer?.availableTruckingCompanies?.length" class="candidate-group">
@@ -495,7 +505,11 @@
               v-for="(truck, idx) in tooltipContainer.availableTruckingCompanies"
               :key="truck.truckingCompanyId"
               class="candidate-tag"
-              :class="{ 'is-default': truck.isDefault, 'is-current': getTruckingCompanyName(tooltipContainer) === truck.truckingCompanyName }"
+              :class="{
+                'is-default': truck.isDefault,
+                'is-current':
+                  getTruckingCompanyName(tooltipContainer) === truck.truckingCompanyName,
+              }"
             >
               {{ truck.truckingCompanyName }}{{ truck.isDefault ? ' ⭐' : '' }}
             </span>
@@ -509,7 +523,10 @@
               v-for="(wh, idx) in tooltipContainer.availableWarehouses"
               :key="wh.warehouseCode"
               class="candidate-tag"
-              :class="{ 'is-default': wh.isDefault, 'is-current': getWarehouseName(tooltipContainer) === wh.warehouseName }"
+              :class="{
+                'is-default': wh.isDefault,
+                'is-current': getWarehouseName(tooltipContainer) === wh.warehouseName,
+              }"
             >
               {{ wh.warehouseName }}{{ wh.isDefault ? ' ⭐' : '' }}
             </span>
@@ -609,7 +626,7 @@
                 }"
                 :style="{ width: getDateCellWidth(date) }"
                 @dragover.prevent="handleDragOver($event)"
-                @drop="handleDrop(date)"
+                @drop="handleDrop(date, '未分类')"
               >
                 <div class="dots-container">
                   <div
@@ -680,7 +697,11 @@
                 <div class="tree-column level-3" style="padding-left: 40px">
                   <el-icon
                     class="collapse-icon"
-                    :class="{ expanded: !isGroupCollapsed(selectedPortForModal + '-' + node + '-' + supplier) }"
+                    :class="{
+                      expanded: !isGroupCollapsed(
+                        selectedPortForModal + '-' + node + '-' + supplier
+                      ),
+                    }"
                   >
                     <arrow-right />
                   </el-icon>
@@ -703,7 +724,7 @@
                     }"
                     :style="{ width: getDateCellWidth(date) }"
                     @dragover.prevent="handleDragOver($event)"
-                    @drop="handleDrop(date)"
+                    @drop="handleDrop(date, node)"
                   >
                     <div class="dots-container">
                       <div
@@ -813,12 +834,13 @@
 </template>
 
 <script setup lang="ts">
-import { useAppStore } from '@/store/app'
+import { containerService } from '@/services/container'
 import { dictService } from '@/services/dict'
-import type { Container } from '@/types/container'
+import { useAppStore } from '@/store/app'
+import type { Container, GanttDerived, GanttDerivedNode, GanttNodeKey } from '@/types/container'
 import { ArrowDown, ArrowRight, ArrowUp, Check, InfoFilled, Warning } from '@element-plus/icons-vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import dayjs from 'dayjs'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ContainerContextMenu from './ContainerContextMenu.vue'
@@ -829,8 +851,6 @@ import GanttLegend from './gantt/GanttLegend.vue'
 import GanttSearchBar from './gantt/GanttSearchBar.vue'
 import GanttStatisticsPanel from './gantt/GanttStatisticsPanel.vue'
 import { useGanttLogic } from './gantt/useGanttLogic'
-import type { GanttDerived, GanttDerivedNode, GanttNodeKey } from '@/types/container'
-import { containerService } from '@/services/container'
 
 const route = useRoute()
 const router = useRouter()
@@ -852,16 +872,22 @@ interface StaticMappings {
     portName: string
     country: string
   }>
-  truckingByPort: Record<string, Array<{
-    truckingCompanyId: string
-    truckingCompanyName: string
-    isDefault: boolean
-  }>>
-  warehousesByTrucking: Record<string, Array<{
-    warehouseCode: string
-    warehouseName: string
-    isDefault: boolean
-  }>>
+  truckingByPort: Record<
+    string,
+    Array<{
+      truckingCompanyId: string
+      truckingCompanyName: string
+      isDefault: boolean
+    }>
+  >
+  warehousesByTrucking: Record<
+    string,
+    Array<{
+      warehouseCode: string
+      warehouseName: string
+      isDefault: boolean
+    }>
+  >
 }
 
 // 静态映射数据
@@ -876,7 +902,7 @@ const loadStaticMappings = async () => {
       console.log('[甘特图] 静态映射数据加载成功:', {
         ports: res.data.ports.length,
         truckingKeys: Object.keys(res.data.truckingByPort).length,
-        warehouseKeys: Object.keys(res.data.warehousesByTrucking).length
+        warehouseKeys: Object.keys(res.data.warehousesByTrucking).length,
       })
     }
   } catch (e) {
@@ -914,15 +940,19 @@ const getPortRowHeight = (containerCount: number): string => {
   return MIN_ROW_HEIGHT + 'px'
 }
 
-// 计算港口总容器数
+// 计算港口总容器数（去重）
 const getTotalContainersInPort = (nodesByPort: Record<string, Record<string, any[]>>): number => {
-  let total = 0
+  const containerNumbers = new Set<string>()
   Object.values(nodesByPort).forEach(suppliersByNode => {
     Object.values(suppliersByNode).forEach(containers => {
-      total += containers.length
+      containers.forEach((container: any) => {
+        if (container.containerNumber) {
+          containerNumbers.add(container.containerNumber)
+        }
+      })
     })
   })
-  return total
+  return containerNumbers.size
 }
 
 // 过滤正常节点（排除未分类）
@@ -939,13 +969,17 @@ const filterNormalNodes = (
   return normalNodes
 }
 
-// 计算节点总容器数
+// 计算节点总容器数（去重）
 const getTotalContainersInNode = (suppliersByNode: Record<string, any[]>): number => {
-  let total = 0
+  const containerNumbers = new Set<string>()
   Object.values(suppliersByNode).forEach(containers => {
-    total += containers.length
+    containers.forEach((container: any) => {
+      if (container.containerNumber) {
+        containerNumbers.add(container.containerNumber)
+      }
+    })
   })
-  return total
+  return containerNumbers.size
 }
 
 // 计算节点行高度（二级仅作标题行，显示节点名即可）
@@ -1151,7 +1185,7 @@ const getSupplierDisplayName = (node: string, codeOrName: string, containers?: a
  */
 const getAvailableSuppliersText = (node: string, container: any): string => {
   if (!container) return ''
-  
+
   switch (node) {
     case '提柜': {
       const available = container.availableTruckingCompanies
@@ -1160,7 +1194,12 @@ const getAvailableSuppliersText = (node: string, container: any): string => {
       if (available.length <= 3) {
         return available.map((t: any) => t.truckingCompanyName).join(', ')
       }
-      return available.slice(0, 3).map((t: any) => t.truckingCompanyName).join(', ') + ` +${available.length - 3}`
+      return (
+        available
+          .slice(0, 3)
+          .map((t: any) => t.truckingCompanyName)
+          .join(', ') + ` +${available.length - 3}`
+      )
     }
     case '卸柜': {
       const available = container.availableWarehouses
@@ -1168,7 +1207,12 @@ const getAvailableSuppliersText = (node: string, container: any): string => {
       if (available.length <= 3) {
         return available.map((w: any) => w.warehouseName).join(', ')
       }
-      return available.slice(0, 3).map((w: any) => w.warehouseName).join(', ') + ` +${available.length - 3}`
+      return (
+        available
+          .slice(0, 3)
+          .map((w: any) => w.warehouseName)
+          .join(', ') + ` +${available.length - 3}`
+      )
     }
     default:
       return ''
@@ -1204,12 +1248,15 @@ const getAvailableSuppliersFullText = (node: string, container: any): string => 
  * @param node 节点名称（清关/提柜/卸柜/还箱/查验）
  * @returns 可用供应商数组，每个元素包含 supplierCode, supplierName, count(已分配货柜数)
  */
-const getAvailableSuppliersForNode = (port: string, node: string): Array<{ supplierCode: string; supplierName: string; count: number }> => {
+const getAvailableSuppliersForNode = (
+  port: string,
+  node: string
+): Array<{ supplierCode: string; supplierName: string; count: number }> => {
   const nodesByPort = finalGroupedByPort.value[port]
   if (!nodesByPort) return []
-  
+
   const result: Array<{ supplierCode: string; supplierName: string; count: number }> = []
-  
+
   // 获取该港口下所有货柜（从所有节点收集，而不是只看当前节点）
   const allContainers: Container[] = []
   Object.values(nodesByPort).forEach(suppliersByNode => {
@@ -1217,7 +1264,7 @@ const getAvailableSuppliersForNode = (port: string, node: string): Array<{ suppl
       allContainers.push(...containers)
     })
   })
-  
+
   // 如果当前港口没有任何货柜，尝试从 finalFilteredContainers 中获取同一港口的货柜
   let containersForSuppliers = allContainers
   if (containersForSuppliers.length === 0) {
@@ -1227,7 +1274,7 @@ const getAvailableSuppliersForNode = (port: string, node: string): Array<{ suppl
       return destPort === port
     })
   }
-  
+
   if (containersForSuppliers.length === 0) return []
 
   // 根据节点类型获取可用供应商
@@ -1237,17 +1284,22 @@ const getAvailableSuppliersForNode = (port: string, node: string): Array<{ suppl
       // 统计已分配到未指定清关行的货柜数量
       let count = 0
       Object.values(nodesByPort['清关'] || {}).forEach((containers: any[]) => {
-        if (containers.some((c: Container) => 
-          !c.portOperations?.find((op: any) => op.portType === 'destination')?.customsBrokerCode ||
-          c.portOperations?.find((op: any) => op.portType === 'destination')?.customsBrokerCode === 'UNSPECIFIED'
-        )) {
+        if (
+          containers.some(
+            (c: Container) =>
+              !c.portOperations?.find((op: any) => op.portType === 'destination')
+                ?.customsBrokerCode ||
+              c.portOperations?.find((op: any) => op.portType === 'destination')
+                ?.customsBrokerCode === 'UNSPECIFIED'
+          )
+        ) {
           count += containers.length
         }
       })
       result.push({
         supplierCode: 'UNSPECIFIED',
         supplierName: '未指定清关公司',
-        count
+        count,
       })
       break
     }
@@ -1255,22 +1307,25 @@ const getAvailableSuppliersForNode = (port: string, node: string): Array<{ suppl
       // 从同一港口的货柜获取可用车队列表（这些已经是根据映射关系过滤过的）
       const firstContainer = containersForSuppliers[0]
       const available = firstContainer?.availableTruckingCompanies || []
-      
+
       available.forEach((t: any) => {
         // 统计已分配到该供应商的货柜数量
         let count = 0
         Object.values(nodesByPort['提柜'] || {}).forEach((containers: any[]) => {
-          if (containers.some((c: Container) => 
-            c.truckingTransports?.[0]?.truckingCompanyId === t.truckingCompanyId ||
-            c.truckingTransports?.[0]?.carrierCompany === t.truckingCompanyId
-          )) {
+          if (
+            containers.some(
+              (c: Container) =>
+                c.truckingTransports?.[0]?.truckingCompanyId === t.truckingCompanyId ||
+                c.truckingTransports?.[0]?.carrierCompany === t.truckingCompanyId
+            )
+          ) {
             count += containers.length
           }
         })
         result.push({
           supplierCode: t.truckingCompanyId,
           supplierName: t.truckingCompanyName,
-          count
+          count,
         })
       })
       break
@@ -1279,23 +1334,26 @@ const getAvailableSuppliersForNode = (port: string, node: string): Array<{ suppl
       // 从同一港口的货柜获取可用仓库列表（这些已经是根据映射关系过滤过的）
       const firstContainer = containersForSuppliers[0]
       const available = firstContainer?.availableWarehouses || []
-      
+
       available.forEach((w: any) => {
         // 统计已分配到该供应商的货柜数量
         let count = 0
         Object.values(nodesByPort['卸柜'] || {}).forEach((containers: any[]) => {
-          if (containers.some((c: Container) => 
-            c.warehouseOperations?.[0]?.warehouseId === w.warehouseCode ||
-            c.warehouseOperations?.[0]?.actualWarehouse === w.warehouseCode ||
-            c.warehouseOperations?.[0]?.plannedWarehouse === w.warehouseCode
-          )) {
+          if (
+            containers.some(
+              (c: Container) =>
+                c.warehouseOperations?.[0]?.warehouseId === w.warehouseCode ||
+                c.warehouseOperations?.[0]?.actualWarehouse === w.warehouseCode ||
+                c.warehouseOperations?.[0]?.plannedWarehouse === w.warehouseCode
+            )
+          ) {
             count += containers.length
           }
         })
         result.push({
           supplierCode: w.warehouseCode,
           supplierName: w.warehouseName,
-          count
+          count,
         })
       })
       break
@@ -1303,7 +1361,7 @@ const getAvailableSuppliersForNode = (port: string, node: string): Array<{ suppl
     default:
       break
   }
-  
+
   return result
 }
 
@@ -1453,7 +1511,7 @@ const dateCellWidths = computed(() => {
       // 计算基础宽度：列数 * 每列宽度 + 内边距
       const baseWidth = columnsNeeded * CONTAINER_DOT_WIDTH + 8
       // 今天和周末适当加宽
-      const extraPadding = (isTodayCell || isWeekendCell) ? 10 : 0
+      const extraPadding = isTodayCell || isWeekendCell ? 10 : 0
       // 取最大值
       const width = Math.max(baseWidth + extraPadding, MIN_DATE_CELL_WIDTH)
       widths.set(dateStr, `${width}px`)
@@ -1668,7 +1726,8 @@ const getTruckingCompanyName = (container: any) => {
 // 辅助方法：获取仓库名称
 const getWarehouseName = (container: any) => {
   const warehouseOp = container?.warehouseOperations?.[0]
-  const warehouseCode = warehouseOp?.warehouseId || warehouseOp?.actualWarehouse || warehouseOp?.plannedWarehouse
+  const warehouseCode =
+    warehouseOp?.warehouseId || warehouseOp?.actualWarehouse || warehouseOp?.plannedWarehouse
   if (!warehouseCode) return null
   return warehouseMap.value.get(warehouseCode) || warehouseCode
 }
@@ -2026,7 +2085,7 @@ const finalFilteredContainers = computed(() => {
 /**
  * 基于静态映射的三级分组
  * 结构：port → node → supplier → containers[]
- * 
+ *
  * 逻辑：
  * 1. 先收集有货柜的目的港
  * 2. 只显示有货柜的港口
@@ -2034,41 +2093,44 @@ const finalFilteredContainers = computed(() => {
  */
 const staticBasedGroupedByPort = computed(() => {
   const groups: Record<string, Record<string, Record<string, any[]>>> = {}
-  
+
   // 1. 先收集所有有货柜的目的港
   const portsWithContainers = new Set<string>()
   finalFilteredContainers.value.forEach(container => {
     const portCode = container.destinationPort || '未指定'
     portsWithContainers.add(portCode)
   })
-  
+
   // 如果没有货柜，不显示任何港口
   if (portsWithContainers.size === 0) {
     return groups
   }
-  
+
   // 2. 只显示有货柜的港口 - 使用静态映射构建供应商结构
   if (staticMappings.value?.ports) {
     // 获取当前全局国别
     const scopedCountry = appStore.scopedCountryCode
-    
+
     staticMappings.value.ports.forEach(portInfo => {
       const portCode = portInfo.portCode
       const portName = portInfo.portName
       const portCountry = portInfo.country
-      
+
       // 只显示有货柜的港口
       if (!portsWithContainers.has(portCode)) {
         return
       }
-      
+
       // 如果有全局国别筛选，只显示匹配国别的港口
-      if (scopedCountry && portCountry !== scopedCountry && 
-          !(scopedCountry === 'GB' && portCountry === 'UK') &&
-          !(scopedCountry === 'UK' && portCountry === 'GB')) {
+      if (
+        scopedCountry &&
+        portCountry !== scopedCountry &&
+        !(scopedCountry === 'GB' && portCountry === 'UK') &&
+        !(scopedCountry === 'UK' && portCountry === 'GB')
+      ) {
         return
       }
-      
+
       // 初始化港口层级
       if (!groups[portCode]) {
         groups[portCode] = {
@@ -2080,23 +2142,23 @@ const staticBasedGroupedByPort = computed(() => {
           未分类: {},
         }
       }
-      
+
       // 获取该港口+国别的车队列表
       const mappingKey = `${portCode}:${portCountry}`
       const truckingList = staticMappings.value.truckingByPort[mappingKey] || []
-      
+
       // 清关行：默认"未指定清关公司"
-      if (!groups[portCode]['清关']['UNSPECIFIED']) {
-        groups[portCode]['清关']['UNSPECIFIED'] = []
+      if (!groups[portCode]['清关']['未指定清关公司']) {
+        groups[portCode]['清关']['未指定清关公司'] = []
       }
-      
+
       // 提柜节点：显示车队
       truckingList.forEach(t => {
         if (!groups[portCode]['提柜'][t.truckingCompanyId]) {
           groups[portCode]['提柜'][t.truckingCompanyId] = []
         }
       })
-      
+
       // 卸柜节点：显示仓库（从车队映射获取）
       const warehouseKeys = new Set<string>()
       truckingList.forEach(t => {
@@ -2111,21 +2173,18 @@ const staticBasedGroupedByPort = computed(() => {
           groups[portCode]['卸柜'][whCode] = []
         }
       })
-      
+
       // 还箱/查验节点：默认空
-      if (!groups[portCode]['还箱']['UNSPECIFIED']) {
-        groups[portCode]['还箱']['UNSPECIFIED'] = []
-      }
-      if (!groups[portCode]['查验']['UNSPECIFIED']) {
-        groups[portCode]['查验']['UNSPECIFIED'] = []
+      if (!groups[portCode]['查验']['未指定清关公司']) {
+        groups[portCode]['查验']['未指定清关公司'] = []
       }
     })
   }
-  
+
   // 3. 将货柜叠加到对应的供应商节点
   finalFilteredContainers.value.forEach(container => {
     const portCode = container.destinationPort || '未指定'
-    
+
     if (!groups[portCode]) {
       // 港口不存在于静态映射中，创建空结构
       groups[portCode] = {
@@ -2137,10 +2196,10 @@ const staticBasedGroupedByPort = computed(() => {
         未分类: {},
       }
     }
-    
+
     // 确定货柜属于哪个节点和供应商
     const nodeSupplierMap = getNodeAndSupplier(container)
-    
+
     nodeSupplierMap.forEach(({ node, supplier }) => {
       if (!groups[portCode][node]) {
         groups[portCode][node] = {}
@@ -2151,7 +2210,7 @@ const staticBasedGroupedByPort = computed(() => {
       groups[portCode][node][supplier].push(container)
     })
   })
-  
+
   return groups
 })
 
@@ -2675,9 +2734,12 @@ onUnmounted(() => {
 })
 
 // 监听国别筛选变化，重新加载静态映射
-watch(() => appStore.scopedCountryCode, () => {
-  loadStaticMappings()
-})
+watch(
+  () => appStore.scopedCountryCode,
+  () => {
+    loadStaticMappings()
+  }
+)
 </script>
 
 <script lang="ts">

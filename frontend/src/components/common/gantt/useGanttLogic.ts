@@ -266,21 +266,17 @@ export function useGanttLogic() {
     filteredContainers.value.forEach(container => {
       const portCode = container.destinationPort || '未指定'
 
-      // 初始化目的港层级
-      if (!result[portCode]) {
-        result[portCode] = {
-          清关: {},
-          提柜: {},
-          卸柜: {},
-          还箱: {},
-          查验: {},
-        }
-      }
-
       // 确定五节点和对应的供应商
       const nodeSupplierMap = getNodeAndSupplier(container)
 
       nodeSupplierMap.forEach(({ node, supplier }) => {
+        // 初始化层级结构
+        if (!result[portCode]) {
+          result[portCode] = {}
+        }
+        if (!result[portCode][node]) {
+          result[portCode][node] = {}
+        }
         if (!result[portCode][node][supplier]) {
           result[portCode][node][supplier] = []
         }
@@ -335,8 +331,7 @@ export function useGanttLogic() {
         // 回退到使用仓库名称
         if (!supplier && container.warehouseOperations?.[0]) {
           const warehouseOp = container.warehouseOperations[0]
-          supplier =
-            warehouseOp.warehouseId || warehouseOp.actualWarehouse || warehouseOp.plannedWarehouse
+          supplier = warehouseOp.warehouseId || warehouseOp.actualWarehouse || warehouseOp.plannedWarehouse
         }
         if (supplier) {
           result.push({ node: '还箱', supplier })
@@ -350,6 +345,9 @@ export function useGanttLogic() {
       const customsSupplier = destPortOp?.customsBrokerCode || destPortOp?.customsBroker
       if (customsSupplier) {
         result.push({ node: '查验', supplier: customsSupplier })
+      } else {
+        // 没有清关公司时使用默认值
+        result.push({ node: '查验', supplier: '未指定清关公司' })
       }
     }
 
@@ -388,15 +386,52 @@ export function useGanttLogic() {
     let maxDate: Date | null = null
 
     containers.forEach(container => {
-      const containerDate = getContainerDate(container)
-      if (containerDate) {
-        if (!minDate || containerDate < minDate) {
-          minDate = containerDate
-        }
-        if (!maxDate || containerDate > maxDate) {
-          maxDate = containerDate
-        }
+      // 收集所有相关日期
+      const dates: Date[] = []
+
+      // 到港相关日期
+      if (container.ataDestPort) dates.push(new Date(container.ataDestPort))
+      if (container.etaCorrection) dates.push(new Date(container.etaCorrection))
+      if (container.etaDestPort) dates.push(new Date(container.etaDestPort))
+
+      // 港口操作日期
+      if (container.portOperations && container.portOperations.length > 0) {
+        const destPortOp = container.portOperations.find((op: any) => op.portType === 'destination')
+        if (destPortOp?.ataDestPort) dates.push(new Date(destPortOp.ataDestPort))
+        if (destPortOp?.etaCorrection) dates.push(new Date(destPortOp.etaCorrection))
+        if (destPortOp?.etaDestPort) dates.push(new Date(destPortOp.etaDestPort))
+        if (destPortOp?.lastFreeDate) dates.push(new Date(destPortOp.lastFreeDate))
       }
+
+      // 海运日期
+      if (container.seaFreight?.eta) dates.push(new Date(container.seaFreight.eta))
+
+      // 运输计划日期（泳道日期）
+      if (container.truckingTransports && container.truckingTransports.length > 0) {
+        const transport = container.truckingTransports[0]
+        if (transport.plannedCustomsDate) dates.push(new Date(transport.plannedCustomsDate))
+        if (transport.plannedPickupDate) dates.push(new Date(transport.plannedPickupDate))
+        if (transport.plannedDeliveryDate) dates.push(new Date(transport.plannedDeliveryDate))
+        if (transport.plannedUnloadDate) dates.push(new Date(transport.plannedUnloadDate))
+        if (transport.plannedReturnDate) dates.push(new Date(transport.plannedReturnDate))
+      }
+
+      // 直接在货柜上的计划日期
+      if (container.plannedCustomsDate) dates.push(new Date(container.plannedCustomsDate))
+      if (container.plannedPickupDate) dates.push(new Date(container.plannedPickupDate))
+      if (container.plannedDeliveryDate) dates.push(new Date(container.plannedDeliveryDate))
+      if (container.plannedUnloadDate) dates.push(new Date(container.plannedUnloadDate))
+      if (container.plannedReturnDate) dates.push(new Date(container.plannedReturnDate))
+
+      // 更新最小和最大日期
+      dates.forEach(date => {
+        if (!minDate || date < minDate) {
+          minDate = date
+        }
+        if (!maxDate || date > maxDate) {
+          maxDate = date
+        }
+      })
     })
 
     if (!minDate || !maxDate) {
@@ -502,16 +537,22 @@ export function useGanttLogic() {
         }
 
         console.log('[useGanttLogic] 设置 containers，数量:', response.items?.length || 0)
-        
+
         // ========== 调试代码：检查候选供应商数据 ==========
         if (response.items && response.items.length > 0) {
           const firstContainer = response.items[0]
-          console.log('[useGanttLogic] 第一个货柜 availableTruckingCompanies:', firstContainer.availableTruckingCompanies)
-          console.log('[useGanttLogic] 第一个货柜 availableWarehouses:', firstContainer.availableWarehouses)
+          console.log(
+            '[useGanttLogic] 第一个货柜 availableTruckingCompanies:',
+            firstContainer.availableTruckingCompanies
+          )
+          console.log(
+            '[useGanttLogic] 第一个货柜 availableWarehouses:',
+            firstContainer.availableWarehouses
+          )
           console.log('[useGanttLogic] 第一个货柜完整字段:', Object.keys(firstContainer))
         }
         // ===================================================
-        
+
         containers.value = response.items ?? []
       } catch (err: any) {
         console.error('[useGanttLogic] API 调用失败:', err)
@@ -591,7 +632,7 @@ export function useGanttLogic() {
     console.log('[showTooltip] availableTruckingCompanies:', container.availableTruckingCompanies)
     console.log('[showTooltip] availableWarehouses:', container.availableWarehouses)
     // ==================================================
-    
+
     tooltipContainer.value = container
 
     // 基础偏移量
@@ -608,8 +649,9 @@ export function useGanttLogic() {
 
     // 动态计算 tooltip 高度（基础高度 + 候选供应商区域高度）
     let actualTooltipHeight = TOOLTIP_HEIGHT
-    const hasCandidateSuppliers = (container.availableTruckingCompanies?.length || 0) > 0 || 
-                                  (container.availableWarehouses?.length || 0) > 0
+    const hasCandidateSuppliers =
+      (container.availableTruckingCompanies?.length || 0) > 0 ||
+      (container.availableWarehouses?.length || 0) > 0
     if (hasCandidateSuppliers) {
       // 基础高度约 400px，候选供应商区域额外高度估算
       const truckingCount = container.availableTruckingCompanies?.length || 0
@@ -722,20 +764,26 @@ export function useGanttLogic() {
   }
 
   const handleDragEnd = () => {
+    // 取消动画帧
     if (rafId) {
       cancelAnimationFrame(rafId)
       rafId = 0
     }
-    const pending = pendingDropConfirm.value
-    pendingDropConfirm.value = null
-    draggingContainer.value = null
-    dragOverDate.value = null
-    dropIndicatorCellRect.value = null
 
-    if (!pending) return
+    // 保存 pending 数据
+    const pending = pendingDropConfirm.value
+
+    // 统一清理状态
+    cleanupDragState()
+
+    // 如果没有待确认的数据，直接返回
+    if (!pending) {
+      return
+    }
 
     const { container, newDate, updateField, fieldLabel, confirmMsg } = pending
-    // 在 dragend 之后、下一帧再弹窗，确保浏览器已释放指针，避免取消需点二次
+
+    // 使用双层 RAF 延迟弹窗
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         ElMessageBox.confirm(confirmMsg, '确认调整日期', {
@@ -744,40 +792,115 @@ export function useGanttLogic() {
           type: 'warning',
         })
           .then(async () => {
-            const updateData: Record<string, string> = { [updateField]: newDate }
-            const result = await containerService.updateSchedule(
-              container.containerNumber,
-              updateData
-            )
-            if (result.success) {
-              ElMessage.success('日期调整成功')
-              await loadData()
-            } else {
-              if (result.errors && result.errors.length > 0) {
-                ElMessage.error(`校验失败: ${result.errors.join(', ')}`)
-              } else {
-                ElMessage.error(result.message || '更新失败')
-              }
-            }
+            await executeUpdate(container, updateField, newDate)
           })
           .catch((err: unknown) => {
             if (err !== 'cancel') {
-              ElMessage.error((err as Error)?.message || '操作失败')
+              console.error('[handleDragEnd] Confirm error:', err)
+              ElMessage.error('操作失败：' + (err as Error).message)
             }
           })
       })
     })
   }
 
+  /**
+   * 执行更新操作（独立出来方便测试）
+   */
+  const executeUpdate = async (container: Container, updateField: string, newDate: string) => {
+    try {
+      const updateData: Record<string, string> = { [updateField]: newDate }
+
+      const result = await containerService.updateSchedule(container.containerNumber, updateData)
+
+      if (result.success) {
+        ElMessage.success({
+          message: '日期调整成功',
+          duration: 2000,
+        })
+        await loadData()
+      } else {
+        handleUpdateError(result)
+      }
+    } catch (error: any) {
+      handleUpdateException(error)
+    }
+  }
+
+  /**
+   * 处理更新错误（业务错误）
+   */
+  const handleUpdateError = (result: any) => {
+    if (result.errors && result.errors.length > 0) {
+      ElMessage.error({
+        message: `校验失败：${result.errors.join(', ')}`,
+        duration: 5000,
+      })
+    } else if (result.code === 'PERMISSION_DENIED') {
+      ElMessage.error({
+        message: '您没有权限修改此货柜，请联系管理员',
+        duration: 3000,
+      })
+    } else if (result.code === 'DATA_CONFLICT') {
+      ElMessage.warning({
+        message: '数据已被其他人修改，请刷新后重试',
+        duration: 3000,
+      })
+      ElMessageBox.confirm('是否立即刷新？', '提示', {
+        confirmButtonText: '刷新',
+        cancelButtonText: '取消',
+      }).then(() => {
+        loadData()
+      })
+    } else {
+      ElMessage.error({
+        message: result.message || '更新失败',
+        duration: 3000,
+      })
+    }
+  }
+
+  /**
+   * 处理更新异常（网络错误等）
+   */
+  const handleUpdateException = (error: any) => {
+    console.error('[executeUpdate] Update failed:', error)
+
+    if (error.response?.status === 401) {
+      ElMessage.error('登录已过期，请重新登录')
+      router.push('/login')
+    } else if (error.response?.status === 500) {
+      ElMessage.error('服务器错误，请稍后重试')
+    } else if (error.response?.status === 403) {
+      ElMessage.error('无权访问此资源')
+    } else {
+      ElMessage.error({
+        message: `网络错误：${error.message}`,
+        duration: 5000,
+      })
+    }
+  }
+
   // ========== 拖拽字段映射 ==========
   /** 节点类型到更新字段的映射 */
   const NODE_TO_FIELD_MAP: Record<string, { field: string; label: string }> = {
-    '清关': { field: 'plannedCustomsDate', label: '计划清关日' },
-    '查验': { field: 'plannedCustomsDate', label: '计划查验日' },
-    '提柜': { field: 'plannedPickupDate', label: '计划提柜日' },
-    '卸柜': { field: 'plannedUnloadDate', label: '计划卸柜日' },
-    '还箱': { field: 'plannedReturnDate', label: '计划还箱日' },
-    '未分类': { field: 'plannedPickupDate', label: '计划提柜日' },
+    清关: { field: 'plannedCustomsDate', label: '计划清关日' },
+    查验: { field: 'plannedCustomsDate', label: '计划查验日' },
+    提柜: { field: 'plannedPickupDate', label: '计划提柜日' },
+    卸柜: { field: 'plannedUnloadDate', label: '计划卸柜日' },
+    还箱: { field: 'plannedReturnDate', label: '计划还箱日' },
+    未分类: { field: 'plannedPickupDate', label: '计划提柜日' },
+  }
+
+  /** 统一清理拖拽状态 */
+  const cleanupDragState = () => {
+    draggingContainer.value = null
+    dragOverDate.value = null
+    dropIndicatorPosition.value = { x: 0, y: 0 }
+    dropIndicatorCellRect.value = null
+    pendingDropConfirm.value = null
+    showContextMenu.value = false
+    hideTooltip()
   }
 
   /** 获取当前节点类型（从 collapsedGroups 推断或默认） */
@@ -790,34 +913,63 @@ export function useGanttLogic() {
     return '提柜' // 默认
   }
 
-  const handleDrop = (date: Date) => {
+  const handleDrop = (date: Date, nodeName?: string) => {
     if (!draggingContainer.value || !dragOverDate.value) return
 
     const container = draggingContainer.value
     const newDate = dayjs(dragOverDate.value).format('YYYY-MM-DD')
 
-    // 根据 filterCondition 或节点类型确定要更新的字段
-    const condition = filterCondition.value
-    let updateField = 'plannedPickupDate'
-    let fieldLabel = '计划提柜日'
+    // 使用传入的 nodeName 或从当前分组推断
+    let targetNode = nodeName
 
-    if (condition.startsWith('return')) {
-      updateField = 'plannedReturnDate'
-      fieldLabel = '计划还箱日'
-    } else if (condition.startsWith('unload')) {
-      updateField = 'plannedUnloadDate'
-      fieldLabel = '计划卸柜日'
-    } else if (condition.startsWith('customs') || condition.startsWith('inspection')) {
-      updateField = 'plannedCustomsDate'
-      fieldLabel = '计划清关日'
-    } else {
-      // 默认按提柜处理
-      updateField = 'plannedPickupDate'
-      fieldLabel = '计划提柜日'
+    // 如果没有传入 node，尝试从分组结构中推断
+    if (!targetNode) {
+      targetNode = inferNodeFromGroupedStructure(container)
     }
 
-    const confirmMsg = `确定要将货柜 ${container.containerNumber} 的${fieldLabel}调整为 ${formatDateShort(dragOverDate.value)} 吗？`
-    pendingDropConfirm.value = { container, newDate, updateField, fieldLabel, confirmMsg }
+    // 如果还是无法确定，使用默认值
+    if (!targetNode) {
+      console.warn('[handleDrop] Cannot determine node type, using default')
+      targetNode = '提柜'
+    }
+
+    // 使用节点类型到字段的映射
+    const { field, label } = NODE_TO_FIELD_MAP[targetNode] || NODE_TO_FIELD_MAP['提柜']
+
+    const confirmMsg = `确定要将货柜 ${container.containerNumber} 的${label}调整为 ${formatDateShort(dragOverDate.value)} 吗？`
+    pendingDropConfirm.value = {
+      container,
+      newDate,
+      updateField: field,
+      fieldLabel: label,
+      confirmMsg,
+    }
+
+    console.log('[handleDrop] Set pending:', {
+      container: container.containerNumber,
+      node: targetNode,
+      field,
+      newDate,
+    })
+  }
+
+  /**
+   * 从分组结构中推断容器所在的节点
+   */
+  const inferNodeFromGroupedStructure = (container: Container): string | null => {
+    const grouped = finalGroupedByPort.value
+
+    for (const [portCode, nodesByNode] of Object.entries(grouped)) {
+      for (const [nodeName, suppliersBySupplier] of Object.entries(nodesByNode)) {
+        for (const [supplierCode, containers] of Object.entries(suppliersBySupplier)) {
+          if (containers.some(c => c.containerNumber === container.containerNumber)) {
+            return nodeName
+          }
+        }
+      }
+    }
+
+    return null
   }
 
   const handleDateSave = async (data: any) => {
