@@ -12,6 +12,7 @@ npm run dev
 ### 2. 访问甘特图页面
 
 打开浏览器访问：
+
 ```
 http://localhost:5173/gantt?startDate=2026-04-01&endDate=2026-04-30
 ```
@@ -19,19 +20,24 @@ http://localhost:5173/gantt?startDate=2026-04-01&endDate=2026-04-30
 ### 3. 测试路径追踪功能
 
 #### 步骤1：选择货柜
+
 - 在甘特图中找到任意一个货柜
 - 确保该货柜在多个节点（清关、提柜、卸柜、还箱）都有圆点显示
 
 #### 步骤2：打开右键菜单
+
 - 右键点击货柜的任意一个圆点
 - 应该会弹出上下文菜单
 
 #### 步骤3：启用路径追踪
+
 - 在菜单中选择"显示路径连线"
 - 观察是否出现连接各节点的蓝色虚线
 
 #### 步骤4：验证效果
+
 检查以下项目：
+
 - [ ] 连线是否正确连接了所有节点
 - [ ] 连线颜色是否为蓝色 (#409eff)
 - [ ] 连线是否为虚线样式
@@ -41,6 +47,7 @@ http://localhost:5173/gantt?startDate=2026-04-01&endDate=2026-04-30
 - [ ] 调整窗口大小时，连线是否重新计算
 
 #### 步骤5：关闭路径追踪
+
 - 再次右键点击同一货柜
 - 选择"显示路径连线"（切换关闭）
 - 验证连线是否消失
@@ -48,26 +55,31 @@ http://localhost:5173/gantt?startDate=2026-04-01&endDate=2026-04-30
 ### 4. 测试不同场景
 
 #### 场景1：完整路径
+
 选择一个在所有4个节点都有数据的货柜
 预期：显示3条连线（清关->提柜->卸柜->还箱）
 
 #### 场景2：部分路径
+
 选择一个只在部分节点有数据的货柜
 预期：只显示存在的节点之间的连线
 
 #### 场景3：单节点
+
 选择一个只有一个节点数据的货柜
 预期：不显示连线（至少需要2个节点）
 
 ### 5. 性能测试
 
 #### 大数据量测试
+
 - 加载包含200+货柜的数据
 - 启用路径追踪
 - 快速滚动甘特图
 - 观察是否有卡顿或延迟
 
 预期：
+
 - 滚动流畅，无明显卡顿
 - 连线实时更新，无闪烁
 
@@ -76,24 +88,31 @@ http://localhost:5173/gantt?startDate=2026-04-01&endDate=2026-04-30
 ### 问题1：连线不显示
 
 **可能原因**：
+
 1. 货柜在多个节点没有数据
 2. data属性未正确添加
 3. 容器选择器不匹配
 
 **排查方法**：
+
 ```javascript
 // 在浏览器控制台执行
 console.log('检查圆点元素:', document.querySelectorAll('.container-dot'))
-console.log('检查data属性:', document.querySelector('.container-dot[data-container="YOUR_CONTAINER_NUMBER"]'))
+console.log(
+  '检查data属性:',
+  document.querySelector('.container-dot[data-container="YOUR_CONTAINER_NUMBER"]')
+)
 ```
 
 ### 问题2：连线位置不准确
 
 **可能原因**：
+
 1. 滚动容器引用不正确
 2. 坐标计算有误
 
 **排查方法**：
+
 - 打开浏览器开发者工具
 - 检查SVG层的position和z-index
 - 验证圆点的实际位置与连线端点是否对齐
@@ -101,10 +120,12 @@ console.log('检查data属性:', document.querySelector('.container-dot[data-con
 ### 问题3：滚动时连线不同步
 
 **可能原因**：
+
 1. 滚动事件未正确监听
 2. requestAnimationFrame未生效
 
 **排查方法**：
+
 - 在GanttPathTracker组件中添加日志
 - 检查handleScroll函数是否被调用
 
@@ -118,14 +139,14 @@ console.log('检查data属性:', document.querySelector('.container-dot[data-con
   :container="pathLineContainer"
   container-selector=".container-dot"
   :scroll-container="ganttScrollContainerRef"
-  
+
   <!-- 连线样式 -->
   stroke-color="#409eff"      <!-- 连线颜色 -->
   :stroke-width="2"           <!-- 连线宽度 -->
   :is-dashed="true"           <!-- 是否虚线 -->
   dash-pattern="5,5"          <!-- 虚线模式 -->
   :opacity="0.6"              <!-- 透明度 -->
-  
+
   <!-- 节点标记样式 -->
   :node-radius="4"            <!-- 节点半径 -->
   node-color="#409eff"        <!-- 节点填充色 -->
@@ -160,6 +181,6 @@ console.log('检查data属性:', document.querySelector('.container-dot[data-con
 ---
 
 **测试日期**: 2026-04-04  
-**测试人员**: ___________  
+**测试人员**: ****\_\_\_****  
 **测试结果**: [ ] 通过 [ ] 失败  
-**备注**: ___________
+**备注**: ****\_\_\_****

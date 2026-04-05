@@ -772,8 +772,11 @@ export function useGanttLogic() {
   // 切换路径连线显示
   const togglePathLines = () => {
     if (!selectedContainer.value) return
-    
-    if (showPathLines.value && pathLineContainer.value?.containerNumber === selectedContainer.value.containerNumber) {
+
+    if (
+      showPathLines.value &&
+      pathLineContainer.value?.containerNumber === selectedContainer.value.containerNumber
+    ) {
       // 如果已经显示且是同一个货柜，则隐藏
       showPathLines.value = false
       pathLineContainer.value = null
@@ -787,13 +790,13 @@ export function useGanttLogic() {
   // 计算路径连线坐标
   const calculatedPathLines = computed(() => {
     if (!showPathLines.value || !pathLineContainer.value) return []
-    
+
     const container = pathLineContainer.value
     const lines: Array<{ x1: number; y1: number; x2: number; y2: number }> = []
-    
+
     // TODO: 这里需要根据实际DOM位置计算连线坐标
     // 暂时返回空数组，后续需要实现具体的坐标计算逻辑
-    
+
     return lines
   })
 

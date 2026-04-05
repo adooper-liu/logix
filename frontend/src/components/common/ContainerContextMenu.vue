@@ -24,8 +24,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { View, Edit, DocumentCopy, Delete, Connection } from '@element-plus/icons-vue'
+import { Connection, Delete, DocumentCopy, Edit, View } from '@element-plus/icons-vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 
 interface MenuItem {
   key: string

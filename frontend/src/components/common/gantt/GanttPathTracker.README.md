@@ -25,7 +25,7 @@
   <div class="gantt-container">
     <div ref="scrollContainer" class="gantt-scroll">
       <!-- 甘特图内容 -->
-      
+
       <!-- 路径追踪组件 -->
       <GanttPathTracker
         :visible="showPathLines"
@@ -74,31 +74,31 @@ const selectedContainer = ref<Container | null>(null)
 
 ## Props 参数
 
-| 参数 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| visible | boolean | - | 是否显示路径追踪 |
-| container | Container \| null | - | 要追踪的货柜对象 |
-| containerSelector | string | - | CSS选择器，用于定位货柜圆点元素 |
-| scrollContainer | HTMLElement \| null | null | 滚动容器元素引用 |
-| strokeColor | string | '#409eff' | 连线颜色 |
-| strokeWidth | number | 2 | 连线宽度（像素） |
-| isDashed | boolean | true | 是否为虚线 |
-| dashPattern | string | '5,5' | 虚线模式 |
-| opacity | number | 0.6 | 连线透明度（0-1） |
-| nodeRadius | number | 4 | 节点标记点半径 |
-| nodeColor | string | '#409eff' | 节点标记点填充色 |
-| nodeStrokeColor | string | '#ffffff' | 节点标记点边框色 |
-| nodeStrokeWidth | number | 2 | 节点标记点边框宽度 |
-| nodeOpacity | number | 0.8 | 节点标记点透明度 |
-| zIndex | number | 5 | SVG层z-index |
+| 参数              | 类型                | 默认值    | 说明                            |
+| ----------------- | ------------------- | --------- | ------------------------------- |
+| visible           | boolean             | -         | 是否显示路径追踪                |
+| container         | Container \| null   | -         | 要追踪的货柜对象                |
+| containerSelector | string              | -         | CSS选择器，用于定位货柜圆点元素 |
+| scrollContainer   | HTMLElement \| null | null      | 滚动容器元素引用                |
+| strokeColor       | string              | '#409eff' | 连线颜色                        |
+| strokeWidth       | number              | 2         | 连线宽度（像素）                |
+| isDashed          | boolean             | true      | 是否为虚线                      |
+| dashPattern       | string              | '5,5'     | 虚线模式                        |
+| opacity           | number              | 0.6       | 连线透明度（0-1）               |
+| nodeRadius        | number              | 4         | 节点标记点半径                  |
+| nodeColor         | string              | '#409eff' | 节点标记点填充色                |
+| nodeStrokeColor   | string              | '#ffffff' | 节点标记点边框色                |
+| nodeStrokeWidth   | number              | 2         | 节点标记点边框宽度              |
+| nodeOpacity       | number              | 0.8       | 节点标记点透明度                |
+| zIndex            | number              | 5         | SVG层z-index                    |
 
 ## Events 事件
 
-| 事件名 | 参数 | 说明 |
-|--------|------|------|
-| pathCalculated | (nodes: PathNode[]) => void | 路径计算完成时触发，返回节点坐标数组 |
-| nodeHover | (node: PathNode \| null) => void | 鼠标悬停节点时触发，离开时传null |
-| nodeClick | (node: PathNode) => void | 点击节点时触发 |
+| 事件名         | 参数                             | 说明                                 |
+| -------------- | -------------------------------- | ------------------------------------ |
+| pathCalculated | (nodes: PathNode[]) => void      | 路径计算完成时触发，返回节点坐标数组 |
+| nodeHover      | (node: PathNode \| null) => void | 鼠标悬停节点时触发，离开时传null     |
+| nodeClick      | (node: PathNode) => void         | 点击节点时触发                       |
 
 ## 实现原理
 
@@ -144,11 +144,11 @@ nodes.sort((a, b) => {
 使用SVG的 `<line>` 元素绘制连线，`<circle>` 元素标记节点，`<marker>` 元素添加箭头：
 
 ```svg
-<line x1="..." y1="..." x2="..." y2="..." 
-      stroke="#409eff" 
-      stroke-width="2" 
+<line x1="..." y1="..." x2="..." y2="..."
+      stroke="#409eff"
+      stroke-width="2"
       stroke-dasharray="5,5" />
-      
+
 <circle cx="..." cy="..." r="4" fill="#409eff" />
 
 <marker id="arrowhead" ...>
@@ -163,15 +163,11 @@ nodes.sort((a, b) => {
 为了让路径追踪组件能够正确定位圆点，需要在圆点元素上添加data属性：
 
 ```vue
-<div
-  class="container-dot"
-  :data-container="container.containerNumber"
-  data-node="清关"
-  ...
-></div>
+<div class="container-dot" :data-container="container.containerNumber" data-node="清关" ...></div>
 ```
 
 支持的节点名称：
+
 - 清关
 - 提柜
 - 卸柜
@@ -186,6 +182,7 @@ nodes.sort((a, b) => {
 ### 3. 响应式更新
 
 组件会自动监听以下变化并重新计算路径：
+
 - visible 属性变化
 - container 属性变化
 - 滚动容器滚动事件
@@ -196,6 +193,7 @@ nodes.sort((a, b) => {
 ### Q: 路径连线不显示？
 
 A: 检查以下几点：
+
 1. visible 属性是否为 true
 2. container 是否有值
 3. 圆点元素是否正确添加了 data-container 和 data-node 属性
@@ -204,6 +202,7 @@ A: 检查以下几点：
 ### Q: 连线位置不准确？
 
 A: 确保：
+
 1. scrollContainer 正确指向滚动容器
 2. 在DOM更新后调用 updatePath（组件已自动处理）
 3. 检查是否有CSS transform 影响坐标计算
@@ -211,6 +210,7 @@ A: 确保：
 ### Q: 如何自定义连线样式？
 
 A: 通过props配置：
+
 - strokeColor: 连线颜色
 - strokeWidth: 连线宽度
 - isDashed: 是否虚线

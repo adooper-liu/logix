@@ -38,7 +38,7 @@
         :stroke-width="2"
         opacity="0.5"
       />
-      
+
       <!-- 节点标记点 -->
       <circle
         class="node-pulse"
@@ -54,7 +54,7 @@
         @mouseleave="handleNodeHover(index, false)"
         @click="handleNodeClick(index)"
       />
-      
+
       <!-- 节点标签 -->
       <text
         v-if="hoveredNodeIndex === index"
@@ -74,8 +74,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { Container } from '@/types/container'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 
 interface PathNode {
   x: number
@@ -144,18 +144,18 @@ const calculatePathPositions = (): PathNode[] => {
   // 甘特图中的五个节点顺序
   const nodeOrder = ['清关', '提柜', '卸柜', '还箱']
 
-  nodeOrder.forEach((nodeName) => {
+  nodeOrder.forEach(nodeName => {
     // 使用data属性查找对应节点的圆点
     let elements: Element[] = []
-    
+
     if (props.containerSelector) {
       // 查找所有匹配的圆点
       const allDots = document.querySelectorAll(props.containerSelector)
-      
-      allDots.forEach((dot) => {
+
+      allDots.forEach(dot => {
         const dataContainer = dot.getAttribute('data-container')
         const dataNode = dot.getAttribute('data-node')
-        
+
         // 检查是否匹配当前货柜和节点
         if (dataContainer === containerNumber && dataNode === nodeName) {
           elements.push(dot)
@@ -163,7 +163,7 @@ const calculatePathPositions = (): PathNode[] => {
       })
     }
 
-    elements.forEach((element) => {
+    elements.forEach(element => {
       const rect = element.getBoundingClientRect()
       const scrollContainer = props.scrollContainer
 
@@ -235,39 +235,39 @@ const calculatePathSegments = (nodes: PathNode[]): PathSegment[] => {
 // 生成曲线路径（二次贝塞尔曲线，避开圆点）
 const generateCurvePath = (segment: PathSegment): string => {
   const { x1, y1, x2, y2 } = segment
-  
+
   // 圆点半径 + 额外间距，确保连线不接触圆点
   const dotRadius = 6 // 圆点半径5px + 1px间距
-  
+
   // 计算起点和终点的方向向量
   const dx = x2 - x1
   const dy = y2 - y1
   const distance = Math.sqrt(dx * dx + dy * dy)
-  
+
   if (distance === 0) return ''
-  
+
   // 归一化方向向量
   const unitX = dx / distance
   const unitY = dy / distance
-  
+
   // 调整起点和终点，从圆点边缘开始/结束
   const startX = x1 + unitX * dotRadius
   const startY = y1 + unitY * dotRadius
   const endX = x2 - unitX * dotRadius
   const endY = y2 - unitY * dotRadius
-  
+
   // 计算控制点：在起点和终点的中点上方偏移
   const midX = (startX + endX) / 2
   const midY = (startY + endY) / 2
-  
+
   // 根据水平距离调整曲线弯曲程度
   const horizontalDistance = Math.abs(endX - startX)
   const curveOffset = Math.min(horizontalDistance * 0.5, 80) // 增大系数和最大值，形成更明显的弧线
-  
+
   // 控制点在中间偏上位置，形成向上弯曲的弧线
   const controlX = midX
   const controlY = midY - curveOffset
-  
+
   // 生成二次贝塞尔曲线路径：M 起点 Q 控制点 终点
   return `M ${startX} ${startY} Q ${controlX} ${controlY} ${endX} ${endY}`
 }
@@ -371,7 +371,8 @@ onUnmounted(() => {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.9;
     r: 5;
   }
