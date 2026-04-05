@@ -9,7 +9,7 @@ import type { TruckingTransport } from '../entities/TruckingTransport';
 import type { WarehouseOperation } from '../entities/WarehouseOperation';
 
 /** 规则版本，变更时请 bump，便于前后端与落库对照 */
-export const GANTT_RULE_VERSION = 'gantt-v2';
+export const GANTT_RULE_VERSION = 'gantt-v3'; // v3: 添加反向链式依赖逻辑
 
 export type GanttNodeKey = 'customs' | 'pickup' | 'unload' | 'return';
 
@@ -152,7 +152,8 @@ export function computeGanttPhase(
 ): 1 | 2 | 3 | 4 | 5 {
   if (emptyReturn?.returnTime) return 5;
   if (warehouse?.unloadDate) return 4;
-  if (trucking?.deliveryDate) return 3;
+  // 已提柜：deliveryDate 或 pickupDate 任一存在即可
+  if (trucking?.deliveryDate || trucking?.pickupDate) return 3;
   const dest = getDestinationPortOp(portOperations);
   if (dest?.actualCustomsDate) return 2;
   return 1;
@@ -170,7 +171,8 @@ function nodeCompleted(
     case 'customs':
       return !!dest?.actualCustomsDate;
     case 'pickup':
-      return !!trucking?.deliveryDate;
+      // 已提柜：deliveryDate 或 pickupDate 任一存在即可
+      return !!trucking?.deliveryDate || !!trucking?.pickupDate;
     case 'unload':
       return !!warehouse?.unloadDate;
     case 'return':
@@ -187,17 +189,46 @@ function buildNodes(
   warehouse: WarehouseOperation | undefined | null,
   emptyReturn: EmptyReturn | undefined | null
 ): GanttDerivedNode[] {
+  // 反向链式依赖：检测后续节点是否已完成
+  const hasDeliveryDate = !!trucking?.deliveryDate; // 已提柜（送达）
+  const hasPickupDate = !!trucking?.pickupDate; // 已提柜（提货）
+  const hasUnloadDate = !!warehouse?.unloadDate; // 已卸柜
+  const hasReturnTime = !!emptyReturn?.returnTime; // 已还箱
+
   return NODE_ORDER.map((key, nodeIndex) => {
     let taskRole: GanttDerivedNode['taskRole'];
+
     if (stage === 5) {
+      // 阶段5：所有节点都不显示
       taskRole = 'none';
     } else if (nodeIndex >= stage) {
+      // 后续节点：不显示
       taskRole = 'none';
     } else if (nodeIndex === stage - 1) {
+      // 当前阶段节点：主任务
       taskRole = 'main';
     } else {
-      taskRole = 'dashed';
+      // 前置节点：需要应用反向链式依赖
+      // 业务规则：后续节点完成意味着前置节点必然已完成，应销毁不显示
+      
+      // 已还箱 -> 所有前置节点销毁
+      if (hasReturnTime) {
+        taskRole = 'none';
+      }
+      // 已卸柜 -> 清关、提柜销毁
+      else if (hasUnloadDate && (key === 'customs' || key === 'pickup')) {
+        taskRole = 'none';
+      }
+      // 已提柜 -> 清关、提柜销毁（deliveryDate 或 pickupDate 任一存在即可）
+      else if ((hasDeliveryDate || hasPickupDate) && (key === 'customs' || key === 'pickup')) {
+        taskRole = 'none';
+      }
+      // 其他情况：显示为虚线（待激活）
+      else {
+        taskRole = 'dashed';
+      }
     }
+
     const dates = getNodeDisplayDates(key, portOperations, trucking, warehouse, emptyReturn);
     return {
       key,

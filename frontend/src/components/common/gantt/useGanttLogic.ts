@@ -76,13 +76,13 @@ export function useGanttLogic() {
 
   // 状态颜色映射
   const statusColors: Record<string, string> = {
-    not_shipped: '#909399',
-    shipped: '#409eff',
-    in_transit: '#409eff',
-    at_port: '#e6a23c',
-    picked_up: '#67c23a',
-    unloaded: '#67c23a',
-    returned_empty: '#67c23a',
+    not_shipped: '#909399', // 灰色
+    shipped: '#909399', // 灰色
+    in_transit: '#909399', // 灰色
+    at_port: '#409eff', // 蓝色
+    picked_up: '#ffffff', // 白色
+    unloaded: '#ffffff', // 白色
+    returned_empty: '#ffffff', // 白色
   }
 
   /**
@@ -214,6 +214,22 @@ export function useGanttLogic() {
   }
 
   /**
+   * 获取容器的警示边框颜色（仅颜色，不覆盖边框样式）
+   * 用于与 CSS 中的边框样式（实线/虚线）结合使用
+   */
+  const getContainerBorderColor = (container: Container): string => {
+    const alertLevel = getAlertLevel(container)
+    switch (alertLevel) {
+      case 'danger':
+        return '#f56c6c' // 红色（已逾期）
+      case 'warning':
+        return '#e6a23c' // 橙色（3天内到期）
+      default:
+        return '#67c23a' // 绿色（正常状态）
+    }
+  }
+
+  /**
    * 判断容器是否为关键日期（3 天内到期）
    */
   const isCriticalDate = (container: Container): boolean => {
@@ -331,7 +347,8 @@ export function useGanttLogic() {
         // 回退到使用仓库名称
         if (!supplier && container.warehouseOperations?.[0]) {
           const warehouseOp = container.warehouseOperations[0]
-          supplier = warehouseOp.warehouseId || warehouseOp.actualWarehouse || warehouseOp.plannedWarehouse
+          supplier =
+            warehouseOp.warehouseId || warehouseOp.actualWarehouse || warehouseOp.plannedWarehouse
         }
         if (supplier) {
           result.push({ node: '还箱', supplier })
@@ -757,6 +774,8 @@ export function useGanttLogic() {
 
   const handleDragStart = (container: Container, event: DragEvent) => {
     draggingContainer.value = container
+    // 拖拽开始时立即隐藏 Tooltip
+    hideTooltip()
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move'
       event.dataTransfer.setData('text/plain', container.containerNumber)
@@ -957,7 +976,7 @@ export function useGanttLogic() {
    * 从分组结构中推断容器所在的节点
    */
   const inferNodeFromGroupedStructure = (container: Container): string | null => {
-    const grouped = finalGroupedByPort.value
+    const grouped = groupedByPortNodeSupplier.value
 
     for (const [portCode, nodesByNode] of Object.entries(grouped)) {
       for (const [nodeName, suppliersBySupplier] of Object.entries(nodesByNode)) {
@@ -1180,6 +1199,7 @@ export function useGanttLogic() {
     error,
     filteredContainers,
     groupedByPort,
+    groupedByPortNodeSupplier,
     // 过滤
     filterLabel,
     advancedFilters,
@@ -1213,6 +1233,7 @@ export function useGanttLogic() {
     hasAlert,
     getAlertLevel,
     getContainerBorderStyle,
+    getContainerBorderColor,
     isCriticalDate,
     // 方法
     loadData,

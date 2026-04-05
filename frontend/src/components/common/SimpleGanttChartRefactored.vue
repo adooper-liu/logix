@@ -137,28 +137,35 @@
                   @drop="handleDrop(date, '未分类')"
                 >
                   <div class="dots-container">
-                    <div
+                    <template
                       v-for="container in getContainersByDateAndPort(date, port)"
                       :key="container.containerNumber"
-                      class="container-dot"
-                      :class="{
-                        clickable: true,
-                        'is-dragging':
-                          draggingContainer?.containerNumber === container.containerNumber,
-                        'has-warning': hasAlert(container),
-                        'main-task': getNodeDisplayType(container, '清关') === 'main',
-                        'dashed-task': getNodeDisplayType(container, '清关') === 'dashed',
-                        'completed-task': isNodeFinished(container, '清关'),
-                      }"
-                      :style="{ backgroundColor: getStatusColor(container.logisticsStatus) }"
-                      draggable="true"
-                      @mouseenter="showTooltip(container, $event)"
-                      @mouseleave="hideTooltip"
-                      @click="handleDotClick(container)"
-                      @contextmenu.prevent="openContextMenu(container, $event)"
-                      @dragstart="handleDragStart(container, $event)"
-                      @dragend="handleDragEnd"
-                    ></div>
+                    >
+                      <div
+                        v-if="getNodeDisplayType(container, '清关') !== null"
+                        class="container-dot"
+                        :class="{
+                          clickable: true,
+                          'is-dragging':
+                            draggingContainer?.containerNumber === container.containerNumber,
+                          'has-warning': hasAlert(container),
+                          'main-task': getNodeDisplayType(container, '清关') === 'main',
+                          'dashed-task': getNodeDisplayType(container, '清关') === 'dashed',
+                          'completed-task': isNodeFinished(container, '清关'),
+                        }"
+                        :style="{
+                          backgroundColor: getStatusColor(container.logisticsStatus),
+                          borderColor: getContainerBorderColor(container),
+                        }"
+                        draggable="true"
+                        @mouseenter="showTooltip(container, $event)"
+                        @mouseleave="hideTooltip"
+                        @click="handleDotClick(container)"
+                        @contextmenu.prevent="openContextMenu(container, $event)"
+                        @dragstart="handleDragStart(container, $event)"
+                        @dragend="handleDragEnd"
+                      ></div>
+                    </template>
                   </div>
                 </div>
               </template>
@@ -177,28 +184,35 @@
                   @drop="handleDrop(date, '未分类')"
                 >
                   <div class="dots-container">
-                    <div
+                    <template
                       v-for="container in getUnclassifiedContainersByDateAndPort(date, port)"
                       :key="container.containerNumber"
-                      class="container-dot"
-                      :class="{
-                        clickable: true,
-                        'is-dragging':
-                          draggingContainer?.containerNumber === container.containerNumber,
-                        'has-warning': hasAlert(container),
-                        'main-task': getNodeDisplayType(container, '清关') === 'main',
-                        'dashed-task': getNodeDisplayType(container, '清关') === 'dashed',
-                        'completed-task': isNodeFinished(container, '清关'),
-                      }"
-                      :style="{ backgroundColor: getStatusColor(container.logisticsStatus) }"
-                      draggable="true"
-                      @mouseenter="showTooltip(container, $event)"
-                      @mouseleave="hideTooltip"
-                      @click="handleDotClick(container)"
-                      @contextmenu.prevent="openContextMenu(container, $event)"
-                      @dragstart="handleDragStart(container, $event)"
-                      @dragend="handleDragEnd"
-                    ></div>
+                    >
+                      <div
+                        v-if="getNodeDisplayType(container, '清关') !== null"
+                        class="container-dot"
+                        :class="{
+                          clickable: true,
+                          'is-dragging':
+                            draggingContainer?.containerNumber === container.containerNumber,
+                          'has-warning': hasAlert(container),
+                          'main-task': getNodeDisplayType(container, '清关') === 'main',
+                          'dashed-task': getNodeDisplayType(container, '清关') === 'dashed',
+                          'completed-task': isNodeFinished(container, '清关'),
+                        }"
+                        :style="{
+                          backgroundColor: getStatusColor(container.logisticsStatus),
+                          borderColor: getContainerBorderColor(container),
+                        }"
+                        draggable="true"
+                        @mouseenter="showTooltip(container, $event)"
+                        @mouseleave="hideTooltip"
+                        @click="handleDotClick(container)"
+                        @contextmenu.prevent="openContextMenu(container, $event)"
+                        @dragstart="handleDragStart(container, $event)"
+                        @dragend="handleDragEnd"
+                      ></div>
+                    </template>
                   </div>
                 </div>
               </template>
@@ -289,36 +303,39 @@
                       @drop="handleDrop(date, node)"
                     >
                       <div class="dots-container">
-                        <div
+                        <template
                           v-for="container in getContainersByDateAndSupplier(
                             date,
                             containersBySupplier,
                             node
                           )"
                           :key="container.containerNumber"
-                          class="container-dot"
-                          :class="{
-                            clickable: true,
-                            'is-dragging':
-                              draggingContainer?.containerNumber === container.containerNumber,
-                            'has-warning': hasAlert(container),
-                            'main-task': isMainTask(container, date),
-                            'dashed-task': isDashedTask(container, date),
-                          }"
-                          :style="{
-                            backgroundColor: isMainTask(container, date)
-                              ? getStatusColor(container.logisticsStatus)
-                              : 'transparent',
-                            border: getContainerBorderStyle(container),
-                          }"
-                          @mouseenter="showTooltip(container, $event)"
-                          @mouseleave="hideTooltip"
-                          @click="handleDotClick(container)"
-                          @contextmenu.prevent="openContextMenu(container, $event)"
-                          draggable="true"
-                          @dragstart="handleDragStart(container, $event)"
-                          @dragend="handleDragEnd"
-                        ></div>
+                        >
+                          <div
+                            v-if="getNodeDisplayType(container, node as string) !== null"
+                            class="container-dot"
+                            :class="{
+                              clickable: true,
+                              'is-dragging':
+                                draggingContainer?.containerNumber === container.containerNumber,
+                              'has-warning': hasAlert(container),
+                              'main-task': getNodeDisplayType(container, node as string) === 'main',
+                              'dashed-task':
+                                getNodeDisplayType(container, node as string) === 'dashed',
+                            }"
+                            :style="{
+                              backgroundColor: getStatusColor(container.logisticsStatus),
+                              borderColor: getContainerBorderColor(container),
+                            }"
+                            @mouseenter="showTooltip(container, $event)"
+                            @mouseleave="hideTooltip"
+                            @click="handleDotClick(container)"
+                            @contextmenu.prevent="openContextMenu(container, $event)"
+                            draggable="true"
+                            @dragstart="handleDragStart(container, $event)"
+                            @dragend="handleDragEnd"
+                          ></div>
+                        </template>
                       </div>
                     </div>
                   </div>
@@ -453,6 +470,41 @@
         <div class="tooltip-row">
           <span class="label">计划还箱：</span>
           <span class="value">{{ formatDate(getPlannedReturnDate(tooltipContainer)) }}</span>
+        </div>
+      </div>
+
+      <!-- 实际日期区 -->
+      <div class="tooltip-section" v-if="hasActualDates(tooltipContainer)">
+        <div class="tooltip-section-title">实际日期</div>
+        <div class="tooltip-row" v-if="tooltipContainer?.portOperations?.[0]?.actualCustomsDate">
+          <span class="label">实际清关：</span>
+          <span class="value is-arrived">{{
+            formatDate(tooltipContainer.portOperations[0].actualCustomsDate)
+          }}</span>
+        </div>
+        <div class="tooltip-row" v-if="getActualPickupDate(tooltipContainer)">
+          <span class="label">实际提柜：</span>
+          <span class="value is-arrived">{{
+            formatDate(getActualPickupDate(tooltipContainer) || undefined)
+          }}</span>
+        </div>
+        <div class="tooltip-row" v-if="getActualDeliveryDate(tooltipContainer)">
+          <span class="label">实际送仓：</span>
+          <span class="value is-arrived">{{
+            formatDate(getActualDeliveryDate(tooltipContainer) || undefined)
+          }}</span>
+        </div>
+        <div class="tooltip-row" v-if="tooltipContainer?.warehouseOperations?.[0]?.unloadDate">
+          <span class="label">实际卸柜：</span>
+          <span class="value is-arrived">{{
+            formatDate(tooltipContainer.warehouseOperations[0].unloadDate)
+          }}</span>
+        </div>
+        <div class="tooltip-row" v-if="tooltipContainer?.emptyReturns?.[0]?.returnTime">
+          <span class="label">实际还箱：</span>
+          <span class="value is-arrived">{{
+            formatDate(tooltipContainer.emptyReturns[0].returnTime)
+          }}</span>
         </div>
       </div>
 
@@ -629,28 +681,35 @@
                 @drop="handleDrop(date, '未分类')"
               >
                 <div class="dots-container">
-                  <div
+                  <template
                     v-for="container in getContainersByDateAndPort(date, selectedPortForModal)"
                     :key="container.containerNumber"
-                    class="container-dot"
-                    :class="{
-                      clickable: true,
-                      'is-dragging':
-                        draggingContainer?.containerNumber === container.containerNumber,
-                      'has-warning': hasAlert(container),
-                      'main-task': getNodeDisplayType(container, '清关') === 'main',
-                      'dashed-task': getNodeDisplayType(container, '清关') === 'dashed',
-                      'completed-task': isNodeFinished(container, '清关'),
-                    }"
-                    :style="{ backgroundColor: getStatusColor(container.logisticsStatus) }"
-                    draggable="true"
-                    @mouseenter="showTooltip(container, $event)"
-                    @mouseleave="hideTooltip"
-                    @click="handleDotClick(container)"
-                    @contextmenu.prevent="openContextMenu(container, $event)"
-                    @dragstart="handleDragStart(container, $event)"
-                    @dragend="handleDragEnd"
-                  ></div>
+                  >
+                    <div
+                      v-if="getNodeDisplayType(container, '清关') !== null"
+                      class="container-dot"
+                      :class="{
+                        clickable: true,
+                        'is-dragging':
+                          draggingContainer?.containerNumber === container.containerNumber,
+                        'has-warning': hasAlert(container),
+                        'main-task': getNodeDisplayType(container, '清关') === 'main',
+                        'dashed-task': getNodeDisplayType(container, '清关') === 'dashed',
+                        'completed-task': isNodeFinished(container, '清关'),
+                      }"
+                      :style="{
+                        backgroundColor: getStatusColor(container.logisticsStatus),
+                        borderColor: getContainerBorderColor(container),
+                      }"
+                      draggable="true"
+                      @mouseenter="showTooltip(container, $event)"
+                      @mouseleave="hideTooltip"
+                      @click="handleDotClick(container)"
+                      @contextmenu.prevent="openContextMenu(container, $event)"
+                      @dragstart="handleDragStart(container, $event)"
+                      @dragend="handleDragEnd"
+                    ></div>
+                  </template>
                 </div>
               </div>
             </div>
@@ -727,32 +786,40 @@
                     @drop="handleDrop(date, node)"
                   >
                     <div class="dots-container">
-                      <div
+                      <template
                         v-for="container in getContainersByDateAndSupplier(
                           date,
                           containersBySupplier,
                           node
                         )"
                         :key="container.containerNumber"
-                        class="container-dot"
-                        :class="{
-                          clickable: true,
-                          'is-dragging':
-                            draggingContainer?.containerNumber === container.containerNumber,
-                          'has-warning': hasAlert(container),
-                          'main-task': getNodeDisplayType(container, node as string) === 'main',
-                          'dashed-task': getNodeDisplayType(container, node as string) === 'dashed',
-                          'completed-task': isNodeFinished(container, node as string),
-                        }"
-                        :style="{ backgroundColor: getStatusColor(container.logisticsStatus) }"
-                        draggable="true"
-                        @mouseenter="showTooltip(container, $event)"
-                        @mouseleave="hideTooltip"
-                        @click="handleDotClick(container)"
-                        @contextmenu.prevent="openContextMenu(container, $event)"
-                        @dragstart="handleDragStart(container, $event)"
-                        @dragend="handleDragEnd"
-                      ></div>
+                      >
+                        <div
+                          v-if="getNodeDisplayType(container, node as string) !== null"
+                          class="container-dot"
+                          :class="{
+                            clickable: true,
+                            'is-dragging':
+                              draggingContainer?.containerNumber === container.containerNumber,
+                            'has-warning': hasAlert(container),
+                            'main-task': getNodeDisplayType(container, node as string) === 'main',
+                            'dashed-task':
+                              getNodeDisplayType(container, node as string) === 'dashed',
+                            'completed-task': isNodeFinished(container, node as string),
+                          }"
+                          :style="{
+                            backgroundColor: getStatusColor(container.logisticsStatus),
+                            borderColor: getContainerBorderColor(container),
+                          }"
+                          draggable="true"
+                          @mouseenter="showTooltip(container, $event)"
+                          @mouseleave="hideTooltip"
+                          @click="handleDotClick(container)"
+                          @contextmenu.prevent="openContextMenu(container, $event)"
+                          @dragstart="handleDragStart(container, $event)"
+                          @dragend="handleDragEnd"
+                        ></div>
+                      </template>
                     </div>
                     <!-- 资源占用统计：仅在卸柜节点且开启资源统计时显示 -->
                     <div v-if="showResourceStats && node === '卸柜'" class="resource-stats">
@@ -1062,13 +1129,60 @@ const getNodePlannedDate = (container: any, nodeName: string): Date | null => {
   }
 }
 
+/**
+ * 判断货柜是否有任一节点的计划日期
+ */
+const hasAnyPlannedDate = (container: any): boolean => {
+  const nodeNames = ['清关', '提柜', '卸柜', '还箱']
+  for (const nodeName of nodeNames) {
+    const plannedDate = getNodePlannedDate(container, nodeName)
+    if (plannedDate) return true
+  }
+  return false
+}
+
+/**
+ * 判断货柜是否已还箱（应排除）
+ * 支持多种判断条件：
+ * 1. logisticsStatus === 'returned_empty' | '已还箱' | 'RETURNED_EMPTY'
+ * 2. 存在 emptyReturns 且 returnTime 已填写（实际还箱时间）
+ */
+const isReturnedEmpty = (container: any): boolean => {
+  // 方法1：检查 logisticsStatus 字段
+  const status = container.logisticsStatus
+  if (status === 'returned_empty' || status === '已还箱' || status === 'RETURNED_EMPTY') {
+    return true
+  }
+
+  // 方法2：检查 emptyReturns 数据（实际还箱时间）
+  if (container.emptyReturns?.length > 0) {
+    const emptyReturn = container.emptyReturns[0]
+    // 如果有实际还箱时间，说明已还箱
+    if (emptyReturn.returnTime) {
+      return true
+    }
+  }
+
+  return false
+}
+
 /** 根据日期、供应商货柜列表、节点名筛选该日期格应显示的货柜 */
 const getContainersByDateAndSupplier = (date: Date, containers: any[], nodeName: string): any[] => {
   const dateStr = dayjs(date).format('YYYY-MM-DD')
-  return containers.filter(container => {
+  const result = containers.filter(container => {
+    // 排除已还箱的货柜
+    if (isReturnedEmpty(container)) return false
+
     const plannedDate = getNodePlannedDate(container, nodeName)
-    return plannedDate && dayjs(plannedDate).format('YYYY-MM-DD') === dateStr
+    if (!plannedDate || dayjs(plannedDate).format('YYYY-MM-DD') !== dateStr) {
+      return false
+    }
+
+    // 只要有计划日期就显示（不限制任务类型）
+    return true
   })
+
+  return result
 }
 
 // 五节点泳道折叠状态
@@ -1403,7 +1517,7 @@ const getPortDisplayName = (input: Container[] | Record<string, any> | string): 
   return portCode || '未指定'
 }
 
-// 根据日期和港口获取货柜
+// 根据日期和港口获取货柜（港口泳道 - 折叠时显示所有 main-task）
 const getContainersByDateAndPort = (date: Date, port: string): Container[] => {
   const dateStr = dayjs(date).format('YYYY-MM-DD')
   const nodesByPort = finalGroupedByPort.value[port]
@@ -1418,16 +1532,30 @@ const getContainersByDateAndPort = (date: Date, port: string): Container[] => {
     })
   })
 
-  // 过滤指定日期的容器
-  return allContainers.filter(container => {
+  // 使用 Map 去重，只保留每个货柜一次
+  const containerMap = new Map<string, Container>()
+  allContainers.forEach(container => {
+    if (!containerMap.has(container.containerNumber)) {
+      containerMap.set(container.containerNumber, container)
+    }
+  })
+
+  // 过滤：排除已还箱、日期匹配
+  return Array.from(containerMap.values()).filter(container => {
+    // 排除已还箱的货柜
+    if (isReturnedEmpty(container)) return false
+
     const containerDate = getContainerDate(container)
     if (!containerDate) return false
     const containerDateStr = dayjs(containerDate).format('YYYY-MM-DD')
-    return containerDateStr === dateStr
+    if (containerDateStr !== dateStr) return false
+
+    // 只要有日期就显示（不限制任务类型）
+    return true
   })
 }
 
-// 根据日期和港口获取未分类节点的货柜
+// 根据日期和港口获取未分类节点的货柜（港口泳道 - 展开时显示无计划日期的货柜）
 const getUnclassifiedContainersByDateAndPort = (date: Date, port: string): Container[] => {
   const dateStr = dayjs(date).format('YYYY-MM-DD')
   const nodesByPort = finalGroupedByPort.value[port]
@@ -1441,12 +1569,21 @@ const getUnclassifiedContainersByDateAndPort = (date: Date, port: string): Conta
     allContainers.push(...containers)
   })
 
-  // 过滤指定日期的货柜
+  // 过滤：排除已还箱、没有任何计划日期、日期匹配
   return allContainers.filter(container => {
+    // 排除已还箱的货柜
+    if (isReturnedEmpty(container)) return false
+
+    // 排除有任何计划日期的货柜（这些应该显示在三级泳道）
+    if (hasAnyPlannedDate(container)) return false
+
     const containerDate = getContainerDate(container)
     if (!containerDate) return false
     const containerDateStr = dayjs(containerDate).format('YYYY-MM-DD')
-    return containerDateStr === dateStr
+    if (containerDateStr !== dateStr) return false
+
+    // 只要有日期就显示（不限制任务类型）
+    return true
   })
 }
 
@@ -1580,6 +1717,7 @@ const {
   hasAlert,
   getAlertLevel,
   getContainerBorderStyle,
+  getContainerBorderColor,
   isCriticalDate,
   loadData,
   toggleGroupCollapse,
@@ -1707,6 +1845,33 @@ const getPlannedCustomsDate = (container: any) => {
   return destPortOp?.plannedCustomsDate
 }
 
+// 辅助方法：判断是否有实际日期
+const hasActualDates = (container: any): boolean => {
+  if (!container) return false
+  const hasCustoms = container?.portOperations?.[0]?.actualCustomsDate
+  const hasPickup =
+    container?.truckingTransports?.[0]?.pickupDate ||
+    container?.truckingTransports?.[0]?.deliveryDate
+  const hasUnload = container?.warehouseOperations?.[0]?.unloadDate
+  const hasReturn = container?.emptyReturns?.[0]?.returnTime
+  return !!(hasCustoms || hasPickup || hasUnload || hasReturn)
+}
+
+// 辅助方法：获取实际提柜日期
+const getActualPickupDate = (container: any): string | null => {
+  const trucking = container?.truckingTransports?.[0]
+  if (trucking?.pickupDate) return trucking.pickupDate
+  if (trucking?.deliveryDate) return trucking.deliveryDate
+  return null
+}
+
+// 辅助方法：获取实际送仓日期
+const getActualDeliveryDate = (container: any): string | null => {
+  const trucking = container?.truckingTransports?.[0]
+  if (trucking?.deliveryDate) return trucking.deliveryDate
+  return null
+}
+
 // 辅助方法：获取清关行名称
 const getCustomsBrokerName = (container: any) => {
   const destPortOp = container?.portOperations?.find((op: any) => op.portType === 'destination')
@@ -1757,34 +1922,94 @@ const getTooltipDateClass = (container: any) => {
  * @param nodeName 节点名称
  * @returns 'main' | 'dashed' | null（null表示已完成或不存在）
  */
-const getNodeDisplayType = (container: any, nodeName: string): 'main' | 'dashed' | null => {
-  const nodeStatus = calculateNodeStatus(container)
-  const node = nodeStatus.nodes[nodeName as keyof typeof nodeStatus.nodes]
-
-  if (!node?.supplier || node.supplier === '未指定') return null
-
-  // 查验：后端 gantt-v1 无此节点，仅信本地状态
-  if (nodeName === '查验') {
-    if (node.status === 'completed') return null
-    if (node.status === 'active') return 'main'
-    if (node.status === 'pending') return 'dashed'
-    return null
-  }
-
-  const gd = container.ganttDerived as GanttDerived | null | undefined
-  const key = CHINESE_TO_GANTT_KEY[nodeName]
-  if (gd?.nodes?.length && key) {
-    const gn = gd.nodes.find(x => x.key === key)
-    if (!gn || gn.completed) return null
-    if (gn.taskRole === 'main') return 'main'
-    if (gn.taskRole === 'dashed') return 'dashed'
-    return null
-  }
-
+/**
+ * 处理查验节点的显示类型
+ */
+const getInspectionNodeType = (node: any): 'main' | 'dashed' | null => {
   if (node.status === 'completed') return null
   if (node.status === 'active') return 'main'
   if (node.status === 'pending') return 'dashed'
   return null
+}
+
+/**
+ * 使用后端 ganttDerived 数据判断节点显示类型
+ */
+const getNodeTypeFromGanttDerived = (
+  container: any,
+  nodeName: string
+): 'main' | 'dashed' | null => {
+  const gd = container.ganttDerived as GanttDerived | null | undefined
+  const key = CHINESE_TO_GANTT_KEY[nodeName]
+
+  // 边界检查：ganttDerived 为 null 或 nodes 为空
+  if (!gd || !gd.nodes || gd.nodes.length === 0) {
+    return null
+  }
+
+  const gn = gd.nodes.find(x => x.key === key)
+  if (!gn || gn.completed) return null
+  if (gn.taskRole === 'main') return 'main'
+  if (gn.taskRole === 'dashed') return 'dashed'
+  return null
+}
+
+/**
+ * 使用本地状态判断节点显示类型
+ */
+const getNodeTypeFromLocalStatus = (node: any): 'main' | 'dashed' | null => {
+  if (node.status === 'completed') return null
+  if (node.status === 'active') return 'main'
+  if (node.status === 'pending') return 'dashed'
+  return null
+}
+
+/**
+ * 判断节点在甘特图中的显示类型（主任务/虚线任务/不显示）
+ * @param container 货柜对象
+ * @param nodeName 节点名称（清关/提柜/卸柜/还箱/查验）
+ * @returns 'main' 实线圆点, 'dashed' 虚线圆点, null 不显示
+ */
+const getNodeDisplayType = (container: any, nodeName: string): 'main' | 'dashed' | null => {
+  const nodeStatus = calculateNodeStatus(container)
+  const node = nodeStatus.nodes[nodeName as keyof typeof nodeStatus.nodes]
+
+  // 边界检查：无供应商或供应商未指定
+  // 清关和查验节点的默认供应商是 '未指定清关公司'，提柜/卸柜/还箱是 '未指定'
+  if (!node?.supplier || node.supplier === '未指定') return null
+
+  // 1. 查验节点特殊处理（后端 gantt-v1 无此节点，仅信本地状态）
+  if (nodeName === '查验') {
+    return getInspectionNodeType(node)
+  }
+
+  // 2. 清关节点：默认显示为实心主任务（无论 pending 还是 active）
+  // - 只要有供应商（包括'未指定清关公司'），就显示实心圆点
+  // - 只有清关实际完成后才销毁
+  if (nodeName === '清关') {
+    return node.status === 'completed' ? null : 'main'
+  }
+
+  // 3. 卸柜/还箱节点：优先使用本地状态
+  // - 避免后端 ganttDerived 错误标记为 completed
+  if (nodeName === '卸柜' || nodeName === '还箱') {
+    return getNodeTypeFromLocalStatus(node)
+  }
+
+  // 3. 提柜节点：优先使用本地状态（支持反向推导）
+  // 注意：提柜也可能被后续节点（卸柜/还箱）反推为 completed
+  if (nodeName === '提柜') {
+    return getNodeTypeFromLocalStatus(node)
+  }
+
+  // 3. 其他节点使用后端 ganttDerived（如果存在且有效）
+  const ganttType = getNodeTypeFromGanttDerived(container, nodeName)
+  if (ganttType !== null) {
+    return ganttType
+  }
+
+  // 4. 回退到本地状态判断
+  return getNodeTypeFromLocalStatus(node)
 }
 
 /**
@@ -2025,6 +2250,54 @@ const getOccupancyStatusColor = (status: string): string => {
 // 最终的过滤容器（结合 URL 筛选和搜索）
 const finalFilteredContainers = computed(() => {
   let result = containers.value
+
+  // 调试：查看原始数据
+  console.log('[finalFilteredContainers] 原始 containers 数量:', containers.value.length)
+  const returnedContainers = containers.value.filter(c => c.logisticsStatus === 'returned_empty')
+  console.log('[finalFilteredContainers] 已还箱的货柜数量:', returnedContainers.length)
+  if (returnedContainers.length > 0) {
+    console.log('[finalFilteredContainers] 第一个已还箱货柜:', returnedContainers[0])
+    console.log(
+      '[finalFilteredContainers] logisticsStatus 值:',
+      returnedContainers[0].logisticsStatus
+    )
+  }
+
+  // 第一步：排除已还箱的货柜
+  result = result.filter(container => !isReturnedEmpty(container))
+  console.log('[finalFilteredContainers] 过滤后的数量:', result.length)
+
+  // 调试：查看每个货柜的提柜/卸柜/还箱日期
+  console.log('[finalFilteredContainers] 货柜详细信息:')
+  result.forEach((c, index) => {
+    const trucking: any = c.truckingTransports?.[0] || {}
+    const warehouse: any = c.warehouseOperations?.[0] || {}
+    const emptyReturn: any = c.emptyReturns?.[0] || {}
+
+    console.log(`[货柜${index + 1}] ${c.containerNumber} (status: ${c.logisticsStatus}):`)
+    console.log('  提柜节点:', {
+      pickupDate: trucking.pickupDate,
+      plannedPickupDate: trucking.plannedPickupDate,
+      deliveryDate: trucking.deliveryDate,
+      plannedDeliveryDate: trucking.plannedDeliveryDate,
+      truckingCompanyId: trucking.truckingCompanyId,
+      carrierCompany: trucking.carrierCompany,
+    })
+    console.log('  卸柜节点:', {
+      unloadDate: warehouse.unloadDate,
+      plannedUnloadDate: warehouse.plannedUnloadDate,
+      warehouseId: warehouse.warehouseId,
+      actualWarehouse: warehouse.actualWarehouse,
+      plannedWarehouse: warehouse.plannedWarehouse,
+    })
+    console.log('  还箱节点:', {
+      returnTime: emptyReturn.returnTime,
+      lastReturnDate: emptyReturn.lastReturnDate,
+      plannedReturnDate: emptyReturn.plannedReturnDate,
+      returnTerminalCode: emptyReturn.returnTerminalCode,
+    })
+    console.log('---')
+  })
 
   // 应用搜索关键词
   if (searchKeyword.value) {
@@ -2283,8 +2556,8 @@ interface ContainerNodeStatus {
  */
 const calculateNodeStatus = (container: any): ContainerNodeStatus => {
   const nodes: any = {
-    清关: { status: 'pending', supplier: '未指定', plannedDate: undefined, actualDate: undefined },
-    查验: { status: 'pending', supplier: '未指定', plannedDate: undefined, actualDate: undefined },
+    清关: { status: 'pending', supplier: '未指定清关公司', plannedDate: undefined, actualDate: undefined },
+    查验: { status: 'pending', supplier: '未指定清关公司', plannedDate: undefined, actualDate: undefined },
     提柜: { status: 'pending', supplier: '未指定', plannedDate: undefined, actualDate: undefined },
     卸柜: { status: 'pending', supplier: '未指定', plannedDate: undefined, actualDate: undefined },
     还箱: { status: 'pending', supplier: '未指定', plannedDate: undefined, actualDate: undefined },
@@ -2298,20 +2571,25 @@ const calculateNodeStatus = (container: any): ContainerNodeStatus => {
   const customsSupplier = destPortOp?.customsBrokerCode || destPortOp?.customsBroker
   if (customsSupplier) {
     nodes.清关.supplier = customsSupplier
-    // 优先级：actualCustomsDate > plannedCustomsDate > ataDestPort > etaDestPort
-    if (destPortOp.actualCustomsDate) {
-      nodes.清关.actualDate = new Date(destPortOp.actualCustomsDate)
-      nodes.清关.plannedDate = destPortOp.plannedCustomsDate
-        ? new Date(destPortOp.plannedCustomsDate)
-        : undefined
-    } else if (destPortOp.plannedCustomsDate) {
-      nodes.清关.plannedDate = new Date(destPortOp.plannedCustomsDate)
-    } else if (destPortOp.ataDestPort) {
-      nodes.清关.plannedDate = new Date(destPortOp.ataDestPort)
-    } else if (destPortOp.etaDestPort) {
-      nodes.清关.plannedDate = new Date(destPortOp.etaDestPort)
-    }
+  }
 
+  // 无论供应商是否存在，都设置计划日期（用于反向推导判断）
+  // 优先级：actualCustomsDate > plannedCustomsDate > ataDestPort > etaDestPort
+  if (destPortOp.actualCustomsDate) {
+    nodes.清关.actualDate = new Date(destPortOp.actualCustomsDate)
+    nodes.清关.plannedDate = destPortOp.plannedCustomsDate
+      ? new Date(destPortOp.plannedCustomsDate)
+      : undefined
+  } else if (destPortOp.plannedCustomsDate) {
+    nodes.清关.plannedDate = new Date(destPortOp.plannedCustomsDate)
+  } else if (destPortOp.ataDestPort) {
+    nodes.清关.plannedDate = new Date(destPortOp.ataDestPort)
+  } else if (destPortOp.etaDestPort) {
+    nodes.清关.plannedDate = new Date(destPortOp.etaDestPort)
+  }
+
+  // 只有供应商存在时，才设置状态
+  if (customsSupplier) {
     if (destPortOp.actualCustomsDate) {
       nodes.清关.status = 'completed'
     } else if (nodes.清关.plannedDate) {
@@ -2336,7 +2614,7 @@ const calculateNodeStatus = (container: any): ContainerNodeStatus => {
     }
   }
 
-  // 3. 判断提柜状态（只有在不需要查验或查验完成后才能提柜）
+  // 3. 判断提柜状态（有实际提柜或计划提柜就应该显示）
   const pickupTransport = container.truckingTransports?.[0]
   // 使用 truckingCompanyId 优先，其次 carrierCompany
   const pickupSupplier = pickupTransport?.truckingCompanyId || pickupTransport?.carrierCompany
@@ -2359,21 +2637,21 @@ const calculateNodeStatus = (container: any): ContainerNodeStatus => {
       nodes.提柜.plannedDate = new Date(pickupTransport.plannedPickupDate)
     }
 
-    // 检查是否可以进入提柜节点（清关完成后才能提柜）
-    let canEnterPickup = nodes.清关.status === 'completed'
-    if (needsInspection) {
-      canEnterPickup = canEnterPickup && nodes.查验.status === 'completed'
-    }
-
-    // 提柜完成判断：使用 deliveryDate（送仓日）
-    if (canEnterPickup && !pickupTransport.deliveryDate) {
-      nodes.提柜.status = 'active'
-    } else if (pickupTransport.deliveryDate) {
-      nodes.提柜.status = 'completed'
+    // 提柜状态判断：有实际日期 = completed（销毁），有计划日期但前置未完成 = pending，有计划日期且前置完成 = active
+    if (pickupTransport.deliveryDate || pickupTransport.pickupDate) {
+      nodes.提柜.status = 'completed' // 已送仓或已提柜 = 完成，销毁不显示
+    } else if (nodes.提柜.plannedDate) {
+      // 检查前置节点（清关）是否完成
+      const customsCompleted = destPortOp?.actualCustomsDate
+      if (customsCompleted) {
+        nodes.提柜.status = 'active' // 前置已完成 + 有计划 = 活跃，显示实心圆点
+      } else {
+        nodes.提柜.status = 'pending' // 前置未完成 + 有计划 = 待激活，显示空心圆点
+      }
     }
   }
 
-  // 4. 判断卸柜状态（使用 warehouseId 优先，其次 actualWarehouse/plannedWarehouse）
+  // 4. 判断卸柜状态（需要前置提柜节点完成）
   const unloadOp = container.warehouseOperations?.[0]
   const unloadSupplier =
     unloadOp?.warehouseId || unloadOp?.actualWarehouse || unloadOp?.plannedWarehouse
@@ -2389,20 +2667,27 @@ const calculateNodeStatus = (container: any): ContainerNodeStatus => {
       nodes.卸柜.plannedDate = new Date(unloadOp.plannedUnloadDate)
     }
 
-    if (nodes.提柜.status === 'completed' && !unloadOp?.unloadDate) {
-      nodes.卸柜.status = 'active'
-    } else if (unloadOp?.unloadDate) {
-      nodes.卸柜.status = 'completed'
+    // 卸柜状态判断：有实际日期 = completed，有计划日期但前置未完成 = pending，有计划日期且前置完成 = active
+    if (unloadOp.unloadDate) {
+      nodes.卸柜.status = 'completed' // 已卸柜 = 完成，销毁不显示
+    } else if (nodes.卸柜.plannedDate) {
+      // 检查前置节点（提柜）是否完成
+      const pickupCompleted = pickupTransport?.deliveryDate || pickupTransport?.pickupDate
+      if (pickupCompleted) {
+        nodes.卸柜.status = 'active' // 前置已完成 + 有计划 = 活跃，显示实线圆点
+      } else {
+        nodes.卸柜.status = 'pending' // 前置未完成 + 有计划 = 待激活，显示虚线圆点
+      }
     }
   }
 
-  // 5. 判断还箱状态（优先使用 emptyReturn 的 returnTerminalCode，其次使用 warehouseId）
+  // 5. 判断还箱状态（需要前置卸柜节点完成）
   const emptyReturn = container.emptyReturns?.[0]
   // 还箱供应商来源：emptyReturn.returnTerminalCode > warehouseId
   const returnSupplier = emptyReturn?.returnTerminalCode || unloadSupplier
   if (returnSupplier) {
     nodes.还箱.supplier = returnSupplier
-    // 优先级：returnTime > lastReturnDate
+    // 优先级：returnTime > lastReturnDate > plannedReturnDate
     if (emptyReturn?.returnTime) {
       nodes.还箱.actualDate = new Date(emptyReturn.returnTime)
       nodes.还箱.plannedDate = emptyReturn.lastReturnDate
@@ -2410,18 +2695,125 @@ const calculateNodeStatus = (container: any): ContainerNodeStatus => {
         : undefined
     } else if (emptyReturn?.lastReturnDate) {
       nodes.还箱.plannedDate = new Date(emptyReturn.lastReturnDate)
+    } else if (emptyReturn?.plannedReturnDate) {
+      nodes.还箱.plannedDate = new Date(emptyReturn.plannedReturnDate)
     }
 
-    if (nodes.卸柜.status === 'completed' && !emptyReturn?.returnTime) {
-      nodes.还箱.status = 'active'
-    } else if (emptyReturn?.returnTime) {
-      nodes.还箱.status = 'completed'
+    // 还箱状态判断：有实际日期 = completed，有计划日期但前置未完成 = pending，有计划日期且前置完成 = active
+    if (emptyReturn?.returnTime) {
+      nodes.还箱.status = 'completed' // 已还箱 = 完成，销毁不显示
+    } else if (nodes.还箱.plannedDate) {
+      // 检查前置节点（卸柜）是否完成
+      const unloadCompleted = unloadOp?.unloadDate
+      if (unloadCompleted) {
+        nodes.还箱.status = 'active' // 前置已完成 + 有计划 = 活跃，显示实线圆点
+      } else {
+        nodes.还箱.status = 'pending' // 前置未完成 + 有计划 = 待激活，显示虚线圆点
+      }
     }
+  }
+
+  // ========== 反向链式依赖检查 ==========
+  // 业务规则：后续节点完成意味着前置节点必然已完成
+  // 已提柜 -> 清关完成 | 已卸柜 -> 清关+提柜完成 | 已还箱 -> 清关+提柜+卸柜完成
+
+  // DEBUG: 输出关键数据
+  console.log(`[反向链式] 货柜 ${container.containerNumber}:`, {
+    actualCustomsDate: destPortOp?.actualCustomsDate,
+    deliveryDate: pickupTransport?.deliveryDate,
+    pickupDate: pickupTransport?.pickupDate,
+    unloadDate: unloadOp?.unloadDate,
+    returnTime: emptyReturn?.returnTime,
+    customsSupplier, // ← 检查这个值
+    customsBrokerCode: destPortOp?.customsBrokerCode, // ← 新增
+    customsBroker: destPortOp?.customsBroker, // ← 新增
+    pickupSupplier,
+    unloadSupplier,
+    // ← 新增：检查清关节点的计划日期
+    customsPlannedDate: nodes.清关.plannedDate,
+    customsActualDate: nodes.清关.actualDate,
+    etaDestPort: destPortOp?.etaDestPort,
+    ataDestPort: destPortOp?.ataDestPort,
+    plannedCustomsDate: destPortOp?.plannedCustomsDate,
+  })
+
+  // 1. 已还箱 -> 反推清关、提柜、卸柜全部完成
+  if (emptyReturn?.returnTime) {
+    console.log('[反向链式] 检测到已还箱，反推前置节点完成')
+    // 简化逻辑：不再检查 plannedDate
+    if (!destPortOp?.actualCustomsDate) {
+      nodes.清关.status = 'completed' // 反推清关已完成
+      console.log('  -> 清关节点反推销毁')
+    }
+    if (!(pickupTransport?.deliveryDate || pickupTransport?.pickupDate)) {
+      nodes.提柜.status = 'completed' // 反推提柜已完成
+      console.log('  -> 提柜节点反推销毁')
+    }
+    if (!unloadOp?.unloadDate) {
+      nodes.卸柜.status = 'completed' // 反推卸柜已完成
+      console.log('  -> 卸柜节点反推销毁')
+    }
+    // 还箱本身已在上面标记为 completed，无需重复
+  }
+  // 2. 已卸柜 -> 反推清关、提柜完成
+  else if (unloadOp?.unloadDate) {
+    console.log('[反向链式] 检测到已卸柜，反推前置节点完成')
+    if (!destPortOp?.actualCustomsDate) {
+      nodes.清关.status = 'completed' // 反推清关已完成
+      console.log('  -> 清关节点反推销毁')
+    }
+    if (!(pickupTransport?.deliveryDate || pickupTransport?.pickupDate)) {
+      nodes.提柜.status = 'completed' // 反推提柜已完成
+      console.log('  -> 提柜节点反推销毁')
+    }
+    // 卸柜本身已在上面标记为 completed，无需重复
+  }
+  // 3. 已提柜 -> 反推清关完成
+  else if (pickupTransport?.deliveryDate || pickupTransport?.pickupDate) {
+    console.log('[反向链式] 检测到已提柜，反推清关完成')
+    // 简化逻辑：只要已提柜且清关无实际日期，就反推清关完成
+    // 不再检查 plannedDate，因为即使没有计划日期，清关也应该被销毁
+    if (!destPortOp?.actualCustomsDate) {
+      nodes.清关.status = 'completed' // 反推清关已完成
+      console.log('  -> 清关节点反推销毁')
+    } else {
+      console.log('  -> 清关已有实际日期，跳过反推')
+    }
+    // 提柜本身已在上面标记为 completed，无需重复
+  } else {
+    console.log('[反向链式] 无后续节点完成，不执行反推')
   }
 
   // 6. 如果没有找到任何活动节点，但清关有计划日期，则清关为活跃节点
   if (nodes.清关.status === 'pending' && nodes.清关.plannedDate) {
     nodes.清关.status = 'active'
+  }
+
+  // DEBUG: 输出最终返回的节点状态
+  if (
+    ['HMMU6232153', 'HMMU6019657', 'HMMU6855127', 'GAOU6195045', 'KOCU5129260'].includes(
+      container.containerNumber
+    )
+  ) {
+    console.log(`[calculateNodeStatus] 货柜 ${container.containerNumber} 最终状态:`, {
+      清关: {
+        status: nodes.清关.status,
+        supplier: nodes.清关.supplier,
+        plannedDate: nodes.清关.plannedDate,
+      },
+      提柜: { status: nodes.提柜.status, supplier: nodes.提柜.supplier },
+      卸柜: { status: nodes.卸柜.status, supplier: nodes.卸柜.supplier },
+      还箱: { status: nodes.还箱.status, supplier: nodes.还箱.supplier },
+    })
+    console.log(
+      `[calculateNodeStatus] 清关完整信息:`,
+      JSON.stringify({
+        status: nodes.清关.status,
+        supplier: nodes.清关.supplier,
+        plannedDate: nodes.清关.plannedDate,
+        actualDate: nodes.清关.actualDate,
+      })
+    )
   }
 
   return {
@@ -2518,7 +2910,7 @@ function getDisplayItemsFromGanttDerived(
     if (nodeName === '清关') {
       const hasPlannedPickup = container.truckingTransports?.[0]?.plannedPickupDate
       const hasCustomsBroker =
-        node.supplier && node.supplier !== '未指定' && node.supplier !== '未指定清关公司'
+        node.supplier && node.supplier !== '未指定清关公司'
       if (!hasPlannedPickup && !hasCustomsBroker) {
         continue
       }
@@ -2580,12 +2972,21 @@ interface GanttDisplayItem {
  * 有 ganttDerived 时：主/虚/销毁仅信后端 gantt-v1；查验仍用 calculateNodeStatus
  */
 const getDisplayItems = (container: any): GanttDisplayItem[] => {
+  // 性能优化：缓存 nodeStatus 计算结果，避免重复计算
   const nodeStatus = calculateNodeStatus(container)
   const gd = container.ganttDerived as GanttDerived | null | undefined
-  if (gd?.nodes?.length) {
+
+  // 修复：总是使用本地状态（包含反向推导）
+  // 原因：后端 gantt-v3 已实现反向链式依赖逻辑
+  // 但为了兼容旧数据和确保一致性，前端仍然优先使用本地状态
+  // 这样可以确保即使后端数据未更新，前端也能正确显示
+  const useLocalState = true // 总是使用本地状态，确保反向推导优先生效
+
+  if (!useLocalState && gd && gd.nodes && gd.nodes.length > 0) {
     return getDisplayItemsFromGanttDerived(container, gd, nodeStatus)
   }
 
+  // 回退到本地状态判断（或卸柜/还箱节点强制使用本地状态）
   const displayItems: GanttDisplayItem[] = []
   const needsInspection = container.inspectionRequired || false
   const nodeOrder: Array<'清关' | '查验' | '提柜' | '卸柜' | '还箱'> = needsInspection
@@ -2620,7 +3021,8 @@ const getDisplayItems = (container: any): GanttDisplayItem[] => {
           isCurrent: true,
         })
         foundActive = true
-      } else if (!foundActive && node.status === 'pending') {
+      } else if (node.status === 'pending') {
+        // 修复：移除 !foundActive 条件，让所有 pending 节点都能显示（支持链式依赖）
         displayItems.push({
           type: 'dashed',
           port: nodeStatus.portCode,
@@ -2662,50 +3064,6 @@ const getNodeAndSupplierForContainer = (
   }
 
   return result
-}
-
-/**
- * 判断货柜在当前节点是否为主任务（实线圆点）
- * @param container 货柜
- * @param date 当前单元格日期
- */
-const isMainTask = (container: any, date: Date): boolean => {
-  const displayItems = getDisplayItems(container)
-  const targetDate = new Date(date)
-  targetDate.setHours(0, 0, 0, 0)
-
-  for (const item of displayItems) {
-    if (item.type === 'main' && item.plannedDate) {
-      const itemDate = new Date(item.plannedDate)
-      itemDate.setHours(0, 0, 0, 0)
-      if (dayjs(itemDate).isSame(targetDate, 'day')) {
-        return true
-      }
-    }
-  }
-  return false
-}
-
-/**
- * 判断货柜在当前节点是否为虚线任务（计划中）
- * @param container 货柜
- * @param date 当前单元格日期
- */
-const isDashedTask = (container: any, date: Date): boolean => {
-  const displayItems = getDisplayItems(container)
-  const targetDate = new Date(date)
-  targetDate.setHours(0, 0, 0, 0)
-
-  for (const item of displayItems) {
-    if (item.type === 'dashed' && item.plannedDate) {
-      const itemDate = new Date(item.plannedDate)
-      itemDate.setHours(0, 0, 0, 0)
-      if (dayjs(itemDate).isSame(targetDate, 'day')) {
-        return true
-      }
-    }
-  }
-  return false
 }
 
 // 生命周期
@@ -3479,8 +3837,14 @@ export default {
 
 /* 虚线任务 - 虚线圆点（计划中） */
 .container-dot.dashed-task {
-  background: transparent !important;
-  border: 2px dashed #c0c4cc;
+  background: transparent; /* 空心圆点，透明背景 */
+  border: 2px dashed #67c23a; /* 绿色虚线边框 */
+}
+
+/* 虚线任务 + 预警状态 */
+.container-dot.dashed-task.has-warning {
+  background: rgba(230, 162, 60, 0.3); /* 半透明橙色背景 */
+  border: 2px dashed #f56c6c; /* 红色虚线边框 */
 }
 
 .container-dot.dashed-task:hover {
