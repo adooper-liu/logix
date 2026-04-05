@@ -3831,8 +3831,8 @@ export default {
 
 /* 货柜点 */
 .container-dot {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   cursor: pointer;
   transition: transform 0.2s;
@@ -3872,7 +3872,7 @@ export default {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  font-size: 8px;
+  font-size: 9px;
   color: white;
   font-weight: bold;
 }

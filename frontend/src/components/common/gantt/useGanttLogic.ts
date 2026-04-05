@@ -79,7 +79,7 @@ export function useGanttLogic() {
     not_shipped: '#909399', // 灰色
     shipped: '#909399', // 灰色
     in_transit: '#909399', // 灰色
-    at_port: '#409eff', // 蓝色
+    at_port: '#90caf9', // 更浅的蓝色
     picked_up: '#ffffff', // 白色
     unloaded: '#ffffff', // 白色
     returned_empty: '#ffffff', // 白色
