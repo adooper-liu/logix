@@ -25,7 +25,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { View, Edit, DocumentCopy, Delete } from '@element-plus/icons-vue'
+import { View, Edit, DocumentCopy, Delete, Connection } from '@element-plus/icons-vue'
 
 interface MenuItem {
   key: string
@@ -47,6 +47,7 @@ interface Emits {
   (e: 'editDate'): void
   (e: 'copyContainerNumber'): void
   (e: 'delete'): void
+  (e: 'togglePathLines'): void
 }
 
 const props = defineProps<Props>()
@@ -77,6 +78,12 @@ const menuItems = computed<MenuItem[]>(() => [
         emit('copyContainerNumber')
       }
     },
+  },
+  {
+    key: 'togglePathLines',
+    label: '显示路径连线',
+    icon: Connection,
+    handler: () => emit('togglePathLines'),
   },
   {
     key: 'delete',

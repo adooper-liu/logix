@@ -48,6 +48,10 @@ export function useGanttLogic() {
   const contextMenuPosition = ref({ x: 0, y: 0 })
   const showDateEditDialog = ref(false)
 
+  // 路径连线状态
+  const showPathLines = ref(false)
+  const pathLineContainer = ref<Container | null>(null)
+
   // 拖拽状态
   const draggingContainer = ref<Container | null>(null)
   const dragOverDate = ref<Date | null>(null)
@@ -765,6 +769,34 @@ export function useGanttLogic() {
     ElMessage.info('删除功能暂未开放')
   }
 
+  // 切换路径连线显示
+  const togglePathLines = () => {
+    if (!selectedContainer.value) return
+    
+    if (showPathLines.value && pathLineContainer.value?.containerNumber === selectedContainer.value.containerNumber) {
+      // 如果已经显示且是同一个货柜，则隐藏
+      showPathLines.value = false
+      pathLineContainer.value = null
+    } else {
+      // 显示该货柜的路径连线
+      showPathLines.value = true
+      pathLineContainer.value = selectedContainer.value
+    }
+  }
+
+  // 计算路径连线坐标
+  const calculatedPathLines = computed(() => {
+    if (!showPathLines.value || !pathLineContainer.value) return []
+    
+    const container = pathLineContainer.value
+    const lines: Array<{ x1: number; y1: number; x2: number; y2: number }> = []
+    
+    // TODO: 这里需要根据实际DOM位置计算连线坐标
+    // 暂时返回空数组，后续需要实现具体的坐标计算逻辑
+    
+    return lines
+  })
+
   const openContextMenu = (container: Container, event: MouseEvent) => {
     selectedContainer.value = container
     contextMenuPosition.value = { x: event.clientX, y: event.clientY }
@@ -1220,6 +1252,11 @@ export function useGanttLogic() {
     showContextMenu,
     contextMenuPosition,
     showDateEditDialog,
+    // 路径连线
+    showPathLines,
+    pathLineContainer,
+    calculatedPathLines,
+    togglePathLines,
     // 拖拽
     draggingContainer,
     dragOverDate,

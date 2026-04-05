@@ -6,6 +6,7 @@
 export { default as DateRangeSelector } from './DateRangeSelector.vue'
 export { default as GanttHeader } from './GanttHeader.vue'
 export { default as GanttLegend } from './GanttLegend.vue'
+export { default as GanttPathTracker } from './GanttPathTracker.vue'
 export { default as GanttPortGroup } from './GanttPortGroup.vue'
 export { default as GanttSearchBar } from './GanttSearchBar.vue'
 export { default as GanttStatisticsPanel } from './GanttStatisticsPanel.vue'

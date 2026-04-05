@@ -59,7 +59,16 @@
         class="gantt-body-scroll"
         :class="{ 'scrolling-fast': isScrollingFast }"
         @scroll="handleScroll"
+        ref="ganttScrollContainer"
       >
+        <!-- 路径追踪组件 -->
+        <GanttPathTracker
+          :visible="showPathLines"
+          :container="pathLineContainer"
+          container-selector=".container-dot"
+          :scroll-container="ganttScrollContainerRef"
+          @pathCalculated="handlePathCalculated"
+        />
         <!-- 时间轴头部 -->
         <div class="gantt-header-row">
           <div class="tree-column-header">
@@ -144,6 +153,8 @@
                       <div
                         v-if="getNodeDisplayType(container, '清关') !== null"
                         class="container-dot"
+                        :data-container="container.containerNumber"
+                        data-node="清关"
                         :class="{
                           clickable: true,
                           'is-dragging':
@@ -191,6 +202,8 @@
                       <div
                         v-if="getNodeDisplayType(container, '清关') !== null"
                         class="container-dot"
+                        :data-container="container.containerNumber"
+                        data-node="清关"
                         :class="{
                           clickable: true,
                           'is-dragging':
@@ -261,6 +274,7 @@
                   v-for="(containersBySupplier, supplier) in suppliersByNode"
                   :key="port + '-' + node + '-' + supplier"
                   class="gantt-data-row supplier-row"
+                  :data-node-type="node"
                 >
                   <!-- 供应商行：显示在分类列 -->
                   <div
@@ -314,6 +328,8 @@
                           <div
                             v-if="getNodeDisplayType(container, node as string) !== null"
                             class="container-dot"
+                            :data-container="container.containerNumber"
+                            :data-node="node as string"
                             :class="{
                               clickable: true,
                               'is-dragging':
@@ -725,6 +741,7 @@
             <!-- 节点行：显示在分类列，与独立表格一致 -->
             <div
               class="gantt-data-row node-group-row"
+              :data-node-type="node"
               @click="toggleGroupCollapse(selectedPortForModal + '-' + node)"
               style="cursor: pointer"
             >
@@ -797,6 +814,8 @@
                         <div
                           v-if="getNodeDisplayType(container, node as string) !== null"
                           class="container-dot"
+                          :data-container="container.containerNumber"
+                          :data-node="node as string"
                           :class="{
                             clickable: true,
                             'is-dragging':
@@ -867,6 +886,7 @@
       @editDate="handleEditDate"
       @copyContainerNumber="handleCopyContainerNumber"
       @delete="handleDelete"
+      @togglePathLines="handleTogglePathLines"
     />
 
     <!-- 日期编辑对话框 -->
@@ -915,6 +935,7 @@ import ContainerDateEditDialog from './ContainerDateEditDialog.vue'
 import ContainerDetailSidebar from './ContainerDetailSidebar.vue'
 import GanttHeader from './gantt/GanttHeader.vue'
 import GanttLegend from './gantt/GanttLegend.vue'
+import GanttPathTracker from './gantt/GanttPathTracker.vue'
 import GanttSearchBar from './gantt/GanttSearchBar.vue'
 import GanttStatisticsPanel from './gantt/GanttStatisticsPanel.vue'
 import { useGanttLogic } from './gantt/useGanttLogic'
@@ -922,6 +943,10 @@ import { useGanttLogic } from './gantt/useGanttLogic'
 const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
+
+// 滚动容器引用
+const ganttScrollContainer = ref<HTMLElement | null>(null)
+const ganttScrollContainerRef = computed(() => ganttScrollContainer.value)
 
 // 搜索相关状态
 const searchKeyword = ref('')
@@ -1707,6 +1732,11 @@ const {
   showContextMenu,
   contextMenuPosition,
   showDateEditDialog,
+  // 路径连线
+  showPathLines,
+  pathLineContainer,
+  calculatedPathLines,
+  togglePathLines: handleTogglePathLines,
   draggingContainer,
   dragOverDate,
   dropIndicatorPosition,
@@ -2194,6 +2224,14 @@ const handleDotClick = (container: any) => {
 // 处理货柜圆点双击事件
 const handleDotDblClick = (container: any) => {
   // 双击事件已经在 handleDotClick 中处理
+}
+
+// 处理路径计算完成事件
+const handlePathCalculated = (nodes: any[]) => {
+  // 可以在这里添加路径计算完成的逻辑，例如日志记录或调试信息
+  if (nodes.length > 0) {
+    console.log(`路径追踪：找到 ${nodes.length} 个节点`, nodes)
+  }
 }
 
 // ========== 资源占用数据 ==========
