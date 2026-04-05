@@ -210,7 +210,7 @@ function buildNodes(
     } else {
       // 前置节点：需要应用反向链式依赖
       // 业务规则：后续节点完成意味着前置节点必然已完成，应销毁不显示
-      
+
       // 已还箱 -> 所有前置节点销毁
       if (hasReturnTime) {
         taskRole = 'none';

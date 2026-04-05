@@ -6,10 +6,10 @@
         <div class="legend-dot" :style="{ backgroundColor: color }"></div>
         <span>{{ getStatusLabel(status) }}</span>
       </div>
-      
+
       <!-- 分隔线 -->
       <div class="legend-separator"></div>
-      
+
       <!-- 节点类型说明 -->
       <div class="legend-item">
         <div class="legend-dot legend-dot-solid"></div>
@@ -19,10 +19,10 @@
         <div class="legend-dot legend-dot-dashed"></div>
         <span>待激活</span>
       </div>
-      
+
       <!-- 分隔线 -->
       <div class="legend-separator"></div>
-      
+
       <!-- 预警边框颜色 -->
       <div class="legend-item">
         <div class="legend-dot legend-border-danger"></div>

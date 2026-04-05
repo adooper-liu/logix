@@ -2,9 +2,9 @@
  * 验证特定货柜的反向链式依赖逻辑
  */
 
-import { createConnection } from 'typeorm';
 import * as dotenv from 'dotenv';
 import { join } from 'path';
+import { createConnection } from 'typeorm';
 
 // 加载环境变量
 dotenv.config({ path: join(__dirname, '../.env') });
@@ -18,12 +18,13 @@ async function verifyContainer(containerNumber: string) {
     port: parseInt(process.env.DB_PORT || '5432'),
     username: process.env.DB_USERNAME || 'postgres',
     password: process.env.DB_PASSWORD || 'postgres',
-    database: process.env.DB_DATABASE || 'logix_dev',
+    database: process.env.DB_DATABASE || 'logix_dev'
   });
 
   try {
     // 查询流程表数据
-    const truckingResult = await connection.query(`
+    const truckingResult = await connection.query(
+      `
       SELECT 
         container_number,
         pickup_date,
@@ -33,9 +34,12 @@ async function verifyContainer(containerNumber: string) {
         trucking_company_id
       FROM process_trucking_transport
       WHERE container_number = $1
-    `, [containerNumber]);
+    `,
+      [containerNumber]
+    );
 
-    const warehouseResult = await connection.query(`
+    const warehouseResult = await connection.query(
+      `
       SELECT 
         container_number,
         unload_date,
@@ -43,9 +47,12 @@ async function verifyContainer(containerNumber: string) {
         warehouse_id
       FROM process_warehouse_operations
       WHERE container_number = $1
-    `, [containerNumber]);
+    `,
+      [containerNumber]
+    );
 
-    const emptyReturnResult = await connection.query(`
+    const emptyReturnResult = await connection.query(
+      `
       SELECT 
         container_number,
         return_time,
@@ -54,9 +61,12 @@ async function verifyContainer(containerNumber: string) {
         return_terminal_code
       FROM process_empty_return
       WHERE container_number = $1
-    `, [containerNumber]);
+    `,
+      [containerNumber]
+    );
 
-    const portOpResult = await connection.query(`
+    const portOpResult = await connection.query(
+      `
       SELECT 
         container_number,
         actual_customs_date,
@@ -66,7 +76,9 @@ async function verifyContainer(containerNumber: string) {
         planned_customs_date
       FROM process_port_operations
       WHERE container_number = $1
-    `, [containerNumber]);
+    `,
+      [containerNumber]
+    );
 
     const trucking = truckingResult[0];
     const warehouse = warehouseResult[0];
@@ -109,7 +121,7 @@ async function verifyContainer(containerNumber: string) {
     console.log(`  - 已还箱: ${hasReturnTime ? 'YES' : 'NO'}`);
 
     console.log('\n预期结果:');
-    
+
     if (hasReturnTime) {
       console.log('  ✅ 已还箱 → 清关、提柜、卸柜都应销毁');
     } else if (hasUnloadDate) {
@@ -131,7 +143,6 @@ async function verifyContainer(containerNumber: string) {
     } else {
       console.log('  ❓ 不确定（需要检查计划日期）');
     }
-
   } catch (error) {
     console.error('❌ 验证失败:', error);
   } finally {

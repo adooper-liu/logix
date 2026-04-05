@@ -18,12 +18,13 @@ async function verifyDisplayLogic(containerNumber: string) {
     port: parseInt(process.env.DB_PORT || '5432'),
     username: process.env.DB_USERNAME || 'postgres',
     password: process.env.DB_PASSWORD || 'postgres',
-    database: process.env.DB_DATABASE || 'logix_dev',
+    database: process.env.DB_DATABASE || 'logix_dev'
   });
 
   try {
     // 查询所有流程表数据
-    const result = await connection.query(`
+    const result = await connection.query(
+      `
       SELECT 
         c.container_number,
         r.sell_to_country,
@@ -59,7 +60,9 @@ async function verifyDisplayLogic(containerNumber: string) {
       LEFT JOIN process_empty_return er ON c.container_number = er.container_number
       WHERE c.container_number = $1
       LIMIT 1
-    `, [containerNumber]);
+    `,
+      [containerNumber]
+    );
 
     const row = result[0];
 
@@ -97,7 +100,9 @@ async function verifyDisplayLogic(containerNumber: string) {
     console.log('清关节点显示判断:');
     console.log(`  - customsSupplier: ${customsSupplier || 'NULL'}`);
     console.log(`  - hasPlannedPickup: ${hasPlannedPickup}`);
-    console.log(`  - 旧逻辑（有实际清关行 OR 有计划提柜日）: ${customsSupplier || hasPlannedPickup ? '显示' : '不显示'}`);
+    console.log(
+      `  - 旧逻辑（有实际清关行 OR 有计划提柜日）: ${customsSupplier || hasPlannedPickup ? '显示' : '不显示'}`
+    );
     console.log(`  - 新逻辑（默认"未指定清关公司" + 有反向推导依据）: 显示 ✓`);
 
     console.log('\n预期显示结果:');
@@ -134,7 +139,6 @@ async function verifyDisplayLogic(containerNumber: string) {
     console.log('  ✅ 清关节点默认 supplier = "未指定清关公司"');
     console.log('  ✅ getNodeDisplayType 只检查 supplier === "未指定"（不包括"未指定清关公司"）');
     console.log('  ✅ 清关节点可以通过反向链式依赖推导显示（即使没有实际清关行）');
-
   } catch (error) {
     console.error('❌ 验证失败:', error);
   } finally {

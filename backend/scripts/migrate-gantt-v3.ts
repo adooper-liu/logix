@@ -1,7 +1,7 @@
 /**
  * 甘特图 gantt-v3 数据迁移脚本
  * 批量更新所有货柜的 gantt_derived 字段，应用反向链式依赖逻辑
- * 
+ *
  * 使用方法:
  * cd backend
  * npx ts-node scripts/migrate-gantt-v3.ts
@@ -13,11 +13,11 @@ dotenv.config({ path: '.env' });
 
 import { AppDataSource } from '../src/database';
 import { Container } from '../src/entities/Container';
+import { EmptyReturn } from '../src/entities/EmptyReturn';
 import { PortOperation } from '../src/entities/PortOperation';
 import { TruckingTransport } from '../src/entities/TruckingTransport';
 import { WarehouseOperation } from '../src/entities/WarehouseOperation';
-import { EmptyReturn } from '../src/entities/EmptyReturn';
-import { buildGanttDerived, GANTT_RULE_VERSION } from '../src/utils/ganttDerivedBuilder';
+import { buildGanttDerived } from '../src/utils/ganttDerivedBuilder';
 import { logger } from '../src/utils/logger';
 
 async function migrateGanttV3() {
@@ -32,7 +32,13 @@ async function migrateGanttV3() {
     logger.info(`找到 ${containers.length} 个货柜`);
 
     // 测试货柜列表（用于调试）
-    const sampleContainers = ['HMMU6855127', 'GAOU6195045', 'KOCU5129260', 'HMMU6232153', 'HMMU6019657'];
+    const sampleContainers = [
+      'HMMU6855127',
+      'GAOU6195045',
+      'KOCU5129260',
+      'HMMU6232153',
+      'HMMU6019657'
+    ];
 
     let updatedCount = 0;
     let skippedCount = 0;
@@ -40,16 +46,16 @@ async function migrateGanttV3() {
     for (const container of containers) {
       // 手动查询关联的流程表数据
       const portOperations = await AppDataSource.manager.find(PortOperation, {
-        where: { containerNumber: container.containerNumber },
+        where: { containerNumber: container.containerNumber }
       });
       const truckingTransports = await AppDataSource.manager.find(TruckingTransport, {
-        where: { containerNumber: container.containerNumber },
+        where: { containerNumber: container.containerNumber }
       });
       const warehouseOperations = await AppDataSource.manager.find(WarehouseOperation, {
-        where: { containerNumber: container.containerNumber },
+        where: { containerNumber: container.containerNumber }
       });
       const emptyReturns = await AppDataSource.manager.find(EmptyReturn, {
-        where: { containerNumber: container.containerNumber },
+        where: { containerNumber: container.containerNumber }
       });
 
       // 构建 ganttDerived
@@ -62,11 +68,11 @@ async function migrateGanttV3() {
 
       // 检查是否需要更新（比较 ruleVersion）
       const prevGantt = container.ganttDerived as any;
-      
+
       // 修复：强制重新计算所有货柜，因为即使 ruleVersion 是 gantt-v3，数据也可能是旧的
       // 我们需要应用新的反向链式依赖逻辑
       const needsUpdate = true; // 强制更新
-      
+
       if (!needsUpdate) {
         skippedCount++;
         continue;
@@ -99,13 +105,13 @@ async function migrateGanttV3() {
     // 验证几个示例货柜
     for (const containerNumber of sampleContainers) {
       const container = await AppDataSource.manager.findOne(Container, {
-        where: { containerNumber },
+        where: { containerNumber }
       });
 
       if (container) {
         const gantt = container.ganttDerived as any;
         const customsNode = gantt?.nodes?.find((n: any) => n.key === 'customs');
-        
+
         logger.info(`\n货柜 ${containerNumber}:`);
         logger.info(`  Phase: ${gantt?.phase}`);
         logger.info(`  Rule Version: ${gantt?.ruleVersion}`);
@@ -114,7 +120,6 @@ async function migrateGanttV3() {
         logger.info(`    completed: ${customsNode?.completed}`);
       }
     }
-
   } catch (error) {
     logger.error('迁移失败:', error);
     throw error;
@@ -126,7 +131,7 @@ async function migrateGanttV3() {
 }
 
 // 执行迁移
-migrateGanttV3().catch(error => {
+migrateGanttV3().catch((error) => {
   logger.error('未捕获的错误:', error);
   process.exit(1);
 });

@@ -2556,8 +2556,18 @@ interface ContainerNodeStatus {
  */
 const calculateNodeStatus = (container: any): ContainerNodeStatus => {
   const nodes: any = {
-    清关: { status: 'pending', supplier: '未指定清关公司', plannedDate: undefined, actualDate: undefined },
-    查验: { status: 'pending', supplier: '未指定清关公司', plannedDate: undefined, actualDate: undefined },
+    清关: {
+      status: 'pending',
+      supplier: '未指定清关公司',
+      plannedDate: undefined,
+      actualDate: undefined,
+    },
+    查验: {
+      status: 'pending',
+      supplier: '未指定清关公司',
+      plannedDate: undefined,
+      actualDate: undefined,
+    },
     提柜: { status: 'pending', supplier: '未指定', plannedDate: undefined, actualDate: undefined },
     卸柜: { status: 'pending', supplier: '未指定', plannedDate: undefined, actualDate: undefined },
     还箱: { status: 'pending', supplier: '未指定', plannedDate: undefined, actualDate: undefined },
@@ -2909,8 +2919,7 @@ function getDisplayItemsFromGanttDerived(
 
     if (nodeName === '清关') {
       const hasPlannedPickup = container.truckingTransports?.[0]?.plannedPickupDate
-      const hasCustomsBroker =
-        node.supplier && node.supplier !== '未指定清关公司'
+      const hasCustomsBroker = node.supplier && node.supplier !== '未指定清关公司'
       if (!hasPlannedPickup && !hasCustomsBroker) {
         continue
       }
