@@ -22,7 +22,7 @@
   <div class="gantt-container">
     <!-- 甘特图内容 -->
     <SimpleGanttChartRefactored />
-    
+
     <!-- 呼吸动画组件 -->
     <ContainerDotBreather
       :enabled="true"
@@ -105,31 +105,31 @@ const updatePositions = () => {
 
 ## Props
 
-| 属性名 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| enabled | boolean | true | 是否启用呼吸动画 |
-| hoveredContainer | Container \| null | null | 当前悬停的货柜对象 |
-| dotSelector | string | '.container-dot' | 货柜圆点的CSS选择器 |
-| scrollContainer | HTMLElement \| null | null | 滚动容器元素引用 |
-| triggerDelay | number | 5000 | 触发延迟时间（毫秒） |
-| breathColor | string | '#67c23a' | 呼吸动画颜色（绿色） |
-| zIndex | number | 100 | z-index层级 |
+| 属性名           | 类型                | 默认值           | 说明                 |
+| ---------------- | ------------------- | ---------------- | -------------------- |
+| enabled          | boolean             | true             | 是否启用呼吸动画     |
+| hoveredContainer | Container \| null   | null             | 当前悬停的货柜对象   |
+| dotSelector      | string              | '.container-dot' | 货柜圆点的CSS选择器  |
+| scrollContainer  | HTMLElement \| null | null             | 滚动容器元素引用     |
+| triggerDelay     | number              | 5000             | 触发延迟时间（毫秒） |
+| breathColor      | string              | '#67c23a'        | 呼吸动画颜色（绿色） |
+| zIndex           | number              | 100              | z-index层级（确保在周末背景色之上） |
 
 ## Events
 
-| 事件名 | 参数 | 说明 |
-|--------|------|------|
-| breathStart | (container: Container) => void | 呼吸动画开始时触发 |
-| breathEnd | (container: Container) => void | 呼吸动画结束时触发 |
-| closeTooltip | () => void | 通知父组件关闭Tooltip（5秒后自动触发） |
+| 事件名       | 参数                           | 说明                                   |
+| ------------ | ------------------------------ | -------------------------------------- |
+| breathStart  | (container: Container) => void | 呼吸动画开始时触发                     |
+| breathEnd    | (container: Container) => void | 呼吸动画结束时触发                     |
+| closeTooltip | () => void                     | 通知父组件关闭Tooltip（5秒后自动触发） |
 
 ## Exposed Methods
 
-| 方法名 | 参数 | 返回值 | 说明 |
-|--------|------|--------|------|
-| startBreathing | (container: Container) => void | void | 手动启动呼吸动画 |
-| stopBreathing | (container: Container) => void | void | 手动停止呼吸动画 |
-| updateDotPositions | () => void | void | 手动更新圆点位置 |
+| 方法名             | 参数                           | 返回值 | 说明             |
+| ------------------ | ------------------------------ | ------ | ---------------- |
+| startBreathing     | (container: Container) => void | void   | 手动启动呼吸动画 |
+| stopBreathing      | (container: Container) => void | void   | 手动停止呼吸动画 |
+| updateDotPositions | () => void                     | void   | 手动更新圆点位置 |
 
 ## 实现原理
 
@@ -153,9 +153,9 @@ if (hoverTimer) {
 // 遍历所有圆点，查找同一货柜的所有节点
 const allDots = document.querySelectorAll(props.dotSelector)
 
-allDots.forEach((dot) => {
+allDots.forEach(dot => {
   const dataContainer = dot.getAttribute('data-container')
-  
+
   if (dataContainer === containerNumber) {
     // 计算位置并添加到列表
     dots.push({ x, y, size, color })
@@ -181,23 +181,40 @@ if (scrollContainer) {
 ### 4. 呼吸动画
 
 **外圈脉冲**：
+
 ```css
 @keyframes pulseRing {
-  0% { transform: scale(0.8); opacity: 0.8; }
-  100% { transform: scale(1.5); opacity: 0; }
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
 }
 ```
+
 - 从0.8倍放大到1.5倍
 - 透明度从0.8降到0
 - 形成向外扩散的效果
 
 **内圈高亮**：
+
 ```css
 @keyframes highlightPulse {
-  0%, 100% { transform: scale(1); opacity: 0.3; }
-  50% { transform: scale(1.2); opacity: 0.6; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.6;
+  }
 }
 ```
+
 - 在1倍到1.2倍之间循环
 - 透明度在0.3到0.6之间变化
 - 形成呼吸节奏感
@@ -210,7 +227,7 @@ const handleScroll = () => {
   if (animationFrameId) {
     cancelAnimationFrame(animationFrameId)
   }
-  
+
   animationFrameId = requestAnimationFrame(() => {
     updateDotPositions()
   })
@@ -240,14 +257,25 @@ window.addEventListener('resize', handleResize)
 ```css
 /* 更大的扩散范围 */
 @keyframes pulseRing {
-  0% { transform: translate(-50%, -50%) scale(0.6); }
-  100% { transform: translate(-50%, -50%) scale(2.0); }
+  0% {
+    transform: translate(-50%, -50%) scale(0.6);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2);
+  }
 }
 
 /* 更强的呼吸效果 */
 @keyframes highlightPulse {
-  0%, 100% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.2; }
-  50% { transform: translate(-50%, -50%) scale(1.4); opacity: 0.8; }
+  0%,
+  100% {
+    transform: translate(-50%, -50%) scale(0.9);
+    opacity: 0.2;
+  }
+  50% {
+    transform: translate(-50%, -50%) scale(1.4);
+    opacity: 0.8;
+  }
 }
 ```
 
@@ -261,9 +289,15 @@ window.addEventListener('resize', handleResize)
 ```
 
 ```css
-.pulse-ring-1 { animation-delay: 0s; }
-.pulse-ring-2 { animation-delay: 0.3s; }
-.pulse-ring-3 { animation-delay: 0.6s; }
+.pulse-ring-1 {
+  animation-delay: 0s;
+}
+.pulse-ring-2 {
+  animation-delay: 0.3s;
+}
+.pulse-ring-3 {
+  animation-delay: 0.6s;
+}
 ```
 
 ## 性能优化
@@ -304,12 +338,14 @@ onUnmounted(() => {
 ### Q1: 动画不显示？
 
 **可能原因**：
+
 1. `enabled` 设置为 false
 2. `hoveredContainer` 为 null
 3. `dotSelector` 选择器不正确
 4. 圆点没有 `data-container` 属性
 
 **排查方法**：
+
 ```javascript
 console.log('悬停货柜:', hoveredContainer.value)
 console.log('圆点数量:', document.querySelectorAll('.container-dot').length)
@@ -319,10 +355,12 @@ console.log('活动圆点:', activeDots.value)
 ### Q2: 动画位置不准确？
 
 **可能原因**：
+
 1. `scrollContainer` 未正确设置
 2. 页面布局发生变化
 
 **解决方法**：
+
 ```typescript
 // 手动更新位置
 breatherRef.value?.updateDotPositions()
@@ -331,12 +369,13 @@ breatherRef.value?.updateDotPositions()
 ### Q3: 动画太频繁或不够频繁？
 
 **调整触发延迟**：
+
 ```vue
 <!-- 更快触发 -->
-<trigger-delay="2000" />
+<trigger-delay ="2000" />
 
 <!-- 更慢触发 -->
-<trigger-delay="8000" />
+<trigger-delay ="8000" />
 ```
 
 ### Q4: 多个货柜同时悬停？
@@ -344,6 +383,7 @@ breatherRef.value?.updateDotPositions()
 **当前设计**：只支持单个货柜的呼吸动画
 
 **扩展方案**：
+
 ```typescript
 interface Props {
   hoveredContainers: Container[] // 改为数组
@@ -351,9 +391,7 @@ interface Props {
 
 // 同时显示多个货柜的呼吸动画
 const activeDots = computed(() => {
-  return props.hoveredContainers.flatMap(container => 
-    findContainerDots(container.containerNumber)
-  )
+  return props.hoveredContainers.flatMap(container => findContainerDots(container.containerNumber))
 })
 ```
 
@@ -365,12 +403,9 @@ const activeDots = computed(() => {
 <template>
   <!-- Tooltip显示基本信息 -->
   <GanttTooltip :container="hoveredContainer" />
-  
+
   <!-- 5秒后显示呼吸动画 -->
-  <ContainerDotBreather
-    :hovered-container="hoveredContainer"
-    :trigger-delay="5000"
-  />
+  <ContainerDotBreather :hovered-container="hoveredContainer" :trigger-delay="5000" />
 </template>
 ```
 
@@ -383,7 +418,7 @@ const activeDots = computed(() => {
     :visible="showPathLines"
     :container="pathLineContainer"
   />
-  
+
   <!-- 呼吸动画 -->
   <ContainerDotBreather
     :hovered-container="hoveredContainer"
@@ -397,14 +432,9 @@ const activeDots = computed(() => {
 ```vue
 <template>
   <!-- 显示提示信息 -->
-  <div v-if="isBreathing" class="breath-hint">
-    长按查看完整路径
-  </div>
-  
-  <ContainerDotBreather
-    @breath-start="isBreathing = true"
-    @breath-end="isBreathing = false"
-  />
+  <div v-if="isBreathing" class="breath-hint">长按查看完整路径</div>
+
+  <ContainerDotBreather @breath-start="isBreathing = true" @breath-end="isBreathing = false" />
 </template>
 ```
 
@@ -434,7 +464,7 @@ const playBreathSound = () => {
   audio.play()
 }
 
-watch(activeDots, (newDots) => {
+watch(activeDots, newDots => {
   if (newDots.length > 0) {
     playBreathSound()
   }

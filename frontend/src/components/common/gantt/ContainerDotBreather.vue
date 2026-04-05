@@ -21,7 +21,7 @@
           borderColor: dot.color,
         }"
       />
-      
+
       <!-- 内圈高亮 -->
       <div
         class="highlight-ring"
@@ -36,8 +36,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import type { Container } from '@/types/container'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 
 interface BreathingDot {
   containerNumber: string
@@ -91,9 +91,9 @@ const findContainerDots = (containerNumber: string): BreathingDot[] => {
   const dots: BreathingDot[] = []
   const allDots = document.querySelectorAll(props.dotSelector)
 
-  allDots.forEach((dot) => {
+  allDots.forEach(dot => {
     const dataContainer = dot.getAttribute('data-container')
-    
+
     if (dataContainer === containerNumber) {
       const rect = dot.getBoundingClientRect()
       const scrollContainer = props.scrollContainer
@@ -131,7 +131,7 @@ const findContainerDots = (containerNumber: string): BreathingDot[] => {
  */
 const startBreathing = (container: Container) => {
   const dots = findContainerDots(container.containerNumber)
-  
+
   if (dots.length > 0) {
     activeDots.value = dots
     emit('breathStart', container)
@@ -189,7 +189,7 @@ const updateDotPositions = () => {
   if (activeDots.value.length > 0 && props.hoveredContainer) {
     const containerNumber = props.hoveredContainer.containerNumber
     const updatedDots = findContainerDots(containerNumber)
-    
+
     if (updatedDots.length > 0) {
       activeDots.value = updatedDots
     }
@@ -203,7 +203,7 @@ const handleScroll = () => {
   if (animationFrameId) {
     cancelAnimationFrame(animationFrameId)
   }
-  
+
   animationFrameId = requestAnimationFrame(() => {
     updateDotPositions()
   })
@@ -234,7 +234,7 @@ watch(
 // 监听启用状态
 watch(
   () => props.enabled,
-  (enabled) => {
+  enabled => {
     if (!enabled) {
       handleHoverEnd()
     }
@@ -246,10 +246,10 @@ onMounted(() => {
   if (props.scrollContainer) {
     props.scrollContainer.addEventListener('scroll', handleScroll, { passive: true })
   }
-  
+
   // 添加窗口大小变化监听
   window.addEventListener('resize', handleResize)
-  
+
   // 初始化
   if (props.hoveredContainer) {
     handleHoverStart()
@@ -261,12 +261,12 @@ onUnmounted(() => {
   if (hoverTimer) {
     clearTimeout(hoverTimer)
   }
-  
+
   // 清理动画帧
   if (animationFrameId) {
     cancelAnimationFrame(animationFrameId)
   }
-  
+
   // 移除事件监听
   if (props.scrollContainer) {
     props.scrollContainer.removeEventListener('scroll', handleScroll)
@@ -284,8 +284,14 @@ defineExpose({
 
 <style scoped>
 .container-dot-breather {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   overflow: visible;
+  z-index: v-bind(zIndex);
 }
 
 .breathing-dot {
@@ -328,7 +334,8 @@ defineExpose({
 }
 
 @keyframes highlightPulse {
-  0%, 100% {
+  0%,
+  100% {
     transform: translate(-50%, -50%) scale(1);
     opacity: 0.3;
   }

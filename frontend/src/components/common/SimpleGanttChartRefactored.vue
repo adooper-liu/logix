@@ -69,7 +69,7 @@
           :scroll-container="ganttScrollContainerRef"
           @pathCalculated="handlePathCalculated"
         />
-        
+
         <!-- 货柜圆点呼吸动画组件 -->
         <ContainerDotBreather
           :enabled="true"
@@ -947,10 +947,10 @@ import { useRoute, useRouter } from 'vue-router'
 import ContainerContextMenu from './ContainerContextMenu.vue'
 import ContainerDateEditDialog from './ContainerDateEditDialog.vue'
 import ContainerDetailSidebar from './ContainerDetailSidebar.vue'
+import ContainerDotBreather from './gantt/ContainerDotBreather.vue'
 import GanttHeader from './gantt/GanttHeader.vue'
 import GanttLegend from './gantt/GanttLegend.vue'
 import GanttPathTracker from './gantt/GanttPathTracker.vue'
-import ContainerDotBreather from './gantt/ContainerDotBreather.vue'
 import GanttSearchBar from './gantt/GanttSearchBar.vue'
 import GanttStatisticsPanel from './gantt/GanttStatisticsPanel.vue'
 import { useGanttLogic } from './gantt/useGanttLogic'

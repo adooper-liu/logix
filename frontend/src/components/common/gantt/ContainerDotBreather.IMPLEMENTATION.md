@@ -1,6 +1,7 @@
 # 货柜圆点呼吸动画功能实施总结
 
 ## 实施日期
+
 2026-04-04
 
 ## 功能描述
@@ -10,11 +11,13 @@
 ## 遵循规范
 
 ✅ **SKILL原则**
+
 - 简洁即美：无emoji、无装饰符号、专业风格
 - 真实第一：基于真实业务场景，代码可运行
 - 业务导向：聚焦物流路径追踪需求
 
 ✅ **单一职责原则**
+
 - 独立组件：ContainerDotBreather.vue
 - 可复用性：可在任何需要货柜高亮的场景使用
 - 松耦合：通过props和events与父组件通信
@@ -24,6 +27,7 @@
 ### 1. ContainerDotBreather.vue (339行)
 
 **核心功能**：
+
 - 延迟触发机制（默认5秒）
 - 多节点查找和定位
 - 双层呼吸动画（外圈脉冲 + 内圈缩放）
@@ -31,6 +35,7 @@
 - 完整的TypeScript类型支持
 
 **技术亮点**：
+
 ```typescript
 // 向量计算定位圆点边缘
 const unitX = dx / distance
@@ -49,6 +54,7 @@ scrollContainer.addEventListener('scroll', handleScroll, { passive: true })
 ### 2. ContainerDotBreather.README.md (471行)
 
 **文档内容**：
+
 - 业务场景说明
 - 基本用法和高级配置
 - Props和Events详细说明
@@ -62,18 +68,21 @@ scrollContainer.addEventListener('scroll', handleScroll, { passive: true })
 ### 3. 更新的文件
 
 **useGanttLogic.ts**：
+
 - 添加 `hoveredContainer` 状态
 - 在 `showTooltip` 中设置悬停货柜
 - 在 `hideTooltip` 中清除悬停货柜
 - 导出 `hoveredContainer` 供组件使用
 
 **SimpleGanttChartRefactored.vue**：
+
 - 导入 `ContainerDotBreather` 组件
 - 解构 `hoveredContainer` 状态
 - 在模板中添加组件实例
 - 添加事件处理函数
 
 **index.ts**：
+
 - 导出 `ContainerDotBreather` 组件
 
 ## 技术实现
@@ -85,7 +94,7 @@ let hoverTimer: ReturnType<typeof setTimeout> | null = null
 
 const handleHoverStart = () => {
   if (hoverTimer) clearTimeout(hoverTimer)
-  
+
   hoverTimer = setTimeout(() => {
     startBreathing(props.hoveredContainer!)
   }, props.triggerDelay) // 默认5000ms
@@ -101,6 +110,7 @@ const handleHoverEnd = () => {
 ```
 
 **优势**：
+
 - 避免误触发
 - 给用户足够的思考时间
 - 鼠标离开立即取消
@@ -112,9 +122,9 @@ const findContainerDots = (containerNumber: string): BreathingDot[] => {
   const dots: BreathingDot[] = []
   const allDots = document.querySelectorAll(props.dotSelector)
 
-  allDots.forEach((dot) => {
+  allDots.forEach(dot => {
     const dataContainer = dot.getAttribute('data-container')
-    
+
     if (dataContainer === containerNumber) {
       // 计算坐标、大小、颜色
       dots.push({ containerNumber, x, y, size, color })
@@ -126,6 +136,7 @@ const findContainerDots = (containerNumber: string): BreathingDot[] => {
 ```
 
 **关键点**：
+
 - 依赖 `data-container` 属性
 - 遍历所有圆点元素
 - 返回匹配的所有节点
@@ -145,6 +156,7 @@ if (scrollContainer) {
 ```
 
 **说明**：
+
 - 获取圆点中心坐标
 - 减去滚动容器偏移
 - 确保相对于SVG层的正确位置
@@ -152,23 +164,40 @@ if (scrollContainer) {
 ### 4. 双层呼吸动画
 
 **外圈脉冲**：
+
 ```css
 @keyframes pulseRing {
-  0% { transform: scale(0.8); opacity: 0.8; }
-  100% { transform: scale(1.5); opacity: 0; }
+  0% {
+    transform: scale(0.8);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
 }
 ```
+
 - 从0.8倍放大到1.5倍
 - 透明度逐渐消失
 - 形成向外扩散的效果
 
 **内圈高亮**：
+
 ```css
 @keyframes highlightPulse {
-  0%, 100% { transform: scale(1); opacity: 0.3; }
-  50% { transform: scale(1.2); opacity: 0.6; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.2);
+    opacity: 0.6;
+  }
 }
 ```
+
 - 在1倍到1.2倍之间循环
 - 透明度周期性变化
 - 形成呼吸节奏感
@@ -181,7 +210,7 @@ const handleScroll = () => {
   if (animationFrameId) {
     cancelAnimationFrame(animationFrameId)
   }
-  
+
   animationFrameId = requestAnimationFrame(() => {
     updateDotPositions()
   })
@@ -192,6 +221,7 @@ window.addEventListener('resize', handleResize)
 ```
 
 **优化**：
+
 - 使用requestAnimationFrame
 - 避免频繁DOM操作
 - 被动事件监听
@@ -200,13 +230,13 @@ window.addEventListener('resize', handleResize)
 
 ### 动画参数
 
-| 参数 | 值 | 说明 |
-|------|-----|------|
-| 触发延迟 | 5000ms | 5秒后触发动画 |
-| 外圈放大 | 0.8 → 1.5 | 扩散范围 |
-| 内圈缩放 | 1.0 → 1.2 | 呼吸幅度 |
-| 动画周期 | 2s | 完整呼吸周期 |
-| 呼吸颜色 | #67c23a | 绿色，与路径一致 |
+| 参数     | 值        | 说明             |
+| -------- | --------- | ---------------- |
+| 触发延迟 | 5000ms    | 5秒后触发动画    |
+| 外圈放大 | 0.8 → 1.5 | 扩散范围         |
+| 内圈缩放 | 1.0 → 1.2 | 呼吸幅度         |
+| 动画周期 | 2s        | 完整呼吸周期     |
+| 呼吸颜色 | #67c23a   | 绿色，与路径一致 |
 
 ### 视觉层次
 
@@ -225,27 +255,34 @@ window.addEventListener('resize', handleResize)
 ## 性能优化
 
 ### 1. 被动事件监听
+
 ```typescript
 scrollContainer.addEventListener('scroll', handleScroll, { passive: true })
 ```
+
 - 不阻止默认行为
 - 浏览器可以优化滚动性能
 
 ### 2. 动画帧优化
+
 ```typescript
 animationFrameId = requestAnimationFrame(updateDotPositions)
 ```
+
 - 与浏览器刷新率同步
 - 避免不必要的重绘
 
 ### 3. 条件渲染
+
 ```vue
 <div v-for="(dot, index) in activeDots" :key="...">
 ```
+
 - 只在有活动圆点时渲染
 - 减少DOM节点数量
 
 ### 4. 及时清理
+
 ```typescript
 onUnmounted(() => {
   if (hoverTimer) clearTimeout(hoverTimer)
@@ -253,6 +290,7 @@ onUnmounted(() => {
   // 移除事件监听
 })
 ```
+
 - 防止内存泄漏
 - 避免无效计算
 
@@ -265,7 +303,7 @@ onUnmounted(() => {
   <div class="gantt-scroll-container" ref="ganttScrollContainer">
     <!-- 路径追踪 -->
     <GanttPathTracker ... />
-    
+
     <!-- 呼吸动画 -->
     <ContainerDotBreather
       :enabled="true"
@@ -278,7 +316,7 @@ onUnmounted(() => {
       @breath-start="handleBreathStart"
       @breath-end="handleBreathEnd"
     />
-    
+
     <!-- 甘特图内容 -->
   </div>
 </template>
@@ -361,6 +399,7 @@ return {
 ### 未来优化方向
 
 1. **多货柜支持**
+
    ```typescript
    interface Props {
      hoveredContainers: Container[] // 改为数组
@@ -368,6 +407,7 @@ return {
    ```
 
 2. **自定义动画**
+
    ```typescript
    interface Props {
      animationType: 'pulse' | 'glow' | 'bounce'
@@ -376,6 +416,7 @@ return {
    ```
 
 3. **声音反馈**
+
    ```typescript
    const playBreathSound = () => {
      const audio = new Audio('/sounds/breath.mp3')
@@ -384,6 +425,7 @@ return {
    ```
 
 4. **震动反馈（移动端）**
+
    ```typescript
    if (navigator.vibrate) {
      navigator.vibrate([50, 100, 50])
@@ -402,18 +444,14 @@ return {
 
 ```vue
 <!-- 路径连线（绿色虚线） -->
-<GanttPathTracker
-  stroke-color="#67c23a"
-  :is-dashed="true"
-/>
+<GanttPathTracker stroke-color="#67c23a" :is-dashed="true" />
 
 <!-- 呼吸动画（绿色脉冲） -->
-<ContainerDotBreather
-  breath-color="#67c23a"
-/>
+<ContainerDotBreather breath-color="#67c23a" />
 ```
 
 **视觉效果**：
+
 - 颜色统一，都是绿色
 - 路径连线和呼吸动画形成完整的路径可视化
 - 用户可以同时看到路径和关键节点
@@ -428,6 +466,7 @@ return {
 ```
 
 **用户体验**：
+
 - 即时反馈：Tooltip显示基本信息
 - 深度提示：呼吸动画强调完整路径
 - 自然过渡：5秒延迟避免干扰
@@ -443,6 +482,7 @@ return {
 ```
 
 **协同效果**：
+
 - 路径连线显示整体走向
 - 呼吸动画突出关键节点
 - 两者互补，信息更丰富
@@ -498,6 +538,7 @@ const startBreathing = (container: Container) => {
 本次实施的货柜圆点呼吸动画功能具有以下特点：
 
 ✅ **功能完整**
+
 - 5秒延迟触发
 - 全局多节点高亮
 - 双层呼吸动画
@@ -505,24 +546,28 @@ const startBreathing = (container: Container) => {
 - **Tooltip自动关闭**（5秒后）
 
 ✅ **性能优秀**
+
 - requestAnimationFrame优化
 - 被动事件监听
 - 及时清理资源
 - 条件渲染
 
 ✅ **代码质量高**
+
 - TypeScript类型安全
 - 清晰的代码结构
 - 完善的注释
 - 合理的命名
 
 ✅ **可复用性强**
+
 - 独立组件设计
 - 灵活的配置项
 - 完整的事件系统
 - 详细的文档
 
 ✅ **用户体验好**
+
 - 自然的交互流程
 - 优雅的视觉效果
 - 与现有功能完美配合

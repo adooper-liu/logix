@@ -653,7 +653,7 @@ export function useGanttLogic() {
   const showTooltip = (container: Container, event: MouseEvent) => {
     // 设置悬停货柜（用于呼吸动画）
     hoveredContainer.value = container
-    
+
     // ========== 调试代码：检查 tooltip 数据 ==========
     console.log('[showTooltip] container:', container.containerNumber)
     console.log('[showTooltip] availableTruckingCompanies:', container.availableTruckingCompanies)
