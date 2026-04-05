@@ -52,6 +52,9 @@ export function useGanttLogic() {
   const showPathLines = ref(false)
   const pathLineContainer = ref<Container | null>(null)
 
+  // 悬停货柜状态（用于呼吸动画）
+  const hoveredContainer = ref<Container | null>(null)
+
   // 拖拽状态
   const draggingContainer = ref<Container | null>(null)
   const dragOverDate = ref<Date | null>(null)
@@ -648,6 +651,9 @@ export function useGanttLogic() {
 
   // Tooltip：智能边界检测
   const showTooltip = (container: Container, event: MouseEvent) => {
+    // 设置悬停货柜（用于呼吸动画）
+    hoveredContainer.value = container
+    
     // ========== 调试代码：检查 tooltip 数据 ==========
     console.log('[showTooltip] container:', container.containerNumber)
     console.log('[showTooltip] availableTruckingCompanies:', container.availableTruckingCompanies)
@@ -707,6 +713,8 @@ export function useGanttLogic() {
 
   const hideTooltip = () => {
     tooltipVisible.value = false
+    // 清除悬停货柜（停止呼吸动画）
+    hoveredContainer.value = null
   }
 
   // 日期格式化
@@ -1260,6 +1268,8 @@ export function useGanttLogic() {
     pathLineContainer,
     calculatedPathLines,
     togglePathLines,
+    // 悬停货柜（用于呼吸动画）
+    hoveredContainer,
     // 拖拽
     draggingContainer,
     dragOverDate,

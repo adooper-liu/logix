@@ -69,6 +69,20 @@
           :scroll-container="ganttScrollContainerRef"
           @pathCalculated="handlePathCalculated"
         />
+        
+        <!-- 货柜圆点呼吸动画组件 -->
+        <ContainerDotBreather
+          :enabled="true"
+          :hovered-container="hoveredContainer"
+          dot-selector=".container-dot"
+          :scroll-container="ganttScrollContainerRef"
+          :trigger-delay="5000"
+          breath-color="#67c23a"
+          :z-index="100"
+          @breath-start="handleBreathStart"
+          @breath-end="handleBreathEnd"
+          @close-tooltip="hideTooltip"
+        />
         <!-- 时间轴头部 -->
         <div class="gantt-header-row">
           <div class="tree-column-header">
@@ -936,6 +950,7 @@ import ContainerDetailSidebar from './ContainerDetailSidebar.vue'
 import GanttHeader from './gantt/GanttHeader.vue'
 import GanttLegend from './gantt/GanttLegend.vue'
 import GanttPathTracker from './gantt/GanttPathTracker.vue'
+import ContainerDotBreather from './gantt/ContainerDotBreather.vue'
 import GanttSearchBar from './gantt/GanttSearchBar.vue'
 import GanttStatisticsPanel from './gantt/GanttStatisticsPanel.vue'
 import { useGanttLogic } from './gantt/useGanttLogic'
@@ -1737,6 +1752,8 @@ const {
   pathLineContainer,
   calculatedPathLines,
   togglePathLines: handleTogglePathLines,
+  // 悬停货柜（用于呼吸动画）
+  hoveredContainer,
   draggingContainer,
   dragOverDate,
   dropIndicatorPosition,
@@ -2232,6 +2249,16 @@ const handlePathCalculated = (nodes: any[]) => {
   if (nodes.length > 0) {
     console.log(`路径追踪：找到 ${nodes.length} 个节点`, nodes)
   }
+}
+
+// 处理呼吸动画开始
+const handleBreathStart = (container: Container) => {
+  console.log(`[呼吸动画] 货柜 ${container.containerNumber} 开始呼吸`)
+}
+
+// 处理呼吸动画结束
+const handleBreathEnd = (container: Container) => {
+  console.log(`[呼吸动画] 货柜 ${container.containerNumber} 停止呼吸`)
 }
 
 // ========== 资源占用数据 ==========
