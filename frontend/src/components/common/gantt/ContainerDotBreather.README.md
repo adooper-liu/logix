@@ -105,14 +105,14 @@ const updatePositions = () => {
 
 ## Props
 
-| 属性名           | 类型                | 默认值           | 说明                 |
-| ---------------- | ------------------- | ---------------- | -------------------- |
-| enabled          | boolean             | true             | 是否启用呼吸动画     |
-| hoveredContainer | Container \| null   | null             | 当前悬停的货柜对象   |
-| dotSelector      | string              | '.container-dot' | 货柜圆点的CSS选择器  |
-| scrollContainer  | HTMLElement \| null | null             | 滚动容器元素引用     |
-| triggerDelay     | number              | 5000             | 触发延迟时间（毫秒） |
-| breathColor      | string              | '#67c23a'        | 呼吸动画颜色（绿色） |
+| 属性名           | 类型                | 默认值           | 说明                                |
+| ---------------- | ------------------- | ---------------- | ----------------------------------- |
+| enabled          | boolean             | true             | 是否启用呼吸动画                    |
+| hoveredContainer | Container \| null   | null             | 当前悬停的货柜对象                  |
+| dotSelector      | string              | '.container-dot' | 货柜圆点的CSS选择器                 |
+| scrollContainer  | HTMLElement \| null | null             | 滚动容器元素引用                    |
+| triggerDelay     | number              | 5000             | 触发延迟时间（毫秒）                |
+| breathColor      | string              | '#67c23a'        | 呼吸动画颜色（绿色）                |
 | zIndex           | number              | 100              | z-index层级（确保在周末背景色之上） |
 
 ## Events
