@@ -3,8 +3,8 @@
  * Cost Optimization Service
  */
 
+import type { CostBreakdown, UnloadOption } from '@/types/scheduling'
 import api from './api'
-import type { UnloadOption, CostBreakdown } from '@/types/scheduling'
 
 export interface OptionComparison {
   option: UnloadOption

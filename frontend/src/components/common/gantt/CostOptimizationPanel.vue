@@ -26,7 +26,9 @@
               </div>
               <div class="info-row cost-row">
                 <span class="label">成本:</span>
-                <span class="value cost-value">{{ currencySymbol }}{{ formatCost(originalCost) }}</span>
+                <span class="value cost-value"
+                  >{{ currencySymbol }}{{ formatCost(originalCost) }}</span
+                >
               </div>
             </div>
           </div>
@@ -50,7 +52,9 @@
               </div>
               <div class="info-row cost-row">
                 <span class="label">成本:</span>
-                <span class="value cost-value success">{{ currencySymbol }}{{ formatCost(optimizedCost) }}</span>
+                <span class="value cost-value success"
+                  >{{ currencySymbol }}{{ formatCost(optimizedCost) }}</span
+                >
               </div>
             </div>
           </div>
@@ -61,7 +65,9 @@
           <el-icon :size="24" color="#67c23a"><Money /></el-icon>
           <div class="savings-info">
             <div class="savings-amount">
-              💵 可节省: {{ currencySymbol }}{{ formatCost(savings) }} ({{ savingsPercent.toFixed(2) }}%)
+              💵 可节省: {{ currencySymbol }}{{ formatCost(savings) }} ({{
+                savingsPercent.toFixed(2)
+              }}%)
             </div>
             <div class="savings-hint">建议采纳最优方案以降低物流成本</div>
           </div>
@@ -125,66 +131,100 @@
           <div class="breakdown-items">
             <div class="breakdown-row">
               <span>滞港费:</span>
-              <span>{{ currencySymbol }}{{ formatCost(selectedAlternative.breakdown.demurrageCost) }}</span>
+              <span
+                >{{ currencySymbol
+                }}{{ formatCost(selectedAlternative.breakdown.demurrageCost) }}</span
+              >
             </div>
             <div class="breakdown-row">
               <span>滞箱费:</span>
-              <span>{{ currencySymbol }}{{ formatCost(selectedAlternative.breakdown.detentionCost) }}</span>
+              <span
+                >{{ currencySymbol
+                }}{{ formatCost(selectedAlternative.breakdown.detentionCost) }}</span
+              >
             </div>
             <div class="breakdown-row">
               <span>港口存储费:</span>
-              <span>{{ currencySymbol }}{{ formatCost(selectedAlternative.breakdown.storageCost) }}</span>
+              <span
+                >{{ currencySymbol
+                }}{{ formatCost(selectedAlternative.breakdown.storageCost) }}</span
+              >
             </div>
             <div class="breakdown-row" v-if="selectedAlternative.breakdown.yardStorageCost > 0">
               <span>外部堆场费:</span>
-              <span>{{ currencySymbol }}{{ formatCost(selectedAlternative.breakdown.yardStorageCost) }}</span>
+              <span
+                >{{ currencySymbol
+                }}{{ formatCost(selectedAlternative.breakdown.yardStorageCost) }}</span
+              >
             </div>
             <div class="breakdown-row">
               <span>运输费:</span>
-              <span>{{ currencySymbol }}{{ formatCost(selectedAlternative.breakdown.transportationCost) }}</span>
+              <span
+                >{{ currencySymbol
+                }}{{ formatCost(selectedAlternative.breakdown.transportationCost) }}</span
+              >
             </div>
             <div class="breakdown-row" v-if="selectedAlternative.breakdown.handlingCost > 0">
               <span>操作费:</span>
-              <span>{{ currencySymbol }}{{ formatCost(selectedAlternative.breakdown.handlingCost) }}</span>
+              <span
+                >{{ currencySymbol
+                }}{{ formatCost(selectedAlternative.breakdown.handlingCost) }}</span
+              >
             </div>
           </div>
 
           <!-- ✅ 新增：滞港费标准详情（表格形式） -->
-          <div v-if="selectedAlternative.demurrageStandards && selectedAlternative.demurrageStandards.length > 0" class="demurrage-standards-section">
+          <div
+            v-if="
+              selectedAlternative.demurrageStandards &&
+              selectedAlternative.demurrageStandards.length > 0
+            "
+            class="demurrage-standards-section"
+          >
             <el-divider />
             <h4 class="standards-title">📋 滞港费标准详情</h4>
-            
+
             <el-table :data="selectedAlternative.demurrageStandards" border stripe size="small">
               <el-table-column prop="chargeName" label="费用项目" min-width="140" fixed>
                 <template #default="{ row }">
                   <strong>{{ row.chargeName }}</strong>
                 </template>
               </el-table-column>
-              
+
               <el-table-column prop="currency" label="货币" width="70" align="center">
                 <template #default="{ row }">
                   <el-tag size="small" type="info">{{ row.currency }}</el-tag>
                 </template>
               </el-table-column>
-              
+
               <el-table-column prop="freeDays" label="免费天数" width="80" align="center">
                 <template #default="{ row }">
                   <strong>{{ row.freeDays }} 天</strong>
                 </template>
               </el-table-column>
-              
-              <el-table-column prop="freeDaysBasis" label="免费天数基础" width="110" show-overflow-tooltip>
+
+              <el-table-column
+                prop="freeDaysBasis"
+                label="免费天数基础"
+                width="110"
+                show-overflow-tooltip
+              >
                 <template #default="{ row }">
                   {{ row.freeDaysBasis || '-' }}
                 </template>
               </el-table-column>
-              
-              <el-table-column prop="calculationBasis" label="计算基础" width="100" show-overflow-tooltip>
+
+              <el-table-column
+                prop="calculationBasis"
+                label="计算基础"
+                width="100"
+                show-overflow-tooltip
+              >
                 <template #default="{ row }">
                   {{ row.calculationBasis || '-' }}
                 </template>
               </el-table-column>
-              
+
               <el-table-column label="阶梯费率" min-width="280">
                 <template #default="{ row }">
                   <div v-if="row.tiers && row.tiers.length > 0" class="tiers-table">
@@ -192,24 +232,37 @@
                       <el-table-column min-width="120">
                         <template #default="{ row: tier }">
                           <span class="tier-range-text">
-                            第 {{ tier.fromDay }} 天 - {{ tier.toDay ? `第 ${tier.toDay} 天` : '之后' }}
+                            第 {{ tier.fromDay }} 天 -
+                            {{ tier.toDay ? `第 ${tier.toDay} 天` : '之后' }}
                           </span>
                         </template>
                       </el-table-column>
                       <el-table-column width="100" align="right">
                         <template #default="{ row: tier }">
-                          <span class="tier-rate-text">{{ currencySymbol }}{{ formatCost(tier.ratePerDay) }}/天</span>
+                          <span class="tier-rate-text"
+                            >{{ currencySymbol }}{{ formatCost(tier.ratePerDay) }}/天</span
+                          >
                         </template>
                       </el-table-column>
                     </el-table>
                   </div>
-                  <span v-else class="no-tier">{{ row.ratePerDay ? `${currencySymbol}${formatCost(row.ratePerDay)}/天` : '-' }}</span>
+                  <span v-else class="no-tier">{{
+                    row.ratePerDay ? `${currencySymbol}${formatCost(row.ratePerDay)}/天` : '-'
+                  }}</span>
                 </template>
               </el-table-column>
-              
+
               <el-table-column label="匹配条件" min-width="200">
                 <template #default="{ row }">
-                  <div class="conditions-tags" v-if="row.destinationPortCode || row.shippingCompanyCode || row.foreignCompanyCode || row.originForwarderCode">
+                  <div
+                    class="conditions-tags"
+                    v-if="
+                      row.destinationPortCode ||
+                      row.shippingCompanyCode ||
+                      row.foreignCompanyCode ||
+                      row.originForwarderCode
+                    "
+                  >
                     <el-tag v-if="row.destinationPortCode" size="small" type="success">
                       目的港: {{ row.destinationPortCode }}
                     </el-tag>
@@ -252,10 +305,10 @@
 </template>
 
 <script setup lang="ts">
+import { getCurrencySymbol } from '@/utils/currency'
 import { Check, InfoFilled, Money, Right } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
-import { ref, computed } from 'vue'
-import { getCurrencySymbol } from '@/utils/currency'
+import { computed, ref } from 'vue'
 
 interface DemurrageStandard {
   id: number

@@ -68,10 +68,10 @@ const props = defineProps<Props>()
  */
 const getNodeTestid = (nodeName: string): string => {
   const mapping: Record<string, string> = {
-    '清关': 'customs',
-    '提柜': 'pickup',
-    '卸柜': 'unload',
-    '还箱': 'return',
+    清关: 'customs',
+    提柜: 'pickup',
+    卸柜: 'unload',
+    还箱: 'return',
   }
   return mapping[nodeName] || nodeName.toLowerCase()
 }
@@ -82,10 +82,10 @@ const getNodeTestid = (nodeName: string): string => {
  */
 const getPlannedDate = (): string => {
   const nodeMapping: Record<string, string> = {
-    '清关': 'customsClearanceDate',
-    '提柜': 'plannedPickupDate',
-    '卸柜': 'plannedUnloadDate',
-    '还箱': 'plannedReturnDate',
+    清关: 'customsClearanceDate',
+    提柜: 'plannedPickupDate',
+    卸柜: 'plannedUnloadDate',
+    还箱: 'plannedReturnDate',
   }
 
   const dateField = nodeMapping[props.nodeName]

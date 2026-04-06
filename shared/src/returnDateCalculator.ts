@@ -43,7 +43,7 @@ function normalizeToDate(input: Date | string): Date {
 
   // 处理日期字符串
   const dateStr = typeof input === "string" ? input.trim() : "";
-  
+
   // 支持 YYYY-MM-DD 格式
   if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
     const [year, month, day] = dateStr.split("-").map(Number);
@@ -51,7 +51,7 @@ function normalizeToDate(input: Date | string): Date {
     result.setUTCHours(0, 0, 0, 0);
     return result;
   }
-  
+
   // 支持 ISO 8601 格式 (YYYY-MM-DDTHH:mm:ss.sssZ)
   if (/^\d{4}-\d{2}-\d{2}T/.test(dateStr)) {
     const result = new Date(dateStr);

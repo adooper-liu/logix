@@ -10,18 +10,18 @@
 
 ### 1.1 已完成任务
 
-| 任务 | 状态 | 说明 |
-|------|------|------|
-| ✅ 添加 data-testid 属性 | 完成 | GanttDot 组件已添加 |
-| ✅ 添加 data-date 属性 | 完成 | 动态获取计划日期 |
-| ⏳ 准备测试数据 | 待执行 | 需要插入测试货柜 |
-| ⏳ 验证后端 API | 待执行 | 需要测试优化 API |
+| 任务                     | 状态   | 说明                |
+| ------------------------ | ------ | ------------------- |
+| ✅ 添加 data-testid 属性 | 完成   | GanttDot 组件已添加 |
+| ✅ 添加 data-date 属性   | 完成   | 动态获取计划日期    |
+| ⏳ 准备测试数据          | 待执行 | 需要插入测试货柜    |
+| ⏳ 验证后端 API          | 待执行 | 需要测试优化 API    |
 
 ### 1.2 修改文件
 
-| 文件 | 变更行数 | 主要改动 |
-|------|---------|---------|
-| [GanttDot.vue](../../../src/components/common/gantt/GanttDot.vue) | +63行 | 添加 data-testid 和 data-date |
+| 文件                                                              | 变更行数 | 主要改动                      |
+| ----------------------------------------------------------------- | -------- | ----------------------------- |
+| [GanttDot.vue](../../../src/components/common/gantt/GanttDot.vue) | +63行    | 添加 data-testid 和 data-date |
 
 ---
 
@@ -32,31 +32,28 @@
 **实现方式**: 根据节点名称动态生成
 
 ```vue
-<div
-  class="container-dot"
-  :data-testid="`${getNodeTestid(nodeName)}-node`"
-  ...
->
+<div class="container-dot" :data-testid="`${getNodeTestid(nodeName)}-node`" ...>
 </div>
 ```
 
 **映射关系**:
 
-| 节点名称 | testid | 示例 |
-|---------|--------|------|
-| 清关 | customs | `customs-node` |
-| 提柜 | pickup | `pickup-node` |
-| 卸柜 | unload | `unload-node` |
-| 还箱 | return | `return-node` |
+| 节点名称 | testid  | 示例           |
+| -------- | ------- | -------------- |
+| 清关     | customs | `customs-node` |
+| 提柜     | pickup  | `pickup-node`  |
+| 卸柜     | unload  | `unload-node`  |
+| 还箱     | return  | `return-node`  |
 
 **代码实现**:
+
 ```typescript
 const getNodeTestid = (nodeName: string): string => {
   const mapping: Record<string, string> = {
-    '清关': 'customs',
-    '提柜': 'pickup',
-    '卸柜': 'unload',
-    '还箱': 'return',
+    清关: 'customs',
+    提柜: 'pickup',
+    卸柜: 'unload',
+    还箱: 'return',
   }
   return mapping[nodeName] || nodeName.toLowerCase()
 }
@@ -69,31 +66,28 @@ const getNodeTestid = (nodeName: string): string => {
 **实现方式**: 从货柜数据中动态获取计划日期
 
 ```vue
-<div
-  class="container-dot"
-  :data-date="getPlannedDate()"
-  ...
->
+<div class="container-dot" :data-date="getPlannedDate()" ...>
 </div>
 ```
 
 **日期来源**:
 
-| 节点名称 | 数据源 | 字段 |
-|---------|--------|------|
-| 清关 | customsClearance | customsClearanceDate |
-| 提柜 | truckingTransports[0] | plannedPickupDate |
-| 卸柜 | warehouseOperations[0] | plannedUnloadDate |
-| 还箱 | emptyReturns[0] | plannedReturnDate |
+| 节点名称 | 数据源                 | 字段                 |
+| -------- | ---------------------- | -------------------- |
+| 清关     | customsClearance       | customsClearanceDate |
+| 提柜     | truckingTransports[0]  | plannedPickupDate    |
+| 卸柜     | warehouseOperations[0] | plannedUnloadDate    |
+| 还箱     | emptyReturns[0]        | plannedReturnDate    |
 
 **代码实现**:
+
 ```typescript
 const getPlannedDate = (): string => {
   const nodeMapping: Record<string, string> = {
-    '清关': 'customsClearanceDate',
-    '提柜': 'plannedPickupDate',
-    '卸柜': 'plannedUnloadDate',
-    '还箱': 'plannedReturnDate',
+    清关: 'customsClearanceDate',
+    提柜: 'plannedPickupDate',
+    卸柜: 'plannedUnloadDate',
+    还箱: 'plannedReturnDate',
   }
 
   const dateField = nodeMapping[props.nodeName]
@@ -188,6 +182,7 @@ await expect(returnNode).toBeVisible()
 ### 4.1 浏览器开发者工具验证
 
 **步骤**:
+
 1. 打开甘特图页面
 2. 按 F12 打开开发者工具
 3. 切换到 Elements 面板
@@ -195,6 +190,7 @@ await expect(returnNode).toBeVisible()
 5. 验证属性存在且值正确
 
 **预期结果**:
+
 ```html
 <div
   class="container-dot clickable main-task"
@@ -236,6 +232,7 @@ console.log('date:', node.getAttribute('data-date'))
 **目标**: 在数据库中插入至少 1 个测试货柜
 
 **SQL 脚本**:
+
 ```sql
 -- 1. 插入测试货柜
 INSERT INTO biz_containers (
@@ -307,13 +304,15 @@ INSERT INTO process_warehouse_operations (
 ```
 
 **前置条件**:
+
 - 确保 `dict_trucking_companies` 表中有 `TRUCK001`
 - 确保 `dict_warehouses` 表中有 `WH001`
 
 **验证 SQL**:
+
 ```sql
 -- 验证数据插入成功
-SELECT 
+SELECT
   c.container_number,
   c.logistics_status,
   t.planned_pickup_date,
@@ -334,6 +333,7 @@ WHERE c.container_number = 'TEST0000001';
 **目标**: 确保优化 API 正常运行
 
 **测试命令**:
+
 ```bash
 curl -X POST http://localhost:3001/api/v1/scheduling/optimize-container/TEST0000001 \
   -H "Content-Type: application/json" \
@@ -345,6 +345,7 @@ curl -X POST http://localhost:3001/api/v1/scheduling/optimize-container/TEST0000
 ```
 
 **预期响应**:
+
 ```json
 {
   "success": true,
@@ -362,6 +363,7 @@ curl -X POST http://localhost:3001/api/v1/scheduling/optimize-container/TEST0000
 ```
 
 **失败情况**:
+
 - 404: API 路由不存在
 - 500: 后端服务错误
 - 400: 参数错误
@@ -373,12 +375,14 @@ curl -X POST http://localhost:3001/api/v1/scheduling/optimize-container/TEST0000
 ### P1 - 重新运行 E2E 测试
 
 **命令**:
+
 ```bash
 cd d:\Gihub\logix\frontend
 npx playwright test e2e/cost-optimization.spec.ts --reporter=list
 ```
 
 **预期结果**:
+
 - 至少 1-2 个测试通过
 - 其他测试可能因 Mock 数据问题失败
 
@@ -392,13 +396,13 @@ npx playwright test e2e/cost-optimization.spec.ts --reporter=list
 
 ✅ **小步快跑**: 先添加 data-testid，再逐步完善  
 ✅ **动态生成**: 使用函数动态生成 testid，避免硬编码  
-✅ **日期格式化**: 统一使用 YYYY-MM-DD 格式，便于测试  
+✅ **日期格式化**: 统一使用 YYYY-MM-DD 格式，便于测试
 
 ### 6.2 注意事项
 
 ⚠️ **Props 定义**: Vue 3 `<script setup>` 中需要使用 `const props = defineProps()`  
 ⚠️ **空值处理**: 所有数据访问都需要可选链 `?.` 防止报错  
-⚠️ **日期验证**: 需要验证日期有效性，避免 NaN  
+⚠️ **日期验证**: 需要验证日期有效性，避免 NaN
 
 ---
 

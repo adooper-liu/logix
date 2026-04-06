@@ -1,14 +1,14 @@
 /**
  * 成本优化功能 - 集成测试
  * Cost Optimization Integration Tests
- * 
+ *
  * 测试完整的用户交互流程：
  * 1. 拖拽提柜节点
  * 2. 触发优化 API
  * 3. 显示优化面板
  * 4. 应用最优方案
  * 5. 验证数据更新
- * 
+ *
  * 测试数据：
  * - 货柜: HMMU6232153 (at_port 状态)
  * - 提柜日: 2026-04-02
@@ -16,7 +16,7 @@
  * - 车队: RT_LOGISTICA_SRL_
  */
 
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
 // 测试配置
 const TEST_CONTAINER = 'HMMU6232153'
@@ -93,28 +93,28 @@ test.describe('Cost Optimization - Integration Tests', () => {
     })
 
     // 默认 mock：优化与更新接口
-    await page.route('**/api/v1/scheduling/optimize-container/**', (route) =>
+    await page.route('**/api/v1/scheduling/optimize-container/**', route =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(defaultOptimizeResult),
       })
     )
-    await page.route('**/api/v1/containers/**/schedule', (route) =>
+    await page.route('**/api/v1/containers/**/schedule', route =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({ success: true }),
       })
     )
-    await page.route('**/api/v1/containers/by-filter**', (route) =>
+    await page.route('**/api/v1/containers/by-filter**', route =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify(mockContainerListResponse),
       })
     )
-    await page.route('**/api/v1/containers**', (route) =>
+    await page.route('**/api/v1/containers**', route =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -124,7 +124,7 @@ test.describe('Cost Optimization - Integration Tests', () => {
 
     // 访问甘特图页面（Hash 路由）
     await page.goto('/#/gantt-chart')
-    
+
     // 等待页面加载完成
     await page.waitForLoadState('networkidle')
     await page.waitForSelector('.simple-gantt-chart', { timeout: 15000 })
@@ -133,13 +133,15 @@ test.describe('Cost Optimization - Integration Tests', () => {
   /**
    * 场景 1: 免费期内充足 - 拖拽后显示优化建议
    */
-  test('should show optimization panel when dragging pickup date within free period', async ({ page }) => {
+  test('should show optimization panel when dragging pickup date within free period', async ({
+    page,
+  }) => {
     // 1. 等待页面加载并搜索特定货柜
     await page.waitForSelector('.simple-gantt-chart', { timeout: 10000 })
-    
+
     // 2. 在搜索框中输入货柜号
     const searchInput = page.locator('input[placeholder*="搜索"], input[placeholder*="search"]')
-    if (await searchInput.count() > 0) {
+    if ((await searchInput.count()) > 0) {
       await searchInput.fill(TEST_CONTAINER)
       await page.waitForTimeout(500) // 等待搜索结果
     }
@@ -152,9 +154,8 @@ test.describe('Cost Optimization - Integration Tests', () => {
     // 5. 拖拽并等待优化 API 调用
     const [optimizeResponse] = await Promise.all([
       page.waitForResponse(
-        (response) =>
-          response.url().includes('/scheduling/optimize-container/') &&
-          response.status() === 200,
+        response =>
+          response.url().includes('/scheduling/optimize-container/') && response.status() === 200,
         { timeout: 10000 }
       ),
       pickupNode.dragTo(getDropCell(page, 3)),
@@ -187,10 +188,10 @@ test.describe('Cost Optimization - Integration Tests', () => {
   test('should apply optimal solution after confirmation', async ({ page }) => {
     // 1. 等待页面加载
     await page.waitForSelector('.simple-gantt-chart', { timeout: 10000 })
-    
+
     // 2. 搜索货柜
     const searchInput = page.locator('input[placeholder*="搜索"], input[placeholder*="search"]')
-    if (await searchInput.count() > 0) {
+    if ((await searchInput.count()) > 0) {
       await searchInput.fill(TEST_CONTAINER)
       await page.waitForTimeout(500)
     }
@@ -223,7 +224,7 @@ test.describe('Cost Optimization - Integration Tests', () => {
 
     // 7. 等待 API 更新
     await page.waitForResponse(
-      (response) =>
+      response =>
         response.url().includes('/containers/') &&
         response.url().includes('/schedule') &&
         response.status() === 200
@@ -280,7 +281,7 @@ test.describe('Cost Optimization - Integration Tests', () => {
     const apiCalls: string[] = []
 
     // 监听 API 调用
-    page.on('response', (response) => {
+    page.on('response', response => {
       if (response.url().includes('/scheduling/optimize-container/')) {
         apiCalls.push(response.url())
       }
@@ -308,7 +309,7 @@ test.describe('Cost Optimization - Integration Tests', () => {
     const apiCalls: string[] = []
 
     // 监听 API 调用
-    page.on('response', (response) => {
+    page.on('response', response => {
       if (response.url().includes('/scheduling/optimize-container/')) {
         apiCalls.push(response.url())
       }
@@ -319,9 +320,8 @@ test.describe('Cost Optimization - Integration Tests', () => {
     // 第一次拖拽到 2026-04-10
     await Promise.all([
       page.waitForResponse(
-        (response) =>
-          response.url().includes('/scheduling/optimize-container/') &&
-          response.status() === 200
+        response =>
+          response.url().includes('/scheduling/optimize-container/') && response.status() === 200
       ),
       pickupNode.dragTo(getDropCell(page, 3)),
     ])
@@ -413,7 +413,7 @@ test.describe('Cost Optimization - Integration Tests', () => {
    */
   test('should not show panel when no savings available', async ({ page }) => {
     // Mock API 返回无节省的结果
-    await page.route('**/scheduling/optimize-container/*', (route) => {
+    await page.route('**/scheduling/optimize-container/*', route => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -437,9 +437,8 @@ test.describe('Cost Optimization - Integration Tests', () => {
     const pickupNode = page.locator('[data-testid="pickup-node"]').first()
     await Promise.all([
       page.waitForResponse(
-        (response) =>
-          response.url().includes('/scheduling/optimize-container/') &&
-          response.status() === 200
+        response =>
+          response.url().includes('/scheduling/optimize-container/') && response.status() === 200
       ),
       pickupNode.dragTo(getDropCell(page, 3)),
     ])
@@ -454,7 +453,7 @@ test.describe('Cost Optimization - Integration Tests', () => {
    */
   test('should show error message when API fails', async ({ page }) => {
     // Mock API 失败
-    await page.route('**/scheduling/optimize-container/*', (route) => {
+    await page.route('**/scheduling/optimize-container/*', route => {
       route.fulfill({
         status: 500,
         contentType: 'application/json',
@@ -469,9 +468,8 @@ test.describe('Cost Optimization - Integration Tests', () => {
     const pickupNode = page.locator('[data-testid="pickup-node"]').first()
     await Promise.all([
       page.waitForResponse(
-        (response) =>
-          response.url().includes('/scheduling/optimize-container/') &&
-          response.status() === 500
+        response =>
+          response.url().includes('/scheduling/optimize-container/') && response.status() === 500
       ),
       pickupNode.dragTo(getDropCell(page, 3)),
     ])
@@ -489,14 +487,14 @@ test.describe('Cost Optimization - Integration Tests', () => {
     let updateRequest: any = null
 
     // 监听更新请求
-    page.on('request', (request) => {
+    page.on('request', request => {
       if (request.url().includes('/containers/') && request.url().includes('/schedule')) {
         updateRequest = request.postDataJSON()
       }
     })
 
     // Mock 优化 API 返回 Drop off 策略
-    await page.route('**/scheduling/optimize-container/*', (route) => {
+    await page.route('**/scheduling/optimize-container/*', route => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
@@ -534,7 +532,7 @@ test.describe('Cost Optimization - Integration Tests', () => {
 
     // 5. 等待更新请求
     await page.waitForResponse(
-      (response) =>
+      response =>
         response.url().includes('/containers/') &&
         response.url().includes('/schedule') &&
         response.status() === 200
@@ -544,6 +542,9 @@ test.describe('Cost Optimization - Integration Tests', () => {
     expect(updateRequest).not.toBeNull()
     expect(updateRequest.plannedPickupDate).toBe('2026-04-10')
     // 新逻辑：当建议提柜日晚于当前卸柜日时，会补齐送/卸避免顺序校验失败
-    expect(updateRequest.plannedUnloadDate === undefined || typeof updateRequest.plannedUnloadDate === 'string').toBeTruthy()
+    expect(
+      updateRequest.plannedUnloadDate === undefined ||
+        typeof updateRequest.plannedUnloadDate === 'string'
+    ).toBeTruthy()
   })
 })

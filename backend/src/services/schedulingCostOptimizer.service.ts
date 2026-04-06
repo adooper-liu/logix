@@ -509,7 +509,9 @@ export class SchedulingCostOptimizerService {
       });
       const plannedReturnDate = returnResult.returnDate;
 
-      log.info(`[CostOptimizer] Calling demurrageService.calculateTotalCost for ${option.containerNumber}`);
+      log.info(
+        `[CostOptimizer] Calling demurrageService.calculateTotalCost for ${option.containerNumber}`
+      );
 
       // 使用统一的 calculateTotalCost 方法计算所有费用
       const totalCostResult = await this.demurrageService.calculateTotalCost(
@@ -594,9 +596,8 @@ export class SchedulingCostOptimizerService {
                 // ✅ 关键修复：TypeORM decimal 字段返回字符串，需显式转换为数字
                 const standardRate = Number(truckingPortMapping.standardRate) || 0;
                 const yardOperationFee = Number(truckingPortMapping.yardOperationFee) || 0;
-                breakdown.yardStorageCost = Number(
-                  standardRate * yardStorageDays + yardOperationFee
-                ) || 0;
+                breakdown.yardStorageCost =
+                  Number(standardRate * yardStorageDays + yardOperationFee) || 0;
               }
             } // ← 添加闭合括号
           }
@@ -612,14 +613,15 @@ export class SchedulingCostOptimizerService {
       }
 
       // 总成本（包含外部堆场堆存费，确保是数字类型）
-      breakdown.totalCost = Number(
-        breakdown.demurrageCost +
-        breakdown.detentionCost +
-        breakdown.storageCost +
-        breakdown.transportationCost +
-        breakdown.yardStorageCost +
-        breakdown.handlingCost
-      ) || 0;
+      breakdown.totalCost =
+        Number(
+          breakdown.demurrageCost +
+            breakdown.detentionCost +
+            breakdown.storageCost +
+            breakdown.transportationCost +
+            breakdown.yardStorageCost +
+            breakdown.handlingCost
+        ) || 0;
 
       log.info(`[CostOptimizer] Final breakdown for ${option.containerNumber}:`, breakdown);
     } catch (error) {

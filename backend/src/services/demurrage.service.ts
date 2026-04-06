@@ -1449,7 +1449,8 @@ export class DemurrageService {
         : '当前日期';
     } else {
       // ✅ 关键修复：actual 模式下，如果没有实际提柜日，使用计划提柜日（成本优化场景）
-      demurragePortEndDate = pickupDateActualEarly ?? (plannedPickupDate ? maxDate(today, plannedPickupDate) : today);
+      demurragePortEndDate =
+        pickupDateActualEarly ?? (plannedPickupDate ? maxDate(today, plannedPickupDate) : today);
       demurragePortEndDateSource = pickupDateActualEarly
         ? 'process_trucking_transport.pickup_date'
         : plannedPickupDate
@@ -3654,13 +3655,14 @@ export class DemurrageService {
       }
 
       // 5. 总计（确保是数字类型）
-      costs.totalCost = Number(
-        costs.demurrageCost +
-        costs.detentionCost +
-        costs.storageCost +
-        costs.ddCombinedCost +
-        costs.transportationCost
-      ) || 0;
+      costs.totalCost =
+        Number(
+          costs.demurrageCost +
+            costs.detentionCost +
+            costs.storageCost +
+            costs.ddCombinedCost +
+            costs.transportationCost
+        ) || 0;
 
       return costs;
     } catch (error) {
@@ -3834,13 +3836,14 @@ export class DemurrageService {
       }
 
       // 6. 总计（确保是数字类型）
-      costs.totalCost = Number(
-        costs.demurrageCost +
-        costs.detentionCost +
-        costs.storageCost +
-        costs.ddCombinedCost +
-        costs.transportationCost
-      ) || 0;
+      costs.totalCost =
+        Number(
+          costs.demurrageCost +
+            costs.detentionCost +
+            costs.storageCost +
+            costs.ddCombinedCost +
+            costs.transportationCost
+        ) || 0;
 
       logger.info(
         `[Demurrage] Calculated cost for ${containerNumber} with pickup date ${options.plannedDates.plannedPickupDate.toISOString().split('T')[0]}: $${costs.totalCost.toFixed(2)}`

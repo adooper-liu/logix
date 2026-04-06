@@ -1082,7 +1082,7 @@ export function useGanttLogic() {
             type: 'warning',
             beforeClose: async (action, instance, done) => {
               console.log('[handleDragEnd] 用户操作:', action)
-              
+
               if (action === 'confirm') {
                 // 用户选择智能优化：先调用成本优化 API，显示优化面板
                 console.log('[handleDragEnd] 用户选择智能优化')
@@ -1220,20 +1220,23 @@ export function useGanttLogic() {
         // 无论是否有优化空间，都显示优化面板供用户确认
         console.log('[executeSmartOptimize] API 返回成功，准备显示面板')
         console.log('[executeSmartOptimize] optimizationData:', optimizationData)
-        
+
         optimizationResult.value = {
           containerNumber: container.containerNumber,
           currentPickupDate: basePickupDate,
           currentStrategy: trucking.unloadModePlan || 'Direct',
           ...optimizationData,
         }
-        
+
         console.log('[executeSmartOptimize] optimizationResult.value:', optimizationResult.value)
         console.log('[executeSmartOptimize] 设置 showOptimizationPanel = true')
-        
+
         showOptimizationPanel.value = true
-        
-        console.log('[executeSmartOptimize] showOptimizationPanel.value:', showOptimizationPanel.value)
+
+        console.log(
+          '[executeSmartOptimize] showOptimizationPanel.value:',
+          showOptimizationPanel.value
+        )
         debugCostOptimization(
           '[executeSmartOptimize] 显示优化面板（savings:',
           optimizationData.savings,

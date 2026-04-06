@@ -7,13 +7,6 @@ module.exports = {
   },
   setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
   testPathIgnorePatterns: ['/node_modules/', '/dist/', '/tests/'],
-  testMatch: [
-    '**/src/**/*.test.ts',
-    '**/test/**/*.test.ts'
-  ],
-  collectCoverageFrom: [
-    'src/**/*.ts',
-    '!src/**/*.test.ts',
-    '!src/test/**'
-  ]
+  testMatch: ['**/src/**/*.test.ts', '**/test/**/*.test.ts'],
+  collectCoverageFrom: ['src/**/*.ts', '!src/**/*.test.ts', '!src/test/**']
 };

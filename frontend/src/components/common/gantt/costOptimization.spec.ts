@@ -3,7 +3,7 @@
  * Cost Optimization Unit Tests
  */
 
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { buildOptimalSolutionUpdateData } from './useGanttLogic'
 
@@ -76,7 +76,7 @@ describe('Cost Optimization - Debounce & Cache', () => {
   describe('Cache Management', () => {
     it('should store and retrieve cache correctly', () => {
       const key = 'ECMU5399797_WH001_TRUCK001_2026-04-15'
-      const testData = { savings: 270.00, suggestedPickupDate: '2026-04-10' }
+      const testData = { savings: 270.0, suggestedPickupDate: '2026-04-10' }
 
       setCachedResult(key, testData)
       const result = getCachedResult(key)
@@ -91,7 +91,7 @@ describe('Cost Optimization - Debounce & Cache', () => {
 
     it('should expire cache after TTL', () => {
       const key = 'ECMU5399797_WH001_TRUCK001_2026-04-15'
-      const testData = { savings: 270.00 }
+      const testData = { savings: 270.0 }
 
       // 设置缓存
       setCachedResult(key, testData)
@@ -143,7 +143,7 @@ describe('Cost Optimization - Debounce & Cache', () => {
       }
 
       // 等待 600ms
-      await new Promise((resolve) => setTimeout(resolve, 600))
+      await new Promise(resolve => setTimeout(resolve, 600))
 
       // 应该只执行 1 次
       expect(callCount).toBe(1)
@@ -176,7 +176,7 @@ describe('Cost Optimization - Debounce & Cache', () => {
 
       expect(executed).toBe(false)
 
-      await new Promise((resolve) => setTimeout(resolve, 600))
+      await new Promise(resolve => setTimeout(resolve, 600))
 
       expect(executed).toBe(true)
       expect(optimizationDebounceTimer).toBeNull()
@@ -187,7 +187,7 @@ describe('Cost Optimization - Debounce & Cache', () => {
     it('should use cache on second call with same parameters', async () => {
       const mockApiCall = vi.fn().mockResolvedValue({
         success: true,
-        data: { savings: 270.00, suggestedPickupDate: '2026-04-10' },
+        data: { savings: 270.0, suggestedPickupDate: '2026-04-10' },
       })
 
       const key = 'ECMU5399797_WH001_TRUCK001_2026-04-15'
@@ -206,7 +206,7 @@ describe('Cost Optimization - Debounce & Cache', () => {
       const key1 = 'ECMU5399797_WH001_TRUCK001_2026-04-15'
       const key2 = 'ECMU5399797_WH001_TRUCK001_2026-04-16'
 
-      setCachedResult(key1, { savings: 270.00 })
+      setCachedResult(key1, { savings: 270.0 })
 
       const result = getCachedResult(key2)
       expect(result).toBeNull()
@@ -221,9 +221,9 @@ describe('Cost Optimization Panel Component', () => {
         containerNumber: 'ECMU5399797',
         currentPickupDate: '2026-04-15',
         currentStrategy: 'Direct',
-        originalCost: 1250.00,
-        optimizedCost: 980.00,
-        savings: 270.00,
+        originalCost: 1250.0,
+        optimizedCost: 980.0,
+        savings: 270.0,
         savingsPercent: 21.6,
         suggestedPickupDate: '2026-04-10',
         suggestedStrategy: 'Direct',
@@ -231,7 +231,7 @@ describe('Cost Optimization Panel Component', () => {
       }
 
       expect(props.containerNumber).toBe('ECMU5399797')
-      expect(props.savings).toBe(270.00)
+      expect(props.savings).toBe(270.0)
     })
 
     it('should format cost correctly', () => {
@@ -253,9 +253,7 @@ describe('Cost Optimization Panel Component', () => {
   })
 
   describe('Strategy Tag Types', () => {
-    const getStrategyTagType = (
-      strategy: string
-    ): 'primary' | 'success' | 'warning' => {
+    const getStrategyTagType = (strategy: string): 'primary' | 'success' | 'warning' => {
       switch (strategy) {
         case 'Direct':
           return 'primary'
@@ -377,7 +375,7 @@ describe('Edge Cases', () => {
   })
 
   it('should handle very large savings', () => {
-    const savings = 10000.50
+    const savings = 10000.5
     const formatCost = (cost: number) => cost.toFixed(2)
     expect(formatCost(savings)).toBe('10000.50')
   })

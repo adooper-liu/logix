@@ -13,17 +13,19 @@
 设计文档中 Drop off 策略的描述存在两处严重错误：
 
 **错误 1: 卸柜日计算错误**
+
 ```markdown
 | Drop off | pickupDate | pickupDate + 2天 | max(unload, return+1) | yardStorageCost |
-                                    ^^^^^^^^^^^^
-                                    这是错误的！
+^^^^^^^^^^^^
+这是错误的！
 ```
 
 **错误 2: 搜索范围描述不准确**
+
 ```markdown
 | **搜索范围** | baseDate -7 ~ baseDate | ... | baseDate ~ baseDate +7 | ...
-                 ^^^^^^^^^^^^^^^^^^^^^^          ^^^^^^^^^^^^^^^^^^^^^^
-                 这是简化描述，但容易引起误解
+^^^^^^^^^^^^^^^^^^^^^^ ^^^^^^^^^^^^^^^^^^^^^^
+这是简化描述，但容易引起误解
 ```
 
 ### 1.2 用户反馈
@@ -31,6 +33,7 @@
 > "Drop off pickupDate pickupDate + 2天 应为 lastFreeDate 偏移 + 多重过滤吧？"
 
 用户正确指出了两个问题：
+
 1. Drop off 的卸柜日不应该是 `pickupDate + 2天`
 2. 搜索范围应该基于 `lastFreeDate` 偏移，而非 `baseDate`
 
@@ -49,12 +52,12 @@ if (truckingCompany.hasYard) {
   const dropOffOption: UnloadOption = {
     containerNumber: option.containerNumber,
     warehouse: option.warehouse,
-    plannedPickupDate: option.plannedPickupDate,  // 提柜日不变
+    plannedPickupDate: option.plannedPickupDate, // 提柜日不变
     strategy: 'Drop off',
     truckingCompany: option.truckingCompany,
-    isWithinFreePeriod: option.isWithinFreePeriod
+    isWithinFreePeriod: option.isWithinFreePeriod,
   }
-  
+
   // 卸柜日 = 提柜日（当天送当天卸）
   // 还箱日由 calculatePlannedReturnDateBasic 根据卸柜模式计算
   const breakdown = await this.evaluateTotalCost(dropOffOption)
@@ -62,6 +65,7 @@ if (truckingCompany.hasYard) {
 ```
 
 **关键发现**:
+
 - ✅ 提柜日 = `pickupDate`
 - ✅ 卸柜日 = `pickupDate`（不是 `pickupDate + 2天`）
 - ✅ 还箱日 = 根据 Drop off 模式和现有还箱日计算
@@ -80,7 +84,7 @@ private generateSearchRange(
   const dates: Date[] = []
   const todayStr = new Date().toISOString().split('T')[0]
   const basePickupDateStr = basePickupDate.toISOString().split('T')[0]
-  
+
   if (strategy.searchDirection === 'forward') {
     // ✅ 已超期：从今天向后搜索
     for (let offset = strategy.searchStartOffset; offset <= strategy.searchEndOffset; offset++) {
@@ -94,12 +98,13 @@ private generateSearchRange(
       // ... 过滤规则
     }
   }
-  
+
   return dates
 }
 ```
 
 **策略配置**（第 1265-1283 行）：
+
 ```typescript
 private readonly OPTIMIZATION_STRATEGIES = {
   // 已超期：从今天向后搜索
@@ -110,7 +115,7 @@ private readonly OPTIMIZATION_STRATEGIES = {
     prioritizeZeroCost: false,
     allowSkipIfNoCapacity: false
   },
-  
+
   // 免费期内：从 lastFreeDate 向前搜索
   WITHIN_FREE_PERIOD: {
     searchDirection: 'backward',
@@ -129,28 +134,32 @@ private readonly OPTIMIZATION_STRATEGIES = {
 ### 3.1 修正 Drop off 策略表格
 
 **修正前**:
+
 ```markdown
-| 策略 | 提柜日 | 卸柜日 | 还箱日 | 特殊费用 |
-|------|--------|--------|--------|----------|
-| Direct | pickupDate | pickupDate | pickupDate | 无 |
-| Drop off | pickupDate | pickupDate + 2天 | max(unload, return+1) | yardStorageCost |
-| Expedited | pickupDate | pickupDate | pickupDate | handlingCost (加急费) |
+| 策略      | 提柜日     | 卸柜日           | 还箱日                | 特殊费用              |
+| --------- | ---------- | ---------------- | --------------------- | --------------------- |
+| Direct    | pickupDate | pickupDate       | pickupDate            | 无                    |
+| Drop off  | pickupDate | pickupDate + 2天 | max(unload, return+1) | yardStorageCost       |
+| Expedited | pickupDate | pickupDate       | pickupDate            | handlingCost (加急费) |
 ```
 
 **修正后**:
-```markdown
-| 策略 | 提柜日 | 卸柜日 | 还箱日 | 特殊费用 |
-|------|--------|--------|--------|----------|
-| Direct | pickupDate | pickupDate | pickupDate + 1天 | 无 |
-| Drop off | pickupDate | pickupDate | max(unload, return+1) | yardStorageCost |
-| Expedited | pickupDate | pickupDate | pickupDate | handlingCost (加急费) |
 
-**注意**: 
+```markdown
+| 策略      | 提柜日     | 卸柜日     | 还箱日                | 特殊费用              |
+| --------- | ---------- | ---------- | --------------------- | --------------------- |
+| Direct    | pickupDate | pickupDate | pickupDate + 1天      | 无                    |
+| Drop off  | pickupDate | pickupDate | max(unload, return+1) | yardStorageCost       |
+| Expedited | pickupDate | pickupDate | pickupDate            | handlingCost (加急费) |
+
+**注意**:
+
 - Drop off 的卸柜日**不是** `pickupDate + 2天`，而是与提柜日相同（当天送当天卸）
 - 还箱日根据卸柜模式和现有还箱日计算（使用共享函数 `calculatePlannedReturnDateBasic`）
 ```
 
 **修正说明**:
+
 1. ✅ Drop off 卸柜日改为 `pickupDate`（与提柜日相同）
 2. ✅ Direct 还箱日改为 `pickupDate + 1天`（符合 Live load 规则）
 3. ✅ 添加注释说明 Drop off 的实际逻辑
@@ -159,18 +168,21 @@ private readonly OPTIMIZATION_STRATEGIES = {
 ### 3.2 修正场景矩阵表
 
 **修正前**:
+
 ```markdown
 | **搜索方向** | backward (向前) | backward (向前) | forward (向后) | forward (向后) |
 | **搜索范围** | baseDate -7 ~ baseDate | ... | baseDate ~ baseDate +7 | ... |
 ```
 
 **修正后**:
+
 ```markdown
 | **搜索方向** | backward (从 lastFreeDate 向前) | backward (从 lastFreeDate 向前) | forward (从今天向后) | forward (从今天向后) |
 | **偏移范围** | offset: 0 ~ -7<br/>(lastFreeDate + offset) | offset: 0 ~ -7<br/>(lastFreeDate + offset) | offset: 0 ~ +7<br/>(today + offset) | offset: 0 ~ +7<br/>(today + offset) |
 ```
 
 **修正说明**:
+
 1. ✅ 明确搜索基准点：免费期内基于 `lastFreeDate`，已超期基于 `today`
 2. ✅ 使用"偏移范围"替代"搜索范围"，更准确
 3. ✅ 显示具体的偏移计算公式
@@ -178,28 +190,32 @@ private readonly OPTIMIZATION_STRATEGIES = {
 ### 3.3 修正搜索范围示例
 
 **修正前**:
+
 ```markdown
 **免费期内示例** (basePickupDate = 2026-04-15, lastFreeDate = 2026-04-20):
-搜索范围: [2026-04-08, 2026-04-09, ..., 2026-04-15]  (共8天)
+搜索范围: [2026-04-08, 2026-04-09, ..., 2026-04-15] (共8天)
 方向: 从 basePickupDate 向前搜索 7 天
 ```
 
 **修正后**:
+
 ```markdown
 **免费期内示例** (basePickupDate = 2026-04-15, lastFreeDate = 2026-04-20):
 搜索方向: backward (从 lastFreeDate 向前搜索)
 偏移范围: strategy.searchStartOffset (0) ~ strategy.searchEndOffset (-7)
-原始候选: [2026-04-20, 2026-04-19, ..., 2026-04-13]  // lastFreeDate + offset
+原始候选: [2026-04-20, 2026-04-19, ..., 2026-04-13] // lastFreeDate + offset
 过滤规则:
-  1. date >= today (不能是过去日期)
-  2. date >= basePickupDate (不能早于原计划提柜日)
-  3. date !== today || date === basePickupDate (不能是当天，除非原计划就是当天)
-  4. 跳过周末 (如果配置 skip_weekends = true)
-  5. 检查仓库能力 (allowSkipIfNoCapacity = true 时可跳过)
-最终候选: [2026-04-20, 2026-04-19, ..., 2026-04-15]  (约6天)
+
+1. date >= today (不能是过去日期)
+2. date >= basePickupDate (不能早于原计划提柜日)
+3. date !== today || date === basePickupDate (不能是当天，除非原计划就是当天)
+4. 跳过周末 (如果配置 skip_weekends = true)
+5. 检查仓库能力 (allowSkipIfNoCapacity = true 时可跳过)
+   最终候选: [2026-04-20, 2026-04-19, ..., 2026-04-15] (约6天)
 ```
 
 **修正说明**:
+
 1. ✅ 明确搜索方向是从 `lastFreeDate` 向前
 2. ✅ 显示偏移范围的具体值（0 ~ -7）
 3. ✅ 列出所有过滤规则
@@ -214,11 +230,13 @@ private readonly OPTIMIZATION_STRATEGIES = {
 **好消息**: 前端组件开发不受影响
 
 原因：
+
 1. ✅ 前端只调用 API，不直接实现优化逻辑
 2. ✅ 后端 API 返回的结果是正确的
 3. ✅ CostOptimizationPanel.vue 组件只是展示数据
 
 **需要注意**:
+
 - ⚠️ 文档中的示例代码需要更新
 - ⚠️ 测试用例的预期结果需要调整
 
@@ -233,6 +251,7 @@ private readonly OPTIMIZATION_STRATEGIES = {
 ### 4.3 对测试的影响
 
 **需要调整**:
+
 1. 单元测试中的预期结果需要更新
 2. 集成测试的场景描述需要修正
 3. 手动验证的检查清单需要调整
@@ -260,10 +279,11 @@ private readonly OPTIMIZATION_STRATEGIES = {
 ### 5.2 如何避免类似问题？
 
 1. **文档生成时必须引用代码**
+
    ```markdown
    // ❌ 不好的做法
    搜索范围: baseDate ±7
-   
+
    // ✅ 好的做法
    搜索范围: lastFreeDate + offset (offset: 0 ~ -7)
    参考代码: schedulingCostOptimizer.service.ts#L1450-L1451
@@ -285,13 +305,13 @@ private readonly OPTIMIZATION_STRATEGIES = {
 
 ### 6.1 修正后的文档准确性
 
-| 检查项 | 状态 | 说明 |
-|--------|------|------|
-| Drop off 卸柜日 | ✅ 正确 | 已修正为 `pickupDate` |
-| Direct 还箱日 | ✅ 正确 | 已修正为 `pickupDate + 1天` |
-| 搜索基准点 | ✅ 正确 | 明确基于 `lastFreeDate` 或 `today` |
-| 偏移范围 | ✅ 正确 | 显示具体计算公式 |
-| 过滤规则 | ✅ 正确 | 列出所有5条过滤规则 |
+| 检查项          | 状态    | 说明                               |
+| --------------- | ------- | ---------------------------------- |
+| Drop off 卸柜日 | ✅ 正确 | 已修正为 `pickupDate`              |
+| Direct 还箱日   | ✅ 正确 | 已修正为 `pickupDate + 1天`        |
+| 搜索基准点      | ✅ 正确 | 明确基于 `lastFreeDate` 或 `today` |
+| 偏移范围        | ✅ 正确 | 显示具体计算公式                   |
+| 过滤规则        | ✅ 正确 | 列出所有5条过滤规则                |
 
 ### 6.2 与后端代码的一致性
 

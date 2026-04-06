@@ -13,12 +13,14 @@
 在实施报告和代码中，对 Drop off 策略的卸柜日计算存在误解：
 
 **错误描述**:
+
 ```typescript
 // ❌ 错误的理解
 Drop off: 卸柜日 = 提柜日（当天送当天卸）
 ```
 
 **正确理解**:
+
 ```typescript
 // ✅ 正确的逻辑
 Drop off: 卸柜日由后端根据仓库能力确定（智能搜索）
@@ -28,7 +30,7 @@ Drop off: 卸柜日由后端根据仓库能力确定（智能搜索）
 
 ### 1.2 用户反馈
 
-> "这是错误的：Drop off 的卸柜日**不是** `pickupDate + 2天`，而是与提柜日相同（当天送当天卸）   
+> "这是错误的：Drop off 的卸柜日**不是** `pickupDate + 2天`，而是与提柜日相同（当天送当天卸）  
 > 正确：Drop off 的卸柜日是依据仓库有没有能力来定的，要在智能搜索范围内确定"
 
 ---
@@ -41,19 +43,20 @@ Drop off: 卸柜日由后端根据仓库能力确定（智能搜索）
 
 ```typescript
 // 如果未提供 plannedUnloadDate，根据策略推导
-let actualPlannedUnloadDate = option.plannedUnloadDate;
+let actualPlannedUnloadDate = option.plannedUnloadDate
 if (!actualPlannedUnloadDate) {
   if (option.strategy === 'Drop off') {
     // Drop off 模式：假设提柜后 2 天卸柜（堆场堆存）
-    actualPlannedUnloadDate = dateTimeUtils.addDays(option.plannedPickupDate, 2);
+    actualPlannedUnloadDate = dateTimeUtils.addDays(option.plannedPickupDate, 2)
   } else {
     // Direct/Expedited: 提=卸
-    actualPlannedUnloadDate = option.plannedPickupDate;
+    actualPlannedUnloadDate = option.plannedPickupDate
   }
 }
 ```
 
 **说明**:
+
 - ✅ 这是**成本预估**场景的默认逻辑
 - ✅ 如果前端未提供 `plannedUnloadDate`，后端使用 `pickupDate + 2天` 作为估算
 - ✅ 这只是一个**估算值**，用于计算费用
@@ -75,11 +78,11 @@ const searchDates = this.generateSearchRange(
 for (const candidateDate of searchDates) {
   // 检查仓库能力
   const hasCapacity = await this.checkWarehouseCapacity(warehouse, candidateDate)
-  
+
   if (!hasCapacity && !strategy.allowSkipIfNoCapacity) {
     continue // 跳过无能力的日期
   }
-  
+
   // 评估该日期的成本
   const option: UnloadOption = {
     containerNumber,
@@ -88,13 +91,14 @@ for (const candidateDate of searchDates) {
     strategy: 'Drop off',
     truckingCompany,
   }
-  
+
   const breakdown = await this.evaluateTotalCost(option)
   candidates.push({ pickupDate: candidateDate, totalCost: breakdown.totalCost })
 }
 ```
 
 **说明**:
+
 - ✅ 智能搜索会在搜索范围内检查每个候选日期的仓库能力
 - ✅ 选择有能力的日期作为最优方案
 - ✅ 返回的是 `suggestedPickupDate`（建议提柜日），而不是卸柜日
@@ -109,18 +113,22 @@ for (const candidateDate of searchDates) {
 **文件**: [11-甘特图拖拽圆点单柜优化功能设计.md](./11-甘特图拖拽圆点单柜优化功能设计.md)
 
 **修正前**:
+
 ```markdown
 | Drop off | pickupDate | pickupDate | max(unload, return+1) | yardStorageCost |
 
-**注意**: 
+**注意**:
+
 - Drop off 的卸柜日**不是** `pickupDate + 2天`，而是与提柜日相同（当天送当天卸）
 ```
 
 **修正后**:
+
 ```markdown
 | Drop off | pickupDate | **智能搜索确定**<br/>(基于仓库能力) | max(unload, return+1) | yardStorageCost |
 
-**注意**: 
+**注意**:
+
 - Drop off 的卸柜日**不是**固定 `pickupDate + 2天`，而是**在智能搜索范围内根据仓库能力确定**
 - 后端会在搜索范围内检查每个候选日期的仓库能力，选择有能力的日期作为卸柜日
 - 如果未提供 plannedUnloadDate，后端默认使用 `pickupDate + 2天` 作为估算值
@@ -132,15 +140,17 @@ for (const candidateDate of searchDates) {
 **文件**: [useGanttLogic.ts](../../../src/components/common/gantt/useGanttLogic.ts)
 
 **修正前**:
+
 ```typescript
 // 构建更新数据
 const updateData: Record<string, string> = {
   plannedPickupDate: suggestedPickupDate,
-  plannedUnloadDate: suggestedPickupDate,  // ← 错误：所有策略都设置为提柜日
+  plannedUnloadDate: suggestedPickupDate, // ← 错误：所有策略都设置为提柜日
 }
 ```
 
 **修正后**:
+
 ```typescript
 // 构建更新数据
 const updateData: Record<string, string> = {
@@ -158,6 +168,7 @@ if (suggestedStrategy === 'Direct' || suggestedStrategy === 'Expedited') {
 ```
 
 **修正说明**:
+
 - ✅ Direct/Expedited: 明确设置 `plannedUnloadDate = suggestedPickupDate`
 - ✅ Drop off: 不设置 `plannedUnloadDate`，让后端根据仓库能力计算
 - ✅ 后端会使用默认逻辑（pickupDate + 2天）或智能搜索确定卸柜日
@@ -167,6 +178,7 @@ if (suggestedStrategy === 'Direct' || suggestedStrategy === 'Expedited') {
 **文件**: [16-应用最优方案实施报告.md](./16-应用最优方案实施报告.md)
 
 更新了以下内容：
+
 1. 核心代码示例中的更新逻辑
 2. 关键设计决策说明
 3. 还箱日计算流程说明
@@ -180,6 +192,7 @@ if (suggestedStrategy === 'Direct' || suggestedStrategy === 'Expedited') {
 **好消息**: 前端只需传递 `plannedPickupDate`，无需关心卸柜日计算
 
 **需要调整**:
+
 - ✅ Direct/Expedited: 同时传递 `plannedPickupDate` 和 `plannedUnloadDate`
 - ✅ Drop off: 只传递 `plannedPickupDate`，让后端计算卸柜日
 
@@ -194,6 +207,7 @@ if (suggestedStrategy === 'Direct' || suggestedStrategy === 'Expedited') {
 ### 4.3 对用户体验的影响
 
 **改进**:
+
 - ✅ Drop off 模式下，卸柜日更准确（基于仓库能力）
 - ✅ 避免手动指定错误的卸柜日
 - ✅ 后端智能选择最优日期
@@ -279,12 +293,12 @@ graph TD
 
 ### 7.1 修正后的准确性
 
-| 检查项 | 修正前 | 修正后 | 状态 |
-|--------|--------|--------|------|
-| Drop off 卸柜日描述 | 当天送当天卸 | 智能搜索确定 | ✅ 正确 |
-| 默认估算逻辑 | 未说明 | pickupDate + 2天 | ✅ 正确 |
-| 前端更新逻辑 | 所有策略都设置 unloadDate | 根据策略区分 | ✅ 正确 |
-| 后端计算逻辑 | 未说明 | 根据能力动态确定 | ✅ 正确 |
+| 检查项              | 修正前                    | 修正后           | 状态    |
+| ------------------- | ------------------------- | ---------------- | ------- |
+| Drop off 卸柜日描述 | 当天送当天卸              | 智能搜索确定     | ✅ 正确 |
+| 默认估算逻辑        | 未说明                    | pickupDate + 2天 | ✅ 正确 |
+| 前端更新逻辑        | 所有策略都设置 unloadDate | 根据策略区分     | ✅ 正确 |
+| 后端计算逻辑        | 未说明                    | 根据能力动态确定 | ✅ 正确 |
 
 ### 7.2 与后端代码的一致性
 

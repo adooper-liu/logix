@@ -256,7 +256,9 @@
                     <arrow-right />
                   </el-icon>
                   {{ node }}
-                  <span class="group-count">({{ getVisibleContainersInNode(suppliersByNode, node as string) }})</span>
+                  <span class="group-count"
+                    >({{ getVisibleContainersInNode(suppliersByNode, node as string) }})</span
+                  >
                 </div>
 
                 <!-- 节点日期列 -->
@@ -280,7 +282,9 @@
                   <div
                     class="tree-column level-3"
                     :style="{
-                      height: getSupplierRowHeight(getVisibleContainersInSupplier(containersBySupplier, node as string)),
+                      height: getSupplierRowHeight(
+                        getVisibleContainersInSupplier(containersBySupplier, node as string)
+                      ),
                     }"
                     @click="toggleGroupCollapse(port + '-' + node + '-' + supplier)"
                     style="cursor: pointer"
@@ -292,7 +296,11 @@
                       <arrow-right />
                     </el-icon>
                     {{ getSupplierDisplayName(node, supplier, containersBySupplier) }}
-                    <span class="group-count">({{ getVisibleContainersInSupplier(containersBySupplier, node as string) }})</span>
+                    <span class="group-count"
+                      >({{
+                        getVisibleContainersInSupplier(containersBySupplier, node as string)
+                      }})</span
+                    >
                   </div>
 
                   <!-- 供应商日期列 -->
@@ -300,7 +308,9 @@
                     v-if="!isGroupCollapsed(port + '-' + node + '-' + supplier)"
                     class="dates-column level-3-dates"
                     :style="{
-                      height: getSupplierRowHeight(getVisibleContainersInSupplier(containersBySupplier, node as string)),
+                      height: getSupplierRowHeight(
+                        getVisibleContainersInSupplier(containersBySupplier, node as string)
+                      ),
                     }"
                   >
                     <div
@@ -741,7 +751,9 @@
                   <arrow-right />
                 </el-icon>
                 {{ node }}
-                <span class="group-count">({{ getVisibleContainersInNode(suppliersByNode, node as string) }})</span>
+                <span class="group-count"
+                  >({{ getVisibleContainersInNode(suppliersByNode, node as string) }})</span
+                >
               </div>
               <!-- 节点日期列（隐藏，因为供应商行自己显示日期） -->
               <div
@@ -770,12 +782,20 @@
                     <arrow-right />
                   </el-icon>
                   {{ getSupplierDisplayName(node, supplier, containersBySupplier) }}
-                  <span class="group-count">({{ getVisibleContainersInSupplier(containersBySupplier, node as string) }})</span>
+                  <span class="group-count"
+                    >({{
+                      getVisibleContainersInSupplier(containersBySupplier, node as string)
+                    }})</span
+                  >
                 </div>
                 <div
                   v-if="!isGroupCollapsed(selectedPortForModal + '-' + node + '-' + supplier)"
                   class="dates-column level-3-dates"
-                  :style="{ height: getSupplierRowHeight(getVisibleContainersInSupplier(containersBySupplier, node as string)) }"
+                  :style="{
+                    height: getSupplierRowHeight(
+                      getVisibleContainersInSupplier(containersBySupplier, node as string)
+                    ),
+                  }"
                 >
                   <div
                     v-for="(date, index) in dateRange"
