@@ -29,9 +29,9 @@
 /**
  * 甘特图圆点组件
  * Gantt Dot Component
- * 
+ *
  * 职责：渲染单个货柜在特定节点的圆点，处理交互事件
- * 
+ *
  * 注意：
  * - 本组件不定义任何样式，完全依赖父组件 SimpleGanttChartRefactored.vue 的样式
  * - 避免 scoped CSS 导致的样式冲突问题

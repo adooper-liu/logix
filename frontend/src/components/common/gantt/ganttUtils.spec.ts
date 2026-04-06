@@ -3,11 +3,10 @@
  * Gantt Utils Unit Tests
  */
 
-import { describe, it, expect, vi } from 'vitest'
-import dayjs from 'dayjs'
+import { describe, expect, it, vi } from 'vitest'
 import {
-  getContainersByDateAndSupplier,
   getContainersByDateAndPort,
+  getContainersByDateAndSupplier,
   getUnclassifiedContainersByDateAndPort,
 } from './ganttUtils'
 
@@ -19,7 +18,7 @@ const mockGetNodePlannedDate = vi.fn((container: any, nodeName: string) => {
 
 describe('ganttUtils', () => {
   const testDate = new Date('2024-04-15')
-  
+
   // 测试数据
   const mockContainers = [
     {
@@ -27,10 +26,10 @@ describe('ganttUtils', () => {
       destinationPort: 'USLAX',
       isReturned: false,
       plannedDates: {
-        '清关': new Date('2024-04-15'),
-        '提柜': new Date('2024-04-16'),
-        '卸柜': new Date('2024-04-17'),
-        '还箱': new Date('2024-04-18'),
+        清关: new Date('2024-04-15'),
+        提柜: new Date('2024-04-16'),
+        卸柜: new Date('2024-04-17'),
+        还箱: new Date('2024-04-18'),
       },
     },
     {
@@ -38,8 +37,8 @@ describe('ganttUtils', () => {
       destinationPort: 'USLAX',
       isReturned: false,
       plannedDates: {
-        '清关': new Date('2024-04-15'),
-        '提柜': new Date('2024-04-16'),
+        清关: new Date('2024-04-15'),
+        提柜: new Date('2024-04-16'),
       },
     },
     {
@@ -47,7 +46,7 @@ describe('ganttUtils', () => {
       destinationPort: 'USLAX',
       isReturned: true, // 已还箱
       plannedDates: {
-        '清关': new Date('2024-04-15'),
+        清关: new Date('2024-04-15'),
       },
     },
     {
@@ -55,7 +54,7 @@ describe('ganttUtils', () => {
       destinationPort: 'CNNGB',
       isReturned: false,
       plannedDates: {
-        '清关': new Date('2024-04-15'),
+        清关: new Date('2024-04-15'),
       },
     },
     {
@@ -63,7 +62,7 @@ describe('ganttUtils', () => {
       destinationPort: 'USLAX',
       isReturned: false,
       plannedDates: {
-        '清关': new Date('2024-04-16'), // 不同日期
+        清关: new Date('2024-04-16'), // 不同日期
       },
     },
   ]
@@ -183,8 +182,8 @@ describe('ganttUtils', () => {
   describe('getUnclassifiedContainersByDateAndPort', () => {
     const mockGroupedData = {
       USLAX: {
-        '清关': {
-          '供应商A': [mockContainers[0]], // CONT001 已分配
+        清关: {
+          供应商A: [mockContainers[0]], // CONT001 已分配
         },
       },
     }

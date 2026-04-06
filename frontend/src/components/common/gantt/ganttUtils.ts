@@ -22,7 +22,7 @@ export function getContainersByDateAndSupplier(
   getNodePlannedDate: (container: any, nodeName: string) => Date | null
 ): any[] {
   const dateStr = dayjs(date).format('YYYY-MM-DD')
-  
+
   return containers.filter(container => {
     // 排除已还箱的货柜
     if (isReturnedEmpty(container)) return false
@@ -54,11 +54,11 @@ export function getContainersByDateAndPort(
   getNodePlannedDate: (container: any, nodeName: string) => Date | null
 ): any[] {
   const dateStr = dayjs(date).format('YYYY-MM-DD')
-  
+
   return containers.filter(container => {
     // 排除已还箱的货柜
     if (isReturnedEmpty(container)) return false
-    
+
     // 检查是否属于该港口
     if (container.destinationPort !== port) return false
 
@@ -91,11 +91,11 @@ export function getUnclassifiedContainersByDateAndPort(
   groupedByPortNodeSupplier: Record<string, Record<string, Record<string, any[]>>>
 ): any[] {
   const dateStr = dayjs(date).format('YYYY-MM-DD')
-  
+
   return containers.filter(container => {
     // 排除已还箱的货柜
     if (isReturnedEmpty(container)) return false
-    
+
     // 检查是否属于该港口
     if (container.destinationPort !== port) return false
 
