@@ -256,7 +256,7 @@
                     <arrow-right />
                   </el-icon>
                   {{ node }}
-                  <span class="group-count">({{ getTotalContainersInNode(suppliersByNode) }})</span>
+                  <span class="group-count">({{ getVisibleContainersInNode(suppliersByNode, node as string) }})</span>
                 </div>
 
                 <!-- 节点日期列 -->
@@ -280,7 +280,7 @@
                   <div
                     class="tree-column level-3"
                     :style="{
-                      height: getSupplierRowHeight(containersBySupplier.length),
+                      height: getSupplierRowHeight(getVisibleContainersInSupplier(containersBySupplier, node as string)),
                     }"
                     @click="toggleGroupCollapse(port + '-' + node + '-' + supplier)"
                     style="cursor: pointer"
@@ -292,7 +292,7 @@
                       <arrow-right />
                     </el-icon>
                     {{ getSupplierDisplayName(node, supplier, containersBySupplier) }}
-                    <span class="group-count">({{ containersBySupplier.length }})</span>
+                    <span class="group-count">({{ getVisibleContainersInSupplier(containersBySupplier, node as string) }})</span>
                   </div>
 
                   <!-- 供应商日期列 -->
@@ -300,7 +300,7 @@
                     v-if="!isGroupCollapsed(port + '-' + node + '-' + supplier)"
                     class="dates-column level-3-dates"
                     :style="{
-                      height: getSupplierRowHeight(containersBySupplier.length),
+                      height: getSupplierRowHeight(getVisibleContainersInSupplier(containersBySupplier, node as string)),
                     }"
                   >
                     <div
@@ -741,7 +741,7 @@
                   <arrow-right />
                 </el-icon>
                 {{ node }}
-                <span class="group-count">({{ getTotalContainersInNode(suppliersByNode) }})</span>
+                <span class="group-count">({{ getVisibleContainersInNode(suppliersByNode, node as string) }})</span>
               </div>
               <!-- 节点日期列（隐藏，因为供应商行自己显示日期） -->
               <div
@@ -770,12 +770,12 @@
                     <arrow-right />
                   </el-icon>
                   {{ getSupplierDisplayName(node, supplier, containersBySupplier) }}
-                  <span class="group-count">({{ containersBySupplier.length }})</span>
+                  <span class="group-count">({{ getVisibleContainersInSupplier(containersBySupplier, node as string) }})</span>
                 </div>
                 <div
                   v-if="!isGroupCollapsed(selectedPortForModal + '-' + node + '-' + supplier)"
                   class="dates-column level-3-dates"
-                  :style="{ height: getSupplierRowHeight(containersBySupplier.length) }"
+                  :style="{ height: getSupplierRowHeight(getVisibleContainersInSupplier(containersBySupplier, node as string)) }"
                 >
                   <div
                     v-for="(date, index) in dateRange"
@@ -897,6 +897,14 @@
     >
       拖放至 {{ formatDateShort(dragOverDate) }}
     </div>
+
+    <!-- 🎯 成本优化面板 -->
+    <CostOptimizationPanel
+      v-if="showOptimizationPanel && optimizationResult"
+      v-bind="optimizationResult"
+      @apply="applyOptimalSolution"
+      @close="closeOptimizationPanel"
+    />
   </div>
 </template>
 
@@ -914,6 +922,7 @@ import ContainerContextMenu from './ContainerContextMenu.vue'
 import ContainerDateEditDialog from './ContainerDateEditDialog.vue'
 import ContainerDetailSidebar from './ContainerDetailSidebar.vue'
 import ContainerDotBreather from './gantt/ContainerDotBreather.vue'
+import CostOptimizationPanel from './gantt/CostOptimizationPanel.vue'
 import GanttDot from './gantt/GanttDot.vue'
 import GanttHeader from './gantt/GanttHeader.vue'
 import GanttLegend from './gantt/GanttLegend.vue'
@@ -1054,6 +1063,39 @@ const getTotalContainersInNode = (suppliersByNode: Record<string, any[]>): numbe
     })
   })
   return containerNumbers.size
+}
+
+/**
+ * 计算节点中可见货柜数（不包含已销毁的）
+ * @param suppliersByNode 供应商-货柜映射
+ * @param nodeName 节点名称（清关/提柜/卸柜/还箱/查验）
+ */
+const getVisibleContainersInNode = (
+  suppliersByNode: Record<string, any[]>,
+  nodeName: string
+): number => {
+  const containerNumbers = new Set<string>()
+  Object.values(suppliersByNode).forEach(containers => {
+    containers.forEach((container: any) => {
+      // 只有可见的货柜才计入（getNodeDisplayType 不为 null）
+      if (container.containerNumber && getNodeDisplayType(container, nodeName) !== null) {
+        containerNumbers.add(container.containerNumber)
+      }
+    })
+  })
+  return containerNumbers.size
+}
+
+/**
+ * 计算供应商行中可见货柜数（不包含已销毁的）
+ * @param containers 货柜数组
+ * @param nodeName 节点名称（清关/提柜/卸柜/还箱/查验）
+ */
+const getVisibleContainersInSupplier = (containers: any[], nodeName: string): number => {
+  return containers.filter(
+    (container: any) =>
+      container.containerNumber && getNodeDisplayType(container, nodeName) !== null
+  ).length
 }
 
 // 计算节点行高度（二级仅作标题行，显示节点名即可）
@@ -1737,6 +1779,10 @@ const {
   exportData,
   handleDragOver,
   handleGlobalDrop,
+  showOptimizationPanel,
+  optimizationResult,
+  closeOptimizationPanel,
+  applyOptimalSolution,
 } = useGanttLogic()
 
 /** 全表重算 gantt_derived（后端 POST /containers/rebuild-gantt-derived） */
@@ -2735,71 +2781,71 @@ const calculateNodeStatus = (container: any): ContainerNodeStatus => {
   // 业务规则：后续节点完成意味着前置节点必然已完成
   // 已提柜 -> 清关完成 | 已卸柜 -> 清关+提柜完成 | 已还箱 -> 清关+提柜+卸柜完成
 
-  // DEBUG: 输出关键数据
-  console.log(`[反向链式] 货柜 ${container.containerNumber}:`, {
-    actualCustomsDate: destPortOp?.actualCustomsDate,
-    deliveryDate: pickupTransport?.deliveryDate,
-    pickupDate: pickupTransport?.pickupDate,
-    unloadDate: unloadOp?.unloadDate,
-    returnTime: emptyReturn?.returnTime,
-    customsSupplier, // ← 检查这个值
-    customsBrokerCode: destPortOp?.customsBrokerCode, // ← 新增
-    customsBroker: destPortOp?.customsBroker, // ← 新增
-    pickupSupplier,
-    unloadSupplier,
-    // ← 新增：检查清关节点的计划日期
-    customsPlannedDate: nodes.清关.plannedDate,
-    customsActualDate: nodes.清关.actualDate,
-    etaDestPort: destPortOp?.etaDestPort,
-    ataDestPort: destPortOp?.ataDestPort,
-    plannedCustomsDate: destPortOp?.plannedCustomsDate,
-  })
+  // DEBUG: 输出关键数据（已禁用，日志太多）
+  // console.log(`[反向链式] 货柜 ${container.containerNumber}:`, {
+  //   actualCustomsDate: destPortOp?.actualCustomsDate,
+  //   deliveryDate: pickupTransport?.deliveryDate,
+  //   pickupDate: pickupTransport?.pickupDate,
+  //   unloadDate: unloadOp?.unloadDate,
+  //   returnTime: emptyReturn?.returnTime,
+  //   customsSupplier, // ← 检查这个值
+  //   customsBrokerCode: destPortOp?.customsBrokerCode, // ← 新增
+  //   customsBroker: destPortOp?.customsBroker, // ← 新增
+  //   pickupSupplier,
+  //   unloadSupplier,
+  //   // ← 新增：检查清关节点的计划日期
+  //   customsPlannedDate: nodes.清关.plannedDate,
+  //   customsActualDate: nodes.清关.actualDate,
+  //   etaDestPort: destPortOp?.etaDestPort,
+  //   ataDestPort: destPortOp?.ataDestPort,
+  //   plannedCustomsDate: destPortOp?.plannedCustomsDate,
+  // })
 
   // 1. 已还箱 -> 反推清关、提柜、卸柜全部完成
   if (emptyReturn?.returnTime) {
-    console.log('[反向链式] 检测到已还箱，反推前置节点完成')
+    // console.log('[反向链式] 检测到已还箱，反推前置节点完成') // 已禁用，日志太多
     // 简化逻辑：不再检查 plannedDate
     if (!destPortOp?.actualCustomsDate) {
       nodes.清关.status = 'completed' // 反推清关已完成
-      console.log('  -> 清关节点反推销毁')
+      // console.log('  -> 清关节点反推销毁') // 已禁用，日志太多
     }
     if (!(pickupTransport?.deliveryDate || pickupTransport?.pickupDate)) {
       nodes.提柜.status = 'completed' // 反推提柜已完成
-      console.log('  -> 提柜节点反推销毁')
+      // console.log('  -> 提柜节点反推销毁') // 已禁用，日志太多
     }
     if (!unloadOp?.unloadDate) {
       nodes.卸柜.status = 'completed' // 反推卸柜已完成
-      console.log('  -> 卸柜节点反推销毁')
+      // console.log('  -> 卸柜节点反推销毁') // 已禁用，日志太多
     }
     // 还箱本身已在上面标记为 completed，无需重复
   }
   // 2. 已卸柜 -> 反推清关、提柜完成
   else if (unloadOp?.unloadDate) {
-    console.log('[反向链式] 检测到已卸柜，反推前置节点完成')
+    // console.log('[反向链式] 检测到已卸柜，反推前置节点完成') // 已禁用，日志太多
     if (!destPortOp?.actualCustomsDate) {
       nodes.清关.status = 'completed' // 反推清关已完成
-      console.log('  -> 清关节点反推销毁')
+      // console.log('  -> 清关节点反推销毁') // 已禁用，日志太多
     }
     if (!(pickupTransport?.deliveryDate || pickupTransport?.pickupDate)) {
       nodes.提柜.status = 'completed' // 反推提柜已完成
-      console.log('  -> 提柜节点反推销毁')
+      // console.log('  -> 提柜节点反推销毁') // 已禁用，日志太多
     }
     // 卸柜本身已在上面标记为 completed，无需重复
   }
   // 3. 已提柜 -> 反推清关完成
   else if (pickupTransport?.deliveryDate || pickupTransport?.pickupDate) {
-    console.log('[反向链式] 检测到已提柜，反推清关完成')
+    // console.log('[反向链式] 检测到已提柜，反推清关完成') // 已禁用，日志太多
     // 简化逻辑：只要已提柜且清关无实际日期，就反推清关完成
     // 不再检查 plannedDate，因为即使没有计划日期，清关也应该被销毁
     if (!destPortOp?.actualCustomsDate) {
       nodes.清关.status = 'completed' // 反推清关已完成
-      console.log('  -> 清关节点反推销毁')
+      // console.log('  -> 清关节点反推销毁') // 已禁用，日志太多
     } else {
-      console.log('  -> 清关已有实际日期，跳过反推')
+      // console.log('  -> 清关已有实际日期，跳过反推') // 已禁用，日志太多
     }
     // 提柜本身已在上面标记为 completed，无需重复
   } else {
-    console.log('[反向链式] 无后续节点完成，不执行反推')
+    // console.log('[反向链式] 无后续节点完成，不执行反推') // 已禁用，日志太多
   }
 
   // 6. 如果没有找到任何活动节点，但清关有计划日期，则清关为活跃节点
@@ -2813,25 +2859,25 @@ const calculateNodeStatus = (container: any): ContainerNodeStatus => {
       container.containerNumber
     )
   ) {
-    console.log(`[calculateNodeStatus] 货柜 ${container.containerNumber} 最终状态:`, {
-      清关: {
-        status: nodes.清关.status,
-        supplier: nodes.清关.supplier,
-        plannedDate: nodes.清关.plannedDate,
-      },
-      提柜: { status: nodes.提柜.status, supplier: nodes.提柜.supplier },
-      卸柜: { status: nodes.卸柜.status, supplier: nodes.卸柜.supplier },
-      还箱: { status: nodes.还箱.status, supplier: nodes.还箱.supplier },
-    })
-    console.log(
-      `[calculateNodeStatus] 清关完整信息:`,
-      JSON.stringify({
-        status: nodes.清关.status,
-        supplier: nodes.清关.supplier,
-        plannedDate: nodes.清关.plannedDate,
-        actualDate: nodes.清关.actualDate,
-      })
-    )
+    // console.log(`[calculateNodeStatus] 货柜 ${container.containerNumber} 最终状态:`, { // 已禁用，日志太多
+    //   清关: {
+    //     status: nodes.清关.status,
+    //     supplier: nodes.清关.supplier,
+    //     plannedDate: nodes.清关.plannedDate,
+    //   },
+    //   提柜: { status: nodes.提柜.status, supplier: nodes.提柜.supplier },
+    //   卸柜: { status: nodes.卸柜.status, supplier: nodes.卸柜.supplier },
+    //   还箱: { status: nodes.还箱.status, supplier: nodes.还箱.supplier },
+    // })
+    // console.log( // 已禁用，日志太多
+    //   `[calculateNodeStatus] 清关完整信息:`,
+    //   JSON.stringify({
+    //     status: nodes.清关.status,
+    //     supplier: nodes.清关.supplier,
+    //     plannedDate: nodes.清关.plannedDate,
+    //     actualDate: nodes.清关.actualDate,
+    //   })
+    // )
   }
 
   return {

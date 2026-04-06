@@ -5,6 +5,7 @@
  * 负责生成所有可行方案、评估成本、选择最优方案
  */
 
+import { calculatePlannedReturnDateBasic } from '@shared/returnDateCalculator';
 import { In, Repository } from 'typeorm';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
@@ -66,6 +67,30 @@ export interface CostBreakdown {
   transportationCost: number; // 运输费
   handlingCost: number; // 操作费（加急费等）
   totalCost: number; // 总成本
+  // ✅ 新增：滞港费标准数据（用于前端展示）
+  matchedStandards?: Array<{
+    id: number;
+    chargeName: string;
+    chargeTypeCode: string;
+    foreignCompanyCode?: string;
+    foreignCompanyName?: string;
+    destinationPortCode?: string;
+    destinationPortName?: string;
+    shippingCompanyCode?: string;
+    shippingCompanyName?: string;
+    originForwarderCode?: string;
+    originForwarderName?: string;
+    freeDays: number;
+    freeDaysBasis?: string;
+    calculationBasis?: string;
+    ratePerDay?: number;
+    tiers?: Array<{
+      fromDay: number;
+      toDay: number | null;
+      ratePerDay: number;
+    }>;
+    currency: string;
+  }>;
 }
 
 /**
@@ -443,6 +468,13 @@ export class SchedulingCostOptimizerService {
     };
 
     try {
+      log.info(`[CostOptimizer] Evaluating cost for ${option.containerNumber}:`, {
+        strategy: option.strategy,
+        plannedPickupDate: option.plannedPickupDate,
+        hasWarehouse: !!option.warehouse,
+        hasTrucking: !!option.truckingCompany
+      });
+
       // 1. 根据策略计算计划日期
       // Direct/Live load: 提=送=卸
       // Drop off: 提<送=卸
@@ -463,15 +495,21 @@ export class SchedulingCostOptimizerService {
         }
       }
 
-      // 估算还箱日：根据卸柜方式不同
-      let plannedReturnDate: Date;
-      if (option.strategy === 'Drop off') {
-        // Drop off 模式：假设堆场堆存 3 天后还箱
-        plannedReturnDate = dateTimeUtils.addDays(actualPlannedUnloadDate, 3);
-      } else {
-        // Live load / Expedited: 当天还箱
-        plannedReturnDate = actualPlannedUnloadDate;
-      }
+      log.info(`[CostOptimizer] Calculated dates for ${option.containerNumber}:`, {
+        plannedPickupDate,
+        actualPlannedUnloadDate,
+        strategy: option.strategy
+      });
+
+      // 估算还箱日：使用共享基础函数
+      // 注意：成本预估场景不需要历史数据，使用默认规则（Drop off: 卸+1天）
+      const returnResult = calculatePlannedReturnDateBasic({
+        unloadDate: actualPlannedUnloadDate,
+        unloadMode: option.strategy === 'Drop off' ? 'Drop off' : 'Live load'
+      });
+      const plannedReturnDate = returnResult.returnDate;
+
+      log.info(`[CostOptimizer] Calling demurrageService.calculateTotalCost for ${option.containerNumber}`);
 
       // 使用统一的 calculateTotalCost 方法计算所有费用
       const totalCostResult = await this.demurrageService.calculateTotalCost(
@@ -490,11 +528,21 @@ export class SchedulingCostOptimizerService {
         }
       );
 
+      log.info(`[CostOptimizer] DemurrageService returned for ${option.containerNumber}:`, {
+        demurrageCost: totalCostResult.demurrageCost,
+        detentionCost: totalCostResult.detentionCost,
+        storageCost: totalCostResult.storageCost,
+        transportationCost: totalCostResult.transportationCost,
+        totalCost: totalCostResult.totalCost
+      });
+
       breakdown.demurrageCost = totalCostResult.demurrageCost;
       breakdown.detentionCost = totalCostResult.detentionCost;
       breakdown.storageCost = totalCostResult.storageCost; // 港口存储费
       breakdown.transportationCost = totalCostResult.transportationCost;
       breakdown.yardStorageCost = 0;
+      // ✅ 新增：传递滞港费标准数据
+      breakdown.matchedStandards = totalCostResult.matchedStandards;
 
       // ✅ 关键修复：外部堆场堆存费（仅在 Drop off 模式、车队有堆场且实际使用时计算）
       if (option.strategy === 'Drop off' && option.truckingCompany) {
@@ -543,9 +591,12 @@ export class SchedulingCostOptimizerService {
 
               if (truckingPortMapping) {
                 // 计算外部堆场堆存费 = 每日费率 × 天数 + 操作费
-                breakdown.yardStorageCost =
-                  (truckingPortMapping.standardRate || 0) * yardStorageDays +
-                  (truckingPortMapping.yardOperationFee || 0);
+                // ✅ 关键修复：TypeORM decimal 字段返回字符串，需显式转换为数字
+                const standardRate = Number(truckingPortMapping.standardRate) || 0;
+                const yardOperationFee = Number(truckingPortMapping.yardOperationFee) || 0;
+                breakdown.yardStorageCost = Number(
+                  standardRate * yardStorageDays + yardOperationFee
+                ) || 0;
               }
             } // ← 添加闭合括号
           }
@@ -560,16 +611,19 @@ export class SchedulingCostOptimizerService {
         breakdown.handlingCost = await this.getConfigNumber('expedited_handling_fee', 50);
       }
 
-      // 总成本（包含外部堆场堆存费）
-      breakdown.totalCost =
+      // 总成本（包含外部堆场堆存费，确保是数字类型）
+      breakdown.totalCost = Number(
         breakdown.demurrageCost +
         breakdown.detentionCost +
         breakdown.storageCost +
         breakdown.transportationCost +
         breakdown.yardStorageCost +
-        breakdown.handlingCost;
+        breakdown.handlingCost
+      ) || 0;
+
+      log.info(`[CostOptimizer] Final breakdown for ${option.containerNumber}:`, breakdown);
     } catch (error) {
-      log.warn(`[CostOptimizer] Cost evaluation failed for ${option.containerNumber}:`, error);
+      log.error(`[CostOptimizer] Cost evaluation failed for ${option.containerNumber}:`, error);
     }
 
     return breakdown;

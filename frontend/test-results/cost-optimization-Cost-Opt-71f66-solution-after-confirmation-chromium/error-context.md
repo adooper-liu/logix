@@ -1,0 +1,231 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e4]:
+  - generic [ref=e6]:
+    - generic [ref=e7]:
+      - img [ref=e9]
+      - generic [ref=e13]: LogiX
+      - generic [ref=e14]: 让复杂物流变得轻松愉快
+    - generic [ref=e15]:
+      - generic [ref=e16] [cursor=pointer]:
+        - img [ref=e18]
+        - generic [ref=e20]: HOME
+      - button "货柜" [ref=e23] [cursor=pointer]:
+        - img [ref=e25]
+        - generic [ref=e29]: 货柜
+        - img [ref=e31]
+      - button "系统" [ref=e34] [cursor=pointer]:
+        - img [ref=e36]
+        - generic [ref=e38]: 系统
+        - img [ref=e40]
+      - button "AI" [ref=e43] [cursor=pointer]:
+        - img [ref=e45]
+        - generic [ref=e47]: AI
+        - img [ref=e49]
+      - button "关于" [ref=e52] [cursor=pointer]:
+        - img [ref=e54]
+        - generic [ref=e56]: 关于
+        - img [ref=e58]
+    - generic [ref=e60]:
+      - generic [ref=e62]:
+        - generic [ref=e63]:
+          - combobox [ref=e65]
+          - generic [ref=e66]: 国家筛选
+        - img [ref=e69] [cursor=pointer]
+      - button "🇨🇳 简体中文" [ref=e72] [cursor=pointer]:
+        - generic [ref=e73]: 🇨🇳
+        - generic [ref=e74]: 简体中文
+        - img [ref=e76]
+      - button "管理员" [ref=e79] [cursor=pointer]:
+        - img [ref=e81]
+        - generic [ref=e83]: 管理员
+        - img [ref=e85]
+  - generic [ref=e88]:
+    - generic [ref=e89]:
+      - generic [ref=e90]:
+        - generic [ref=e91]:
+          - generic [ref=e92]: 维度：
+          - generic [ref=e93]: 全部货柜
+          - generic [ref=e94]: （ 1 个货柜）
+        - generic [ref=e96]:
+          - generic [ref=e97]:
+            - img [ref=e100]
+            - textbox "搜索柜号、提单号、目的港" [ref=e102]
+          - generic [ref=e105] [cursor=pointer]:
+            - generic:
+              - combobox [ref=e107]
+              - generic [ref=e108]: 柜号
+            - img [ref=e111]
+      - generic [ref=e113]:
+        - button "重算甘特快照" [ref=e114] [cursor=pointer]:
+          - generic [ref=e115]: 重算甘特快照
+        - button "导出" [ref=e116] [cursor=pointer]:
+          - img [ref=e118]
+          - generic [ref=e120]: 导出
+        - button "返回" [ref=e121] [cursor=pointer]:
+          - generic [ref=e122]: 返回
+        - button "刷新" [ref=e123] [cursor=pointer]:
+          - generic [ref=e124]: 刷新
+    - generic [ref=e126]:
+      - generic [ref=e127] [cursor=pointer]:
+        - img [ref=e129]
+        - generic [ref=e131]: "1"
+        - generic [ref=e132]: 总货柜
+      - generic [ref=e133] [cursor=pointer]:
+        - img [ref=e135]
+        - generic [ref=e137]: "0"
+        - generic [ref=e138]: 已到港
+      - generic [ref=e139] [cursor=pointer]:
+        - img [ref=e141]
+        - generic [ref=e143]: "0"
+        - generic [ref=e144]: 即将超期
+      - generic [ref=e145] [cursor=pointer]:
+        - img [ref=e147]
+        - generic [ref=e150]: "0"
+        - generic [ref=e151]: 逾期未提
+      - generic [ref=e152] [cursor=pointer]:
+        - img [ref=e154]
+        - generic [ref=e157]: "0"
+        - generic [ref=e158]: 已还箱
+    - generic [ref=e159]:
+      - generic [ref=e160]:
+        - generic [ref=e161]: 视图：
+        - radiogroup "radio-group" [ref=e162]:
+          - generic [ref=e163]:
+            - radio "独立表格" [checked] [ref=e164]
+            - generic [ref=e165] [cursor=pointer]: 独立表格
+          - generic [ref=e166]:
+            - radio "弹窗详情" [ref=e167]
+            - generic [ref=e168] [cursor=pointer]: 弹窗详情
+      - generic [ref=e169]:
+        - generic [ref=e170]: 日期：
+        - radiogroup "radio-group" [ref=e171]:
+          - generic [ref=e172]:
+            - radio "动态" [checked] [ref=e173]
+            - generic [ref=e174] [cursor=pointer]: 动态
+          - generic [ref=e175]:
+            - radio "7天" [ref=e176]
+            - generic [ref=e177] [cursor=pointer]: 7天
+          - generic [ref=e178]:
+            - radio "15天" [ref=e179]
+            - generic [ref=e180] [cursor=pointer]: 15天
+          - generic [ref=e181]:
+            - radio "30天" [ref=e182]
+            - generic [ref=e183] [cursor=pointer]: 30天
+        - generic [ref=e184]: 04-01 ~ 04-05
+        - generic [ref=e185]:
+          - switch
+          - generic [ref=e189] [cursor=pointer]: 资源占用
+      - generic [ref=e191]:
+        - generic [ref=e194]: 未出运
+        - generic [ref=e197]: 已出运
+        - generic [ref=e200]: 在途
+        - generic [ref=e203]: 已到港
+        - generic [ref=e206]: 已提柜
+        - generic [ref=e209]: 已卸柜
+        - generic [ref=e212]: 已还箱
+        - generic [ref=e216]: 活跃节点
+        - generic [ref=e219]: 待激活
+        - generic [ref=e223]: 已逾期
+        - generic [ref=e226]: 3天内到期
+        - generic [ref=e229]: 正常
+    - generic [ref=e231]:
+      - generic [ref=e232]:
+        - generic [ref=e233]:
+          - generic [ref=e234]: 分类
+          - generic [ref=e235]:
+            - button "展开" [ref=e236] [cursor=pointer]:
+              - generic [ref=e237]:
+                - img [ref=e239]
+                - text: 展开
+            - button "折叠" [ref=e241] [cursor=pointer]:
+              - generic [ref=e242]:
+                - img [ref=e244]
+                - text: 折叠
+        - generic [ref=e246]:
+          - generic [ref=e247]:
+            - generic [ref=e248]: 04-01
+            - generic [ref=e249]: 周三
+          - generic [ref=e250]:
+            - generic [ref=e251]: 04-02
+            - generic [ref=e252]: 周四
+          - generic [ref=e253]:
+            - generic [ref=e254]: 04-03
+            - generic [ref=e255]: 周五
+          - generic [ref=e256]:
+            - generic [ref=e257]: 04-04
+            - generic [ref=e258]: 周六
+          - generic [ref=e259]:
+            - generic [ref=e260]: 04-05
+            - generic [ref=e261]: 周日
+      - generic [ref=e263] [cursor=pointer]:
+        - img [ref=e265]
+        - strong [ref=e267]: 洛杉矶
+        - generic [ref=e268]: (1)
+      - generic [ref=e280]:
+        - generic [ref=e282] [cursor=pointer]:
+          - img [ref=e284]
+          - text: 清关
+          - generic [ref=e286]: (1)
+        - generic [ref=e289] [cursor=pointer]:
+          - img [ref=e291]
+          - text: 未指定清关公司
+          - generic [ref=e293]: (1)
+      - generic [ref=e305]:
+        - generic [ref=e307] [cursor=pointer]:
+          - img [ref=e309]
+          - text: 提柜
+          - generic [ref=e311]: (1)
+        - generic [ref=e314] [cursor=pointer]:
+          - img [ref=e316]
+          - text: LFT TRANSPORTATION INC
+          - generic [ref=e318]: (0)
+        - generic [ref=e331] [cursor=pointer]:
+          - img [ref=e333]
+          - text: NB JIAVIEW USA INC
+          - generic [ref=e335]: (0)
+        - generic [ref=e348] [cursor=pointer]:
+          - img [ref=e350]
+          - text: WENGER TRUCKING LLC
+          - generic [ref=e352]: (0)
+        - generic [ref=e365] [cursor=pointer]:
+          - img [ref=e367]
+          - text: TRUCK001
+          - generic [ref=e369]: (1)
+      - generic [ref=e382]:
+        - generic [ref=e384] [cursor=pointer]:
+          - img [ref=e386]
+          - text: 卸柜
+          - generic [ref=e388]: (1)
+        - generic [ref=e391] [cursor=pointer]:
+          - img [ref=e393]
+          - text: AOSOM GA-1
+          - generic [ref=e395]: (0)
+        - generic [ref=e408] [cursor=pointer]:
+          - img [ref=e410]
+          - text: AOSOM CA-1
+          - generic [ref=e412]: (0)
+        - generic [ref=e425] [cursor=pointer]:
+          - img [ref=e427]
+          - text: WH001
+          - generic [ref=e429]: (1)
+      - generic [ref=e442]:
+        - generic [ref=e444] [cursor=pointer]:
+          - img [ref=e446]
+          - text: 还箱
+          - generic [ref=e448]: (1)
+        - generic [ref=e451] [cursor=pointer]:
+          - img [ref=e453]
+          - text: WH001
+          - generic [ref=e455]: (1)
+      - generic [ref=e468]:
+        - generic [ref=e470] [cursor=pointer]:
+          - img [ref=e472]
+          - text: 查验
+          - generic [ref=e474]: (0)
+        - generic [ref=e477] [cursor=pointer]:
+          - img [ref=e479]
+          - text: 未指定清关公司
+          - generic [ref=e481]: (0)
+```

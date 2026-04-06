@@ -1,6 +1,6 @@
 import vue from '@vitejs/plugin-vue'
-import path from 'path'
 import fs from 'fs'
+import path from 'path'
 import { fileURLToPath } from 'url'
 import type { Plugin } from 'vite'
 import { defineConfig } from 'vite'
@@ -140,6 +140,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
+      '@shared': path.resolve(__dirname, '../shared/src'),
     },
   },
   publicDir: 'public',

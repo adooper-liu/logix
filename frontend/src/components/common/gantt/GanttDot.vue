@@ -3,6 +3,8 @@
     class="container-dot"
     :data-container="container.containerNumber"
     :data-node="nodeName"
+    :data-testid="`${getNodeTestid(nodeName)}-node`"
+    :data-date="getPlannedDate()"
     :class="{
       clickable: true,
       'is-dragging': isDragging,
@@ -57,7 +59,68 @@ interface Props {
   borderColor: string
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
+
+/**
+ * 根据节点名称生成 testid
+ * @param nodeName 节点名称（清关/提柜/卸柜/还箱）
+ * @returns testid 字符串（customs/pickup/unload/return）
+ */
+const getNodeTestid = (nodeName: string): string => {
+  const mapping: Record<string, string> = {
+    '清关': 'customs',
+    '提柜': 'pickup',
+    '卸柜': 'unload',
+    '还箱': 'return',
+  }
+  return mapping[nodeName] || nodeName.toLowerCase()
+}
+
+/**
+ * 获取计划日期（YYYY-MM-DD 格式）
+ * @returns 计划日期字符串
+ */
+const getPlannedDate = (): string => {
+  const nodeMapping: Record<string, string> = {
+    '清关': 'customsClearanceDate',
+    '提柜': 'plannedPickupDate',
+    '卸柜': 'plannedUnloadDate',
+    '还箱': 'plannedReturnDate',
+  }
+
+  const dateField = nodeMapping[props.nodeName]
+  if (!dateField) return ''
+
+  // 从不同的数据源获取日期
+  let dateValue: any = null
+
+  switch (props.nodeName) {
+    case '清关':
+      dateValue = props.container.customsClearance?.customsClearanceDate
+      break
+    case '提柜':
+      dateValue = props.container.truckingTransports?.[0]?.plannedPickupDate
+      break
+    case '卸柜':
+      dateValue = props.container.warehouseOperations?.[0]?.plannedUnloadDate
+      break
+    case '还箱':
+      dateValue = props.container.emptyReturns?.[0]?.plannedReturnDate
+      break
+  }
+
+  if (!dateValue) return ''
+
+  // 转换为 YYYY-MM-DD 格式
+  const date = new Date(dateValue)
+  if (isNaN(date.getTime())) return ''
+
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+
+  return `${year}-${month}-${day}`
+}
 
 defineEmits<{
   mouseenter: [container: any, event: MouseEvent]

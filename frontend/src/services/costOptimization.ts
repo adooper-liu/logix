@@ -24,6 +24,33 @@ export interface CompareResponse {
   recommendedOption: RecommendationResult
 }
 
+export interface OptimizeContainerRequest {
+  warehouseCode: string
+  truckingCompanyId: string
+  basePickupDate: string // YYYY-MM-DD
+}
+
+export interface Alternative {
+  pickupDate: string
+  strategy: 'Direct' | 'Drop off' | 'Expedited'
+  totalCost: number
+  savings: number
+  breakdown: CostBreakdown
+  warehouseCode: string
+  truckingCompanyCode: string
+}
+
+export interface OptimizeContainerResponse {
+  containerNumber: string
+  originalCost: number
+  optimizedCost: number
+  savings: number
+  savingsPercent: number
+  suggestedPickupDate: string
+  suggestedStrategy: 'Direct' | 'Drop off' | 'Expedited'
+  alternatives: Alternative[]
+}
+
 export class CostOptimizationService {
   /**
    * 评估单个方案的成本
@@ -77,6 +104,27 @@ export class CostOptimizationService {
     }
   }> {
     const response = await api.get(`/scheduling/recommend-option/${containerNumber}`)
+    return response.data
+  }
+
+  /**
+   * 🎯 单柜成本优化（拖拽圆点后调用）
+   * POST /api/v1/scheduling/optimize-container/:containerNumber
+   *
+   * @param containerNumber 柜号
+   * @param params 优化参数
+   * @returns 优化结果（包含最优方案和备选方案）
+   */
+  async optimizeContainer(
+    containerNumber: string,
+    params: OptimizeContainerRequest
+  ): Promise<{
+    success: boolean
+    data: OptimizeContainerResponse
+  }> {
+    const response = await api.post(`/scheduling/optimize-container/${containerNumber}`, params, {
+      timeout: 30000, // 30秒超时
+    })
     return response.data
   }
 }

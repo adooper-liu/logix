@@ -1437,7 +1437,7 @@ export class DemurrageService {
     /**
      * 滞港费（Demurrage）截止日（仅纯滞港费项使用，非堆存/滞箱/合并）：
      * ① forecast（未到港/无 ATA、无卸船）：max(今天, 计划提柜日)；无计划提柜日则用今天，每日滚动更新预计金额。
-     * ② actual（已到港或已卸船）：有实际提柜日用提柜日；无则用今天。提柜日后金额封顶不再随日期增长。
+     * ② actual（已到港或已卸船）：有实际提柜日用提柜日；无实际提柜日但有计划提柜日用计划提柜日；否则用今天。提柜日后金额封顶不再随日期增长。
      * 见 frontend/public/docs/demurrage/01-DEMURRAGE_LOGIC_FROM_CONTAINER_SYSTEM.md
      */
     let demurragePortEndDate: Date;
@@ -1448,10 +1448,13 @@ export class DemurrageService {
         ? 'max(当前日期, process_trucking_transport.planned_pickup_date)'
         : '当前日期';
     } else {
-      demurragePortEndDate = pickupDateActualEarly ?? today;
+      // ✅ 关键修复：actual 模式下，如果没有实际提柜日，使用计划提柜日（成本优化场景）
+      demurragePortEndDate = pickupDateActualEarly ?? (plannedPickupDate ? maxDate(today, plannedPickupDate) : today);
       demurragePortEndDateSource = pickupDateActualEarly
         ? 'process_trucking_transport.pickup_date'
-        : '当前日期';
+        : plannedPickupDate
+          ? 'max(当前日期, process_trucking_transport.planned_pickup_date) [actual fallback]'
+          : '当前日期';
     }
 
     const dateOrderWarnings: string[] = [];
@@ -3534,6 +3537,25 @@ export class DemurrageService {
     currency: string;
     calculationMode: 'actual' | 'forecast';
     items?: DemurrageItemResult[];
+    matchedStandards?: Array<{
+      id: number;
+      chargeName: string;
+      chargeTypeCode: string;
+      foreignCompanyCode?: string;
+      foreignCompanyName?: string;
+      destinationPortCode?: string;
+      destinationPortName?: string;
+      shippingCompanyCode?: string;
+      shippingCompanyName?: string;
+      originForwarderCode?: string;
+      originForwarderName?: string;
+      freeDays: number;
+      freeDaysBasis?: string;
+      calculationBasis?: string;
+      ratePerDay?: number;
+      tiers?: DemurrageTierDto[];
+      currency: string;
+    }>;
   }> {
     try {
       // 1. ✅ 修复 3: 如果传入了 plannedDates，使用临时覆盖逻辑
@@ -3549,7 +3571,36 @@ export class DemurrageService {
         freeDateWriteMode: 'none'
       });
 
-      const costs = {
+      const costs: {
+        demurrageCost: number;
+        detentionCost: number;
+        storageCost: number;
+        ddCombinedCost: number;
+        transportationCost: number;
+        totalCost: number;
+        currency: string;
+        calculationMode: 'actual' | 'forecast';
+        items: DemurrageItemResult[];
+        matchedStandards: Array<{
+          id: number;
+          chargeName: string;
+          chargeTypeCode: string;
+          foreignCompanyCode?: string;
+          foreignCompanyName?: string;
+          destinationPortCode?: string;
+          destinationPortName?: string;
+          shippingCompanyCode?: string;
+          shippingCompanyName?: string;
+          originForwarderCode?: string;
+          originForwarderName?: string;
+          freeDays: number;
+          freeDaysBasis?: string;
+          calculationBasis?: string;
+          ratePerDay?: number;
+          tiers?: DemurrageTierDto[];
+          currency: string;
+        }>;
+      } = {
         demurrageCost: 0,
         detentionCost: 0,
         storageCost: 0,
@@ -3558,7 +3609,8 @@ export class DemurrageService {
         totalCost: 0,
         currency: 'USD',
         calculationMode: 'forecast' as 'actual' | 'forecast',
-        items: [] as DemurrageItemResult[]
+        items: [],
+        matchedStandards: []
       };
 
       if (demurrageResult.result) {
@@ -3566,20 +3618,22 @@ export class DemurrageService {
         costs.calculationMode = demurrageResult.result.calculationMode;
         costs.currency = demurrageResult.result.currency;
         costs.items = demurrageResult.result.items;
+        // ✅ 新增：返回滞港费标准数据
+        costs.matchedStandards = demurrageResult.result.matchedStandards;
 
         // 3. 分类汇总各项费用
         demurrageResult.result.items.forEach((item) => {
           if (isDemurrageCharge(item)) {
-            costs.demurrageCost += item.amount;
+            costs.demurrageCost += Number(item.amount) || 0;
           }
           if (isDetentionCharge(item)) {
-            costs.detentionCost += item.amount;
+            costs.detentionCost += Number(item.amount) || 0;
           }
           if (isStorageCharge(item)) {
-            costs.storageCost += item.amount;
+            costs.storageCost += Number(item.amount) || 0;
           }
           if (isCombinedDemurrageDetention(item)) {
-            costs.ddCombinedCost += item.amount;
+            costs.ddCombinedCost += Number(item.amount) || 0;
           }
         });
       }
@@ -3599,13 +3653,14 @@ export class DemurrageService {
         }
       }
 
-      // 5. 总计
-      costs.totalCost =
+      // 5. 总计（确保是数字类型）
+      costs.totalCost = Number(
         costs.demurrageCost +
         costs.detentionCost +
         costs.storageCost +
         costs.ddCombinedCost +
-        costs.transportationCost;
+        costs.transportationCost
+      ) || 0;
 
       return costs;
     } catch (error) {
@@ -3648,6 +3703,25 @@ export class DemurrageService {
     currency: string;
     calculationMode: 'actual' | 'forecast';
     items?: DemurrageItemResult[];
+    matchedStandards?: Array<{
+      id: number;
+      chargeName: string;
+      chargeTypeCode: string;
+      foreignCompanyCode?: string;
+      foreignCompanyName?: string;
+      destinationPortCode?: string;
+      destinationPortName?: string;
+      shippingCompanyCode?: string;
+      shippingCompanyName?: string;
+      originForwarderCode?: string;
+      originForwarderName?: string;
+      freeDays: number;
+      freeDaysBasis?: string;
+      calculationBasis?: string;
+      ratePerDay?: number;
+      tiers?: DemurrageTierDto[];
+      currency: string;
+    }>;
   }> {
     try {
       // 1. 先获取基础参数（包含数据库中的日期）
@@ -3678,7 +3752,36 @@ export class DemurrageService {
       params.calculationDates.plannedPickupDate = originalPlannedPickupDate || null;
       params.calculationDates.plannedReturnDate = originalPlannedReturnDate || null;
 
-      const costs = {
+      const costs: {
+        demurrageCost: number;
+        detentionCost: number;
+        storageCost: number;
+        ddCombinedCost: number;
+        transportationCost: number;
+        totalCost: number;
+        currency: string;
+        calculationMode: 'actual' | 'forecast';
+        items: DemurrageItemResult[];
+        matchedStandards: Array<{
+          id: number;
+          chargeName: string;
+          chargeTypeCode: string;
+          foreignCompanyCode?: string;
+          foreignCompanyName?: string;
+          destinationPortCode?: string;
+          destinationPortName?: string;
+          shippingCompanyCode?: string;
+          shippingCompanyName?: string;
+          originForwarderCode?: string;
+          originForwarderName?: string;
+          freeDays: number;
+          freeDaysBasis?: string;
+          calculationBasis?: string;
+          ratePerDay?: number;
+          tiers?: DemurrageTierDto[];
+          currency: string;
+        }>;
+      } = {
         demurrageCost: 0,
         detentionCost: 0,
         storageCost: 0,
@@ -3687,27 +3790,30 @@ export class DemurrageService {
         totalCost: 0,
         currency: 'USD',
         calculationMode: 'forecast' as 'actual' | 'forecast',
-        items: [] as DemurrageItemResult[]
+        items: [],
+        matchedStandards: []
       };
 
       if (demurrageResult.result) {
         costs.calculationMode = demurrageResult.result.calculationMode;
         costs.currency = demurrageResult.result.currency;
         costs.items = demurrageResult.result.items;
+        // ✅ 新增：返回滞港费标准数据
+        costs.matchedStandards = demurrageResult.result.matchedStandards;
 
         // 分类汇总各项费用
         demurrageResult.result.items.forEach((item) => {
           if (isDemurrageCharge(item)) {
-            costs.demurrageCost += item.amount;
+            costs.demurrageCost += Number(item.amount) || 0;
           }
           if (isDetentionCharge(item)) {
-            costs.detentionCost += item.amount;
+            costs.detentionCost += Number(item.amount) || 0;
           }
           if (isStorageCharge(item)) {
-            costs.storageCost += item.amount;
+            costs.storageCost += Number(item.amount) || 0;
           }
           if (isCombinedDemurrageDetention(item)) {
-            costs.ddCombinedCost += item.amount;
+            costs.ddCombinedCost += Number(item.amount) || 0;
           }
         });
       }
@@ -3727,13 +3833,14 @@ export class DemurrageService {
         }
       }
 
-      // 6. 总计
-      costs.totalCost =
+      // 6. 总计（确保是数字类型）
+      costs.totalCost = Number(
         costs.demurrageCost +
         costs.detentionCost +
         costs.storageCost +
         costs.ddCombinedCost +
-        costs.transportationCost;
+        costs.transportationCost
+      ) || 0;
 
       logger.info(
         `[Demurrage] Calculated cost for ${containerNumber} with pickup date ${options.plannedDates.plannedPickupDate.toISOString().split('T')[0]}: $${costs.totalCost.toFixed(2)}`
@@ -3757,6 +3864,12 @@ export class DemurrageService {
     unloadMode: string
   ): Promise<number> {
     try {
+      logger.info(`[Demurrage] Calculating transport cost for ${containerNumber}:`, {
+        warehouse: { code: warehouse.warehouseCode, country: warehouse.country },
+        trucking: { code: truckingCompany.companyCode, name: truckingCompany.companyName },
+        unloadMode
+      });
+
       // 从 dict_warehouse_trucking_mapping 获取基础运费
       const warehouseTruckingMappingRepo =
         this.containerRepo.manager.getRepository(WarehouseTruckingMapping);
@@ -3769,9 +3882,27 @@ export class DemurrageService {
         }
       });
 
+      logger.info(`[Demurrage] Mapping query result for ${containerNumber}:`, {
+        found: !!warehouseTruckingMapping,
+        mapping: warehouseTruckingMapping
+          ? {
+              id: warehouseTruckingMapping.id,
+              transportFee: warehouseTruckingMapping.transportFee,
+              country: warehouseTruckingMapping.country,
+              warehouseCode: warehouseTruckingMapping.warehouseCode,
+              truckingCompanyId: warehouseTruckingMapping.truckingCompanyId
+            }
+          : null
+      });
+
       let transportFee = warehouseTruckingMapping?.transportFee || 100; // 默认 $100
       // ✅ 关键修复：TypeORM 的 decimal 类型返回字符串，需要显式转换为数字
       transportFee = Number(transportFee) || 100;
+
+      logger.info(`[Demurrage] Transport fee before multiplier for ${containerNumber}:`, {
+        baseFee: transportFee,
+        unloadMode
+      });
 
       // ✅ 关键修复：Drop off 模式下，只有实际使用了堆场（提 < 送）才翻倍
       if (unloadMode === 'Drop off') {
@@ -3797,6 +3928,7 @@ export class DemurrageService {
         }
       }
 
+      logger.info(`[Demurrage] Final transport fee for ${containerNumber}: $${transportFee}`);
       return transportFee;
     } catch (error) {
       logger.warn(`[Demurrage] calculateTransportationCostInternal error:`, error);
