@@ -318,7 +318,7 @@ export class SchedulingCostOptimizerService {
 
   /**
    * 检查车队是否有档期
-   * 
+   *
    * @param truckingCompany 车队信息
    * @param date 日期
    * @param portCode 港口代码
@@ -981,15 +981,20 @@ export class SchedulingCostOptimizerService {
             // 超期的必须处理，继续找其他日期
           }
         }
-        
+
         // ✅ Phase 1: 检查车队档期
-        const destPort = container.portOperations?.find(po => po.portType === 'destination');
+        const destPort = container.portOperations?.find((po) => po.portType === 'destination');
         const portCode = destPort?.portCode || '';
-        if (!(await this.isTruckingAvailable(truckingCompany, candidateDate, portCode, warehouse.warehouseCode))) {
+        if (
+          !(await this.isTruckingAvailable(
+            truckingCompany,
+            candidateDate,
+            portCode,
+            warehouse.warehouseCode
+          ))
+        ) {
           if (strategy.allowSkipIfNoCapacity) {
-            log.debug(
-              `[CostOptimizer] No trucking capacity on ${candidateDateStr}, skipping`
-            );
+            log.debug(`[CostOptimizer] No trucking capacity on ${candidateDateStr}, skipping`);
             continue;
           } else {
             log.warn(

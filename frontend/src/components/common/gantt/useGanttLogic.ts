@@ -35,35 +35,35 @@ function mergeReturnDateIntoUpdateData(
     console.log('[mergeReturnDateIntoUpdateData] 跳过：updateData 中没有 plannedUnloadDate')
     return
   }
-  
+
   console.log('[mergeReturnDateIntoUpdateData] 开始计算还箱日:', {
     newUnloadDate: updateData.plannedUnloadDate,
     unloadMode,
   })
-  
+
   const empty = container.emptyReturns?.[0]
   const existingReturn = empty?.plannedReturnDate
     ? dayjs(empty.plannedReturnDate).format('YYYY-MM-DD')
     : null
-  
+
   console.log('[mergeReturnDateIntoUpdateData] 现有还箱日:', existingReturn)
-  
+
   // ✅ 关键改进：保持原有的还箱日与卸柜日的间隔
   const oldUnload = container.warehouseOperations?.[0]?.plannedUnloadDate
     ? dayjs(container.warehouseOperations[0].plannedUnloadDate).format('YYYY-MM-DD')
     : null
-  
+
   console.log('[mergeReturnDateIntoUpdateData] 原有卸柜日:', oldUnload)
-  
+
   if (oldUnload && existingReturn) {
     // 计算原有间隔天数
     const deltaDays = dayjs(existingReturn).diff(dayjs(oldUnload), 'day')
     console.log('[mergeReturnDateIntoUpdateData] 原有间隔天数:', deltaDays)
-    
+
     // 新还箱日 = 新卸柜日 + 原有间隔
     const newReturn = dayjs(updateData.plannedUnloadDate).add(deltaDays, 'day').format('YYYY-MM-DD')
     console.log('[mergeReturnDateIntoUpdateData] 基于间隔计算的新还箱日:', newReturn)
-    
+
     // ✅ Drop off 模式：还箱日不能早于卸柜日
     const mode = String(unloadMode || 'Live load').trim()
     if (mode === 'Drop off') {
@@ -73,16 +73,22 @@ function mergeReturnDateIntoUpdateData(
         existingReturn
       )
       console.log('[mergeReturnDateIntoUpdateData] Drop off 基础规则计算的还箱日:', baseStr)
-      
+
       // 取较大值，确保不低于基础规则
       updateData.plannedReturnDate = dayjs(newReturn).isBefore(dayjs(baseStr), 'day')
         ? baseStr
         : newReturn
-      console.log('[mergeReturnDateIntoUpdateData] 最终还箱日(Drop off):', updateData.plannedReturnDate)
+      console.log(
+        '[mergeReturnDateIntoUpdateData] 最终还箱日(Drop off):',
+        updateData.plannedReturnDate
+      )
     } else {
       // Live load: 直接使用计算的日期
       updateData.plannedReturnDate = newReturn
-      console.log('[mergeReturnDateIntoUpdateData] 最终还箱日(Live load):', updateData.plannedReturnDate)
+      console.log(
+        '[mergeReturnDateIntoUpdateData] 最终还箱日(Live load):',
+        updateData.plannedReturnDate
+      )
     }
   } else {
     console.log('[mergeReturnDateIntoUpdateData] 没有历史数据，使用基础规则')
@@ -92,7 +98,10 @@ function mergeReturnDateIntoUpdateData(
       unloadMode,
       existingReturn
     )
-    console.log('[mergeReturnDateIntoUpdateData] 基础规则计算的还箱日:', updateData.plannedReturnDate)
+    console.log(
+      '[mergeReturnDateIntoUpdateData] 基础规则计算的还箱日:',
+      updateData.plannedReturnDate
+    )
   }
 }
 
@@ -988,22 +997,18 @@ export function useGanttLogic() {
       extraUpdateData,
       isDropOffMode,
       unloadForwardNeedsPickupConfirm,
-      unloadMode
+      unloadMode,
     } = pending
 
     // Drop off 卸柜前移早于原提柜：仅问是否同步提柜，确认后直接 PATCH（不再套外层确认框）
     if (unloadForwardNeedsPickupConfirm) {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          ElMessageBox.confirm(
-            '检测到往前移动，后续节点是否同步前移？',
-            '确认同步调整',
-            {
-              confirmButtonText: '同步调整',
-              cancelButtonText: '仅调整当前节点',
-              type: 'warning',
-            }
-          )
+          ElMessageBox.confirm('检测到往前移动，后续节点是否同步前移？', '确认同步调整', {
+            confirmButtonText: '同步调整',
+            cancelButtonText: '仅调整当前节点',
+            type: 'warning',
+          })
             .then(async () => {
               // 用户选择同步调整：添加送柜日和卸柜日
               const merged: Record<string, string> = { ...(extraUpdateData || {}) }
@@ -1019,7 +1024,10 @@ export function useGanttLogic() {
                 ElMessage.error('操作失败：' + (err as Error).message)
               } else {
                 // 用户选择仅调整当前节点
-                await executeUpdateWithData(container, extraUpdateData || { [updateField]: newDate })
+                await executeUpdateWithData(
+                  container,
+                  extraUpdateData || { [updateField]: newDate }
+                )
               }
             })
         })
@@ -1030,33 +1038,29 @@ export function useGanttLogic() {
     // ✅ 核心逻辑：判断是否需要二次确认
     let finalUpdateData: Record<string, string> = { [updateField]: newDate }
     let needAdditionalConfirm = false
-    
+
     // 如果是 Drop off 模式且向前拖拽提柜日，且没有自动同步的数据
     if (isDropOffMode && updateField === 'plannedPickupDate' && !extraUpdateData) {
       const trucking = container.truckingTransports?.[0]
-      const currentDate = trucking?.plannedPickupDate 
+      const currentDate = trucking?.plannedPickupDate
         ? dayjs(trucking.plannedPickupDate).format('YYYY-MM-DD')
         : null
       const isForwardDrag = currentDate && new Date(newDate) < new Date(currentDate)
-      
+
       if (isForwardDrag) {
         needAdditionalConfirm = true
       }
     }
-    
+
     // 如果需要额外确认，先询问用户
     if (needAdditionalConfirm) {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          ElMessageBox.confirm(
-            `检测到往前移动，后续节点是否同步前移？`,
-            '确认同步调整',
-            {
-              confirmButtonText: '同步调整',
-              cancelButtonText: '仅调整提柜日',
-              type: 'warning',
-            }
-          )
+          ElMessageBox.confirm(`检测到往前移动，后续节点是否同步前移？`, '确认同步调整', {
+            confirmButtonText: '同步调整',
+            cancelButtonText: '仅调整提柜日',
+            type: 'warning',
+          })
             .then(async () => {
               // 用户选择同步调整
               finalUpdateData['plannedDeliveryDate'] = newDate
@@ -1081,7 +1085,7 @@ export function useGanttLogic() {
       if (extraUpdateData) {
         finalUpdateData = extraUpdateData
       }
-      
+
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           ElMessageBox.confirm(confirmMsg, '确认调整日期', {
@@ -1106,16 +1110,19 @@ export function useGanttLogic() {
   /**
    * ✅ 执行更新操作（支持多个字段）
    */
-  const executeUpdateWithData = async (container: Container, updateData: Record<string, string>) => {
+  const executeUpdateWithData = async (
+    container: Container,
+    updateData: Record<string, string>
+  ) => {
     try {
       console.log('[executeUpdateWithData] ========== 开始更新 ==========')
       console.log('[executeUpdateWithData] 货柜号:', container.containerNumber)
       console.log('[executeUpdateWithData] 原始更新数据:', JSON.stringify(updateData))
-      
+
       const trucking0 = container.truckingTransports?.[0]
       const warehouse0 = container.warehouseOperations?.[0]
       const um = trucking0?.unloadModePlan || warehouse0?.unloadModePlan
-      
+
       // ✅ 只有当卸柜日被更新时，才重算还箱日
       if (updateData.plannedUnloadDate) {
         console.log('[executeUpdateWithData] 检测到卸柜日更新，重算还箱日')
@@ -1123,13 +1130,25 @@ export function useGanttLogic() {
       } else {
         console.log('[executeUpdateWithData] 卸柜日未更新，跳过还箱日重算')
       }
-      
+
       console.log('[executeUpdateWithData] 最终更新数据:', JSON.stringify(updateData))
-      console.log('[executeUpdateWithData] 当前提柜日:', container.truckingTransports?.[0]?.plannedPickupDate)
-      console.log('[executeUpdateWithData] 当前送柜日:', container.truckingTransports?.[0]?.plannedDeliveryDate)
-      console.log('[executeUpdateWithData] 当前卸柜日:', container.warehouseOperations?.[0]?.plannedUnloadDate)
-      console.log('[executeUpdateWithData] 当前还箱日:', container.emptyReturns?.[0]?.plannedReturnDate)
-      
+      console.log(
+        '[executeUpdateWithData] 当前提柜日:',
+        container.truckingTransports?.[0]?.plannedPickupDate
+      )
+      console.log(
+        '[executeUpdateWithData] 当前送柜日:',
+        container.truckingTransports?.[0]?.plannedDeliveryDate
+      )
+      console.log(
+        '[executeUpdateWithData] 当前卸柜日:',
+        container.warehouseOperations?.[0]?.plannedUnloadDate
+      )
+      console.log(
+        '[executeUpdateWithData] 当前还箱日:',
+        container.emptyReturns?.[0]?.plannedReturnDate
+      )
+
       const result = await containerService.updateSchedule(container.containerNumber, updateData)
 
       if (result.success) {
@@ -1154,7 +1173,7 @@ export function useGanttLogic() {
    */
   const handleUpdateError = (result: any) => {
     console.error('[handleUpdateError] 后端返回错误:', result)
-    
+
     if (result.errors && result.errors.length > 0) {
       // ✅ 显示具体的校验错误
       const errorMsg = result.errors.join('\n')
@@ -1315,14 +1334,18 @@ export function useGanttLogic() {
       mergeReturnDateIntoUpdateData(container, updateData, unloadMode)
       console.log('[handleDrop] 还箱日重算结果:', updateData.plannedReturnDate)
     }
-    
+
     // ✅ Drop off 下仅改提柜日时，按偏移量同步还箱日
     mergeReturnDateWhenPickupOnlyForward(container, updateData, unloadMode)
 
     // 生成确认消息
     let confirmMsg = `确定要将货柜 ${container.containerNumber} 的${label}调整为 ${formatDateShort(dragOverDate.value)} 吗？`
 
-    if (updateData['plannedDeliveryDate'] && updateData['plannedUnloadDate'] && field === 'plannedPickupDate') {
+    if (
+      updateData['plannedDeliveryDate'] &&
+      updateData['plannedUnloadDate'] &&
+      field === 'plannedPickupDate'
+    ) {
       confirmMsg += `\n\n将同时调整送柜日和卸柜日为 ${formatDateShort(dragOverDate.value)}`
     }
     if (field === 'plannedUnloadDate' && !isDropOffMode) {
@@ -1344,7 +1367,7 @@ export function useGanttLogic() {
       extraUpdateData: Object.keys(updateData).length > 1 ? updateData : null,
       unloadMode: unloadMode,
       isDropOffMode,
-      unloadForwardNeedsPickupConfirm
+      unloadForwardNeedsPickupConfirm,
     }
 
     console.log('[handleDrop] Set pending:', {
@@ -1782,10 +1805,7 @@ export function useGanttLogic() {
       nodeFromTransfer = undefined
     }
     if (dragOverDate.value) {
-      handleDrop(
-        dragOverDate.value,
-        draggingNodeName.value ?? nodeFromTransfer ?? undefined
-      )
+      handleDrop(dragOverDate.value, draggingNodeName.value ?? nodeFromTransfer ?? undefined)
     }
     dragOverDate.value = null
     dropIndicatorCellRect.value = null

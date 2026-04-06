@@ -6,6 +6,7 @@
  */
 
 import { Repository } from 'typeorm';
+import { SchedulingCacheKeys, SchedulingCacheTTL } from '../constants/SchedulingCacheStrategy';
 import { Container } from '../entities/Container';
 import { Country } from '../entities/Country';
 import { Customer } from '../entities/Customer';
@@ -26,17 +27,13 @@ import { Warehouse } from '../entities/Warehouse';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { logger } from '../utils/logger';
-import { CacheService } from './CacheService';
 import {
   calculateLogisticsStatus,
   type LogisticsStatusResult,
   SimplifiedStatus
 } from '../utils/logisticsStatusMachine';
+import { CacheService } from './CacheService';
 import { buildKeyTimeline, type KeyTimelineResult } from './keyTimeline';
-import {
-  SchedulingCacheKeys,
-  SchedulingCacheTTL
-} from '../constants/SchedulingCacheStrategy';
 import { LastPickupSubqueryTemplates } from './statistics/LastPickupSubqueryTemplates';
 import { getDateRangeSubqueryRaw } from './statistics/common/DateRangeSubquery';
 
@@ -1052,13 +1049,13 @@ export class DemurrageService {
    * is_chargeable = 'N' 表示收费项，参与计算；Y = 不收费跳过
    *
    * 规则：先按四字段 + 有效期匹配；若有效期无一匹配但四字段有匹配，则取四字段匹配中「最新」的标准（按 effective_date 降序取最新）
-   * 
+   *
    * 💡 优化：使用缓存减少数据库查询（缓存 1 小时）
    */
-  
+
   /**
    * 获取所有有效的滞港费标准（带缓存）
-   * 
+   *
    * 缓存策略：
    * - 全量标准列表变更不频繁，缓存 24 小时
    * - 每次查询过滤有效期内的标准
@@ -1066,7 +1063,7 @@ export class DemurrageService {
   private async getAllActiveStandards(): Promise<ExtDemurrageStandard[]> {
     // ✅ 带缓存获取滞港费标准全量列表
     const cacheKey = SchedulingCacheKeys.DEMURRAGE_ALL_STANDARDS;
-    
+
     let allStandards = await this.cacheService.get<ExtDemurrageStandard[]>(cacheKey);
     if (!allStandards) {
       allStandards = await this.standardRepo.find({
@@ -1078,21 +1075,21 @@ export class DemurrageService {
         logger.debug(`[DemurrageService] Cached ${allStandards.length} standards`);
       }
     }
-    
+
     return allStandards;
   }
 
   async matchStandards(containerNumber: string): Promise<ExtDemurrageStandard[]> {
     // 生成缓存键（基于 containerNumber 的唯一标识）
     const cacheKey = `demurrage:standards:${containerNumber}`;
-    
+
     // 先查缓存
     const cached = await this.cacheService.get<ExtDemurrageStandard[]>(cacheKey);
     if (cached && cached.length > 0) {
       logger.debug(`[DemurrageService] Cache hit for ${containerNumber}`);
       return cached;
     }
-    
+
     const params = await this.getContainerMatchParams(containerNumber);
     const hasDemurrageRange = !!(params.startDate && params.endDate);
     const hasDetentionRange = !!(params.detentionStartDate && params.detentionEndDate);
@@ -1168,13 +1165,13 @@ export class DemurrageService {
         );
       result = latest;
     }
-    
+
     // 写入缓存（1 小时过期）
     if (result.length > 0) {
       await this.cacheService.set(cacheKey, result, 3600);
       logger.debug(`[DemurrageService] Cached ${result.length} standards for ${containerNumber}`);
     }
-    
+
     return result;
   }
 
