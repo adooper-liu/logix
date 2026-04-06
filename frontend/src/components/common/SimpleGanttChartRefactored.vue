@@ -157,7 +157,7 @@
                   }"
                   :style="{ width: getDateCellWidth(date) }"
                   @dragover.prevent="handleDragOver($event)"
-                  @drop="handleDrop(date, '未分类')"
+                  @drop.stop="handleDrop(date, '未分类')"
                 >
                   <div class="dots-container">
                     <template
@@ -187,7 +187,7 @@
                         @mouseleave="hideTooltip"
                         @click="handleDotClick(container)"
                         @contextmenu.prevent="openContextMenu(container, $event)"
-                        @dragstart="handleDragStart(container, $event)"
+                        @dragstart="handleDragStart(container, $event, '清关')"
                         @dragend="handleDragEnd"
                       ></div>
                     </template>
@@ -206,7 +206,7 @@
                   }"
                   :style="{ width: getDateCellWidth(date) }"
                   @dragover.prevent="handleDragOver($event)"
-                  @drop="handleDrop(date, '未分类')"
+                  @drop.stop="handleDrop(date, '未分类')"
                 >
                   <div class="dots-container">
                     <template
@@ -236,7 +236,7 @@
                         @mouseleave="hideTooltip"
                         @click="handleDotClick(container)"
                         @contextmenu.prevent="openContextMenu(container, $event)"
-                        @dragstart="handleDragStart(container, $event)"
+                        @dragstart="handleDragStart(container, $event, '清关')"
                         @dragend="handleDragEnd"
                       ></div>
                     </template>
@@ -328,7 +328,7 @@
                       }"
                       :style="{ width: getDateCellWidth(date) }"
                       @dragover.prevent="handleDragOver($event)"
-                      @drop="handleDrop(date, node)"
+                      @drop.stop="handleDrop(date, node)"
                     >
                       <div class="dots-container">
                         <template
@@ -362,7 +362,7 @@
                             @click="handleDotClick(container)"
                             @contextmenu.prevent="openContextMenu(container, $event)"
                             draggable="true"
-                            @dragstart="handleDragStart(container, $event)"
+                            @dragstart="handleDragStart(container, $event, node as string)"
                             @dragend="handleDragEnd"
                           ></div>
                         </template>
@@ -708,7 +708,7 @@
                 }"
                 :style="{ width: getDateCellWidth(date) }"
                 @dragover.prevent="handleDragOver($event)"
-                @drop="handleDrop(date, '未分类')"
+                @drop.stop="handleDrop(date, '未分类')"
               >
                 <div class="dots-container">
                   <template
@@ -736,7 +736,7 @@
                       @mouseleave="hideTooltip"
                       @click="handleDotClick(container)"
                       @contextmenu.prevent="openContextMenu(container, $event)"
-                      @dragstart="handleDragStart(container, $event)"
+                      @dragstart="handleDragStart(container, $event, '清关')"
                       @dragend="handleDragEnd"
                     ></div>
                   </template>
@@ -814,7 +814,7 @@
                     }"
                     :style="{ width: getDateCellWidth(date) }"
                     @dragover.prevent="handleDragOver($event)"
-                    @drop="handleDrop(date, node)"
+                    @drop.stop="handleDrop(date, node)"
                   >
                     <div class="dots-container">
                       <template
@@ -849,7 +849,7 @@
                           @mouseleave="hideTooltip"
                           @click="handleDotClick(container)"
                           @contextmenu.prevent="openContextMenu(container, $event)"
-                          @dragstart="handleDragStart(container, $event)"
+                          @dragstart="handleDragStart(container, $event, node as string)"
                           @dragend="handleDragEnd"
                         ></div>
                       </template>
@@ -1124,40 +1124,16 @@ const getNodePlannedDate = (container: any, nodeName: string): Date | null => {
       if (container.etaDestPort) return new Date(container.etaDestPort)
       return null
     case '提柜':
-      // 实际送仓 > 计划送仓 > 实际提柜 > 计划提柜
-      if (trucking?.deliveryDate) return new Date(trucking.deliveryDate)
-      if (trucking?.plannedDeliveryDate) return new Date(trucking.plannedDeliveryDate)
-      if (trucking?.pickupDate) return new Date(trucking.pickupDate)
+      // ✅ 甘特图只显示计划日期
       if (trucking?.plannedPickupDate) return new Date(trucking.plannedPickupDate)
-      // 备选：基于卸柜日（到港后1天）
-      if (warehouseOp?.actualUnloadDate) {
-        const date = new Date(warehouseOp.actualUnloadDate)
-        date.setDate(date.getDate() + 1)
-        return date
-      }
-      if (warehouseOp?.plannedUnloadDate) {
-        const date = new Date(warehouseOp.plannedUnloadDate)
-        date.setDate(date.getDate() + 1)
-        return date
-      }
       return null
     case '卸柜':
-      // 实际卸柜 > 计划卸柜
-      if (warehouseOp?.actualUnloadDate) return new Date(warehouseOp.actualUnloadDate)
+      // ✅ 甘特图只显示计划日期
       if (warehouseOp?.plannedUnloadDate) return new Date(warehouseOp.plannedUnloadDate)
-      if (warehouseOp?.unloadDate) return new Date(warehouseOp.unloadDate)
       return null
     case '还箱':
-      // 实际还箱 > 最晚还箱 > 计划还箱
-      if (emptyReturn?.returnTime) return new Date(emptyReturn.returnTime)
-      if (emptyReturn?.lastReturnDate) return new Date(emptyReturn.lastReturnDate)
+      // ✅ 甘特图只显示计划日期
       if (emptyReturn?.plannedReturnDate) return new Date(emptyReturn.plannedReturnDate)
-      // 备选：最晚提柜日 + 7天
-      if (destPortOp?.lastFreeDate) {
-        const date = new Date(destPortOp.lastFreeDate)
-        date.setDate(date.getDate() + 7)
-        return date
-      }
       return null
     case '查验':
       // 与清关使用相同日期来源

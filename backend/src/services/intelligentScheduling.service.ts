@@ -933,7 +933,8 @@ export class IntelligentSchedulingService {
       container,
       truckingCompany,
       plannedPickupDate,
-      plannedCustomsDate
+      plannedCustomsDate,
+      unloadMode // ✅ 传入卸柜模式
     );
 
     // 保存仓库操作记录
@@ -953,7 +954,8 @@ export class IntelligentSchedulingService {
     container: Container,
     truckingCompany: any,
     plannedPickupDate: Date,
-    plannedCustomsDate: Date
+    plannedCustomsDate: Date,
+    unloadMode?: 'Drop off' | 'Live load'
   ): Promise<void> {
     let trucking = await this.truckingTransportRepo.findOne({
       where: { containerNumber: container.containerNumber }
@@ -965,6 +967,10 @@ export class IntelligentSchedulingService {
     trucking.truckingCompanyId = truckingCompany.companyCode;
     trucking.plannedPickupDate = plannedPickupDate;
     trucking.plannedDeliveryDate = plannedPickupDate;
+    // ✅ 保存卸柜模式到数据库
+    if (unloadMode) {
+      trucking.unloadModePlan = unloadMode;
+    }
     trucking.scheduleStatus = 'issued'; // 使用正确的枚举值
     await this.truckingTransportRepo.save(trucking);
   }
