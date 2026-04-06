@@ -164,32 +164,25 @@
                       v-for="container in getContainersByDateAndPort(date, port)"
                       :key="container.containerNumber"
                     >
-                      <div
+                      <GanttDot
                         v-if="getNodeDisplayType(container, '清关') !== null"
-                        class="container-dot"
-                        :data-container="container.containerNumber"
-                        data-node="清关"
-                        :class="{
-                          clickable: true,
-                          'is-dragging':
-                            draggingContainer?.containerNumber === container.containerNumber,
-                          'has-warning': hasAlert(container),
-                          'main-task': getNodeDisplayType(container, '清关') === 'main',
-                          'dashed-task': getNodeDisplayType(container, '清关') === 'dashed',
-                          'completed-task': isNodeFinished(container, '清关'),
-                        }"
-                        :style="{
-                          backgroundColor: getStatusColor(container.logisticsStatus),
-                          borderColor: getContainerBorderColor(container),
-                        }"
-                        draggable="true"
-                        @mouseenter="showTooltip(container, $event)"
+                        :container="container"
+                        node-name="清关"
+                        :display-type="getNodeDisplayType(container, '清关')"
+                        :is-dragging="
+                          draggingContainer?.containerNumber === container.containerNumber
+                        "
+                        :has-warning="hasAlert(container)"
+                        :is-completed="isNodeFinished(container, '清关')"
+                        :status-color="getStatusColor(container.logisticsStatus)"
+                        :border-color="getContainerBorderColor(container)"
+                        @mouseenter="showTooltip"
                         @mouseleave="hideTooltip"
-                        @click="handleDotClick(container)"
-                        @contextmenu.prevent="openContextMenu(container, $event)"
-                        @dragstart="handleDragStart(container, $event, '清关')"
+                        @click="handleDotClick"
+                        @contextmenu="openContextMenu"
+                        @dragstart="handleDragStart"
                         @dragend="handleDragEnd"
-                      ></div>
+                      />
                     </template>
                   </div>
                 </div>
@@ -213,32 +206,25 @@
                       v-for="container in getUnclassifiedContainersByDateAndPort(date, port)"
                       :key="container.containerNumber"
                     >
-                      <div
+                      <GanttDot
                         v-if="getNodeDisplayType(container, '清关') !== null"
-                        class="container-dot"
-                        :data-container="container.containerNumber"
-                        data-node="清关"
-                        :class="{
-                          clickable: true,
-                          'is-dragging':
-                            draggingContainer?.containerNumber === container.containerNumber,
-                          'has-warning': hasAlert(container),
-                          'main-task': getNodeDisplayType(container, '清关') === 'main',
-                          'dashed-task': getNodeDisplayType(container, '清关') === 'dashed',
-                          'completed-task': isNodeFinished(container, '清关'),
-                        }"
-                        :style="{
-                          backgroundColor: getStatusColor(container.logisticsStatus),
-                          borderColor: getContainerBorderColor(container),
-                        }"
-                        draggable="true"
-                        @mouseenter="showTooltip(container, $event)"
+                        :container="container"
+                        node-name="清关"
+                        :display-type="getNodeDisplayType(container, '清关')"
+                        :is-dragging="
+                          draggingContainer?.containerNumber === container.containerNumber
+                        "
+                        :has-warning="hasAlert(container)"
+                        :is-completed="isNodeFinished(container, '清关')"
+                        :status-color="getStatusColor(container.logisticsStatus)"
+                        :border-color="getContainerBorderColor(container)"
+                        @mouseenter="showTooltip"
                         @mouseleave="hideTooltip"
-                        @click="handleDotClick(container)"
-                        @contextmenu.prevent="openContextMenu(container, $event)"
-                        @dragstart="handleDragStart(container, $event, '清关')"
+                        @click="handleDotClick"
+                        @contextmenu="openContextMenu"
+                        @dragstart="handleDragStart"
                         @dragend="handleDragEnd"
-                      ></div>
+                      />
                     </template>
                   </div>
                 </div>
@@ -339,32 +325,25 @@
                           )"
                           :key="container.containerNumber"
                         >
-                          <div
+                          <GanttDot
                             v-if="getNodeDisplayType(container, node as string) !== null"
-                            class="container-dot"
-                            :data-container="container.containerNumber"
-                            :data-node="node as string"
-                            :class="{
-                              clickable: true,
-                              'is-dragging':
-                                draggingContainer?.containerNumber === container.containerNumber,
-                              'has-warning': hasAlert(container),
-                              'main-task': getNodeDisplayType(container, node as string) === 'main',
-                              'dashed-task':
-                                getNodeDisplayType(container, node as string) === 'dashed',
-                            }"
-                            :style="{
-                              backgroundColor: getStatusColor(container.logisticsStatus),
-                              borderColor: getContainerBorderColor(container),
-                            }"
-                            @mouseenter="showTooltip(container, $event)"
+                            :container="container"
+                            :node-name="node as string"
+                            :display-type="getNodeDisplayType(container, node as string)"
+                            :is-dragging="
+                              draggingContainer?.containerNumber === container.containerNumber
+                            "
+                            :has-warning="hasAlert(container)"
+                            :is-completed="false"
+                            :status-color="getStatusColor(container.logisticsStatus)"
+                            :border-color="getContainerBorderColor(container)"
+                            @mouseenter="showTooltip"
                             @mouseleave="hideTooltip"
-                            @click="handleDotClick(container)"
-                            @contextmenu.prevent="openContextMenu(container, $event)"
-                            draggable="true"
-                            @dragstart="handleDragStart(container, $event, node as string)"
+                            @click="handleDotClick"
+                            @contextmenu="openContextMenu"
+                            @dragstart="handleDragStart"
                             @dragend="handleDragEnd"
-                          ></div>
+                          />
                         </template>
                       </div>
                     </div>
@@ -715,30 +694,25 @@
                     v-for="container in getContainersByDateAndPort(date, selectedPortForModal)"
                     :key="container.containerNumber"
                   >
-                    <div
+                    <GanttDot
                       v-if="getNodeDisplayType(container, '清关') !== null"
-                      class="container-dot"
-                      :class="{
-                        clickable: true,
-                        'is-dragging':
-                          draggingContainer?.containerNumber === container.containerNumber,
-                        'has-warning': hasAlert(container),
-                        'main-task': getNodeDisplayType(container, '清关') === 'main',
-                        'dashed-task': getNodeDisplayType(container, '清关') === 'dashed',
-                        'completed-task': isNodeFinished(container, '清关'),
-                      }"
-                      :style="{
-                        backgroundColor: getStatusColor(container.logisticsStatus),
-                        borderColor: getContainerBorderColor(container),
-                      }"
-                      draggable="true"
-                      @mouseenter="showTooltip(container, $event)"
+                      :container="container"
+                      node-name="清关"
+                      :display-type="getNodeDisplayType(container, '清关')"
+                      :is-dragging="
+                        draggingContainer?.containerNumber === container.containerNumber
+                      "
+                      :has-warning="hasAlert(container)"
+                      :is-completed="isNodeFinished(container, '清关')"
+                      :status-color="getStatusColor(container.logisticsStatus)"
+                      :border-color="getContainerBorderColor(container)"
+                      @mouseenter="showTooltip"
                       @mouseleave="hideTooltip"
-                      @click="handleDotClick(container)"
-                      @contextmenu.prevent="openContextMenu(container, $event)"
-                      @dragstart="handleDragStart(container, $event, '清关')"
+                      @click="handleDotClick"
+                      @contextmenu="openContextMenu"
+                      @dragstart="handleDragStart"
                       @dragend="handleDragEnd"
-                    ></div>
+                    />
                   </template>
                 </div>
               </div>
@@ -825,33 +799,25 @@
                         )"
                         :key="container.containerNumber"
                       >
-                        <div
+                        <GanttDot
                           v-if="getNodeDisplayType(container, node as string) !== null"
-                          class="container-dot"
-                          :data-container="container.containerNumber"
-                          :data-node="node as string"
-                          :class="{
-                            clickable: true,
-                            'is-dragging':
-                              draggingContainer?.containerNumber === container.containerNumber,
-                            'has-warning': hasAlert(container),
-                            'main-task': getNodeDisplayType(container, node as string) === 'main',
-                            'dashed-task':
-                              getNodeDisplayType(container, node as string) === 'dashed',
-                            'completed-task': isNodeFinished(container, node as string),
-                          }"
-                          :style="{
-                            backgroundColor: getStatusColor(container.logisticsStatus),
-                            borderColor: getContainerBorderColor(container),
-                          }"
-                          draggable="true"
-                          @mouseenter="showTooltip(container, $event)"
+                          :container="container"
+                          :node-name="node as string"
+                          :display-type="getNodeDisplayType(container, node as string)"
+                          :is-dragging="
+                            draggingContainer?.containerNumber === container.containerNumber
+                          "
+                          :has-warning="hasAlert(container)"
+                          :is-completed="isNodeFinished(container, node as string)"
+                          :status-color="getStatusColor(container.logisticsStatus)"
+                          :border-color="getContainerBorderColor(container)"
+                          @mouseenter="showTooltip"
                           @mouseleave="hideTooltip"
-                          @click="handleDotClick(container)"
-                          @contextmenu.prevent="openContextMenu(container, $event)"
-                          @dragstart="handleDragStart(container, $event, node as string)"
+                          @click="handleDotClick"
+                          @contextmenu="openContextMenu"
+                          @dragstart="handleDragStart"
                           @dragend="handleDragEnd"
-                        ></div>
+                        />
                       </template>
                     </div>
                     <!-- 资源占用统计：仅在卸柜节点且开启资源统计时显示 -->
@@ -948,6 +914,7 @@ import ContainerContextMenu from './ContainerContextMenu.vue'
 import ContainerDateEditDialog from './ContainerDateEditDialog.vue'
 import ContainerDetailSidebar from './ContainerDetailSidebar.vue'
 import ContainerDotBreather from './gantt/ContainerDotBreather.vue'
+import GanttDot from './gantt/GanttDot.vue'
 import GanttHeader from './gantt/GanttHeader.vue'
 import GanttLegend from './gantt/GanttLegend.vue'
 import GanttPathTracker from './gantt/GanttPathTracker.vue'
