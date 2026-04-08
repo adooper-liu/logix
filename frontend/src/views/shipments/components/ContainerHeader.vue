@@ -17,6 +17,7 @@ const emit = defineEmits<{
   navigateToNext: []
   editSchedule: []
   exportDetail: []
+  openGantt: []
 }>()
 
 const router = useRouter()
@@ -67,6 +68,7 @@ const handleNavigateToNext = () => {
       </div>
     </div>
     <div class="header-right">
+      <el-button type="success" @click="emit('openGantt')">甘特图</el-button>
       <el-button type="primary" @click="emit('editSchedule')">编辑计划</el-button>
       <el-button @click="emit('exportDetail')">导出详情</el-button>
       <el-tooltip content="上一个货柜" placement="bottom">

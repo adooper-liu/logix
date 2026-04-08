@@ -7,7 +7,7 @@
 -- 如果需要原子操作，请手动添加 BEGIN; 和 COMMIT;
 
 -- ============================================================
--- 删除顺序：从表 → 主表（按依赖关系倒序删除）
+-- 删除顺序：从表 -> 主表（按依赖关系倒序删除）
 -- ============================================================
 
 -- 1. Delete extension table data (dependent on containers)
@@ -87,9 +87,13 @@ DELETE FROM biz_container_skus WHERE container_number IN (
     SELECT container_number FROM biz_containers WHERE bill_of_lading_number IS NOT NULL
 );
 
--- 10. Delete inspection-related extension tables (dependent on containers)
-DELETE FROM ext_inspection_events WHERE container_number IN (
-    SELECT container_number FROM biz_containers WHERE bill_of_lading_number IS NOT NULL
+-- 9. Delete inspection-related extension tables
+-- Note: ext_inspection_events does not have container_number, it links via inspection_record_id
+-- First delete events, then records
+DELETE FROM ext_inspection_events WHERE inspection_record_id IN (
+    SELECT id FROM ext_inspection_records WHERE container_number IN (
+        SELECT container_number FROM biz_containers WHERE bill_of_lading_number IS NOT NULL
+    )
 );
 
 DELETE FROM ext_inspection_records WHERE container_number IN (
@@ -100,27 +104,30 @@ DELETE FROM ext_container_hold_records WHERE container_number IN (
     SELECT container_number FROM biz_containers WHERE bill_of_lading_number IS NOT NULL
 );
 
--- 11. Delete Feituo import-related tables (test data)
+-- 10. Delete Feituo import-related tables (test data)
 DELETE FROM ext_feituo_import_table1;
+
 DELETE FROM ext_feituo_import_table2;
+
 DELETE FROM ext_feituo_import_batch;
 
--- 12. Delete resource occupancy tables (clean historical data older than 30 days by date)
-DELETE FROM ext_trucking_return_slot_occupancy WHERE occupancy_date < CURRENT_DATE - INTERVAL '30 days';
-DELETE FROM ext_trucking_slot_occupancy WHERE occupancy_date < CURRENT_DATE - INTERVAL '30 days';
-DELETE FROM ext_warehouse_daily_occupancy WHERE occupancy_date < CURRENT_DATE - INTERVAL '30 days';
-DELETE FROM ext_yard_daily_occupancy WHERE occupancy_date < CURRENT_DATE - INTERVAL '30 days';
+-- 11. Delete resource occupancy tables (clean historical data older than 30 days by date)
+-- Note: Different tables use different date column names
+DELETE FROM ext_trucking_return_slot_occupancy WHERE slot_date < CURRENT_DATE - INTERVAL '30 days';
 
--- 13. Delete flow instances (dependent on containers/replenishment orders)
-DELETE FROM flow_instances WHERE entity_type = 'biz_containers' AND entity_id IN (
-    SELECT container_number FROM biz_containers WHERE bill_of_lading_number IS NOT NULL
-);
-DELETE FROM flow_instances WHERE entity_type = 'biz_replenishment_orders' AND entity_id IN (
-    SELECT order_number FROM biz_replenishment_orders
-);
+DELETE FROM ext_trucking_slot_occupancy WHERE date < CURRENT_DATE - INTERVAL '30 days';
 
--- 14. Delete flow definitions (only delete test flows)
-DELETE FROM flow_definitions WHERE flow_code LIKE 'TEST_%';
+DELETE FROM ext_warehouse_daily_occupancy WHERE date < CURRENT_DATE - INTERVAL '30 days';
+
+DELETE FROM ext_yard_daily_occupancy WHERE date < CURRENT_DATE - INTERVAL '30 days';
+
+-- 12. Delete flow instances and definitions
+-- Note: flow_instances does not have entity_type/entity_id columns
+-- It has: id, flow_id, status, variables, current_node_id, execution_history, etc.
+-- For test data cleanup, delete all flow instances and definitions
+DELETE FROM flow_instances;
+
+DELETE FROM flow_definitions;
 
 -- ============================================================
 -- Verify deletion results
@@ -181,4 +188,5 @@ SELECT 'ext_trucking_slot_occupancy (Trucking Slot Occupancy)', COUNT(*) FROM ex
 UNION ALL
 SELECT 'ext_warehouse_daily_occupancy (Warehouse Daily Occupancy)', COUNT(*) FROM ext_warehouse_daily_occupancy
 UNION ALL
-SELECT 'ext_yard_daily_occupancy (Yard Daily Occupancy)', COUNT(*) FROM ext_yard_daily_occupancy;
+SELECT 'ext_yard_daily_occupancy (Yard Daily Occupancy)', COUNT(*) FROM ext_yard_daily_occupancy
+ORDER BY table_name;

@@ -71,6 +71,14 @@ const exportContainerDetail = () => {
   }
 }
 
+// 打开甘特图
+const openGanttChart = () => {
+  router.push({
+    name: 'GanttChart',
+    query: { containerNumber: containerNumber.value }
+  })
+}
+
 onMounted(() => {
   loadContainerDetail()
 })
@@ -118,6 +126,7 @@ watch(
         @navigate-to-next="navigateToNext"
         @edit-schedule="scheduleEditVisible = true"
         @export-detail="exportContainerDetail"
+        @open-gantt="openGanttChart"
       />
 
       <!-- 计划编辑对话框 -->

@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { useUserStore } from '@/store/user'
-import { useAppStore } from '@/store/app'
+import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import { containerService } from '@/services/container'
+import { useAppStore } from '@/store/app'
+import { useUserStore } from '@/store/user'
 import {
   ArrowDown,
   Box,
@@ -33,9 +34,8 @@ import {
   Warning,
 } from '@element-plus/icons-vue'
 import { computed, onMounted, ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
+import { useRoute, useRouter } from 'vue-router'
 
 const router = useRouter()
 const route = useRoute()
@@ -331,7 +331,13 @@ const handleLogout = () => {
             placement="bottom"
             @command="handleMenuClick"
           >
-            <div class="menu-item dropdown-trigger" :class="{ active: isGroupActive(menuGroup) }">
+            <div
+              class="menu-item dropdown-trigger"
+              :class="{ active: isGroupActive(menuGroup) }"
+              @click="
+                menuGroup.title === t('nav.shipments') ? handleMenuClick('/shipments') : undefined
+              "
+            >
               <el-icon>
                 <component :is="iconMap[menuGroup.icon || 'Box']" />
               </el-icon>
