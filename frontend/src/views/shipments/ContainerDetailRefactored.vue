@@ -75,7 +75,7 @@ const exportContainerDetail = () => {
 const openGanttChart = () => {
   router.push({
     name: 'GanttChart',
-    query: { containerNumber: containerNumber.value }
+    query: { containerNumber: containerNumber.value },
   })
 }
 

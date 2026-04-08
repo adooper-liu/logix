@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
 import { ArrowLeft, DArrowLeft, DArrowRight, Refresh } from '@element-plus/icons-vue'
+import { useRouter } from 'vue-router'
 
 defineProps<{
   containerNumber: string
