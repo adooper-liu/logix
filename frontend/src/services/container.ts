@@ -258,8 +258,8 @@ export const containerService = {
   async batchWriteBackDemurrageDates(params?: {
     limitLastFree?: number
     limitLastReturn?: number
-    autoBatch?: boolean  // ✅ 是否启用自动分批，默认 true
-    batchSize?: number   // 自动分批时每批的大小，默认 100
+    autoBatch?: boolean // ✅ 是否启用自动分批，默认 true
+    batchSize?: number // 自动分批时每批的大小，默认 100
   }): Promise<{
     success: boolean
     lastFreeWritten: number

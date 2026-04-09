@@ -6,22 +6,22 @@
  */
 
 import { Request, Response } from 'express';
+import { mcpAgent } from '../../mcp/agent.js';
 import { intelligentSchedulingService } from '../../services/intelligentScheduling.service';
 import { logger } from '../../utils/logger';
 import { siliconFlowAdapter } from '../adapters/SiliconFlowAdapter';
 import { aiConfigManager, AIProvider } from '../config/AIConfigManager';
+import { DATA_QUERY_PATTERNS, SCHEDULE_INTENT_PATTERNS } from '../constants/intentPatterns';
+import { buildSystemPrompt } from '../constants/systemPrompts';
 import { getAllCategories, knowledgeBase, searchKnowledge } from '../data/knowledgeBase';
 import { aiBusinessService } from '../services/aiBusiness.service';
-import { textToSqlService } from '../services/textToSql.service';
 import { flowService } from '../services/flowService';
+import { textToSqlService } from '../services/textToSql.service';
 import { ChatMessage } from '../types';
 import { FlowDefinition } from '../types/flow';
 import { cacheManager } from '../utils/cacheManager';
 import { inputValidator } from '../utils/inputValidator';
 import { schemaReader } from '../utils/schemaReader';
-import { mcpAgent } from '../../mcp/agent.js';
-import { SCHEDULE_INTENT_PATTERNS, DATA_QUERY_PATTERNS } from '../constants/intentPatterns';
-import { buildSystemPrompt } from '../constants/systemPrompts';
 
 /**
  * 日期范围解析
@@ -733,7 +733,7 @@ export class AIController {
   getProviders = async (req: Request, res: Response): Promise<void> => {
     try {
       const providers = aiConfigManager.getAvailableProviders();
-      
+
       res.json({
         success: true,
         data: {
@@ -757,7 +757,7 @@ export class AIController {
   switchProvider = async (req: Request, res: Response): Promise<void> => {
     try {
       const { provider } = req.body as { provider: AIProvider };
-      
+
       if (!provider) {
         res.status(400).json({
           success: false,
@@ -767,7 +767,7 @@ export class AIController {
       }
 
       aiConfigManager.setCurrentProvider(provider);
-      
+
       res.json({
         success: true,
         message: `Successfully switched to ${provider}`,

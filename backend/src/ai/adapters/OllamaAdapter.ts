@@ -7,8 +7,8 @@
  */
 
 import axios, { AxiosInstance } from 'axios';
-import { ChatMessage, ModelConfig, ExecutionResult } from '../types';
 import { logger } from '../../utils/logger';
+import { ChatMessage, ExecutionResult, ModelConfig } from '../types';
 
 export type OllamaMode = 'local' | 'cloud';
 
@@ -24,7 +24,7 @@ export class OllamaAdapter {
 
   constructor(config: OllamaConfig) {
     this.config = config;
-    
+
     // 根据模式设置 baseURL
     let baseUrl: string;
     if (config.mode === 'cloud') {
@@ -155,14 +155,15 @@ export class OllamaAdapter {
   async listModels(): Promise<ExecutionResult> {
     try {
       const response = await this.client.get('/api/tags');
-      
+
       // Ollama 返回格式: { models: [{ name: 'llama3.2', ... }] }
-      const models = response.data.models?.map((m: any) => ({
-        id: m.name,
-        name: m.name,
-        created: m.modified_at,
-        owned_by: 'ollama'
-      })) || [];
+      const models =
+        response.data.models?.map((m: any) => ({
+          id: m.name,
+          name: m.name,
+          created: m.modified_at,
+          owned_by: 'ollama'
+        })) || [];
 
       return {
         success: true,
@@ -189,8 +190,12 @@ export class OllamaAdapter {
   }> {
     try {
       const hasApiKey = !!(this.config.apiKey || process.env.OLLAMA_CLOUD_API_KEY);
-      const hasBaseUrl = !!(this.config.baseUrl || 
-        (this.config.mode === 'cloud' ? process.env.OLLAMA_CLOUD_BASE_URL : process.env.OLLAMA_LOCAL_BASE_URL));
+      const hasBaseUrl = !!(
+        this.config.baseUrl ||
+        (this.config.mode === 'cloud'
+          ? process.env.OLLAMA_CLOUD_BASE_URL
+          : process.env.OLLAMA_LOCAL_BASE_URL)
+      );
 
       if (!hasBaseUrl) {
         return {
@@ -228,7 +233,7 @@ export class OllamaAdapter {
 // 导出单例工厂函数
 export function createOllamaAdapter(config?: Partial<OllamaConfig>): OllamaAdapter {
   const mode = config?.mode || (process.env.OLLAMA_MODE as OllamaMode) || 'local';
-  
+
   const fullConfig: OllamaConfig = {
     provider: 'ollama',
     mode,

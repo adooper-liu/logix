@@ -1861,7 +1861,8 @@ export class DemurrageService {
               params.calculationDates.etaDestPort ??
               null;
             if (params.calculationDates.dischargeDate) {
-              demurrageStartSource = params.calculationDates.dischargeDateSource ?? 'discharged_time';
+              demurrageStartSource =
+                params.calculationDates.dischargeDateSource ?? 'discharged_time';
             } else if (params.calculationDates.revisedEtaDestPort) {
               demurrageStartSource = 'revised_eta';
             } else if (params.calculationDates.etaDestPort) {
@@ -2895,7 +2896,7 @@ export class DemurrageService {
         AND tt.pickup_date IS NOT NULL
       )
     `;
-    
+
     // 获取所有需要处理的货柜（不加 LIMIT）
     const allLastFreeRows = await this.containerRepo.query(
       `(SELECT container_number FROM (${noLastFreeAtaSql}) t)
@@ -2909,18 +2910,22 @@ export class DemurrageService {
     const allLastFreeNumbers = (allLastFreeRows || [])
       .map((r: { container_number: string }) => r.container_number)
       .filter(Boolean);
-    
+
     logger.info(`[Demurrage] Found ${allLastFreeNumbers.length} containers needing LFD update`);
-    
+
     // 根据配置决定处理方式
     let lastFreeNumbers: string[];
     if (!autoBatch || allLastFreeNumbers.length <= limitLastFree) {
       // 不需要分批或总数未超限，直接取前 limitLastFree 个
       lastFreeNumbers = allLastFreeNumbers.slice(0, limitLastFree);
-      logger.info(`[Demurrage] Processing LFD in single batch: ${lastFreeNumbers.length} containers`);
+      logger.info(
+        `[Demurrage] Processing LFD in single batch: ${lastFreeNumbers.length} containers`
+      );
     } else {
       // 需要分批处理
-      logger.info(`[Demurrage] Auto-batching LFD: total=${allLastFreeNumbers.length}, batchSize=${batchSize}`);
+      logger.info(
+        `[Demurrage] Auto-batching LFD: total=${allLastFreeNumbers.length}, batchSize=${batchSize}`
+      );
       // 第一批只处理 batchSize 个
       lastFreeNumbers = allLastFreeNumbers.slice(0, batchSize);
       logger.info(`[Demurrage] Processing first LFD batch: ${lastFreeNumbers.length} containers`);
@@ -2941,7 +2946,7 @@ export class DemurrageService {
       const remaining = allLastFreeNumbers.length - lastFreeProcessedTotal;
       logger.info(
         `[Demurrage] LFD batch complete: processed=${lastFreeProcessedTotal}, remaining=${remaining}. ` +
-        `Call API again to process next batch.`
+          `Call API again to process next batch.`
       );
     }
 
@@ -2960,24 +2965,28 @@ export class DemurrageService {
         AND er2.return_time IS NOT NULL
       )
     `;
-    
+
     // 获取所有需要处理的货柜（不加 LIMIT）
     const allLastReturnRows = await this.containerRepo.query(lastReturnQuery);
     const allLastReturnNumbers = (allLastReturnRows || [])
       .map((r: { container_number: string }) => r.container_number)
       .filter(Boolean);
-    
+
     logger.info(`[Demurrage] Found ${allLastReturnNumbers.length} containers needing LRD update`);
-    
+
     // 根据配置决定处理方式
     let lastReturnNumbers: string[];
     if (!autoBatch || allLastReturnNumbers.length <= limitLastReturn) {
       // 不需要分批或总数未超限，直接取前 limitLastReturn 个
       lastReturnNumbers = allLastReturnNumbers.slice(0, limitLastReturn);
-      logger.info(`[Demurrage] Processing LRD in single batch: ${lastReturnNumbers.length} containers`);
+      logger.info(
+        `[Demurrage] Processing LRD in single batch: ${lastReturnNumbers.length} containers`
+      );
     } else {
       // 需要分批处理
-      logger.info(`[Demurrage] Auto-batching LRD: total=${allLastReturnNumbers.length}, batchSize=${batchSize}`);
+      logger.info(
+        `[Demurrage] Auto-batching LRD: total=${allLastReturnNumbers.length}, batchSize=${batchSize}`
+      );
       // 第一批只处理 batchSize 个
       lastReturnNumbers = allLastReturnNumbers.slice(0, batchSize);
       logger.info(`[Demurrage] Processing first LRD batch: ${lastReturnNumbers.length} containers`);
@@ -2998,7 +3007,7 @@ export class DemurrageService {
       const remaining = allLastReturnNumbers.length - lastReturnProcessedTotal;
       logger.info(
         `[Demurrage] LRD batch complete: processed=${lastReturnProcessedTotal}, remaining=${remaining}. ` +
-        `Call API again to process next batch.`
+          `Call API again to process next batch.`
       );
     }
 

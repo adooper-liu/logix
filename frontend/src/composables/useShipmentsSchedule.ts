@@ -1,8 +1,8 @@
-import { ref, h } from 'vue'
-import dayjs from 'dayjs'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import { containerService } from '@/services/container'
 import { useAppStore } from '@/store/app'
+import dayjs from 'dayjs'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { h, ref } from 'vue'
 
 /**
  * 货柜排产相关的组合式函数
@@ -158,8 +158,8 @@ export function useShipmentsSchedule() {
       const result = await containerService.batchWriteBackDemurrageDates({
         limitLastFree: 500,
         limitLastReturn: 500,
-        autoBatch: true,  // ✅ 启用自动分批
-        batchSize: 100,   // 每批处理 100 个货柜
+        autoBatch: true, // ✅ 启用自动分批
+        batchSize: 100, // 每批处理 100 个货柜
       })
 
       if (result.success) {

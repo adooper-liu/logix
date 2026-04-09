@@ -1,29 +1,28 @@
 <script setup lang="ts">
 import {
   aiService,
-  type ChatMessage,
   type AIHealthStatus,
-  type ScheduleResult,
   type AIProviderInfo,
+  type ChatMessage,
+  type ScheduleResult,
 } from '@/services/ai'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  MagicStick,
-  CircleCheck,
-  Warning,
-  Loading,
-  User,
-  ChatDotRound,
-  DocumentCopy,
+  Calendar,
   CaretRight,
+  ChatDotRound,
+  CircleCheck,
   Close,
   Delete,
-  Promotion,
   DocumentChecked,
+  DocumentCopy,
+  Loading,
+  MagicStick,
+  Promotion,
+  Warning,
   WarningFilled,
-  Calendar,
 } from '@element-plus/icons-vue'
-import { ref, onMounted, nextTick, computed } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { nextTick, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -122,13 +121,13 @@ const checkHealth = async () => {
     const res = await aiService.healthCheck()
     if (res.success && res.data) {
       healthStatus.value = res.data
-      
+
       // 获取可用提供商列表
       if (res.data.availableProviders) {
         availableProviders.value = res.data.availableProviders as AIProviderInfo[]
         currentProvider.value = res.data.provider
       }
-      
+
       if (res.data.status === 'missing_api_key') {
         ElMessage.warning('AI服务未配置API Key，请在环境变量中设置SILICON_FLOW_API_KEY')
       } else if (res.data.status === 'missing_config') {
@@ -322,9 +321,9 @@ const formatTime = (timestamp?: string) => {
 // 获取提供商显示名称
 const getProviderDisplayName = (provider: string): string => {
   const names: Record<string, string> = {
-    'siliconflow': '硅基流动',
+    siliconflow: '硅基流动',
     'ollama-local': 'Ollama本地',
-    'ollama-cloud': 'Ollama云端'
+    'ollama-cloud': 'Ollama云端',
   }
   return names[provider] || provider
 }
@@ -347,22 +346,32 @@ onMounted(() => {
       <div class="header-status">
         <!-- AI提供商选择器 -->
         <el-dropdown trigger="click" @command="switchProvider">
-          <el-tag v-if="healthStatus?.status === 'ready'" type="success" size="small" style="cursor: pointer;">
+          <el-tag
+            v-if="healthStatus?.status === 'ready'"
+            type="success"
+            size="small"
+            style="cursor: pointer"
+          >
             <el-icon class="status-icon"><CircleCheck /></el-icon>
             {{ getProviderDisplayName(currentProvider) }}
           </el-tag>
-          <el-tag v-else-if="healthStatus?.status === 'missing_api_key'" type="warning" size="small" style="cursor: pointer;">
+          <el-tag
+            v-else-if="healthStatus?.status === 'missing_api_key'"
+            type="warning"
+            size="small"
+            style="cursor: pointer"
+          >
             <el-icon class="status-icon"><Warning /></el-icon>
             未配置
           </el-tag>
-          <el-tag v-else type="info" size="small" style="cursor: pointer;">
+          <el-tag v-else type="info" size="small" style="cursor: pointer">
             <el-icon class="status-icon"><Loading /></el-icon>
             检测中
           </el-tag>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item 
-                v-for="provider in availableProviders" 
+              <el-dropdown-item
+                v-for="provider in availableProviders"
                 :key="provider.provider"
                 :command="provider.provider"
                 :disabled="!provider.enabled"
