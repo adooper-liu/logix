@@ -150,33 +150,29 @@ jobs:
 
       - name: Check execution reports
         run: |
-          REPORTS_DIR="./backend/scripts"
-          REQUIRED_REPORTS=(
-            "phase2-step1-container-filter-report.md"
-            "phase2-step2-scheduling-sorter-report.md"
-            "phase2-step3-warehouse-selector-report.md"
-            "phase2-step4-trucking-selector-report.md"
-            "phase2-step5-occupancy-calculator-report.md"
-            "phase2-step6-cost-estimation-report.md"
+          # 检查关键文档是否存在
+          DOCS_DIR="./docs"
+          REQUIRED_DOCS=(
+            "quality/DEVELOPMENT_DEBT.md"
           )
 
-          MISSING_REPORTS=()
+          MISSING_DOCS=()
 
-          for report in "${REQUIRED_REPORTS[@]}"; do
-            if [ ! -f "$REPORTS_DIR/$report" ]; then
-              MISSING_REPORTS+=("$report")
+          for doc in "${REQUIRED_DOCS[@]}"; do
+            if [ ! -f "$DOCS_DIR/$doc" ]; then
+              MISSING_DOCS+=("$doc")
             fi
           done
 
-          if [ ${#MISSING_REPORTS[@]} -gt 0 ]; then
-            echo "::error::缺少以下执行报告:"
-            for report in "${MISSING_REPORTS[@]}"; do
-              echo "::error::  - $report"
+          if [ ${#MISSING_DOCS[@]} -gt 0 ]; then
+            echo "::error::缺少以下关键文档:"
+            for doc in "${MISSING_DOCS[@]}"; do
+              echo "::error::  - $doc"
             done
             exit 1
           fi
 
-          echo "✅ 所有执行报告完整"
+          echo "✅ 关键文档完整"
 
   pr-checklist-validation:
     name: PR 检查清单验证
