@@ -9,6 +9,7 @@ import { Request, Response } from 'express';
 import { intelligentSchedulingService } from '../../services/intelligentScheduling.service';
 import { logger } from '../../utils/logger';
 import { siliconFlowAdapter } from '../adapters/SiliconFlowAdapter';
+import { aiConfigManager, AIProvider } from '../config/AIConfigManager';
 import { getAllCategories, knowledgeBase, searchKnowledge } from '../data/knowledgeBase';
 import { aiBusinessService } from '../services/aiBusiness.service';
 import { textToSqlService } from '../services/textToSql.service';
@@ -710,22 +711,75 @@ export class AIController {
    */
   health = async (req: Request, res: Response): Promise<void> => {
     try {
-      const hasApiKey = !!process.env.SILICON_FLOW_API_KEY;
+      const healthStatus = await aiConfigManager.healthCheck();
 
       res.json({
         success: true,
-        data: {
-          status: hasApiKey ? 'ready' : 'missing_api_key',
-          provider: 'siliconflow',
-          model: process.env.SILICON_FLOW_MODEL || 'deepseek-ai/DeepSeek-V2-Chat',
-          hasApiKey
-        }
+        data: healthStatus
       });
     } catch (error: any) {
       logger.error('[AI] health error:', error);
       res.status(500).json({
         success: false,
         error: error.message
+      });
+    }
+  };
+
+  /**
+   * GET /api/v1/ai/providers
+   * 获取所有可用的 AI 提供商列表
+   */
+  getProviders = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const providers = aiConfigManager.getAvailableProviders();
+      
+      res.json({
+        success: true,
+        data: {
+          current: aiConfigManager.getCurrentProvider(),
+          available: providers
+        }
+      });
+    } catch (error: any) {
+      logger.error('[AI] getProviders error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  };
+
+  /**
+   * POST /api/v1/ai/providers/switch
+   * 切换 AI 提供商
+   */
+  switchProvider = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const { provider } = req.body as { provider: AIProvider };
+      
+      if (!provider) {
+        res.status(400).json({
+          success: false,
+          message: 'Missing provider parameter'
+        });
+        return;
+      }
+
+      aiConfigManager.setCurrentProvider(provider);
+      
+      res.json({
+        success: true,
+        message: `Successfully switched to ${provider}`,
+        data: {
+          current: aiConfigManager.getCurrentProvider()
+        }
+      });
+    } catch (error: any) {
+      logger.error('[AI] switchProvider error:', error);
+      res.status(400).json({
+        success: false,
+        message: error.message
       });
     }
   };

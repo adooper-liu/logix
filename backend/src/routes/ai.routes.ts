@@ -183,6 +183,40 @@ router.get('/health', aiController.health);
 
 /**
  * @swagger
+ * /api/v1/ai/providers:
+ *   get:
+ *     summary: 获取所有可用的 AI 提供商列表
+ *     tags: [AI]
+ *     responses:
+ *       200:
+ *         description: 提供商列表
+ */
+router.get('/providers', aiController.getProviders);
+
+/**
+ * @swagger
+ * /api/v1/ai/providers/switch:
+ *   post:
+ *     summary: 切换 AI 提供商
+ *     tags: [AI]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               provider:
+ *                 type: string
+ *                 enum: [siliconflow, ollama-local, ollama-cloud]
+ *     responses:
+ *       200:
+ *         description: 切换成功
+ */
+router.post('/providers/switch', aiController.switchProvider);
+
+/**
+ * @swagger
  * /api/v1/ai/stats/overview:
  *   get:
  *     summary: 获取业务概览统计

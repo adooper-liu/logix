@@ -4,6 +4,7 @@ import {
   type ChatMessage,
   type AIHealthStatus,
   type ScheduleResult,
+  type AIProviderInfo,
 } from '@/services/ai'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -35,6 +36,11 @@ const healthStatus = ref<AIHealthStatus | null>(null)
 
 // MCP能力开关
 const mcpEnabled = ref(true)
+
+// AI提供商选择
+const showProviderSelector = ref(false)
+const availableProviders = ref<AIProviderInfo[]>([])
+const currentProvider = ref<string>('')
 
 // SQL预览相关
 const showSqlPreview = ref(false)
@@ -116,12 +122,53 @@ const checkHealth = async () => {
     const res = await aiService.healthCheck()
     if (res.success && res.data) {
       healthStatus.value = res.data
+      
+      // 获取可用提供商列表
+      if (res.data.availableProviders) {
+        availableProviders.value = res.data.availableProviders as AIProviderInfo[]
+        currentProvider.value = res.data.provider
+      }
+      
       if (res.data.status === 'missing_api_key') {
         ElMessage.warning('AI服务未配置API Key，请在环境变量中设置SILICON_FLOW_API_KEY')
+      } else if (res.data.status === 'missing_config') {
+        ElMessage.warning('AI服务配置不完整，请检查配置')
       }
     }
   } catch (error) {
     console.error('AI健康检查失败:', error)
+  }
+}
+
+// 加载提供商列表
+const loadProviders = async () => {
+  try {
+    const res = await aiService.getProviders()
+    if (res.success && res.data) {
+      availableProviders.value = res.data.available
+      currentProvider.value = res.data.current
+      showProviderSelector.value = true
+    }
+  } catch (error: any) {
+    ElMessage.error('获取提供商列表失败: ' + error.message)
+  }
+}
+
+// 切换提供商
+const switchProvider = async (provider: string) => {
+  try {
+    const res = await aiService.switchProvider(provider as any)
+    if (res.success) {
+      ElMessage.success(res.message || '切换成功')
+      currentProvider.value = provider
+      showProviderSelector.value = false
+      // 重新检查健康状态
+      await checkHealth()
+    } else {
+      ElMessage.error('切换失败')
+    }
+  } catch (error: any) {
+    ElMessage.error('切换失败: ' + error.message)
   }
 }
 
@@ -272,6 +319,16 @@ const formatTime = (timestamp?: string) => {
   })
 }
 
+// 获取提供商显示名称
+const getProviderDisplayName = (provider: string): string => {
+  const names: Record<string, string> = {
+    'siliconflow': '硅基流动',
+    'ollama-local': 'Ollama本地',
+    'ollama-cloud': 'Ollama云端'
+  }
+  return names[provider] || provider
+}
+
 // 初始化
 onMounted(() => {
   messages.value = [welcomeMessage]
@@ -288,18 +345,41 @@ onMounted(() => {
         <span>小乐</span>
       </div>
       <div class="header-status">
-        <el-tag v-if="healthStatus?.status === 'ready'" type="success" size="small">
-          <el-icon class="status-icon"><CircleCheck /></el-icon>
-          已连接
-        </el-tag>
-        <el-tag v-else-if="healthStatus?.status === 'missing_api_key'" type="warning" size="small">
-          <el-icon class="status-icon"><Warning /></el-icon>
-          未配置
-        </el-tag>
-        <el-tag v-else type="info" size="small">
-          <el-icon class="status-icon"><Loading /></el-icon>
-          检测中
-        </el-tag>
+        <!-- AI提供商选择器 -->
+        <el-dropdown trigger="click" @command="switchProvider">
+          <el-tag v-if="healthStatus?.status === 'ready'" type="success" size="small" style="cursor: pointer;">
+            <el-icon class="status-icon"><CircleCheck /></el-icon>
+            {{ getProviderDisplayName(currentProvider) }}
+          </el-tag>
+          <el-tag v-else-if="healthStatus?.status === 'missing_api_key'" type="warning" size="small" style="cursor: pointer;">
+            <el-icon class="status-icon"><Warning /></el-icon>
+            未配置
+          </el-tag>
+          <el-tag v-else type="info" size="small" style="cursor: pointer;">
+            <el-icon class="status-icon"><Loading /></el-icon>
+            检测中
+          </el-tag>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item 
+                v-for="provider in availableProviders" 
+                :key="provider.provider"
+                :command="provider.provider"
+                :disabled="!provider.enabled"
+              >
+                <div class="provider-item">
+                  <span>{{ provider.name }}</span>
+                  <el-tag v-if="provider.isCurrent" size="small" type="success">当前</el-tag>
+                  <el-tag v-else-if="!provider.enabled" size="small" type="info">未配置</el-tag>
+                </div>
+              </el-dropdown-item>
+              <el-dropdown-item divided command="__refresh__" @click="loadProviders">
+                <el-icon><Loading /></el-icon>
+                刷新列表
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
       </div>
     </div>
 
@@ -514,6 +594,14 @@ onMounted(() => {
 
 .status-icon {
   margin-right: 4px;
+}
+
+.provider-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  min-width: 180px;
 }
 
 .messages-area {

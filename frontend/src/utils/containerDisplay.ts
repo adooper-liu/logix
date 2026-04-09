@@ -192,7 +192,7 @@ export const getFiveNodeKinds = (
   else if (customsStatus === 'FAILED') customs = 'bad'
   else customs = 'warn'
 
-  const pickup: FiveNodeKind = row.plannedPickupDate || row.pickupDate ? 'ok' : 'bad'
+  const pickup: FiveNodeKind = row.pickupDate ? 'ok' : row.plannedPickupDate ? 'warn' : 'bad'
 
   const s = String(row.logisticsStatus || '').toLowerCase()
   let unload: FiveNodeKind = 'bad'
@@ -244,7 +244,7 @@ export const getFiveNodeRows = (row: any) => {
     {
       kind: k.pickup,
       type: 'warning' as const,
-      text: row.plannedPickupDate ? '已计划提柜' : '未计划提柜',
+      text: row.pickupDate ? '已提柜' : row.plannedPickupDate ? '已计划提柜' : '未计划提柜',
     },
     {
       kind: k.unload,

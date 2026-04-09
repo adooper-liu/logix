@@ -158,6 +158,8 @@ export function useShipmentsSchedule() {
       const result = await containerService.batchWriteBackDemurrageDates({
         limitLastFree: 500,
         limitLastReturn: 500,
+        autoBatch: true,  // ✅ 启用自动分批
+        batchSize: 100,   // 每批处理 100 个货柜
       })
 
       if (result.success) {

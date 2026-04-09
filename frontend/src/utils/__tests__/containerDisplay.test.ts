@@ -204,6 +204,7 @@ describe('containerDisplay utils', () => {
       const row = {
         customsStatus: 'COMPLETED',
         plannedPickupDate: '2024-03-15',
+        pickupDate: '2024-03-16',
         logisticsStatus: 'unloaded',
         returnTime: '2024-03-20',
         inspectionRequired: false,
@@ -245,6 +246,7 @@ describe('containerDisplay utils', () => {
       const row = {
         customsStatus: 'COMPLETED',
         plannedPickupDate: '2024-03-15',
+        pickupDate: '2024-03-16',
         logisticsStatus: 'unloaded',
         returnTime: '2024-03-20',
         inspectionRequired: false,
@@ -252,7 +254,7 @@ describe('containerDisplay utils', () => {
       const result = getFiveNodeRows(row)
       expect(result).toHaveLength(5)
       expect(result[0]).toEqual({ kind: 'ok', type: 'info', text: '已完成' })
-      expect(result[1]).toEqual({ kind: 'ok', type: 'warning', text: '已计划提柜' })
+      expect(result[1]).toEqual({ kind: 'ok', type: 'warning', text: '已提柜' })
       expect(result[2]).toEqual({ kind: 'ok', type: 'primary', text: '已卸柜' })
       expect(result[3]).toEqual({ kind: 'ok', type: 'success', text: '已还箱' })
       expect(result[4]).toEqual({ kind: 'ok', type: 'info', text: '免查验' })
@@ -262,12 +264,50 @@ describe('containerDisplay utils', () => {
       const row = {
         customsStatus: 'COMPLETED',
         plannedPickupDate: '2024-03-15',
+        pickupDate: '2024-03-16',
         logisticsStatus: 'unloaded',
         returnTime: '2024-03-20',
         inspectionRequired: true,
       }
       const result = getFiveNodeRows(row)
       expect(result[4]).toEqual({ kind: 'warn', type: 'warning', text: '需查验' })
+    })
+
+    it('should distinguish pickup status correctly', () => {
+      // 已提柜：有 pickupDate
+      const row1 = {
+        customsStatus: 'COMPLETED',
+        pickupDate: '2024-03-16',
+        logisticsStatus: 'picked_up',
+        inspectionRequired: false,
+      }
+      const result1 = getFiveNodeKinds(row1)
+      expect(result1.pickup).toBe('ok')
+      const rows1 = getFiveNodeRows(row1)
+      expect(rows1[1].text).toBe('已提柜')
+
+      // 已计划提柜：只有 plannedPickupDate，没有 pickupDate
+      const row2 = {
+        customsStatus: 'COMPLETED',
+        plannedPickupDate: '2024-03-15',
+        logisticsStatus: 'at_port',
+        inspectionRequired: false,
+      }
+      const result2 = getFiveNodeKinds(row2)
+      expect(result2.pickup).toBe('warn')
+      const rows2 = getFiveNodeRows(row2)
+      expect(rows2[1].text).toBe('已计划提柜')
+
+      // 未计划提柜：两者都没有
+      const row3 = {
+        customsStatus: 'COMPLETED',
+        logisticsStatus: 'shipped',
+        inspectionRequired: false,
+      }
+      const result3 = getFiveNodeKinds(row3)
+      expect(result3.pickup).toBe('bad')
+      const rows3 = getFiveNodeRows(row3)
+      expect(rows3[1].text).toBe('未计划提柜')
     })
   })
 

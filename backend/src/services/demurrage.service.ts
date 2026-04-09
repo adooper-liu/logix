@@ -1847,10 +1847,29 @@ export class DemurrageService {
 
         if (useDischargeOnly) {
           // 按卸船
-          demurrageStartForStd = params.calculationDates.dischargeDate ?? null;
-          demurrageStartSource = demurrageStartForStd
-            ? (params.calculationDates.dischargeDateSource ?? 'discharged_time')
-            : null;
+          if (calculationMode === 'actual') {
+            // actual模式：只用实际卸船日
+            demurrageStartForStd = params.calculationDates.dischargeDate ?? null;
+            demurrageStartSource = demurrageStartForStd
+              ? (params.calculationDates.dischargeDateSource ?? 'discharged_time')
+              : null;
+          } else {
+            // forecast模式：支持 ETA 回退
+            demurrageStartForStd =
+              params.calculationDates.dischargeDate ??
+              params.calculationDates.revisedEtaDestPort ??
+              params.calculationDates.etaDestPort ??
+              null;
+            if (params.calculationDates.dischargeDate) {
+              demurrageStartSource = params.calculationDates.dischargeDateSource ?? 'discharged_time';
+            } else if (params.calculationDates.revisedEtaDestPort) {
+              demurrageStartSource = 'revised_eta';
+            } else if (params.calculationDates.etaDestPort) {
+              demurrageStartSource = 'eta';
+            } else {
+              demurrageStartSource = null;
+            }
+          }
         } else {
           // 按到港
           if (calculationMode === 'actual') {
@@ -2816,12 +2835,17 @@ export class DemurrageService {
 
   /**
    * 批量写回：对「last_free_date 为空且已到目的港」「已提柜但 last_return_date 为空」的货柜计算并写回
-   * @param options.limitLastFree 最晚提柜日写回批次上限，默认 100
-   * @param options.limitLastReturn 最晚还箱日写回批次上限，默认 100
+   * ✅ 优化：支持自动分批次处理，避免超时
+   * @param options.limitLastFree 最晚提柜日单次批次上限，默认 100
+   * @param options.limitLastReturn 最晚还箱日单次批次上限，默认 100
+   * @param options.autoBatch 是否启用自动分批（当总数 > limit 时），默认 true
+   * @param options.batchSize 自动分批时每批的大小，默认 100
    */
   async batchWriteBackComputedDates(options?: {
     limitLastFree?: number;
     limitLastReturn?: number;
+    autoBatch?: boolean;
+    batchSize?: number;
   }): Promise<{
     lastFreeWritten: number;
     lastReturnWritten: number;
@@ -2830,11 +2854,15 @@ export class DemurrageService {
   }> {
     const limitLastFree = options?.limitLastFree ?? 100;
     const limitLastReturn = options?.limitLastReturn ?? 100;
+    const autoBatch = options?.autoBatch ?? true;
+    const batchSize = options?.batchSize ?? 100;
 
     let lastFreeWritten = 0;
     let lastReturnWritten = 0;
+    let lastFreeProcessedTotal = 0;
+    let lastReturnProcessedTotal = 0;
 
-    // 1. last_free_date 写回目标集：
+    // ==================== 1. LFD 批量写回 ====================
     //    - 已到目的港 last_free_date 为空
     //    - 未到目的港但有 ETA last_free_date 为空（forecast 写回）
     //    - 目的港有 ATA 且 last_free_date_mode='forecast'（ATA 到港后 actual 覆盖）
@@ -2867,31 +2895,59 @@ export class DemurrageService {
         AND tt.pickup_date IS NOT NULL
       )
     `;
-    const lastFreeRows = await this.containerRepo.query(
+    
+    // 获取所有需要处理的货柜（不加 LIMIT）
+    const allLastFreeRows = await this.containerRepo.query(
       `(SELECT container_number FROM (${noLastFreeAtaSql}) t)
        UNION
        (${noLastFreeEtaSql})
        UNION
        (${ataForecastSql})
        UNION
-       (${noLastFreeFallbackSql})
-       LIMIT ${Math.max(1, limitLastFree)}`
+       (${noLastFreeFallbackSql})`
     );
-    const lastFreeNumbers = (lastFreeRows || [])
+    const allLastFreeNumbers = (allLastFreeRows || [])
       .map((r: { container_number: string }) => r.container_number)
       .filter(Boolean);
+    
+    logger.info(`[Demurrage] Found ${allLastFreeNumbers.length} containers needing LFD update`);
+    
+    // 根据配置决定处理方式
+    let lastFreeNumbers: string[];
+    if (!autoBatch || allLastFreeNumbers.length <= limitLastFree) {
+      // 不需要分批或总数未超限，直接取前 limitLastFree 个
+      lastFreeNumbers = allLastFreeNumbers.slice(0, limitLastFree);
+      logger.info(`[Demurrage] Processing LFD in single batch: ${lastFreeNumbers.length} containers`);
+    } else {
+      // 需要分批处理
+      logger.info(`[Demurrage] Auto-batching LFD: total=${allLastFreeNumbers.length}, batchSize=${batchSize}`);
+      // 第一批只处理 batchSize 个
+      lastFreeNumbers = allLastFreeNumbers.slice(0, batchSize);
+      logger.info(`[Demurrage] Processing first LFD batch: ${lastFreeNumbers.length} containers`);
+    }
 
     for (const cn of lastFreeNumbers) {
       try {
         const { result } = await this.calculateForContainer(cn);
         if (result?.writeBack?.lastFreeDateWritten) lastFreeWritten++;
+        lastFreeProcessedTotal++;
       } catch (e) {
         logger.warn(`[Demurrage] batchWriteBack last_free failed for ${cn}:`, e);
       }
     }
 
-    // 2. 已提柜但 last_return_date 为空（按提柜事实而非 biz_containers.logistics_status，避免状态滞后漏算）
-    const lastReturnRows = await this.containerRepo.query(`
+    // 如果启用了自动分批且还有剩余货柜，记录提示
+    if (autoBatch && allLastFreeNumbers.length > limitLastFree) {
+      const remaining = allLastFreeNumbers.length - lastFreeProcessedTotal;
+      logger.info(
+        `[Demurrage] LFD batch complete: processed=${lastFreeProcessedTotal}, remaining=${remaining}. ` +
+        `Call API again to process next batch.`
+      );
+    }
+
+    // ==================== 2. LRD 批量写回 ====================
+    // 已提柜但 last_return_date 为空（按提柜事实而非 biz_containers.logistics_status，避免状态滞后漏算）
+    const lastReturnQuery = `
       SELECT DISTINCT tt.container_number
       FROM process_trucking_transport tt
       LEFT JOIN process_empty_return er ON er.container_number = tt.container_number
@@ -2903,26 +2959,54 @@ export class DemurrageService {
         WHERE er2.container_number = tt.container_number
         AND er2.return_time IS NOT NULL
       )
-      LIMIT ${Math.max(1, limitLastReturn)}
-    `);
-    const lastReturnNumbers = (lastReturnRows || [])
+    `;
+    
+    // 获取所有需要处理的货柜（不加 LIMIT）
+    const allLastReturnRows = await this.containerRepo.query(lastReturnQuery);
+    const allLastReturnNumbers = (allLastReturnRows || [])
       .map((r: { container_number: string }) => r.container_number)
       .filter(Boolean);
+    
+    logger.info(`[Demurrage] Found ${allLastReturnNumbers.length} containers needing LRD update`);
+    
+    // 根据配置决定处理方式
+    let lastReturnNumbers: string[];
+    if (!autoBatch || allLastReturnNumbers.length <= limitLastReturn) {
+      // 不需要分批或总数未超限，直接取前 limitLastReturn 个
+      lastReturnNumbers = allLastReturnNumbers.slice(0, limitLastReturn);
+      logger.info(`[Demurrage] Processing LRD in single batch: ${lastReturnNumbers.length} containers`);
+    } else {
+      // 需要分批处理
+      logger.info(`[Demurrage] Auto-batching LRD: total=${allLastReturnNumbers.length}, batchSize=${batchSize}`);
+      // 第一批只处理 batchSize 个
+      lastReturnNumbers = allLastReturnNumbers.slice(0, batchSize);
+      logger.info(`[Demurrage] Processing first LRD batch: ${lastReturnNumbers.length} containers`);
+    }
 
     for (const cn of lastReturnNumbers) {
       try {
         const { result } = await this.calculateForContainer(cn);
         if (result?.writeBack?.lastReturnDateWritten) lastReturnWritten++;
+        lastReturnProcessedTotal++;
       } catch (e) {
         logger.warn(`[Demurrage] batchWriteBack last_return failed for ${cn}:`, e);
       }
     }
 
+    // 如果启用了自动分批且还有剩余货柜，记录提示
+    if (autoBatch && allLastReturnNumbers.length > limitLastReturn) {
+      const remaining = allLastReturnNumbers.length - lastReturnProcessedTotal;
+      logger.info(
+        `[Demurrage] LRD batch complete: processed=${lastReturnProcessedTotal}, remaining=${remaining}. ` +
+        `Call API again to process next batch.`
+      );
+    }
+
     return {
       lastFreeWritten,
       lastReturnWritten,
-      lastFreeProcessed: lastFreeNumbers.length,
-      lastReturnProcessed: lastReturnNumbers.length
+      lastFreeProcessed: lastFreeProcessedTotal,
+      lastReturnProcessed: lastReturnProcessedTotal
     };
   }
 

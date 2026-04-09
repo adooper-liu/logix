@@ -48,10 +48,25 @@ export interface SqlValidationResult {
 
 // AI健康状态
 export interface AIHealthStatus {
-  status: 'ready' | 'missing_api_key' | 'error'
+  status: 'ready' | 'missing_api_key' | 'missing_config' | 'error'
   provider: string
   model: string
   hasApiKey: boolean
+  availableProviders?: Array<{
+    provider: string
+    name: string
+    enabled: boolean
+    isCurrent: boolean
+  }>
+}
+
+// AI提供商信息
+export interface AIProviderInfo {
+  provider: 'siliconflow' | 'ollama-local' | 'ollama-cloud'
+  name: string
+  enabled: boolean
+  model: string
+  isCurrent: boolean
 }
 
 // SQL执行结果
@@ -172,6 +187,28 @@ export const aiService = {
       success: boolean
       data?: AIHealthStatus
     }>('/ai/health')
+  },
+
+  // 获取所有可用的 AI 提供商
+  async getProviders() {
+    return api.get<{
+      success: boolean
+      data?: {
+        current: string
+        available: AIProviderInfo[]
+      }
+    }>('/ai/providers')
+  },
+
+  // 切换 AI 提供商
+  async switchProvider(provider: 'siliconflow' | 'ollama-local' | 'ollama-cloud') {
+    return api.post<{
+      success: boolean
+      message?: string
+      data?: {
+        current: string
+      }
+    }>('/ai/providers/switch', { provider })
   },
 
   // 业务统计 API
