@@ -5,8 +5,8 @@
  */
 
 import { ContainerStatusService } from '../services/containerStatus.service';
-import { logger } from '../utils/logger';
 import { DistributedLock, generateSchedulerLockKey } from '../utils/DistributedLock';
+import { logger } from '../utils/logger';
 
 export class ContainerStatusScheduler {
   private statusService: ContainerStatusService;
@@ -88,7 +88,7 @@ export class ContainerStatusScheduler {
    */
   private async executeTask(): Promise<void> {
     const lockKey = generateSchedulerLockKey('container-status-recalc');
-    
+
     // 使用分布式锁防止重叠执行
     const result = await DistributedLock.executeWithLock(
       lockKey,
@@ -110,9 +110,9 @@ export class ContainerStatusScheduler {
         }
       },
       1800, // 30分钟超时
-      true  // 如果锁已被持有则跳过
+      true // 如果锁已被持有则跳过
     );
-    
+
     if (result === null) {
       logger.info('[ContainerStatusScheduler] Task skipped (already running)');
     }

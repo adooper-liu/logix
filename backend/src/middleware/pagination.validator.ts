@@ -1,10 +1,10 @@
 /**
  * 分页参数验证中间件
- * 
+ *
  * 为所有列表接口添加 pageSize 上限,防止超大页请求打穿数据库和内存
  */
 
-import { Request, Response, NextFunction } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { config } from '../config/index.js';
 import { logger } from '../utils/logger.js';
 
@@ -72,7 +72,7 @@ function getMaxPageSize(req: Request): number {
 
 /**
  * 分页参数验证中间件
- * 
+ *
  * 功能:
  * 1. 限制 pageSize 最大值
  * 2. 确保 page >= 1
@@ -80,22 +80,22 @@ function getMaxPageSize(req: Request): number {
  */
 export function paginationValidator(req: Request, res: Response, next: NextFunction): void {
   const { page, pageSize } = req.query;
-  
+
   // 如果没有分页参数,直接放行
   if (page === undefined && pageSize === undefined) {
     next();
     return;
   }
-  
+
   const maxPageSize = getMaxPageSize(req);
-  
+
   // 验证并修正 page
   let pageNum = Number(page);
   if (Number.isNaN(pageNum) || pageNum < 1) {
     pageNum = 1;
     req.query.page = '1';
   }
-  
+
   // 验证并修正 pageSize
   let pageSizeNum = Number(pageSize);
   if (Number.isNaN(pageSizeNum) || pageSizeNum < 1) {
@@ -110,36 +110,36 @@ export function paginationValidator(req: Request, res: Response, next: NextFunct
       limited: maxPageSize,
       ip: req.ip
     });
-    
+
     // 强制限制
     pageSizeNum = maxPageSize;
     req.query.pageSize = String(maxPageSize);
   }
-  
+
   next();
 }
 
 /**
  * 创建针对特定路径的分页验证器
- * 
+ *
  * @param maxPageSize - 最大页大小
  * @returns Express 中间件
  */
 export function createPaginationValidator(maxPageSize: number) {
   return (req: Request, res: Response, next: NextFunction): void => {
     const { page, pageSize } = req.query;
-    
+
     if (page === undefined && pageSize === undefined) {
       next();
       return;
     }
-    
+
     let pageNum = Number(page);
     if (Number.isNaN(pageNum) || pageNum < 1) {
       pageNum = 1;
       req.query.page = '1';
     }
-    
+
     let pageSizeNum = Number(pageSize);
     if (Number.isNaN(pageSizeNum) || pageSizeNum < 1) {
       pageSizeNum = 10;
@@ -152,11 +152,11 @@ export function createPaginationValidator(maxPageSize: number) {
         limited: maxPageSize,
         ip: req.ip
       });
-      
+
       pageSizeNum = maxPageSize;
       req.query.pageSize = String(maxPageSize);
     }
-    
+
     next();
   };
 }

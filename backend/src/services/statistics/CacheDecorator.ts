@@ -1,14 +1,14 @@
 /**
  * 统计查询缓存装饰器
- * 
+ *
  * 为统计服务方法添加 Redis 缓存,减少数据库负载
  * 缓存键格式: statistics:{method}:{startDate}:{endDate}:{country}
  * 默认 TTL: 300秒 (5分钟)
  */
 
-import { CacheService } from '../CacheService';
-import { getScopedCountryCode } from '../../utils/requestContext';
 import { normalizeCountryCode } from '../../utils/countryCode';
+import { getScopedCountryCode } from '../../utils/requestContext';
+import { CacheService } from '../CacheService';
 
 const cacheService = new CacheService();
 const STATISTICS_CACHE_TTL = 300; // 5分钟
@@ -24,20 +24,20 @@ function generateCacheKey(
   country?: string
 ): string {
   const parts = [CACHE_PREFIX, methodName];
-  
+
   if (startDate) parts.push(startDate);
   if (endDate) parts.push(endDate);
   if (country) parts.push(country);
-  
+
   return parts.join(':');
 }
 
 /**
  * 统计方法缓存装饰器工厂
- * 
+ *
  * @param ttl - 缓存过期时间(秒),默认300秒
  * @returns 方法装饰器
- * 
+ *
  * @example
  * ```typescript
  * class StatisticsService {
@@ -49,11 +49,7 @@ function generateCacheKey(
  * ```
  */
 export function cacheStatistics(ttl: number = STATISTICS_CACHE_TTL) {
-  return function (
-    target: any,
-    propertyKey: string,
-    descriptor: PropertyDescriptor
-  ) {
+  return function (target: any, propertyKey: string, descriptor: PropertyDescriptor) {
     const originalMethod = descriptor.value;
 
     descriptor.value = async function (...args: any[]) {
@@ -68,7 +64,7 @@ export function cacheStatistics(ttl: number = STATISTICS_CACHE_TTL) {
       const countrySegment = normalizeCountryCode(rawCountry || '') || 'all';
 
       const cacheKey = generateCacheKey(propertyKey, startDate, endDate, countrySegment);
-      
+
       try {
         // 尝试从缓存读取
         const cached = await cacheService.get(cacheKey);
@@ -76,18 +72,18 @@ export function cacheStatistics(ttl: number = STATISTICS_CACHE_TTL) {
           console.log(`[StatisticsCache] HIT: ${cacheKey}`);
           return cached;
         }
-        
+
         console.log(`[StatisticsCache] MISS: ${cacheKey}`);
-        
+
         // 执行原始方法
         const result = await originalMethod.apply(this, args);
-        
+
         // 写入缓存
         if (result !== null && result !== undefined) {
           await cacheService.set(cacheKey, result, ttl);
           console.log(`[StatisticsCache] SET: ${cacheKey}, TTL=${ttl}s`);
         }
-        
+
         return result;
       } catch (error) {
         // 缓存失败不影响主流程
@@ -102,7 +98,7 @@ export function cacheStatistics(ttl: number = STATISTICS_CACHE_TTL) {
 
 /**
  * 清除统计缓存
- * 
+ *
  * @param methodName - 方法名,不传则清除所有统计缓存
  * @param startDate - 开始日期
  * @param endDate - 结束日期
@@ -115,25 +111,25 @@ export async function invalidateStatisticsCache(
   country?: string
 ): Promise<void> {
   let pattern = `${CACHE_PREFIX}:`;
-  
+
   if (methodName) {
     pattern += `${methodName}:`;
-    
+
     if (startDate) {
       pattern += `${startDate}:`;
-      
+
       if (endDate) {
         pattern += `${endDate}`;
-        
+
         if (country) {
           pattern += `:${country}`;
         }
       }
     }
   }
-  
+
   pattern += '*';
-  
+
   console.log(`[StatisticsCache] INVALIDATE: ${pattern}`);
   await cacheService.invalidate(pattern);
 }

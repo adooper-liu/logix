@@ -33,7 +33,7 @@ export class ImportController {
   // 导入记录数上限
   private static readonly MAX_RECORDS_SINGLE = 5000;
   private static readonly MAX_RECORDS_BATCH = 10000;
-  
+
   private containerRepository: Repository<Container>;
   private orderRepository: Repository<ReplenishmentOrder>;
   private seaFreightRepository: Repository<SeaFreight>;
@@ -533,7 +533,7 @@ export class ImportController {
       });
       return;
     }
-    
+
     // 检查记录数上限
     let recordCount = 0;
     for (const tableName of Object.keys(tables)) {
@@ -544,9 +544,11 @@ export class ImportController {
         recordCount += 1; // 单条记录
       }
     }
-    
+
     if (recordCount > ImportController.MAX_RECORDS_SINGLE) {
-      logger.warn(`[Import] 单次导入记录数超限: ${recordCount} > ${ImportController.MAX_RECORDS_SINGLE}`);
+      logger.warn(
+        `[Import] 单次导入记录数超限: ${recordCount} > ${ImportController.MAX_RECORDS_SINGLE}`
+      );
       res.status(400).json({
         success: false,
         message: `单次导入最多${ImportController.MAX_RECORDS_SINGLE}条记录，当前${recordCount}条。请使用批量导入或分批上传。`,
@@ -975,7 +977,7 @@ export class ImportController {
       });
       return;
     }
-    
+
     // 检查批量导入记录数上限
     let totalRecordCount = 0;
     for (const item of batch) {
@@ -990,9 +992,11 @@ export class ImportController {
         }
       }
     }
-    
+
     if (totalRecordCount > ImportController.MAX_RECORDS_BATCH) {
-      logger.warn(`[Import] 批量导入记录数超限: ${totalRecordCount} > ${ImportController.MAX_RECORDS_BATCH}`);
+      logger.warn(
+        `[Import] 批量导入记录数超限: ${totalRecordCount} > ${ImportController.MAX_RECORDS_BATCH}`
+      );
       res.status(400).json({
         success: false,
         message: `批量导入最多${ImportController.MAX_RECORDS_BATCH}条记录，当前${totalRecordCount}条。请分批上传。`,
@@ -1410,8 +1414,8 @@ export class ImportController {
           this.truckingRepository,
           this.emptyReturnRepository,
           this.orderRepository,
-          AppDataSource.getRepository (Country), // 使用 Country repository
-          AppDataSource.getRepository (ExtDemurrageRecord)
+          AppDataSource.getRepository(Country), // 使用 Country repository
+          AppDataSource.getRepository(ExtDemurrageRecord)
         );
         const wb = await demurrageService.batchWriteBackComputedDates({
           limitLastFree: 30,
