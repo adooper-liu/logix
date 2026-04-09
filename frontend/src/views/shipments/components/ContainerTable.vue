@@ -309,15 +309,33 @@
         <el-table-column
           v-else-if="key === 'inspectionRequired'"
           label="查验/开箱"
-          width="120"
+          width="150"
           align="center"
         >
           <template #default="{ row }">
-            <div class="inspection-unboxing">
-              <span class="inspection-text">
-                查验：{{ row.inspectionRequired ? '是' : '否' }}
-              </span>
-              <span class="inspection-text">开箱：{{ row.isUnboxing ? '是' : '否' }}</span>
+            <div class="inspection-unboxing-tags">
+              <el-tag
+                size="small"
+                :type="row.inspectionRequired ? 'warning' : 'info'"
+                class="inspection-tag"
+              >
+                <el-icon :size="12" style="margin-right: 4px; vertical-align: middle">
+                  <Warning v-if="row.inspectionRequired" />
+                  <CircleCheck v-else />
+                </el-icon>
+                {{ row.inspectionRequired ? '需查验' : '免查验' }}
+              </el-tag>
+              <el-tag
+                size="small"
+                :type="row.isUnboxing ? 'primary' : 'info'"
+                class="unboxing-tag"
+              >
+                <el-icon :size="12" style="margin-right: 4px; vertical-align: middle">
+                  <Box v-if="row.isUnboxing" />
+                  <CircleCheck v-else />
+                </el-icon>
+                {{ row.isUnboxing ? '已开箱' : '未开箱' }}
+              </el-tag>
             </div>
           </template>
         </el-table-column>
