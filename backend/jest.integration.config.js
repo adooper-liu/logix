@@ -5,6 +5,9 @@
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
+  // 使用 dotenv/config + DOTENV_CONFIG_PATH 加载 .env.test
+  setupFiles: ['dotenv/config'],
+  setupFilesAfterEnv: ['<rootDir>/tests/integration/setup.ts'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@shared/(.*)$': '<rootDir>/../shared/src/$1'

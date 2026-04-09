@@ -17,7 +17,7 @@
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "jest --runInBand",
-    "test:integration": "jest --config jest.integration.config.js --runInBand",
+    "test:integration": "cross-env NODE_ENV=test DOTENV_CONFIG_PATH=.env.test jest --config jest.integration.config.js --runInBand",
     "test:scheduling": "jest --runInBand --testPathPatterns=intelligentScheduling.service.test",
     "verify:stats-filter": "tsx scripts/verify-statistics-by-filter-consistency.ts",
     "skill:check": "node scripts/check-skill-compliance.js"

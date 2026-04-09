@@ -7,6 +7,7 @@
 
 import { AppDataSource } from '../../../src/database';
 import { IntelligentSchedulingService } from '../../../src/services/intelligentScheduling.service';
+import { logger } from '../../../src/utils/logger';
 
 describe('IntelligentSchedulingService - E2E Tests', () => {
   let service: IntelligentSchedulingService;
@@ -67,9 +68,29 @@ describe('IntelligentSchedulingService - E2E Tests', () => {
 
   describe('Edge Cases - 边界条件测试', () => {
     it('should handle null/undefined inputs gracefully', async () => {
-      // Test various invalid inputs
-      await expect(service.batchSchedule(null as any)).rejects.toThrow();
-      await expect(service.batchSchedule(undefined as any)).rejects.toThrow();
+      const loggerErrorSpy = jest.spyOn(logger, 'error').mockImplementation(() => logger);
+
+      const nullResult = await service.batchSchedule(null as any);
+      expect(nullResult.success).toBe(false);
+      expect(nullResult.results).toEqual([]);
+      expect(nullResult.failedCount).toBe(0);
+      expect(loggerErrorSpy).toHaveBeenCalled();
+      expect(loggerErrorSpy.mock.calls.some((call) => String(call[0]).includes('batchSchedule error'))).toBe(
+        true
+      );
+
+      loggerErrorSpy.mockClear();
+
+      const undefinedResult = await service.batchSchedule(undefined as any);
+      expect(undefinedResult.success).toBe(false);
+      expect(undefinedResult.results).toEqual([]);
+      expect(undefinedResult.failedCount).toBe(0);
+      expect(loggerErrorSpy).toHaveBeenCalled();
+      expect(loggerErrorSpy.mock.calls.some((call) => String(call[0]).includes('batchSchedule error'))).toBe(
+        true
+      );
+
+      loggerErrorSpy.mockRestore();
     });
   });
 });
