@@ -9,10 +9,10 @@
 import { Repository } from 'typeorm';
 import { AppDataSource } from '../database';
 import { DictSchedulingConfig } from '../entities/DictSchedulingConfig';
-import { Warehouse } from '../entities/Warehouse';
-import { TruckingCompany } from '../entities/TruckingCompany';
-import { ExtWarehouseDailyOccupancy } from '../entities/ExtWarehouseDailyOccupancy';
 import { ExtTruckingSlotOccupancy } from '../entities/ExtTruckingSlotOccupancy';
+import { ExtWarehouseDailyOccupancy } from '../entities/ExtWarehouseDailyOccupancy';
+import { TruckingCompany } from '../entities/TruckingCompany';
+import { Warehouse } from '../entities/Warehouse';
 import { HolidayService } from '../services/HolidayService'; // ✅ Phase 2 Task 2: 新增
 import { log } from './logger';
 
@@ -98,9 +98,9 @@ export class SmartCalendarCapacity {
 
   /**
    * 判断是否为节假日
-   * 
+   *
    * ✅ Phase 2 Task 2: 使用 HolidayService 查询数据库
-   * 
+   *
    * @param date 日期
    * @returns 是否为节假日
    */
@@ -111,9 +111,9 @@ export class SmartCalendarCapacity {
 
   /**
    * 判断是否为周末
-   * 
+   *
    * ✅ Phase 2 Task 3: 完善周末检查方法
-   * 
+   *
    * @param date 日期
    * @returns 是否为周末
    */
@@ -129,12 +129,12 @@ export class SmartCalendarCapacity {
 
   /**
    * 计算仓库在指定日期的能力
-   * 
+   *
    * 支持：
    * - 工作日：使用 dailyUnloadCapacity
    * - 周末：容量为 0
    * - 节假日：容量为 0
-   * 
+   *
    * @param warehouseCode 仓库代码
    * @param date 日期
    * @returns 计算后的能力值
@@ -457,9 +457,9 @@ export class SmartCalendarCapacity {
 
   /**
    * 计算两个日期之间的工作日天数（排除周末和节假日）
-   * 
+   *
    * ✅ Phase 2 Task 3: 优化性能 - 使用批量查询替代循环
-   * 
+   *
    * @param startDate 开始日期
    * @param endDate 结束日期
    * @param countryCode 国家代码（可选）
@@ -474,8 +474,12 @@ export class SmartCalendarCapacity {
   ): Promise<number> {
     try {
       // ✅ Phase 2 Task 3: 优化 - 一次性获取所有节假日，避免 N+1 查询
-      const holidays = await this.holidayService.getHolidaysInRange(startDate, endDate, countryCode);
-      const holidaySet = new Set(holidays.map(h => h.holidayDate.toISOString().split('T')[0]));
+      const holidays = await this.holidayService.getHolidaysInRange(
+        startDate,
+        endDate,
+        countryCode
+      );
+      const holidaySet = new Set(holidays.map((h) => h.holidayDate.toISOString().split('T')[0]));
 
       let workingDays = 0;
       const currentDate = new Date(startDate);
@@ -507,19 +511,15 @@ export class SmartCalendarCapacity {
 
   /**
    * 计算从指定日期开始的 N 个工作日后的日期
-   * 
+   *
    * ✅ Phase 2 Task 3: 新增方法 - 支持排产日期推算
-   * 
+   *
    * @param startDate 起始日期
    * @param workDays 工作日天数
    * @param countryCode 国家代码（可选）
    * @returns N 个工作日后的日期
    */
-  async addWorkDays(
-    startDate: Date,
-    workDays: number,
-    countryCode?: string
-  ): Promise<Date> {
+  async addWorkDays(startDate: Date, workDays: number, countryCode?: string): Promise<Date> {
     try {
       if (workDays <= 0) {
         return new Date(startDate);
@@ -528,16 +528,20 @@ export class SmartCalendarCapacity {
       // ✅ Phase 2 Task 3: 优化 - 预加载未来 N 天的节假日
       const endDate = new Date(startDate);
       endDate.setDate(endDate.getDate() + Math.ceil(workDays * 1.5)); // 估算一个范围
-      
-      const holidays = await this.holidayService.getHolidaysInRange(startDate, endDate, countryCode);
-      const holidaySet = new Set(holidays.map(h => h.holidayDate.toISOString().split('T')[0]));
+
+      const holidays = await this.holidayService.getHolidaysInRange(
+        startDate,
+        endDate,
+        countryCode
+      );
+      const holidaySet = new Set(holidays.map((h) => h.holidayDate.toISOString().split('T')[0]));
 
       const result = new Date(startDate);
       let addedDays = 0;
 
       while (addedDays < workDays) {
         result.setDate(result.getDate() + 1);
-        
+
         const dateStr = result.toISOString().split('T')[0];
         const dayOfWeek = result.getDay();
         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;

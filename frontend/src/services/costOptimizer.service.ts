@@ -9,8 +9,8 @@
  */
 
 import { useAppStore } from '@/store/app'
-import axios, { type AxiosInstance } from 'axios'
 import { logger } from '@/utils/logger'
+import axios, { type AxiosInstance } from 'axios'
 
 /**
  * 创建私有 axios 实例（带拦截器）

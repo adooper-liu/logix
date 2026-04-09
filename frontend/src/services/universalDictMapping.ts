@@ -4,8 +4,8 @@
  * 支持所有字典类型的名称到代码映射
  */
 
-import axios from 'axios'
 import { logger } from '@/utils/logger'
+import axios from 'axios'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1'
 const API_BASE = `${BASE_URL}/dict-mapping`

@@ -1,27 +1,27 @@
-import { redisClient, cachePrefix } from '../database/redis';
+import { cachePrefix, redisClient } from '../database/redis';
 import { logger } from '../utils/logger';
 
 /**
  * 缓存服务配置
  */
 interface CacheOptions {
-  ttl: number;        // 过期时间（秒）
-  prefix: string;     // 缓存键前缀
+  ttl: number; // 过期时间（秒）
+  prefix: string; // 缓存键前缀
 }
 
 /**
  * 缓存服务
- * 
+ *
  * 提供统一的 Redis 缓存操作接口
  * 基于现有的 redisClient 封装
- * 
+ *
  * @since 2026-04-01
  * @author 刘志高
  */
 export class CacheService {
   /**
    * 获取缓存
-   * 
+   *
    * @param key 缓存键
    * @returns 缓存值，不存在时返回 null
    */
@@ -38,7 +38,7 @@ export class CacheService {
 
   /**
    * 设置缓存
-   * 
+   *
    * @param key 缓存键
    * @param value 缓存值
    * @param ttl 过期时间（秒），默认 3600 秒（1 小时）
@@ -55,7 +55,7 @@ export class CacheService {
 
   /**
    * 清除缓存
-   * 
+   *
    * @param pattern 缓存键模式（支持通配符）
    */
   async invalidate(pattern: string): Promise<void> {
@@ -73,7 +73,7 @@ export class CacheService {
 
   /**
    * 检查缓存是否存在
-   * 
+   *
    * @param key 缓存键
    * @returns 是否存在
    */
@@ -90,7 +90,7 @@ export class CacheService {
 
   /**
    * 获取缓存（带默认值）
-   * 
+   *
    * @param key 缓存键
    * @param defaultValue 默认值
    * @returns 缓存值或默认值
@@ -102,7 +102,7 @@ export class CacheService {
 
   /**
    * 设置缓存（带配置）
-   * 
+   *
    * @param key 缓存键
    * @param value 缓存值
    * @param options 缓存配置
@@ -114,7 +114,7 @@ export class CacheService {
 
   /**
    * 获取缓存（带配置）
-   * 
+   *
    * @param key 缓存键
    * @param options 缓存配置
    * @returns 缓存值
