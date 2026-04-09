@@ -3,6 +3,7 @@
  */
 
 import { OccupancyCalculator } from './OccupancyCalculator';
+import { AppDataSource } from '../database';
 import { Warehouse } from '../entities/Warehouse';
 import { TruckingCompany } from '../entities/TruckingCompany';
 import { ExtWarehouseDailyOccupancy } from '../entities/ExtWarehouseDailyOccupancy';
@@ -35,22 +36,7 @@ const mockTruckingOccupancyRepo = {
 
 jest.mock('../database', () => ({
   AppDataSource: {
-    getRepository: jest.fn((entity) => {
-      // 根据实体类引用获取对应的 mock repository
-      if (entity === Warehouse) {
-        return mockWarehouseRepo;
-      }
-      if (entity === TruckingCompany) {
-        return mockTruckingCompanyRepo;
-      }
-      if (entity === ExtWarehouseDailyOccupancy) {
-        return mockWarehouseOccupancyRepo;
-      }
-      if (entity === ExtTruckingSlotOccupancy) {
-        return mockTruckingOccupancyRepo;
-      }
-      return {};
-    })
+    getRepository: jest.fn()
   }
 }));
 
@@ -58,8 +44,15 @@ describe('OccupancyCalculator - Batch Queries', () => {
   let calculator: OccupancyCalculator;
 
   beforeEach(() => {
-    // 重置所有 mock 调用历史
-    jest.resetAllMocks();
+    jest.clearAllMocks();
+    (AppDataSource.getRepository as jest.Mock).mockImplementation((entity: any) => {
+      const entityName = entity?.name;
+      if (entityName === Warehouse.name) return mockWarehouseRepo;
+      if (entityName === TruckingCompany.name) return mockTruckingCompanyRepo;
+      if (entityName === ExtWarehouseDailyOccupancy.name) return mockWarehouseOccupancyRepo;
+      if (entityName === ExtTruckingSlotOccupancy.name) return mockTruckingOccupancyRepo;
+      return {};
+    });
     
     // 重新创建计算器实例
     calculator = new OccupancyCalculator();

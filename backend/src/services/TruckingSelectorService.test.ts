@@ -49,6 +49,7 @@ describe('TruckingSelectorService', () => {
     } as any;
 
     mockTruckingCompanyRepo = {
+      find: jest.fn().mockResolvedValue([]),
       findOne: jest.fn()
     } as any;
 
@@ -96,16 +97,15 @@ describe('TruckingSelectorService', () => {
 
       (mockWarehouseTruckingMappingRepo.find as jest.Mock).mockResolvedValue(mappings);
       (mockTruckingOccupancyRepo.findOne as jest.Mock).mockResolvedValue(null); // 都有能力
+      (mockTruckingCompanyRepo.find as jest.Mock).mockResolvedValue([
+        { companyCode: 'TRUCK001', hasYard: false, partnershipLevel: 'STRATEGIC' },
+        { companyCode: 'TRUCK002', hasYard: false, partnershipLevel: 'NORMAL' }
+      ]);
 
       // Mock 成本计算
       (mockWarehouseTruckingMappingRepo.findOne as jest.Mock)
         .mockResolvedValueOnce({ transportFee: 100 } as any) // TRUCK001
         .mockResolvedValueOnce({ transportFee: 150 } as any); // TRUCK002
-
-      // Mock 关系评分
-      (mockTruckingCompanyRepo.findOne as jest.Mock)
-        .mockResolvedValueOnce({ partnershipLevel: 'STRATEGIC' } as any) // TRUCK001: 100 分
-        .mockResolvedValueOnce({ partnershipLevel: 'NORMAL' } as any); // TRUCK002: 60 分
 
       // Mock 返回车队实体
       (mockTruckingCompanyRepo.findOne as jest.Mock).mockResolvedValue({
@@ -225,10 +225,20 @@ describe('TruckingSelectorService', () => {
         .mockResolvedValueOnce({ transportFee: 100 } as any)
         .mockResolvedValueOnce({ transportFee: 150 } as any);
 
+      // scoreTruckingCompanies 使用 find 批量读取映射
+      (mockWarehouseTruckingMappingRepo.find as jest.Mock).mockResolvedValue([
+        { truckingCompanyId: 'TRUCK001', transportFee: 100 },
+        { truckingCompanyId: 'TRUCK002', transportFee: 150 }
+      ]);
+
       // Mock 关系
       (mockTruckingCompanyRepo.findOne as jest.Mock)
         .mockResolvedValueOnce({ partnershipLevel: 'STRATEGIC' } as any)
         .mockResolvedValueOnce({ partnershipLevel: 'NORMAL' } as any);
+      (mockTruckingCompanyRepo.find as jest.Mock).mockResolvedValue([
+        { companyCode: 'TRUCK001', hasYard: false, partnershipLevel: 'STRATEGIC' },
+        { companyCode: 'TRUCK002', hasYard: false, partnershipLevel: 'NORMAL' }
+      ]);
 
       // Act
       const result = await (service as any).scoreTruckingCompanies(candidates, 'WH001');

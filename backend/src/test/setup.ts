@@ -71,6 +71,12 @@ jest.mock('../database', () => ({
 
 // Mock logger
 jest.mock('../utils/logger', () => ({
+  log: {
+    info: jest.fn(),
+    error: jest.fn(),
+    warn: jest.fn(),
+    debug: jest.fn()
+  },
   logger: {
     info: jest.fn(),
     error: jest.fn(),

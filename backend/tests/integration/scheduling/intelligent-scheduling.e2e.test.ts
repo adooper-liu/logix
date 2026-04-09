@@ -23,9 +23,9 @@ describe('IntelligentSchedulingService - E2E Tests', () => {
 
   // 测试后清理
   afterAll(async () => {
-  if (AppDataSource.isInitialized) {
-    await AppDataSource.destroy();
-  }
+    if (AppDataSource.isInitialized) {
+      await AppDataSource.destroy();
+    }
   });
 
   describe('batchSchedule - 批量排产完整流程', () => {
@@ -67,6 +67,10 @@ describe('IntelligentSchedulingService - E2E Tests', () => {
   });
 
   describe('Edge Cases - 边界条件测试', () => {
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
     it('should handle null/undefined inputs gracefully', async () => {
       const loggerErrorSpy = jest.spyOn(logger, 'error').mockImplementation(() => logger);
 
@@ -75,9 +79,9 @@ describe('IntelligentSchedulingService - E2E Tests', () => {
       expect(nullResult.results).toEqual([]);
       expect(nullResult.failedCount).toBe(0);
       expect(loggerErrorSpy).toHaveBeenCalled();
-      expect(loggerErrorSpy.mock.calls.some((call) => String(call[0]).includes('batchSchedule error'))).toBe(
-        true
-      );
+      expect(
+        loggerErrorSpy.mock.calls.some((call) => String(call[0]).includes('batchSchedule error'))
+      ).toBe(true);
 
       loggerErrorSpy.mockClear();
 
@@ -86,11 +90,9 @@ describe('IntelligentSchedulingService - E2E Tests', () => {
       expect(undefinedResult.results).toEqual([]);
       expect(undefinedResult.failedCount).toBe(0);
       expect(loggerErrorSpy).toHaveBeenCalled();
-      expect(loggerErrorSpy.mock.calls.some((call) => String(call[0]).includes('batchSchedule error'))).toBe(
-        true
-      );
-
-      loggerErrorSpy.mockRestore();
+      expect(
+        loggerErrorSpy.mock.calls.some((call) => String(call[0]).includes('batchSchedule error'))
+      ).toBe(true);
     });
   });
 });

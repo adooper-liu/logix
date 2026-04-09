@@ -41,6 +41,12 @@ jest.mock('./demurrage.service', () => {
 });
 
 jest.mock('../utils/logger', () => ({
+  log: {
+    info: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn(),
+    debug: jest.fn()
+  },
   logger: {
     info: jest.fn(),
     warn: jest.fn(),
