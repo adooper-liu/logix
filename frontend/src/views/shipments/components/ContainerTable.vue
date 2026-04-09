@@ -770,7 +770,15 @@ import {
   getRowCurrencyPrefix,
 } from '@/utils/containerDisplay'
 import { getCurrentLocationText } from '@/utils/logisticsStatusMachine'
-import { ArrowDown, Box, CircleCheck, CircleClose, Download, Edit, Warning } from '@element-plus/icons-vue'
+import {
+  ArrowDown,
+  Box,
+  CircleCheck,
+  CircleClose,
+  Download,
+  Edit,
+  Warning,
+} from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import { onMounted, onUnmounted, ref } from 'vue'
