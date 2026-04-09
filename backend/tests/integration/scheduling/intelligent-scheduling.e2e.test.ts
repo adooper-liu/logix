@@ -22,7 +22,9 @@ describe('IntelligentSchedulingService - E2E Tests', () => {
 
   // 测试后清理
   afterAll(async () => {
+  if (AppDataSource.isInitialized) {
     await AppDataSource.destroy();
+  }
   });
 
   describe('batchSchedule - 批量排产完整流程', () => {
