@@ -325,11 +325,7 @@
                 </el-icon>
                 {{ row.inspectionRequired ? '需查验' : '免查验' }}
               </el-tag>
-              <el-tag
-                size="small"
-                :type="row.isUnboxing ? 'primary' : 'info'"
-                class="unboxing-tag"
-              >
+              <el-tag size="small" :type="row.isUnboxing ? 'primary' : 'info'" class="unboxing-tag">
                 <el-icon :size="12" style="margin-right: 4px; vertical-align: middle">
                   <Box v-if="row.isUnboxing" />
                   <CircleCheck v-else />
@@ -774,7 +770,7 @@ import {
   getRowCurrencyPrefix,
 } from '@/utils/containerDisplay'
 import { getCurrentLocationText } from '@/utils/logisticsStatusMachine'
-import { ArrowDown, Download, Edit } from '@element-plus/icons-vue'
+import { ArrowDown, Box, CircleCheck, CircleClose, Download, Edit, Warning } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import { onMounted, onUnmounted, ref } from 'vue'
@@ -1483,6 +1479,20 @@ onUnmounted(() => {
     .el-checkbox {
       flex: 1;
     }
+  }
+}
+
+// 查验/开箱标签样式
+.inspection-unboxing-tags {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  align-items: center;
+
+  .inspection-tag,
+  .unboxing-tag {
+    font-size: 12px;
+    padding: 2px 8px;
   }
 }
 </style>
