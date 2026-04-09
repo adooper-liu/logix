@@ -1,0 +1,23 @@
+{
+  "exported_at": "2026-04-09T10:46:51Z",
+  "source_database": "logix_db",
+  "tables": {
+    "dictionaries": [
+      "dict_countries",
+      "dict_ports",
+      "dict_container_types",
+      "dict_customer_types",
+      "dict_warehouses",
+      "dict_trucking_companies",
+      "dict_customs_brokers",
+      "dict_shipping_companies",
+      "dict_freight_forwarders",
+      "dict_overseas_companies"
+    ],
+    "business_data": {
+      "containers_count": 50,
+      "sea_freight_count": 50
+    }
+  },
+  "usage": "在 CI 环境中先执行 03_create_tables.sql 创建表结构，然后导入此数据"
+}
