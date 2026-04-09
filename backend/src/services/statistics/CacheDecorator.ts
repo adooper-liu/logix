@@ -7,6 +7,7 @@
  */
 
 import { normalizeCountryCode } from '../../utils/countryCode';
+import { logger } from '../../utils/logger';
 import { getScopedCountryCode } from '../../utils/requestContext';
 import { CacheService } from '../CacheService';
 
@@ -69,11 +70,11 @@ export function cacheStatistics(ttl: number = STATISTICS_CACHE_TTL) {
         // 尝试从缓存读取
         const cached = await cacheService.get(cacheKey);
         if (cached !== null) {
-          console.log(`[StatisticsCache] HIT: ${cacheKey}`);
+          logger.debug(`[StatisticsCache] HIT: ${cacheKey}`);
           return cached;
         }
 
-        console.log(`[StatisticsCache] MISS: ${cacheKey}`);
+        logger.debug(`[StatisticsCache] MISS: ${cacheKey}`);
 
         // 执行原始方法
         const result = await originalMethod.apply(this, args);
@@ -81,13 +82,13 @@ export function cacheStatistics(ttl: number = STATISTICS_CACHE_TTL) {
         // 写入缓存
         if (result !== null && result !== undefined) {
           await cacheService.set(cacheKey, result, ttl);
-          console.log(`[StatisticsCache] SET: ${cacheKey}, TTL=${ttl}s`);
+          logger.debug(`[StatisticsCache] SET: ${cacheKey}, TTL=${ttl}s`);
         }
 
         return result;
       } catch (error) {
         // 缓存失败不影响主流程
-        console.error(`[StatisticsCache] Error for key ${cacheKey}:`, error);
+        logger.error(`[StatisticsCache] Error for key ${cacheKey}:`, error);
         return await originalMethod.apply(this, args);
       }
     };
@@ -130,7 +131,7 @@ export async function invalidateStatisticsCache(
 
   pattern += '*';
 
-  console.log(`[StatisticsCache] INVALIDATE: ${pattern}`);
+  logger.info(`[StatisticsCache] INVALIDATE: ${pattern}`);
   await cacheService.invalidate(pattern);
 }
 
@@ -138,6 +139,6 @@ export async function invalidateStatisticsCache(
  * 清除所有统计缓存
  */
 export async function clearAllStatisticsCache(): Promise<void> {
-  console.log('[StatisticsCache] CLEAR ALL');
+  logger.info('[StatisticsCache] CLEAR ALL');
   await cacheService.invalidate(`${CACHE_PREFIX}:*`);
 }

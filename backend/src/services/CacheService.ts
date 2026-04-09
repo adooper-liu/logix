@@ -1,4 +1,5 @@
 import { redisClient, cachePrefix } from '../database/redis';
+import { logger } from '../utils/logger';
 
 /**
  * 缓存服务配置
@@ -30,7 +31,7 @@ export class CacheService {
       const cached = await redisClient.get(cacheKey);
       return cached ? JSON.parse(cached) : null;
     } catch (error) {
-      console.error(`[CacheService] Get cache failed for key: ${key}`, error);
+      logger.error('[CacheService] Get cache failed', { key, error });
       return null; // 降级处理
     }
   }
@@ -47,7 +48,7 @@ export class CacheService {
       const cacheKey = `${cachePrefix}${key}`;
       await redisClient.setex(cacheKey, ttl, JSON.stringify(value));
     } catch (error) {
-      console.error(`[CacheService] Set cache failed for key: ${key}`, error);
+      logger.error('[CacheService] Set cache failed', { key, error });
       // 不抛出异常，避免影响主流程
     }
   }
@@ -65,7 +66,7 @@ export class CacheService {
         await redisClient.del(...keys);
       }
     } catch (error) {
-      console.error(`[CacheService] Invalidate cache failed for pattern: ${pattern}`, error);
+      logger.error('[CacheService] Invalidate cache failed', { pattern, error });
       // 不抛出异常，避免影响主流程
     }
   }
@@ -82,7 +83,7 @@ export class CacheService {
       const result = await redisClient.exists(cacheKey);
       return result > 0;
     } catch (error) {
-      console.error(`[CacheService] Check cache exists failed for key: ${key}`, error);
+      logger.error('[CacheService] Check cache exists failed', { key, error });
       return false;
     }
   }

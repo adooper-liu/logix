@@ -2001,7 +2001,7 @@ export class SchedulingController {
    * Body: { warehouseCode, truckingCompanyId, basePickupDate }
    */
   optimizeContainer = async (req: Request, res: Response): Promise<void> => {
-    console.log('[SchedulingController] optimizeContainer called with:', req.params, req.body);
+    logger.info('[SchedulingController] optimizeContainer called', { params: req.params, body: req.body });
     try {
       const { containerNumber } = req.params;
       const { warehouseCode, truckingCompanyId, basePickupDate } = req.body;

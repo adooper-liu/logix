@@ -1,5 +1,5 @@
-# 合并前底线：单测 + 后端 tsc + 后端 ESLint（TD-007）
-# 全仓 validate / npm run quality 含前端 vue-tsc（TD-006）与 markdownlint，见 docs/quality/DEVELOPMENT_DEBT.md
+# 合并前底线：单测 + 后端 tsc + 后端 ESLint + 前端 vue-tsc（TD-006 已修复）
+# 完整 validate / quality 含 markdownlint，见 docs/quality/DEVELOPMENT_DEBT.md
 name: CI
 
 on:
@@ -15,12 +15,12 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
           cache-dependency-path: package-lock.json
 
       - name: Install root dependencies
         run: npm ci
 
-      - name: Quality gate (test + backend type-check + backend ESLint)
-        run: npm run quality:ci
+      - name: Quality gate (test + backend type-check + frontend type-check + backend ESLint)
+        run: npm run test && npm run type-check:backend && npm run type-check:frontend:ci && npm run lint:backend

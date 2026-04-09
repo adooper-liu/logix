@@ -12,6 +12,7 @@
 
 import { Repository } from 'typeorm';
 import { Container } from '../../entities/Container';
+import { logger } from '../../utils/logger';
 import { ContainerQueryBuilder } from './common/ContainerQueryBuilder';
 import { DateFilterBuilder } from './common/DateFilterBuilder';
 import { createDateRangeSubQuery, getDateRangeSubqueryRaw } from './common/DateRangeSubquery';
@@ -89,23 +90,22 @@ export class StatusDistributionService {
 
       // 调试：桑基图「已到目的港」= arrived_at_destination + picked_up + unloaded + returned_empty，若只显示 173 多为 arrived_at_destination 丢失
       if (typeof process !== 'undefined' && process.env?.NODE_ENV !== 'production') {
-        console.log(
-          '[StatusDistributionService] arrived_at_destination(已到目的港未提)=',
-          distribution.arrived_at_destination,
-          '; picked_up+unloaded+returned_empty=',
-          distribution.picked_up + distribution.unloaded + distribution.returned_empty,
-          '; 已到目的港合计=',
-          distribution.arrived_at_destination +
+        logger.debug('[StatusDistributionService] arrived_at_destination(已到目的港未提)', {
+          arrived_at_destination: distribution.arrived_at_destination,
+          picked_up_unloaded_returned:
+            distribution.picked_up + distribution.unloaded + distribution.returned_empty,
+          total_arrived_at_destination:
+            distribution.arrived_at_destination +
             distribution.picked_up +
             distribution.unloaded +
             distribution.returned_empty
-        );
+        });
       }
-      console.log('[StatusDistributionService] Final distribution:', distribution);
+      logger.debug('[StatusDistributionService] Final distribution', { distribution });
 
       return distribution;
     } catch (error) {
-      console.error('[StatusDistributionService] Error in getDistribution:', error);
+      logger.error('[StatusDistributionService] Error in getDistribution', { error });
       throw error;
     }
   }
@@ -359,7 +359,7 @@ export class StatusDistributionService {
       const result = await query.getRawOne();
       return parseInt(result?.count || '0');
     } catch (error) {
-      console.error('[StatusDistributionService] Error in getTransitArrivalCount:', error);
+      logger.error('[StatusDistributionService] Error in getTransitArrivalCount', { error });
       throw error;
     }
   }

@@ -5,6 +5,7 @@
  */
 
 import axios from 'axios'
+import { logger } from '@/utils/logger'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api'
 
@@ -35,7 +36,7 @@ export async function getPortCodeByChineseName(portName: string): Promise<PortMa
     )
     return response.data
   } catch (error: any) {
-    console.error('[getPortCodeByChineseName] Error:', error)
+    logger.error('[getPortCodeByChineseName] Error', { error })
     return {
       success: false,
       data: null,
@@ -54,7 +55,7 @@ export async function getPortCodeMappingsBatch(
     const response = await axios.post(`${API_BASE}/dict-mapping/port/batch`, { portNames })
     return response.data
   } catch (error: any) {
-    console.error('[getPortCodeMappingsBatch] Error:', error)
+    logger.error('[getPortCodeMappingsBatch] Error', { error })
     return {
       success: false,
       data: {},
@@ -102,7 +103,7 @@ export async function getAllPortMappings() {
     const response = await axios.get(`${API_BASE}/dict-mapping/port/all`)
     return response.data
   } catch (error: any) {
-    console.error('[getAllPortMappings] Error:', error)
+    logger.error('[getAllPortMappings] Error', { error })
     return {
       success: false,
       data: [],
@@ -124,7 +125,7 @@ export async function addPortMapping(mapping: {
     const response = await axios.post(`${API_BASE}/dict-mapping/port`, mapping)
     return response.data
   } catch (error: any) {
-    console.error('[addPortMapping] Error:', error)
+    logger.error('[addPortMapping] Error', { error })
     return {
       success: false,
       error: error.response?.data?.error || error.message,
@@ -140,7 +141,7 @@ export async function deletePortMapping(id: number) {
     const response = await axios.delete(`${API_BASE}/dict-mapping/port/${id}`)
     return response.data
   } catch (error: any) {
-    console.error('[deletePortMapping] Error:', error)
+    logger.error('[deletePortMapping] Error', { error })
     return {
       success: false,
       error: error.response?.data?.error || error.message,
@@ -165,7 +166,7 @@ export async function preloadPortMappings(): Promise<void> {
         portMappingCache[item.port_code_old] = item.port_code
       }
     })
-    console.log(`[preloadPortMappings] 已加载 ${Object.keys(portMappingCache).length} 个港口映射`)
+    logger.info('[preloadPortMappings] 已加载', { count: Object.keys(portMappingCache).length })
   }
 }
 

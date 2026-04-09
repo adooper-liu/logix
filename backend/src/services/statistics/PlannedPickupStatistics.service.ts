@@ -15,6 +15,7 @@ import { getDateRangeSubqueryRaw } from './common/DateRangeSubquery';
 import { PlannedPickupSubqueryTemplates } from './PlannedPickupSubqueryTemplates';
 import { getScopedCountryCode } from '../../utils/requestContext';
 import { normalizeCountryCode } from '../../utils/countryCode';
+import { logger } from '../../utils/logger';
 
 export class PlannedPickupStatisticsService {
   constructor(
@@ -235,7 +236,7 @@ WHERE cust.country = $1`;
     const method = this.METHOD_MAP[filterCondition];
 
     if (!method) {
-      console.warn(`[PlannedPickupStatisticsService] Unknown filterCondition: ${filterCondition}`);
+      logger.warn('[PlannedPickupStatisticsService] Unknown filterCondition', { filterCondition });
       return [];
     }
 

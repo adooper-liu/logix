@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { FiveNodeService } from '../services/fiveNodeService';
+import { logger } from '../utils/logger';
 
 export class FiveNodeController {
   private fiveNodeService: FiveNodeService;
@@ -27,7 +28,7 @@ export class FiveNodeController {
         data: info
       });
     } catch (error: any) {
-      console.error('[FiveNodeController.getFiveNodeInfo] Error:', error);
+      logger.error('[FiveNodeController.getFiveNodeInfo] Error', { error });
       res.status(500).json({
         success: false,
         message: '获取五节点信息失败',
@@ -54,7 +55,7 @@ export class FiveNodeController {
         data: infoList
       });
     } catch (error: any) {
-      console.error('[FiveNodeController.getAllFiveNodeInfo] Error:', error);
+      logger.error('[FiveNodeController.getAllFiveNodeInfo] Error', { error });
       res.status(500).json({
         success: false,
         message: '获取五节点列表失败',

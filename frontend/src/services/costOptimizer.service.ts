@@ -10,6 +10,7 @@
 
 import { useAppStore } from '@/store/app'
 import axios, { type AxiosInstance } from 'axios'
+import { logger } from '@/utils/logger'
 
 /**
  * 创建私有 axios 实例（带拦截器）
@@ -85,7 +86,7 @@ class CostOptimizerService {
         alternatives: response.data.data.alternatives || [],
       }
     } catch (error) {
-      console.error('[CostOptimizer] 成本优化失败:', error)
+      logger.error('[CostOptimizer] 成本优化失败', { error })
       throw error
     }
   }
@@ -112,7 +113,7 @@ class CostOptimizerService {
 
       return response.data.results || []
     } catch (error) {
-      console.error('[CostOptimizer] 批量优化失败:', error)
+      logger.error('[CostOptimizer] 批量优化失败', { error })
       throw error
     }
   }
@@ -139,7 +140,7 @@ class CostOptimizerService {
         variancePercent: response.data.variancePercent,
       }
     } catch (error) {
-      console.error('[CostOptimizer] 获取成本对比失败:', error)
+      logger.error('[CostOptimizer] 获取成本对比失败', { error })
       throw error
     }
   }

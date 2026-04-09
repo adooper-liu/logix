@@ -14,14 +14,7 @@ import { TruckingCompany } from '../entities/TruckingCompany';
 import { ExtWarehouseDailyOccupancy } from '../entities/ExtWarehouseDailyOccupancy';
 import { ExtTruckingSlotOccupancy } from '../entities/ExtTruckingSlotOccupancy';
 import { HolidayService } from '../services/HolidayService'; // ✅ Phase 2 Task 2: 新增
-import * as loggerModule from '../utils/logger';
-
-const log = loggerModule.log || {
-  info: console.log,
-  warn: console.warn,
-  error: console.error,
-  debug: console.debug
-};
+import { log } from './logger';
 
 /**
  * 日历配置接口

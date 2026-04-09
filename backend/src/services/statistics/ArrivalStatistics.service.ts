@@ -8,6 +8,7 @@
 
 import { Repository } from 'typeorm';
 import { Container } from '../../entities/Container';
+import { logger } from '../../utils/logger';
 import { ArrivalSubqueryTemplates } from './ArrivalSubqueryTemplates';
 import { ContainerQueryBuilder } from './common/ContainerQueryBuilder';
 import { DateFilterBuilder } from './common/DateFilterBuilder';
@@ -67,45 +68,45 @@ export class ArrivalStatisticsService {
       transitNoETA
     ] = await Promise.all([
       this.getArrivedToday(today, startDate, endDate).catch((err) => {
-        console.error('[ArrivalStatistics] getArrivedToday error:', err);
+        logger.error('[ArrivalStatistics] getArrivedToday error', { err });
         return 0;
       }),
       this.getArrivedBeforeTodayNotPickedUp(today, startDate, endDate).catch((err) => {
-        console.error('[ArrivalStatistics] getArrivedBeforeTodayNotPickedUp error:', err);
+        logger.error('[ArrivalStatistics] getArrivedBeforeTodayNotPickedUp error', { err });
         return 0;
       }),
       this.getArrivedBeforeTodayPickedUp(today, startDate, endDate).catch((err) => {
-        console.error('[ArrivalStatistics] getArrivedBeforeTodayPickedUp error:', err);
+        logger.error('[ArrivalStatistics] getArrivedBeforeTodayPickedUp error', { err });
         return 0;
       }),
       this.getArrivedAtTransit(startDate, endDate).catch((err) => {
-        console.error('[ArrivalStatistics] getArrivedAtTransit error:', err);
+        logger.error('[ArrivalStatistics] getArrivedAtTransit error', { err });
         return 0;
       }),
       this.getArrivedBeforeTodayNoATA(startDate, endDate).catch((err) => {
-        console.error('[ArrivalStatistics] getArrivedBeforeTodayNoATA error:', err);
+        logger.error('[ArrivalStatistics] getArrivedBeforeTodayNoATA error', { err });
         return 0;
       }),
       this.getTransitOverdue(today, startDate, endDate).catch((err) => {
-        console.error('[ArrivalStatistics] getTransitOverdue error:', err);
+        logger.error('[ArrivalStatistics] getTransitOverdue error', { err });
         return 0;
       }),
       this.getTransitWithin3Days(today, threeDaysLater, startDate, endDate).catch((err) => {
-        console.error('[ArrivalStatistics] getTransitWithin3Days error:', err);
+        logger.error('[ArrivalStatistics] getTransitWithin3Days error', { err });
         return 0;
       }),
       this.getTransitWithin7Days(today, threeDaysLater, sevenDaysLater, startDate, endDate).catch(
         (err) => {
-          console.error('[ArrivalStatistics] getTransitWithin7Days error:', err);
+          logger.error('[ArrivalStatistics] getTransitWithin7Days error', { err });
           return 0;
         }
       ),
       this.getTransitOver7Days(today, sevenDaysLater, startDate, endDate).catch((err) => {
-        console.error('[ArrivalStatistics] getTransitOver7Days error:', err);
+        logger.error('[ArrivalStatistics] getTransitOver7Days error', { err });
         return 0;
       }),
       this.getTransitNoETA(startDate, endDate).catch((err) => {
-        console.error('[ArrivalStatistics] getTransitNoETA error:', err);
+        logger.error('[ArrivalStatistics] getTransitNoETA error', { err });
         return 0;
       })
     ]);
@@ -157,7 +158,7 @@ export class ArrivalStatisticsService {
       .select('COUNT(DISTINCT container.containerNumber)', 'count')
       .getRawOne();
     const count = parseInt(result.count || '0');
-    console.log(`[ArrivalStatistics] getArrivedToday returned: ${count}`);
+    logger.debug('[ArrivalStatistics] getArrivedToday returned', { count });
     return count;
   }
 
@@ -195,7 +196,7 @@ export class ArrivalStatisticsService {
       .select('COUNT(DISTINCT container.containerNumber)', 'count')
       .getRawOne();
     const count = parseInt(result.count || '0');
-    console.log(`[ArrivalStatistics] getArrivedBeforeTodayNotPickedUp returned: ${count}`);
+    logger.debug('[ArrivalStatistics] getArrivedBeforeTodayNotPickedUp returned', { count });
     return count;
   }
 
@@ -263,7 +264,7 @@ export class ArrivalStatisticsService {
       .select('COUNT(DISTINCT container.containerNumber)', 'count')
       .getRawOne();
     const count = parseInt(result.count || '0');
-    console.log(`[ArrivalStatistics] getArrivedBeforeTodayPickedUp returned: ${count}`);
+    logger.debug('[ArrivalStatistics] getArrivedBeforeTodayPickedUp returned', { count });
     return count;
   }
 

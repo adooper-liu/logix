@@ -5,6 +5,7 @@
  */
 
 import axios from 'axios'
+import { logger } from '@/utils/logger'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1'
 const API_BASE = `${BASE_URL}/dict-mapping`
@@ -81,7 +82,7 @@ export async function getStandardCode(dictType: string, name: string): Promise<M
     })
     return response.data
   } catch (error: any) {
-    console.error('[getStandardCode] Error:', error)
+    logger.error('[getStandardCode] Error', { error })
     return {
       success: false,
       data: null,
@@ -104,7 +105,7 @@ export async function getStandardCodesBatch(
     })
     return response.data
   } catch (error: any) {
-    console.error('[getStandardCodesBatch] Error:', error)
+    logger.error('[getStandardCodesBatch] Error', { error })
     return {
       success: false,
       data: {},
@@ -120,7 +121,7 @@ export async function getMappingsByType(dictType: string): Promise<AllMappingsRe
     const response = await axios.get(`${API_BASE}/universal/type/${dictType}`)
     return response.data
   } catch (error: any) {
-    console.error('[getMappingsByType] Error:', error)
+    logger.error('[getMappingsByType] Error', { error })
     return {
       success: false,
       data: [],
@@ -137,7 +138,7 @@ export async function getAllDictTypes() {
     const response = await axios.get(`${API_BASE}/universal/types`)
     return response.data
   } catch (error: any) {
-    console.error('[getAllDictTypes] Error:', error)
+    logger.error('[getAllDictTypes] Error', { error })
     return {
       success: false,
       data: [],
@@ -155,7 +156,7 @@ export async function searchMappings(dictType: string, keyword: string) {
     })
     return response.data
   } catch (error: any) {
-    console.error('[searchMappings] Error:', error)
+    logger.error('[searchMappings] Error', { error })
     return {
       success: false,
       data: [],
@@ -171,7 +172,7 @@ export async function addMapping(mapping: Partial<MappingData>) {
     const response = await axios.post(`${API_BASE}/universal`, mapping)
     return response.data
   } catch (error: any) {
-    console.error('[addMapping] Error:', error)
+    logger.error('[addMapping] Error', { error })
     return {
       success: false,
       error: error.response?.data?.error || error.message,
@@ -187,7 +188,7 @@ export async function addMappingsBatch(mappings: Partial<MappingData>[]) {
     const response = await axios.post(`${API_BASE}/universal/batch-add`, { mappings })
     return response.data
   } catch (error: any) {
-    console.error('[addMappingsBatch] Error:', error)
+    logger.error('[addMappingsBatch] Error', { error })
     return {
       success: false,
       error: error.response?.data?.error || error.message,
@@ -203,7 +204,7 @@ export async function updateMapping(id: number, updates: Partial<MappingData>) {
     const response = await axios.put(`${API_BASE}/universal/${id}`, updates)
     return response.data
   } catch (error: any) {
-    console.error('[updateMapping] Error:', error)
+    logger.error('[updateMapping] Error', { error })
     return {
       success: false,
       error: error.response?.data?.error || error.message,
@@ -219,7 +220,7 @@ export async function deleteMapping(id: number) {
     const response = await axios.delete(`${API_BASE}/universal/${id}`)
     return response.data
   } catch (error: any) {
-    console.error('[deleteMapping] Error:', error)
+    logger.error('[deleteMapping] Error', { error })
     return {
       success: false,
       error: error.response?.data?.error || error.message,
@@ -235,7 +236,7 @@ export async function getMappingStats() {
     const response = await axios.get(`${API_BASE}/universal/stats/summary`)
     return response.data
   } catch (error: any) {
-    console.error('[getMappingStats] Error:', error)
+    logger.error('[getMappingStats] Error', { error })
     return { success: false, data: {} }
   }
 }
@@ -255,7 +256,7 @@ export async function preloadMappings(dictType: string): Promise<void> {
       if (item.old_code) cache[item.old_code] = item.standard_code
       cache[item.standard_code] = item.standard_code
     })
-    console.log(`[preloadMappings] ${dictType} 已加载 ${Object.keys(cache).length} 个映射`)
+    logger.info(`[preloadMappings] ${dictType} 已加载`, { count: Object.keys(cache).length })
   }
 }
 
@@ -272,7 +273,7 @@ export async function preloadAllCommonMappings(): Promise<void> {
 
   await Promise.all(commonTypes.map(type => preloadMappings(type)))
 
-  console.log('[preloadAllCommonMappings] 所有常用字典映射加载完成')
+  logger.info('[preloadAllCommonMappings] 所有常用字典映射加载完成')
 }
 
 /**

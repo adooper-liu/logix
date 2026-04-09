@@ -6,6 +6,7 @@
 
 import { Repository } from 'typeorm';
 import { Container } from '../../entities/Container';
+import { logger } from '../../utils/logger';
 import { ContainerQueryBuilder } from './common/ContainerQueryBuilder';
 import { DateFilterBuilder } from './common/DateFilterBuilder';
 import { applyDateFilterToQuery } from './common/DateRangeSubquery';
@@ -25,25 +26,25 @@ export class EtaStatisticsService {
 
     const [overdue, within3Days, within7Days, over7Days, otherRecords] = await Promise.all([
       this.getOverdueNotArrived(today, startDate, endDate).catch((err) => {
-        console.error('[EtaStatistics] getOverdueNotArrived error:', err);
+        logger.error('[EtaStatistics] getOverdueNotArrived error', { err });
         return 0;
       }),
       this.getWithin3Days(today, threeDaysLater, startDate, endDate).catch((err) => {
-        console.error('[EtaStatistics] getWithin3Days error:', err);
+        logger.error('[EtaStatistics] getWithin3Days error', { err });
         return 0;
       }),
       this.getWithin7Days(today, threeDaysLater, sevenDaysLater, startDate, endDate).catch(
         (err) => {
-          console.error('[EtaStatistics] getWithin7Days error:', err);
+          logger.error('[EtaStatistics] getWithin7Days error', { err });
           return 0;
         }
       ),
       this.getOver7Days(today, sevenDaysLater, startDate, endDate).catch((err) => {
-        console.error('[EtaStatistics] getOver7Days error:', err);
+        logger.error('[EtaStatistics] getOver7Days error', { err });
         return 0;
       }),
       this.getOtherRecords(startDate, endDate).catch((err) => {
-        console.error('[EtaStatistics] getOtherRecords error:', err);
+        logger.error('[EtaStatistics] getOtherRecords error', { err });
         return 0;
       })
     ]);

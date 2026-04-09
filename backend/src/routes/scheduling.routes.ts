@@ -6,6 +6,7 @@
 import { Router } from 'express';
 import { SchedulingController } from '../controllers/scheduling.controller';
 import { SchedulingRuleController } from '../controllers/SchedulingRule.controller';
+import { logger } from '../utils/logger';
 
 const router = Router();
 const controller = new SchedulingController();
@@ -65,9 +66,9 @@ router.get('/recommend-option/:id', controller.getRecommendOption);
 // 成本优化
 router.post('/optimize-cost', controller.optimizeCost);
 router.post('/optimize-container/:containerNumber', controller.optimizeContainer); // ✅ 新增：单柜优化
-console.log('[Scheduling Routes] ✅ optimize-container route registered');
+logger.info('[Scheduling Routes] optimize-container route registered');
 router.post('/batch-optimize', controller.batchOptimizeContainers); // ✅ 新增：批量优化
-console.log('[Scheduling Routes] ✅ batch-optimize route registered');
+logger.info('[Scheduling Routes] batch-optimize route registered');
 router.get('/cost-comparison/:containerNumber', controller.getCostComparison);
 
 // 排产历史记录查询

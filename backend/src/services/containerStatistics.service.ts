@@ -9,6 +9,7 @@ import { CONDITION_TO_SERVICE_MAP } from '../constants/FilterConditions';
 import { Container } from '../entities/Container';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { TruckingTransport } from '../entities/TruckingTransport';
+import { logger } from '../utils/logger';
 import { cacheStatistics } from './statistics/CacheDecorator';
 
 // 子服务导入
@@ -66,7 +67,7 @@ export class ContainerStatisticsService {
     try {
       return await this.statusDistribution.getDistribution(startDate, endDate);
     } catch (error) {
-      console.error('[ContainerStatisticsService] Error in getStatusDistribution:', error);
+      logger.error('[ContainerStatisticsService] Error in getStatusDistribution', { error });
       throw error;
     }
   }
@@ -85,7 +86,7 @@ export class ContainerStatisticsService {
   ): Promise<Record<string, number>> {
     const [arrivalDist, etaDist] = await Promise.all([
       this.arrivalStatistics.getDistribution(startDate, endDate).catch((err) => {
-        console.error('[ContainerStatistics] arrivalStatistics.getDistribution error:', err);
+        logger.error('[ContainerStatistics] arrivalStatistics.getDistribution error', { err });
         return {
           today: 0,
           beforeTodayNotPickedUp: 0,
@@ -101,7 +102,7 @@ export class ContainerStatisticsService {
         };
       }),
       this.etaStatistics.getDistribution(startDate, endDate).catch((err) => {
-        console.error('[ContainerStatistics] etaStatistics.getDistribution error:', err);
+        logger.error('[ContainerStatistics] etaStatistics.getDistribution error', { err });
         return {
           overdue: 0,
           within3Days: 0,
@@ -303,7 +304,7 @@ export class ContainerStatisticsService {
           endDate
         );
       default:
-        console.warn(`[ContainerStatisticsService] Unknown filterCondition: ${filterCondition}`);
+        logger.warn('[ContainerStatisticsService] Unknown filterCondition', { filterCondition });
         return [];
     }
   }

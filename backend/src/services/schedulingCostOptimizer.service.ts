@@ -26,14 +26,8 @@ import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { DemurrageService } from './demurrage.service';
 // 导入日志工具，添加降级方案
 import * as dateTimeUtils from '../utils/dateTimeUtils';
-import * as loggerModule from '../utils/logger';
+import { log } from '../utils/logger';
 import { smartCalendarCapacity } from '../utils/smartCalendarCapacity';
-const log = loggerModule.log || {
-  info: console.log,
-  warn: console.warn,
-  error: console.error,
-  debug: console.debug
-};
 
 /**
  * 卸柜方案选项
