@@ -1,7 +1,7 @@
-import { Router, Request, Response } from 'express';
+import { Request, Response, Router } from 'express';
 import { AppDataSource } from '../database';
-import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { Container } from '../entities/Container';
+import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { logger } from '../utils/logger';
 
 const router = Router();
@@ -13,7 +13,7 @@ const MAX_HISTORY_LENGTH = 24; // 保留最近24个数据点
 /**
  * 获取监控数据（综合）
  */
-router.get('/monitoring', async (_req: Request, res: Response) => {
+router.get('/', async (_req: Request, res: Response) => {
   try {
     logger.info('[监控] 开始获取监控数据...');
     const performanceMetrics = await getPerformanceMetrics();
@@ -48,7 +48,7 @@ router.get('/monitoring', async (_req: Request, res: Response) => {
 /**
  * 刷新监控数据
  */
-router.get('/monitoring/refresh', async (_req: Request, res: Response) => {
+router.get('/refresh', async (_req: Request, res: Response) => {
   try {
     const performanceMetrics = await getPerformanceMetrics();
     const optimizationData = await getOptimizationMetrics();
@@ -81,7 +81,7 @@ router.get('/monitoring/refresh', async (_req: Request, res: Response) => {
 /**
  * 获取性能指标
  */
-router.get('/monitoring/performance', async (_req: Request, res: Response) => {
+router.get('/performance', async (_req: Request, res: Response) => {
   try {
     const metrics = await getPerformanceMetrics();
     res.json({
@@ -102,7 +102,7 @@ router.get('/monitoring/performance', async (_req: Request, res: Response) => {
 /**
  * 获取优化数据
  */
-router.get('/monitoring/optimization', async (_req: Request, res: Response) => {
+router.get('/optimization', async (_req: Request, res: Response) => {
   try {
     const data = await getOptimizationMetrics();
     res.json({
@@ -123,7 +123,7 @@ router.get('/monitoring/optimization', async (_req: Request, res: Response) => {
 /**
  * 获取告警信息
  */
-router.get('/monitoring/alerts', async (_req: Request, res: Response) => {
+router.get('/alerts', async (_req: Request, res: Response) => {
   try {
     const performanceMetrics = await getPerformanceMetrics();
     const serviceHealth = await getServiceHealth();
@@ -146,7 +146,7 @@ router.get('/monitoring/alerts', async (_req: Request, res: Response) => {
 /**
  * 获取服务健康度
  */
-router.get('/monitoring/health', async (_req: Request, res: Response) => {
+router.get('/health', async (_req: Request, res: Response) => {
   try {
     const health = await getServiceHealth();
     res.json({
@@ -155,7 +155,7 @@ router.get('/monitoring/health', async (_req: Request, res: Response) => {
       data: health
     });
   } catch (error: any) {
-    console.error('[监控] 获取服务健康度失败:', error);
+    logger.error('[监控] 获取服务健康度失败', error);
     res.status(500).json({
       code: 500,
       message: error.message || '获取服务健康度失败',
@@ -167,7 +167,7 @@ router.get('/monitoring/health', async (_req: Request, res: Response) => {
 /**
  * 获取性能趋势数据
  */
-router.get('/monitoring/trend', async (_req: Request, res: Response) => {
+router.get('/trend', async (_req: Request, res: Response) => {
   try {
     const trend = await getPerformanceTrend();
     res.json({
@@ -176,7 +176,7 @@ router.get('/monitoring/trend', async (_req: Request, res: Response) => {
       data: trend
     });
   } catch (error: any) {
-    console.error('[监控] 获取性能趋势数据失败:', error);
+    logger.error('[监控] 获取性能趋势数据失败', error);
     res.status(500).json({
       code: 500,
       message: error.message || '获取性能趋势数据失败',
@@ -188,7 +188,7 @@ router.get('/monitoring/trend', async (_req: Request, res: Response) => {
 /**
  * 手动触发垃圾回收（需要 Node.js 启动参数 --expose-gc）
  */
-router.post('/monitoring/gc', async (_req: Request, res: Response) => {
+router.post('/gc', async (_req: Request, res: Response) => {
   try {
     if (typeof global.gc !== 'function') {
       return res.status(400).json({
@@ -211,7 +211,7 @@ router.post('/monitoring/gc', async (_req: Request, res: Response) => {
       rss: Math.round((beforeMemory.rss - afterMemory.rss) / 1024 / 1024) // MB
     };
 
-    console.log('[监控] 手动触发垃圾回收完成:', {
+    logger.info('[监控] 手动触发垃圾回收完成', {
       before: beforeMemory,
       after: afterMemory,
       saved: savedMemory
@@ -235,7 +235,7 @@ router.post('/monitoring/gc', async (_req: Request, res: Response) => {
       }
     });
   } catch (error: any) {
-    console.error('[监控] 垃圾回收失败:', error);
+    logger.error('[监控] 垃圾回收失败', error);
     res.status(500).json({
       code: 500,
       message: error.message || '垃圾回收失败',
@@ -247,7 +247,7 @@ router.post('/monitoring/gc', async (_req: Request, res: Response) => {
 /**
  * 获取详细内存分析
  */
-router.get('/monitoring/memory-analysis', async (_req: Request, res: Response) => {
+router.get('/memory-analysis', async (_req: Request, res: Response) => {
   try {
     const processMemoryUsage = process.memoryUsage();
     const memoryUsage = Math.round(
@@ -296,7 +296,7 @@ router.get('/monitoring/memory-analysis', async (_req: Request, res: Response) =
       data: analysis
     });
   } catch (error: any) {
-    console.error('[监控] 获取内存分析失败:', error);
+    logger.error('[监控] 获取内存分析失败', error);
     res.status(500).json({
       code: 500,
       message: error.message || '获取内存分析失败',
@@ -331,7 +331,7 @@ async function getPerformanceMetrics() {
     // 检测内存泄漏（内存使用率持续增长）
     const isMemoryLeak = detectMemoryLeak();
     if (isMemoryLeak) {
-      console.warn('[监控] 检测到可能的内存泄漏！建议重启服务或排查内存泄漏原因');
+      logger.warn('[监控] 检测到可能的内存泄漏！建议重启服务或排查内存泄漏原因');
     }
 
     // 计算CPU使用率（简化版）
@@ -357,7 +357,7 @@ async function getPerformanceMetrics() {
       memoryLeakDetected: isMemoryLeak
     };
   } catch (error) {
-    console.error('[监控] 计算性能指标失败:', error);
+    logger.error('[监控] 计算性能指标失败', error);
     return {
       cpuUsage: 0,
       memoryUsage: 0,
@@ -427,7 +427,7 @@ async function getOptimizationMetrics() {
       avgLoadTime
     };
   } catch (error) {
-    console.error('[监控] 获取优化数据失败:', error);
+    logger.error('[监控] 获取优化数据失败', error);
     return {
       apiCacheHits: 0,
       apiCacheTotal: 0,
@@ -471,7 +471,7 @@ async function getServiceHealth() {
       logisticsAdapter: logisticsAdapterHealth
     };
   } catch (error) {
-    console.error('[监控] 获取服务健康度失败:', error);
+    logger.error('[监控] 获取服务健康度失败', error);
     return {
       apiService: 0,
       database: 0,
@@ -509,7 +509,7 @@ async function getPerformanceTrend() {
       memoryUsage
     };
   } catch (error) {
-    console.error('[监控] 获取性能趋势失败:', error);
+    logger.error('[监控] 获取性能趋势失败', error);
     return {
       timestamps: [],
       cpuUsage: [],

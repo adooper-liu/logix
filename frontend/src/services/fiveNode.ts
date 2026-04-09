@@ -3,7 +3,7 @@
  * Five Node Service
  */
 
-import { httpClient } from '@/api/httpClient'
+import { api } from './api'
 
 export interface FiveNodeData {
   containerNumber: string
@@ -81,7 +81,7 @@ class FiveNodeServiceClass {
     success: boolean
     data: FiveNodeData
   }> {
-    return httpClient.get(`/five-node/container/${containerNumber}`)
+    return api.get(`/five-node/container/${containerNumber}`)
   }
 
   /**
@@ -96,7 +96,7 @@ class FiveNodeServiceClass {
     if (filters?.endDate) params.endDate = filters.endDate
     if (filters?.status) params.status = filters.status
 
-    return httpClient.get('/five-node', { params })
+    return api.get('/five-node', { params })
   }
 }
 

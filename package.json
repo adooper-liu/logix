@@ -34,6 +34,7 @@
     "validate": "npm run type-check && npm run lint && npm run lint:naming",
     "test": "npm run test:backend && npm run test:frontend",
     "test:backend": "cd backend && npm test",
+    "test:backend:integration": "cd backend && npm run test:integration",
     "test:backend:scheduling": "cd backend && npm run test:scheduling",
     "test:frontend": "cd frontend && npm test",
     "quality": "npm run validate && npm run test",

@@ -1,7 +1,7 @@
 /**
  * 监控API接口
  */
-import { httpClient } from './httpClient'
+import { api } from '@/services/api'
 
 /**
  * 性能指标接口
@@ -70,47 +70,68 @@ export interface MonitoringData {
  * 获取监控数据
  */
 export async function getMonitoringData(): Promise<MonitoringData> {
-  return httpClient.get<MonitoringData>('/monitoring')
+  const response = await api.get<{ code: number; message: string; data: MonitoringData }>(
+    '/monitoring'
+  )
+  return response.data
 }
 
 /**
  * 刷新监控数据
  */
 export async function refreshMonitoringData(): Promise<MonitoringData> {
-  return httpClient.get<MonitoringData>('/monitoring/refresh')
+  const response = await api.get<{ code: number; message: string; data: MonitoringData }>(
+    '/monitoring/refresh'
+  )
+  return response.data
 }
 
 /**
  * 获取性能指标
  */
 export async function getPerformanceMetrics(): Promise<PerformanceMetrics> {
-  return httpClient.get<PerformanceMetrics>('/monitoring/performance')
+  const response = await api.get<{ code: number; message: string; data: PerformanceMetrics }>(
+    '/monitoring/performance'
+  )
+  return response.data
 }
 
 /**
  * 获取优化数据
  */
 export async function getOptimizationData(): Promise<OptimizationData> {
-  return httpClient.get<OptimizationData>('/monitoring/optimization')
+  const response = await api.get<{ code: number; message: string; data: OptimizationData }>(
+    '/monitoring/optimization'
+  )
+  return response.data
 }
 
 /**
  * 获取告警信息
  */
 export async function getAlerts(): Promise<Alert[]> {
-  return httpClient.get<Alert[]>('/monitoring/alerts')
+  const response = await api.get<{ code: number; message: string; data: Alert[] }>(
+    '/monitoring/alerts'
+  )
+  return response.data
 }
 
 /**
  * 获取服务健康度
  */
 export async function getServiceHealth(): Promise<ServiceHealth> {
-  return httpClient.get<ServiceHealth>('/monitoring/health')
+  const response = await api.get<{ code: number; message: string; data: ServiceHealth }>(
+    '/monitoring/health'
+  )
+  return response.data
 }
 
 /**
  * 获取性能趋势数据
  */
 export async function getPerformanceTrend(): Promise<PerformanceTrend> {
-  return httpClient.get<PerformanceTrend>('/monitoring/trend')
+  const response = await api.get<{ code: number; message: string; data: PerformanceTrend }>(
+    '/monitoring/trend'
+  )
+  return response.data
 }

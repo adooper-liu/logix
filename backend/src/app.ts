@@ -3,24 +3,23 @@
  * Express Application Configuration
  */
 
-import express, { Application, Request, Response } from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
 import compression from 'compression';
+import cors from 'cors';
+import express, { Application, Request, Response } from 'express';
+import helmet from 'helmet';
 import { createServer } from 'http';
+import morgan from 'morgan';
 import { Server as SocketIOServer } from 'socket.io';
 import { config } from './config/index.js';
-import { log } from './utils/logger.js';
-import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
-import { apiRateLimit } from './middleware/rateLimit.middleware.js';
-import { scopedCountryMiddleware } from './middleware/scopedCountry.middleware.js';
 import {
   dateTimeMiddleware,
   dateTimeResponseMiddleware
 } from './middleware/dateTime.middleware.js';
+import { errorHandler, notFoundHandler } from './middleware/error.middleware.js';
+import { apiRateLimit } from './middleware/rateLimit.middleware.js';
+import { scopedCountryMiddleware } from './middleware/scopedCountry.middleware.js';
 import routes from './routes/index.js';
-import monitoringRoutes from './routes/monitoring.routes.js';
+import { log } from './utils/logger.js';
 
 // 创建 Express 应用
 const app: Application = express();
@@ -138,9 +137,6 @@ app.use(config.apiPrefix, (_req: Request, res: Response, next) => {
 
 // API 路由
 app.use(config.apiPrefix, routes);
-
-// 监控路由（挂载到 API 前缀下）
-app.use(`${config.apiPrefix}/monitoring`, monitoringRoutes);
 
 // 404 处理
 app.use(notFoundHandler);

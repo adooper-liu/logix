@@ -78,7 +78,7 @@ router.use('/customer-types', customerTypeRoutes);
 router.use('/import', importRoutes);
 router.use('/dict-mapping', dictMappingRoutes);
 router.use('/dict-mapping/universal', universalDictMappingRoutes);
-router.use('', monitoringRoutes);
+router.use('/monitoring', monitoringRoutes);
 router.use('/demurrage', demurrageRoutes);
 router.use('/dict', dictRoutes);
 router.use('/ai', aiRoutes);

@@ -149,6 +149,229 @@ npm run validate  # type-check + lint + lint:naming
 
 ---
 
+### TD-COST-001: 费用路由依赖注入不完整 ✅ P0
+
+**状态**: ✅ 已完成 (PR-1)  
+**发现时间**: 2026-04-09  
+**修复时间**: 2026-04-09  
+**负责人**: 刘志高
+
+**现象**:
+
+- `backend/src/routes/cost.routes.ts` 使用 `new (require('../services/costService').CostService)()` 临时实例化
+- 运行时可能出现 `undefined` 调用错误
+- 依赖链不清晰: CostService → DemurrageService → 8个 Repository
+
+**影响**:
+
+- `/api/v1/costs/*` 接口可能返回 500 错误
+- 无法观测具体失败原因
+- 代码风格与项目其他路由不一致
+
+**根本原因**:
+
+1. **框架混用** - CostService 使用了 NestJS 装饰器 (`@Injectable`, `@InjectRepository`),但路由层是 Express 风格
+2. **依赖复杂** - DemurrageService 需要 8-9 个 Repository,手动初始化冗长
+3. **缺乏保护** - 构造函数未检查依赖是否为空
+
+**解决方案**:
+
+- ✅ 在路由层创建工厂函数 `createCostController()`,显式初始化所有依赖
+- ✅ 导入所有必需的实体类 (Container, Country, EmptyReturn, ExtDemurrageStandard 等)
+- ✅ 添加构造函数健壮性检查,抛出可观测错误
+- ✅ 新增单元测试 7 个,覆盖依赖缺失、单柜计算、批量计算、汇总接口
+- ✅ 统一错误响应格式 `{ success: false, message }`
+
+**验证结果**:
+
+- ✅ `npm run type-check:backend` 通过
+- ✅ `npm run test:backend -- src/services/costService.test.ts` 7/7 通过
+- ✅ 路由挂载唯一 (`/costs` 仅在 `routes/index.ts` 第 91 行)
+- ✅ 错误日志可定位 (`logger.error` 在所有 catch 块)
+
+**相关文件**:
+
+- `backend/src/routes/cost.routes.ts` - 修复依赖注入
+- `backend/src/services/costService.ts` - 添加构造函数检查
+- `backend/src/services/costService.test.ts` - 新增单元测试
+
+---
+
+### TD-TEST-003: 后端集成测试未执行 ✅ P0
+
+**状态**: ✅ 已完成 (PR-4)  
+**发现时间**: 2026-04-09  
+**修复时间**: 2026-04-09  
+**负责人**: 刘志高
+
+**现象**:
+
+- `backend/tests/integration/` 目录下有集成测试文件
+- 但 `jest.config.js` 第 9 行明确忽略 `/tests/` 目录: `testPathIgnorePatterns: ['/node_modules/', '/dist/', '/tests/']`
+- `testMatch` 只匹配 `src/**/*.test.ts` 和 `test/**/*.test.ts`,不包含 `tests/integration`
+- 导致集成测试文件存在但从不执行
+
+**影响**:
+
+- **测试覆盖虚假** - 以为有集成测试,实际从未运行
+- **回归风险高** - 端到端流程无自动化验证
+- **CI 门禁缺失** - 合并前不检查集成测试
+
+**根本原因**:
+
+1. **配置遗漏** - Jest 配置未考虑 integration 测试目录
+2. **职责不清** - 单元测试与集成测试混用同一配置
+3. **缺少独立 pipeline** - CI 中无集成测试 job
+
+**解决方案**:
+
+- ✅ 创建独立的 `backend/jest.integration.config.js`
+  - `testMatch`: `['**/tests/integration/**/*.test.ts']`
+  - `testPathIgnorePatterns`: 不忽略 tests 目录
+  - `testTimeout`: 30000ms (集成测试较慢)
+  - `maxWorkers`: 1 (串行执行,避免数据库竞争)
+- ✅ 在 `backend/package.json` 中添加 `test:integration` 脚本
+- ✅ 在根 `package.json` 中添加 `test:backend:integration` 透传脚本
+- ✅ 在 `.github/workflows/ci.yml` 中添加 `integration-tests` job (初期 `continue-on-error: true`)
+- ✅ **修复集成测试编译错误**:
+  - 修正模块路径: `../../src/` → `../../../src/`
+  - 修正 API 参数: `portCodes` → `portCode`, `minFreeDays` 移除
+  - 修正返回类型: `result.data` → `result.results`
+  - 添加显式类型声明: `forEach((item: any) => ...)`
+
+**验证结果**:
+
+- ✅ `cd backend && npx jest --config jest.integration.config.js --listTests` 能识别测试文件
+- ✅ **TypeScript 编译通过**: 修复了模块路径 (`../../src/` → `../../../src/`) 和类型声明
+- ✅ **Jest 配置正确**: integration 测试能被识别和执行
+- ⚠️ **运行时依赖**: 测试需要数据库和 Redis 连接 (当前环境未启动,导致运行时失败)
+- ✅ `npm run test:backend` 不受影响 (单元测试仍正常运行)
+- ✅ `npm run test:backend:integration` 可执行集成测试 (编译通过,运行时需要 DB/Redis)
+- ✅ CI 新 job 可见 (初期允许失败)
+
+**相关文件**:
+
+- `backend/jest.integration.config.js` - 新增集成测试配置
+- `backend/package.json` - 添加 test:integration 脚本
+- `package.json` - 添加 test:backend:integration 透传脚本
+- `.github/workflows/ci.yml` - 添加 integration-tests job
+
+---
+
+### TD-API-001: 前端 HTTP 客户端未收敛 ✅ P0
+
+**状态**: ✅ 已完成 (PR-3)  
+**发现时间**: 2026-04-09  
+**修复时间**: 2026-04-09  
+**负责人**: 刘志高
+
+**现象**:
+
+- `frontend/src/api/httpClient.ts` - 独立的 HTTP 客户端,有鉴权/超时逻辑
+- `frontend/src/services/api.ts` - 统一请求治理入口,有鉴权/超时/重试/并发/去重
+- 两个客户端功能重叠,行为不一致
+- `fiveNode.ts` 和 `monitoring.ts` 使用 `httpClient`,其他服务使用 `api`
+
+**影响**:
+
+- **重试机制不一致** - `api.ts` 有自动重试,`httpClient` 没有
+- **并发控制缺失** - `httpClient` 无并发限制,可能导致服务器压力过大
+- **请求去重缺失** - `httpClient` 无去重,可能重复发送相同请求
+- **超时策略不一致** - 两套不同的超时配置
+- **维护成本高** - 修改鉴权/超时逻辑需改两处
+
+**根本原因**:
+
+1. **历史遗留** - `httpClient` 是早期实现,`api.ts` 是后期优化的统一入口
+2. **迁移未完成** - 部分模块已迁移到 `api.ts`,但 `fiveNode` 和 `monitoring` 仍用旧客户端
+3. **缺少规范** - 未明确禁止直接使用 `httpClient`
+
+**解决方案**:
+
+- ✅ 迁移 `frontend/src/services/fiveNode.ts`: `httpClient` → `api`
+- ✅ 迁移 `frontend/src/api/monitoring.ts`: `httpClient` → `api`
+- ✅ 标记 `frontend/src/api/httpClient.ts` 为 `@deprecated`
+- ✅ **修复前后端前缀不一致**: `httpClient` baseURL 从 `/api` 改为 `/api/v1`,与后端 `config.apiPrefix` 对齐
+- ✅ **修正返回类型语义**: monitoring.ts 所有函数正确解包 `{ code, message, data }` 中的 `data` 字段
+- ✅ **清理 console 日志**: httpClient.ts 中 3处 console 替换为 logger
+- ✅ 验证无其他文件使用 `httpClient`: `rg "from '@/api/httpClient'" frontend/src` 命中清零
+
+**验证结果**:
+
+- ✅ `npm run type-check:frontend:ci` 执行并记录(历史错误与本次修改无关)
+- ✅ `rg "from '@/api/httpClient'" frontend/src` 命中清零
+- ✅ **前后端前缀一致**: 所有 baseURL 统一为 `/api/v1`,与后端 `config.apiPrefix` 对齐
+- ✅ **返回类型语义正确**: monitoring.ts 所有函数正确解包 `{ code, message, data }` 中的 `data` 字段
+- ✅ **日志统一**: httpClient.ts 中 3处 console 替换为 logger
+- ✅ fiveNode 页面请求正常(使用统一的鉴权/超时/重试/并发/去重)
+- ✅ monitoring 页面请求正常(使用统一的鉴权/超时/重试/并发/去重)
+- ✅ 请求头 `Authorization` 与 `X-Country-Code` 一致生效
+
+**相关文件**:
+
+- `frontend/src/services/fiveNode.ts` - 迁移到 api
+- `frontend/src/api/monitoring.ts` - 迁移到 api
+- `frontend/src/api/httpClient.ts` - 标记 deprecated
+
+---
+
+### TD-MON-001: 监控路由重复挂载 ✅ P0
+
+**状态**: ✅ 已完成 (PR-2)  
+**发现时间**: 2026-04-09  
+**修复时间**: 2026-04-09  
+**负责人**: 刘志高
+
+**现象**:
+
+- `backend/src/app.ts` 第 143 行: `app.use(`${config.apiPrefix}/monitoring`, monitoringRoutes)`
+- `backend/src/routes/index.ts` 第 81 行: `router.use('', monitoringRoutes)`
+- 监控路由被挂载两次,导致路径冲突
+
+**影响**:
+
+- `/api/v1/monitoring` 可能被重复注册
+- 可能存在双层前缀问题 (`/api/v1//monitoring`)
+- 前端调用可能返回 404 或错误数据
+
+**根本原因**:
+
+1. **职责不清** - app.ts 和 routes/index.ts 都尝试挂载监控路由
+2. **路径不一致** - 控制器内部使用 `/monitoring` 前缀,外层又加一次
+3. **缺少统一规划** - 未明确路由挂载的唯一入口
+
+**解决方案**:
+
+- ✅ 从 `app.ts` 移除监控路由挂载 (第 143 行)
+- ✅ 移除 `app.ts` 中不再需要的 `monitoringRoutes` 导入
+- ✅ 修正 `routes/index.ts` 挂载路径: `router.use('', ...)` → `router.use('/monitoring', ...)`
+- ✅ 修正监控控制器所有路径,去掉重复的 `/monitoring` 前缀:
+  - `/monitoring` → `/`
+  - `/monitoring/refresh` → `/refresh`
+  - `/monitoring/performance` → `/performance`
+  - `/monitoring/optimization` → `/optimization`
+  - `/monitoring/alerts` → `/alerts`
+  - `/monitoring/health` → `/health`
+  - `/monitoring/trend` → `/trend`
+  - `/monitoring/gc` → `/gc`
+  - `/monitoring/memory-analysis` → `/memory-analysis`
+- ✅ 清理监控控制器中的 10 处 console 调用,统一使用 logger
+
+**验证结果**:
+
+- ✅ `npm run type-check:backend` 通过
+- ✅ 路由挂载唯一 (`/monitoring` 仅在 `routes/index.ts` 第 81 行)
+- ✅ 最终路径正确: `/api/v1/monitoring/*`
+- ✅ 日志统一: 所有 console 替换为 logger.error/warn/info
+
+**相关文件**:
+
+- `backend/src/app.ts` - 移除重复挂载
+- `backend/src/routes/index.ts` - 修正挂载路径
+- `backend/src/controllers/monitoring.controller.ts` - 修正子路径 + 清理 console
+
+---
+
 ### TD-008: @ts-nocheck 滥用 ⚠️ P1
 
 **状态**: 🔄 评估完成,准备处理  
@@ -778,6 +1001,10 @@ npm run type-check  # ✅ 通过,无错误
 1. ✅ 补建 `DEVELOPMENT_DEBT.md` (TD-DOC-001) - **文档已建,流程对齐进行中**
 2. 🔄 统一本地与 CI 类型检查策略 (TD-006) - **已实施但回退,待清理前端错误**
 3. ✅ 修复 shared 模块 TS6059 (TD-004) - **已完成**
+4. ✅ 修复费用路由依赖注入 (TD-COST-001) - **PR-1 已完成**
+5. ✅ 修复监控路由重复挂载 (TD-MON-001) - **PR-2 已完成**
+6. ✅ 收敛前端 HTTP 客户端 (TD-API-001) - **PR-3 已完成**
+7. ✅ 让后端集成测试真正执行 (TD-TEST-003) - **PR-4 已完成**
 
 ### 中期 (1个月) - P1
 
@@ -798,19 +1025,23 @@ npm run type-check  # ✅ 通过,无错误
 
 ## 十二、更新日志
 
-| 日期       | 版本 | 更新内容                                                                                                                | 作者   |
-| ---------- | ---- | ----------------------------------------------------------------------------------------------------------------------- | ------ |
-| 2026-04-09 | v1.10 | TD-006 CI 回退: 因 exit code 127 失败,暂时移除前端 type-check,仅保留后端检查                                            | 刘志高 |
-| 2026-04-09 | v1.9 | TD-OBS-001 Phase 4 补充清理: 清理 scheduling/CacheService/fiveNodeController 等生产代码共 9处 console,总计 60处全部完成 | 刘志高 |
-| 2026-04-09 | v1.8 | 修正 TD-OBS-001 统计口径: Phase 1 包含 PlannedPickupStatistics (26处),后端统计服务目录全部清理完毕                      | 刘志高 |
-| 2026-04-09 | v1.7 | TD-OBS-001 Phase 3 完成: 清理工具类和其他文件共 5处 console,总计 51处全部完成                                           | 刘志高 |
-| 2026-04-09 | v1.6 | 修复 TD-OBS-001 引入的类型错误: containerStatistics default 分支 return 0 → []                                          | 刘志高 |
-| 2026-04-09 | v1.5 | TD-OBS-001 Phase 1+2 完成: 清理后端统计服务和前端服务层共 46处 console                                                  | 刘志高 |
-| 2026-04-09 | v1.4 | 修正 TD-006/TD-DOC-001 状态口径,区分策略完成与门禁通过                                                                  | 刘志高 |
-| 2026-04-09 | v1.3 | 修复 TD-004: 调整 rootDir 解决 TS6059 错误                                                                              | 刘志高 |
-| 2026-04-09 | v1.2 | 完成 TD-008 工作量评估,创建详细评估报告                                                                                 | 刘志高 |
-| 2026-04-09 | v1.1 | 修复 TD-006: CI 增加前端类型检查                                                                                        | 刘志高 |
-| 2026-04-09 | v1.0 | 初始版本,创建文档骨架                                                                                                   | 刘志高 |
+| 日期       | 版本  | 更新内容                                                                                                                                              | 作者   |
+| ---------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| 2026-04-09 | v1.14 | PR-4 完成: 让后端集成测试真正执行,创建独立 jest.integration.config.js,修复编译错误(模块路径/类型/API参数),添加 CI integration job (continue-on-error) | 刘志高 |
+| 2026-04-09 | v1.13 | PR-3 完成: 收敛前端 HTTP 客户端,迁移 fiveNode/monitoring 到 api,修复前后端前缀不一致,修正返回类型语义,清理 console,标记 httpClient deprecated         | 刘志高 |
+| 2026-04-09 | v1.12 | PR-2 完成: 修复监控路由重复挂载,移除 app.ts 重复挂载,修正控制器路径,清理 10处 console                                                                 | 刘志高 |
+| 2026-04-09 | v1.11 | PR-1 完成: 修复费用路由依赖注入,移除 require 临时实例化,添加构造函数健壮性检查,新增单元测试 7个全部通过                                               | 刘志高 |
+| 2026-04-09 | v1.10 | TD-006 CI 回退: 因 exit code 127 失败,暂时移除前端 type-check,仅保留后端检查                                                                          | 刘志高 |
+| 2026-04-09 | v1.9  | TD-OBS-001 Phase 4 补充清理: 清理 scheduling/CacheService/fiveNodeController 等生产代码共 9处 console,总计 60处全部完成                               | 刘志高 |
+| 2026-04-09 | v1.8  | 修正 TD-OBS-001 统计口径: Phase 1 包含 PlannedPickupStatistics (26处),后端统计服务目录全部清理完毕                                                    | 刘志高 |
+| 2026-04-09 | v1.7  | TD-OBS-001 Phase 3 完成: 清理工具类和其他文件共 5处 console,总计 51处全部完成                                                                         | 刘志高 |
+| 2026-04-09 | v1.6  | 修复 TD-OBS-001 引入的类型错误: containerStatistics default 分支 return 0 → []                                                                        | 刘志高 |
+| 2026-04-09 | v1.5  | TD-OBS-001 Phase 1+2 完成: 清理后端统计服务和前端服务层共 46处 console                                                                                | 刘志高 |
+| 2026-04-09 | v1.4  | 修正 TD-006/TD-DOC-001 状态口径,区分策略完成与门禁通过                                                                                                | 刘志高 |
+| 2026-04-09 | v1.3  | 修复 TD-004: 调整 rootDir 解决 TS6059 错误                                                                                                            | 刘志高 |
+| 2026-04-09 | v1.2  | 完成 TD-008 工作量评估,创建详细评估报告                                                                                                               | 刘志高 |
+| 2026-04-09 | v1.1  | 修复 TD-006: CI 增加前端类型检查                                                                                                                      | 刘志高 |
+| 2026-04-09 | v1.0  | 初始版本,创建文档骨架                                                                                                                                 | 刘志高 |
 
 ---
 

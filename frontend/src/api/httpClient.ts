@@ -1,11 +1,14 @@
 /**
  * HTTP客户端 - 集成缓存功能
+ * @deprecated 请使用 `@/services/api` 代替，以获得统一的鉴权、超时、重试、并发、去重能力
+ * @see {@link ../services/api.ts} 统一请求治理入口
  */
+import { useAppStore } from '@/store/app'
+import type { CacheConfig } from '@/utils/apiCache'
+import { fetchWithCache, globalApiCache } from '@/utils/apiCache'
+import { logger } from '@/utils/logger'
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios'
 import { ElMessage } from 'element-plus'
-import { fetchWithCache, globalApiCache } from '@/utils/apiCache'
-import type { CacheConfig } from '@/utils/apiCache'
-import { useAppStore } from '@/store/app'
 
 /**
  * API配置接口
@@ -35,7 +38,7 @@ export class HttpClient {
   private timeout: number
 
   constructor(config: { baseURL?: string; timeout?: number } = {}) {
-    this.baseURL = config.baseURL || 'http://localhost:3001/api'
+    this.baseURL = config.baseURL || 'http://localhost:3001/api/v1'
     this.timeout = config.timeout || 30000
 
     this.instance = axios.create({
@@ -68,7 +71,7 @@ export class HttpClient {
         return config
       },
       error => {
-        console.error('请求错误:', error)
+        logger.error('[HTTP Client] 请求错误', error)
         return Promise.reject(error)
       }
     )
@@ -80,7 +83,7 @@ export class HttpClient {
         const endTime = Date.now()
         const duration = endTime - ((config as any).metadata?.startTime || endTime)
 
-        console.log(`[HTTP] ${config.method?.toUpperCase()} ${config.url} - ${duration}ms`)
+        logger.debug('[HTTP]', `${config.method?.toUpperCase()} ${config.url} - ${duration}ms`)
 
         // 统一响应格式处理
         const apiResponse = response.data as ApiResponse
@@ -93,7 +96,7 @@ export class HttpClient {
         }
       },
       error => {
-        console.error('响应错误:', error)
+        logger.error('[HTTP Client] 响应错误', error)
 
         if (error.response) {
           const { status, data } = error.response
@@ -215,7 +218,7 @@ export class HttpClient {
  * 创建HTTP客户端实例
  */
 export const httpClient = new HttpClient({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api',
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1',
   timeout: 30000,
 })
 

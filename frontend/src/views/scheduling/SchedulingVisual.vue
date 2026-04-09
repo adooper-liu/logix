@@ -921,6 +921,7 @@ import { useSchedulingFlow } from '@/composables/useSchedulingFlow'
 import api from '@/services/api'
 import { containerService } from '@/services/container'
 import { useAppStore } from '@/store/app'
+import { isCanceledRequestError, notifyErrorUnlessCanceled } from './requestError'
 import {
   ArrowLeft,
   Box,
@@ -1196,8 +1197,7 @@ const resolvedCountry = computed(() => {
 
 // 添加错误处理
 const handleError = (error: any, context: string) => {
-  console.error(`[SchedulingVisual] ${context}:`, error)
-  ElMessage.error(`${context}: ${error.message}`)
+  notifyErrorUnlessCanceled(error, context)
 }
 
 // 日期范围（出运日期口径，与 Shipments 一致）
@@ -1386,8 +1386,7 @@ const loadOverview = async () => {
       ElMessage.warning('加载排产概览失败：未知错误')
     }
   } catch (error: any) {
-    console.error('[SchedulingVisual] loadOverview - 错误:', error)
-    ElMessage.error('加载排产概览失败：' + error.message)
+    handleError(error, '加载排产概览失败')
   } finally {
     loading.value = false
   }
@@ -1702,6 +1701,7 @@ const handleSchedule = async () => {
     // 触发排产完成事件
     emit('complete', scheduleResult.value)
   } catch (error: any) {
+    if (isCanceledRequestError(error)) return
     addLog(`排产异常: ${error.message}`, 'error')
     ElMessage.error('排产异常: ' + error.message)
 
@@ -1758,6 +1758,7 @@ const handleDesignatedWarehouseConfirm = async (data: {
       addLog(`手工指定仓库排产失败：${(result as any).message}`, 'error')
     }
   } catch (error: any) {
+    if (isCanceledRequestError(error)) return
     ElMessage.error('排产失败：' + (error.message || '未知错误'))
     addLog(`手工指定仓库排产异常：${error.message}`, 'error')
   }
@@ -1914,6 +1915,7 @@ const handlePreviewSchedule = async () => {
       await preloadCapacityData(result.results)
     }
   } catch (error: any) {
+    if (isCanceledRequestError(error)) return
     ElMessage.error('预览失败：' + (error.message || '未知错误'))
   } finally {
     scheduling.value = false
@@ -2002,6 +2004,7 @@ const handleConfirmSave = async () => {
       addLog(`确认保存失败`, 'error')
     }
   } catch (error: any) {
+    if (isCanceledRequestError(error)) return
     console.error('[handleConfirmSave] Error:', error)
     ElMessage.error('保存失败：' + error.message)
     addLog(`确认保存失败：${error.message}`, 'error')
@@ -2243,6 +2246,7 @@ const getWarehouseCapacityText = async (row: any) => {
       return status
     }
   } catch (error) {
+    if (isCanceledRequestError(error)) return '正常'
     console.error('获取仓库档期失败:', error)
   }
 
@@ -2301,6 +2305,7 @@ const getTruckingCapacityText = async (row: any) => {
       return status
     }
   } catch (error) {
+    if (isCanceledRequestError(error)) return '正常'
     console.error('获取车队档期失败:', error)
   }
 
@@ -2572,7 +2577,7 @@ const handleOptimizeContainer = async (row: any) => {
       }
     })
   } catch (error: any) {
-    if (error !== 'cancel') {
+    if (error !== 'cancel' && !isCanceledRequestError(error)) {
       ElMessage.error('优化失败：' + error.message)
       addLog(`优化失败：${error.message}`, 'error')
     }
@@ -2682,6 +2687,7 @@ const handleAcceptOptimization = async (alternative: any) => {
         })
     }
   } catch (error: any) {
+    if (isCanceledRequestError(error)) return
     console.error('[handleAcceptOptimization] error:', error)
     ElMessage.error('保存失败：' + (error.message || '未知错误'))
     addLog('保存失败：' + error.message, 'error')
@@ -2741,6 +2747,7 @@ const handleBatchSaveOptimizations = async () => {
       addLog('保存失败：' + (result as any).message, 'error')
     }
   } catch (error: any) {
+    if (isCanceledRequestError(error)) return
     console.error('[handleBatchSaveOptimizations] error:', error)
     ElMessage.error('保存失败：' + (error.message || '未知错误'))
     addLog('保存失败：' + error.message, 'error')

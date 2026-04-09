@@ -25,3 +25,22 @@ jobs:
 
       - name: Quality gate (test + backend type-check + backend ESLint)
         run: npm run test:backend && npm run type-check:backend && npm run lint:backend
+
+  # Integration tests (non-blocking, for visibility)
+  integration-tests:
+    runs-on: ubuntu-latest
+    continue-on-error: true # 初期允许失败，待测试稳定后移除
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Run integration tests
+        run: npm run test:backend:integration

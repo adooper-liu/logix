@@ -192,6 +192,7 @@ import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh } from '@element-plus/icons-vue'
 import { useAppStore } from '@/store/app'
+import { isCanceledRequestError, notifyErrorUnlessCanceled } from '../requestError'
 
 const appStore = useAppStore()
 
@@ -257,7 +258,7 @@ const loadYards = async () => {
       yards.value = data.data || []
     }
   } catch (error: any) {
-    ElMessage.error('加载堆场数据失败: ' + error.message)
+    notifyErrorUnlessCanceled(error, '加载堆场数据失败')
   }
 }
 
@@ -305,7 +306,7 @@ const saveYard = async () => {
       ElMessage.error(data.message)
     }
   } catch (error: any) {
-    ElMessage.error('操作失败: ' + error.message)
+    notifyErrorUnlessCanceled(error, '操作失败')
   }
 }
 
@@ -321,7 +322,7 @@ const loadMappingData = async () => {
       mappings.value = data.data || []
     }
   } catch (error: any) {
-    ElMessage.error('加载映射数据失败: ' + error.message)
+    notifyErrorUnlessCanceled(error, '加载映射数据失败')
   } finally {
     mappingLoading.value = false
   }
@@ -387,9 +388,8 @@ const deleteMapping = async (row: any) => {
       ElMessage.error(data.message)
     }
   } catch (error: any) {
-    if (error !== 'cancel') {
-      ElMessage.error('删除失败: ' + error.message)
-    }
+    if (isCanceledRequestError(error)) return
+    notifyErrorUnlessCanceled(error, '删除失败')
   }
 }
 
@@ -427,7 +427,7 @@ const saveMapping = async () => {
       ElMessage.error(data.message)
     }
   } catch (error: any) {
-    ElMessage.error('保存失败: ' + error.message)
+    notifyErrorUnlessCanceled(error, '保存失败')
   }
 }
 

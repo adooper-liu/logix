@@ -83,6 +83,7 @@
 import api from '@/services/api'
 import { ElMessage } from 'element-plus'
 import { computed, ref, watch } from 'vue'
+import { notifyErrorUnlessCanceled } from '../requestError'
 
 const props = defineProps<{
   visible: boolean
@@ -173,8 +174,7 @@ const loadWarehouses = async () => {
       available: wh.status === 'ACTIVE' && wh.dailyUnloadCapacity > 0,
     }))
   } catch (error) {
-    ElMessage.error('加载仓库列表失败')
-    console.error(error)
+    notifyErrorUnlessCanceled(error, '加载仓库列表失败')
   } finally {
     loading.value = false
   }

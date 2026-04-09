@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { DemurrageService } from './demurrage.service';
 import { InspectionRecord } from '../entities/InspectionRecord';
+import { DemurrageService } from './demurrage.service';
 
 // 费用类型
 export enum CostType {
@@ -39,7 +39,15 @@ export class CostService {
   constructor(
     private demurrageService: DemurrageService,
     @InjectRepository(InspectionRecord) private inspectionRepository: Repository<InspectionRecord>
-  ) {}
+  ) {
+    // 依赖健壮性检查：防止运行时 undefined 调用
+    if (!demurrageService) {
+      throw new Error('[CostService] DemurrageService dependency is required');
+    }
+    if (!inspectionRepository) {
+      throw new Error('[CostService] InspectionRecord repository is required');
+    }
+  }
 
   // 计算货柜的总费用
   async calculateContainerCosts(containerNumber: string): Promise<CostCalculationResult> {
