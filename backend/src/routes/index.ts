@@ -4,6 +4,7 @@
  */
 
 import { Router } from 'express';
+import { paginationValidator } from '../middleware/pagination.validator.js';
 import logisticsPathRoutes from './logisticsPath.routes.js';
 import adapterRoutes from './adapter.routes.js';
 import containerRoutes from './container.routes.js';
@@ -61,22 +62,25 @@ router.get('/', (_req, res) => {
 });
 
 // 子路由
+// 应用分页验证中间件(在路由之前)
+router.use('/containers', paginationValidator, containerRoutes);
+router.use('/customers', paginationValidator, customerRoutes);
+router.use('/external', paginationValidator, externalDataRoutes);
+router.use('/dict-manage', paginationValidator, dictManageRoutes);
+router.use('/warehouse-trucking-mapping', paginationValidator, warehouseTruckingMappingRoutes);
+router.use('/trucking-port-mapping', paginationValidator, truckingPortMappingRoutes);
+
+// 其他路由(不分页或已有自己的验证)
 router.use('/logistics-path', logisticsPathRoutes);
 router.use('/adapters', adapterRoutes);
-router.use('/containers', containerRoutes);
 router.use('/countries', countryRoutes);
-router.use('/customers', customerRoutes);
 router.use('/customer-types', customerTypeRoutes);
 router.use('/import', importRoutes);
-router.use('/external', externalDataRoutes);
 router.use('/dict-mapping', dictMappingRoutes);
 router.use('/dict-mapping/universal', universalDictMappingRoutes);
-router.use('/warehouse-trucking-mapping', warehouseTruckingMappingRoutes);
-router.use('/trucking-port-mapping', truckingPortMappingRoutes);
 router.use('', monitoringRoutes);
 router.use('/demurrage', demurrageRoutes);
 router.use('/dict', dictRoutes);
-router.use('/dict-manage', dictManageRoutes);
 router.use('/ai', aiRoutes);
 router.use('/audit', auditRoutes);
 router.use('/inspection', inspectionRoutes);

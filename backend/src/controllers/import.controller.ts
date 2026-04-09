@@ -30,6 +30,10 @@ import { resolveDemurrageFreeDays } from '../utils/demurrageTiers';
 import { logger } from '../utils/logger';
 
 export class ImportController {
+  // 导入记录数上限
+  private static readonly MAX_RECORDS_SINGLE = 5000;
+  private static readonly MAX_RECORDS_BATCH = 10000;
+  
   private containerRepository: Repository<Container>;
   private orderRepository: Repository<ReplenishmentOrder>;
   private seaFreightRepository: Repository<SeaFreight>;
@@ -529,6 +533,28 @@ export class ImportController {
       });
       return;
     }
+    
+    // 检查记录数上限
+    let recordCount = 0;
+    for (const tableName of Object.keys(tables)) {
+      const tableData = tables[tableName];
+      if (Array.isArray(tableData)) {
+        recordCount += tableData.length;
+      } else if (tableData && typeof tableData === 'object') {
+        recordCount += 1; // 单条记录
+      }
+    }
+    
+    if (recordCount > ImportController.MAX_RECORDS_SINGLE) {
+      logger.warn(`[Import] 单次导入记录数超限: ${recordCount} > ${ImportController.MAX_RECORDS_SINGLE}`);
+      res.status(400).json({
+        success: false,
+        message: `单次导入最多${ImportController.MAX_RECORDS_SINGLE}条记录，当前${recordCount}条。请使用批量导入或分批上传。`,
+        maxAllowed: ImportController.MAX_RECORDS_SINGLE,
+        actualCount: recordCount
+      });
+      return;
+    }
 
     logger.info('[Import] 接收到导入请求:', JSON.stringify(tables, null, 2));
 
@@ -946,6 +972,32 @@ export class ImportController {
       res.status(400).json({
         success: false,
         message: 'batch参数必须是数组'
+      });
+      return;
+    }
+    
+    // 检查批量导入记录数上限
+    let totalRecordCount = 0;
+    for (const item of batch) {
+      if (item.tables && typeof item.tables === 'object') {
+        for (const tableName of Object.keys(item.tables)) {
+          const tableData = item.tables[tableName];
+          if (Array.isArray(tableData)) {
+            totalRecordCount += tableData.length;
+          } else if (tableData && typeof tableData === 'object') {
+            totalRecordCount += 1;
+          }
+        }
+      }
+    }
+    
+    if (totalRecordCount > ImportController.MAX_RECORDS_BATCH) {
+      logger.warn(`[Import] 批量导入记录数超限: ${totalRecordCount} > ${ImportController.MAX_RECORDS_BATCH}`);
+      res.status(400).json({
+        success: false,
+        message: `批量导入最多${ImportController.MAX_RECORDS_BATCH}条记录，当前${totalRecordCount}条。请分批上传。`,
+        maxAllowed: ImportController.MAX_RECORDS_BATCH,
+        actualCount: totalRecordCount
       });
       return;
     }

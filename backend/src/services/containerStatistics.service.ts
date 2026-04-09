@@ -9,6 +9,7 @@ import { Container } from '../entities/Container';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { TruckingTransport } from '../entities/TruckingTransport';
 import { CONDITION_TO_SERVICE_MAP } from '../constants/FilterConditions';
+import { cacheStatistics } from './statistics/CacheDecorator';
 
 // 子服务导入
 import { StatusDistributionService } from './statistics/StatusDistribution.service';
@@ -57,6 +58,7 @@ export class ContainerStatisticsService {
   /**
    * 获取状态分布统计
    */
+  @cacheStatistics(300) // 5分钟缓存
   async getStatusDistribution(
     startDate?: string,
     endDate?: string
@@ -76,6 +78,7 @@ export class ContainerStatisticsService {
    * - 已到中转港：已到中转港（有中转港记录，目的港无ATA）
    * - 预计到港：逾期未到港 + 3天内 + 7天内 + 7天以上 + 其他
    */
+  @cacheStatistics(300) // 5分钟缓存
   async getArrivalDistribution(
     startDate?: string,
     endDate?: string
@@ -155,6 +158,7 @@ export class ContainerStatisticsService {
   /**
    * 获取按 ETA 分布的统计
    */
+  @cacheStatistics(300) // 5分钟缓存
   async getEtaDistribution(startDate?: string, endDate?: string): Promise<Record<string, number>> {
     return this.etaStatistics.getDistribution(startDate, endDate);
   }
@@ -162,6 +166,7 @@ export class ContainerStatisticsService {
   /**
    * 获取按提柜计划分布的统计
    */
+  @cacheStatistics(300) // 5分钟缓存
   async getPickupDistribution(
     startDate?: string,
     endDate?: string
@@ -172,6 +177,7 @@ export class ContainerStatisticsService {
   /**
    * 获取按最晚提柜时间分布的统计
    */
+  @cacheStatistics(300) // 5分钟缓存
   async getLastPickupDistribution(
     startDate?: string,
     endDate?: string
@@ -182,6 +188,7 @@ export class ContainerStatisticsService {
   /**
    * 获取按最晚还箱时间分布的统计
    */
+  @cacheStatistics(300) // 5分钟缓存
   async getLastReturnDistribution(
     startDate?: string,
     endDate?: string
@@ -196,7 +203,7 @@ export class ContainerStatisticsService {
     startDate?: string,
     endDate?: string
   ): Promise<Record<string, number>> {
-    return this.lastReturnStatistics.getDistribution(startDate, endDate);
+    return this.getLastReturnDistribution(startDate, endDate);
   }
 
   /**

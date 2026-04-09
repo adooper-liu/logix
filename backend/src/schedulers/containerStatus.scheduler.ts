@@ -6,6 +6,7 @@
 
 import { ContainerStatusService } from '../services/containerStatus.service';
 import { logger } from '../utils/logger';
+import { DistributedLock, generateSchedulerLockKey } from '../utils/DistributedLock';
 
 export class ContainerStatusScheduler {
   private statusService: ContainerStatusService;
@@ -86,27 +87,35 @@ export class ContainerStatusScheduler {
    * 执行批量更新任务
    */
   private async executeTask(): Promise<void> {
-    const task = (async () => {
-      const startTime = Date.now();
-      logger.info('[ContainerStatusScheduler] Starting batch status update');
+    const lockKey = generateSchedulerLockKey('container-status-recalc');
+    
+    // 使用分布式锁防止重叠执行
+    const result = await DistributedLock.executeWithLock(
+      lockKey,
+      async () => {
+        const startTime = Date.now();
+        logger.info('[ContainerStatusScheduler] Starting batch status update');
 
-      try {
-        const batchSize = parseInt(process.env.STATUS_BATCH_SIZE || '200', 10);
-        const updatedCount = await this.statusService.batchUpdateStatuses(batchSize);
-        const duration = Date.now() - startTime;
+        try {
+          const batchSize = parseInt(process.env.STATUS_BATCH_SIZE || '200', 10);
+          const updatedCount = await this.statusService.batchUpdateStatuses(batchSize);
+          const duration = Date.now() - startTime;
 
-        logger.info('[ContainerStatusScheduler] Batch status update completed', {
-          updatedCount,
-          duration: `${duration}ms`
-        });
-      } catch (error) {
-        logger.error('[ContainerStatusScheduler] Batch status update failed', error);
-      } finally {
-        this.currentExecution = null;
-      }
-    })();
-    this.currentExecution = task;
-    await task;
+          logger.info('[ContainerStatusScheduler] Batch status update completed', {
+            updatedCount,
+            duration: `${duration}ms`
+          });
+        } catch (error) {
+          logger.error('[ContainerStatusScheduler] Batch status update failed', error);
+        }
+      },
+      1800, // 30分钟超时
+      true  // 如果锁已被持有则跳过
+    );
+    
+    if (result === null) {
+      logger.info('[ContainerStatusScheduler] Task skipped (already running)');
+    }
   }
 
   /**
