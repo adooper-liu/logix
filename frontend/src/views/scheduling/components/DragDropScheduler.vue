@@ -146,8 +146,8 @@
 <script setup lang="ts">
 import api from '@/services/api'
 import dayjs from 'dayjs'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { computed, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
+import { computed, ref } from 'vue'
 
 interface Container {
   containerNumber: string

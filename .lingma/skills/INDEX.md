@@ -86,6 +86,17 @@
 | **提交规范** | Git Commit Message 规范          | ✅ Recommended | [查看](./04-quality/commit-message/SKILL.md)    | ✅ 已验证 |
 | **开发规范** | LogiX 项目开发规范               | ✅ Recommended | [查看](./04-quality/logix-development/SKILL.md) | ✅ 已验证 |
 | **文档生成** | 基于代码生成计算逻辑场景模拟文档 | ✅ Recommended | [查看](./04-quality/code-to-doc/SKILL.md)       | ✅ 新建   |
+| **质量门禁** | 合并前检查、技术债治理、CI 配置  | ✅ Recommended | [查看](./04-quality/logix-quality-gates/SKILL.md) | ✅ 新建   |
+
+---
+
+### 🏗️ 架构技能 (Architecture)
+
+**位置：** [`02-architecture/`](./02-architecture/README.md)
+
+| 技能               | 说明                       | 成熟度         | 链接                                                                 | 验证状态  |
+| ------------------ | -------------------------- | -------------- | -------------------------------------------------------------------- | --------- |
+| **复杂代码重构分析** | 系统化重构分析框架（六步法） | ✅ Recommended | [查看](./02-architecture/complex-code-refactoring-analysis/SKILL.md) | ✅ 新建   |
 
 ---
 

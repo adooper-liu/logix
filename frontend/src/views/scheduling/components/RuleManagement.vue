@@ -303,7 +303,7 @@ import { ref, reactive, computed, onMounted } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { FormInstance, FormRules } from 'element-plus';
 import { Search, Plus, Refresh } from '@element-plus/icons-vue';
-import { schedulingRuleApi, type SchedulingRule, type CreateRuleDto, type UpdateRuleDto, type ExecuteRuleTestDto, type ExecuteRuleResponse } from '@/services/schedulingRule';
+import { schedulingRuleApi, type SchedulingRule, type CreateRuleDto, type UpdateRuleDto, type ExecuteRuleTestDto, type ExecuteRuleResponse, type RuleType } from '@/services/schedulingRule';
 
 // ==================== 状态 ====================
 
@@ -320,7 +320,7 @@ const currentRuleId = ref('');
 
 // 查询参数
 const queryParams = reactive({
-  ruleType: '',
+  ruleType: '' as RuleType | undefined,
   keyword: '',
   isActive: undefined as boolean | undefined
 });
@@ -446,7 +446,6 @@ async function handleEdit(row: SchedulingRule) {
     const rule = response.data;
     Object.assign(formData, {
       ruleName: rule.ruleName,
-      ruleNameEn: rule.ruleNameEn,
       ruleCode: rule.ruleCode,
       ruleDescription: rule.ruleDescription,
       ruleType: rule.ruleType,
@@ -473,7 +472,6 @@ async function handleSave() {
       if (isEdit.value) {
         const updateData: UpdateRuleDto = {
           ruleName: formData.ruleName,
-          ruleNameEn: formData.ruleNameEn,
           ruleDescription: formData.ruleDescription,
           conditions: formData.conditions,
           actions: {

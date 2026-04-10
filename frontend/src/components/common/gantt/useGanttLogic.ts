@@ -1,107 +1,15 @@
 import { containerService } from '@/services/container'
-import {
-  costOptimizationService,
-  type OptimizeContainerResponse,
-} from '@/services/costOptimization'
 import { useGanttFilterStore } from '@/store/ganttFilters'
 import type { Container } from '@/types/container'
-import { calculatePlannedReturnDateBasic } from '@shared/returnDateCalculator'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { buildOptimalSolutionUpdateData, type OptimalStrategy } from './costOptimizationApplyUtils'
-
-const ENABLE_COST_OPT_DEBUG = false
-
-function debugCostOptimization(...args: unknown[]): void {
-  if (ENABLE_COST_OPT_DEBUG) {
-    console.log(...args)
-  }
-}
-
-/** 当本次 PATCH 含 plannedUnloadDate 时写入 plannedReturnDate */
-function mergeReturnDateIntoUpdateData(
-  container: Container,
-  updateData: Record<string, string>,
-  unloadMode: string | undefined
-): void {
-  if (!updateData.plannedUnloadDate) {
-    console.log('[mergeReturnDateIntoUpdateData] 跳过：updateData 中没有 plannedUnloadDate')
-    return
-  }
-
-  console.log('[mergeReturnDateIntoUpdateData] 开始计算还箱日:', {
-    newUnloadDate: updateData.plannedUnloadDate,
-    unloadMode,
-  })
-
-  const empty = container.emptyReturns?.[0]
-  const existingReturn = empty?.plannedReturnDate || null
-  const oldUnload = container.warehouseOperations?.[0]?.plannedUnloadDate || null
-
-  console.log('[mergeReturnDateIntoUpdateData] 现有还箱日:', existingReturn)
-  console.log('[mergeReturnDateIntoUpdateData] 原有卸柜日:', oldUnload)
-
-  // 使用共享基础函数计算还箱日
-  const result = calculatePlannedReturnDateBasic({
-    unloadDate: updateData.plannedUnloadDate,
-    unloadMode: (unloadMode || 'Live load') as 'Live load' | 'Drop off',
-    existingReturnDate: existingReturn,
-    oldUnloadDate: oldUnload,
-  })
-
-  updateData.plannedReturnDate = result.returnDate.toISOString().split('T')[0]
-  console.log(
-    '[mergeReturnDateIntoUpdateData]',
-    result.explanation,
-    '->',
-    updateData.plannedReturnDate
-  )
-}
-
-/**
- * Drop off 下仅改提柜日（送/卸未进 PATCH）时，按提柜「小→大」偏移同步计划还箱日，避免还箱条不随提柜拖动。
- * 下限不低于基础规则计算的还箱日。
- */
-function mergeReturnDateWhenPickupOnlyForward(
-  container: Container,
-  updateData: Record<string, string>,
-  unloadMode: string | undefined
-): void {
-  if (updateData.plannedUnloadDate) return
-  if (!updateData.plannedPickupDate) return
-
-  const trucking = container.truckingTransports?.[0]
-  const oldPickup = trucking?.plannedPickupDate || null
-  if (!oldPickup) return
-
-  const newPickup = updateData.plannedPickupDate
-  const deltaDays = dayjs(newPickup).diff(dayjs(oldPickup), 'day')
-  if (deltaDays <= 0) return
-
-  const wh = container.warehouseOperations?.[0]?.plannedUnloadDate
-  if (!wh) return
-
-  const empty = container.emptyReturns?.[0]
-  const existingReturn = empty?.plannedReturnDate || null
-  if (!existingReturn) return
-
-  // 使用共享基础函数计算基准还箱日
-  const baseResult = calculatePlannedReturnDateBasic({
-    unloadDate: dayjs(wh).format('YYYY-MM-DD'),
-    unloadMode: (unloadMode || 'Live load') as 'Live load' | 'Drop off',
-    existingReturnDate: existingReturn,
-  })
-
-  // 按提柜偏移量同步还箱日
-  const shiftedReturn = dayjs(existingReturn).add(deltaDays, 'day').toDate()
-
-  // 取较大值，确保不低于基础规则
-  updateData.plannedReturnDate = dayjs(shiftedReturn).isBefore(dayjs(baseResult.returnDate), 'day')
-    ? baseResult.returnDate.toISOString().split('T')[0]
-    : shiftedReturn.toISOString().split('T')[0]
-}
+import {
+  mergeReturnDateIntoUpdateData,
+  mergeReturnDateWhenPickupOnlyForward,
+} from './ganttReturnDateMergeUtils'
+import { useGanttCostOptimization } from './useGanttCostOptimization'
 
 /**
  * 甘特图核心逻辑抽离
@@ -151,26 +59,6 @@ export function useGanttLogic() {
 
   // 悬停货柜状态（用于呼吸动画）
   const hoveredContainer = ref<Container | null>(null)
-
-  // 🎯 成本优化面板状态
-  const showOptimizationPanel = ref(false)
-  type OptimizationResultView = OptimizeContainerResponse & {
-    containerNumber: string
-    currentPickupDate: string
-    currentStrategy: string
-  }
-  const optimizationResult = ref<OptimizationResultView | null>(null)
-
-  // 🎯 成本优化防抖定时器
-  let optimizationDebounceTimer: ReturnType<typeof setTimeout> | null = null
-
-  // 🎯 成本优化结果缓存 (key: containerNumber_warehouseCode_truckingCompanyId_basePickupDate)
-  interface OptimizationCache {
-    data: OptimizeContainerResponse
-    timestamp: number
-  }
-  const CACHE_TTL = 5 * 60 * 1000 // 5分钟
-  const optimizationCache = new Map<string, OptimizationCache>()
 
   // 拖拽状态
   const draggingContainer = ref<Container | null>(null)
@@ -490,7 +378,11 @@ export function useGanttLogic() {
     }
 
     // 查验节点 - 清关行（与清关使用相同供应商）
-    if (container.inspectionRequired && container.portOperations?.length > 0) {
+    if (
+      container.inspectionRequired &&
+      container.portOperations &&
+      container.portOperations.length > 0
+    ) {
       const destPortOp = container.portOperations.find(op => op.portType === 'destination')
       const customsSupplier = destPortOp?.customsBrokerCode || destPortOp?.customsBroker
       if (customsSupplier) {
@@ -559,19 +451,27 @@ export function useGanttLogic() {
       // 运输计划日期（泳道日期）
       if (container.truckingTransports && container.truckingTransports.length > 0) {
         const transport = container.truckingTransports[0]
-        if (transport.plannedCustomsDate) dates.push(new Date(transport.plannedCustomsDate))
         if (transport.plannedPickupDate) dates.push(new Date(transport.plannedPickupDate))
         if (transport.plannedDeliveryDate) dates.push(new Date(transport.plannedDeliveryDate))
-        if (transport.plannedUnloadDate) dates.push(new Date(transport.plannedUnloadDate))
-        if (transport.plannedReturnDate) dates.push(new Date(transport.plannedReturnDate))
       }
 
-      // 直接在货柜上的计划日期
-      if (container.plannedCustomsDate) dates.push(new Date(container.plannedCustomsDate))
-      if (container.plannedPickupDate) dates.push(new Date(container.plannedPickupDate))
-      if (container.plannedDeliveryDate) dates.push(new Date(container.plannedDeliveryDate))
-      if (container.plannedUnloadDate) dates.push(new Date(container.plannedUnloadDate))
-      if (container.plannedReturnDate) dates.push(new Date(container.plannedReturnDate))
+      // 港口操作计划日期
+      if (container.portOperations && container.portOperations.length > 0) {
+        const portOp = container.portOperations[0]
+        if (portOp.plannedCustomsDate) dates.push(new Date(portOp.plannedCustomsDate))
+      }
+
+      // 仓库操作计划日期
+      if (container.warehouseOperations && container.warehouseOperations.length > 0) {
+        const warehouseOp = container.warehouseOperations[0]
+        if (warehouseOp.plannedUnloadDate) dates.push(new Date(warehouseOp.plannedUnloadDate))
+      }
+
+      // 还箱计划日期
+      if (container.emptyReturns && container.emptyReturns.length > 0) {
+        const emptyReturn = container.emptyReturns[0]
+        if (emptyReturn.plannedReturnDate) dates.push(new Date(emptyReturn.plannedReturnDate))
+      }
 
       // 更新最小和最大日期
       dates.forEach(date => {
@@ -1157,103 +1057,19 @@ export function useGanttLogic() {
     }
   }
 
-  /**
-   * ✅ 执行智能优化：先计算最优方案，显示优化面板
-   */
-  const executeSmartOptimize = async (container: Container, updateData: Record<string, string>) => {
-    try {
-      debugCostOptimization('[executeSmartOptimize] 开始智能优化...')
-
-      // 获取必要的参数
-      const trucking = container.truckingTransports?.[0]
-      const warehouse = container.warehouseOperations?.[0]
-
-      if (!trucking || !warehouse) {
-        console.warn('[executeSmartOptimize] 缺少提柜或卸柜信息，降级为快速更新')
-        await executeQuickUpdate(container, updateData)
-        return
-      }
-
-      const truckingCompanyId = trucking.truckingCompanyId
-      const warehouseCode = warehouse.warehouseId
-
-      // 确定 basePickupDate：优先使用新提柜日，否则使用原提柜日
-      const basePickupDate = updateData.plannedPickupDate || trucking.plannedPickupDate
-
-      if (!basePickupDate || !truckingCompanyId || !warehouseCode) {
-        console.warn('[executeSmartOptimize] 缺少必要参数，降级为快速更新', {
-          basePickupDate,
-          truckingCompanyId,
-          warehouseCode,
-        })
-        await executeQuickUpdate(container, updateData)
-        return
-      }
-
-      debugCostOptimization('[executeSmartOptimize] 调用优化 API:', {
-        containerNumber: container.containerNumber,
-        warehouseCode,
-        truckingCompanyId,
-        basePickupDate,
-      })
-
-      // 调用优化 API
-      const result = await costOptimizationService.optimizeContainer(container.containerNumber, {
-        warehouseCode,
-        truckingCompanyId,
-        basePickupDate,
-      })
-
-      console.log('[executeSmartOptimize] API 原始返回:', result)
-
-      // 兼容两种返回格式：{ success, data } 或直接返回数据
-      let optimizationData = null
-      if (result.success && result.data) {
-        // 格式 1: { success: true, data: {...} }
-        optimizationData = result.data
-      } else if (result.containerNumber) {
-        // 格式 2: 直接返回数据对象
-        optimizationData = result
-      }
-
-      if (optimizationData) {
-        // 无论是否有优化空间，都显示优化面板供用户确认
-        console.log('[executeSmartOptimize] API 返回成功，准备显示面板')
-        console.log('[executeSmartOptimize] optimizationData:', optimizationData)
-
-        optimizationResult.value = {
-          containerNumber: container.containerNumber,
-          currentPickupDate: basePickupDate,
-          currentStrategy: trucking.unloadModePlan || 'Direct',
-          ...optimizationData,
-        }
-
-        console.log('[executeSmartOptimize] optimizationResult.value:', optimizationResult.value)
-        console.log('[executeSmartOptimize] 设置 showOptimizationPanel = true')
-
-        showOptimizationPanel.value = true
-
-        console.log(
-          '[executeSmartOptimize] showOptimizationPanel.value:',
-          showOptimizationPanel.value
-        )
-        debugCostOptimization(
-          '[executeSmartOptimize] 显示优化面板（savings:',
-          optimizationData.savings,
-          ')'
-        )
-      } else {
-        // API 调用失败，降级为快速更新
-        console.warn('[executeSmartOptimize] 优化 API 返回失败，降级为快速更新')
-        console.warn('[executeSmartOptimize] result:', result)
-        await executeQuickUpdate(container, updateData)
-      }
-    } catch (error: any) {
-      console.error('[executeSmartOptimize] 优化失败，降级为快速更新:', error)
-      ElMessage.warning('成本优化计算失败，将执行快速更新')
-      await executeQuickUpdate(container, updateData)
-    }
-  }
+  const {
+    showOptimizationPanel,
+    optimizationResult,
+    executeSmartOptimize,
+    debouncedTriggerCostOptimization,
+    closeOptimizationPanel,
+    applyOptimalSolution,
+    disposeCostOptimization,
+  } = useGanttCostOptimization({
+    containers,
+    loadData,
+    executeQuickUpdate,
+  })
 
   /**
    * ✅ 执行更新操作（支持多个字段，包含成本优化）
@@ -1377,259 +1193,6 @@ export function useGanttLogic() {
         message: `网络错误：${error.message}`,
         duration: 5000,
       })
-    }
-  }
-
-  // ========== 🎯 成本优化功能 ==========
-
-  /**
-   * 生成缓存键
-   */
-  const getCacheKey = (
-    containerNumber: string,
-    warehouseCode: string,
-    truckingCompanyId: string,
-    basePickupDate: string
-  ): string => {
-    return `${containerNumber}_${warehouseCode}_${truckingCompanyId}_${basePickupDate}`
-  }
-
-  /**
-   * 从缓存获取结果
-   */
-  const getCachedResult = (key: string): OptimizeContainerResponse | null => {
-    const cached = optimizationCache.get(key)
-    if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-      debugCostOptimization('[CostOptimization] 使用缓存结果')
-      return cached.data
-    }
-    // 缓存过期，删除
-    if (cached) {
-      optimizationCache.delete(key)
-    }
-    return null
-  }
-
-  /**
-   * 设置缓存结果
-   */
-  const setCachedResult = (key: string, data: OptimizeContainerResponse): void => {
-    optimizationCache.set(key, {
-      data,
-      timestamp: Date.now(),
-    })
-    debugCostOptimization('[CostOptimization] 缓存结果已设置')
-  }
-
-  /**
-   * 触发成本优化 API 调用（带防抖和缓存）
-   */
-  const triggerCostOptimization = async (
-    container: Container,
-    updateData: Record<string, string>
-  ) => {
-    try {
-      debugCostOptimization('[triggerCostOptimization] 开始成本优化...')
-
-      // 获取必要的参数
-      const trucking = container.truckingTransports?.[0]
-      const warehouse = container.warehouseOperations?.[0]
-
-      if (!trucking || !warehouse) {
-        console.warn('[triggerCostOptimization] 缺少提柜或卸柜信息，跳过优化')
-        return
-      }
-
-      const truckingCompanyId = trucking.truckingCompanyId
-      const warehouseCode = warehouse.warehouseId // warehouseId 就是 warehouseCode
-
-      // 确定 basePickupDate：优先使用新提柜日，否则使用原提柜日
-      const basePickupDate = updateData.plannedPickupDate || trucking.plannedPickupDate
-
-      if (!basePickupDate || !truckingCompanyId || !warehouseCode) {
-        console.warn('[triggerCostOptimization] 缺少必要参数，跳过优化', {
-          basePickupDate,
-          truckingCompanyId,
-          warehouseCode,
-        })
-        return
-      }
-
-      // 🎯 检查缓存
-      const cacheKey = getCacheKey(
-        container.containerNumber,
-        warehouseCode,
-        truckingCompanyId,
-        basePickupDate
-      )
-
-      const cachedResult = getCachedResult(cacheKey)
-      if (cachedResult) {
-        debugCostOptimization('[triggerCostOptimization] 命中缓存，直接使用')
-        if (cachedResult.savings > 0) {
-          optimizationResult.value = {
-            containerNumber: container.containerNumber,
-            currentPickupDate: basePickupDate,
-            currentStrategy: trucking.unloadModePlan || 'Direct',
-            ...cachedResult,
-          }
-          showOptimizationPanel.value = true
-        }
-        return
-      }
-
-      debugCostOptimization('[triggerCostOptimization] 调用优化 API:', {
-        containerNumber: container.containerNumber,
-        warehouseCode,
-        truckingCompanyId,
-        basePickupDate,
-      })
-
-      // 调用优化 API
-      const result = await costOptimizationService.optimizeContainer(container.containerNumber, {
-        warehouseCode,
-        truckingCompanyId,
-        basePickupDate,
-      })
-
-      if (result.success && result.data) {
-        debugCostOptimization('[triggerCostOptimization] 优化结果:', result.data)
-
-        // 🎯 缓存结果
-        setCachedResult(cacheKey, result.data)
-
-        // 只有当有节省时才显示面板
-        if (result.data.savings > 0) {
-          optimizationResult.value = {
-            containerNumber: container.containerNumber,
-            currentPickupDate: basePickupDate,
-            currentStrategy: trucking.unloadModePlan || 'Direct',
-            ...result.data,
-          }
-          showOptimizationPanel.value = true
-        } else {
-          debugCostOptimization('[triggerCostOptimization] 无节省空间，不显示面板')
-        }
-      }
-    } catch (error: any) {
-      console.error('[triggerCostOptimization] 优化失败:', error)
-      // 优化失败不影响主流程，仅记录日志
-    }
-  }
-
-  /**
-   * 🎯 防抖版本的优化触发器（500ms）
-   */
-  const debouncedTriggerCostOptimization = (
-    container: Container,
-    updateData: Record<string, string>
-  ) => {
-    // 清除之前的定时器
-    if (optimizationDebounceTimer) {
-      clearTimeout(optimizationDebounceTimer)
-      debugCostOptimization('[CostOptimization] 清除之前的防抖定时器')
-    }
-
-    // 设置新的定时器
-    optimizationDebounceTimer = setTimeout(() => {
-      debugCostOptimization('[CostOptimization] 防抖延迟结束，执行优化')
-      triggerCostOptimization(container, updateData)
-      optimizationDebounceTimer = null
-    }, 500) // 500ms 防抖
-
-    debugCostOptimization('[CostOptimization] 设置 500ms 防抖定时器')
-  }
-
-  /**
-   * 关闭优化面板
-   */
-  const closeOptimizationPanel = () => {
-    showOptimizationPanel.value = false
-    optimizationResult.value = null
-  }
-
-  /**
-   * 🎯 应用最优方案
-   */
-  const applyOptimalSolution = async () => {
-    if (!optimizationResult.value) {
-      ElMessage.warning('没有可应用的优化方案')
-      return
-    }
-
-    try {
-      debugCostOptimization('[applyOptimalSolution] 开始应用最优方案...')
-      debugCostOptimization('[applyOptimalSolution] 优化结果:', optimizationResult.value)
-
-      const { containerNumber, suggestedPickupDate, suggestedStrategy, currentPickupDate } =
-        optimizationResult.value
-
-      const targetContainer = containers.value.find(c => c.containerNumber === containerNumber)
-      if (!targetContainer) {
-        ElMessage.error('未找到目标货柜，无法应用最优方案')
-        return
-      }
-
-      // 确认对话框
-      await ElMessageBox.confirm(
-        `确定要应用最优方案吗？\n\n` +
-          `当前提柜日: ${currentPickupDate}\n` +
-          `建议提柜日: ${suggestedPickupDate}\n` +
-          `建议策略: ${suggestedStrategy}\n\n` +
-          `系统将自动更新日期并重新计算还箱日。`,
-        '应用最优方案',
-        {
-          confirmButtonText: '确定应用',
-          cancelButtonText: '取消',
-          type: 'warning',
-        }
-      )
-
-      debugCostOptimization('[applyOptimalSolution] 用户确认，开始更新...')
-
-      // 构建更新数据
-      const { updateData, effectiveUnloadMode } = buildOptimalSolutionUpdateData(
-        targetContainer,
-        suggestedPickupDate,
-        suggestedStrategy as OptimalStrategy
-      )
-      mergeReturnDateIntoUpdateData(targetContainer, updateData, effectiveUnloadMode)
-
-      debugCostOptimization('[applyOptimalSolution] 更新数据:', updateData)
-
-      // 调用后端 API 更新
-      const result = await containerService.updateSchedule(containerNumber, updateData)
-
-      if (result.success) {
-        ElMessage.success({
-          message: `✅ 最优方案已应用！提柜日已更新为 ${suggestedPickupDate}`,
-          duration: 3000,
-        })
-
-        // 刷新甘特图数据
-        await loadData()
-
-        // 关闭优化面板
-        closeOptimizationPanel()
-
-        debugCostOptimization('[applyOptimalSolution] 应用成功，数据已刷新')
-      } else {
-        console.error('[applyOptimalSolution] 更新失败:', result)
-        ElMessage.error({
-          message: result.message || '应用失败，请重试',
-          duration: 3000,
-        })
-      }
-    } catch (error: any) {
-      if (error !== 'cancel') {
-        console.error('[applyOptimalSolution] 应用失败:', error)
-        ElMessage.error({
-          message: `应用失败：${error.message || '未知错误'}`,
-          duration: 5000,
-        })
-      } else {
-        debugCostOptimization('[applyOptimalSolution] 用户取消应用')
-      }
     }
   }
 
@@ -2233,14 +1796,7 @@ export function useGanttLogic() {
     document.removeEventListener('dragover', handleDragOver)
     document.removeEventListener('drop', handleGlobalDrop)
 
-    // 🎯 清理成本优化资源
-    if (optimizationDebounceTimer) {
-      clearTimeout(optimizationDebounceTimer)
-      optimizationDebounceTimer = null
-      console.log('[CostOptimization] 清理防抖定时器')
-    }
-    optimizationCache.clear()
-    console.log('[CostOptimization] 清理缓存')
+    disposeCostOptimization()
   })
 
   return {

@@ -446,7 +446,6 @@ const formatStrategy = (strategy: string): string => {
 
 // ✅ 新增：生成节省说明（显示四个日期）
 const generateSavingsExplanation = (optimized: any, original: any) => {
-  const origDate = original.pickupDate
   const optPickupDate = optimized.pickupDate
   const optDeliveryDate = optimized.deliveryDate || optPickupDate
   const optUnloadDate = optimized.unloadDate || optPickupDate

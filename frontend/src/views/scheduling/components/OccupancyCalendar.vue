@@ -110,14 +110,14 @@
 <script setup lang="ts">
 import api from '@/services/api'
 import { useAppStore } from '@/store/app'
-import { Edit, Refresh } from '@element-plus/icons-vue'
+import { Refresh } from '@element-plus/icons-vue'
 import zhLocale from '@fullcalendar/core/locales/zh-cn'
 import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from '@fullcalendar/interaction'
 import FullCalendar from '@fullcalendar/vue3'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 
 // 日历引用
 const calendarRef = ref<any>(null)
@@ -141,17 +141,6 @@ const allTruckingCompanies = ref<any[]>([])
 const selectedCountry = ref<string>('')
 const selectedWarehouseCode = ref<string>('')
 const selectedTruckingCode = ref<string>('')
-
-// 过滤后的资源列表
-const filteredWarehouses = computed(() => {
-  if (!selectedCountry.value) return allWarehouses.value
-  return allWarehouses.value.filter((wh: any) => wh.country === selectedCountry.value)
-})
-
-const filteredTruckingCompanies = computed(() => {
-  if (!selectedCountry.value) return allTruckingCompanies.value
-  return allTruckingCompanies.value.filter((tc: any) => tc.country === selectedCountry.value)
-})
 
 // 加载国家、仓库、车队列表
 const loadResources = async () => {

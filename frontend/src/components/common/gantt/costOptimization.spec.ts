@@ -5,7 +5,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
-import { buildOptimalSolutionUpdateData } from './useGanttLogic'
+import { buildOptimalSolutionUpdateData } from './costOptimizationApplyUtils'
 
 // Mock ElMessage and ElMessageBox
 vi.mock('element-plus', () => ({

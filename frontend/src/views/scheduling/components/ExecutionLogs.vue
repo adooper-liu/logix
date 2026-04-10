@@ -11,7 +11,7 @@
         <span class="log-time">{{ log.time }}</span>
         <span class="log-message">{{ log.message }}</span>
       </div>
-      <div v-if="logs.length === 0" class="log-empty">暂无日志</div>
+      <div v-if="!logs || logs.length === 0" class="log-empty">暂无日志</div>
     </div>
   </el-card>
 </template>

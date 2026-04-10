@@ -224,9 +224,6 @@ const dialogVisible = computed({
 const currentResourceType = computed(() => props.resourceType || 'warehouse')
 const currentWarehouseCode = computed(() => props.warehouseCode || '')
 const currentTruckingCompanyId = computed(() => props.truckingCompanyId || '')
-const initialDate = computed(() =>
-  props.selectedDate ? dayjs(props.selectedDate).format('YYYY-MM-DD') : ''
-)
 
 // 标题显示
 const dialogTitle = computed(() => {

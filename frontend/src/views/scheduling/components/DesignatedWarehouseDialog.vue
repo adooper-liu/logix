@@ -74,7 +74,7 @@
 
     <template #footer>
       <el-button @click="dialogVisible = false">取消</el-button>
-      <el-button type="primary" @click="handleConfirm" :loading="confirming"> 确认排产 </el-button>
+      <el-button type="primary" @click="handleConfirm" :loading="loading"> 确认排产 </el-button>
     </template>
   </el-dialog>
 </template>

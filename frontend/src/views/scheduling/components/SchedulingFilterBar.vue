@@ -123,7 +123,7 @@ defineProps<{
   unloadMode?: 'Drop off' | 'Live load' | ''
 }>()
 
-defineEmits<{
+const emit = defineEmits<{
   'show-logic': []
   preview: []
   designate: []
@@ -133,9 +133,7 @@ defineEmits<{
 }>()
 
 const handlePortChange = (portCode: string | null) => {
-  defineEmits<{
-    'port-change': [portCode: string | null]
-  }>()
+  emit('port-change', portCode)
 }
 </script>
 
