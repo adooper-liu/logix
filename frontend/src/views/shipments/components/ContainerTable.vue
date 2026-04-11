@@ -1,73 +1,20 @@
 <template>
   <el-card class="table-card">
-    <div class="table-toolbar">
-      <el-radio-group v-model="tableSize" size="small">
-        <el-radio-button value="small">紧凑</el-radio-button>
-        <el-radio-button value="default">默认</el-radio-button>
-        <el-radio-button value="large">宽松</el-radio-button>
-      </el-radio-group>
-      <span class="toolbar-label">{{ t('container.logisticsStatus') }}：</span>
-      <el-select
-        v-model="quickStatusFilter"
-        multiple
-        collapse-tags
-        collapse-tags-tooltip
-        :placeholder="t('common.all')"
-        clearable
-        size="small"
-        style="width: 220px; margin-right: 12px"
-      >
-        <el-option
-          :label="t('container.status.notShipped')"
-          :value="SimplifiedStatus.NOT_SHIPPED"
-        />
-        <el-option :label="t('container.status.shipped')" :value="SimplifiedStatus.SHIPPED" />
-        <el-option :label="t('container.status.inTransit')" :value="SimplifiedStatus.IN_TRANSIT" />
-        <el-option :label="t('container.status.arrivedAtTransit')" :value="'arrived_at_transit'" />
-        <el-option :label="t('container.status.atPort')" :value="'arrived_at_destination'" />
-        <el-option :label="t('container.status.pickedUp')" :value="SimplifiedStatus.PICKED_UP" />
-        <el-option :label="t('container.status.unloaded')" :value="SimplifiedStatus.UNLOADED" />
-        <el-option
-          :label="t('container.status.returnedEmpty')"
-          :value="SimplifiedStatus.RETURNED_EMPTY"
-        />
-      </el-select>
-      <el-checkbox v-model="alertFilter" size="small" style="margin-right: 12px">
-        <el-icon><Warning /></el-icon>
-        预警数量 > 0
-      </el-checkbox>
-      <el-button type="default" plain @click="columnSettingOpen = true">
-        <el-icon><Setting /></el-icon>
-        列设置
-      </el-button>
-      <el-button
-        type="success"
-        plain
-        :disabled="selectedRows.length === 0"
-        @click="handleBatchExport"
-      >
-        <el-icon><Download /></el-icon>
-        批量{{ t('common.export') }}
-      </el-button>
-      <!-- 甘特图按钮 -->
-      <el-button type="success" @click="goGanttChart()">
-        <el-icon><Calendar /></el-icon>
-        甘特图
-      </el-button>
-      <el-button type="primary" plain :loading="batchScheduleLoading" @click="handleBatchSchedule">
-        <el-icon><Edit /></el-icon>
-        一键排产
-      </el-button>
-      <el-button
-        type="info"
-        plain
-        :loading="demurrageWriteBackLoading"
-        @click="handleDemurrageWriteBackWrapper"
-      >
-        <el-icon><Calendar /></el-icon>
-        免费日更新
-      </el-button>
-    </div>
+    <!-- 工具栏 -->
+    <ContainerTableToolbar
+      v-model:table-size="tableSize"
+      v-model:quick-status-filter="quickStatusFilter"
+      :alert-filter="!!alertFilter"
+      :selected-rows-count="selectedRows.length"
+      :batch-schedule-loading="batchScheduleLoading"
+      :demurrage-write-back-loading="demurrageWriteBackLoading"
+      @update:alert-filter="val => { alertFilter = val }"
+      @open-column-setting="columnSettingOpen = true"
+      @batch-export="() => handleBatchExport(selectedRows)"
+      @go-gantt-chart="goGanttChart"
+      @batch-schedule="handleBatchSchedule"
+      @demurrage-write-back="handleDemurrageWriteBackWrapper"
+    />
     <el-table
       ref="tableRef"
       :data="props.data"
@@ -83,40 +30,7 @@
       <el-table-column type="selection" width="45" fixed="left" />
       <el-table-column type="expand" width="45" fixed="left">
         <template #default="{ row }">
-          <div class="table-expand-detail">
-            <div class="expand-row">
-              <!-- <span class="expand-label">目的港</span
-                ><span>{{ getDestinationPortDisplay(row) }}</span> -->
-              <span class="expand-label">到港日期</span
-              ><span>
-                {{ row.etaDestPort ? formatDate(row.etaDestPort) : '-' }} eta /
-                {{
-                  (row.etaCorrection ?? getEtaCorrection(row))
-                    ? formatDate((row.etaCorrection ?? getEtaCorrection(row)) as string | Date)
-                    : '-'
-                }}
-                rev / {{ row.ataDestPort ? formatDate(row.ataDestPort) : '-' }} ata
-              </span>
-              <!-- </div>
-              <div class="expand-row"> -->
-              <span class="expand-label">提柜日期</span
-              ><span>
-                {{ row.lastFreeDate ? formatDate(row.lastFreeDate) : '-' }} lfd /
-                {{ row.plannedPickupDate ? formatDate(row.plannedPickupDate) : '-' }} plan /
-                {{ row.pickupDate ? formatDate(row.pickupDate) : '-' }} act
-              </span>
-              <span class="expand-label">还箱日期</span
-              ><span>
-                {{ row.lastReturnDate ? formatDate(row.lastReturnDate) : '-' }} lrd /
-                {{ row.plannedReturnDate ? formatDate(row.plannedReturnDate) : '-' }} plan /
-                {{ row.returnTime ? formatDate(row.returnTime) : '-' }} act
-              </span>
-            </div>
-            <div class="expand-row">
-              <span class="expand-label">货物描述</span
-              ><span>{{ row.cargoDescription || '-' }}</span>
-            </div>
-          </div>
+          <ContainerTableRowExpand :row="row" :format-date="formatDate" />
         </template>
       </el-table-column>
       <template #empty>
@@ -710,32 +624,25 @@
     </el-table>
 
     <!-- 列设置抽屉 -->
-    <el-drawer v-model="columnSettingOpen" title="列显示设置" size="400px">
-      <div class="column-setting-body">
-        <p class="column-setting-hint">拖动列项调整顺序，勾选显示/隐藏列</p>
-        <div class="column-setting-list">
-          <div
-            v-for="key in columnOrder"
-            :key="key"
-            class="column-setting-item"
-            draggable="true"
-            @dragstart="e => handleDragStart(e, key)"
-            @dragover="handleDragOver"
-            @drop="e => handleDrop(e, key)"
-            @dragend="handleDragEnd"
-          >
-            <el-icon class="drag-handle"><ArrowDown /></el-icon>
-            <el-checkbox v-model="columnVisible[key]" @mousedown.stop :label="key">
-              {{ columnLabels[key].includes('.') ? t(columnLabels[key]) : columnLabels[key] }}
-            </el-checkbox>
-          </div>
-        </div>
-      </div>
-      <template #footer>
-        <el-button @click="resetColumnVisible">恢复默认</el-button>
-        <el-button type="primary" @click="saveColumnVisible">保存</el-button>
-      </template>
-    </el-drawer>
+    <ContainerTableColumnSettings
+      :visible="columnSettingOpen"
+      :column-visible="columnVisible"
+      :column-labels="columnLabels"
+      :all-column-keys="(columnOrder as any)"
+      @update:visible="columnSettingOpen = $event"
+      @close="columnSettingOpen = false"
+      @reset="resetColumnVisible"
+      @toggle-column="
+        (key: string) => {
+          columnVisible[key as keyof typeof columnVisible] = !columnVisible[key as keyof typeof columnVisible]
+        }
+      "
+      @drag-start="handleDragStart"
+      @drag-over="handleDragOver"
+      @drop="handleDrop"
+      @drag-end="handleDragEnd"
+      @save="saveColumnVisible"
+    />
 
     <!-- 分页 -->
     <div class="pagination-container">
@@ -754,7 +661,6 @@
 
 <!-- 集装箱表格 -->
 <script setup lang="ts">
-import SchedulingHistoryCard from '@/components/SchedulingHistoryCard.vue'
 import { useLogisticsStatus } from '@/composables/useLogisticsStatus'
 import { useShipmentsExport } from '@/composables/useShipmentsExport'
 import { useShipmentsSchedule } from '@/composables/useShipmentsSchedule'
@@ -770,20 +676,15 @@ import {
   getRowCurrencyPrefix,
 } from '@/utils/containerDisplay'
 import { getCurrentLocationText } from '@/utils/logisticsStatusMachine'
-import {
-  ArrowDown,
-  Box,
-  CircleCheck,
-  CircleClose,
-  Download,
-  Edit,
-  Warning,
-} from '@element-plus/icons-vue'
+import { Box, CircleCheck, CircleClose, Edit, Warning } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
+import ContainerTableToolbar from './ContainerTableToolbar.vue'
+import ContainerTableRowExpand from './ContainerTableRowExpand.vue'
+import ContainerTableColumnSettings from './ContainerTableColumnSettings.vue'
 
 // ==================== Props 定义 ====================
 interface Props {
@@ -896,10 +797,8 @@ const { getLogisticsStatusText, getStatusType } = useLogisticsStatus()
 
 // 使用表格相关 composable
 const {
-  loading,
   pagination,
   activeFilter,
-  tableSort,
   tableSize,
   columnOrder,
   columnVisible,
@@ -914,15 +813,13 @@ const {
   handleDragEnd,
   handleDrop,
   columnLabels,
-  SimplifiedStatus,
 } = useShipmentsTable()
 
 // 使用导出相关 composable
 const { handleBatchExport, formatDate, formatShipmentDate, customsStatusMap } = useShipmentsExport()
 
 // 使用排产相关 composable
-const { batchScheduleLoading, scheduleDialogVisible, demurrageWriteBackLoading } =
-  useShipmentsSchedule()
+const { batchScheduleLoading, demurrageWriteBackLoading } = useShipmentsSchedule()
 
 // 组件卸载标记，防止卸载后响应式更新
 const isUnmounted = ref(false)
@@ -931,21 +828,6 @@ const isUnmounted = ref(false)
 const singleFreeDateWriteBackLoading = ref<string | null>(null)
 /** 单柜「LFD 手工维护」按钮 loading（按柜号） */
 const manualLfdLoading = ref<string | null>(null)
-/** 统计卡片组折叠状态 */
-const statisticsCollapsed = ref(false)
-
-/** 排产历史记录相关 */
-const showHistoryDrawer = ref(false)
-const selectedContainerForHistory = ref<string>('')
-
-// 统计数据（从后端API获取，不依赖全量数据）
-const statisticsData = ref<{
-  statusDistribution: Record<string, number>
-  arrivalDistribution: Record<string, number>
-  pickupDistribution: Record<string, number>
-  lastPickupDistribution: Record<string, number>
-  returnDistribution: Record<string, number>
-} | null>(null)
 
 // 时间筛选（Dashboard风格的日期范围选择器）
 // 顶部时间窗口默认为本年（出运日期口径）
@@ -957,34 +839,6 @@ const shipmentDateRange = ref<[Date, Date]>([
 // 多选与批量导出
 const tableRef = ref<InstanceType<typeof import('element-plus').ElTable>>()
 const selectedRows = ref<any[]>([])
-
-// 从URL参数初始化过滤条件
-const initFiltersFromUrl = () => {
-  const route = useRoute()
-  const filterCondition = route.query.filterCondition as string
-  const startDate = route.query.startDate as string
-  const endDate = route.query.endDate as string
-
-  if (startDate && endDate) {
-    shipmentDateRange.value = [dayjs(startDate).toDate(), dayjs(endDate).toDate()]
-  }
-
-  if (filterCondition) {
-    activeFilter.value.days = filterCondition
-    // 根据过滤条件设置类型
-    if (filterCondition.includes('status')) {
-      activeFilter.value.type = '按状态'
-    } else if (filterCondition.includes('arrival')) {
-      activeFilter.value.type = '按到港'
-    } else if (filterCondition.includes('pickup')) {
-      activeFilter.value.type = '按提柜计划'
-    } else if (filterCondition.includes('last_pickup')) {
-      activeFilter.value.type = '按最晚提柜'
-    } else if (filterCondition.includes('return')) {
-      activeFilter.value.type = '按最晚还箱'
-    }
-  }
-}
 
 // ==================== 表格事件处理（向父组件发送事件）====================
 const handleSortChange = ({ prop, order }: { prop: string; order: string | null }) => {
@@ -1029,9 +883,6 @@ const viewSchedulingHistory = (container: any) => {
   emit('view-history', container)
 }
 
-// 历史记录组件引用
-const historyCardRef = ref<InstanceType<typeof SchedulingHistoryCard>>()
-
 // 编辑集装箱
 const editContainer = (container: any) => {
   // 改为 emit 事件，由父组件处理
@@ -1072,44 +923,6 @@ const handleBatchSchedule = () => {
 // 执行免费日更新（包装函数）
 const handleDemurrageWriteBackWrapper = async () => {
   emit('demurrage-writeback')
-}
-
-// 跳转到排产页面
-const goToSchedulingPage = () => {
-  scheduleDialogVisible.value = false
-
-  // 获取当前选中的货柜
-  const selectedContainerNumbers = selectedRows.value.length
-    ? selectedRows.value.map((r: any) => r.containerNumber).filter(Boolean)
-    : []
-
-  // 从选中的货柜中提取国家信息（销往国家）
-  const countryFromSelection =
-    selectedRows.value.length > 0 ? (selectedRows.value[0] as any)?.sellToCountry : undefined
-
-  // 注意：appStore 已移除，需要由父组件处理国家逻辑
-  const country = countryFromSelection || ''
-
-  const startDate = dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD')
-  const endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
-  const filterCondition = activeFilter.value.days
-  const filterLabel = getFilterLabel(filterCondition)
-
-  // 跳转到排产配置页面，并默认打开 visual 标签页
-  router.push({
-    path: '/scheduling',
-    query: {
-      tab: 'visual', // 指定打开 visual 标签页
-      country,
-      startDate,
-      endDate,
-      filterCondition,
-      filterLabel,
-      containers: selectedContainerNumbers.join(','),
-      from: 'shipments',
-      timestamp: Date.now(),
-    },
-  })
 }
 
 // 辅助函数：根据筛选条件确定时间维度

@@ -5,140 +5,12 @@ import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import {
+  mergeReturnDateIntoUpdateData,
+  mergeReturnDateWhenPickupOnlyForward,
+} from './ganttReturnDateMergeUtils'
 import { useGanttCostOptimization } from './useGanttCostOptimization'
-
-/** 按计划卸柜日与卸柜模式计算计划还箱日（与 useGanttDragOptimization / 后端 Drop off 规则一致） */
-function computePlannedReturnFromUnload(
-  finalUnloadYmd: string,
-  unloadMode: string | undefined,
-  existingReturnYmd?: string | Date | null
-): string {
-  const u = dayjs(finalUnloadYmd).startOf('day')
-  const mode = String(unloadMode || 'Live load').trim()
-  if (mode !== 'Drop off') {
-    return u.format('YYYY-MM-DD')
-  }
-  if (existingReturnYmd != null && existingReturnYmd !== '') {
-    const r = dayjs(existingReturnYmd).startOf('day')
-    const later = r.isBefore(u) ? u : r
-    return later.format('YYYY-MM-DD')
-  }
-  return u.add(1, 'day').format('YYYY-MM-DD')
-}
-
-/** 当本次 PATCH 含 plannedUnloadDate 时写入 plannedReturnDate */
-function mergeReturnDateIntoUpdateData(
-  container: Container,
-  updateData: Record<string, string>,
-  unloadMode: string | undefined
-): void {
-  if (!updateData.plannedUnloadDate) {
-    console.log('[mergeReturnDateIntoUpdateData] 跳过：updateData 中没有 plannedUnloadDate')
-    return
-  }
-
-  console.log('[mergeReturnDateIntoUpdateData] 开始计算还箱日:', {
-    newUnloadDate: updateData.plannedUnloadDate,
-    unloadMode,
-  })
-
-  const empty = container.emptyReturns?.[0]
-  const existingReturn = empty?.plannedReturnDate
-    ? dayjs(empty.plannedReturnDate).format('YYYY-MM-DD')
-    : null
-
-  console.log('[mergeReturnDateIntoUpdateData] 现有还箱日:', existingReturn)
-
-  // ✅ 关键改进：保持原有的还箱日与卸柜日的间隔
-  const oldUnload = container.warehouseOperations?.[0]?.plannedUnloadDate
-    ? dayjs(container.warehouseOperations[0].plannedUnloadDate).format('YYYY-MM-DD')
-    : null
-
-  console.log('[mergeReturnDateIntoUpdateData] 原有卸柜日:', oldUnload)
-
-  if (oldUnload && existingReturn) {
-    // 计算原有间隔天数
-    const deltaDays = dayjs(existingReturn).diff(dayjs(oldUnload), 'day')
-    console.log('[mergeReturnDateIntoUpdateData] 原有间隔天数:', deltaDays)
-
-    // 新还箱日 = 新卸柜日 + 原有间隔
-    const newReturn = dayjs(updateData.plannedUnloadDate).add(deltaDays, 'day').format('YYYY-MM-DD')
-    console.log('[mergeReturnDateIntoUpdateData] 基于间隔计算的新还箱日:', newReturn)
-
-    // ✅ Drop off 模式：还箱日不能早于卸柜日
-    const mode = String(unloadMode || 'Live load').trim()
-    if (mode === 'Drop off') {
-      const baseStr = computePlannedReturnFromUnload(
-        updateData.plannedUnloadDate,
-        unloadMode,
-        existingReturn
-      )
-      console.log('[mergeReturnDateIntoUpdateData] Drop off 基础规则计算的还箱日:', baseStr)
-
-      // 取较大值，确保不低于基础规则
-      updateData.plannedReturnDate = dayjs(newReturn).isBefore(dayjs(baseStr), 'day')
-        ? baseStr
-        : newReturn
-      console.log(
-        '[mergeReturnDateIntoUpdateData] 最终还箱日(Drop off):',
-        updateData.plannedReturnDate
-      )
-    } else {
-      // Live load: 直接使用计算的日期
-      updateData.plannedReturnDate = newReturn
-      console.log(
-        '[mergeReturnDateIntoUpdateData] 最终还箱日(Live load):',
-        updateData.plannedReturnDate
-      )
-    }
-  } else {
-    console.log('[mergeReturnDateIntoUpdateData] 没有历史数据，使用基础规则')
-    // 没有历史数据，使用基础规则
-    updateData.plannedReturnDate = computePlannedReturnFromUnload(
-      updateData.plannedUnloadDate,
-      unloadMode,
-      existingReturn
-    )
-    console.log(
-      '[mergeReturnDateIntoUpdateData] 基础规则计算的还箱日:',
-      updateData.plannedReturnDate
-    )
-  }
-}
-
-/**
- * Drop off 下仅改提柜日（送/卸未进 PATCH）时，按提柜「小→大」偏移同步计划还箱日，避免还箱条不随提柜拖动。
- * 下限不低于 computePlannedReturnFromUnload(当前卸柜日, …)。
- */
-function mergeReturnDateWhenPickupOnlyForward(
-  container: Container,
-  updateData: Record<string, string>,
-  unloadMode: string | undefined
-): void {
-  if (updateData.plannedUnloadDate) return
-  if (!updateData.plannedPickupDate) return
-  const trucking = container.truckingTransports?.[0]
-  const oldPickup = trucking?.plannedPickupDate
-    ? dayjs(trucking.plannedPickupDate).format('YYYY-MM-DD')
-    : null
-  if (!oldPickup) return
-  const newPickup = updateData.plannedPickupDate
-  const deltaDays = dayjs(newPickup).diff(dayjs(oldPickup), 'day')
-  if (deltaDays <= 0) return
-  const wh = container.warehouseOperations?.[0]?.plannedUnloadDate
-  if (!wh) return
-  const unloadYmd = dayjs(wh).format('YYYY-MM-DD')
-  const empty = container.emptyReturns?.[0]
-  const existingReturn = empty?.plannedReturnDate
-    ? dayjs(empty.plannedReturnDate).format('YYYY-MM-DD')
-    : null
-  if (!existingReturn) return
-  const shiftedStr = dayjs(existingReturn).add(deltaDays, 'day').format('YYYY-MM-DD')
-  const baseStr = computePlannedReturnFromUnload(unloadYmd, unloadMode, existingReturn)
-  updateData.plannedReturnDate = dayjs(shiftedStr).isBefore(dayjs(baseStr), 'day')
-    ? baseStr
-    : shiftedStr
-}
+import { useGanttDragAndUpdate } from './useGanttDragAndUpdate'
 
 /**
  * 甘特图核心逻辑抽离
@@ -296,12 +168,12 @@ export function useGanttLogic() {
     if (container.portOperations && container.portOperations.length > 0) {
       const destPortOp = container.portOperations.find((op: any) => op.portType === 'destination')
       if (destPortOp?.lastFreeDate) {
-        // ========== 调试代码 ==========
-        console.log('[useGanttLogic] 找到 lastFreeDate:', {
-          containerNumber: container.containerNumber,
-          portType: destPortOp.portType,
-          lastFreeDate: destPortOp.lastFreeDate,
-        })
+        // ========== 调试代码（已禁用，日志太多）==========
+        // console.log('[useGanttLogic] 找到 lastFreeDate:', {
+        //   containerNumber: container.containerNumber,
+        //   portType: destPortOp.portType,
+        //   lastFreeDate: destPortOp.lastFreeDate,
+        // })
         // ============================
         return destPortOp.lastFreeDate
       }
@@ -315,14 +187,14 @@ export function useGanttLogic() {
   const getContainerAlerts = (container: Container): AlertRule[] => {
     const alerts = alertRules.filter(rule => rule.condition(container))
 
-    // ========== 调试代码 ==========
-    if (alerts.length > 0) {
-      console.log('[Alert] 货柜有预警:', {
-        containerNumber: container.containerNumber,
-        logisticsStatus: container.logisticsStatus,
-        alerts: alerts.map(a => ({ name: a.name, level: a.level, message: a.message })),
-      })
-    }
+    // ========== 调试代码（已禁用，日志太多）==========
+    // if (alerts.length > 0) {
+    //   console.log('[Alert] 货柜有预警:', {
+    //     containerNumber: container.containerNumber,
+    //     logisticsStatus: container.logisticsStatus,
+    //     alerts: alerts.map(a => ({ name: a.name, level: a.level, message: a.message })),
+    //   })
+    // }
     // ============================
 
     return alerts
@@ -507,7 +379,11 @@ export function useGanttLogic() {
     }
 
     // 查验节点 - 清关行（与清关使用相同供应商）
-    if (container.inspectionRequired && container.portOperations?.length > 0) {
+    if (
+      container.inspectionRequired &&
+      container.portOperations &&
+      container.portOperations.length > 0
+    ) {
       const destPortOp = container.portOperations.find(op => op.portType === 'destination')
       const customsSupplier = destPortOp?.customsBrokerCode || destPortOp?.customsBroker
       if (customsSupplier) {
@@ -576,19 +452,27 @@ export function useGanttLogic() {
       // 运输计划日期（泳道日期）
       if (container.truckingTransports && container.truckingTransports.length > 0) {
         const transport = container.truckingTransports[0]
-        if (transport.plannedCustomsDate) dates.push(new Date(transport.plannedCustomsDate))
         if (transport.plannedPickupDate) dates.push(new Date(transport.plannedPickupDate))
         if (transport.plannedDeliveryDate) dates.push(new Date(transport.plannedDeliveryDate))
-        if (transport.plannedUnloadDate) dates.push(new Date(transport.plannedUnloadDate))
-        if (transport.plannedReturnDate) dates.push(new Date(transport.plannedReturnDate))
       }
 
-      // 直接在货柜上的计划日期
-      if (container.plannedCustomsDate) dates.push(new Date(container.plannedCustomsDate))
-      if (container.plannedPickupDate) dates.push(new Date(container.plannedPickupDate))
-      if (container.plannedDeliveryDate) dates.push(new Date(container.plannedDeliveryDate))
-      if (container.plannedUnloadDate) dates.push(new Date(container.plannedUnloadDate))
-      if (container.plannedReturnDate) dates.push(new Date(container.plannedReturnDate))
+      // 港口操作计划日期
+      if (container.portOperations && container.portOperations.length > 0) {
+        const portOp = container.portOperations[0]
+        if (portOp.plannedCustomsDate) dates.push(new Date(portOp.plannedCustomsDate))
+      }
+
+      // 仓库操作计划日期
+      if (container.warehouseOperations && container.warehouseOperations.length > 0) {
+        const warehouseOp = container.warehouseOperations[0]
+        if (warehouseOp.plannedUnloadDate) dates.push(new Date(warehouseOp.plannedUnloadDate))
+      }
+
+      // 还箱计划日期
+      if (container.emptyReturns && container.emptyReturns.length > 0) {
+        const emptyReturn = container.emptyReturns[0]
+        if (emptyReturn.plannedReturnDate) dates.push(new Date(emptyReturn.plannedReturnDate))
+      }
 
       // 更新最小和最大日期
       dates.forEach(date => {
@@ -1131,7 +1015,7 @@ export function useGanttLogic() {
   }
 
   /**
-   * ✅ 快速更新操作（不触发成本优化）
+   * ✅ 执行快速更新操作（不触发成本优化）
    */
   const executeQuickUpdate = async (container: Container, updateData: Record<string, string>) => {
     try {
@@ -1174,7 +1058,6 @@ export function useGanttLogic() {
     }
   }
 
-  // 🎯 初始化成本优化 composable
   const {
     showOptimizationPanel,
     optimizationResult,
@@ -1189,8 +1072,30 @@ export function useGanttLogic() {
     executeQuickUpdate,
   })
 
+  const {
+    draggingContainer,
+    draggingNodeName,
+    dragOverDate,
+    dropIndicatorPosition,
+    dropIndicatorCellRect,
+    pendingDropConfirm,
+    NODE_TO_FIELD_MAP,
+    handleDragStart,
+    handleDragEnd,
+    handleDrop,
+    cleanupDragState,
+    executeUpdateWithData,
+  } = useGanttDragAndUpdate({
+    containers,
+    loadData,
+    executeQuickUpdate,
+    hideTooltip,
+    showContextMenu,
+    groupedByPortNodeSupplier,
+  })
+
   /**
-   * ✅ 执行更新操作（支持多个字段）
+   * ✅ 执行更新操作（支持多个字段，包含成本优化）
    */
   const executeUpdateWithData = async (
     container: Container,
@@ -1239,6 +1144,11 @@ export function useGanttLogic() {
           duration: 2000,
         })
         await loadData()
+
+        // 🎯 如果更新的是提柜日或卸柜日，调用成本优化 API（带防抖）
+        if (updateData.plannedPickupDate || updateData.plannedUnloadDate) {
+          debouncedTriggerCostOptimization(container, updateData)
+        }
       } else {
         console.error('[executeUpdateWithData] 更新失败:', result)
         handleUpdateError(result)
@@ -1908,7 +1818,7 @@ export function useGanttLogic() {
   onUnmounted(() => {
     document.removeEventListener('dragover', handleDragOver)
     document.removeEventListener('drop', handleGlobalDrop)
-    // 🎯 清理成本优化定时器
+
     disposeCostOptimization()
   })
 
@@ -1997,11 +1907,11 @@ export function useGanttLogic() {
     exportData,
     handleDragOver,
     handleGlobalDrop,
-    // 🎯 成本优化
+    // 🎯 成本优化相关
     showOptimizationPanel,
     optimizationResult,
     closeOptimizationPanel,
     applyOptimalSolution,
-    debouncedTriggerCostOptimization,
+    debouncedTriggerCostOptimization, // 🎯 防抖版本（供外部调用）
   }
 }

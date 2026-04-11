@@ -5,7 +5,6 @@ import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useGanttCostOptimization } from './useGanttCostOptimization'
 
 /** 按计划卸柜日与卸柜模式计算计划还箱日（与 useGanttDragOptimization / 后端 Drop off 规则一致） */
 function computePlannedReturnFromUnload(
@@ -1089,105 +1088,24 @@ export function useGanttLogic() {
 
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          ElMessageBox({
-            title: '确认调整日期',
-            message: confirmMsg,
-            showCancelButton: true,
-            confirmButtonText: '智能优化',
-            cancelButtonText: '快速更新',
-            distinguishCancelAndClose: true,
+          ElMessageBox.confirm(confirmMsg, '确认调整日期', {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
             type: 'warning',
-            beforeClose: async (action, instance, done) => {
-              console.log('[handleDragEnd] 用户操作:', action)
-
-              if (action === 'confirm') {
-                // 用户选择智能优化：先调用成本优化 API，显示优化面板
-                console.log('[handleDragEnd] 用户选择智能优化')
-                instance.confirmButtonLoading = true
-                instance.confirmButtonText = '计算中...'
-
-                try {
-                  await executeSmartOptimize(container, finalUpdateData)
-                } finally {
-                  instance.confirmButtonLoading = false
-                  instance.confirmButtonText = '智能优化'
-                  done()
-                }
-              } else if (action === 'cancel') {
-                // 用户选择快速更新：直接更新，不触发成本优化
-                console.log('[handleDragEnd] 用户选择快速更新')
-                await executeQuickUpdate(container, finalUpdateData)
-                done()
-              } else {
-                // 用户关闭对话框
-                console.log('[handleDragEnd] 用户关闭对话框')
-                done()
-              }
-            },
           })
+            .then(async () => {
+              await executeUpdateWithData(container, finalUpdateData)
+            })
+            .catch((err: unknown) => {
+              if (err !== 'cancel') {
+                console.error('[handleDragEnd] Confirm error:', err)
+                ElMessage.error('操作失败：' + (err as Error).message)
+              }
+            })
         })
       })
     }
   }
-
-  /**
-   * ✅ 快速更新操作（不触发成本优化）
-   */
-  const executeQuickUpdate = async (container: Container, updateData: Record<string, string>) => {
-    try {
-      console.log('[executeQuickUpdate] ========== 快速更新开始 ==========')
-      console.log('[executeQuickUpdate] 货柜号:', container.containerNumber)
-      console.log('[executeQuickUpdate] 更新数据:', JSON.stringify(updateData))
-
-      const trucking0 = container.truckingTransports?.[0]
-      const warehouse0 = container.warehouseOperations?.[0]
-      const um = trucking0?.unloadModePlan || warehouse0?.unloadModePlan
-
-      // ✅ 只有当卸柜日被更新时，才重算还箱日
-      if (updateData.plannedUnloadDate) {
-        console.log('[executeQuickUpdate] 检测到卸柜日更新，重算还箱日')
-        mergeReturnDateIntoUpdateData(container, updateData, um)
-      } else {
-        console.log('[executeQuickUpdate] 卸柜日未更新，跳过还箱日重算')
-      }
-
-      console.log('[executeQuickUpdate] 最终更新数据:', JSON.stringify(updateData))
-
-      const result = await containerService.updateSchedule(container.containerNumber, updateData)
-
-      if (result.success) {
-        ElMessage.success({
-          message: '日期调整成功',
-          duration: 2000,
-        })
-        await loadData()
-        // 🎯 快速更新不触发成本优化
-        console.log('[executeQuickUpdate] 快速更新完成，未触发成本优化')
-      } else {
-        console.error('[executeQuickUpdate] 更新失败:', result)
-        handleUpdateError(result)
-      }
-    } catch (error: any) {
-      console.error('[executeQuickUpdate] 异常:', error)
-      console.error('[executeQuickUpdate] 响应数据:', error.response?.data)
-      handleUpdateException(error)
-    }
-  }
-
-  // 🎯 初始化成本优化 composable
-  const {
-    showOptimizationPanel,
-    optimizationResult,
-    executeSmartOptimize,
-    debouncedTriggerCostOptimization,
-    closeOptimizationPanel,
-    applyOptimalSolution,
-    disposeCostOptimization,
-  } = useGanttCostOptimization({
-    containers,
-    loadData,
-    executeQuickUpdate,
-  })
 
   /**
    * ✅ 执行更新操作（支持多个字段）
@@ -1908,8 +1826,6 @@ export function useGanttLogic() {
   onUnmounted(() => {
     document.removeEventListener('dragover', handleDragOver)
     document.removeEventListener('drop', handleGlobalDrop)
-    // 🎯 清理成本优化定时器
-    disposeCostOptimization()
   })
 
   return {
@@ -1997,11 +1913,5 @@ export function useGanttLogic() {
     exportData,
     handleDragOver,
     handleGlobalDrop,
-    // 🎯 成本优化
-    showOptimizationPanel,
-    optimizationResult,
-    closeOptimizationPanel,
-    applyOptimalSolution,
-    debouncedTriggerCostOptimization,
   }
 }
