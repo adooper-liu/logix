@@ -1,7 +1,7 @@
 <template>
   <div class="gantt-drag-test">
     <h2>甘特图拖拽 Composable 测试</h2>
-    
+
     <!-- 状态显示 -->
     <div class="status-panel">
       <h3>当前状态</h3>
@@ -35,7 +35,7 @@
     <!-- 测试区域 -->
     <div class="test-area">
       <h3>拖拽测试</h3>
-      
+
       <!-- 模拟货柜列表 -->
       <div class="container-list">
         <div
@@ -85,10 +85,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
 import type { Container } from '@/types/container'
-import { useGanttDragAndUpdate } from './useGanttDragAndUpdate'
 import dayjs from 'dayjs'
+import { ref } from 'vue'
+import { useGanttDragAndUpdate } from './useGanttDragAndUpdate'
 
 // 测试数据
 const testContainers = ref<Container[]>([

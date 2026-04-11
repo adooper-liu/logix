@@ -1,16 +1,16 @@
 /**
  * useGanttDragAndUpdate Composable 单元测试
- * 
+ *
  * 测试目标：
  * 1. 验证拖拽状态管理正确
  * 2. 验证字段映射表完整
  * 3. 验证辅助函数逻辑正确
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import type { Container } from '@/types/container'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ref } from 'vue'
 import { useGanttDragAndUpdate } from './useGanttDragAndUpdate'
-import type { Container } from '@/types/container'
 
 describe('useGanttDragAndUpdate', () => {
   // Mock 依赖
@@ -34,7 +34,7 @@ describe('useGanttDragAndUpdate', () => {
     vi.clearAllMocks()
     mockContainers.value = []
     mockShowContextMenu.value = false
-    
+
     // 创建 composable 实例
     composable = useGanttDragAndUpdate(options)
   })
@@ -129,10 +129,7 @@ describe('useGanttDragAndUpdate', () => {
       expect(composable.draggingContainer.value).toStrictEqual(mockContainer)
       expect(composable.draggingNodeName.value).toBe('提柜')
       expect(mockHideTooltip).toHaveBeenCalled()
-      expect(mockEvent.dataTransfer?.setData).toHaveBeenCalledWith(
-        'text/plain',
-        'TEST123'
-      )
+      expect(mockEvent.dataTransfer?.setData).toHaveBeenCalledWith('text/plain', 'TEST123')
       expect(mockEvent.dataTransfer?.setData).toHaveBeenCalledWith(
         'application/x-logix-node',
         '提柜'
@@ -159,7 +156,7 @@ describe('useGanttDragAndUpdate', () => {
   describe('边界情况', () => {
     it('handleDrop 在没有拖拽容器时应该直接返回', () => {
       const mockDate = new Date('2026-04-10')
-      
+
       // 不应该抛出错误
       expect(() => {
         composable.handleDrop(mockDate, '提柜')
@@ -168,9 +165,9 @@ describe('useGanttDragAndUpdate', () => {
 
     it('handleDrop 在没有 dragOverDate 时应该直接返回', () => {
       composable.draggingContainer.value = {} as Container
-      
+
       const mockDate = new Date('2026-04-10')
-      
+
       expect(() => {
         composable.handleDrop(mockDate, '提柜')
       }).not.toThrow()

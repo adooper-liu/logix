@@ -1,6 +1,10 @@
 <template>
   <div class="table-toolbar">
-    <el-radio-group :model-value="tableSize" size="small" @update:model-value="$emit('update:tableSize', $event)">
+    <el-radio-group
+      :model-value="tableSize"
+      size="small"
+      @update:model-value="$emit('update:tableSize', $event)"
+    >
       <el-radio-button value="small">紧凑</el-radio-button>
       <el-radio-button value="default">默认</el-radio-button>
       <el-radio-button value="large">宽松</el-radio-button>
@@ -17,10 +21,7 @@
       style="width: 220px; margin-right: 12px"
       @update:model-value="$emit('update:quickStatusFilter', $event)"
     >
-      <el-option
-        :label="t('container.status.notShipped')"
-        :value="SimplifiedStatus.NOT_SHIPPED"
-      />
+      <el-option :label="t('container.status.notShipped')" :value="SimplifiedStatus.NOT_SHIPPED" />
       <el-option :label="t('container.status.shipped')" :value="SimplifiedStatus.SHIPPED" />
       <el-option :label="t('container.status.inTransit')" :value="SimplifiedStatus.IN_TRANSIT" />
       <el-option :label="t('container.status.arrivedAtTransit')" :value="'arrived_at_transit'" />
@@ -58,12 +59,7 @@
       <el-icon><Calendar /></el-icon>
       甘特图
     </el-button>
-    <el-button
-      type="primary"
-      plain
-      :loading="batchScheduleLoading"
-      @click="$emit('batchSchedule')"
-    >
+    <el-button type="primary" plain :loading="batchScheduleLoading" @click="$emit('batchSchedule')">
       <el-icon><Edit /></el-icon>
       一键排产
     </el-button>
@@ -80,9 +76,9 @@
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n'
-import { Warning, Setting, Download, Calendar, Edit } from '@element-plus/icons-vue'
 import { SimplifiedStatus } from '@/utils/logisticsStatusMachine'
+import { Calendar, Download, Edit, Setting, Warning } from '@element-plus/icons-vue'
+import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 

@@ -16,12 +16,7 @@
           {{ node.description }}
         </span>
         <span v-if="node.isAlert" class="alert-badge">异常</span>
-        <el-tag
-          v-if="isEstimatedNode"
-          size="small"
-          type="warning"
-          class="estimated-tag"
-        >
+        <el-tag v-if="isEstimatedNode" size="small" type="warning" class="estimated-tag">
           预计
         </el-tag>
       </div>
@@ -33,12 +28,7 @@
           >{{ node.location.name }} ({{ node.location.code }})</span
         >
       </div>
-      <el-tag
-        v-if="dataSource"
-        :type="dataSourceTagType"
-        size="small"
-        class="stage-ds-tag"
-      >
+      <el-tag v-if="dataSource" :type="dataSourceTagType" size="small" class="stage-ds-tag">
         {{ dataSourceLabel }}
       </el-tag>
     </div>
@@ -46,8 +36,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
 import type { StatusNode } from '@/services/logisticsPath'
+import { computed } from 'vue'
 
 const props = defineProps<{
   node: StatusNode

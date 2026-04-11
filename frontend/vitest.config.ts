@@ -1,7 +1,7 @@
-import { defineConfig } from 'vitest/config';
-import vue from '@vitejs/plugin-vue';
-import vueJsx from '@vitejs/plugin-vue-jsx';
-import { resolve } from 'path';
+import { defineConfig } from 'vitest/config'
+import vue from '@vitejs/plugin-vue'
+import vueJsx from '@vitejs/plugin-vue-jsx'
+import { resolve } from 'path'
 
 export default defineConfig({
   plugins: [vue(), vueJsx()],
@@ -14,7 +14,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
       include: ['src/**/*.ts', 'src/**/*.vue'],
-      exclude: ['src/**/*.d.ts', 'src/main.ts']
+      exclude: ['src/**/*.d.ts', 'src/main.ts'],
     },
     setupFiles: ['./src/test/setup.ts'],
   },
@@ -24,4 +24,4 @@ export default defineConfig({
       '@shared': resolve(__dirname, '../shared/src'),
     },
   },
-});
+})

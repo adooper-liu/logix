@@ -1,12 +1,12 @@
 /**
  * useGanttDragAndUpdate Composable 使用示例
- * 
+ *
  * 此文件展示如何在 Vue 组件中使用新的拖拽 composable
  * 用于验证新 composable 的 API 设计和功能完整性
  */
 
-import { ref } from 'vue'
 import type { Container } from '@/types/container'
+import { ref } from 'vue'
 import { useGanttDragAndUpdate } from './useGanttDragAndUpdate'
 
 /**
@@ -73,26 +73,18 @@ export function useDragExample() {
  */
 export function useDragWithQuickUpdate() {
   const containers = ref<Container[]>([])
-  
+
   const loadData = async () => {
     // 实际的数据加载逻辑
     console.log('加载货柜数据...')
   }
 
-  const executeQuickUpdate = async (
-    container: Container,
-    updateData: Record<string, string>
-  ) => {
+  const executeQuickUpdate = async (container: Container, updateData: Record<string, string>) => {
     console.log('快速更新:', container.containerNumber, updateData)
     // 实际的 API 调用
   }
 
-  const {
-    draggingContainer,
-    handleDragStart,
-    handleDragEnd,
-    handleDrop,
-  } = useGanttDragAndUpdate({
+  const { draggingContainer, handleDragStart, handleDragEnd, handleDrop } = useGanttDragAndUpdate({
     containers,
     loadData,
     executeQuickUpdate, // 传入快速更新函数
@@ -111,7 +103,7 @@ export function useDragWithQuickUpdate() {
 
 /**
  * 示例 3: 在模板中的使用方式
- * 
+ *
  * ```vue
  * <template>
  *   <!-- 拖拽目标区域 -->
@@ -133,7 +125,7 @@ export function useDragWithQuickUpdate() {
  *       {{ container.containerNumber }}
  *     </div>
  *   </div>
- *   
+ *
  *   <!-- 放置指示器 -->
  *   <div
  *     v-if="dragOverDate"
@@ -144,10 +136,10 @@ export function useDragWithQuickUpdate() {
  *     class="drop-indicator"
  *   />
  * </template>
- * 
+ *
  * <script setup lang="ts">
  * import { useDragExample } from './useGanttDragAndUpdate.example'
- * 
+ *
  * const {
  *   draggingContainer,
  *   dragOverDate,
@@ -156,7 +148,7 @@ export function useDragWithQuickUpdate() {
  *   handleDragEnd,
  *   handleDrop,
  * } = useDragExample()
- * 
+ *
  * const handleDragOver = (event: DragEvent) => {
  *   // 处理拖拽悬停
  * }

@@ -25,9 +25,9 @@
 </template>
 
 <script setup lang="ts">
+import type { StatusNode, StatusPath } from '@/services/logisticsPath'
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { StatusNode, StatusPath } from '@/services/logisticsPath'
 import PathMilestoneCard from './PathMilestoneCard.vue'
 
 const { t } = useI18n()

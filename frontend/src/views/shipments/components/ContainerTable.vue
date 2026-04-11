@@ -8,7 +8,11 @@
       :selected-rows-count="selectedRows.length"
       :batch-schedule-loading="batchScheduleLoading"
       :demurrage-write-back-loading="demurrageWriteBackLoading"
-      @update:alert-filter="val => { alertFilter = val }"
+      @update:alert-filter="
+        val => {
+          alertFilter = val
+        }
+      "
       @open-column-setting="columnSettingOpen = true"
       @batch-export="() => handleBatchExport(selectedRows)"
       @go-gantt-chart="goGanttChart"
@@ -628,13 +632,14 @@
       :visible="columnSettingOpen"
       :column-visible="columnVisible"
       :column-labels="columnLabels"
-      :all-column-keys="(columnOrder as any)"
+      :all-column-keys="columnOrder as any"
       @update:visible="columnSettingOpen = $event"
       @close="columnSettingOpen = false"
       @reset="resetColumnVisible"
       @toggle-column="
         (key: string) => {
-          columnVisible[key as keyof typeof columnVisible] = !columnVisible[key as keyof typeof columnVisible]
+          columnVisible[key as keyof typeof columnVisible] =
+            !columnVisible[key as keyof typeof columnVisible]
         }
       "
       @drag-start="handleDragStart"
@@ -682,9 +687,9 @@ import { ElMessage } from 'element-plus'
 import { onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
-import ContainerTableToolbar from './ContainerTableToolbar.vue'
-import ContainerTableRowExpand from './ContainerTableRowExpand.vue'
 import ContainerTableColumnSettings from './ContainerTableColumnSettings.vue'
+import ContainerTableRowExpand from './ContainerTableRowExpand.vue'
+import ContainerTableToolbar from './ContainerTableToolbar.vue'
 
 // ==================== Props 定义 ====================
 interface Props {

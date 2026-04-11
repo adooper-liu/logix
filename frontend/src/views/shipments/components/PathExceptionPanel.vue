@@ -20,9 +20,7 @@
         }}
       </span>
       <template v-if="validationResult.errors?.length">
-        <span class="validation-label"
-          >{{ t('container.logisticsPath.validation.errors') }}：</span
-        >
+        <span class="validation-label">{{ t('container.logisticsPath.validation.errors') }}：</span>
         <span class="validation-text validation-errors">{{
           validationResult.errors.join('；')
         }}</span>
