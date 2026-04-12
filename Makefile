@@ -1,4 +1,4 @@
-.PHONY: help tsdb-up tsdb-down tsdb-logs tsdb-restart tsdb-clean tsdb-info tsdb-db prod-up prod-down prod-logs build rebuild clean logs restart health backup restore
+.PHONY: help tsdb-up tsdb-down tsdb-logs tsdb-restart tsdb-clean tsdb-info tsdb-db prod-up prod-down prod-logs prod-local-demo build rebuild clean logs restart health backup restore
 
 # 默认目标
 help:
@@ -17,6 +17,7 @@ help:
 	@echo "  make prod-up    - 启动生产环境"
 	@echo "  make prod-down  - 停止生产环境"
 	@echo "  make prod-logs  - 查看生产环境日志"
+	@echo "  make prod-local-demo - 本地演示生产栈（需先 cd frontend && npm run build）"
 	@echo ""
 	@echo "数据库操作:"
 	@echo "  make db-migrate  - 运行数据库迁移"
@@ -103,6 +104,10 @@ prod-down:
 prod-logs:
 	@echo "查看生产环境日志..."
 	docker-compose -f docker-compose.timescaledb.prod.yml logs -f backend
+
+prod-local-demo:
+	@echo "启动本地生产栈演示（叠加 docker-compose.prod.local-demo.yml，挂载 frontend/dist）..."
+	docker compose -f docker-compose.timescaledb.prod.yml -f docker-compose.prod.local-demo.yml --env-file .env up -d --build
 
 # ========== 数据库操作 ==========
 

@@ -72,8 +72,8 @@ services:
   # Backend API Service (Development Mode - Hot Reload)
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: backend/Dockerfile.dev
     container_name: logix-backend-timescaledb-dev
     restart: unless-stopped
     depends_on:

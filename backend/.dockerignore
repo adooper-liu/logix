@@ -2,7 +2,7 @@
 node_modules
 npm-debug.log
 dist
-.env
+# .env 不忽略，生产环境需要
 .git
 .gitignore
 README.md

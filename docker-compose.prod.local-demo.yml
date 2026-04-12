@@ -1,0 +1,17 @@
+# 本地演示正式 Compose 栈时使用（与 docker-compose.timescaledb.prod.yml 叠加）
+# 用法见 scripts/local-prod-demo.ps1 或文档说明
+#
+# docker compose -f docker-compose.timescaledb.prod.yml -f docker-compose.prod.local-demo.yml --env-file .env up -d --build
+
+services:
+  elasticsearch:
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: ${ES_SECURITY_ENABLED:-false}
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+
+  nginx:
+    volumes:
+      - ./nginx/nginx.local-demo.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./frontend/dist:/usr/share/nginx/html:ro

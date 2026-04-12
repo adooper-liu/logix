@@ -117,12 +117,12 @@ const loadData = async () => {
   const now = Date.now()
   if (now - dataCache.value.lastLoaded < dataCache.value.cacheDuration && dataCache.value.stats) {
     // 使用缓存数据
-    stats.value = dataCache.value.stats
-    statusData.value = dataCache.value.statusData
-    yearlyData.value = dataCache.value.yearlyData
-    demurrageSummary.value = dataCache.value.demurrageSummary
-    alertDetails.value = dataCache.value.alertDetails
-    statusDistribution.value = dataCache.value.statusDistribution
+    stats.value = dataCache.value.stats!
+    statusData.value = dataCache.value.statusData!
+    yearlyData.value = dataCache.value.yearlyData!
+    demurrageSummary.value = dataCache.value.demurrageSummary!
+    alertDetails.value = dataCache.value.alertDetails!
+    statusDistribution.value = dataCache.value.statusDistribution!
     return
   }
 
@@ -222,6 +222,7 @@ const loadData = async () => {
         activeContainers: 0,
         completedContainers: 0,
         alertContainers: 0,
+        dumpedContainers: 0,
       }
     }
 

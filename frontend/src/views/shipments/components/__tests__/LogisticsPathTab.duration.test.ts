@@ -3,6 +3,8 @@
  * Test cases for elapsed time and overdue duration calculation
  */
 
+import { describe, it, expect } from 'vitest'
+
 describe('LogisticsPathTab - Duration Calculation', () => {
   describe('getElapsedDuration', () => {
     it('should calculate elapsed time between two nodes', () => {
@@ -27,7 +29,7 @@ describe('LogisticsPathTab - Duration Calculation', () => {
       // 测试：正好24小时
       // 预期：24小时归入天数，显示为 1天0小时
       const days = Math.floor(24 / 24)
-      const hours = Math.round(24 % 24)
+      let hours = Math.round(24 % 24)
       if (hours === 24) {
         hours = 0
       }
@@ -85,7 +87,7 @@ describe('LogisticsPathTab - Duration Calculation', () => {
     })
 
     it('should return true when node is last', () => {
-      const nodeStatus = 'COMPLETED'
+      const nodeStatus = 'COMPLETED' as string
       const nodeIndex = 9
       const totalNodes = 10
       const isCurrent = nodeStatus === 'IN_PROGRESS' || nodeIndex === totalNodes - 1
@@ -93,7 +95,7 @@ describe('LogisticsPathTab - Duration Calculation', () => {
     })
 
     it('should return false when not current', () => {
-      const nodeStatus = 'COMPLETED'
+      const nodeStatus = 'COMPLETED' as string
       const nodeIndex = 5
       const totalNodes = 10
       const isCurrent = nodeStatus === 'IN_PROGRESS' || nodeIndex === totalNodes - 1

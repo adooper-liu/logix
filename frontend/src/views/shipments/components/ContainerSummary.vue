@@ -36,7 +36,7 @@ const logisticsStatusTag = computed(() => {
     (c.latestPortOperation?.portType as PortType | undefined) ||
     null
   const text = getLogisticsStatusText(c.logisticsStatus, portType)
-  let tagType = getLogisticsStatusType(c.logisticsStatus)
+  let tagType = getLogisticsStatusType(c.logisticsStatus) as any
   if (tagType === 'primary') {
     tagType = 'success'
   }

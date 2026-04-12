@@ -137,11 +137,11 @@ watch(
         :initial-data="{
           plannedCustomsDate: containerData?.portOperations?.find(
             (p: any) => p.portType === 'destination'
-          )?.plannedCustomsDate,
-          plannedPickupDate: containerData?.truckingTransports?.[0]?.plannedPickupDate,
-          plannedDeliveryDate: containerData?.truckingTransports?.[0]?.plannedDeliveryDate,
-          plannedUnloadDate: containerData?.warehouseOperations?.[0]?.plannedUnloadDate,
-          plannedReturnDate: containerData?.emptyReturns?.[0]?.plannedReturnDate,
+          )?.plannedCustomsDate?.toISOString(),
+          plannedPickupDate: containerData?.truckingTransports?.[0]?.plannedPickupDate?.toISOString(),
+          plannedDeliveryDate: containerData?.truckingTransports?.[0]?.plannedDeliveryDate?.toISOString(),
+          plannedUnloadDate: containerData?.warehouseOperations?.[0]?.plannedUnloadDate?.toISOString(),
+          plannedReturnDate: containerData?.emptyReturns?.[0]?.plannedReturnDate?.toISOString(),
           truckingCompanyId: containerData?.truckingTransports?.[0]?.truckingCompanyId,
           customsBrokerCode: containerData?.portOperations?.find(
             (p: any) => p.portType === 'destination'
@@ -217,14 +217,14 @@ watch(
               <el-tab-pane label="海运信息" name="seafreight" lazy>
                 <div class="tab-content">
                   <SeaFreightInfo
-                    :sea-freights="containerData.seaFreight"
-                    :destination-port-operation="destinationPortOperation"
+                    :sea-freights="containerData.seaFreight ? [containerData.seaFreight] : undefined"
+                    :destination-port-operation="destinationPortOperation as any"
                   />
                 </div>
               </el-tab-pane>
               <el-tab-pane label="港口操作" name="port" lazy>
                 <div class="tab-content">
-                  <PortOperations :port-operations="containerData.portOperations" />
+                  <PortOperations :port-operations="containerData.portOperations as any" />
                 </div>
               </el-tab-pane>
               <el-tab-pane label="拖卡运输" name="trucking" lazy>

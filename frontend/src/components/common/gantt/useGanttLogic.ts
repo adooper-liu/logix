@@ -507,7 +507,7 @@ export function useGanttLogic() {
     }
 
     // 查验节点 - 清关行（与清关使用相同供应商）
-    if (container.inspectionRequired && container.portOperations?.length > 0) {
+    if (container.inspectionRequired && container.portOperations?.length) {
       const destPortOp = container.portOperations.find(op => op.portType === 'destination')
       const customsSupplier = destPortOp?.customsBrokerCode || destPortOp?.customsBroker
       if (customsSupplier) {
@@ -1352,7 +1352,7 @@ export function useGanttLogic() {
     let targetNode = nodeName ?? draggingNodeName.value ?? undefined
 
     if (!targetNode) {
-      targetNode = inferNodeFromGroupedStructure(container)
+      targetNode = inferNodeFromGroupedStructure(container) || undefined
     }
 
     // 如果还是无法确定，使用默认值

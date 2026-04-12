@@ -8,7 +8,7 @@ import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Position, isNode, isEdge } from '@vue-flow/core'
 import '@vue-flow/core/dist/style.css'
 import '@vue-flow/core/dist/theme-default.css'
-import { Controls, Background } from '@vue-flow/additional-components'
+import { Controls, Background, PanelPosition } from '@vue-flow/additional-components'
 
 // 路由参数
 const route = useRoute()
@@ -126,7 +126,8 @@ const syncToVueFlow = () => {
   const edgesChanged = JSON.stringify(edges.value) !== JSON.stringify(flowEdges)
 
   if (nodesChanged) {
-    nodes.value = flowNodes
+    // 与 useVueFlow 内部 GraphNode 形状对齐：由 Flow 在交互中补全 isParent/selected 等字段
+    nodes.value = flowNodes as unknown as (typeof nodes.value)
   }
 
   if (edgesChanged) {
@@ -181,6 +182,13 @@ const handleEdgesChange = (changes: any) => {
       // 可以在这里记录新边，但不更新状态
     }
   })
+}
+
+function handleFlowNodeClick(event: { node: { id: string } }) {
+  const flowNode = editingFlow.value?.nodes?.find((n: FlowNode) => n.id === event.node?.id)
+  if (flowNode) {
+    selectedNode.value = flowNode
+  }
 }
 
 // 监听节点属性变化，同步到Vue Flow
@@ -458,17 +466,10 @@ const cancel = () => {
             @connect="handleConnect"
             @nodes-change="handleNodesChange"
             @edges-change="handleEdgesChange"
-            @node-click="
-              event => {
-                const flowNode = editingFlow.value?.nodes?.find(n => n.id === event.node?.id)
-                if (flowNode) {
-                  selectedNode.value = flowNode
-                }
-              }
-            "
+            @node-click="handleFlowNodeClick"
           >
-            <Controls position="top-right" />
-            <Background color="#f8f9fa" gap="20" />
+            <Controls :position="PanelPosition.TopRight" />
+            <Background color="#f8f9fa" :gap="20" />
           </VueFlow>
         </div>
       </div>

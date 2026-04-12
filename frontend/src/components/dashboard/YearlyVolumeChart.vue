@@ -26,7 +26,7 @@ const LINE_COLORS = ['#409EFF', '#E6A23C', '#67C23A', '#909399', '#F56C6C', '#00
 const updateChart = () => {
   if (!chartInstance) return
 
-  const option: echarts.ComposeOption = {
+  const option: echarts.EChartsCoreOption = {
     tooltip: {
       trigger: 'axis',
       backgroundColor: 'rgba(255,255,255,0.96)',

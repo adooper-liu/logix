@@ -114,7 +114,7 @@ INSERT INTO dict_container_types (type_code, type_name_cn, type_name_en, size_ft
 ('40SN', '40 英尺牲畜集装箱', '40'' Livestock Container', 40, '40SN', '40 英尺牲畜箱', '12.03x2.35x2.39', 26000.00, 65.00, 2.00, 34, true),
 ('20AW', '20 英尺汽车集装箱', '20'' Auto Rack Container', 20, '20AW', '20 英尺汽车箱', '5.90x2.35x2.39', 24000.00, 32.00, 1.00, 35, true),
 ('40AW', '40 英尺汽车集装箱', '40'' Auto Rack Container', 40, '40AW', '40 英尺汽车箱', '12.03x2.35x2.39', 25000.00, 65.00, 2.00, 36, true),
-('OTH', '其他特殊集装箱', 'Other Special Container', 0, 'OTH', '其他特殊用途箱', '定制尺寸', 20000.00, 30.00, 1.00, 99, true);
+('OTH', '其他特殊集装箱', 'Other Special Container', NULL, 'OTH', '其他特殊用途箱', '定制尺寸', 20000.00, 30.00, 1.00, 99, true);
 
 -- ============================================================
 -- 4. dict_overseas_companies (9 个海外分公司) - 完整数据

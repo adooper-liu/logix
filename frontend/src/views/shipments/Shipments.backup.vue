@@ -8,6 +8,7 @@ import { useShipmentsExport } from '@/composables/useShipmentsExport'
 import { useShipmentsSchedule } from '@/composables/useShipmentsSchedule'
 import { useShipmentsTable } from '@/composables/useShipmentsTable'
 import { containerService } from '@/services/container'
+import { useAppStore } from '@/store/app'
 import { useGanttFilterStore } from '@/store/ganttFilters'
 import type { PortOperation } from '@/types/container'
 import { getCurrentLocationText } from '@/utils/logisticsStatusMachine'
@@ -30,6 +31,8 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+
+const appStore = useAppStore()
 
 const getUtcDayNumber = (input: string | Date | null | undefined): number | null => {
   if (!input) return null

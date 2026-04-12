@@ -51,7 +51,7 @@ export const containerService = {
   async createContainer(
     container: Partial<Container>
   ): Promise<{ success: boolean; data: Container }> {
-    const response = await api.post('/containers', camelToSnake(container as Record<string, any>))
+    const response = await api.post('/containers', camelToSnake(container) as Record<string, unknown>)
     // 清除相关缓存
     cacheManager.clearContainersCache()
     cacheManager.clearStatisticsCache()
@@ -68,7 +68,7 @@ export const containerService = {
   ): Promise<{ success: boolean; data: Container }> {
     const response = await api.put(
       `/containers/${id}`,
-      camelToSnake(container as Record<string, any>)
+      camelToSnake(container) as Record<string, unknown>
     )
     // 清除相关缓存
     cacheManager.clearContainersCache()

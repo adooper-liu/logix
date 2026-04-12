@@ -408,7 +408,7 @@ CREATE TABLE IF NOT EXISTS container_status_events (
     id VARCHAR(50) PRIMARY KEY,
     container_number VARCHAR(50) NOT NULL,
     status_code VARCHAR(20) NOT NULL,
-    occurred_at TIMESTAMP NOT NULL,
+    occurred_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     is_estimated BOOLEAN DEFAULT FALSE,
     location_code VARCHAR(50),
     location_name_en VARCHAR(100),

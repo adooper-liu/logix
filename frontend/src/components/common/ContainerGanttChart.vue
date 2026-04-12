@@ -33,6 +33,11 @@ interface ContainerGanttChartProps {
 
 const props = defineProps<ContainerGanttChartProps>()
 
+function formatTooltipLaneDate(container: ContainerItem, dateField: string): string {
+  const d = extractDateFromContainer(container, dateField)
+  return d != null ? formatFullDate(d) : '-'
+}
+
 // 定义 emit
 const emit = defineEmits<{
   laneChange: [dimension: string]
@@ -436,9 +441,7 @@ watch(
                           getDateLabelForLane(selectedLane)
                         }}</span>
                         <span class="tooltip-card-value">{{
-                          formatFullDate(
-                            extractDateFromContainer(container, selectedLane.dateField)
-                          )
+                          formatTooltipLaneDate(container, selectedLane.dateField)
                         }}</span>
                       </div>
                       <div class="tooltip-card-row">

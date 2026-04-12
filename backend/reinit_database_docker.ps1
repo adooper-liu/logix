@@ -13,6 +13,25 @@ $BACKEND_DIR = $SCRIPT_DIR                                      # backend/
 $SQL_DIR = Join-Path $BACKEND_DIR "sql"                          # backend/sql/
 $MIGRATIONS_DIR = Join-Path (Split-Path -Parent $SCRIPT_DIR) "migrations"  # migrations/
 
+# 辅助函数：在 migrations 目录及其子目录中查找 SQL 文件
+function Find-MigrationScript {
+    param([string]$ScriptName)
+
+    # 首先在根目录查找
+    $rootPath = Join-Path $MIGRATIONS_DIR $ScriptName
+    if (Test-Path $rootPath) {
+        return $rootPath
+    }
+
+    # 然后在子目录中递归查找
+    $found = Get-ChildItem -Path $MIGRATIONS_DIR -Filter $ScriptName -Recurse -File | Select-Object -First 1
+    if ($found) {
+        return $found.FullName
+    }
+
+    return $null
+}
+
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "LogiX Database Initialization" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
@@ -69,7 +88,7 @@ $coreMigrations = @(
     "add_destination_port_to_demurrage_records.sql",
     "add_demurrage_record_permanence.sql",
     "add_demurrage_calculation_mode.sql",
-    
+
     # 飞驼数据
     "add_feituo_import_tables.sql",
     "add_feituo_raw_data_by_group.sql",
@@ -79,12 +98,12 @@ $coreMigrations = @(
     "add_ext_feituo_vessels.sql",
     "fix_ext_feituo_places_nullable.sql",
     "fix_ext_feituo_status_events_nullable.sql",
-    
+
     # 系统表
     "add_sys_data_change_log.sql",
     "create_universal_dict_mapping.sql",
     "add_inspection_records.sql",
-    
+
     # 智能排产 - 核心
     "create_resource_occupancy_tables.sql",
     "add_schedule_status.sql",
@@ -93,7 +112,7 @@ $coreMigrations = @(
     "add_trucking_return_and_yard_capacity.sql",
     "add_trucking_port_mapping.sql",
     "add_scheduling_config_indexes.sql",
-    
+
     # 其他重要迁移
     "add_train_port_operation_fields.sql",
     "add_trucking_foreign_keys.sql",
@@ -101,11 +120,13 @@ $coreMigrations = @(
 )
 
 foreach ($script in $coreMigrations) {
-    $scriptPath = Join-Path $MIGRATIONS_DIR $script
-    if (Test-Path $scriptPath) {
+    $scriptPath = Find-MigrationScript $script
+    if ($scriptPath) {
         Write-Host "  - Executing $script..." -ForegroundColor Gray
         docker cp "$scriptPath" ${CONTAINER_NAME}:/tmp/$script
         docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/$script 2>&1 | Out-Null
+    } else {
+        Write-Host "  ⚠ Warning: $script not found" -ForegroundColor Yellow
     }
 }
 Write-Host "✓ Core migrations completed" -ForegroundColor Green
@@ -119,20 +140,22 @@ $configMigrations = @(
     # 成本优化配置
     "add_cost_optimization_config.sql",
     "add_cost_optimization_mapping_fields.sql",
-    
+
     # 日历能力配置
     "add_calendar_based_capacity.sql",
-    
+
     # 排产优化配置
     "001_add_scheduling_optimization_config.sql"
 )
 
 foreach ($script in $configMigrations) {
-    $scriptPath = Join-Path $MIGRATIONS_DIR $script
-    if (Test-Path $scriptPath) {
+    $scriptPath = Find-MigrationScript $script
+    if ($scriptPath) {
         Write-Host "  - Executing $script..." -ForegroundColor Gray
         docker cp "$scriptPath" ${CONTAINER_NAME}:/tmp/$script
         docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/$script 2>&1 | Out-Null
+    } else {
+        Write-Host "  ⚠ Warning: $script not found" -ForegroundColor Yellow
     }
 }
 Write-Host "✓ Configuration and index migrations completed" -ForegroundColor Green
@@ -148,17 +171,17 @@ $dataFixes = @(
     "add_country_to_warehouse_trucking_mapping.sql",
     "normalize_country_uk_to_gb.sql",
     "add_country_concept_comments.sql",
-    
+
     # 清关公司国家
     "006_add_customs_broker_country.sql",
     "add_country_to_customs_brokers.sql",
     "006_add_customs_broker_country_data.sql",
-    
+
     # 日期类型
     "convert_date_to_timestamp.sql",  # 只保留一个日期转换脚本
     "add_actual_loading_date.sql",
     "add_last_free_date_mode.sql",
-    
+
     # 状态修复
     "fix-at-port-status.sql",
     "update-container-statuses.sql",
@@ -166,11 +189,13 @@ $dataFixes = @(
 )
 
 foreach ($script in $dataFixes) {
-    $scriptPath = Join-Path $MIGRATIONS_DIR $script
-    if (Test-Path $scriptPath) {
+    $scriptPath = Find-MigrationScript $script
+    if ($scriptPath) {
         Write-Host "  - Executing $script..." -ForegroundColor Gray
         docker cp "$scriptPath" ${CONTAINER_NAME}:/tmp/$script
         docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/$script 2>&1 | Out-Null
+    } else {
+        Write-Host "  ⚠ Warning: $script not found" -ForegroundColor Yellow
     }
 }
 Write-Host "✓ Data fixes completed" -ForegroundColor Green
@@ -187,11 +212,13 @@ $portScripts = @(
 )
 
 foreach ($script in $portScripts) {
-    $scriptPath = Join-Path $MIGRATIONS_DIR $script
-    if (Test-Path $scriptPath) {
+    $scriptPath = Find-MigrationScript $script
+    if ($scriptPath) {
         Write-Host "  - Executing $script..." -ForegroundColor Gray
         docker cp "$scriptPath" ${CONTAINER_NAME}:/tmp/$script
         docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/$script 2>&1 | Out-Null
+    } else {
+        Write-Host "  ⚠ Warning: $script not found" -ForegroundColor Yellow
     }
 }
 Write-Host "✓ Port data added" -ForegroundColor Green
@@ -204,26 +231,26 @@ Write-Host "`n[6/6] Running additional migrations..." -ForegroundColor Yellow
 $additionalScripts = @(
     # 智能处理
     "008_add_intelligent_processing.sql",
-    
+
     # 日期时间类型统一（重要）
     "unify-datetime-types.sql",
-    
+
     # 运输费用字段（注意：add_transport_fee_to_mapping.sql 为重复脚本，已废弃）
     "add_transport_fee_to_warehouse_trucking_mapping.sql",
     "add_transport_fee_to_trucking_port_mapping.sql",
-    
+
     # 手动覆盖字段
     "add_manual_override_fields_to_occupancy_tables.sql",
-    
+
     # 流程表
     "create_flow_definitions_table.sql",
     "create_flow_instances_table.sql",
-    
+
     # 数据回填
     "backfill_customer_code_from_sell_to_country.sql",
     "backfill_last_free_date.sql",
     "backfill_last_return_date.sql",
-    
+
     # 其他
     "add_container_number_to_replenishment_orders.sql",
     "add_hold_date_fields.sql",
@@ -232,11 +259,13 @@ $additionalScripts = @(
 )
 
 foreach ($script in $additionalScripts) {
-    $scriptPath = Join-Path $MIGRATIONS_DIR $script
-    if (Test-Path $scriptPath) {
+    $scriptPath = Find-MigrationScript $script
+    if ($scriptPath) {
         Write-Host "  - Executing $script..." -ForegroundColor Gray
         docker cp "$scriptPath" ${CONTAINER_NAME}:/tmp/$script
         docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/$script 2>&1 | Out-Null
+    } else {
+        Write-Host "  ⚠ Warning: $script not found" -ForegroundColor Yellow
     }
 }
 Write-Host "✓ Additional migrations completed" -ForegroundColor Green
@@ -248,15 +277,17 @@ Write-Host "`n[7/7] Running scripts directory migrations..." -ForegroundColor Ye
 
 $scriptsMigrations = @(
     # 车队合作关系级别
-    "scripts/add-trucking-partnership-level.sql"
+    "add-trucking-partnership-level.sql"
 )
 
 foreach ($script in $scriptsMigrations) {
-    $scriptPath = Join-Path $BACKEND_DIR $script
-    if (Test-Path $scriptPath) {
+    $scriptPath = Find-MigrationScript $script
+    if ($scriptPath) {
         Write-Host "  - Executing $script..." -ForegroundColor Gray
         docker cp "$scriptPath" ${CONTAINER_NAME}:/tmp/$(Split-Path $script -Leaf)
         docker exec -i $CONTAINER_NAME psql -U logix_user -d logix_db -f /tmp/$(Split-Path $script -Leaf) 2>&1 | Out-Null
+    } else {
+        Write-Host "  ⚠ Warning: $script not found" -ForegroundColor Yellow
     }
 }
 Write-Host "✓ Scripts directory migrations completed" -ForegroundColor Green

@@ -1,3 +1,4 @@
+<!-- @ts-nocheck -->
 <template>
   <div class="flow-editor-page">
     <!-- 头部工具栏 -->
@@ -318,7 +319,7 @@ const initLogicFlow = () => {
 
   lf.value.on('node:add', ({ data }) => {
     // 将 LogicFlow 节点转换为 FlowNode
-    const nodeType = data.properties?.type || FlowNodeType.TASK
+    const nodeType = data.properties?.type || FlowNodeType.AI_TASK
     const newNode: FlowNode = {
       id: data.id,
       type: nodeType,

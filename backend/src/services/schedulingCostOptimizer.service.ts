@@ -5,7 +5,7 @@
  * 负责生成所有可行方案、评估成本、选择最优方案
  */
 
-import { calculatePlannedReturnDateBasic } from '@shared/returnDateCalculator';
+import { calculatePlannedReturnDateBasic } from '../../../shared/src/returnDateCalculator';
 import { In, Repository } from 'typeorm';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';

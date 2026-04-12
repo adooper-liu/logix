@@ -2,7 +2,7 @@
   "name": "logix-main-service",
   "version": "1.0.0",
   "description": "LogiX - 让复杂物流变得轻松愉快",
-  "main": "dist/server.js",
+  "main": "dist/backend/src/server.js",
   "scripts": {
     "dev": "cross-env NODE_ENV=development tsx watch src/server.ts",
     "dev:env": "cross-env NODE_ENV=development --env-file=.env.dev tsx watch src/server.ts",
@@ -12,7 +12,7 @@
     "trace:schedule": "tsx scripts/trace-schedule-params.ts",
     "execute-migration": "node -r ./scripts/load-env.cjs ./node_modules/tsx/dist/cli.mjs scripts/execute-migration.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "node dist/backend/src/server.js",
     "type-check": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",
@@ -46,6 +46,7 @@
     "joi": "^17.11.0",
     "morgan": "^1.10.0",
     "pg": "^8.11.3",
+    "reflect-metadata": "^0.2.1",
     "rxjs": "^7.8.2",
     "socket.io": "^4.6.1",
     "ts-jest": "^29.4.6",
@@ -67,6 +68,6 @@
     "typescript": "^5.3.3"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0"
   }
 }
