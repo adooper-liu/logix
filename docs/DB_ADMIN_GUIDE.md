@@ -82,7 +82,7 @@ docker logs logix-adminer-prod
 3. 用户名和密码与 `.env` 中的一致
 4. 数据库名称正确(`logix_db`)
 
-**常见错误**: 
+**常见错误**:
 - 错误: `could not translate host name "db" to address`
 - 原因: 服务器名填写错误
 - 解决: 将服务器名改为 `postgres`

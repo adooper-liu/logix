@@ -36,11 +36,11 @@ if (Test-Path 'node_modules') {
   } catch {
     Write-Host '  ⚠ npm ci 失败，可能是文件被占用' -ForegroundColor Yellow
     Write-Host '  尝试手动清理 node_modules...' -ForegroundColor Gray
-    
+
     # 停止可能占用文件的进程
     Get-Process | Where-Object { $_.ProcessName -match 'node|vite|esbuild' } | Stop-Process -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 2
-    
+
     # 强制删除 node_modules
     try {
       Remove-Item -Recurse -Force node_modules -ErrorAction Stop
@@ -51,7 +51,7 @@ if (Test-Path 'node_modules') {
       Pop-Location
       exit 1
     }
-    
+
     # 重新安装
     Write-Host '  重新安装依赖...' -ForegroundColor Gray
     npm install
