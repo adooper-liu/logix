@@ -64,7 +64,7 @@ export const dataSourceOptions: DataSourceOptions = {
   username: databaseConfig.username,
   password: databaseConfig.password,
   database: databaseConfig.database,
-  ssl: false, // 禁用 SSL，本地/内网 PostgreSQL 不需要
+  ssl: databaseConfig.ssl,
   namingStrategy: new SnakeNamingStrategy(),
   entities: [
     // 字典表 (Dictionary Tables)

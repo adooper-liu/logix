@@ -3,6 +3,28 @@
  * Database Configuration
  */
 
+export const parseDatabaseSslConfig = (): false | { rejectUnauthorized: boolean } => {
+  const sslValue = process.env.DB_SSL?.trim().toLowerCase();
+  const enabledValues = new Set(['true', '1', 'require', 'required', 'enable', 'enabled']);
+  const disabledValues = new Set(['false', '0', 'disable', 'disabled', 'off', 'no']);
+
+  if (sslValue && disabledValues.has(sslValue)) {
+    return false;
+  }
+
+  const sslEnabled = sslValue
+    ? enabledValues.has(sslValue)
+    : process.env.NODE_ENV === 'production';
+
+  if (!sslEnabled) {
+    return false;
+  }
+
+  return {
+    rejectUnauthorized: process.env.DB_SSL_REJECT_UNAUTHORIZED?.trim().toLowerCase() === 'true'
+  };
+};
+
 export const databaseConfig = {
   // PostgreSQL 配置
   host: process.env.DB_HOST || 'localhost',
@@ -19,8 +41,8 @@ export const databaseConfig = {
   synchronize: process.env.DB_SYNCHRONIZE === 'true',
   logging: process.env.NODE_ENV === 'development',
 
-  // SSL配置(生产环境)
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+  // SSL配置：生产环境默认启用；本地 Docker 内置数据库需显式 DB_SSL=false。
+  ssl: parseDatabaseSslConfig()
 };
 
 export const redisConfig = {
