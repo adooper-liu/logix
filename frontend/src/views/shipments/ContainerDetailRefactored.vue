@@ -3,6 +3,7 @@ import ContainerDetailSkeleton from '@/components/common/ContainerDetailSkeleton
 import DemurrageDetailSection from '@/components/demurrage/DemurrageDetailSection.vue'
 import { useContainerDetail } from '@/composables/useContainerDetail'
 import { useShipmentsExport } from '@/composables/useShipmentsExport'
+import { toDatePickerValue } from '@/utils/datePickerValue'
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -62,6 +63,27 @@ const billOfLadingNumberForPath = computed(() => {
     ? containerData.value?.seaFreight?.[0]
     : containerData.value?.seaFreight
   return sf?.mblNumber || sf?.billOfLadingNumber || ''
+})
+
+const scheduleInitialData = computed(() => {
+  const destinationPort = containerData.value?.portOperations?.find(
+    (p: any) => p.portType === 'destination'
+  )
+  const trucking = containerData.value?.truckingTransports?.[0]
+  const warehouse = containerData.value?.warehouseOperations?.[0]
+  const emptyReturn = containerData.value?.emptyReturns?.[0]
+
+  return {
+    plannedCustomsDate: toDatePickerValue(destinationPort?.plannedCustomsDate),
+    plannedPickupDate: toDatePickerValue(trucking?.plannedPickupDate),
+    plannedDeliveryDate: toDatePickerValue(trucking?.plannedDeliveryDate),
+    plannedUnloadDate: toDatePickerValue(warehouse?.plannedUnloadDate),
+    plannedReturnDate: toDatePickerValue(emptyReturn?.plannedReturnDate),
+    truckingCompanyId: trucking?.truckingCompanyId,
+    customsBrokerCode: destinationPort?.customsBrokerCode,
+    warehouseId: warehouse?.warehouseId,
+    unloadModePlan: trucking?.unloadModePlan,
+  }
 })
 
 // 导出货柜详情
@@ -134,21 +156,7 @@ watch(
         v-model:visible="scheduleEditVisible"
         :container-number="containerNumber"
         :country="containerData?.order?.sellToCountry"
-        :initial-data="{
-          plannedCustomsDate: containerData?.portOperations?.find(
-            (p: any) => p.portType === 'destination'
-          )?.plannedCustomsDate?.toISOString(),
-          plannedPickupDate: containerData?.truckingTransports?.[0]?.plannedPickupDate?.toISOString(),
-          plannedDeliveryDate: containerData?.truckingTransports?.[0]?.plannedDeliveryDate?.toISOString(),
-          plannedUnloadDate: containerData?.warehouseOperations?.[0]?.plannedUnloadDate?.toISOString(),
-          plannedReturnDate: containerData?.emptyReturns?.[0]?.plannedReturnDate?.toISOString(),
-          truckingCompanyId: containerData?.truckingTransports?.[0]?.truckingCompanyId,
-          customsBrokerCode: containerData?.portOperations?.find(
-            (p: any) => p.portType === 'destination'
-          )?.customsBrokerCode,
-          warehouseId: containerData?.warehouseOperations?.[0]?.warehouseId,
-          unloadModePlan: containerData?.truckingTransports?.[0]?.unloadModePlan,
-        }"
+        :initial-data="scheduleInitialData"
         @success="loadContainerDetail"
       />
 
