@@ -1,7 +1,8 @@
 # 数据校验完成报告
 
 **校验时间**: 2026-04-23  
-**校验对象**: 
+**校验对象**:
+
 - Excel: 全球快递费拒收超标标准20260214.xlsx
 - 脚本: import-express-cost-simple.ts
 - 文档: EXPRESS_COST_DATA_ANALYSIS.md
@@ -10,16 +11,16 @@
 
 ## 一、校验结果总览
 
-| 校验项 | 状态 | 说明 |
-|--------|------|------|
-| 类型规范化逻辑 | ✅ 已修复 | 添加 normalizeType() 函数，支持15种标准化类型 |
-| 规则总数统计 | ✅ 已修正 | 从139条修正为130条 |
-| UK规则数 | ✅ 已修正 | 从20条修正为21条 |
-| 策略总数 | ✅ 已修正 | 从23条修正为20条（15条IF_THEN_DISABLE + 5条MAX_GROUP） |
-| 金额区间精度 | ✅ 已修正 | FedEx Ground Additional Handling 从4.85-6.25修正为4.87-6.25 |
-| 承运商服务总数 | ✅ 正确 | 56个承运商服务确认无误 |
-| 文本比较符 | ✅ 正确 | DE Hermes和Seller Flex的比较符记录准确 |
-| Peak附加费 | ✅ 正确 | 所有Peak链接与备注一致 |
+| 校验项         | 状态      | 说明                                                        |
+| -------------- | --------- | ----------------------------------------------------------- |
+| 类型规范化逻辑 | ✅ 已修复 | 添加 normalizeType() 函数，支持15种标准化类型               |
+| 规则总数统计   | ✅ 已修正 | 从139条修正为130条                                          |
+| UK规则数       | ✅ 已修正 | 从20条修正为21条                                            |
+| 策略总数       | ✅ 已修正 | 从23条修正为20条（15条IF_THEN_DISABLE + 5条MAX_GROUP）      |
+| 金额区间精度   | ✅ 已修正 | FedEx Ground Additional Handling 从4.85-6.25修正为4.87-6.25 |
+| 承运商服务总数 | ✅ 正确   | 56个承运商服务确认无误                                      |
+| 文本比较符     | ✅ 正确   | DE Hermes和Seller Flex的比较符记录准确                      |
+| Peak附加费     | ✅ 正确   | 所有Peak链接与备注一致                                      |
 
 ---
 
@@ -30,24 +31,27 @@
 **问题**: 导入脚本使用简单的 `toUpperCase()` 无法正确映射费用类型
 
 **修复前**:
+
 ```typescript
-typeRaw.toUpperCase().replace(/\s+/g, '_')
+typeRaw.toUpperCase().replace(/\s+/g, "_");
 // "AHS - Dimensions" → "AHS_-_DIMENSIONS" ❌
 // "拒收" → "拒收" ❌
 ```
 
 **修复后**:
+
 ```typescript
-normalizeType(typeRaw)
+normalizeType(typeRaw);
 // "AHS - Dimensions" → "AHS_DIM" ✅
 // "拒收" → "REJECT" ✅
 // "超标费1" → "OVERSIZE_1" ✅
 ```
 
 **影响范围**:
+
 - 确保数据库中存储的类型名称与策略提取逻辑匹配
 - 使前端展示更加规范和统一
-- 避免策略失效（策略中使用 AHS_DIM，但数据库存的是 AHS_-_DIMENSIONS）
+- 避免策略失效（策略中使用 AHS*DIM，但数据库存的是 AHS*-\_DIMENSIONS）
 
 **代码位置**: [import-express-cost-simple.ts](file://d:/Github/logix/backend/scripts/import-express-cost-simple.ts#L36-L73)
 
@@ -56,23 +60,27 @@ normalizeType(typeRaw)
 ### 修复2: 统计数据准确性
 
 #### 规则总数
+
 - **修正前**: 139条
 - **修正后**: 130条
 - **差异原因**: 逐行重新统计Excel数据
 
 #### UK规则数
+
 - **修正前**: 20条
 - **修正后**: 21条
 - **差异原因**: 包含Winit DPD新增规则
 
 #### 策略总数
+
 - **修正前**: 23条（18条IF_THEN_DISABLE + 5条MAX_GROUP）
 - **修正后**: 20条（15条IF_THEN_DISABLE + 5条MAX_GROUP）
-- **差异原因**: 
+- **差异原因**:
   1. Canpar的"取较大值"是单条规则内部逻辑，不作为MAX_GROUP策略
   2. US UPS Ground只有一条禁用AHS的策略，不是两条
 
 #### 金额区间
+
 - **修正前**: FedEx Ground Additional Handling: 4.85-6.25
 - **修正后**: 4.87-6.25
 - **差异原因**: Excel原始数据为4.87
@@ -90,6 +98,7 @@ npx ts-node scripts/import-express-cost-simple.ts \
 ```
 
 **预期输出**:
+
 ```
 找到 130 条数据记录
 ✓ 成功导入 56 个承运商服务
@@ -104,9 +113,9 @@ npx ts-node scripts/import-express-cost-simple.ts \
 SELECT * FROM dict_express_surcharge_version WHERE version_key = 'v1.0-20260214';
 
 -- 检查承运商服务数量
-SELECT country_code, COUNT(*) as count 
-FROM dict_express_carrier_service 
-GROUP BY country_code 
+SELECT country_code, COUNT(*) as count
+FROM dict_express_carrier_service
+GROUP BY country_code
 ORDER BY country_code;
 
 -- 检查规则数量
@@ -165,7 +174,7 @@ WHERE v.version_key = 'v1.0-20260214'
 -- DE | Seller Flex | REJECT | longest < 175; girth < 360; gross_wt < 23
 
 -- 检查金额区间
-SELECT cs.country_code, cs.service_name, r.type_normalized, 
+SELECT cs.country_code, cs.service_name, r.type_normalized,
        r.amount_min, r.amount_max
 FROM dict_express_surcharge_rule r
 JOIN dict_express_carrier_service cs ON r.carrier_service_id = cs.id
@@ -211,24 +220,28 @@ WHERE v.version_key = 'v1.0-20260214'
 ## 五、数据质量评估
 
 ### 完整性: ⭐⭐⭐⭐⭐ (5/5)
+
 - 所有130条规则完整解析
 - 56个承运商服务全部识别
 - 20条策略正确提取
 - 特殊规则（文本比较符、金额区间）完整保留
 
 ### 准确性: ⭐⭐⭐⭐⭐ (5/5)
+
 - 类型规范化100%正确
 - 数值解析准确（包括×和空值处理）
 - 策略提取逻辑经过逐条验证
 - 金额、尺寸、重量阈值精确
 
 ### 一致性: ⭐⭐⭐⭐⭐ (5/5)
+
 - 国家代码统一使用dict_countries.code
 - 费用类型统一使用15种标准化类型
 - 承运商名称统一格式化
 - 单位统一为英寸(in)和磅(lb)
 
 ### 可维护性: ⭐⭐⭐⭐⭐ (5/5)
+
 - 代码结构清晰，注释完整
 - 类型映射函数易于扩展
 - 策略提取函数化，便于维护
@@ -241,6 +254,7 @@ WHERE v.version_key = 'v1.0-20260214'
 ### 立即执行
 
 1. **运行导入脚本**
+
    ```bash
    cd backend
    npx ts-node scripts/import-express-cost-simple.ts
@@ -287,12 +301,14 @@ WHERE v.version_key = 'v1.0-20260214'
 **当前状态**: 可以安全执行数据导入
 
 **预计导入结果**:
+
 - 130条规则
 - 56个承运商服务
 - 20条堆叠策略
 - 8个国家覆盖
 
 **质量保证**: 通过三重校验
+
 1. Excel原始数据逐行核对
 2. 导入脚本逻辑审查
 3. 分析文档交叉验证
