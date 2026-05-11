@@ -121,6 +121,19 @@ export interface Container {
   customsStatus?: string
   destinationPort?: string
   billOfLadingNumber?: string
+  originPort?: string
+  shipVoyage?: string
+  forwarderName?: string
+  // 提柜/还箱相关日期（从 seaFreight 或流程表聚合）
+  plannedPickupDate?: Date
+  lastFreeDate?: Date
+  lastReturnDate?: Date
+  returnTime?: Date
+  // 计划日期（从各流程表聚合）
+  plannedCustomsDate?: Date
+  plannedUnloadDate?: Date
+  plannedReturnDate?: Date
+  plannedDeliveryDate?: Date
   // 备货单信息
   actualShipDate?: Date
   sellToCountry?: string
@@ -353,6 +366,10 @@ export interface TruckingTransport {
   isPrePickup?: boolean
   pickupNotification?: string
   pickupLocation?: string
+  // 计划日期（从关联的清关/仓库操作聚合）
+  plannedCustomsDate?: Date
+  plannedUnloadDate?: Date
+  plannedReturnDate?: Date
   lastDeliveryDate?: Date
   plannedDeliveryDate?: Date
   deliveryDate?: Date

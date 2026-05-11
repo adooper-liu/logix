@@ -27,7 +27,7 @@ const allItems = ref<KnowledgeItem[]>([])
 // 新建/编辑弹窗
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
-const editingItem = ref<Partial<KnowledgeItem>>({
+const editingItem = ref<any>({
   id: '',
   category: '',
   title: '',
@@ -427,11 +427,9 @@ const saveItem = () => {
     return
   }
 
-  const keywords = editingItem.value.keywords
-    ? editingItem.value.keywords
-        .split(',')
-        .map(k => k.trim())
-        .filter(k => k)
+  const keywordsStr = editingItem.value.keywords as string | undefined
+  const keywords = keywordsStr
+    ? keywordsStr.split(',').map((k: string) => k.trim()).filter((k: string) => k)
     : []
 
   const newItem: KnowledgeItem = {
@@ -511,7 +509,7 @@ const generateTemplateCode = (items: KnowledgeItem[]): string => {
   return `/**
  * AI 知识库
  * AI Knowledge Base
- * 
+ *
  * 物流系统业务知识，供 AI 对话时检索使用
  * 自动生成时间: ${new Date().toLocaleString('zh-CN')}
  */

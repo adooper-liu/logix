@@ -1,0 +1,6 @@
+
+> logix-frontend@1.0.0 type-check
+> vue-tsc --noEmit
+
+'vue-tsc' 不是内部或外部命令，也不是可运行的程序
+或批处理文件。

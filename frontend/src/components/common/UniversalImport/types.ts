@@ -2,6 +2,8 @@
  * 通用 Excel 导入组件类型定义
  */
 
+import type { Ref } from 'vue'
+
 /**
  * 字段映射配置
  */

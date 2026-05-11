@@ -67,7 +67,7 @@ class DebugLogger {
     if (response.items && response.items.length > 0) {
       console.log(
         `${DebugCategory.DATA} ${this.prefix} First 3 items:`,
-        response.items.slice(0, 3).map(item => ({
+        response.items.slice(0, 3).map((item: any) => ({
           containerNumber: item.containerNumber,
           logisticsStatus: item.logisticsStatus,
           etaDestPort: item.etaDestPort,

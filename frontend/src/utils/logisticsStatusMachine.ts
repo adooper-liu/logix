@@ -47,7 +47,7 @@ export const SimplifiedStatusType: Record<
   'success' | 'warning' | 'info' | 'danger'
 > = {
   [SimplifiedStatus.NOT_SHIPPED]: 'info',
-  [SimplifiedStatus.SHIPPED]: 'primary',
+  [SimplifiedStatus.SHIPPED]: 'info',
   [SimplifiedStatus.IN_TRANSIT]: 'success',
   [SimplifiedStatus.AT_PORT]: 'warning',
   [SimplifiedStatus.PICKED_UP]: 'warning',

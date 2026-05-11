@@ -1,0 +1,124 @@
+
+> logix-frontend@1.0.0 type-check
+> vue-tsc --noEmit
+
+src/components/common/ContainerGanttChart.vue(440,29): error TS2345: Argument of type 'Date | null' is not assignable to parameter of type 'string | Date'.
+  Type 'null' is not assignable to type 'string | Date'.
+src/components/common/EnhancedTimeline.vue(58,47): error TS2305: Module '"@element-plus/icons-vue"' has no exported member 'Truck'.
+src/components/common/gantt/useGanttLogic.ts(510,41): error TS18048: 'container.portOperations.length' is possibly 'undefined'.
+src/components/common/gantt/useGanttLogic.ts(511,26): error TS18048: 'container.portOperations' is possibly 'undefined'.
+src/components/common/gantt/useGanttLogic.ts(579,23): error TS2339: Property 'plannedCustomsDate' does not exist on type 'TruckingTransport'.
+src/components/common/gantt/useGanttLogic.ts(579,73): error TS2339: Property 'plannedCustomsDate' does not exist on type 'TruckingTransport'.
+src/components/common/gantt/useGanttLogic.ts(582,23): error TS2339: Property 'plannedUnloadDate' does not exist on type 'TruckingTransport'.
+src/components/common/gantt/useGanttLogic.ts(582,72): error TS2339: Property 'plannedUnloadDate' does not exist on type 'TruckingTransport'.
+src/components/common/gantt/useGanttLogic.ts(583,23): error TS2339: Property 'plannedReturnDate' does not exist on type 'TruckingTransport'.
+src/components/common/gantt/useGanttLogic.ts(583,72): error TS2339: Property 'plannedReturnDate' does not exist on type 'TruckingTransport'.
+src/components/common/gantt/useGanttLogic.ts(1355,7): error TS2322: Type 'string | null' is not assignable to type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/components/common/gantt/useGanttLogic.ts(1501,32): error TS2339: Property 'plannedCustomsDate' does not exist on type 'TruckingTransport'.
+src/components/common/gantt/useGanttLogic.ts(1502,28): error TS2339: Property 'plannedCustomsDate' does not exist on type 'TruckingTransport'.
+src/components/common/gantt/useGanttLogic.ts(1544,21): error TS2339: Property 'plannedCustomsDate' does not exist on type 'TruckingTransport'.
+src/components/common/gantt/useGanttLogic.ts(1545,30): error TS2339: Property 'plannedCustomsDate' does not exist on type 'TruckingTransport'.
+src/components/common/SimpleGanttChartRefactored.vue(922,6): error TS2345: Argument of type '{ containerNumber: string; originalCost: number; optimizedCost: number; savings: number; savingsPercent: number; suggestedPickupDate: string; suggestedStrategy: "Direct" | "Drop off" | "Expedited"; ... 4 more ...; onClose: any; }' is not assignable to parameter of type 'Partial<{}> & Omit<{ readonly containerNumber: string; readonly originalCost: number; readonly optimizedCost: number; readonly savings: number; readonly suggestedPickupDate: string; ... 6 more ...; readonly onApply?: (() => any) | undefined; } & VNodeProps & AllowedComponentProps & ComponentCustomProps, never> & Rec...'.
+  Type '{ containerNumber: string; originalCost: number; optimizedCost: number; savings: number; savingsPercent: number; suggestedPickupDate: string; suggestedStrategy: "Direct" | "Drop off" | "Expedited"; ... 4 more ...; onClose: any; }' is not assignable to type 'Omit<{ readonly containerNumber: string; readonly originalCost: number; readonly optimizedCost: number; readonly savings: number; readonly suggestedPickupDate: string; readonly currentPickupDate: string; ... 5 more ...; readonly onApply?: (() => any) | undefined; } & VNodeProps & AllowedComponentProps & ComponentCus...'.
+    Types of property 'alternatives' are incompatible.
+      Type '{ pickupDate: string; strategy: "Direct" | "Drop off" | "Expedited"; totalCost: number; savings: number; breakdown: { demurrageCost?: number | undefined; detentionCost?: number | undefined; ... 5 more ...; currency?: string | undefined; }; warehouseCode: string; truckingCompanyCode: string; }[]' is not assignable to type 'Alternative[]'.
+src/components/common/SimpleGanttChartRefactored.vue(2495,28): error TS18047: 'staticMappings.value' is possibly 'null'.
+src/components/common/SimpleGanttChartRefactored.vue(2513,28): error TS18047: 'staticMappings.value' is possibly 'null'.
+src/components/ContainerTimeFilter.vue(48,31): error TS2345: Argument of type '"quarter"' is not assignable to parameter of type 'OpUnitType'.
+src/components/ContainerTimeFilter.vue(55,22): error TS2454: Variable 'startDate' is used before being assigned.
+src/components/dashboard/YearlyVolumeChart.vue(29,17): error TS2314: Generic type 'ComposeOption' requires 1 type argument(s).
+src/composables/useContainerDetail.ts(38,9): error TS7023: 'loadContainerList' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+src/composables/useContainerDetail.ts(66,9): error TS7023: 'loadContainerDetail' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+src/composables/useContainerDetail.ts(102,9): error TS7023: 'loadDemurrageDates' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+src/composables/useContainerDetail.ts(169,9): error TS2367: This comparison appears to be unintentional because the types '"info" | "success" | "warning" | "danger"' and '"primary"' have no overlap.
+src/composables/useShipmentsTable.ts(220,12): error TS2352: Conversion of type 'ContainerListItem' to type 'Record<string, unknown>' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.
+  Index signature for type 'string' is missing in type 'ContainerListItem'.
+src/test/camelToSnake.test.ts(26,25): error TS2345: Argument of type 'null' is not assignable to parameter of type 'Record<string, any>'.
+src/test/camelToSnake.test.ts(27,25): error TS2345: Argument of type 'undefined' is not assignable to parameter of type 'Record<string, any>'.
+src/test/camelToSnake.test.ts(31,25): error TS2345: Argument of type 'string' is not assignable to parameter of type 'Record<string, any>'.
+src/test/camelToSnake.test.ts(32,25): error TS2345: Argument of type 'number' is not assignable to parameter of type 'Record<string, any>'.
+src/test/camelToSnake.test.ts(33,25): error TS2345: Argument of type 'boolean' is not assignable to parameter of type 'Record<string, any>'.
+src/utils/debugLogger.ts(70,40): error TS7006: Parameter 'item' implicitly has an 'any' type.
+src/utils/logisticsStatusMachine.ts(50,3): error TS2418: Type of computed property's value is '"primary"', which is not assignable to type '"info" | "success" | "warning" | "danger"'.
+src/views/ai/FlowEditor-new.vue(196,23): error TS2307: Cannot find module '@logicflow/core' or its corresponding type declarations.
+src/views/ai/FlowEditor-new.vue(197,56): error TS2307: Cannot find module '@logicflow/core' or its corresponding type declarations.
+src/views/ai/FlowEditor-new.vue(198,51): error TS2307: Cannot find module '@logicflow/extension' or its corresponding type declarations.
+src/views/ai/FlowEditor-new.vue(301,32): error TS7031: Binding element 'data' implicitly has an 'any' type.
+src/views/ai/FlowEditor-new.vue(312,33): error TS7031: Binding element 'data' implicitly has an 'any' type.
+src/views/ai/FlowEditor-new.vue(319,30): error TS7031: Binding element 'data' implicitly has an 'any' type.
+src/views/ai/FlowEditor-new.vue(321,60): error TS2339: Property 'TASK' does not exist on type 'typeof FlowNodeType'.
+src/views/ai/FlowEditor-new.vue(340,30): error TS7031: Binding element 'data' implicitly has an 'any' type.
+src/views/ai/FlowEditor-new.vue(348,33): error TS7031: Binding element 'data' implicitly has an 'any' type.
+src/views/ai/FlowEditor-new.vue(412,25): error TS7006: Parameter 'node' implicitly has an 'any' type.
+src/views/ai/FlowEditor-new.vue(507,28): error TS7006: Parameter 'node' implicitly has an 'any' type.
+src/views/ai/FlowEditor-new.vue(520,28): error TS7006: Parameter 'edge' implicitly has an 'any' type.
+src/views/ai/FlowEditor.vue(129,5): error TS2322: Type '{ id: string; type: string; position: { x: number; y: number; }; data: { label: string; node: { id: string; type: FlowNodeType; name: string; description?: string | undefined; next?: string | undefined; properties?: Record<...> | undefined; }; }; ... 4 more ...; computedPosition: { ...; }; }[]' is not assignable to type 'GraphNode<any, any, string>[]'.
+  Type '{ id: string; type: string; position: { x: number; y: number; }; data: { label: string; node: { id: string; type: FlowNodeType; name: string; description?: string | undefined; next?: string | undefined; properties?: Record<...> | undefined; }; }; ... 4 more ...; computedPosition: { ...; }; }' is missing the following properties from type 'GraphNode<any, any, string>': isParent, selected, resizing, dragging, events
+src/views/ai/FlowEditor.vue(463,46): error TS2339: Property 'value' does not exist on type '{ id: string; name: string; description?: string | undefined; version: string; createdBy: string; createdAt: string; updatedAt: string; nodes: { id: string; type: FlowNodeType; name: string; description?: string | undefined; next?: string | undefined; properties?: Record<...> | undefined; }[]; startNodeId: string; v...'.
+src/views/ai/FlowEditor.vue(463,65): error TS7006: Parameter 'n' implicitly has an 'any' type.
+src/views/ai/FlowEditor.vue(465,19): error TS18047: '__VLS_ctx.selectedNode' is possibly 'null'.
+src/views/ai/FlowEditor.vue(465,32): error TS2339: Property 'value' does not exist on type '{ id: string; type: FlowNodeType; name: string; description?: string | undefined; next?: string | undefined; properties?: Record<string, any> | undefined; }'.
+src/views/ai/FlowEditor.vue(470,23): error TS2322: Type '"top-right"' is not assignable to type 'PanelPosition | undefined'.
+src/views/ai/FlowEditor.vue(471,41): error TS2322: Type 'string' is not assignable to type 'number'.
+src/views/ai/KnowledgeBase.vue(34,3): error TS2322: Type 'string' is not assignable to type 'string[]'.
+src/views/ai/KnowledgeBase.vue(403,5): error TS2322: Type 'string' is not assignable to type 'string[]'.
+src/views/ai/KnowledgeBase.vue(417,5): error TS2322: Type 'string' is not assignable to type 'string[]'.
+src/views/ai/KnowledgeBase.vue(432,10): error TS2339: Property 'split' does not exist on type 'string[]'.
+src/views/ai/KnowledgeBase.vue(433,14): error TS7006: Parameter 'k' implicitly has an 'any' type.
+src/views/ai/KnowledgeBase.vue(434,17): error TS7006: Parameter 'k' implicitly has an 'any' type.
+src/views/dashboard/Dashboard.vue(121,5): error TS2322: Type 'Record<string, number> | null' is not assignable to type 'Record<string, number>'.
+  Type 'null' is not assignable to type 'Record<string, number>'.
+src/views/dashboard/Dashboard.vue(122,5): error TS2322: Type 'any[] | null' is not assignable to type 'any[]'.
+  Type 'null' is not assignable to type 'any[]'.
+src/views/dashboard/Dashboard.vue(124,5): error TS2322: Type '{ etaOverdue: number; lastPickupOverdue: number; lastReturnOverdue: number; plannedPickupOverdue: number; } | null' is not assignable to type '{ etaOverdue: number; lastPickupOverdue: number; lastReturnOverdue: number; plannedPickupOverdue: number; } | { etaOverdue: number; lastPickupOverdue: number; lastReturnOverdue: number; plannedPickupOverdue: number; }'.
+  Type 'null' is not assignable to type '{ etaOverdue: number; lastPickupOverdue: number; lastReturnOverdue: number; plannedPickupOverdue: number; } | { etaOverdue: number; lastPickupOverdue: number; lastReturnOverdue: number; plannedPickupOverdue: number; }'.
+src/views/dashboard/Dashboard.vue(125,5): error TS2322: Type 'any[] | null' is not assignable to type 'any[]'.
+  Type 'null' is not assignable to type 'any[]'.
+src/views/dashboard/Dashboard.vue(220,7): error TS2322: Type '{ totalContainers: number; activeContainers: number; completedContainers: number; alertContainers: number; }' is not assignable to type '{ totalContainers: number; activeContainers: number; completedContainers: number; alertContainers: number; dumpedContainers: number; } | { totalContainers: number; activeContainers: number; completedContainers: number; alertContainers: number; dumpedContainers: number; }'.
+  Property 'dumpedContainers' is missing in type '{ totalContainers: number; activeContainers: number; completedContainers: number; alertContainers: number; }' but required in type '{ totalContainers: number; activeContainers: number; completedContainers: number; alertContainers: number; dumpedContainers: number; }'.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(6,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(7,3): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(8,5): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(14,7): error TS2304: Cannot find name 'expect'.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(17,5): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(23,7): error TS2304: Cannot find name 'expect'.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(26,5): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(32,9): error TS2588: Cannot assign to 'hours' because it is a constant.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(34,7): error TS2304: Cannot find name 'expect'.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(35,7): error TS2304: Cannot find name 'expect'.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(39,3): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(40,5): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(50,7): error TS2304: Cannot find name 'expect'.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(53,5): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(63,7): error TS2304: Cannot find name 'expect'.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(66,5): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(76,7): error TS2304: Cannot find name 'expect'.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(80,3): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(81,5): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(84,7): error TS2304: Cannot find name 'expect'.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(87,5): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(91,25): error TS2367: This comparison appears to be unintentional because the types '"COMPLETED"' and '"IN_PROGRESS"' have no overlap.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(92,7): error TS2304: Cannot find name 'expect'.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(95,5): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(99,25): error TS2367: This comparison appears to be unintentional because the types '"COMPLETED"' and '"IN_PROGRESS"' have no overlap.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(100,7): error TS2304: Cannot find name 'expect'.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(104,3): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(105,5): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(120,7): error TS2304: Cannot find name 'expect'.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(121,7): error TS2304: Cannot find name 'expect'.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(129,1): error TS2582: Cannot find name 'describe'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(130,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(140,5): error TS2304: Cannot find name 'expect'.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(144,3): error TS2582: Cannot find name 'it'. Do you need to install type definitions for a test runner? Try `npm i --save-dev @types/jest` or `npm i --save-dev @types/mocha`.
+src/views/shipments/components/__tests__/LogisticsPathTab.duration.test.ts(160,5): error TS2304: Cannot find name 'expect'.
+src/views/shipments/components/ContainerSummary.vue(40,7): error TS2367: This comparison appears to be unintentional because the types '"info" | "success" | "warning" | "danger"' and '"primary"' have no overlap.
+src/views/shipments/ContainerDetailRefactored.vue(138,11): error TS2322: Type 'Date | undefined' is not assignable to type 'string | undefined'.
+src/views/shipments/ContainerDetailRefactored.vue(141,11): error TS2322: Type 'Date | undefined' is not assignable to type 'string | undefined'.
+src/views/shipments/ContainerDetailRefactored.vue(142,11): error TS2322: Type 'Date | undefined' is not assignable to type 'string | undefined'.
+src/views/shipments/ContainerDetailRefactored.vue(143,11): error TS2322: Type 'Date | undefined' is not assignable to type 'string | undefined'.
+src/views/shipments/ContainerDetailRefactored.vue(144,11): error TS2322: Type 'Date | undefined' is not assignable to type 'string | undefined'.
+src/views/shipments/ContainerDetailRefactored.vue(220,21): error TS2322: Type '{ id?: string | undefined; containerNumber: string; billOfLadingNumber?: string | undefined; voyageNumber?: string | undefined; vesselName?: string | undefined; shippingCompanyId?: string | undefined; ... 37 more ...; updatedAt?: Date | undefined; } | undefined' is not assignable to type 'SeaFreight[] | undefined'.
+src/views/shipments/ContainerDetailRefactored.vue(221,21): error TS2322: Type '{ id: string; containerNumber: string; portType?: string | undefined; portCode?: string | undefined; portName?: string | undefined; portSequence?: number | undefined; etaDestPort?: Date | undefined; ... 45 more ...; updatedAt?: Date | undefined; } | null | undefined' is not assignable to type '{ eta?: string | Date | undefined; ata?: string | Date | undefined; } | undefined'.
+src/views/shipments/ContainerDetailRefactored.vue(227,35): error TS2322: Type '{ id: string; containerNumber: string; portType?: string | undefined; portCode?: string | undefined; portName?: string | undefined; portSequence?: number | undefined; etaDestPort?: Date | undefined; ... 45 more ...; updatedAt?: Date | undefined; }[] | undefined' is not assignable to type 'PortOperation[] | undefined'.
+src/views/shipments/Shipments.backup.vue(753,43): error TS2304: Cannot find name 'appStore'.

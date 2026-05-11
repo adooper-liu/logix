@@ -15,25 +15,34 @@ CREATE EXTENSION IF NOT EXISTS timescaledb;
 -- 2. Create Hypertables - Time-series tables
 -- ============================================
 
--- 2.1 容器状态事件表 - 核心时间序列表
--- 2.1 Container Status Events table - Core time-series table
-SELECT create_hypertable(
-    'container_status_events',
-    'occurred_at',
-    chunk_time_interval => INTERVAL '1 week',
-    if_not_exists => TRUE
-);
+-- 重要: TimescaleDB 要求所有唯一索引/主键必须包含分区键
+-- Important: TimescaleDB requires all unique indexes/primary keys to include partition key
 
--- 为容器号创建空间分区索引（可选，用于快速查询特定货柜）
--- Create spatial partition index for container_number (optional, for fast container-specific queries)
-SELECT create_hypertable(
-    'container_status_events',
-    'occurred_at',
-    chunk_time_interval => INTERVAL '1 week',
-    partitioning_column => 'container_number',
-    number_partitions => 4,
-    if_not_exists => TRUE
-);
+-- 【已禁用】container_status_events 超表
+-- [DISABLED] container_status_events hypertable
+-- 原因: Excel 导入时 occurred_at 可能为空，虽然设置了 DEFAULT CURRENT_TIMESTAMP，
+-- 但业务上需要区分“已知时间”和“未知时间(用当前时间占位)”两种情况
+-- Reason: occurred_at may be NULL during Excel import. Although DEFAULT CURRENT_TIMESTAMP is set,
+-- business logic needs to distinguish between "known time" and "unknown time (placeholder with current time)"
+--
+-- 步骤 1: 删除原有的主键约束(如果存在)
+-- Step 1: Drop existing primary key constraint if exists
+-- ALTER TABLE container_status_events DROP CONSTRAINT IF EXISTS container_status_events_pkey;
+--
+-- 步骤 2: 创建包含分区键的复合主键
+-- Step 2: Create composite primary key including partition key
+-- ALTER TABLE container_status_events ADD CONSTRAINT container_status_events_pkey
+--     PRIMARY KEY (id, occurred_at);
+--
+-- 步骤 3: 创建超表
+-- Step 3: Create hypertable
+-- SELECT create_hypertable(
+--     'container_status_events',
+--     'occurred_at',
+--     chunk_time_interval => INTERVAL '1 week',
+--     if_not_exists => TRUE,
+--     migrate_data => TRUE
+-- );
 
 -- 创建复合索引优化查询性能
 -- Create composite indexes for query optimization
@@ -69,124 +78,135 @@ CREATE INDEX IF NOT EXISTS idx_port_operations_port_sequence_time
     ON process_port_operations (port_code, port_sequence, gate_in_time DESC);
 
 CREATE INDEX IF NOT EXISTS idx_port_operations_eta_time
-    ON process_port_operations (eta_dest_port DESC NULLS LAST);
+    ON process_port_operations (eta DESC NULLS LAST);
 
 -- ============================================
 -- 3. 数据压缩策略
 -- 3. Data compression policies
 -- ============================================
 
+-- 【已禁用】所有压缩和保留策略都需要超表支持
+-- [DISABLED] All compression and retention policies require hypertable support
+-- 原因: container_status_events 和 process_port_operations 都不是超表
+-- Reason: Neither container_status_events nor process_port_operations are hypertables
+--
 -- 3.1 容器状态事件表压缩 - 压缩 30 天前的数据
 -- 3.1 Container status events compression - Compress data older than 30 days
-ALTER TABLE container_status_events SET (
-    timescaledb.compress,
-    timescaledb.compress_segmentby = 'container_number,status_code'
-);
-
-SELECT add_compression_policy(
-    'container_status_events',
-    INTERVAL '30 days',
-    if_not_exists => TRUE
-);
-
--- 3.2 港口操作表压缩 - 压缩 90 天前的数据
--- 3.2 Port operations compression - Compress data older than 90 days
-ALTER TABLE process_port_operations SET (
-    timescaledb.compress,
-    timescaledb.compress_segmentby = 'container_number,port_type'
-);
-
-SELECT add_compression_policy(
-    'process_port_operations',
-    INTERVAL '90 days',
-    if_not_exists => TRUE
-);
+-- ALTER TABLE container_status_events SET (
+--     timescaledb.compress,
+--     timescaledb.compress_segmentby = 'container_number,status_code'
+-- );
+--
+-- SELECT add_compression_policy(
+--     'container_status_events',
+--     INTERVAL '30 days',
+--     if_not_exists => TRUE
+-- );
+--
+-- -- 3.2 港口操作表压缩 - 压缩 90 天前的数据
+-- -- 3.2 Port operations compression - Compress data older than 90 days
+-- ALTER TABLE process_port_operations SET (
+--     timescaledb.compress,
+--     timescaledb.compress_segmentby = 'container_number,port_type'
+-- );
+--
+-- SELECT add_compression_policy(
+--     'process_port_operations',
+--     INTERVAL '90 days',
+--     if_not_exists => TRUE
+-- );
 
 -- ============================================
 -- 4. 数据保留策略
 -- 4. Data retention policies
 -- ============================================
 
+-- 【已禁用】保留策略需要超表支持
+-- [DISABLED] Retention policies require hypertable support
+--
 -- 4.1 容器状态事件保留 2 年
 -- 4.1 Container status events retain for 2 years
-SELECT add_retention_policy(
-    'container_status_events',
-    INTERVAL '2 years',
-    if_not_exists => TRUE
-);
-
--- 4.2 港口操作保留 3 年（用于历史分析）
--- 4.2 Port operations retain for 3 years (for historical analysis)
-SELECT add_retention_policy(
-    'process_port_operations',
-    INTERVAL '3 years',
-    if_not_exists => TRUE
-);
+-- SELECT add_retention_policy(
+--     'container_status_events',
+--     INTERVAL '2 years',
+--     if_not_exists => TRUE
+-- );
+--
+-- -- 4.2 港口操作保留 3 年（用于历史分析）
+-- -- 4.2 Port operations retain for 3 years (for historical analysis)
+-- SELECT add_retention_policy(
+--     'process_port_operations',
+--     INTERVAL '3 years',
+--     if_not_exists => TRUE
+-- );
 
 -- ============================================
 -- 5. 连续聚合视图 - 预聚合统计信息
 -- 5. Continuous aggregate views - Pre-aggregated statistics
 -- ============================================
 
+-- 【已禁用】连续聚合视图要求源表必须是超表
+-- [DISABLED] Continuous aggregate views require source tables to be hypertables
+--
 -- 5.1 每日货柜状态统计
 -- 5.1 Daily container status statistics
-CREATE MATERIALIZED VIEW IF NOT EXISTS container_status_daily_stats
-WITH (timescaledb.continuous) AS
-SELECT
-    time_bucket('1 day', occurred_at) AS bucket,
-    container_number,
-    status_code,
-    COUNT(*) AS event_count,
-    COUNT(DISTINCT location_code) AS unique_locations,
-    MIN(occurred_at) AS first_event_time,
-    MAX(occurred_at) AS last_event_time,
-    AVG(EXTRACT(EPOCH FROM (MAX(occurred_at) - MIN(occurred_at))) / 60) AS avg_duration_minutes
-FROM container_status_events
-GROUP BY bucket, container_number, status_code;
-
--- 刷新连续聚合视图 - 每小时刷新一次
--- Refresh continuous aggregate view - Refresh every hour
-SELECT add_continuous_aggregate_policy(
-    'container_status_daily_stats',
-    start_offset => INTERVAL '3 months',
-    end_offset => INTERVAL '1 hour',
-    schedule_interval => INTERVAL '1 hour',
-    if_not_exists => TRUE
-);
-
--- 为连续聚合视图创建索引
--- Create indexes for continuous aggregate view
-CREATE INDEX IF NOT EXISTS idx_container_status_daily_stats_bucket
-    ON container_status_daily_stats (bucket DESC, container_number);
-
--- 5.2 每日港口操作统计
--- 5.2 Daily port operations statistics
-CREATE MATERIALIZED VIEW IF NOT EXISTS port_operations_daily_stats
-WITH (timescaledb.continuous) AS
-SELECT
-    time_bucket('1 day', gate_in_time) AS bucket,
-    port_code,
-    port_type,
-    COUNT(*) AS container_count,
-    COUNT(DISTINCT container_number) AS unique_containers,
-    COUNT(*) FILTER (WHERE ata_dest_port IS NOT NULL) AS arrived_count,
-    COUNT(*) FILTER (WHERE gate_out_time IS NOT NULL) AS departed_count,
-    AVG(EXTRACT(EPOCH FROM (gate_out_time - gate_in_time)) / 3600) FILTER (
-        WHERE gate_in_time IS NOT NULL AND gate_out_time IS NOT NULL
-    ) AS avg_stay_hours
-FROM process_port_operations
-WHERE gate_in_time IS NOT NULL
-GROUP BY bucket, port_code, port_type;
-
--- 刷新连续聚合视图 - 每天刷新一次
--- Refresh continuous aggregate view - Refresh daily
-SELECT add_continuous_aggregate_policy(
-    'port_operations_daily_stats',
-    start_offset => INTERVAL '6 months',
-    end_offset => INTERVAL '1 day',
-    schedule_interval => INTERVAL '1 day',
-    if_not_exists => TRUE
-);
+-- CREATE MATERIALIZED VIEW IF NOT EXISTS container_status_daily_stats
+-- WITH (timescaledb.continuous) AS
+-- SELECT
+--     time_bucket('1 day', occurred_at) AS bucket,
+--     container_number,
+--     status_code,
+--     COUNT(*) AS event_count,
+--     COUNT(DISTINCT location_code) AS unique_locations,
+--     MIN(occurred_at) AS first_event_time,
+--     MAX(occurred_at) AS last_event_time,
+--     AVG(EXTRACT(EPOCH FROM (MAX(occurred_at) - MIN(occurred_at))) / 60) AS avg_duration_minutes
+-- FROM container_status_events
+-- GROUP BY bucket, container_number, status_code;
+--
+-- -- 刷新连续聚合视图 - 每小时刷新一次
+-- -- Refresh continuous aggregate view - Refresh every hour
+-- SELECT add_continuous_aggregate_policy(
+--     'container_status_daily_stats',
+--     start_offset => INTERVAL '3 months',
+--     end_offset => INTERVAL '1 hour',
+--     schedule_interval => INTERVAL '1 hour',
+--     if_not_exists => TRUE
+-- );
+--
+-- -- 为连续聚合视图创建索引
+-- -- Create indexes for continuous aggregate view
+-- CREATE INDEX IF NOT EXISTS idx_container_status_daily_stats_bucket
+--     ON container_status_daily_stats (bucket DESC, container_number);
+--
+-- -- 5.2 每日港口操作统计
+-- -- 5.2 Daily port operations statistics
+-- CREATE MATERIALIZED VIEW IF NOT EXISTS port_operations_daily_stats
+-- WITH (timescaledb.continuous) AS
+-- SELECT
+--     time_bucket('1 day', gate_in_time) AS bucket,
+--     port_code,
+--     port_type,
+--     COUNT(*) AS container_count,
+--     COUNT(DISTINCT container_number) AS unique_containers,
+--     COUNT(*) FILTER (WHERE ata IS NOT NULL) AS arrived_count,
+--     COUNT(*) FILTER (WHERE gate_out_time IS NOT NULL) AS departed_count,
+--     AVG(EXTRACT(EPOCH FROM (gate_out_time - gate_in_time)) / 3600) FILTER (
+--         WHERE gate_in_time IS NOT NULL AND gate_out_time IS NOT NULL
+--     ) AS avg_stay_hours
+-- FROM process_port_operations
+-- WHERE gate_in_time IS NOT NULL
+-- GROUP BY bucket, port_code, port_type;
+--
+-- -- 刷新连续聚合视图 - 每天刷新一次
+-- -- Refresh continuous aggregate view - Refresh daily
+-- SELECT add_continuous_aggregate_policy(
+--     'port_operations_daily_stats',
+--     start_offset => INTERVAL '6 months',
+--     end_offset => INTERVAL '1 day',
+--     schedule_interval => INTERVAL '1 day',
+--     if_not_exists => TRUE
+-- );
 
 -- 5.3 每周物流效率统计
 -- 5.3 Weekly logistics efficiency statistics

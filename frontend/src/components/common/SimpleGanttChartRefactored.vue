@@ -2492,7 +2492,7 @@ const staticBasedGroupedByPort = computed(() => {
 
       // 获取该港口+国别的车队列表
       const mappingKey = `${portCode}:${portCountry}`
-      const truckingList = staticMappings.value.truckingByPort[mappingKey] || []
+      const truckingList = staticMappings.value?.truckingByPort[mappingKey] || []
 
       // 清关行：默认"未指定清关公司"
       if (!groups[portCode]['清关']['未指定清关公司']) {
@@ -2510,7 +2510,7 @@ const staticBasedGroupedByPort = computed(() => {
       const warehouseKeys = new Set<string>()
       truckingList.forEach(t => {
         const whMappingKey = `${t.truckingCompanyId}:${portCountry}`
-        const warehouses = staticMappings.value.warehousesByTrucking[whMappingKey] || []
+        const warehouses = staticMappings.value?.warehousesByTrucking[whMappingKey] || []
         warehouses.forEach(w => {
           warehouseKeys.add(w.warehouseCode)
         })

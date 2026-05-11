@@ -195,14 +195,7 @@ export default defineConfig({
     reportCompressedSize: true,
     // 启用 chunk 大小警告
     chunkSizeWarningLimit: 1000,
-    // 构建优化
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: process.env.NODE_ENV === 'production',
-        drop_debugger: process.env.NODE_ENV === 'production',
-      },
-    },
+    // 使用默认 esbuild 压缩（与根级 esbuild.drop 配合）；terser 需额外依赖，CI/演示环境易缺包
     // CSS 代码分割
     cssCodeSplit: true,
     // Source map 配置

@@ -150,7 +150,10 @@
                 }}{{ formatCost(selectedAlternative.breakdown.storageCost) }}</span
               >
             </div>
-            <div class="breakdown-row" v-if="selectedAlternative.breakdown.yardStorageCost > 0">
+            <div
+              class="breakdown-row"
+              v-if="(selectedAlternative.breakdown.yardStorageCost ?? 0) > 0"
+            >
               <span>外部堆场费:</span>
               <span
                 >{{ currencySymbol
@@ -164,7 +167,7 @@
                 }}{{ formatCost(selectedAlternative.breakdown.transportationCost) }}</span
               >
             </div>
-            <div class="breakdown-row" v-if="selectedAlternative.breakdown.handlingCost > 0">
+            <div class="breakdown-row" v-if="(selectedAlternative.breakdown.handlingCost ?? 0) > 0">
               <span>操作费:</span>
               <span
                 >{{ currencySymbol
@@ -305,6 +308,7 @@
 </template>
 
 <script setup lang="ts">
+import type { CostBreakdown } from '@/types/scheduling'
 import { getCurrencySymbol } from '@/utils/currency'
 import { Check, InfoFilled, Money, Right } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
@@ -339,15 +343,9 @@ interface Alternative {
   strategy: 'Direct' | 'Drop off' | 'Expedited'
   totalCost: number
   savings: number
-  breakdown: {
-    demurrageCost: number
-    detentionCost: number
-    storageCost: number
-    yardStorageCost: number
-    transportationCost: number
-    handlingCost: number
-  }
-  // ✅ 新增：滞港费标准数据
+  breakdown: CostBreakdown
+  warehouseCode?: string
+  truckingCompanyCode?: string
   demurrageStandards?: DemurrageStandard[]
 }
 
@@ -366,9 +364,6 @@ const props = defineProps<{
 
 // Dialog 显示状态（父组件通过 v-if 控制组件渲染，所以这里始终为 true）
 const visible = ref(true)
-
-// 调试日志
-console.log('[CostOptimizationPanel] 组件已挂载，props:', props)
 
 defineEmits<{
   apply: []
@@ -400,8 +395,8 @@ function formatDate(dateStr: string): string {
 }
 
 // 格式化金额（带货币符号）
-function formatCost(cost: number): string {
-  return cost.toFixed(2)
+function formatCost(cost: number | undefined | null): string {
+  return (cost ?? 0).toFixed(2)
 }
 
 // 获取策略标签类型

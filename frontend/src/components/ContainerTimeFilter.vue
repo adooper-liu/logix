@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import dayjs, { type Dayjs } from 'dayjs'
+import dayjs from 'dayjs'
+import quarterOfYear from 'dayjs/plugin/quarterOfYear'
+
+dayjs.extend(quarterOfYear)
 
 interface TimeFilterData {
   timeDimension: string
@@ -23,7 +26,7 @@ const handleDimensionChange = () => {
 
 const handleQuickSelect = (value: string) => {
   const now = dayjs()
-  let startDate: dayjs.Dayjs
+  let startDate: dayjs.Dayjs = now.startOf('day')
 
   switch (value) {
     case 'today':

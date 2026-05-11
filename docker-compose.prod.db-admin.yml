@@ -1,0 +1,15 @@
+# 本地演示时添加数据库管理工具 (Adminer)
+# 用法: 与 docker-compose.timescaledb.prod.yml 和 docker-compose.prod.local-demo.yml 叠加使用
+
+services:
+  adminer:
+    image: adminer:latest
+    container_name: logix-adminer-prod
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - logix-prod-network

@@ -81,6 +81,11 @@ const loadContainers = async () => {
   }
 }
 
+const onDataSourceFilterChange = () => {
+  page.value = 1
+  void loadContainers()
+}
+
 const refresh = async () => {
   await Promise.all([loadStats(), loadContainers()])
 }
@@ -178,10 +183,7 @@ onMounted(refresh)
             placeholder="全部数据源"
             clearable
             style="width: 140px"
-            @change="
-              page = 1
-              loadContainers()
-            "
+            @change="onDataSourceFilterChange"
           >
             <el-option label="全部" value="" />
             <el-option label="API (FeituoAPI)" value="FeituoAPI" />

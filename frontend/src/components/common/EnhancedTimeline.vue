@@ -55,8 +55,12 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { timeApi } from '@/services/time'
-import { Refresh, Loading, InfoFilled, Timer, Truck, Box, Container } from '@element-plus/icons-vue'
-import { formatDate } from '@/utils/dateTimeUtils'
+import { Refresh, Loading, InfoFilled, Timer, Van, Box } from '@element-plus/icons-vue'
+import { formatDateToLocal } from '@/utils/dateTimeUtils'
+
+function formatDate(d: Date | string) {
+  return formatDateToLocal(d, 'datetime')
+}
 
 const props = defineProps<{
   containerNumber: string
@@ -115,9 +119,9 @@ const getItemType = (item: any) => {
 
 const getItemIcon = (item: any) => {
   const iconMap: Record<string, any> = {
-    提柜: Truck,
+    提柜: Van,
     卸柜: Box,
-    还箱: Container,
+    还箱: Box,
     完成: Timer,
   }
   return iconMap[item.title] || Timer

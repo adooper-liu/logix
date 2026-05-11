@@ -35,7 +35,7 @@ export function useContainerDetail() {
   const demurrageCalculation = ref<any>(null) // 滞港费计算结果
 
   // 加载货柜列表（按需加载，只在需要导航时调用）
-  const loadContainerList = async (retries = 2) => {
+  const loadContainerList = async (retries = 2): Promise<void> => {
     // 仅在需要导航时加载，避免每次都加载1000个货柜
     if (containerList.value.length === 0) {
       loadingContainerList.value = true
@@ -63,7 +63,7 @@ export function useContainerDetail() {
   }
 
   // 加载货柜详情
-  const loadContainerDetail = async (retries = 2) => {
+  const loadContainerDetail = async (retries = 2): Promise<void> => {
     if (!containerNumber.value?.trim()) {
       ElMessage.error(t('container.detail.noContainerNumber'))
       return
@@ -99,7 +99,7 @@ export function useContainerDetail() {
     }
   }
 
-  const loadDemurrageDates = async (retries = 2) => {
+  const loadDemurrageDates = async (retries = 2): Promise<void> => {
     if (!containerNumber.value?.trim()) return
     try {
       const res = await demurrageService.calculateForContainer(containerNumber.value)
@@ -165,7 +165,7 @@ export function useContainerDetail() {
       (c.latestPortOperation?.portType as PortType | undefined) ||
       null
     const text = getLogisticsStatusText(c.logisticsStatus, portType)
-    let tagType = getLogisticsStatusType(c.logisticsStatus)
+    let tagType = getLogisticsStatusType(c.logisticsStatus) as any
     if (tagType === 'primary') {
       tagType = 'success'
     }
