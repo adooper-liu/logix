@@ -22,6 +22,10 @@ import { CustomsBroker } from '../entities/CustomsBroker';
 import { DictHoliday } from '../entities/DictHoliday'; // ✅ Phase 2 Task 2: 新增
 import { DictSchedulingConfig } from '../entities/DictSchedulingConfig';
 import { EmptyReturn } from '../entities/EmptyReturn';
+import { ExpressCarrierService } from '../entities/ExpressCarrierService';
+import { ExpressStackPolicy } from '../entities/ExpressStackPolicy';
+import { ExpressSurchargeRule } from '../entities/ExpressSurchargeRule';
+import { ExpressSurchargeVersion } from '../entities/ExpressSurchargeVersion';
 import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
 import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
 import { ExtFeituoImportBatch } from '../entities/ExtFeituoImportBatch';
@@ -43,9 +47,13 @@ import { OverseasCompany } from '../entities/OverseasCompany';
 import { Port } from '../entities/Port';
 import { PortOperation } from '../entities/PortOperation';
 import { PortWarehouseMapping } from '../entities/PortWarehouseMapping';
+import { PricingScheme } from '../entities/PricingScheme';
+import { PricingVersion } from '../entities/PricingVersion';
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
+import { SchedulingHistory } from '../entities/SchedulingHistory'; // ✅ Phase 3: 排产历史表
 import { SeaFreight } from '../entities/SeaFreight';
 import { ShippingCompany } from '../entities/ShippingCompany';
+import { SkuLogisticsAttributes } from '../entities/SkuLogisticsAttributes';
 import { SysDataChangeLog } from '../entities/SysDataChangeLog';
 import { TruckingCompany } from '../entities/TruckingCompany';
 import { TruckingPortMapping } from '../entities/TruckingPortMapping';
@@ -54,7 +62,8 @@ import { Warehouse } from '../entities/Warehouse';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
 import { Yard } from '../entities/Yard';
-import { SchedulingHistory } from '../entities/SchedulingHistory'; // ✅ Phase 3: 排产历史表
+import { BaseRateRow } from '../entities/BaseRateRow';
+import { ZoneLaneMapping } from '../entities/ZoneLaneMapping';
 import { logger } from '../utils/logger';
 
 export const dataSourceOptions: DataSourceOptions = {
@@ -139,7 +148,20 @@ export const dataSourceOptions: DataSourceOptions = {
 
     // 智能处理表 (Intelligent Processing Tables)
     ContainerAlert,
-    ContainerRiskAssessment
+    ContainerRiskAssessment,
+
+    // 全球快递费规则表 (Global Express Cost Rules Tables)
+    ExpressSurchargeVersion,
+    ExpressCarrierService,
+    ExpressSurchargeRule,
+    ExpressStackPolicy,
+    SkuLogisticsAttributes,
+
+    // Phase A+ 基础运费与 Zone/Lane 表
+    PricingVersion,
+    PricingScheme,
+    ZoneLaneMapping,
+    BaseRateRow
   ],
   synchronize: databaseConfig.synchronize,
   logging: databaseConfig.logging,

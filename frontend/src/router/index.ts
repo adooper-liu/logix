@@ -23,6 +23,8 @@ const AIChat = () => import('@/views/ai/Chat.vue')
 const KnowledgeBase = () => import('@/views/ai/KnowledgeBase.vue')
 const FlowManagement = () => import('@/views/ai/FlowManagement.vue')
 const SchedulingHistory = () => import('@/views/scheduling/HistoryQuery.vue')
+const ExpressCostImport = () => import('@/views/import/ExpressCostImport.vue')
+const ExpressCostCalculator = () => import('@/views/import/ExpressCostCalculator.vue')
 
 const routes: RouteRecordRaw[] = [
   {
@@ -246,6 +248,26 @@ const routes: RouteRecordRaw[] = [
         meta: {
           title: '系统设置',
           icon: 'Setting',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'express-cost/import',
+        name: 'ExpressCostImport',
+        component: ExpressCostImport,
+        meta: {
+          title: '快递费规则导入',
+          icon: 'Upload',
+          requiresAuth: true,
+        },
+      },
+      {
+        path: 'express-cost/calculator',
+        name: 'ExpressCostCalculator',
+        component: ExpressCostCalculator,
+        meta: {
+          title: '快递费试算',
+          icon: 'Operation',
           requiresAuth: true,
         },
       },

@@ -23,6 +23,7 @@ import {
   Money,
   Monitor,
   Notebook,
+  Operation,
   QuestionFilled,
   Reading,
   Setting,
@@ -30,6 +31,7 @@ import {
   SwitchButton,
   Upload,
   User,
+  Van,
   Wallet,
   Warning,
 } from '@element-plus/icons-vue'
@@ -192,6 +194,22 @@ const menuGroups = computed(() => [
     ],
   },
   {
+    title: '尾程',
+    icon: 'Van',
+    items: [
+      {
+        path: '/express-cost/import',
+        name: 'ExpressCostImport',
+        meta: { title: '快递费规则导入', icon: 'Upload' },
+      },
+      {
+        path: '/express-cost/calculator',
+        name: 'ExpressCostCalculator',
+        meta: { title: '快递模型试算', icon: 'Operation' },
+      },
+    ],
+  },
+  {
     title: 'AI',
     icon: 'MagicStick',
     items: [
@@ -257,6 +275,8 @@ const iconMap: Record<string, unknown> = {
   FolderOpened,
   QuestionFilled,
   LocationInformation,
+  Operation,
+  Van,
 }
 
 // 当前激活的路由

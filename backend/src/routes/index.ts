@@ -19,6 +19,7 @@ import demurrageRoutes from './demurrage.routes.js';
 import dictManageRoutes from './dict-manage.routes.js';
 import dictMappingRoutes from './dict-mapping.routes.js';
 import dictRoutes from './dict.routes.js';
+import expressCostRoutes from './express-cost.routes.js';
 import externalDataRoutes from './externalData.routes.js';
 import fiveNodeRoutes from './fiveNode.routes.js';
 import importRoutes from './import.routes.js';
@@ -56,7 +57,8 @@ router.get('/', (_req, res) => {
       fiveNode: '五节点调度与可视化服务',
       alerts: '预警规则服务',
       costs: '费用计算服务',
-      dataSource: '数据来源管理服务'
+      dataSource: '数据来源管理服务',
+      expressCost: '全球快递费规则与试算'
     }
   });
 });
@@ -93,5 +95,6 @@ router.use('/data-source', dataSourceRoutes);
 router.use('/scheduling', schedulingRoutes);
 router.use('/v1/migrations', migrationRoutes);
 router.use('/operations', operationRoutes);
+router.use('/express-cost', expressCostRoutes);
 
 export default router;

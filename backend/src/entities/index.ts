@@ -55,3 +55,9 @@ export { Yard } from './Yard';
 
 // 排产历史表 (Scheduling History Tables)
 export { SchedulingHistory } from './SchedulingHistory';
+
+// 定价引擎表 (Pricing Engine Tables)
+export { PricingVersion } from './PricingVersion';
+export { PricingScheme } from './PricingScheme';
+export { ZoneLaneMapping } from './ZoneLaneMapping';
+export { BaseRateRow } from './BaseRateRow';
