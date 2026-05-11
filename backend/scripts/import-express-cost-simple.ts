@@ -7,10 +7,10 @@
  * npx ts-node scripts/import-express-cost-simple.ts [Excel文件路径]
  */
 
-import { Client } from 'pg';
-import * as XLSX from 'xlsx';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import { Client } from 'pg';
+import * as XLSX from 'xlsx';
 
 // 加载 .env 文件
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
@@ -63,8 +63,10 @@ function normalizeType(typeRaw: string): string {
   if (lower.includes('extra care')) return 'EXTRA_CARE';
 
   // 超标费等级（中文和英文混合）
-  if (lower.includes('超标费1') || lower.includes('oversize-1') || lower.includes('超标1')) return 'OVERSIZE_1';
-  if (lower.includes('超标费2') || lower.includes('oversize-2') || lower.includes('超标2')) return 'OVERSIZE_2';
+  if (lower.includes('超标费1') || lower.includes('oversize-1') || lower.includes('超标1'))
+    return 'OVERSIZE_1';
+  if (lower.includes('超标费2') || lower.includes('oversize-2') || lower.includes('超标2'))
+    return 'OVERSIZE_2';
   if (lower.includes('超标费3')) return 'OVERSIZE_3';
   if (lower.includes('超标费')) return 'OVERSIZE';
 
@@ -351,7 +353,7 @@ async function importExpressCostData(filePath: string) {
           threeSides.literal,
           grossWt.literal
         ]
-          .filter(l => l && l !== 'x' && l !== 'X')  // 过滤掉 x/X
+          .filter((l) => l && l !== 'x' && l !== 'X') // 过滤掉 x/X
           .join('; ') || null;
 
       // 解析金额（支持区间格式 "5.2-8.8"）

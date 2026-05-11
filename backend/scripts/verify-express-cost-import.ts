@@ -2,9 +2,9 @@
  * 验证快递费导入结果
  */
 
-import { Client } from 'pg';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import { Client } from 'pg';
 
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
@@ -18,7 +18,7 @@ const dbConfig = {
 
 async function verifyImport() {
   const client = new Client(dbConfig);
-  
+
   try {
     await client.connect();
     console.log('=== 快递费导入结果验证 ===\n');
@@ -38,18 +38,21 @@ async function verifyImport() {
     const versionId = versionResult.rows[0].id;
 
     // 2. 按国家统计规则数
-    const countryStats = await client.query(`
+    const countryStats = await client.query(
+      `
       SELECT cs.country_code, COUNT(*) as rule_count
       FROM dict_express_surcharge_rule r
       JOIN dict_express_carrier_service cs ON r.carrier_service_id = cs.id
       WHERE r.version_id = $1
       GROUP BY cs.country_code
       ORDER BY cs.country_code
-    `, [versionId]);
+    `,
+      [versionId]
+    );
 
     console.log('2. 按国家统计规则数:');
     let totalRules = 0;
-    countryStats.rows.forEach(row => {
+    countryStats.rows.forEach((row) => {
       console.log(`   ${row.country_code}: ${row.rule_count} 条`);
       totalRules += parseInt(row.rule_count);
     });
@@ -66,7 +69,7 @@ async function verifyImport() {
 
     console.log('3. 按国家统计承运商服务数:');
     let totalCarriers = 0;
-    carrierStats.rows.forEach(row => {
+    carrierStats.rows.forEach((row) => {
       console.log(`   ${row.country_code}: ${row.service_count} 个`);
       totalCarriers += parseInt(row.service_count);
     });
@@ -74,17 +77,20 @@ async function verifyImport() {
     console.log('');
 
     // 4. 策略统计
-    const policyStats = await client.query(`
+    const policyStats = await client.query(
+      `
       SELECT policy_type, COUNT(*) as count
       FROM dict_express_stack_policy
       WHERE version_id = $1
       GROUP BY policy_type
       ORDER BY policy_type
-    `, [versionId]);
+    `,
+      [versionId]
+    );
 
     console.log('4. 策略统计:');
     let totalPolicies = 0;
-    policyStats.rows.forEach(row => {
+    policyStats.rows.forEach((row) => {
       console.log(`   ${row.policy_type}: ${row.count} 条`);
       totalPolicies += parseInt(row.count);
     });
@@ -92,31 +98,37 @@ async function verifyImport() {
     console.log('');
 
     // 5. 费用类型分布
-    const typeStats = await client.query(`
+    const typeStats = await client.query(
+      `
       SELECT type_normalized, COUNT(*) as count
       FROM dict_express_surcharge_rule
       WHERE version_id = $1
       GROUP BY type_normalized
       ORDER BY count DESC
-    `, [versionId]);
+    `,
+      [versionId]
+    );
 
     console.log('5. 费用类型分布:');
-    typeStats.rows.forEach(row => {
+    typeStats.rows.forEach((row) => {
       console.log(`   ${row.type_normalized}: ${row.count} 条`);
     });
     console.log('');
 
     // 6. 文本比较符检查
-    const literalCheck = await client.query(`
+    const literalCheck = await client.query(
+      `
       SELECT cs.country_code, cs.service_name, r.type_normalized, r.condition_literal
       FROM dict_express_surcharge_rule r
       JOIN dict_express_carrier_service cs ON r.carrier_service_id = cs.id
       WHERE r.version_id = $1 AND r.condition_literal IS NOT NULL
-    `, [versionId]);
+    `,
+      [versionId]
+    );
 
     console.log('6. 文本比较符记录:');
     if (literalCheck.rows.length > 0) {
-      literalCheck.rows.forEach(row => {
+      literalCheck.rows.forEach((row) => {
         console.log(`   ${row.country_code} | ${row.service_name} | ${row.type_normalized}`);
         console.log(`     条件: ${row.condition_literal}`);
       });
@@ -126,17 +138,20 @@ async function verifyImport() {
     console.log('');
 
     // 7. 金额区间检查
-    const rangeCheck = await client.query(`
+    const rangeCheck = await client.query(
+      `
       SELECT cs.country_code, cs.service_name, r.type_normalized, 
              r.amount_min, r.amount_max, r.amount_fixed
       FROM dict_express_surcharge_rule r
       JOIN dict_express_carrier_service cs ON r.carrier_service_id = cs.id
       WHERE r.version_id = $1 AND r.amount_min IS NOT NULL
-    `, [versionId]);
+    `,
+      [versionId]
+    );
 
     console.log('7. 金额区间记录:');
     if (rangeCheck.rows.length > 0) {
-      rangeCheck.rows.forEach(row => {
+      rangeCheck.rows.forEach((row) => {
         console.log(`   ${row.country_code} | ${row.service_name} | ${row.type_normalized}`);
         console.log(`     区间: ${row.amount_min} - ${row.amount_max}`);
       });
@@ -146,7 +161,6 @@ async function verifyImport() {
     console.log('');
 
     console.log('=== 验证完成 ===');
-
   } catch (error: any) {
     console.error('验证失败:', error.message);
   } finally {
