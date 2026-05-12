@@ -8,6 +8,8 @@ describe('database data source options', () => {
 
   it('keeps production SSL settings from databaseConfig', async () => {
     jest.resetModules();
+    jest.unmock('../database');
+    jest.unmock('./index');
     process.env.NODE_ENV = 'production';
 
     const { dataSourceOptions } = await import('./index');
