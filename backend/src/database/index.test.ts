@@ -12,6 +12,6 @@ describe('database data source options', () => {
 
     const { dataSourceOptions } = await import('./index');
 
-    expect(dataSourceOptions.ssl).toEqual({ rejectUnauthorized: false });
+    expect((dataSourceOptions as { ssl?: unknown }).ssl).toEqual({ rejectUnauthorized: false });
   });
 });
