@@ -215,5 +215,19 @@ describe('CostEngine', () => {
 
       await expect(costEngineService.calculate(input)).rejects.toThrow();
     });
+
+    it('carrierServiceId 不属于请求国家时应拒绝计算', async () => {
+      const input = {
+        countryCode: 'CA',
+        carrierServiceId: testCarrierId,
+        versionKey: 'TEST_20260423',
+        longestIn: 50,
+        secondIn: 30,
+        shortestIn: 20,
+        grossWeightLbs: 40
+      };
+
+      await expect(costEngineService.calculate(input)).rejects.toThrow('不属于请求国家');
+    });
   });
 });

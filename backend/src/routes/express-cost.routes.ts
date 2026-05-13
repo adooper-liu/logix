@@ -171,7 +171,11 @@ router.post('/calculate', async (req, res) => {
     });
   } catch (error: any) {
     logger.error('[ExpressCostAPI] 计算失败:', error);
-    res.status(500).json({
+    const statusCode =
+      typeof error?.statusCode === 'number' && error.statusCode >= 400 && error.statusCode < 500
+        ? error.statusCode
+        : 500;
+    res.status(statusCode).json({
       success: false,
       message: error.message || '计算失败'
     });

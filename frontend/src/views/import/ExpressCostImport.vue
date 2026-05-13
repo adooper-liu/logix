@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx'
 const uploading = ref(false)
 const importResult = ref<any>(null)
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3002/api/v1'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1'
 
 /**
  * 处理文件上传
