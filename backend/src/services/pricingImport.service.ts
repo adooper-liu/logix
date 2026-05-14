@@ -119,7 +119,7 @@ export class PricingImportService {
           serviceCode: String(row.service_code || '').trim(),
           productLine: String(row.product_line || 'PARCEL_EXPRESS').trim(),
           currency: String(row.currency || 'USD').trim(),
-          priority: Number(row.priority || 100),
+          priority: this.parseNumberOrDefault(row.priority, 100, 'priority'),
           calcMode: String(row.calc_mode || '').trim(),
           conditionsJson: this.tryParseJson(row.conditions_json),
           isActive: row.is_active === undefined ? true : this.toBoolean(row.is_active)
@@ -163,9 +163,9 @@ export class PricingImportService {
           postalPrefixTo: row.postal_prefix_to ? String(row.postal_prefix_to).trim() : null,
           zoneCode: row.zone_code ? String(row.zone_code).trim() : null,
           laneCode: row.lane_code ? String(row.lane_code).trim() : null,
-          distanceKm: row.distance_km ? Number(row.distance_km) : null,
+          distanceKm: this.parseOptionalNumber(row.distance_km, 'distance_km'),
           conditionsJson: this.tryParseJson(row.conditions_json),
-          priority: Number(row.priority || 100)
+          priority: this.parseNumberOrDefault(row.priority, 100, 'priority')
         });
         if (!entity.countryCode || !entity.mappingType) {
           throw new Error('zone_lane_mapping 必填字段缺失');
@@ -204,16 +204,22 @@ export class PricingImportService {
           schemeId,
           zoneCode: row.zone_code ? String(row.zone_code).trim() : null,
           laneCode: row.lane_code ? String(row.lane_code).trim() : null,
-          weightFrom: row.weight_from ? Number(row.weight_from) : null,
-          weightTo: row.weight_to ? Number(row.weight_to) : null,
-          firstWeight: row.first_weight ? Number(row.first_weight) : null,
-          firstFee: row.first_fee ? Number(row.first_fee) : null,
-          additionalStepWeight: row.additional_step_weight ? Number(row.additional_step_weight) : null,
-          additionalFeePerStep: row.additional_fee_per_step ? Number(row.additional_fee_per_step) : null,
-          flatFee: row.flat_fee ? Number(row.flat_fee) : null,
-          unitPricePerKg: row.unit_price_per_kg ? Number(row.unit_price_per_kg) : null,
-          minCharge: row.min_charge ? Number(row.min_charge) : null,
-          maxCharge: row.max_charge ? Number(row.max_charge) : null,
+          weightFrom: this.parseOptionalNumber(row.weight_from, 'weight_from'),
+          weightTo: this.parseOptionalNumber(row.weight_to, 'weight_to'),
+          firstWeight: this.parseOptionalNumber(row.first_weight, 'first_weight'),
+          firstFee: this.parseOptionalNumber(row.first_fee, 'first_fee'),
+          additionalStepWeight: this.parseOptionalNumber(
+            row.additional_step_weight,
+            'additional_step_weight'
+          ),
+          additionalFeePerStep: this.parseOptionalNumber(
+            row.additional_fee_per_step,
+            'additional_fee_per_step'
+          ),
+          flatFee: this.parseOptionalNumber(row.flat_fee, 'flat_fee'),
+          unitPricePerKg: this.parseOptionalNumber(row.unit_price_per_kg, 'unit_price_per_kg'),
+          minCharge: this.parseOptionalNumber(row.min_charge, 'min_charge'),
+          maxCharge: this.parseOptionalNumber(row.max_charge, 'max_charge'),
           billableWeightRounding: row.billable_weight_rounding
             ? String(row.billable_weight_rounding).trim()
             : null,
@@ -251,6 +257,23 @@ export class PricingImportService {
     if (typeof value === 'boolean') return value;
     const normalized = String(value).trim().toLowerCase();
     return ['1', 'true', 'yes', 'y', '是'].includes(normalized);
+  }
+
+  private parseNumberOrDefault(value: any, defaultValue: number, field: string): number {
+    const parsed = this.parseOptionalNumber(value, field);
+    return parsed === null ? defaultValue : parsed;
+  }
+
+  private parseOptionalNumber(value: any, field: string): number | null {
+    if (value === undefined || value === null || value === '') {
+      return null;
+    }
+
+    const parsed = Number(value);
+    if (Number.isNaN(parsed)) {
+      throw new Error(`${field} 必须是数字`);
+    }
+    return parsed;
   }
 }
 

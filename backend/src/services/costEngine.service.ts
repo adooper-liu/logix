@@ -115,6 +115,11 @@ export class CostEngineService {
       if (!carrierService) {
         throw new Error(`未找到承运商服务: ID=${input.carrierServiceId}`);
       }
+      if (carrierService.countryCode !== input.countryCode) {
+        throw new Error(
+          `承运商服务不属于请求国家: carrierServiceId=${input.carrierServiceId}, countryCode=${input.countryCode}`
+        );
+      }
 
       // Step 2: 计算计费重
       const volumeWeightLbs = this.calculateVolumeWeight(
