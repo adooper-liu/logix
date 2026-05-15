@@ -445,12 +445,7 @@ export class CostEngineService {
 
     const literalChecks = this.parseConditionLiteralChecks(rule);
     if (literalChecks.length > 0) {
-      return this.evaluateDimensionChecks(
-        literalChecks,
-        input,
-        billableWeightLbs,
-        this.resolveLiteralJoinOperator(rule)
-      );
+      return this.evaluateDimensionChecks(literalChecks, input, billableWeightLbs, 'AND');
     }
 
     if (rule.longestIn !== null) {
@@ -515,9 +510,14 @@ export class CostEngineService {
     segment: string,
     fallbackField: string | undefined
   ): DimensionCheck | null {
-    const match = segment.match(
-      /^(?:(?<field>[\u4e00-\u9fa5A-Za-z_][\u4e00-\u9fa5A-Za-z0-9_+ ]*)\s*)?(?<operator>>=|<=|==|!=|>|<|=)\s*(?<value>\d+(?:\.\d+)?)$/
+    const conditionPattern = new RegExp(
+      '^' +
+        '(?:(?<field>[\\u4e00-\\u9fa5A-Za-z_][\\u4e00-\\u9fa5A-Za-z0-9_+ ]*)\\s*)?' +
+        '(?<operator>>=|<=|==|!=|>|<|=)\\s*' +
+        '(?<value>\\d+(?:\\.\\d+)?)' +
+        '$'
     );
+    const match = segment.match(conditionPattern);
 
     if (!match?.groups) {
       return null;
@@ -617,10 +617,6 @@ export class CostEngineService {
       default:
         return null;
     }
-  }
-
-  private resolveLiteralJoinOperator(rule: ExpressSurchargeRule): ConditionJoinOperator {
-    return 'AND';
   }
 
   private evaluateDimensionChecks(
@@ -772,7 +768,7 @@ export class CostEngineService {
    * 应用互斥策略
    */
   private applyPolicies(charges: ChargeItem[], policies: ExpressStackPolicy[]): ChargeItem[] {
-    let result = [...charges];
+    const result = [...charges];
 
     for (const policy of policies) {
       const policyJson = policy.policyJson;
