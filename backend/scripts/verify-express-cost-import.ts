@@ -13,7 +13,7 @@ const dbConfig = {
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_DATABASE || 'logix_db',
   user: process.env.DB_USERNAME || 'logix_user',
-  password: process.env.DB_PASSWORD || 'LogiX@2024!Secure'
+  password: process.env.DB_PASSWORD
 };
 
 async function verifyImport() {
@@ -29,6 +29,11 @@ async function verifyImport() {
       FROM dict_express_surcharge_version 
       ORDER BY id DESC LIMIT 1
     `);
+    if (versionResult.rows.length === 0) {
+      console.error('未找到快递费版本记录，请先执行导入脚本。');
+      process.exitCode = 1;
+      return;
+    }
     console.log('1. 版本信息:');
     console.log(`   ID: ${versionResult.rows[0].id}`);
     console.log(`   Version Key: ${versionResult.rows[0].version_key}`);
