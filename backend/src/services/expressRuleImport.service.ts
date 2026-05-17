@@ -306,9 +306,27 @@ export class ExpressRuleImportService {
     const rateWtMulti = parseValue(row['计价重（多箱）']);
     const minBillable = parseValue(row['最低计价重LBS']);
 
-    // 收集所有文本比较符
+    const literalEntries: Array<[string, string | null]> = [
+      ['longest_in', longest.literal],
+      ['second_in', second.literal],
+      ['shortest_in', shortest.literal],
+      ['girth_in', girth.literal],
+      ['l_plus_s_in', lPlusS.literal],
+      ['three_sides_sum_in', threeSides.literal],
+      ['diagonal_in', diagonal.literal],
+      ['vol_m3_threshold', volM3.literal],
+      ['gross_wt_value', grossWt.literal],
+      ['rate_wt_single', rateWtSingle.literal],
+      ['rate_wt_multi', rateWtMulti.literal],
+      ['min_billable_lbs', minBillable.literal]
+    ];
+
+    // 收集所有文本比较符，并保留字段名，供试算引擎还原比较对象。
     const literals =
-      [longest.literal, second.literal, girth.literal].filter(Boolean).join('; ') || null;
+      literalEntries
+        .filter((entry): entry is [string, string] => !!entry[1])
+        .map(([field, literal]) => `${field} ${literal}`)
+        .join('; ') || null;
 
     return {
       longestIn: longest.numeric,

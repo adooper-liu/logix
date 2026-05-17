@@ -81,7 +81,7 @@ export interface CostResult {
 }
 
 interface DimensionCheck {
-  field: keyof ExpressSurchargeRule;
+  field: string;
   operator: '>' | '>=' | '<' | '<=' | '==';
   value: number;
 }
@@ -431,6 +431,11 @@ export class CostEngineService {
       return this.checkComplexCondition(rule.conditionsJson, input, billableWeightLbs);
     }
 
+    const literalResult = this.checkConditionLiteral(rule.conditionLiteral, input, billableWeightLbs);
+    if (literalResult === false) {
+      return false;
+    }
+
     // 简单阈值检查
     const checks: DimensionCheck[] = [];
 
@@ -475,7 +480,9 @@ export class CostEngineService {
 
     // 所有条件都必须满足（AND 逻辑）
     for (const check of checks) {
-      const actualValue = input[check.field as keyof ScenarioInput] as number;
+      const actualValue =
+        this.getFieldValue(check.field, input, billableWeightLbs) ??
+        (input[check.field as keyof ScenarioInput] as number | undefined);
       if (actualValue === undefined || actualValue === null) {
         continue;
       }
@@ -499,7 +506,76 @@ export class CostEngineService {
       }
     }
 
-    return checks.length > 0;
+    return checks.length > 0 || literalResult === true;
+  }
+
+  private checkConditionLiteral(
+    conditionLiteral: string | null,
+    input: ScenarioInput,
+    billableWeightLbs: number
+  ): boolean | null {
+    const literalChecks = this.parseConditionLiteral(conditionLiteral);
+    if (literalChecks.length === 0) {
+      return null;
+    }
+
+    return literalChecks.every((check) => {
+      const actualValue = this.getFieldValue(check.field, input, billableWeightLbs);
+      if (actualValue === null) {
+        return false;
+      }
+      return this.compareNumber(actualValue, check.operator, check.value);
+    });
+  }
+
+  private parseConditionLiteral(conditionLiteral: string | null): DimensionCheck[] {
+    if (!conditionLiteral) {
+      return [];
+    }
+
+    return conditionLiteral
+      .split(/[;\n]+/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part) => {
+        const match = part.match(
+          /^(?:(?<field>[a-zA-Z_][a-zA-Z0-9_]*)\s*[:=]?\s*)?(?<operator>>=|<=|==|=|>|<)\s*(?<value>-?\d+(?:\.\d+)?)$/
+        );
+        if (!match?.groups?.field || !match.groups.operator || !match.groups.value) {
+          return null;
+        }
+
+        return {
+          field: match.groups.field,
+          operator:
+            match.groups.operator === '='
+              ? '=='
+              : (match.groups.operator as DimensionCheck['operator']),
+          value: Number(match.groups.value)
+        };
+      })
+      .filter((check): check is DimensionCheck => check !== null);
+  }
+
+  private compareNumber(
+    actualValue: number,
+    operator: DimensionCheck['operator'],
+    expectedValue: number
+  ): boolean {
+    switch (operator) {
+      case '>':
+        return actualValue > expectedValue;
+      case '>=':
+        return actualValue >= expectedValue;
+      case '<':
+        return actualValue < expectedValue;
+      case '<=':
+        return actualValue <= expectedValue;
+      case '==':
+        return actualValue === expectedValue;
+      default:
+        return false;
+    }
   }
 
   /**
@@ -560,16 +636,39 @@ export class CostEngineService {
   ): number | null {
     switch (field) {
       case 'longest_in':
+      case 'longestIn':
         return input.longestIn;
       case 'second_in':
+      case 'secondIn':
         return input.secondIn;
       case 'shortest_in':
+      case 'shortestIn':
         return input.shortestIn;
       case 'girth_in':
+      case 'girthIn':
         return 2 * (input.secondIn + input.shortestIn);
+      case 'l_plus_s_in':
+      case 'lPlusSIn':
+        return input.longestIn + input.secondIn;
+      case 'three_sides_sum_in':
+      case 'threeSidesSumIn':
+        return input.longestIn + input.secondIn + input.shortestIn;
+      case 'diagonal_in':
+      case 'diagonalIn':
+        return Math.sqrt(input.longestIn ** 2 + input.secondIn ** 2 + input.shortestIn ** 2);
+      case 'vol_m3_threshold':
+      case 'volM3Threshold':
+        return input.longestIn * input.secondIn * input.shortestIn * 0.000016387064;
       case 'gross_wt_value':
+      case 'grossWtValue':
         return input.grossWeightLbs;
       case 'billable_weight':
+      case 'rate_wt_single':
+      case 'rate_wt_multi':
+      case 'min_billable_lbs':
+      case 'rateWtSingle':
+      case 'rateWtMulti':
+      case 'minBillableLbs':
         return billableWeightLbs;
       default:
         return null;
