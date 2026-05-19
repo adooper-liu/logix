@@ -50,5 +50,35 @@ describe('CostEngine PhaseA+ base freight helpers', () => {
     rowSpy.mockRestore();
     schemeFindOne.mockRestore();
   });
+
+  it('基础费率同时存在通用行和 Zone 专用行时应优先使用 Zone 专用行', async () => {
+    const svc = costEngineService as any;
+    const findSpy = jest.spyOn(svc.baseRateRepo, 'find').mockResolvedValue([
+      {
+        id: 1,
+        schemeId: 22,
+        zoneCode: null,
+        laneCode: null,
+        weightFrom: 0,
+        weightTo: 100,
+        flatFee: 5
+      },
+      {
+        id: 2,
+        schemeId: 22,
+        zoneCode: 'Z9',
+        laneCode: null,
+        weightFrom: 0,
+        weightTo: 100,
+        flatFee: 18.5
+      }
+    ]);
+
+    const row = await svc.pickBaseRateRow(22, 'Z9', undefined, 22);
+
+    expect(row?.id).toBe(2);
+    expect(row?.flatFee).toBe(18.5);
+    findSpy.mockRestore();
+  });
 });
 
