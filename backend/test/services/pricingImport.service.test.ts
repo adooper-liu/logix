@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx';
 import { AppDataSource } from '../../src/database';
 import { PricingImportService } from '../../src/services/pricingImport.service';
 
-function buildWorkbook(options?: { invalidScheme?: boolean }): Buffer {
+function buildWorkbook(options?: { invalidScheme?: boolean; emptyScheme?: boolean; invalidJson?: boolean }): Buffer {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(
     wb,
@@ -14,10 +14,32 @@ function buildWorkbook(options?: { invalidScheme?: boolean }): Buffer {
   );
   XLSX.utils.book_append_sheet(
     wb,
-    XLSX.utils.aoa_to_sheet([
-      ['scheme_ref', 'country_code', 'carrier_code', 'service_code', 'product_line', 'currency', 'calc_mode'],
-      ['SCH_US_FEDEX', 'US', 'FEDEX', 'GROUND', 'PARCEL_EXPRESS', 'USD', options?.invalidScheme ? '' : 'TIER_FLAT']
-    ]),
+    XLSX.utils.aoa_to_sheet(
+      options?.emptyScheme
+        ? [['scheme_ref', 'country_code', 'carrier_code', 'service_code', 'product_line', 'currency', 'calc_mode']]
+        : [
+            [
+              'scheme_ref',
+              'country_code',
+              'carrier_code',
+              'service_code',
+              'product_line',
+              'currency',
+              'calc_mode',
+              'conditions_json'
+            ],
+            [
+              'SCH_US_FEDEX',
+              'US',
+              'FEDEX',
+              'GROUND',
+              'PARCEL_EXPRESS',
+              'USD',
+              options?.invalidScheme ? '' : 'TIER_FLAT',
+              options?.invalidJson ? '{tier:]' : ''
+            ]
+          ]
+    ),
     'pricing_scheme'
   );
   XLSX.utils.book_append_sheet(
@@ -98,6 +120,40 @@ describe('PricingImportService', () => {
     expect(result.versionId).toBeUndefined();
     expect(result.failed).toBeGreaterThan(0);
     expect(result.errors[0].sheet).toBe('pricing_scheme');
+    txSpy.mockRestore();
+  });
+
+  it('pricing_scheme 空表应在写库前拒绝，避免提交空版本', async () => {
+    const txSpy = jest.spyOn(AppDataSource.manager, 'transaction');
+
+    await expect(service.importFromExcel(buildWorkbook({ emptyScheme: true }), 'empty.xlsx')).rejects.toThrow(
+      'pricing_scheme Sheet 为空'
+    );
+    expect(txSpy).not.toHaveBeenCalled();
+    txSpy.mockRestore();
+  });
+
+  it('conditions_json 非法时应作为行级错误回滚，不能静默替换为空对象', async () => {
+    const saveMock = jest
+      .fn()
+      .mockResolvedValueOnce({ id: 101 })
+      .mockResolvedValueOnce({ id: 301 });
+    const manager = {
+      getRepository: jest.fn().mockImplementation(() => ({
+        save: saveMock,
+        create: (x: any) => x
+      }))
+    } as any;
+
+    const txSpy = jest
+      .spyOn(AppDataSource.manager, 'transaction')
+      .mockImplementation(async (cb: any) => cb(manager));
+    const result = await service.importFromExcel(buildWorkbook({ invalidJson: true }), 'invalid-json.xlsx');
+
+    expect(result.success).toBe(0);
+    expect(result.versionId).toBeUndefined();
+    expect(result.failed).toBeGreaterThan(0);
+    expect(result.errors.some((error) => error.message.includes('JSON 格式错误'))).toBe(true);
     txSpy.mockRestore();
   });
 });

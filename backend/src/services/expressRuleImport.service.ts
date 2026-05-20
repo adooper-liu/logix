@@ -64,6 +64,9 @@ export class ExpressRuleImportService {
         throw new Error('Excel 文件缺少 surcharge_rules Sheet');
       }
       const rulesData = XLSX.utils.sheet_to_json(rulesSheet) as Record<string, any>[];
+      if (rulesData.length === 0) {
+        throw new Error('surcharge_rules Sheet 为空');
+      }
       const policiesSheet = workbook.Sheets['stack_policies'];
       const policiesData = policiesSheet
         ? (XLSX.utils.sheet_to_json(policiesSheet) as Record<string, any>[])

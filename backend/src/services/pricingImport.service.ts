@@ -44,6 +44,12 @@ export class PricingImportService {
       if (metadataRows.length === 0) {
         throw new Error('metadata Sheet 为空');
       }
+      if (schemeRows.length === 0) {
+        throw new Error('pricing_scheme Sheet 为空');
+      }
+      if (baseRows.length === 0) {
+        throw new Error('base_rate_rows Sheet 为空');
+      }
 
       await AppDataSource.manager.transaction(async (manager) => {
         const version = await this.createVersion(manager, metadataRows[0], fileName);
@@ -242,8 +248,8 @@ export class PricingImportService {
     }
     try {
       return JSON.parse(String(value));
-    } catch {
-      return {};
+    } catch (error: any) {
+      throw new Error(`JSON 格式错误: ${error.message || String(value)}`);
     }
   }
 
