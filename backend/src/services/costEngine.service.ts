@@ -116,6 +116,15 @@ export class CostEngineService {
         throw new Error(`未找到承运商服务: ID=${input.carrierServiceId}`);
       }
 
+      const requestedCountryCode = this.normalizeCountryCode(input.countryCode);
+      const carrierCountryCode = this.normalizeCountryCode(carrierService.countryCode);
+      if (requestedCountryCode !== carrierCountryCode) {
+        throw new Error(
+          `承运商服务国家不匹配: 请求 countryCode=${input.countryCode}, ` +
+            `承运商 countryCode=${carrierService.countryCode}`
+        );
+      }
+
       // Step 2: 计算计费重
       const volumeWeightLbs = this.calculateVolumeWeight(
         input.longestIn,
@@ -345,6 +354,10 @@ export class CostEngineService {
     const volumeCubicInches = longestIn * secondIn * shortestIn;
     const volumeWeightLbs = volumeCubicInches / 139;
     return Math.ceil(volumeWeightLbs); // 向上取整
+  }
+
+  private normalizeCountryCode(countryCode: string): string {
+    return String(countryCode || '').trim().toUpperCase();
   }
 
   /**

@@ -34,8 +34,13 @@ const versions = ref<any[]>([])
 /**
  * 加载承运商列表
  */
-const loadCarriers = async () => {
+const loadCarriers = async (resetSelection = false) => {
   if (!form.countryCode) return
+
+  if (resetSelection) {
+    form.carrierServiceId = null
+    result.value = null
+  }
 
   loadingCarriers.value = true
   try {
@@ -59,6 +64,10 @@ const loadCarriers = async () => {
   } finally {
     loadingCarriers.value = false
   }
+}
+
+const handleCountryChange = () => {
+  loadCarriers(true)
 }
 
 /**
@@ -184,7 +193,7 @@ onMounted(() => {
               <el-select
                 v-model="form.countryCode"
                 placeholder="请选择国家"
-                @change="loadCarriers"
+                @change="handleCountryChange"
                 style="width: 100%"
               >
                 <el-option label="美国 (US)" value="US" />
