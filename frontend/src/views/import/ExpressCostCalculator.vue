@@ -361,7 +361,9 @@ onMounted(() => {
                 <el-table-column prop="type" label="类型" width="150" />
                 <el-table-column prop="typeRaw" label="原始名称" />
                 <el-table-column prop="amount" label="金额" width="120">
-                  <template #default="{ row }"> ${{ Number(row.amount || 0).toFixed(2) }} </template>
+                  <template #default="{ row }">
+                    ${{ Number(row.amount || 0).toFixed(2) }}
+                  </template>
                 </el-table-column>
                 <el-table-column prop="disabledBy" label="禁用原因" />
               </el-table>
