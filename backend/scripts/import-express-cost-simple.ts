@@ -9,20 +9,29 @@
 
 import * as dotenv from 'dotenv';
 import * as path from 'path';
-import { Client } from 'pg';
+import { Client, ClientConfig } from 'pg';
 import * as XLSX from 'xlsx';
 
 // 加载 .env 文件
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-// PostgreSQL 连接配置（从 .env 读取或使用默认值）
-const dbConfig = {
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_DATABASE || 'logix_db',
-  user: process.env.DB_USERNAME || 'logix_user',
-  password: process.env.DB_PASSWORD || 'LogiX@2024!Secure'
-};
+export const EXPRESS_COST_VERSION_KEY = 'v1.0-20260214';
+
+export function buildDbConfig(env: NodeJS.ProcessEnv = process.env): ClientConfig {
+  if (!env.DB_PASSWORD) {
+    throw new Error(
+      'DB_PASSWORD is required; refusing to use an embedded default database password'
+    );
+  }
+
+  return {
+    host: env.DB_HOST || 'localhost',
+    port: parseInt(env.DB_PORT || '5432', 10),
+    database: env.DB_DATABASE || 'logix_db',
+    user: env.DB_USERNAME || 'logix_user',
+    password: env.DB_PASSWORD
+  };
+}
 
 // 解析数值（处理 '×' 和空值）
 function parseNumeric(value: any): number | null {
@@ -199,7 +208,10 @@ function extractMaxGroupPolicies(remark: string): MaxGroupPolicy[] {
   return policies;
 }
 
-async function importExpressCostData(filePath: string) {
+export async function importExpressCostData(
+  filePath: string,
+  dbConfig: ClientConfig = buildDbConfig()
+) {
   console.log('=== 全球快递费数据导入工具（简化版）===\n');
   console.log('Excel 文件:', filePath);
   console.log('数据库配置:', `${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`);
@@ -244,13 +256,6 @@ async function importExpressCostData(filePath: string) {
     await client.query('BEGIN');
     console.log('✓ 事务已开启\n');
 
-    // 清空现有数据
-    console.log('正在清空现有数据...');
-    await client.query('DELETE FROM dict_express_surcharge_rule');
-    await client.query('DELETE FROM dict_express_stack_policy');
-    await client.query('DELETE FROM dict_express_carrier_service');
-    console.log('✓ 数据清空完成\n');
-
     // 第一步：创建默认的 version（如果不存在）
     console.log('正在创建版本记录...');
     const versionResult = await client.query(
@@ -260,11 +265,19 @@ async function importExpressCostData(filePath: string) {
       ON CONFLICT (version_key) DO UPDATE SET updated_at = NOW()
       RETURNING id
     `,
-      ['v1.0-20260214', 'system', '从 Excel 导入的全球快递费规则']
+      [EXPRESS_COST_VERSION_KEY, 'system', '从 Excel 导入的全球快递费规则']
     );
 
     const versionId = versionResult.rows[0].id;
     console.log(`✓ 版本 ID: ${versionId}\n`);
+
+    // 仅清理当前版本的规则与策略，承运商服务是跨版本共享字典，不能全表删除。
+    console.log(`正在清理版本 ${EXPRESS_COST_VERSION_KEY} 的旧规则...`);
+    await client.query('DELETE FROM dict_express_stack_policy WHERE version_id = $1', [versionId]);
+    await client.query('DELETE FROM dict_express_surcharge_rule WHERE version_id = $1', [
+      versionId
+    ]);
+    console.log('✓ 旧规则清理完成\n');
 
     // 第二步：导入承运商服务并收集映射
     console.log('正在导入承运商服务...');
@@ -548,10 +561,16 @@ async function importExpressCostData(filePath: string) {
   }
 }
 
-// 主函数
-const excelPath = process.argv[2] || 'D:/aosom/Downloads/全球快递费拒收超标标准20260214.xlsx';
+if (require.main === module) {
+  const excelPath = process.argv[2];
 
-importExpressCostData(excelPath).catch((error) => {
-  console.error('未捕获的错误:', error);
-  process.exit(1);
-});
+  if (!excelPath) {
+    console.error('使用方法: npx ts-node scripts/import-express-cost-simple.ts [Excel文件路径]');
+    process.exit(1);
+  }
+
+  importExpressCostData(excelPath).catch((error) => {
+    console.error('未捕获的错误:', error);
+    process.exit(1);
+  });
+}
