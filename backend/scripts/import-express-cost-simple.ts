@@ -224,7 +224,7 @@ export async function importExpressCostData(
     console.log('✓ Excel 文件读取成功');
   } catch (error: any) {
     console.error('✗ 读取 Excel 文件失败:', error.message);
-    process.exit(1);
+    throw error;
   }
 
   // 获取第一个 Sheet
@@ -235,8 +235,7 @@ export async function importExpressCostData(
   const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1 }) as any[][];
 
   if (rawData.length < 2) {
-    console.error('✗ Excel 文件中没有数据');
-    process.exit(1);
+    throw new Error('Excel 文件中没有数据');
   }
 
   const dataRows = rawData
@@ -553,7 +552,7 @@ export async function importExpressCostData(
 
     console.error('\n✗ 导入失败:', error.message);
     console.error('错误详情:', error);
-    process.exit(1);
+    throw error;
   } finally {
     // 关闭数据库连接
     await client.end();
