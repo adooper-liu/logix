@@ -16,6 +16,7 @@ jest.mock('xlsx', () => ({
 }));
 
 import * as XLSX from 'xlsx';
+import { Client } from 'pg';
 import { buildDbConfig, importExpressCostData } from '../../scripts/import-express-cost-simple';
 
 describe('import-express-cost-simple', () => {
@@ -23,6 +24,7 @@ describe('import-express-cost-simple', () => {
     jest.spyOn(console, 'log').mockImplementation(() => undefined);
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
     jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    (Client as jest.Mock).mockImplementation(() => mockClient);
 
     (XLSX.readFile as jest.Mock).mockReturnValue({
       SheetNames: ['rules'],
