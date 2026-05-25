@@ -5,7 +5,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Operation, InfoFilled } from '@element-plus/icons-vue'
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3002/api/v1'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1'
 
 // 表单数据
 const form = reactive({
@@ -46,10 +46,8 @@ const loadCarriers = async () => {
 
     if (data.success) {
       carriers.value = data.data
-      // 默认选择第一个
-      if (carriers.value.length > 0 && !form.carrierServiceId) {
-        form.carrierServiceId = carriers.value[0].id
-      }
+      // 国家切换后旧承运商 ID 不能继续参与试算。
+      form.carrierServiceId = carriers.value.length > 0 ? carriers.value[0].id : null
     } else {
       ElMessage.error('加载承运商列表失败')
     }
@@ -352,7 +350,9 @@ onMounted(() => {
                 <el-table-column prop="type" label="类型" width="150" />
                 <el-table-column prop="typeRaw" label="原始名称" />
                 <el-table-column prop="amount" label="金额" width="120">
-                  <template #default="{ row }"> ${{ Number(row.amount || 0).toFixed(2) }} </template>
+                  <template #default="{ row }">
+                    ${{ Number(row.amount || 0).toFixed(2) }}
+                  </template>
                 </el-table-column>
                 <el-table-column prop="disabledBy" label="禁用原因" />
               </el-table>

@@ -21,7 +21,7 @@ const dbConfig = {
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_DATABASE || 'logix_db',
   user: process.env.DB_USERNAME || 'logix_user',
-  password: process.env.DB_PASSWORD || 'LogiX@2024!Secure'
+  password: process.env.DB_PASSWORD
 };
 
 // 解析数值（处理 '×' 和空值）
@@ -205,6 +205,11 @@ async function importExpressCostData(filePath: string) {
   console.log('数据库配置:', `${dbConfig.host}:${dbConfig.port}/${dbConfig.database}`);
   console.log('');
 
+  if (!dbConfig.password) {
+    console.error('✗ 缺少数据库密码：请通过环境变量 DB_PASSWORD 提供');
+    process.exit(1);
+  }
+
   // 读取 Excel 文件
   let workbook: XLSX.WorkBook;
   try {
@@ -230,6 +235,24 @@ async function importExpressCostData(filePath: string) {
   const dataRows = rawData
     .slice(1)
     .filter((row) => row.some((cell) => cell !== null && cell !== undefined));
+  const invalidRows = dataRows
+    .map((row, index) => ({
+      rowNumber: index + 2,
+      countryCode: row[0]?.toString().trim(),
+      carrier: row[1]?.toString().trim(),
+      typeRaw: row[2]?.toString().trim()
+    }))
+    .filter((row) => !row.countryCode || !row.carrier || !row.typeRaw);
+  if (invalidRows.length > 0) {
+    console.error('✗ Excel 存在缺少国别、快递方式或类型的非空行，导入未开始：');
+    invalidRows.slice(0, 10).forEach((row) => {
+      console.error(`  第 ${row.rowNumber} 行`);
+    });
+    if (invalidRows.length > 10) {
+      console.error(`  ... 另有 ${invalidRows.length - 10} 行`);
+    }
+    process.exit(1);
+  }
   console.log(`找到 ${dataRows.length} 条数据记录`);
   console.log('');
 
@@ -243,13 +266,6 @@ async function importExpressCostData(filePath: string) {
     // 开始事务
     await client.query('BEGIN');
     console.log('✓ 事务已开启\n');
-
-    // 清空现有数据
-    console.log('正在清空现有数据...');
-    await client.query('DELETE FROM dict_express_surcharge_rule');
-    await client.query('DELETE FROM dict_express_stack_policy');
-    await client.query('DELETE FROM dict_express_carrier_service');
-    console.log('✓ 数据清空完成\n');
 
     // 第一步：创建默认的 version（如果不存在）
     console.log('正在创建版本记录...');
@@ -265,6 +281,14 @@ async function importExpressCostData(filePath: string) {
 
     const versionId = versionResult.rows[0].id;
     console.log(`✓ 版本 ID: ${versionId}\n`);
+
+    // 仅清理当前版本的规则与策略，保留其他版本以及跨版本共享的承运商服务。
+    console.log('正在清空当前版本规则和策略...');
+    await client.query('DELETE FROM dict_express_surcharge_rule WHERE version_id = $1', [
+      versionId
+    ]);
+    await client.query('DELETE FROM dict_express_stack_policy WHERE version_id = $1', [versionId]);
+    console.log('✓ 当前版本数据清空完成\n');
 
     // 第二步：导入承运商服务并收集映射
     console.log('正在导入承运商服务...');
@@ -317,7 +341,7 @@ async function importExpressCostData(filePath: string) {
       const typeRaw = row[2]?.toString().trim();
 
       if (!countryCode || !carrierRaw || !typeRaw) {
-        continue;
+        throw new Error(`第 ${i + 2} 行缺少国别、快递方式或类型`);
       }
 
       const carrier = normalizeCarrierName(carrierRaw);
@@ -325,8 +349,7 @@ async function importExpressCostData(filePath: string) {
       const carrierServiceId = carrierServiceMap.get(carrierKey);
 
       if (!carrierServiceId) {
-        console.warn(`⚠ 警告: 未找到承运商服务 ${carrierKey}，跳过第 ${i + 2} 行`);
-        continue;
+        throw new Error(`未找到承运商服务 ${carrierKey}，第 ${i + 2} 行无法导入`);
       }
 
       // 解析尺寸和重量（支持文本比较符）
@@ -343,17 +366,22 @@ async function importExpressCostData(filePath: string) {
       const rateWtMulti = parseValueWithLiteral(row[13]);
       const minBillable = parseValueWithLiteral(row[14]);
 
-      // 收集所有文本比较符（过滤掉 "x" 等无效值）
+      // 收集所有文本比较符并保留字段名，便于试算引擎执行阈值判断。
       const literals =
         [
-          longest.literal,
-          second.literal,
-          girth.literal,
-          lPlusS.literal,
-          threeSides.literal,
-          grossWt.literal
+          { field: 'longest_in', literal: longest.literal },
+          { field: 'second_in', literal: second.literal },
+          { field: 'shortest_in', literal: shortest.literal },
+          { field: 'girth_in', literal: girth.literal },
+          { field: 'l_plus_s_in', literal: lPlusS.literal },
+          { field: 'three_sides_sum_in', literal: threeSides.literal },
+          { field: 'gross_wt_value', literal: grossWt.literal },
+          { field: 'billable_weight', literal: rateWtSingle.literal },
+          { field: 'billable_weight', literal: rateWtMulti.literal },
+          { field: 'billable_weight', literal: minBillable.literal }
         ]
-          .filter((l) => l && l !== 'x' && l !== 'X') // 过滤掉 x/X
+          .filter((item) => item.literal && item.literal !== 'x' && item.literal !== 'X')
+          .map((item) => `${item.field} ${item.literal}`)
           .join('; ') || null;
 
       // 解析金额（支持区间格式 "5.2-8.8"）

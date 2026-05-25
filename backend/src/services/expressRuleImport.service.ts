@@ -306,9 +306,24 @@ export class ExpressRuleImportService {
     const rateWtMulti = parseValue(row['计价重（多箱）']);
     const minBillable = parseValue(row['最低计价重LBS']);
 
-    // 收集所有文本比较符
+    // 收集文本比较符时保留字段名，避免试算引擎无法判断阈值对应哪个实际值。
+    const literalSources = [
+      { field: 'longest_in', literal: longest.literal },
+      { field: 'second_in', literal: second.literal },
+      { field: 'shortest_in', literal: shortest.literal },
+      { field: 'girth_in', literal: girth.literal },
+      { field: 'l_plus_s_in', literal: lPlusS.literal },
+      { field: 'three_sides_sum_in', literal: threeSides.literal },
+      { field: 'gross_wt_value', literal: grossWt.literal },
+      { field: 'billable_weight', literal: rateWtSingle.literal },
+      { field: 'billable_weight', literal: rateWtMulti.literal },
+      { field: 'billable_weight', literal: minBillable.literal }
+    ];
     const literals =
-      [longest.literal, second.literal, girth.literal].filter(Boolean).join('; ') || null;
+      literalSources
+        .filter((item) => item.literal)
+        .map((item) => `${item.field} ${item.literal}`)
+        .join('; ') || null;
 
     return {
       longestIn: longest.numeric,
@@ -472,16 +487,19 @@ export class ExpressRuleImportService {
       throw new Error(`未找到承运商服务: ${countryCode} - ${carrierServiceName}`);
     }
 
-    // 解析 policy_json（可能是字符串或对象）
-    let policyJson: any;
-    if (typeof policyJsonStr === 'string') {
+    // 解析 policy_json（可能是字符串或对象）；兼容模板中的分列写法。
+    let policyJson: any = this.buildPolicyJson(policyType, row);
+    if (policyJsonStr && typeof policyJsonStr === 'string') {
       try {
         policyJson = JSON.parse(policyJsonStr);
       } catch (error) {
         throw new Error(`policy_json 格式错误: ${policyJsonStr}`);
       }
-    } else {
+    } else if (policyJsonStr) {
       policyJson = policyJsonStr;
+    }
+    if (!policyJson || Object.keys(policyJson).length === 0) {
+      throw new Error('policy_json 不能为空');
     }
 
     await policyRepo.save({
@@ -491,6 +509,34 @@ export class ExpressRuleImportService {
       policyType,
       policyJson
     });
+  }
+
+  private buildPolicyJson(
+    policyType: string,
+    row: Record<string, any>
+  ): Record<string, string[]> | null {
+    const splitList = (value: any): string[] =>
+      String(value || '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item && item !== '×' && item.toLowerCase() !== 'x');
+
+    if (policyType === 'IF_THEN_DISABLE') {
+      const ifTriggered = splitList(row['if_triggered']);
+      const disable = splitList(row['disable']);
+      if (ifTriggered.length > 0 && disable.length > 0) {
+        return { if_triggered: ifTriggered, disable };
+      }
+    }
+
+    if (policyType === 'MAX_GROUP') {
+      const maxGroup = splitList(row['max_group_types']);
+      if (maxGroup.length > 0) {
+        return { max_group: maxGroup };
+      }
+    }
+
+    return null;
   }
 }
 

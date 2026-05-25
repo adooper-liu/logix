@@ -65,7 +65,17 @@ router.post('/import-excel', upload.single('file'), async (req, res) => {
     });
 
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
-    const usePhaseAPlusImport = !!workbook.Sheets.pricing_scheme;
+    const hasPhaseAPlusSheets = !!workbook.Sheets.pricing_scheme;
+    const hasSurchargeSheets = !!workbook.Sheets.surcharge_rules;
+    if (hasPhaseAPlusSheets && hasSurchargeSheets) {
+      res.status(400).json({
+        success: false,
+        message:
+          'Excel 文件同时包含 pricing_scheme 与 surcharge_rules，请拆分为定价导入或附加费规则导入'
+      });
+      return;
+    }
+    const usePhaseAPlusImport = hasPhaseAPlusSheets;
     const result = usePhaseAPlusImport
       ? await pricingImportService.importFromExcel(req.file.buffer, req.file.originalname)
       : await expressRuleImportService.importFromExcel(req.file.buffer, req.file.originalname);
@@ -171,9 +181,13 @@ router.post('/calculate', async (req, res) => {
     });
   } catch (error: any) {
     logger.error('[ExpressCostAPI] 计算失败:', error);
-    res.status(500).json({
+    const msg = error.message || '计算失败';
+    const isClientPayload =
+      typeof msg === 'string' &&
+      (msg.includes('未找到承运商服务') || msg.includes('承运商服务国家不匹配'));
+    res.status(isClientPayload ? 400 : 500).json({
       success: false,
-      message: error.message || '计算失败'
+      message: msg
     });
   }
 });
