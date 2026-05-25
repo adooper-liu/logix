@@ -94,6 +94,12 @@ interface LiteralCondition {
   value: number;
 }
 
+const CONDITION_LITERAL_PATTERN = new RegExp(
+  '^(longest_in|second_in|shortest_in|girth_in|l_plus_s_in|three_sides_sum_in|' +
+    'gross_wt_value|billable_weight|min_billable_lbs)\\s*(>=|<=|==|=|>|<)\\s*(-?\\d+(?:\\.\\d+)?)$',
+  'i'
+);
+
 // ==================== 成本引擎服务 ====================
 
 export class CostEngineService {
@@ -601,9 +607,7 @@ export class CostEngineService {
       .map((part) => part.trim())
       .filter(Boolean)
       .map((part, index) => {
-        const withField = part.match(
-          /^(longest_in|second_in|shortest_in|girth_in|l_plus_s_in|three_sides_sum_in|gross_wt_value|billable_weight|min_billable_lbs)\s*(>=|<=|==|=|>|<)\s*(-?\d+(?:\.\d+)?)$/i
-        );
+        const withField = part.match(CONDITION_LITERAL_PATTERN);
         if (withField) {
           return {
             field: withField[1].toLowerCase(),
@@ -701,7 +705,7 @@ export class CostEngineService {
    * 应用互斥策略
    */
   private applyPolicies(charges: ChargeItem[], policies: ExpressStackPolicy[]): ChargeItem[] {
-    let result = [...charges];
+    const result = [...charges];
 
     for (const policy of policies) {
       const policyJson = policy.policyJson;
