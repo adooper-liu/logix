@@ -263,7 +263,9 @@ async function importExpressCostData(filePath: string) {
 
     // 仅清理当前导入版本的数据，承运商服务是跨版本共享字典，不能全表删除。
     console.log('正在清理目标版本现有规则和策略...');
-    await client.query('DELETE FROM dict_express_surcharge_rule WHERE version_id = $1', [versionId]);
+    await client.query('DELETE FROM dict_express_surcharge_rule WHERE version_id = $1', [
+      versionId
+    ]);
     await client.query('DELETE FROM dict_express_stack_policy WHERE version_id = $1', [versionId]);
     console.log('✓ 目标版本规则和策略清理完成\n');
 

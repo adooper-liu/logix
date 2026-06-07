@@ -18,7 +18,10 @@ jest.mock('xlsx', () => ({
 }));
 
 import * as XLSX from 'xlsx';
-import { DEFAULT_VERSION_KEY, importExpressCostData } from '../../scripts/import-express-cost-simple';
+import {
+  DEFAULT_VERSION_KEY,
+  importExpressCostData
+} from '../../scripts/import-express-cost-simple';
 
 describe('import-express-cost-simple', () => {
   beforeEach(() => {
@@ -28,8 +31,46 @@ describe('import-express-cost-simple', () => {
       Sheets: { rules: {} }
     });
     (XLSX.utils.sheet_to_json as jest.Mock).mockReturnValue([
-      ['country', 'carrier', 'type', 'longest', 'second', 'shortest', 'girth', 'l+s', '3 sides', 'diagonal', 'vol', 'gross', 'rw1', 'rwm', 'min', 'amount', 'min base', 'remark'],
-      ['US', 'FedEx Ground', 'AHS-Weight', 96, null, null, null, null, null, null, null, 50, null, null, null, 12.5, null, 'AHS-Weight 与 AHS-Size 不再收']
+      [
+        'country',
+        'carrier',
+        'type',
+        'longest',
+        'second',
+        'shortest',
+        'girth',
+        'l+s',
+        '3 sides',
+        'diagonal',
+        'vol',
+        'gross',
+        'rw1',
+        'rwm',
+        'min',
+        'amount',
+        'min base',
+        'remark'
+      ],
+      [
+        'US',
+        'FedEx Ground',
+        'AHS-Weight',
+        96,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        50,
+        null,
+        null,
+        null,
+        12.5,
+        null,
+        'AHS-Weight 与 AHS-Size 不再收'
+      ]
     ]);
     mockConnect.mockResolvedValue(undefined);
     mockEnd.mockResolvedValue(undefined);
@@ -50,14 +91,18 @@ describe('import-express-cost-simple', () => {
   it('重导时只清理目标版本规则和策略，不删除跨版本承运商字典', async () => {
     await importExpressCostData('/tmp/express-cost.xlsx');
 
-    const deleteCalls = mockQuery.mock.calls.filter(([sql]) => String(sql).trim().startsWith('DELETE'));
+    const deleteCalls = mockQuery.mock.calls.filter(([sql]) =>
+      String(sql).trim().startsWith('DELETE')
+    );
 
     expect(deleteCalls).toEqual([
       ['DELETE FROM dict_express_surcharge_rule WHERE version_id = $1', [42]],
       ['DELETE FROM dict_express_stack_policy WHERE version_id = $1', [42]]
     ]);
     expect(
-      mockQuery.mock.calls.some(([sql]) => String(sql).includes('DELETE FROM dict_express_carrier_service'))
+      mockQuery.mock.calls.some(([sql]) =>
+        String(sql).includes('DELETE FROM dict_express_carrier_service')
+      )
     ).toBe(false);
     expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('version_key'), [
       DEFAULT_VERSION_KEY,
