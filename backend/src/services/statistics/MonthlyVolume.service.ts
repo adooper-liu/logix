@@ -7,6 +7,7 @@
 import { Repository } from 'typeorm';
 import { Container } from '../../entities/Container';
 import { ContainerQueryBuilder } from './common/ContainerQueryBuilder';
+import { DateFilterBuilder } from './common/DateFilterBuilder';
 import { SimplifiedStatus } from '../../utils/logisticsStatusMachine';
 
 export interface MonthlyData {
@@ -57,7 +58,7 @@ export class MonthlyVolumeService {
    * 统计年度货量
    */
   private async getYearlyVolume(yearStart: Date, yearEnd: Date): Promise<number> {
-    const result = await ContainerQueryBuilder.createBaseQuery(this.containerRepository)
+    const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository)
       .select('COUNT(DISTINCT container.containerNumber)', 'count')
       .where('container.logisticsStatus IN (:...statuses)', {
         statuses: [
@@ -70,18 +71,18 @@ export class MonthlyVolumeService {
         ]
       })
       .andWhere(
-        'COALESCE(order.actualShipDate, order.expectedShipDate, sf.shipmentDate) >= :yearStart',
+        'COALESCE(order.actualShipDate, sf.shipmentDate) >= :yearStart',
         {
           yearStart
         }
       )
-      .andWhere(
-        'COALESCE(order.actualShipDate, order.expectedShipDate, sf.shipmentDate) < :yearEnd',
-        {
-          yearEnd
-        }
-      )
-      .getRawOne<{ count: string }>();
+      .andWhere('COALESCE(order.actualShipDate, sf.shipmentDate) < :yearEnd', {
+        yearEnd
+      });
+
+    DateFilterBuilder.addCountryFilters(query);
+
+    const result = await query.getRawOne<{ count: string }>();
 
     return parseInt(result?.count ?? '0', 10);
   }
@@ -111,7 +112,7 @@ export class MonthlyVolumeService {
    * 统计月度货量
    */
   private async getMonthlyVolume(monthStart: Date, monthEnd: Date): Promise<number> {
-    const result = await ContainerQueryBuilder.createBaseQuery(this.containerRepository)
+    const query = ContainerQueryBuilder.createBaseQuery(this.containerRepository)
       .select('COUNT(DISTINCT container.containerNumber)', 'count')
       .where('container.logisticsStatus IN (:...statuses)', {
         statuses: [
@@ -124,18 +125,18 @@ export class MonthlyVolumeService {
         ]
       })
       .andWhere(
-        'COALESCE(order.actualShipDate, order.expectedShipDate, sf.shipmentDate) >= :monthStart',
+        'COALESCE(order.actualShipDate, sf.shipmentDate) >= :monthStart',
         {
           monthStart
         }
       )
-      .andWhere(
-        'COALESCE(order.actualShipDate, order.expectedShipDate, sf.shipmentDate) <= :monthEnd',
-        {
-          monthEnd
-        }
-      )
-      .getRawOne<{ count: string }>();
+      .andWhere('COALESCE(order.actualShipDate, sf.shipmentDate) <= :monthEnd', {
+        monthEnd
+      });
+
+    DateFilterBuilder.addCountryFilters(query);
+
+    const result = await query.getRawOne<{ count: string }>();
 
     return parseInt(result?.count ?? '0', 10);
   }

@@ -477,13 +477,13 @@ export class FeituoSmartDateUpdater {
 
         case 'at_port':
           // 已到港：ETA可能需要修正（但ATA已确定）
-          if (newEta && destPo?.ataDestPort) {
+          if (newEta && destPo?.ata) {
             // ATA已确定，ETA应该 <= ATA
-            if (newEta > destPo.ataDestPort) {
+            if (newEta > destPo.ata) {
               // ETA晚于ATA，需要验证
               const validation = this.validateETA(
                 newEta,
-                destPo.ataDestPort,
+                destPo.ata,
                 seaFreight?.shipmentDate || null,
                 currentStatus
               );
@@ -703,8 +703,8 @@ export class FeituoSmartDateUpdater {
       const portOperationsForValidation = portOps.map((po) => ({
         portSequence: po.portSequence,
         portType: po.portType,
-        ata: po.ataDestPort,
-        atd: po.atdDestPort,
+        ata: po.ata,
+        atd: po.atd,
         eta: po.eta,
         etd: po.etd
       }));
@@ -718,8 +718,8 @@ export class FeituoSmartDateUpdater {
         previousPortForValidation = {
           portSequence: previousPo.portSequence,
           portType: previousPo.portType,
-          atd: previousPo.atdDestPort,
-          ata: previousPo.ataDestPort
+          atd: previousPo.atd,
+          ata: previousPo.ata
         };
       }
 
@@ -768,8 +768,8 @@ export class FeituoSmartDateUpdater {
               updated = true;
             }
             // 更新目的港或中转港ATA
-            if (portType === 'destination' && destPo && !destPo.ataDestPort) {
-              destPo.ataDestPort = newAta;
+            if (portType === 'destination' && destPo && !destPo.ata) {
+              destPo.ata = newAta;
               await this.portOpRepo.save(destPo);
               updated = true;
 
@@ -783,8 +783,8 @@ export class FeituoSmartDateUpdater {
                 await this.portOpRepo.save(destPo);
               }
             } else if (portType === 'transit' && latestTransitPo) {
-              if (!latestTransitPo.ataDestPort) {
-                latestTransitPo.ataDestPort = newAta;
+              if (!latestTransitPo.ata) {
+                latestTransitPo.ata = newAta;
                 await this.portOpRepo.save(latestTransitPo);
                 updated = true;
               }
@@ -825,8 +825,8 @@ export class FeituoSmartDateUpdater {
               updated = true;
             }
 
-            if (portType === 'destination' && destPo && !destPo.ataDestPort) {
-              destPo.ataDestPort = newAta;
+            if (portType === 'destination' && destPo && !destPo.ata) {
+              destPo.ata = newAta;
               await this.portOpRepo.save(destPo);
               updated = true;
 
@@ -839,8 +839,8 @@ export class FeituoSmartDateUpdater {
                 await this.portOpRepo.save(destPo);
               }
             } else if (portType === 'transit' && latestTransitPo) {
-              if (!latestTransitPo.ataDestPort) {
-                latestTransitPo.ataDestPort = newAta;
+              if (!latestTransitPo.ata) {
+                latestTransitPo.ata = newAta;
                 await this.portOpRepo.save(latestTransitPo);
                 updated = true;
               }
@@ -880,8 +880,8 @@ export class FeituoSmartDateUpdater {
             seaFreight.ata = newAta;
             await this.seaFreightRepo.save(seaFreight);
 
-            if (destPo && !destPo.ataDestPort) {
-              destPo.ataDestPort = newAta;
+            if (destPo && !destPo.ata) {
+              destPo.ata = newAta;
               await this.portOpRepo.save(destPo);
 
               // LFD验证：ATA更新后检查LFD是否有效

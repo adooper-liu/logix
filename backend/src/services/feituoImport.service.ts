@@ -8,7 +8,10 @@
 
 import type { Repository } from 'typeorm';
 import { getGroupForColumn } from '../constants/FeituoFieldGroupMapping';
-import { getCoreFieldName } from '../constants/FeiTuoStatusMapping';
+import {
+  getCoreFieldName,
+  resolvePortOperationTimeKeyFromCoreField
+} from '../constants/FeiTuoStatusMapping';
 import { canFeituoOverwritePickupDate, PICKUP_DATE_SOURCE } from '../constants/pickupDateSource';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
@@ -2042,7 +2045,7 @@ export class FeituoImportService {
       } else if (portType === 'transit') {
         // 中转港
         portOp.transitArrivalDate = place.ata || place.eta;
-        portOp.atdTransit = place.atd || place.etd;
+        portOp.atd = place.atd || place.etd;
       } else if (portType === 'destination') {
         // 目的港
         portOp.eta = place.eta;
@@ -2231,17 +2234,7 @@ export class FeituoImportService {
         );
       }
 
-      const map: Record<string, keyof PortOperation> = {
-        ata: 'ataDestPort',
-        eta: 'etaDestPort',
-        gate_in_time: 'gateInTime',
-        gate_out_time: 'gateOutTime',
-        dest_port_unload_date: 'destPortUnloadDate',
-        available_time: 'availableTime',
-        transit_arrival_date: 'transitArrivalDate',
-        atd: 'atdTransit'
-      };
-      const col = map[fieldName];
+      const col = resolvePortOperationTimeKeyFromCoreField(fieldName);
       if (col) {
         (po as any)[col] = occurredAt;
         await poRepo.save(po);
