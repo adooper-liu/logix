@@ -1,20 +1,3 @@
-const mockDefaultRepository = {
-  findOne: jest.fn(),
-  create: jest.fn((value) => ({ ...value })),
-  save: jest.fn(async (value) => value),
-  query: jest.fn()
-};
-
-let mockRepositories: Record<string, any> = {};
-
-jest.mock('../database', () => ({
-  AppDataSource: {
-    getRepository: jest.fn((entity: { name?: string }) => {
-      return mockRepositories[entity?.name || ''] || mockDefaultRepository;
-    })
-  }
-}));
-
 jest.mock('./externalDataService', () => ({
   externalDataService: {
     getStatusEvents: jest.fn(),
@@ -24,6 +7,14 @@ jest.mock('./externalDataService', () => ({
 }));
 
 import { FeituoImportService } from './feituoImport.service';
+import { AppDataSource } from '../database';
+
+const createDefaultRepository = () => ({
+  findOne: jest.fn(),
+  create: jest.fn((value) => ({ ...value })),
+  save: jest.fn(async (value) => value),
+  query: jest.fn()
+});
 
 const createPortOperationRepository = (portOperation: any) => {
   const qb: any = {};
@@ -40,7 +31,6 @@ const createPortOperationRepository = (portOperation: any) => {
 
 describe('FeituoImportService core status field updates', () => {
   beforeEach(() => {
-    mockRepositories = {};
     jest.clearAllMocks();
   });
 
@@ -56,7 +46,11 @@ describe('FeituoImportService core status field updates', () => {
       portSequence: portType === 'transit' ? 1 : 2
     };
     const portOperationRepository = createPortOperationRepository(portOperation);
-    mockRepositories.PortOperation = portOperationRepository;
+    const defaultRepository = createDefaultRepository();
+    (AppDataSource.getRepository as jest.Mock).mockImplementation((entity: { name?: string }) => {
+      if (entity?.name === 'PortOperation') return portOperationRepository;
+      return defaultRepository;
+    });
 
     const service = new FeituoImportService();
 

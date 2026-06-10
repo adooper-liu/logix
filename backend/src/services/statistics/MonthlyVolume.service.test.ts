@@ -1,5 +1,6 @@
 import { MonthlyVolumeService } from './MonthlyVolume.service';
 import { runWithScope } from '../../utils/requestContext';
+import { normalizeCountryCode } from '../../utils/countryCode';
 
 const createMockQueryBuilder = () => {
   const qb: any = {};
@@ -12,6 +13,15 @@ const createMockQueryBuilder = () => {
 };
 
 describe('MonthlyVolumeService', () => {
+  beforeEach(() => {
+    (normalizeCountryCode as jest.Mock).mockImplementation((code: string | undefined | null) => {
+      if (code === undefined || code === null) return '';
+      const trimmed = String(code).trim();
+      if (!trimmed) return '';
+      return trimmed.toUpperCase() === 'UK' ? 'GB' : trimmed.toUpperCase();
+    });
+  });
+
   it('applies scoped country filtering and factual shipment date to yearly volume', async () => {
     const qb = createMockQueryBuilder();
     const repository = {

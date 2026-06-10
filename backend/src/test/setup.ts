@@ -102,7 +102,13 @@ jest.mock('../database/redis', () => ({
 // Mock countryCode utility
 jest.mock('../utils/countryCode', () => ({
   isValidCountryCode: jest.fn().mockReturnValue(true),
-  getCountryCode: jest.fn().mockReturnValue('US')
+  getCountryCode: jest.fn().mockReturnValue('US'),
+  normalizeCountryCode: jest.fn((code: string | undefined | null) => {
+    if (code === undefined || code === null) return '';
+    const trimmed = String(code).trim();
+    if (!trimmed) return '';
+    return trimmed.toUpperCase() === 'UK' ? 'GB' : trimmed.toUpperCase();
+  })
 }));
 
 // Mock axios for HTTP requests
