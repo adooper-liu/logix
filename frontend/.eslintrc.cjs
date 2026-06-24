@@ -31,7 +31,7 @@ module.exports = {
     'vue/max-attributes-per-line': ['error', { singleline: 3, multiline: 1 }],
     'vue/component-definition-name-casing': ['error', 'PascalCase'],
 
-    // TypeScript 特定规则
+    // TypeScript 特定规则（强化类型安全）
     '@typescript-eslint/no-unused-vars': [
       'warn',
       {
@@ -40,15 +40,26 @@ module.exports = {
         caughtErrorsIgnorePattern: '^_'
       }
     ],
-    '@typescript-eslint/no-explicit-any': 'warn',
-    '@typescript-eslint/explicit-module-boundary-types': 'off',
+    '@typescript-eslint/no-explicit-any': 'error', // ❌ 禁止 any 类型
+    '@typescript-eslint/explicit-module-boundary-types': 'error', // 🔴 升级为错误：强制返回类型注解
+    '@typescript-eslint/no-non-null-assertion': 'error', // 🔴 升级为错误：禁止使用 !
 
-    // 通用规则
-    'no-console': ['warn', { allow: ['warn', 'error', 'info'] }],
+    // 通用规则（强化代码质量）
+    'no-console': 'error', // ❌ 禁止 console.log
     'no-debugger': 'error',
     'prefer-const': 'error',
     'no-var': 'error',
     'no-duplicate-imports': 'error',
+    
+    // 复杂度控制（强制单一职责）
+    'max-lines-per-function': ['error', { // 🔴 升级为错误：函数 ≤ 50 行
+      max: 50, 
+      skipBlankLines: true,
+      skipComments: true,
+      IIFEs: true
+    }],
+    'complexity': ['error', 10], // 🔴 升级为错误：圈复杂度 ≤ 10
+    'max-depth': ['error', 4], // 🔴 升级为错误：嵌套深度 ≤ 4
 
     // 代码风格
     'indent': 'off', // 使用 Prettier
@@ -57,7 +68,7 @@ module.exports = {
     'comma-dangle': 'off', // 使用 Prettier
     'no-trailing-spaces': 'error',
     'eol-last': ['error', 'always'],
-    'max-len': ['warn', { code: 120, ignoreUrls: true }],
+    'max-len': ['error', { code: 120, ignoreUrls: true }], // 🔴 升级为错误：行宽 ≤ 120,
 
     // 自定义命名规则
     'custom-naming-rules/vue-component-filename': 'error',

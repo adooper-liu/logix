@@ -1,0 +1,259 @@
+---
+trigger: manual
+description: LogiX 详细编码规范 - 命名、前端、代码风格
+---
+
+# LogiX 详细编码规范
+
+> **详细版** - 需要时手动加载  
+> 核心原则见：`logix-development-rules.mdc`
+
+---
+
+## 📋 命名约定
+
+### 数据库层
+
+| 层级 | 规则 | 示例 |
+|------|------|------|
+| 表名 | `prefix_snake_case` | `biz_containers`, `dict_ports` |
+| 字段 | `snake_case` | `container_number`, `eta_dest_port` |
+
+### 后端层
+
+| 层级 | 规则 | 示例 |
+|------|------|------|
+| Entity属性 | `camelCase` + `@Column({ name })` | `containerNumber` |
+| Service类 | `PascalCase` + `Service` | `ContainerService` |
+| Service方法 | `camelCase` + 动词 | `getContainers`, `updateStatus` |
+| 接口 | `I` + `PascalCase` | `ICostOptimizer` |
+
+### 前端层
+
+| 层级 | 规则 | 示例 |
+|------|------|------|
+| Vue组件 | `PascalCase.vue` | `ContainerDetails.vue` |
+| Composable | `use` + `PascalCase` | `useContainerData` |
+| CSS类 | `kebab-case` | `.container-card` |
+
+---
+
+## 🎨 前端规范
+
+### 颜色管理
+
+```scss
+// ❌ 错误：硬编码色值
+color: #409EFF;
+
+// ✅ 正确：使用变量
+@use '@/assets/styles/variables' as *;
+color: $primary-color;
+```
+
+```typescript
+// JS/TS中使用
+import { useColors } from '@/composables/useColors';
+const { primaryColor } = useColors();
+```
+
+### 国际化
+
+```vue
+<!-- ❌ 错误：硬编码中文 -->
+<el-button>提交</el-button>
+
+<!-- ✅ 正确：使用 $t() -->
+<el-button>{{ $t('common.submit') }}</el-button>
+```
+
+### 性能优化
+
+- **搜索输入**: 使用防抖（debounce）
+- **长列表**: 虚拟滚动或分页
+- **API调用**: 考虑缓存（SWR/TanStack Query）
+
+---
+
+## 🏗️ 单一职责与组件拆分
+
+### 前端组件拆分
+
+**原则**: 一个组件只做一件事
+
+```
+❌ 错误：上帝组件（500+ 行）
+ContainerManagement.vue
+  ├─ 列表展示
+  ├─ 筛选逻辑
+  ├─ 统计卡片
+  ├─ 图表展示
+  └─ 表单弹窗
+
+✅ 正确：拆分为子组件
+ContainerManagement.vue (布局编排)
+  ├─ ContainerList.vue (列表)
+  ├─ ContainerFilter.vue (筛选)
+  ├─ StatisticsCards.vue (统计)
+  ├─ ChartsSection.vue (图表)
+  └─ ContainerForm.vue (表单)
+```
+
+### 后端Service拆分
+
+**原则**: Controller只调用Service，Service按业务域拆分
+
+```typescript
+// ❌ 错误：Controller中有业务逻辑
+@Controller()
+class ContainerController {
+  async getContainers() {
+    const containers = await this.repo.find();
+    return containers.filter(c => c.status === 'active'); // 业务逻辑
+  }
+}
+
+// ✅ 正确：业务逻辑在Service
+@Controller()
+class ContainerController {
+  constructor(private containerService: ContainerService) {}
+  
+  async getContainers() {
+    return this.containerService.getActiveContainers();
+  }
+}
+
+@Injectable()
+class ContainerService {
+  async getActiveContainers() {
+    const containers = await this.repo.find();
+    return containers.filter(c => c.status === 'active');
+  }
+}
+```
+
+---
+
+## 💻 代码风格
+
+### TypeScript/JavaScript
+
+```typescript
+// 缩进：2空格
+// 引号：单引号
+// 分号：有分号
+// 行宽：≤ 120字符
+
+interface Container {
+  id: string;
+  number: string;
+  status: ContainerStatus;
+}
+
+function processContainer(container: Container): void {
+  validate(container);
+  update(container);
+}
+```
+
+### Vue SFC
+
+```vue
+<script setup lang="ts">
+// 缩进：2空格
+// 引号：单引号
+// 分号：无分号
+// 行宽：≤ 100字符
+
+import { ref } from 'vue'
+
+const count = ref(0)
+
+function increment() {
+  count.value++
+}
+</script>
+
+<template>
+  <button @click="increment">{{ count }}</button>
+</template>
+
+<style scoped lang="scss">
+button {
+  color: $primary-color;
+}
+</style>
+```
+
+---
+
+## 📅 数据展示与日期筛选
+
+### 统一日期口径
+
+**所有数据展示均以顶部日期范围为筛选条件**
+
+- 对应数据库字段：`actual_ship_date`（备货单出运日期）
+- 备选字段：`shipment_date`（海运出运日期）
+
+```typescript
+// ✅ 正确：统一使用顶部日期
+const startDate = dateRange.value.start;
+const endDate = dateRange.value.end;
+
+const containers = await api.getContainers({ startDate, endDate });
+const statistics = await api.getStatistics({ startDate, endDate });
+```
+
+### 后端口径
+
+```typescript
+// DateFilterBuilder.ts
+function buildDateFilter(startDate: Date, endDate: Date) {
+  return {
+    actualShipDate: Between(startDate, endDate),
+    // 如果 actualShipDate 为空，使用 shipmentDate
+    shipmentDate: Or(IsNull(), Between(startDate, endDate))
+  };
+}
+```
+
+---
+
+## 🔧 开发流程
+
+### 新增表/字段
+
+```
+Step 1: 修改 SQL 脚本
+  backend/sql/schema/03_create_tables.sql
+
+Step 2: 更新 TypeORM Entity
+  backend/src/entities/Container.ts
+
+Step 3: 更新 API
+  backend/src/services/container.service.ts
+
+Step 4: 更新前端
+  frontend/src/services/container.ts
+
+Step 5: 更新 Excel 映射
+  frontend/src/views/import/ExcelImport.vue
+```
+
+### Excel 导入映射
+
+```typescript
+// table/field 必须与数据库完全一致
+{
+  table: 'biz_containers',
+  field: 'container_number',
+  transform: (value: string) => value.toUpperCase()
+}
+```
+
+---
+
+**版本**: v1.0  
+**最后更新**: 2026-06-23  
+**触发方式**: manual（按需加载）

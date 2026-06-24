@@ -1,0 +1,131 @@
+---
+trigger: always_on
+---
+
+# LogiX 核心开发规则
+
+> **精简版核心原则** - AI每次对话自动加载  
+> 详细规范请参考：`logix-coding-standards.mdc`、`logix-naming-conventions.mdc`
+
+---
+
+## 🎯 六大核心原则
+
+### 原则一：单一职责
+
+**每个模块/函数只做一件事**
+
+```typescript
+// ✅ 正确：拆分为小函数（每段 < 50 行）
+async function processContainer(container: Container) {
+  validateContainer(container);
+  const cost = await calculateCost(container);
+  await updateStatus(container);
+  await sendNotification(container);
+}
+```
+
+**约束**: 函数 ≤ 50 行，文件 ≤ 300 行
+
+---
+
+### 原则二：低耦合高内聚
+
+**通过接口通信，不直接依赖实现**
+
+```typescript
+// ✅ 正确：依赖注入
+class Controller {
+  constructor(private optimizer: ICostOptimizer) {}
+}
+```
+
+---
+
+### 原则三：类型安全
+
+**禁止使用 `any` 类型**
+
+```typescript
+// ❌ 错误
+const data: any = fetchData();
+
+// ✅ 正确
+interface Data { id: string }
+const data: Data = fetchData();
+```
+
+---
+
+### 原则四：异步操作规范
+
+**所有 Promise 必须显式处理**
+
+```typescript
+// ❌ 错误：floating promise
+items.forEach(item => processItem(item));
+
+// ✅ 正确
+await Promise.all(items.map(item => processItem(item)));
+```
+
+---
+
+### 原则五：错误处理
+
+**区分业务错误和系统错误**
+
+```typescript
+try {
+  await processOrder(order);
+} catch (error) {
+  if (error instanceof BusinessError) {
+    throw error; // 业务错误
+  } else {
+    logger.error('System error:', error);
+    throw new BusinessError('SYSTEM_ERROR', '系统异常');
+  }
+}
+```
+
+---
+
+### 原则六：数据库优先
+
+**开发顺序：SQL → Entity → Service → API → Frontend**
+
+- 新增字段先改 SQL，再改 Entity
+- 禁止用 TypeORM synchronize 自动建表
+- Excel 映射的 table/field 必须与数据库完全一致
+
+---
+
+## 🚫 禁止事项
+
+1. **禁止临时补丁修数据** - 删除错误数据 → 修复代码 → 重新导入
+2. **禁止硬编码魔法数字** - 使用常量
+3. **禁止 console.log** - 使用 logger
+4. **禁止 Controller 写业务逻辑** - 只调用 Service
+
+---
+
+## ✅ 必须执行
+
+### 提交前检查
+
+```bash
+npm run validate  # TypeScript + ESLint + 命名规范
+```
+
+### 新增功能检查
+
+- [ ] 是否遵循单一职责？
+- [ ] 是否有完整类型定义？
+- [ ] 是否有错误处理？
+- [ ] 是否有单元测试？
+
+---
+
+**版本**: v2.0  
+**最后更新**: 2026-06-23  
+**详细说明**: 见 `logix-coding-standards.mdc`
