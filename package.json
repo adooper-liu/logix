@@ -41,10 +41,12 @@
     "quality:ci": "npm run test && npm run type-check:backend && npm run lint:backend",
     "verify:stats-filter": "cd backend && npm run verify:stats-filter",
     "diagnose:country-filter": "node scripts/diagnose-country-filter.js",
-    "test:statistics-fix": "node scripts/test-statistics-fix.js"
+    "test:statistics-fix": "node scripts/test-statistics-fix.js",
+    "prepare": "husky"
   },
   "devDependencies": {
     "cross-env": "^10.1.0",
+    "husky": "^9.1.7",
     "markdownlint-cli2": "^0.21.0"
   },
   "dependencies": {
