@@ -13,8 +13,12 @@ const dbConfig = {
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_DATABASE || 'logix_db',
   user: process.env.DB_USERNAME || 'logix_user',
-  password: process.env.DB_PASSWORD || 'LogiX@2024!Secure'
+  password: process.env.DB_PASSWORD
 };
+
+if (!dbConfig.password) {
+  throw new Error('DB_PASSWORD is required; refusing to use an embedded default database password');
+}
 
 async function verifyImport() {
   const client = new Client(dbConfig);
