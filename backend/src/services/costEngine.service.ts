@@ -23,6 +23,10 @@ import { logger } from '../utils/logger';
 
 // ==================== 类型定义 ====================
 
+export class CostEngineInputError extends Error {
+  statusCode = 400;
+}
+
 export interface ScenarioInput {
   // 基础信息
   countryCode: string;
@@ -113,7 +117,13 @@ export class CostEngineService {
       });
 
       if (!carrierService) {
-        throw new Error(`未找到承运商服务: ID=${input.carrierServiceId}`);
+        throw new CostEngineInputError(`未找到承运商服务: ID=${input.carrierServiceId}`);
+      }
+
+      if (carrierService.countryCode !== input.countryCode) {
+        throw new CostEngineInputError(
+          `承运商服务与请求国家不匹配: carrierCountry=${carrierService.countryCode}, requestCountry=${input.countryCode}`
+        );
       }
 
       // Step 2: 计算计费重
@@ -169,7 +179,8 @@ export class CostEngineService {
       // Step 8: 汇总费用
       const totalSurcharge = Number(foldedCharges.reduce((sum, c) => sum + c.amount, 0));
       const baseFreight = baseFreightResult?.baseFreight;
-      const grandTotal = baseFreight !== undefined ? Number((baseFreight + totalSurcharge).toFixed(2)) : undefined;
+      const grandTotal =
+        baseFreight !== undefined ? Number((baseFreight + totalSurcharge).toFixed(2)) : undefined;
 
       return {
         status: 'OK',
@@ -222,8 +233,14 @@ export class CostEngineService {
     }
 
     const mapping = await this.resolveZoneOrLane(pricingVersion.id, input);
-    const billableWeightKg = input.grossWeightKg || Number((billableWeightLbs / 2.20462).toFixed(3));
-    const row = await this.pickBaseRateRow(scheme.id, mapping?.zoneCode, mapping?.laneCode, billableWeightKg);
+    const billableWeightKg =
+      input.grossWeightKg || Number((billableWeightLbs / 2.20462).toFixed(3));
+    const row = await this.pickBaseRateRow(
+      scheme.id,
+      mapping?.zoneCode,
+      mapping?.laneCode,
+      billableWeightKg
+    );
     if (!row) {
       return undefined;
     }
@@ -599,7 +616,7 @@ export class CostEngineService {
    * 应用互斥策略
    */
   private applyPolicies(charges: ChargeItem[], policies: ExpressStackPolicy[]): ChargeItem[] {
-    let result = [...charges];
+    const result = [...charges];
 
     for (const policy of policies) {
       const policyJson = policy.policyJson;
