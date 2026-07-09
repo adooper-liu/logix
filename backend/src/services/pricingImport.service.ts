@@ -37,8 +37,14 @@ export class PricingImportService {
       }
 
       const metadataRows = XLSX.utils.sheet_to_json(wb.Sheets.metadata) as Record<string, any>[];
-      const schemeRows = XLSX.utils.sheet_to_json(wb.Sheets.pricing_scheme) as Record<string, any>[];
-      const mappingRows = XLSX.utils.sheet_to_json(wb.Sheets.zone_lane_mapping) as Record<string, any>[];
+      const schemeRows = XLSX.utils.sheet_to_json(wb.Sheets.pricing_scheme) as Record<
+        string,
+        any
+      >[];
+      const mappingRows = XLSX.utils.sheet_to_json(wb.Sheets.zone_lane_mapping) as Record<
+        string,
+        any
+      >[];
       const baseRows = XLSX.utils.sheet_to_json(wb.Sheets.base_rate_rows) as Record<string, any>[];
 
       if (metadataRows.length === 0) {
@@ -53,9 +59,8 @@ export class PricingImportService {
         await this.insertBaseRates(manager, baseRows, schemeRefMap, result);
 
         if (result.failed > 0) {
-          const rollbackError: Error & { code?: string; importResult?: PricingImportResult } = new Error(
-            `定价导入存在 ${result.failed} 条错误，已全量回滚`
-          );
+          const rollbackError: Error & { code?: string; importResult?: PricingImportResult } =
+            new Error(`定价导入存在 ${result.failed} 条错误，已全量回滚`);
           rollbackError.code = PRICING_IMPORT_ROW_ERROR;
           rollbackError.importResult = {
             success: 0,
@@ -110,8 +115,9 @@ export class PricingImportService {
       const row = rows[i];
       const rowNo = i + 2;
       try {
-        const schemeRef = String(row.scheme_ref || `${row.country_code}|${row.carrier_code}|${row.service_code}`)
-          .trim();
+        const schemeRef = String(
+          row.scheme_ref || `${row.country_code}|${row.carrier_code}|${row.service_code}`
+        ).trim();
         const entity = await repo.save({
           versionId,
           countryCode: String(row.country_code || '').trim(),
@@ -119,7 +125,7 @@ export class PricingImportService {
           serviceCode: String(row.service_code || '').trim(),
           productLine: String(row.product_line || 'PARCEL_EXPRESS').trim(),
           currency: String(row.currency || 'USD').trim(),
-          priority: Number(row.priority || 100),
+          priority: this.toNullableNumber(row.priority) ?? 100,
           calcMode: String(row.calc_mode || '').trim(),
           conditionsJson: this.tryParseJson(row.conditions_json),
           isActive: row.is_active === undefined ? true : this.toBoolean(row.is_active)
@@ -163,9 +169,9 @@ export class PricingImportService {
           postalPrefixTo: row.postal_prefix_to ? String(row.postal_prefix_to).trim() : null,
           zoneCode: row.zone_code ? String(row.zone_code).trim() : null,
           laneCode: row.lane_code ? String(row.lane_code).trim() : null,
-          distanceKm: row.distance_km ? Number(row.distance_km) : null,
+          distanceKm: this.toNullableNumber(row.distance_km),
           conditionsJson: this.tryParseJson(row.conditions_json),
-          priority: Number(row.priority || 100)
+          priority: this.toNullableNumber(row.priority) ?? 100
         });
         if (!entity.countryCode || !entity.mappingType) {
           throw new Error('zone_lane_mapping 必填字段缺失');
@@ -204,16 +210,16 @@ export class PricingImportService {
           schemeId,
           zoneCode: row.zone_code ? String(row.zone_code).trim() : null,
           laneCode: row.lane_code ? String(row.lane_code).trim() : null,
-          weightFrom: row.weight_from ? Number(row.weight_from) : null,
-          weightTo: row.weight_to ? Number(row.weight_to) : null,
-          firstWeight: row.first_weight ? Number(row.first_weight) : null,
-          firstFee: row.first_fee ? Number(row.first_fee) : null,
-          additionalStepWeight: row.additional_step_weight ? Number(row.additional_step_weight) : null,
-          additionalFeePerStep: row.additional_fee_per_step ? Number(row.additional_fee_per_step) : null,
-          flatFee: row.flat_fee ? Number(row.flat_fee) : null,
-          unitPricePerKg: row.unit_price_per_kg ? Number(row.unit_price_per_kg) : null,
-          minCharge: row.min_charge ? Number(row.min_charge) : null,
-          maxCharge: row.max_charge ? Number(row.max_charge) : null,
+          weightFrom: this.toNullableNumber(row.weight_from),
+          weightTo: this.toNullableNumber(row.weight_to),
+          firstWeight: this.toNullableNumber(row.first_weight),
+          firstFee: this.toNullableNumber(row.first_fee),
+          additionalStepWeight: this.toNullableNumber(row.additional_step_weight),
+          additionalFeePerStep: this.toNullableNumber(row.additional_fee_per_step),
+          flatFee: this.toNullableNumber(row.flat_fee),
+          unitPricePerKg: this.toNullableNumber(row.unit_price_per_kg),
+          minCharge: this.toNullableNumber(row.min_charge),
+          maxCharge: this.toNullableNumber(row.max_charge),
           billableWeightRounding: row.billable_weight_rounding
             ? String(row.billable_weight_rounding).trim()
             : null,
@@ -247,6 +253,14 @@ export class PricingImportService {
     }
   }
 
+  private toNullableNumber(value: any): number | null {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+    const num = Number(value);
+    return Number.isFinite(num) ? num : null;
+  }
+
   private toBoolean(value: any): boolean {
     if (typeof value === 'boolean') return value;
     const normalized = String(value).trim().toLowerCase();
@@ -255,4 +269,3 @@ export class PricingImportService {
 }
 
 export const pricingImportService = new PricingImportService();
-

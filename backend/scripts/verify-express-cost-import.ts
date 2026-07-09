@@ -13,10 +13,15 @@ const dbConfig = {
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_DATABASE || 'logix_db',
   user: process.env.DB_USERNAME || 'logix_user',
-  password: process.env.DB_PASSWORD || 'LogiX@2024!Secure'
+  password: process.env.DB_PASSWORD
 };
 
 async function verifyImport() {
+  if (!dbConfig.password) {
+    console.error('✗ 缺少数据库密码：请通过环境变量 DB_PASSWORD 提供');
+    process.exit(1);
+  }
+
   const client = new Client(dbConfig);
 
   try {
@@ -29,6 +34,10 @@ async function verifyImport() {
       FROM dict_express_surcharge_version 
       ORDER BY id DESC LIMIT 1
     `);
+    if (versionResult.rows.length === 0) {
+      console.log('1. 版本信息: 暂无快递费版本记录');
+      return;
+    }
     console.log('1. 版本信息:');
     console.log(`   ID: ${versionResult.rows[0].id}`);
     console.log(`   Version Key: ${versionResult.rows[0].version_key}`);

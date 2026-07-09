@@ -86,6 +86,20 @@ interface DimensionCheck {
   value: number;
 }
 
+type LiteralOperator = '>' | '>=' | '<' | '<=' | '==' | '=';
+
+interface LiteralCondition {
+  field: string;
+  operator: LiteralOperator;
+  value: number;
+}
+
+const CONDITION_LITERAL_PATTERN = new RegExp(
+  '^(longest_in|second_in|shortest_in|girth_in|l_plus_s_in|three_sides_sum_in|' +
+    'gross_wt_value|billable_weight|min_billable_lbs)\\s*(>=|<=|==|=|>|<)\\s*(-?\\d+(?:\\.\\d+)?)$',
+  'i'
+);
+
 // ==================== 成本引擎服务 ====================
 
 export class CostEngineService {
@@ -114,6 +128,11 @@ export class CostEngineService {
 
       if (!carrierService) {
         throw new Error(`未找到承运商服务: ID=${input.carrierServiceId}`);
+      }
+      if (carrierService.countryCode !== input.countryCode) {
+        throw new Error(
+          `承运商服务国家不匹配: 请求国家=${input.countryCode}, 承运商国家=${carrierService.countryCode}`
+        );
       }
 
       // Step 2: 计算计费重
@@ -169,7 +188,8 @@ export class CostEngineService {
       // Step 8: 汇总费用
       const totalSurcharge = Number(foldedCharges.reduce((sum, c) => sum + c.amount, 0));
       const baseFreight = baseFreightResult?.baseFreight;
-      const grandTotal = baseFreight !== undefined ? Number((baseFreight + totalSurcharge).toFixed(2)) : undefined;
+      const grandTotal =
+        baseFreight !== undefined ? Number((baseFreight + totalSurcharge).toFixed(2)) : undefined;
 
       return {
         status: 'OK',
@@ -222,8 +242,14 @@ export class CostEngineService {
     }
 
     const mapping = await this.resolveZoneOrLane(pricingVersion.id, input);
-    const billableWeightKg = input.grossWeightKg || Number((billableWeightLbs / 2.20462).toFixed(3));
-    const row = await this.pickBaseRateRow(scheme.id, mapping?.zoneCode, mapping?.laneCode, billableWeightKg);
+    const billableWeightKg =
+      input.grossWeightKg || Number((billableWeightLbs / 2.20462).toFixed(3));
+    const row = await this.pickBaseRateRow(
+      scheme.id,
+      mapping?.zoneCode,
+      mapping?.laneCode,
+      billableWeightKg
+    );
     if (!row) {
       return undefined;
     }
@@ -431,6 +457,13 @@ export class CostEngineService {
       return this.checkComplexCondition(rule.conditionsJson, input, billableWeightLbs);
     }
 
+    if (
+      rule.conditionLiteral &&
+      this.checkConditionLiteral(rule.conditionLiteral, input, billableWeightLbs)
+    ) {
+      return true;
+    }
+
     // 简单阈值检查
     const checks: DimensionCheck[] = [];
 
@@ -550,6 +583,74 @@ export class CostEngineService {
     return false;
   }
 
+  private checkConditionLiteral(
+    conditionLiteral: string,
+    input: ScenarioInput,
+    billableWeightLbs: number
+  ): boolean {
+    const conditions = this.parseConditionLiteral(conditionLiteral);
+    if (conditions.length === 0) {
+      return false;
+    }
+
+    return conditions.every((condition) => {
+      const fieldValue = this.getFieldValue(condition.field, input, billableWeightLbs);
+      if (fieldValue === null) return false;
+      return this.compareNumber(fieldValue, condition.operator, condition.value);
+    });
+  }
+
+  private parseConditionLiteral(conditionLiteral: string): LiteralCondition[] {
+    const legacyFields = ['longest_in', 'second_in', 'girth_in'];
+    return conditionLiteral
+      .split(/[;,]/)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .map((part, index) => {
+        const withField = part.match(CONDITION_LITERAL_PATTERN);
+        if (withField) {
+          return {
+            field: withField[1].toLowerCase(),
+            operator: withField[2] as LiteralOperator,
+            value: Number(withField[3])
+          };
+        }
+
+        const legacy = part.match(/^(>=|<=|==|=|>|<)\s*(-?\d+(?:\.\d+)?)$/);
+        if (!legacy) {
+          return null;
+        }
+        return {
+          field: legacyFields[index] || legacyFields[0],
+          operator: legacy[1] as LiteralOperator,
+          value: Number(legacy[2])
+        };
+      })
+      .filter((condition): condition is LiteralCondition => !!condition);
+  }
+
+  private compareNumber(
+    actualValue: number,
+    operator: LiteralOperator,
+    expectedValue: number
+  ): boolean {
+    switch (operator) {
+      case '>':
+        return actualValue > expectedValue;
+      case '>=':
+        return actualValue >= expectedValue;
+      case '<':
+        return actualValue < expectedValue;
+      case '<=':
+        return actualValue <= expectedValue;
+      case '==':
+      case '=':
+        return actualValue === expectedValue;
+      default:
+        return false;
+    }
+  }
+
   /**
    * 获取字段值
    */
@@ -567,9 +668,14 @@ export class CostEngineService {
         return input.shortestIn;
       case 'girth_in':
         return 2 * (input.secondIn + input.shortestIn);
+      case 'l_plus_s_in':
+        return input.longestIn + input.secondIn;
+      case 'three_sides_sum_in':
+        return input.longestIn + input.secondIn + input.shortestIn;
       case 'gross_wt_value':
         return input.grossWeightLbs;
       case 'billable_weight':
+      case 'min_billable_lbs':
         return billableWeightLbs;
       default:
         return null;
@@ -599,7 +705,7 @@ export class CostEngineService {
    * 应用互斥策略
    */
   private applyPolicies(charges: ChargeItem[], policies: ExpressStackPolicy[]): ChargeItem[] {
-    let result = [...charges];
+    const result = [...charges];
 
     for (const policy of policies) {
       const policyJson = policy.policyJson;

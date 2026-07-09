@@ -3,18 +3,24 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
+import type { UploadFile } from 'element-plus'
 import { UploadFilled, InfoFilled } from '@element-plus/icons-vue'
 import * as XLSX from 'xlsx'
 
 const uploading = ref(false)
 const importResult = ref<any>(null)
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3002/api/v1'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1'
 
 /**
  * 处理文件上传
  */
-const handleUpload = async (file: File) => {
+const handleUpload = async (file?: File) => {
+  if (!file) {
+    ElMessage.error('请选择有效的 Excel 文件')
+    return
+  }
+
   uploading.value = true
   importResult.value = null
 
@@ -68,6 +74,12 @@ const handleUpload = async (file: File) => {
   }
 }
 
+const handleUploadChange = (file: UploadFile) => {
+  if (file.status === 'ready' && file.raw) {
+    void handleUpload(file.raw)
+  }
+}
+
 /**
  * 下载模板
  */
@@ -102,6 +114,7 @@ const downloadTemplate = () => {
       'FedEx Ground',
       'AHS - Dimensions',
       48,
+      '×',
       '×',
       '×',
       '×',
@@ -149,6 +162,8 @@ const downloadTemplate = () => {
       '×',
       '×',
       '×',
+      '×',
+      '×',
       150,
       '×',
       '×',
@@ -168,23 +183,19 @@ const downloadTemplate = () => {
 
   // Sheet 3: stack_policies（可选）
   const policiesData = [
-    ['国别', '快递方式', '策略类型', 'if_triggered', 'disable', 'max_group_types', 'remarks'],
+    ['国别', '快递方式', '策略类型', 'policy_json', 'remarks'],
     [
       'US',
       'FedEx Ground',
       'IF_THEN_DISABLE',
-      'OVERSIZE',
-      'AHS_DIM',
-      '×',
+      '{"if_triggered":["OVERSIZE"],"disable":["AHS_DIM"]}',
       'Oversize 触发后禁用 AHS',
     ],
     [
       'US',
       'FedEx Ground',
       'MAX_GROUP',
-      '×',
-      '×',
-      'LARGE_PACKAGE_RESI,RESI_DELIVERY',
+      '{"max_group":["LARGE_PACKAGE_RESI","RESI_DELIVERY"]}',
       '同组只取最高一笔',
     ],
   ]
@@ -252,7 +263,7 @@ const downloadTemplate = () => {
         <el-upload
           drag
           :auto-upload="false"
-          :on-change="file => handleUpload(file.raw)"
+          :on-change="handleUploadChange"
           :show-file-list="false"
           accept=".xlsx,.xls"
           :disabled="uploading"

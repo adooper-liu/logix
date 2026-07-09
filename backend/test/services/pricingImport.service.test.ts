@@ -15,15 +15,38 @@ function buildWorkbook(options?: { invalidScheme?: boolean }): Buffer {
   XLSX.utils.book_append_sheet(
     wb,
     XLSX.utils.aoa_to_sheet([
-      ['scheme_ref', 'country_code', 'carrier_code', 'service_code', 'product_line', 'currency', 'calc_mode'],
-      ['SCH_US_FEDEX', 'US', 'FEDEX', 'GROUND', 'PARCEL_EXPRESS', 'USD', options?.invalidScheme ? '' : 'TIER_FLAT']
+      [
+        'scheme_ref',
+        'country_code',
+        'carrier_code',
+        'service_code',
+        'product_line',
+        'currency',
+        'calc_mode'
+      ],
+      [
+        'SCH_US_FEDEX',
+        'US',
+        'FEDEX',
+        'GROUND',
+        'PARCEL_EXPRESS',
+        'USD',
+        options?.invalidScheme ? '' : 'TIER_FLAT'
+      ]
     ]),
     'pricing_scheme'
   );
   XLSX.utils.book_append_sheet(
     wb,
     XLSX.utils.aoa_to_sheet([
-      ['country_code', 'mapping_type', 'postal_prefix_from', 'postal_prefix_to', 'zone_code', 'priority'],
+      [
+        'country_code',
+        'mapping_type',
+        'postal_prefix_from',
+        'postal_prefix_to',
+        'zone_code',
+        'priority'
+      ],
       ['US', 'ZONE', '90', '99', 'Z9', 10]
     ]),
     'zone_lane_mapping'
@@ -55,7 +78,13 @@ describe('PricingImportService', () => {
     const saveMock = jest
       .fn()
       .mockResolvedValueOnce({ id: 101 })
-      .mockResolvedValueOnce({ id: 201, countryCode: 'US', carrierCode: 'FEDEX', serviceCode: 'GROUND', calcMode: 'TIER_FLAT' })
+      .mockResolvedValueOnce({
+        id: 201,
+        countryCode: 'US',
+        carrierCode: 'FEDEX',
+        serviceCode: 'GROUND',
+        calcMode: 'TIER_FLAT'
+      })
       .mockResolvedValueOnce({ id: 301 })
       .mockResolvedValueOnce({ id: 401 });
     const manager = {
@@ -72,6 +101,14 @@ describe('PricingImportService', () => {
     expect(result.failed).toBe(0);
     expect(result.success).toBe(3);
     expect(result.versionId).toBe(101);
+    expect(saveMock).toHaveBeenNthCalledWith(
+      4,
+      expect.objectContaining({
+        weightFrom: 0,
+        weightTo: 99,
+        flatFee: 12.5
+      })
+    );
     expect(txSpy).toHaveBeenCalled();
     txSpy.mockRestore();
   });
@@ -80,7 +117,13 @@ describe('PricingImportService', () => {
     const saveMock = jest
       .fn()
       .mockResolvedValueOnce({ id: 101 })
-      .mockResolvedValueOnce({ id: 201, countryCode: 'US', carrierCode: 'FEDEX', serviceCode: 'GROUND', calcMode: '' })
+      .mockResolvedValueOnce({
+        id: 201,
+        countryCode: 'US',
+        carrierCode: 'FEDEX',
+        serviceCode: 'GROUND',
+        calcMode: ''
+      })
       .mockResolvedValueOnce({ id: 301 })
       .mockResolvedValueOnce({ id: 401 });
     const manager = {
@@ -93,7 +136,10 @@ describe('PricingImportService', () => {
     const txSpy = jest
       .spyOn(AppDataSource.manager, 'transaction')
       .mockImplementation(async (cb: any) => cb(manager));
-    const result = await service.importFromExcel(buildWorkbook({ invalidScheme: true }), 'rollback.xlsx');
+    const result = await service.importFromExcel(
+      buildWorkbook({ invalidScheme: true }),
+      'rollback.xlsx'
+    );
     expect(result.success).toBe(0);
     expect(result.versionId).toBeUndefined();
     expect(result.failed).toBeGreaterThan(0);
@@ -101,4 +147,3 @@ describe('PricingImportService', () => {
     txSpy.mockRestore();
   });
 });
-
