@@ -102,6 +102,11 @@ export class CostEngineService {
    */
   async calculate(input: ScenarioInput): Promise<CostResult> {
     try {
+      input = {
+        ...input,
+        countryCode: String(input.countryCode || '').trim().toUpperCase()
+      };
+
       logger.info('[CostEngine] 开始计算', {
         countryCode: input.countryCode,
         carrierServiceId: input.carrierServiceId
@@ -114,6 +119,12 @@ export class CostEngineService {
 
       if (!carrierService) {
         throw new Error(`未找到承运商服务: ID=${input.carrierServiceId}`);
+      }
+      const carrierCountryCode = String(carrierService.countryCode || '').trim().toUpperCase();
+      if (carrierCountryCode !== input.countryCode) {
+        throw new Error(
+          `承运商服务国别不匹配: 请求 ${input.countryCode}, 承运商 ${carrierCountryCode}`
+        );
       }
 
       // Step 2: 计算计费重
@@ -321,10 +332,9 @@ export class CostEngineService {
     });
 
     const scopedRows = rows.filter((r) => {
-      if (laneCode && r.laneCode && r.laneCode !== laneCode) return false;
-      if (zoneCode && r.zoneCode && r.zoneCode !== zoneCode) return false;
-      if (!zoneCode && !laneCode && (r.zoneCode || r.laneCode)) return false;
-      return true;
+      if (laneCode) return r.laneCode === laneCode;
+      if (zoneCode) return r.zoneCode === zoneCode && !r.laneCode;
+      return !r.zoneCode && !r.laneCode;
     });
 
     return (
@@ -599,7 +609,7 @@ export class CostEngineService {
    * 应用互斥策略
    */
   private applyPolicies(charges: ChargeItem[], policies: ExpressStackPolicy[]): ChargeItem[] {
-    let result = [...charges];
+    const result = [...charges];
 
     for (const policy of policies) {
       const policyJson = policy.policyJson;

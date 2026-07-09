@@ -171,9 +171,11 @@ router.post('/calculate', async (req, res) => {
     });
   } catch (error: any) {
     logger.error('[ExpressCostAPI] 计算失败:', error);
-    res.status(500).json({
+    const msg = error.message || '计算失败';
+    const isClientPayload = typeof msg === 'string' && msg.includes('承运商服务国别不匹配');
+    res.status(isClientPayload ? 400 : 500).json({
       success: false,
-      message: error.message || '计算失败'
+      message: msg
     });
   }
 });
