@@ -2,14 +2,14 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, type UploadFile } from 'element-plus'
 import { UploadFilled, InfoFilled } from '@element-plus/icons-vue'
 import * as XLSX from 'xlsx'
 
 const uploading = ref(false)
 const importResult = ref<any>(null)
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3002/api/v1'
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1'
 
 /**
  * 处理文件上传
@@ -66,6 +66,14 @@ const handleUpload = async (file: File) => {
   } finally {
     uploading.value = false
   }
+}
+
+const handleFileChange = (file: UploadFile) => {
+  if (!file.raw) {
+    ElMessage.error('未读取到上传文件')
+    return
+  }
+  handleUpload(file.raw)
 }
 
 /**
@@ -252,7 +260,7 @@ const downloadTemplate = () => {
         <el-upload
           drag
           :auto-upload="false"
-          :on-change="file => handleUpload(file.raw)"
+          :on-change="handleFileChange"
           :show-file-list="false"
           accept=".xlsx,.xls"
           :disabled="uploading"
