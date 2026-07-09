@@ -343,17 +343,29 @@ async function importExpressCostData(filePath: string) {
       const rateWtMulti = parseValueWithLiteral(row[13]);
       const minBillable = parseValueWithLiteral(row[14]);
 
-      // 收集所有文本比较符（过滤掉 "x" 等无效值）
+      const literalEntries: Array<[string, string | null]> = [
+        ['longest_in', longest.literal],
+        ['second_in', second.literal],
+        ['shortest_in', shortest.literal],
+        ['girth_in', girth.literal],
+        ['l_plus_s_in', lPlusS.literal],
+        ['three_sides_sum_in', threeSides.literal],
+        ['diagonal_in', diagonal.literal],
+        ['vol_m3_threshold', volM3.literal],
+        ['gross_wt_value', grossWt.literal],
+        ['rate_wt_single', rateWtSingle.literal],
+        ['rate_wt_multi', rateWtMulti.literal],
+        ['min_billable_lbs', minBillable.literal]
+      ];
+
+      // 收集所有文本比较符（过滤掉 "x" 等无效值），并保留字段名供试算引擎解析。
       const literals =
-        [
-          longest.literal,
-          second.literal,
-          girth.literal,
-          lPlusS.literal,
-          threeSides.literal,
-          grossWt.literal
-        ]
-          .filter((l) => l && l !== 'x' && l !== 'X') // 过滤掉 x/X
+        literalEntries
+          .filter(
+            (entry): entry is [string, string] =>
+              !!entry[1] && entry[1] !== 'x' && entry[1] !== 'X'
+          )
+          .map(([field, literal]) => `${field} ${literal}`)
           .join('; ') || null;
 
       // 解析金额（支持区间格式 "5.2-8.8"）
