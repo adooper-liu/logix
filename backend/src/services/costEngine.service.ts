@@ -86,6 +86,12 @@ interface DimensionCheck {
   value: number;
 }
 
+interface LiteralCondition {
+  field: string;
+  operator: '>' | '>=' | '<' | '<=' | '==';
+  value: number;
+}
+
 // ==================== 成本引擎服务 ====================
 
 export class CostEngineService {
@@ -431,6 +437,11 @@ export class CostEngineService {
       return this.checkComplexCondition(rule.conditionsJson, input, billableWeightLbs);
     }
 
+    const literalResult = this.checkConditionLiteral(rule, input, billableWeightLbs);
+    if (literalResult !== null) {
+      return literalResult;
+    }
+
     // 简单阈值检查
     const checks: DimensionCheck[] = [];
 
@@ -503,6 +514,146 @@ export class CostEngineService {
   }
 
   /**
+   * 解析 condition_literal 中的文本比较符（如 "longest_in >120"）。
+   *
+   * 早期导入脚本只保存了 ">120; >60" 这类无字段名的值；这里按已知模板顺序兼容，
+   * 同时新导入会写入字段名，避免继续产生歧义。
+   */
+  private checkConditionLiteral(
+    rule: ExpressSurchargeRule,
+    input: ScenarioInput,
+    billableWeightLbs: number
+  ): boolean | null {
+    const conditions = this.parseConditionLiteral(rule);
+    if (conditions.length === 0) {
+      return null;
+    }
+
+    const results = conditions.map((condition) => {
+      const fieldValue = this.getFieldValue(condition.field, input, billableWeightLbs);
+      if (fieldValue === null) return false;
+
+      switch (condition.operator) {
+        case '>':
+          return fieldValue > condition.value;
+        case '>=':
+          return fieldValue >= condition.value;
+        case '<':
+          return fieldValue < condition.value;
+        case '<=':
+          return fieldValue <= condition.value;
+        case '==':
+          return fieldValue === condition.value;
+        default:
+          return false;
+      }
+    });
+
+    const notes = rule.notes || '';
+    if (notes.includes('或') || notes.toLowerCase().includes(' or ')) {
+      return results.some(Boolean);
+    }
+
+    return results.every(Boolean);
+  }
+
+  private parseConditionLiteral(rule: ExpressSurchargeRule): LiteralCondition[] {
+    if (!rule.conditionLiteral) {
+      return [];
+    }
+
+    const entries = rule.conditionLiteral
+      .split(/[;,；，]/)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+
+    if (entries.length === 0) {
+      return [];
+    }
+
+    const parsed = entries.map((entry) => this.parseConditionEntry(entry));
+    const legacyFields = this.inferLegacyConditionFields(rule, parsed.filter((item) => item && !item.field).length);
+    let legacyIndex = 0;
+
+    return parsed
+      .map((condition) => {
+        if (!condition) return null;
+        if (condition.field) {
+          return {
+            ...condition,
+            field: this.normalizeConditionField(condition.field)
+          };
+        }
+
+        const field = legacyFields[legacyIndex++];
+        return field ? { ...condition, field } : null;
+      })
+      .filter((condition): condition is LiteralCondition => !!condition && !!condition.field);
+  }
+
+  private parseConditionEntry(
+    entry: string
+  ): (Partial<LiteralCondition> & Pick<LiteralCondition, 'operator' | 'value'>) | null {
+    const conditionPattern =
+      /^(?:(?<field>[a-zA-Z_][a-zA-Z0-9_]*)\s*)?(?<operator>>=|<=|==|=|>|<)\s*(?<value>-?\d+(?:\.\d+)?)$/;
+    const match = entry.match(conditionPattern);
+    if (!match?.groups) {
+      return null;
+    }
+
+    const operator = match.groups.operator === '=' ? '==' : match.groups.operator;
+    return {
+      field: match.groups.field,
+      operator: operator as LiteralCondition['operator'],
+      value: Number(match.groups.value)
+    };
+  }
+
+  private inferLegacyConditionFields(rule: ExpressSurchargeRule, count: number): string[] {
+    if (count === 0) {
+      return [];
+    }
+
+    const notes = rule.notes || '';
+    if (count === 3 && notes.includes('最长边') && notes.includes('周长') && notes.includes('毛重')) {
+      return ['longest_in', 'girth_in', 'gross_wt_value'];
+    }
+
+    return [
+      'longest_in',
+      'second_in',
+      'girth_in',
+      'l_plus_s_in',
+      'three_sides_sum_in',
+      'gross_wt_value'
+    ].slice(0, count);
+  }
+
+  private normalizeConditionField(field: string): string {
+    const normalized = field.trim();
+    const aliases: Record<string, string> = {
+      longest: 'longest_in',
+      longestIn: 'longest_in',
+      second: 'second_in',
+      secondIn: 'second_in',
+      shortest: 'shortest_in',
+      shortestIn: 'shortest_in',
+      girth: 'girth_in',
+      lPlusS: 'l_plus_s_in',
+      l_plus_s: 'l_plus_s_in',
+      threeSides: 'three_sides_sum_in',
+      three_sides: 'three_sides_sum_in',
+      grossWt: 'gross_wt_value',
+      gross_wt: 'gross_wt_value',
+      grossWeightLbs: 'gross_wt_value',
+      billableWeight: 'billable_weight',
+      min_billable_lbs: 'billable_weight'
+    };
+
+    return aliases[normalized] || normalized;
+  }
+
+  /**
    * 检查复杂条件（conditions_json）
    */
   private checkComplexCondition(
@@ -567,6 +718,10 @@ export class CostEngineService {
         return input.shortestIn;
       case 'girth_in':
         return 2 * (input.secondIn + input.shortestIn);
+      case 'l_plus_s_in':
+        return input.longestIn + input.secondIn;
+      case 'three_sides_sum_in':
+        return input.longestIn + input.secondIn + input.shortestIn;
       case 'gross_wt_value':
         return input.grossWeightLbs;
       case 'billable_weight':
@@ -599,7 +754,7 @@ export class CostEngineService {
    * 应用互斥策略
    */
   private applyPolicies(charges: ChargeItem[], policies: ExpressStackPolicy[]): ChargeItem[] {
-    let result = [...charges];
+    const result = [...charges];
 
     for (const policy of policies) {
       const policyJson = policy.policyJson;

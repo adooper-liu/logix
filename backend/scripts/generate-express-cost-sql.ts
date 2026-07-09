@@ -256,17 +256,20 @@ async function generateSql(filePath: string, outputPath: string) {
     const rateWtMulti = parseValueWithLiteral(row[13]);
     const minBillable = parseValueWithLiteral(row[14]);
 
-    // 收集所有文本比较符
+    // 收集所有文本比较符，保留字段名供计费引擎判断。
     const literals =
       [
-        longest.literal,
-        second.literal,
-        girth.literal,
-        lPlusS.literal,
-        threeSides.literal,
-        grossWt.literal
+        { field: 'longest_in', literal: longest.literal },
+        { field: 'second_in', literal: second.literal },
+        { field: 'shortest_in', literal: shortest.literal },
+        { field: 'girth_in', literal: girth.literal },
+        { field: 'l_plus_s_in', literal: lPlusS.literal },
+        { field: 'three_sides_sum_in', literal: threeSides.literal },
+        { field: 'gross_wt_value', literal: grossWt.literal },
+        { field: 'billable_weight', literal: minBillable.literal }
       ]
-        .filter(Boolean)
+        .filter((item) => item.literal)
+        .map((item) => `${item.field} ${item.literal}`)
         .join('; ') || null;
 
     // 解析金额（支持区间格式 "5.2-8.8"）
