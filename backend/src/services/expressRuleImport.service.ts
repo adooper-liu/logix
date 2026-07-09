@@ -269,14 +269,14 @@ export class ExpressRuleImportService {
    */
   private parseDimensions(row: Record<string, any>): any {
     const parseValue = (value: any): { numeric: number | null; literal: string | null } => {
-      if (!value || value === '×' || value === 'x' || value === '') {
+      if (value === null || value === undefined || value === '' || value === '×' || value === 'x') {
         return { numeric: null, literal: null };
       }
 
       const str = String(value).trim();
 
       // 文本比较符（如 >120, <175）
-      const match = str.match(/^([><=]+)(\d+\.?\d*)$/);
+      const match = str.match(/^([><=!]+)\s*(\d+\.?\d*)$/);
       if (match) {
         return {
           numeric: null,
@@ -306,9 +306,25 @@ export class ExpressRuleImportService {
     const rateWtMulti = parseValue(row['计价重（多箱）']);
     const minBillable = parseValue(row['最低计价重LBS']);
 
-    // 收集所有文本比较符
+    // 收集所有文本比较符并保留字段名，避免计费引擎无法判断比较符属于哪个阈值。
     const literals =
-      [longest.literal, second.literal, girth.literal].filter(Boolean).join('; ') || null;
+      [
+        ['longest_in', longest.literal],
+        ['second_in', second.literal],
+        ['shortest_in', shortest.literal],
+        ['girth_in', girth.literal],
+        ['l_plus_s_in', lPlusS.literal],
+        ['three_sides_sum_in', threeSides.literal],
+        ['diagonal_in', diagonal.literal],
+        ['vol_m3_threshold', volM3.literal],
+        ['gross_wt_value', grossWt.literal],
+        ['rate_wt_single', rateWtSingle.literal],
+        ['rate_wt_multi', rateWtMulti.literal],
+        ['min_billable_lbs', minBillable.literal]
+      ]
+        .filter((entry): entry is [string, string] => Boolean(entry[1]))
+        .map(([field, literal]) => `${field} ${literal}`)
+        .join('; ') || null;
 
     return {
       longestIn: longest.numeric,
@@ -390,40 +406,11 @@ export class ExpressRuleImportService {
   private buildConditionsJson(row: Record<string, any>, typeNormalized: string): any {
     // Seller Flex 特殊情况：备注写明"最长边、周长、毛重为且"
     if (typeNormalized === 'SELLER_FLEX_OVERSIZE' || row['备注']?.includes('且')) {
-      const conditions: any[] = [];
-
-      if (row['最长边(in)'] && row['最长边(in)'] !== '×') {
-        const val = parseFloat(String(row['最长边(in)']));
-        if (!isNaN(val)) {
-          conditions.push({
-            field: 'longest_in',
-            operator: '>',
-            value: val
-          });
-        }
-      }
-
-      if (row['周长(in)'] && row['周长(in)'] !== '×') {
-        const val = parseFloat(String(row['周长(in)']));
-        if (!isNaN(val)) {
-          conditions.push({
-            field: 'girth_in',
-            operator: '>',
-            value: val
-          });
-        }
-      }
-
-      if (row['毛重(lb)'] && row['毛重(lb)'] !== '×') {
-        const val = parseFloat(String(row['毛重(lb)']));
-        if (!isNaN(val)) {
-          conditions.push({
-            field: 'gross_wt_value',
-            operator: '>',
-            value: val
-          });
-        }
-      }
+      const conditions = [
+        this.parseThresholdCondition(row['最长边(in)'], 'longest_in'),
+        this.parseThresholdCondition(row['周长(in)'], 'girth_in'),
+        this.parseThresholdCondition(row['毛重(lb)'], 'gross_wt_value')
+      ].filter(Boolean);
 
       if (conditions.length > 1) {
         return { operator: 'AND', conditions };
@@ -442,6 +429,37 @@ export class ExpressRuleImportService {
     }
 
     return null;
+  }
+
+  private parseThresholdCondition(
+    value: any,
+    field: string
+  ): { field: string; operator: string; value: number } | null {
+    if (!value || value === '×' || value === 'x') {
+      return null;
+    }
+
+    const str = String(value).trim();
+    const comparisonMatch = str.match(/^([><=!]+)\s*(\d+\.?\d*)$/);
+    if (comparisonMatch) {
+      const operator = comparisonMatch[1] === '=' ? '==' : comparisonMatch[1];
+      return {
+        field,
+        operator,
+        value: Number(comparisonMatch[2])
+      };
+    }
+
+    const numeric = parseFloat(str);
+    if (isNaN(numeric)) {
+      return null;
+    }
+
+    return {
+      field,
+      operator: '>',
+      value: numeric
+    };
   }
 
   /**

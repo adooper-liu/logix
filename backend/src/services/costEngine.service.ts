@@ -81,10 +81,12 @@ export interface CostResult {
 }
 
 interface DimensionCheck {
-  field: keyof ExpressSurchargeRule;
-  operator: '>' | '>=' | '<' | '<=' | '==';
+  field: string;
+  operator: '>' | '>=' | '<' | '<=' | '==' | '!=';
   value: number;
 }
+
+type ConditionJoinOperator = 'AND' | 'OR';
 
 // ==================== 成本引擎服务 ====================
 
@@ -169,7 +171,8 @@ export class CostEngineService {
       // Step 8: 汇总费用
       const totalSurcharge = Number(foldedCharges.reduce((sum, c) => sum + c.amount, 0));
       const baseFreight = baseFreightResult?.baseFreight;
-      const grandTotal = baseFreight !== undefined ? Number((baseFreight + totalSurcharge).toFixed(2)) : undefined;
+      const grandTotal =
+        baseFreight !== undefined ? Number((baseFreight + totalSurcharge).toFixed(2)) : undefined;
 
       return {
         status: 'OK',
@@ -222,8 +225,14 @@ export class CostEngineService {
     }
 
     const mapping = await this.resolveZoneOrLane(pricingVersion.id, input);
-    const billableWeightKg = input.grossWeightKg || Number((billableWeightLbs / 2.20462).toFixed(3));
-    const row = await this.pickBaseRateRow(scheme.id, mapping?.zoneCode, mapping?.laneCode, billableWeightKg);
+    const billableWeightKg =
+      input.grossWeightKg || Number((billableWeightLbs / 2.20462).toFixed(3));
+    const row = await this.pickBaseRateRow(
+      scheme.id,
+      mapping?.zoneCode,
+      mapping?.laneCode,
+      billableWeightKg
+    );
     if (!row) {
       return undefined;
     }
@@ -434,14 +443,19 @@ export class CostEngineService {
     // 简单阈值检查
     const checks: DimensionCheck[] = [];
 
+    const literalChecks = this.parseConditionLiteralChecks(rule);
+    if (literalChecks.length > 0) {
+      return this.evaluateDimensionChecks(literalChecks, input, billableWeightLbs, 'AND');
+    }
+
     if (rule.longestIn !== null) {
-      checks.push({ field: 'longestIn', operator: '>', value: rule.longestIn });
+      checks.push({ field: 'longest_in', operator: '>', value: rule.longestIn });
     }
     if (rule.secondIn !== null) {
-      checks.push({ field: 'secondIn', operator: '>', value: rule.secondIn });
+      checks.push({ field: 'second_in', operator: '>', value: rule.secondIn });
     }
     if (rule.shortestIn !== null) {
-      checks.push({ field: 'shortestIn', operator: '>', value: rule.shortestIn });
+      checks.push({ field: 'shortest_in', operator: '>', value: rule.shortestIn });
     }
     if (rule.girthIn !== null) {
       // 周长 = 2 * (次长边 + 最短边)
@@ -473,33 +487,180 @@ export class CostEngineService {
       }
     }
 
-    // 所有条件都必须满足（AND 逻辑）
-    for (const check of checks) {
-      const actualValue = input[check.field as keyof ScenarioInput] as number;
-      if (actualValue === undefined || actualValue === null) {
-        continue;
-      }
+    return this.evaluateDimensionChecks(checks, input, billableWeightLbs, 'AND');
+  }
 
-      switch (check.operator) {
-        case '>':
-          if (!(actualValue > check.value)) return false;
-          break;
-        case '>=':
-          if (!(actualValue >= check.value)) return false;
-          break;
-        case '<':
-          if (!(actualValue < check.value)) return false;
-          break;
-        case '<=':
-          if (!(actualValue <= check.value)) return false;
-          break;
-        case '==':
-          if (!(actualValue === check.value)) return false;
-          break;
-      }
+  private parseConditionLiteralChecks(rule: ExpressSurchargeRule): DimensionCheck[] {
+    if (!rule.conditionLiteral) {
+      return [];
     }
 
-    return checks.length > 0;
+    const segments = rule.conditionLiteral
+      .split(';')
+      .map((segment) => segment.trim())
+      .filter(Boolean);
+    const inferredFields = this.inferConditionLiteralFields(rule, segments.length);
+
+    return segments
+      .map((segment, index) => this.parseConditionLiteralSegment(segment, inferredFields[index]))
+      .filter((check): check is DimensionCheck => check !== null);
+  }
+
+  private parseConditionLiteralSegment(
+    segment: string,
+    fallbackField: string | undefined
+  ): DimensionCheck | null {
+    const conditionPattern = new RegExp(
+      '^' +
+        '(?:(?<field>[\\u4e00-\\u9fa5A-Za-z_][\\u4e00-\\u9fa5A-Za-z0-9_+ ]*)\\s*)?' +
+        '(?<operator>>=|<=|==|!=|>|<|=)\\s*' +
+        '(?<value>\\d+(?:\\.\\d+)?)' +
+        '$'
+    );
+    const match = segment.match(conditionPattern);
+
+    if (!match?.groups) {
+      return null;
+    }
+
+    const rawField = match.groups.field?.trim();
+    const field = rawField ? this.normalizeConditionField(rawField) : fallbackField;
+    if (!field) {
+      return null;
+    }
+
+    const operator = match.groups.operator === '=' ? '==' : match.groups.operator;
+    const value = Number(match.groups.value);
+    if (!Number.isFinite(value)) {
+      return null;
+    }
+
+    return {
+      field,
+      operator: operator as DimensionCheck['operator'],
+      value
+    };
+  }
+
+  private inferConditionLiteralFields(rule: ExpressSurchargeRule, count: number): string[] {
+    const text = `${rule.conditionLiteral || ''} ${rule.notes || ''}`.toLowerCase();
+    const fields: string[] = [];
+    const pushField = (pattern: RegExp, field: string) => {
+      if (pattern.test(text) && !fields.includes(field)) {
+        fields.push(field);
+      }
+    };
+
+    pushField(/最长边|longest/, 'longest_in');
+    pushField(/次长边|second/, 'second_in');
+    pushField(/最短边|shortest/, 'shortest_in');
+    pushField(/周长|girth/, 'girth_in');
+    pushField(/最长边\+次长边|l_plus_s|l\+s/, 'l_plus_s_in');
+    pushField(/三边和|three/, 'three_sides_sum_in');
+    pushField(/毛重|gross/, 'gross_wt_value');
+
+    if (fields.length >= count) {
+      return fields.slice(0, count);
+    }
+
+    const legacyOrder = [
+      'longest_in',
+      'second_in',
+      'girth_in',
+      'l_plus_s_in',
+      'three_sides_sum_in',
+      'gross_wt_value'
+    ];
+    return legacyOrder.slice(0, count);
+  }
+
+  private normalizeConditionField(field: string | undefined): string | null {
+    if (!field) {
+      return null;
+    }
+
+    const normalized = field.toLowerCase().replace(/\s+/g, '_');
+    switch (normalized) {
+      case '最长边':
+      case 'longest':
+      case 'longest_in':
+        return 'longest_in';
+      case '次长边':
+      case 'second':
+      case 'second_in':
+        return 'second_in';
+      case '最短边':
+      case 'shortest':
+      case 'shortest_in':
+        return 'shortest_in';
+      case '周长':
+      case 'girth':
+      case 'girth_in':
+        return 'girth_in';
+      case '最长边+次长边':
+      case 'l+s':
+      case 'l_plus_s':
+      case 'l_plus_s_in':
+        return 'l_plus_s_in';
+      case '三边和':
+      case 'three_sides_sum':
+      case 'three_sides_sum_in':
+        return 'three_sides_sum_in';
+      case '毛重':
+      case 'gross':
+      case 'gross_wt':
+      case 'gross_wt_value':
+        return 'gross_wt_value';
+      case 'billable_weight':
+      case 'min_billable_lbs':
+        return 'billable_weight';
+      default:
+        return null;
+    }
+  }
+
+  private evaluateDimensionChecks(
+    checks: DimensionCheck[],
+    input: ScenarioInput,
+    billableWeightLbs: number,
+    joinOperator: ConditionJoinOperator
+  ): boolean {
+    if (checks.length === 0) {
+      return false;
+    }
+
+    const results = checks.map((check) => {
+      const actualValue = this.getFieldValue(check.field, input, billableWeightLbs);
+      if (actualValue === null) {
+        return false;
+      }
+      return this.compareConditionValue(actualValue, check.operator, check.value);
+    });
+
+    return joinOperator === 'AND' ? results.every(Boolean) : results.some(Boolean);
+  }
+
+  private compareConditionValue(
+    actualValue: number,
+    operator: DimensionCheck['operator'],
+    expectedValue: number
+  ): boolean {
+    switch (operator) {
+      case '>':
+        return actualValue > expectedValue;
+      case '>=':
+        return actualValue >= expectedValue;
+      case '<':
+        return actualValue < expectedValue;
+      case '<=':
+        return actualValue <= expectedValue;
+      case '==':
+        return actualValue === expectedValue;
+      case '!=':
+        return actualValue !== expectedValue;
+      default:
+        return false;
+    }
   }
 
   /**
@@ -535,6 +696,8 @@ export class CostEngineService {
           return fieldValue <= cond.value;
         case '==':
           return fieldValue === cond.value;
+        case '!=':
+          return fieldValue !== cond.value;
         default:
           return false;
       }
@@ -567,6 +730,12 @@ export class CostEngineService {
         return input.shortestIn;
       case 'girth_in':
         return 2 * (input.secondIn + input.shortestIn);
+      case 'l_plus_s_in':
+        return input.longestIn + input.secondIn;
+      case 'three_sides_sum_in':
+        return input.longestIn + input.secondIn + input.shortestIn;
+      case 'diagonal_in':
+        return Math.sqrt(input.longestIn ** 2 + input.secondIn ** 2 + input.shortestIn ** 2);
       case 'gross_wt_value':
         return input.grossWeightLbs;
       case 'billable_weight':
@@ -599,7 +768,7 @@ export class CostEngineService {
    * 应用互斥策略
    */
   private applyPolicies(charges: ChargeItem[], policies: ExpressStackPolicy[]): ChargeItem[] {
-    let result = [...charges];
+    const result = [...charges];
 
     for (const policy of policies) {
       const policyJson = policy.policyJson;
