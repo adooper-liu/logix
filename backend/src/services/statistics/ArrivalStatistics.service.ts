@@ -30,15 +30,13 @@ export class ArrivalStatisticsService {
   ): { sql: string; params: any[] } {
     if (startDate) {
       const idx = params.length + 1;
-      sql += ` AND (o.expected_ship_date >= $${idx} OR (o.expected_ship_date IS NULL AND o.actual_ship_date >= $${idx}) OR (o.expected_ship_date IS NULL AND o.actual_ship_date IS NULL AND sf.shipment_date >= $${idx}))`;
-      params.push(new Date(startDate));
+      sql += ` AND COALESCE(o.actual_ship_date, sf.shipment_date)::date >= $${idx}::date`;
+      params.push(startDate);
     }
     if (endDate) {
-      const endDateObj = new Date(endDate);
-      endDateObj.setHours(23, 59, 59, 999);
       const idx = params.length + 1;
-      sql += ` AND (o.expected_ship_date <= $${idx} OR (o.expected_ship_date IS NULL AND o.actual_ship_date <= $${idx}) OR (o.expected_ship_date IS NULL AND o.actual_ship_date IS NULL AND sf.shipment_date <= $${idx}))`;
-      params.push(endDateObj);
+      sql += ` AND COALESCE(o.actual_ship_date, sf.shipment_date)::date <= $${idx}::date`;
+      params.push(endDate);
     }
     return { sql, params };
   }

@@ -31,11 +31,11 @@ export function createDateRangeSubQuery(
     .leftJoin('c.replenishmentOrders', 'o')
     .leftJoin('c.seaFreight', 'sf')
     .where(
-      'CAST(COALESCE(o.actualShipDate, o.expectedShipDate, sf.shipmentDate) AS date) >= CAST(:startDate AS date)',
+      'CAST(COALESCE(o.actualShipDate, sf.shipmentDate) AS date) >= CAST(:startDate AS date)',
       { startDate: startDay ?? startDate }
     )
     .andWhere(
-      'CAST(COALESCE(o.actualShipDate, o.expectedShipDate, sf.shipmentDate) AS date) <= CAST(:endDate AS date)',
+      'CAST(COALESCE(o.actualShipDate, sf.shipmentDate) AS date) <= CAST(:endDate AS date)',
       { endDate: endDay ?? endDate }
     );
 
@@ -76,8 +76,8 @@ export function getDateRangeSubqueryRaw(
 LEFT JOIN biz_replenishment_orders o ON o.container_number = c.container_number
 LEFT JOIN process_sea_freight sf ON c.bill_of_lading_number = sf.bill_of_lading_number
 LEFT JOIN biz_customers cust ON ${RAW_O_CUSTOMER_JOIN_ON.replace(/\s+/g, ' ').trim()}
-WHERE COALESCE(o.actual_ship_date, o.expected_ship_date, sf.shipment_date)::date >= $1::date
-AND COALESCE(o.actual_ship_date, o.expected_ship_date, sf.shipment_date)::date <= $2::date`;
+WHERE COALESCE(o.actual_ship_date, sf.shipment_date)::date >= $1::date
+AND COALESCE(o.actual_ship_date, sf.shipment_date)::date <= $2::date`;
   if (code) {
     params.push(code);
     sql += ` AND cust.country = $3`;

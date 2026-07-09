@@ -17,7 +17,7 @@ import { RAW_RO_CUSTOMER_JOIN_ON, TYPEORM_ORDER_CUSTOMER_JOIN_ON } from './custo
 export class DateFilterBuilder {
   /**
    * 为查询添加出运时间过滤（已带 order、sf 连接时）
-   * 有效出运日：COALESCE(actual, expected, shipment)，与统计子查询一致
+   * 有效出运日：COALESCE(actual_ship_date, shipment_date)，与顶部日期口径一致
    */
   static addDateFilters(
     query: SelectQueryBuilder<any>,
@@ -29,14 +29,14 @@ export class DateFilterBuilder {
 
     if (startDay) {
       query.andWhere(
-        'CAST(COALESCE(order.actualShipDate, order.expectedShipDate, sf.shipmentDate) AS date) >= CAST(:startDate AS date)',
+        'CAST(COALESCE(order.actualShipDate, sf.shipmentDate) AS date) >= CAST(:startDate AS date)',
         { startDate: startDay }
       );
     }
 
     if (endDay) {
       query.andWhere(
-        'CAST(COALESCE(order.actualShipDate, order.expectedShipDate, sf.shipmentDate) AS date) <= CAST(:endDate AS date)',
+        'CAST(COALESCE(order.actualShipDate, sf.shipmentDate) AS date) <= CAST(:endDate AS date)',
         { endDate: endDay }
       );
     }
@@ -126,13 +126,13 @@ export class DateFilterBuilder {
     const endDay = params.endDate ? parseIsoDateOnlyForFilter(String(params.endDate)) : undefined;
     if (startDay) {
       dateParts.push(
-        '(COALESCE(ro.actual_ship_date, ro.expected_ship_date, sf2.shipment_date)::date) >= CAST(:startDate AS date)'
+        '(COALESCE(ro.actual_ship_date, sf2.shipment_date)::date) >= CAST(:startDate AS date)'
       );
       dateParams.startDate = startDay;
     }
     if (endDay) {
       dateParts.push(
-        '(COALESCE(ro.actual_ship_date, ro.expected_ship_date, sf2.shipment_date)::date) <= CAST(:endDate AS date)'
+        '(COALESCE(ro.actual_ship_date, sf2.shipment_date)::date) <= CAST(:endDate AS date)'
       );
       dateParams.endDate = endDay;
     }
