@@ -31,7 +31,6 @@ RUN addgroup -g 1001 -S nodejs && \
 COPY --from=builder /workspace/backend/node_modules ./node_modules
 COPY --from=builder /workspace/backend/dist ./dist
 COPY backend/package*.json ./
-COPY backend/.env ./.env
 
 RUN mkdir -p logs && chown -R nodejs:nodejs logs
 
