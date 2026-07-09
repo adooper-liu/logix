@@ -3,7 +3,7 @@
  * Global Express Cost Rules API Routes
  */
 
-import { Router } from 'express';
+import { NextFunction, Request, Response, Router } from 'express';
 import multer from 'multer';
 import * as XLSX from 'xlsx';
 import { AppDataSource } from '../database';
@@ -23,6 +23,26 @@ const upload = multer({
   }
 });
 
+export function isExpressCostImportApiEnabled(): boolean {
+  return process.env.ENABLE_EXPRESS_COST_IMPORT_API === 'true';
+}
+
+export function requireExpressCostImportApiEnabled(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): void {
+  if (!isExpressCostImportApiEnabled()) {
+    res.status(403).json({
+      success: false,
+      message: 'Express cost Excel import API is disabled'
+    });
+    return;
+  }
+
+  next();
+}
+
 /**
  * POST /api/v1/express-cost/import-excel
  * 上传 Excel 文件并导入规则
@@ -35,69 +55,74 @@ const upload = multer({
  * 行级错误全回滚: HTTP 422, success false, data.errors 非空, versionId 无
  * 缺 Sheet/非法 Excel 结构: HTTP 400
  */
-router.post('/import-excel', upload.single('file'), async (req, res) => {
-  try {
-    if (!req.file) {
-      res.status(400).json({
-        success: false,
-        message: '请上传 Excel 文件'
+router.post(
+  '/import-excel',
+  requireExpressCostImportApiEnabled,
+  upload.single('file'),
+  async (req: Request, res: Response) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({
+          success: false,
+          message: '请上传 Excel 文件'
+        });
+        return;
+      }
+
+      // 验证文件类型
+      const allowedMimeTypes = [
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+        'application/vnd.ms-excel' // .xls
+      ];
+
+      if (!allowedMimeTypes.includes(req.file.mimetype)) {
+        res.status(400).json({
+          success: false,
+          message: '仅支持 .xlsx 或 .xls 文件'
+        });
+        return;
+      }
+
+      logger.info('[ExpressCostAPI] 开始导入 Excel', {
+        fileName: req.file.originalname,
+        fileSize: req.file.size
       });
-      return;
-    }
 
-    // 验证文件类型
-    const allowedMimeTypes = [
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-      'application/vnd.ms-excel' // .xls
-    ];
+      const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+      const usePhaseAPlusImport = !!workbook.Sheets.pricing_scheme;
+      const result = usePhaseAPlusImport
+        ? await pricingImportService.importFromExcel(req.file.buffer, req.file.originalname)
+        : await expressRuleImportService.importFromExcel(req.file.buffer, req.file.originalname);
 
-    if (!allowedMimeTypes.includes(req.file.mimetype)) {
-      res.status(400).json({
-        success: false,
-        message: '仅支持 .xlsx 或 .xls 文件'
-      });
-      return;
-    }
+      // 行级错误导致单事务全量回滚时，import 服务仍 resolve，但 data.success=0 且带 errors
+      if (result.success === 0 && result.errors.length > 0) {
+        res.status(422).json({
+          success: false,
+          message: `导入未提交：行级错误 ${result.failed} 处，已全量回滚`,
+          data: result
+        });
+        return;
+      }
 
-    logger.info('[ExpressCostAPI] 开始导入 Excel', {
-      fileName: req.file.originalname,
-      fileSize: req.file.size
-    });
-
-    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
-    const usePhaseAPlusImport = !!workbook.Sheets.pricing_scheme;
-    const result = usePhaseAPlusImport
-      ? await pricingImportService.importFromExcel(req.file.buffer, req.file.originalname)
-      : await expressRuleImportService.importFromExcel(req.file.buffer, req.file.originalname);
-
-    // 行级错误导致单事务全量回滚时，import 服务仍 resolve，但 data.success=0 且带 errors
-    if (result.success === 0 && result.errors.length > 0) {
-      res.status(422).json({
-        success: false,
-        message: `导入未提交：行级错误 ${result.failed} 处，已全量回滚`,
+      res.json({
+        success: true,
+        message: `导入完成：成功 ${result.success} 条，失败 ${result.failed} 条`,
         data: result
       });
-      return;
+    } catch (error: any) {
+      logger.error('[ExpressCostAPI] 导入失败:', error);
+      // 缺少 Sheet、元数据非法等可视为请求体问题
+      const msg = error?.message || '导入失败';
+      const isClientPayload =
+        typeof msg === 'string' &&
+        (msg.includes('Excel 文件') || msg.includes('Sheet') || msg.includes('metadata'));
+      res.status(isClientPayload ? 400 : 500).json({
+        success: false,
+        message: msg
+      });
     }
-
-    res.json({
-      success: true,
-      message: `导入完成：成功 ${result.success} 条，失败 ${result.failed} 条`,
-      data: result
-    });
-  } catch (error: any) {
-    logger.error('[ExpressCostAPI] 导入失败:', error);
-    // 缺少 Sheet、元数据非法等可视为请求体问题
-    const msg = error?.message || '导入失败';
-    const isClientPayload =
-      typeof msg === 'string' &&
-      (msg.includes('Excel 文件') || msg.includes('Sheet') || msg.includes('metadata'));
-    res.status(isClientPayload ? 400 : 500).json({
-      success: false,
-      message: msg
-    });
   }
-});
+);
 
 /**
  * POST /api/v1/express-cost/calculate
