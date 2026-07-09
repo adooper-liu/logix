@@ -256,6 +256,7 @@ export class CostEngineService {
     return this.pricingVersionRepo
       .createQueryBuilder('v')
       .where('v.status = :status', { status: 'ACTIVE' })
+      .andWhere('v.effective_from <= NOW()')
       .andWhere('(v.effective_to IS NULL OR v.effective_to >= NOW())')
       .orderBy('v.effective_from', 'DESC')
       .addOrderBy('v.created_at', 'DESC')
@@ -347,6 +348,15 @@ export class CostEngineService {
     return Math.ceil(volumeWeightLbs); // 向上取整
   }
 
+  private calculateVolumeM3(longestIn: number, secondIn: number, shortestIn: number): number {
+    const cubicInchesToCubicMeters = 0.000016387064;
+    return longestIn * secondIn * shortestIn * cubicInchesToCubicMeters;
+  }
+
+  private calculateDiagonalIn(longestIn: number, secondIn: number, shortestIn: number): number {
+    return Math.sqrt(longestIn ** 2 + secondIn ** 2 + shortestIn ** 2);
+  }
+
   /**
    * 获取版本ID
    */
@@ -362,12 +372,16 @@ export class CostEngineService {
       return version[0].id;
     }
 
-    // 默认使用最新版本
+    // 默认使用当前已生效版本；允许无生效日的历史数据作为兜底，但不要提前启用未来版本。
     const latestVersion = await AppDataSource.query(
-      'SELECT id FROM dict_express_surcharge_version ORDER BY created_at DESC LIMIT 1'
+      `SELECT id
+       FROM dict_express_surcharge_version
+       WHERE effective_from IS NULL OR effective_from <= CURRENT_DATE
+       ORDER BY effective_from DESC NULLS LAST, created_at DESC
+       LIMIT 1`
     );
     if (latestVersion.length === 0) {
-      throw new Error('数据库中没有任何版本记录');
+      throw new Error('数据库中没有当前生效的版本记录');
     }
     return latestVersion[0].id;
   }
@@ -462,6 +476,18 @@ export class CostEngineService {
         return true;
       }
     }
+    if (rule.diagonalIn !== null) {
+      const diagonal = this.calculateDiagonalIn(input.longestIn, input.secondIn, input.shortestIn);
+      if (diagonal > Number(rule.diagonalIn)) {
+        return true;
+      }
+    }
+    if (rule.volM3Threshold !== null) {
+      const volumeM3 = this.calculateVolumeM3(input.longestIn, input.secondIn, input.shortestIn);
+      if (volumeM3 > Number(rule.volM3Threshold)) {
+        return true;
+      }
+    }
     if (rule.grossWtValue !== null) {
       if (input.grossWeightLbs > rule.grossWtValue) {
         return true;
@@ -469,6 +495,16 @@ export class CostEngineService {
     }
     if (rule.minBillableLbs !== null) {
       if (billableWeightLbs > rule.minBillableLbs) {
+        return true;
+      }
+    }
+    if (rule.rateWtSingle !== null && (input.quantity ?? 1) <= 1) {
+      if (billableWeightLbs > Number(rule.rateWtSingle)) {
+        return true;
+      }
+    }
+    if (rule.rateWtMulti !== null && (input.quantity ?? 1) > 1) {
+      if (billableWeightLbs > Number(rule.rateWtMulti)) {
         return true;
       }
     }
@@ -567,9 +603,20 @@ export class CostEngineService {
         return input.shortestIn;
       case 'girth_in':
         return 2 * (input.secondIn + input.shortestIn);
+      case 'l_plus_s_in':
+        return input.longestIn + input.secondIn;
+      case 'three_sides_sum_in':
+        return input.longestIn + input.secondIn + input.shortestIn;
+      case 'diagonal_in':
+        return this.calculateDiagonalIn(input.longestIn, input.secondIn, input.shortestIn);
+      case 'vol_m3':
+      case 'vol_m3_threshold':
+        return this.calculateVolumeM3(input.longestIn, input.secondIn, input.shortestIn);
       case 'gross_wt_value':
         return input.grossWeightLbs;
       case 'billable_weight':
+      case 'rate_wt_single':
+      case 'rate_wt_multi':
         return billableWeightLbs;
       default:
         return null;
