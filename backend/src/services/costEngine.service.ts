@@ -320,12 +320,37 @@ export class CostEngineService {
       order: { weightFrom: 'ASC', id: 'ASC' }
     });
 
-    const scopedRows = rows.filter((r) => {
-      if (laneCode && r.laneCode && r.laneCode !== laneCode) return false;
-      if (zoneCode && r.zoneCode && r.zoneCode !== zoneCode) return false;
-      if (!zoneCode && !laneCode && (r.zoneCode || r.laneCode)) return false;
-      return true;
-    });
+    const getScopeRank = (row: BaseRateRow): number => {
+      const hasLane = !!row.laneCode;
+      const hasZone = !!row.zoneCode;
+
+      if (laneCode) {
+        if (row.laneCode === laneCode) return 0;
+        if (zoneCode && !hasLane && row.zoneCode === zoneCode) return 1;
+        if (!hasLane && !hasZone) return 2;
+        return Number.POSITIVE_INFINITY;
+      }
+
+      if (zoneCode) {
+        if (!hasLane && row.zoneCode === zoneCode) return 0;
+        if (!hasLane && !hasZone) return 1;
+        return Number.POSITIVE_INFINITY;
+      }
+
+      return !hasLane && !hasZone ? 0 : Number.POSITIVE_INFINITY;
+    };
+
+    const scopedRows = rows
+      .map((row) => ({ row, scopeRank: getScopeRank(row) }))
+      .filter(({ scopeRank }) => Number.isFinite(scopeRank))
+      .sort((a, b) => {
+        if (a.scopeRank !== b.scopeRank) return a.scopeRank - b.scopeRank;
+        const aWeightFrom = a.row.weightFrom === null ? Number.NEGATIVE_INFINITY : Number(a.row.weightFrom);
+        const bWeightFrom = b.row.weightFrom === null ? Number.NEGATIVE_INFINITY : Number(b.row.weightFrom);
+        if (aWeightFrom !== bWeightFrom) return aWeightFrom - bWeightFrom;
+        return Number(a.row.id || 0) - Number(b.row.id || 0);
+      })
+      .map(({ row }) => row);
 
     return (
       scopedRows.find((r) => {
@@ -599,7 +624,7 @@ export class CostEngineService {
    * 应用互斥策略
    */
   private applyPolicies(charges: ChargeItem[], policies: ExpressStackPolicy[]): ChargeItem[] {
-    let result = [...charges];
+    const result = [...charges];
 
     for (const policy of policies) {
       const policyJson = policy.policyJson;
