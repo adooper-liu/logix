@@ -15,13 +15,13 @@ import * as XLSX from 'xlsx';
 // 加载 .env 文件
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-// PostgreSQL 连接配置（从 .env 读取或使用默认值）
+// PostgreSQL 连接配置（从 .env 读取；密码不写死，避免误连或泄露生产凭据）
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_DATABASE || 'logix_db',
   user: process.env.DB_USERNAME || 'logix_user',
-  password: process.env.DB_PASSWORD || 'LogiX@2024!Secure'
+  password: process.env.DB_PASSWORD
 };
 
 // 解析数值（处理 '×' 和空值）
@@ -101,6 +101,39 @@ function parseValueWithLiteral(value: any): { numeric: number | null; literal: s
   }
 
   return { numeric: null, literal: str };
+}
+
+function hasValue(value: any): boolean {
+  if (value === null || value === undefined) return false;
+  return String(value).trim() !== '';
+}
+
+export interface ExpressCostRowValidationResult {
+  dataRows: any[][];
+  errors: Array<{ row: number; message: string }>;
+}
+
+export function validateExpressCostRows(rawData: any[][]): ExpressCostRowValidationResult {
+  const dataRows = rawData
+    .slice(1)
+    .filter((row) => row.some((cell) => hasValue(cell)));
+  const errors: Array<{ row: number; message: string }> = [];
+
+  dataRows.forEach((row, index) => {
+    const missingFields: string[] = [];
+    if (!hasValue(row[0])) missingFields.push('国别');
+    if (!hasValue(row[1])) missingFields.push('快递方式');
+    if (!hasValue(row[2])) missingFields.push('类型');
+
+    if (missingFields.length > 0) {
+      errors.push({
+        row: index + 2,
+        message: `缺少必填字段: ${missingFields.join(', ')}`
+      });
+    }
+  });
+
+  return { dataRows, errors };
 }
 
 // 提取 IF_THEN_DISABLE 策略
@@ -227,9 +260,21 @@ async function importExpressCostData(filePath: string) {
     process.exit(1);
   }
 
-  const dataRows = rawData
-    .slice(1)
-    .filter((row) => row.some((cell) => cell !== null && cell !== undefined));
+  const { dataRows, errors } = validateExpressCostRows(rawData);
+  if (dataRows.length === 0) {
+    console.error('✗ Excel 文件中没有有效数据行');
+    process.exit(1);
+  }
+  if (errors.length > 0) {
+    console.error('✗ Excel 行数据校验失败，未连接数据库、未清空现有数据');
+    errors.slice(0, 20).forEach((error) => {
+      console.error(`  第 ${error.row} 行: ${error.message}`);
+    });
+    if (errors.length > 20) {
+      console.error(`  ... 另有 ${errors.length - 20} 行错误`);
+    }
+    process.exit(1);
+  }
   console.log(`找到 ${dataRows.length} 条数据记录`);
   console.log('');
 
@@ -316,17 +361,12 @@ async function importExpressCostData(filePath: string) {
       const carrierRaw = row[1]?.toString().trim();
       const typeRaw = row[2]?.toString().trim();
 
-      if (!countryCode || !carrierRaw || !typeRaw) {
-        continue;
-      }
-
       const carrier = normalizeCarrierName(carrierRaw);
       const carrierKey = `${countryCode}|${carrier}`;
       const carrierServiceId = carrierServiceMap.get(carrierKey);
 
       if (!carrierServiceId) {
-        console.warn(`⚠ 警告: 未找到承运商服务 ${carrierKey}，跳过第 ${i + 2} 行`);
-        continue;
+        throw new Error(`未找到承运商服务 ${carrierKey}，第 ${i + 2} 行`);
       }
 
       // 解析尺寸和重量（支持文本比较符）
@@ -549,9 +589,11 @@ async function importExpressCostData(filePath: string) {
 }
 
 // 主函数
-const excelPath = process.argv[2] || 'D:/aosom/Downloads/全球快递费拒收超标标准20260214.xlsx';
+if (require.main === module) {
+  const excelPath = process.argv[2] || 'D:/aosom/Downloads/全球快递费拒收超标标准20260214.xlsx';
 
-importExpressCostData(excelPath).catch((error) => {
-  console.error('未捕获的错误:', error);
-  process.exit(1);
-});
+  importExpressCostData(excelPath).catch((error) => {
+    console.error('未捕获的错误:', error);
+    process.exit(1);
+  });
+}
