@@ -1,6 +1,35 @@
 import { costEngineService } from '../../src/services/costEngine.service';
 
 describe('CostEngine PhaseA+ base freight helpers', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('拒绝使用其他国家的承运商服务进行试算', async () => {
+    const svc = costEngineService as any;
+    const carrierFindOneSpy = jest.spyOn(svc.carrierServiceRepo, 'findOne').mockResolvedValue({
+      id: 99,
+      countryCode: 'US',
+      serviceName: 'FedEx Ground'
+    });
+    const getVersionSpy = jest.spyOn(svc, 'getVersionId');
+
+    await expect(
+      costEngineService.calculate({
+        countryCode: 'CA',
+        carrierServiceId: 99,
+        versionKey: 'TEST_20260423',
+        longestIn: 50,
+        secondIn: 30,
+        shortestIn: 20,
+        grossWeightLbs: 40
+      })
+    ).rejects.toThrow('承运商服务国家不匹配');
+
+    expect(carrierFindOneSpy).toHaveBeenCalledWith({ where: { id: 99 } });
+    expect(getVersionSpy).not.toHaveBeenCalled();
+  });
+
   it('缺少 carrier/service/product 时不计算基础价', async () => {
     const result = await (costEngineService as any).calculateBaseFreight(
       { countryCode: 'US' },
@@ -44,11 +73,6 @@ describe('CostEngine PhaseA+ base freight helpers', () => {
 
     expect(result).toEqual({ baseFreight: 18.5, zoneCode: 'Z9', laneCode: undefined });
     expect(schemeFindOne).toHaveBeenCalled();
-
-    getVersionSpy.mockRestore();
-    resolveSpy.mockRestore();
-    rowSpy.mockRestore();
-    schemeFindOne.mockRestore();
   });
 });
 

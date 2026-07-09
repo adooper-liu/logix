@@ -116,6 +116,12 @@ export class CostEngineService {
         throw new Error(`未找到承运商服务: ID=${input.carrierServiceId}`);
       }
 
+      if (carrierService.countryCode !== input.countryCode) {
+        throw new Error(
+          `承运商服务国家不匹配: ID=${input.carrierServiceId} 属于 ${carrierService.countryCode}, 请求国家为 ${input.countryCode}`
+        );
+      }
+
       // Step 2: 计算计费重
       const volumeWeightLbs = this.calculateVolumeWeight(
         input.longestIn,
@@ -599,7 +605,7 @@ export class CostEngineService {
    * 应用互斥策略
    */
   private applyPolicies(charges: ChargeItem[], policies: ExpressStackPolicy[]): ChargeItem[] {
-    let result = [...charges];
+    const result = [...charges];
 
     for (const policy of policies) {
       const policyJson = policy.policyJson;
