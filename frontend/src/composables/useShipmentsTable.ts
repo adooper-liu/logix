@@ -199,17 +199,9 @@ export function useShipmentsTable() {
   // 预警筛选
   const alertFilter = ref<boolean | null>(null)
 
-  // 前端分页计算属性
+  // 列表数据已经由后端按当前页返回；这里仅作为筛选/排序的输入，避免二次分页。
   const paginatedContainers = computed(() => {
-    // 没有过滤条件时，使用后端分页数据
-    if (!activeFilter.value.type || !activeFilter.value.days) {
-      return containers.value
-    }
-
-    // 有过滤条件时，在前端进行分页
-    const start = (pagination.value.page - 1) * pagination.value.pageSize
-    const end = start + pagination.value.pageSize
-    return containers.value.slice(start, end)
+    return containers.value
   })
 
   // 取可排序列的原始值

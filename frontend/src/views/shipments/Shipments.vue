@@ -7,6 +7,7 @@ import { useShipmentsSchedule } from '@/composables/useShipmentsSchedule'
 import { useShipmentsTable } from '@/composables/useShipmentsTable'
 import { containerService } from '@/services/container'
 import { useAppStore } from '@/store/app'
+import { useGanttFilterStore } from '@/store/ganttFilters'
 import { ArrowDown, ArrowRight, Download, Edit, Refresh, Search } from '@element-plus/icons-vue'
 import dayjs from 'dayjs'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -18,6 +19,7 @@ import CountdownCardsGroup from './components/CountdownCardsGroup.vue'
 
 const router = useRouter()
 const appStore = useAppStore()
+const ganttFilterStore = useGanttFilterStore()
 const { t } = useI18n()
 
 // 使用表格相关 composable
@@ -28,6 +30,9 @@ const {
   pagination,
   activeFilter,
   tableSort,
+  tableSize,
+  quickStatusFilter,
+  alertFilter,
   columnLabels,
   columnOrder,
   filteredContainers,
@@ -329,6 +334,16 @@ const resetFilter = async () => {
   await loadContainers()
 }
 
+const handlePageChangeWithLoad = async (page: number) => {
+  handlePageChange(page)
+  await reloadTableByCurrentFilter()
+}
+
+const handlePageSizeChangeWithLoad = async (pageSize: number) => {
+  handlePageSizeChange(pageSize)
+  await reloadTableByCurrentFilter()
+}
+
 // 查看详情（兼容 containerNumber / container_number，并对柜号做 URL 编码）
 const viewDetails = (container: any) => {
   const id = container?.containerNumber ?? container?.container_number
@@ -443,6 +458,51 @@ const goToSchedulingPage = () => {
       timestamp: Date.now(),
     },
   })
+}
+
+// 辅助函数：根据筛选条件确定时间维度
+const getTimeDimensionFromFilter = (
+  filterCondition: string
+): 'arrival' | 'pickup' | 'lastPickup' | 'return' => {
+  if (!filterCondition) return 'arrival'
+  if (filterCondition.includes('arrival')) return 'arrival'
+  if (filterCondition.includes('pickup') && !filterCondition.includes('last')) return 'pickup'
+  if (filterCondition.includes('last_pickup')) return 'lastPickup'
+  if (filterCondition.includes('return')) return 'return'
+  return 'arrival'
+}
+
+// 跳转甘特图：使用父组件的真实日期、卡片筛选和当前选中货柜
+const goGanttChart = () => {
+  const ids = selectedRows.value.length
+    ? selectedRows.value.map((r: any) => r.containerNumber).filter(Boolean)
+    : []
+
+  const startDate = dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD')
+  const endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
+  const filterCondition = activeFilter.value.days
+  const filterLabel = getFilterLabel(filterCondition)
+
+  ganttFilterStore.setFilters({
+    startDate,
+    endDate,
+    filterCondition: filterCondition || '',
+    filterLabel: filterLabel || '',
+    selectedContainers: ids,
+    timeDimension: getTimeDimensionFromFilter(filterCondition),
+  })
+
+  const query: Record<string, string> = {
+    startDate,
+    endDate,
+  }
+  if (filterCondition) {
+    query.filterCondition = filterCondition
+    query.filterLabel = filterLabel
+  }
+  if (ids.length) query.containers = ids.join(',')
+
+  router.push({ path: '/gantt-chart', query })
 }
 
 onMounted(() => {
@@ -570,16 +630,21 @@ export default {
 
     <!-- 集装箱表格 -->
     <ContainerTable
-      :data="containers"
+      v-model:table-size="tableSize"
+      v-model:quick-status-filter="quickStatusFilter"
+      v-model:alert-filter="alertFilter"
+      :data="filteredContainers"
       :loading="loading"
       :current-page="pagination.page"
       :page-size="pagination.pageSize"
       :total="pagination.total"
+      :active-filter="activeFilter"
       :default-sort="{ prop: tableSort.prop, order: tableSort.order }"
-      @update:page="handlePageChange"
-      @update:pageSize="handlePageSizeChange"
+      @update:page="handlePageChangeWithLoad"
+      @update:pageSize="handlePageSizeChangeWithLoad"
       @sort-change="handleSortChange"
       @selection-change="handleSelectionChange"
+      @go-gantt-chart="goGanttChart"
       @view-history="viewSchedulingHistory"
       @view-detail="viewDetails"
       @edit="editContainer"
