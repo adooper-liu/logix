@@ -2,27 +2,22 @@
   <el-card class="table-card">
     <!-- 工具栏 -->
     <ContainerTableToolbar
-      v-model:table-size="tableSize"
-      v-model:quick-status-filter="quickStatusFilter"
-      :alert-filter="!!alertFilter"
+      v-model:table-size="tableSizeModel"
+      v-model:quick-status-filter="quickStatusFilterModel"
+      v-model:alert-filter="alertFilterModel"
       :selected-rows-count="selectedRows.length"
       :batch-schedule-loading="batchScheduleLoading"
       :demurrage-write-back-loading="demurrageWriteBackLoading"
-      @update:alert-filter="
-        val => {
-          alertFilter = val
-        }
-      "
       @open-column-setting="columnSettingOpen = true"
       @batch-export="() => handleBatchExport(selectedRows)"
-      @go-gantt-chart="goGanttChart"
+      @go-gantt-chart="emit('go-gantt-chart')"
       @batch-schedule="handleBatchSchedule"
       @demurrage-write-back="handleDemurrageWriteBackWrapper"
     />
     <el-table
       ref="tableRef"
       :data="props.data"
-      :size="tableSize"
+      :size="tableSizeModel"
       :default-sort="props.defaultSort"
       v-loading="props.loading"
       stripe
@@ -40,7 +35,7 @@
       <template #empty>
         <div class="table-empty">
           <el-empty description="暂无数据">
-            <template v-if="activeFilter.type">
+            <template v-if="props.activeFilter.type">
               <span class="empty-hint"
                 >当前筛选条件下没有货柜记录，可尝试调整日期范围或清除筛选。</span
               >
@@ -652,8 +647,8 @@
     <!-- 分页 -->
     <div class="pagination-container">
       <el-pagination
-        v-model:current-page="pagination.page"
-        v-model:page-size="pagination.pageSize"
+        v-model:current-page="currentPageModel"
+        v-model:page-size="pageSizeModel"
         :page-sizes="[10, 20, 50, 100]"
         :total="props.total || 0"
         layout="total, sizes, prev, pager, next, jumper"
@@ -670,7 +665,6 @@ import { useLogisticsStatus } from '@/composables/useLogisticsStatus'
 import { useShipmentsExport } from '@/composables/useShipmentsExport'
 import { useShipmentsSchedule } from '@/composables/useShipmentsSchedule'
 import { useShipmentsTable } from '@/composables/useShipmentsTable'
-import { useGanttFilterStore } from '@/store/ganttFilters'
 import {
   formatAlertTypeBadge,
   getCostDetailsText,
@@ -682,22 +676,26 @@ import {
 } from '@/utils/containerDisplay'
 import { getCurrentLocationText } from '@/utils/logisticsStatusMachine'
 import { Box, CircleCheck, CircleClose, Edit, Warning } from '@element-plus/icons-vue'
-import dayjs from 'dayjs'
 import { ElMessage } from 'element-plus'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
 import ContainerTableColumnSettings from './ContainerTableColumnSettings.vue'
 import ContainerTableRowExpand from './ContainerTableRowExpand.vue'
 import ContainerTableToolbar from './ContainerTableToolbar.vue'
 
 // ==================== Props 定义 ====================
+type TableSize = 'small' | 'default' | 'large'
+
 interface Props {
   data?: any[]
   loading?: boolean
   currentPage?: number
   pageSize?: number
   total?: number
+  tableSize?: TableSize
+  quickStatusFilter?: string[]
+  alertFilter?: boolean | null
+  activeFilter?: { type: string; days: string }
   defaultSort?: { prop: string; order: string | null }
 }
 
@@ -707,6 +705,10 @@ const props = withDefaults(defineProps<Props>(), {
   currentPage: 1,
   pageSize: 10,
   total: 0,
+  tableSize: 'default',
+  quickStatusFilter: () => [],
+  alertFilter: false,
+  activeFilter: () => ({ type: '', days: '' }),
   defaultSort: () => ({ prop: '', order: null }),
 })
 
@@ -714,8 +716,12 @@ const props = withDefaults(defineProps<Props>(), {
 interface Emits {
   (e: 'update:page', page: number): void
   (e: 'update:pageSize', pageSize: number): void
+  (e: 'update:tableSize', tableSize: TableSize): void
+  (e: 'update:quickStatusFilter', value: string[]): void
+  (e: 'update:alertFilter', value: boolean): void
   (e: 'sort-change', data: { prop: string; order: string | null }): void
   (e: 'selection-change', rows: any[]): void
+  (e: 'go-gantt-chart'): void
   (e: 'view-history', row: any): void
   (e: 'view-detail', row: any): void
   (e: 'edit', row: any): void
@@ -726,6 +732,31 @@ interface Emits {
 }
 
 const emit = defineEmits<Emits>()
+
+const currentPageModel = computed({
+  get: () => props.currentPage,
+  set: (page: number) => emit('update:page', page),
+})
+
+const pageSizeModel = computed({
+  get: () => props.pageSize,
+  set: (pageSize: number) => emit('update:pageSize', pageSize),
+})
+
+const tableSizeModel = computed<TableSize>({
+  get: () => props.tableSize,
+  set: tableSize => emit('update:tableSize', tableSize),
+})
+
+const quickStatusFilterModel = computed<string[]>({
+  get: () => props.quickStatusFilter,
+  set: value => emit('update:quickStatusFilter', value),
+})
+
+const alertFilterModel = computed<boolean>({
+  get: () => !!props.alertFilter,
+  set: value => emit('update:alertFilter', value),
+})
 
 const getUtcDayNumber = (input: string | Date | null | undefined): number | null => {
   if (!input) return null
@@ -793,8 +824,6 @@ const getDateColorClass = (
   return `date-color-${tagType}`
 }
 
-const router = useRouter()
-const ganttFilterStore = useGanttFilterStore()
 const { t } = useI18n()
 
 // 使用物流状态 composable
@@ -802,14 +831,9 @@ const { getLogisticsStatusText, getStatusType } = useLogisticsStatus()
 
 // 使用表格相关 composable
 const {
-  pagination,
-  activeFilter,
-  tableSize,
   columnOrder,
   columnVisible,
   columnSettingOpen,
-  quickStatusFilter,
-  alertFilter,
   sortedVisibleColumnKeys,
   saveColumnVisible,
   resetColumnVisible,
@@ -834,13 +858,6 @@ const singleFreeDateWriteBackLoading = ref<string | null>(null)
 /** 单柜「LFD 手工维护」按钮 loading（按柜号） */
 const manualLfdLoading = ref<string | null>(null)
 
-// 时间筛选（Dashboard风格的日期范围选择器）
-// 顶部时间窗口默认为本年（出运日期口径）
-const shipmentDateRange = ref<[Date, Date]>([
-  dayjs().startOf('year').toDate(),
-  dayjs().endOf('day').toDate(),
-])
-
 // 多选与批量导出
 const tableRef = ref<InstanceType<typeof import('element-plus').ElTable>>()
 const selectedRows = ref<any[]>([])
@@ -851,6 +868,7 @@ const handleSortChange = ({ prop, order }: { prop: string; order: string | null 
 }
 
 const handleSelectionChange = (rows: any[]) => {
+  selectedRows.value = rows
   emit('selection-change', rows)
 }
 
@@ -894,32 +912,6 @@ const editContainer = (container: any) => {
   emit('edit', container)
 }
 
-// 获取过滤条件标签
-const getFilterLabel = (days: string): string => {
-  const labels: Record<string, string> = {
-    all: '全部',
-    overdue: '已逾期未到港',
-    transit: '已到中转港',
-    today: '今日到港',
-    arrivedBeforeTodayNotPickedUp: '今日之前到港未提柜',
-    arrivedBeforeTodayPickedUp: '今日之前到港已提柜',
-    arrivedBeforeTodayNoATA: '今日之前到港，但无ATA',
-    other: '其他记录',
-    '0': '已超时',
-    '0-3': '3天内',
-    '4-7': '7天内',
-    '7+': '7天以上',
-    '8+': '还箱日倒计时>7天',
-    overduePickup: '逾期未提柜',
-    todayPlanned: '今日计划提柜',
-    pending: '待安排提柜',
-    'no-last-free-date': '最晚提柜日为空',
-    'no-last-return-date': '最后还箱日为空',
-    '1-3': '1-3天',
-  }
-  return labels[days] || days
-}
-
 // 一键排产（智能排柜）
 const handleBatchSchedule = () => {
   emit('batch-schedule')
@@ -928,54 +920,6 @@ const handleBatchSchedule = () => {
 // 执行免费日更新（包装函数）
 const handleDemurrageWriteBackWrapper = async () => {
   emit('demurrage-writeback')
-}
-
-// 辅助函数：根据筛选条件确定时间维度
-const getTimeDimensionFromFilter = (
-  filterCondition: string
-): 'arrival' | 'pickup' | 'lastPickup' | 'return' => {
-  if (!filterCondition) return 'arrival'
-  if (filterCondition.includes('arrival')) return 'arrival'
-  if (filterCondition.includes('pickup') && !filterCondition.includes('last')) return 'pickup'
-  if (filterCondition.includes('last_pickup')) return 'lastPickup'
-  if (filterCondition.includes('return')) return 'return'
-  return 'arrival'
-}
-
-// 跳转甘特图：与统计卡片一致，带出运日期、卡片筛选条件、选中柜号
-const goGanttChart = () => {
-  const ids = selectedRows.value.length
-    ? selectedRows.value.map((r: any) => r.containerNumber).filter(Boolean)
-    : []
-
-  const startDate = dayjs(shipmentDateRange.value[0]).format('YYYY-MM-DD')
-  const endDate = dayjs(shipmentDateRange.value[1]).format('YYYY-MM-DD')
-  const filterCondition = activeFilter.value.days
-  const filterLabel = getFilterLabel(filterCondition)
-
-  // 1. 保存到全局 Store（自动持久化到 localStorage）
-  ganttFilterStore.setFilters({
-    startDate: startDate,
-    endDate: endDate,
-    filterCondition: filterCondition || '',
-    filterLabel: filterLabel || '',
-    selectedContainers: ids,
-    timeDimension: getTimeDimensionFromFilter(filterCondition),
-  })
-
-  // 2. 构建 query 参数（用于 URL 显示和分享）
-  const query: Record<string, string> = {
-    startDate,
-    endDate,
-  }
-  if (filterCondition) {
-    query.filterCondition = filterCondition
-    query.filterLabel = filterLabel
-  }
-  if (ids.length) query.containers = ids.join(',')
-
-  // 3. 在同窗口打开甘特图（使用 router.push）
-  router.push({ path: '/gantt-chart', query })
 }
 
 onMounted(() => {
