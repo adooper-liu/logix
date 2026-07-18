@@ -1,6 +1,6 @@
 import type { Container } from '@/types/container'
 import { describe, expect, it } from 'vitest'
-import { mergeReturnDateIntoUpdateData } from './ganttReturnDateMergeUtils'
+import { mergeReturnDateIntoUpdateData } from './useGanttLogic'
 
 describe('mergeReturnDateIntoUpdateData', () => {
   it('keeps the unload-to-return interval when a Drop off unload moves earlier', () => {

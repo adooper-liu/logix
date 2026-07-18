@@ -11,6 +11,8 @@ import {
 } from './ganttReturnDateMergeUtils'
 import { useGanttCostOptimization } from './useGanttCostOptimization'
 
+export { mergeReturnDateIntoUpdateData }
+
 /**
  * 甘特图核心逻辑抽离
  * Gantt Chart Core Logic Composable
