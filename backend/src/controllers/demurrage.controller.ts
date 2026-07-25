@@ -16,6 +16,7 @@ import { TruckingTransport } from '../entities/TruckingTransport';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { DemurrageService } from '../services/demurrage.service';
+import { resolveDemurrageIsChargeable } from '../utils/demurrageChargeable';
 import { logger } from '../utils/logger';
 
 const demurrageService = new DemurrageService(
@@ -133,7 +134,7 @@ export class DemurrageController {
         transportModeName: body.transportModeName ?? null,
         chargeTypeCode: body.chargeTypeCode ?? null,
         chargeName: body.chargeName ?? '滞港费',
-        isChargeable: body.isChargeable ?? 'Y',
+        isChargeable: resolveDemurrageIsChargeable(body.isChargeable),
         sequenceNumber: body.sequenceNumber ?? null,
         portCondition: body.portCondition ?? null,
         freeDaysBasis: body.freeDaysBasis ?? '自然日',
