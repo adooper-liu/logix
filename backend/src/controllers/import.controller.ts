@@ -26,6 +26,7 @@ import { TruckingTransport } from '../entities/TruckingTransport';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { auditLogService } from '../services/auditLog.service';
 import { feituoImportService } from '../services/feituoImport.service';
+import { resolveDemurrageIsChargeable } from '../utils/demurrageChargeable';
 import { resolveDemurrageFreeDays } from '../utils/demurrageTiers';
 import { logger } from '../utils/logger';
 
@@ -1718,7 +1719,7 @@ export class ImportController {
           transportModeName: resolvedRow.transport_mode_name ?? null,
           chargeTypeCode: resolvedRow.charge_type_code ?? null,
           chargeName: resolvedRow.charge_name ?? null,
-          isChargeable: (resolvedRow.is_chargeable as string) ?? 'Y',
+          isChargeable: resolveDemurrageIsChargeable(resolvedRow.is_chargeable),
           sequenceNumber: resolvedRow.sequence_number ?? null,
           portCondition: resolvedRow.port_condition ?? null,
           freeDaysBasis: resolvedRow.free_days_basis ?? '自然日',
