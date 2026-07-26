@@ -188,18 +188,6 @@ function isWeekend(d: Date): boolean {
   return dow === 0 || dow === 6;
 }
 
-/** 从起算日起加 N 个工作日（周六、周日不计入） */
-function addWorkingDays(start: Date, n: number): Date {
-  if (n <= 0) return new Date(start.getTime());
-  const result = new Date(start.getTime());
-  let count = 0;
-  while (count < n) {
-    if (!isWeekend(result)) count++;
-    if (count < n) result.setUTCDate(result.getUTCDate() + 1);
-  }
-  return result;
-}
-
 /** 两日期间的工作日数（含起止，周六、周日不计入） */
 function workingDaysBetween(start: Date, end: Date): number {
   let count = 0;
