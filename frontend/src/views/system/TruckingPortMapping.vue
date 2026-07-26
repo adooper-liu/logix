@@ -4,6 +4,7 @@ import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, reactive, ref } from 'vue'
 import * as XLSX from 'xlsx'
+import { snakeToCamel } from '@/utils/snakeToCamel'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1'
 
@@ -169,28 +170,61 @@ const handleCreate = () => {
   dialogVisible.value = true
 }
 
-// 编辑
-const handleEdit = (row: TruckingPortRecord) => {
+// 编辑：后端 SELECT * 返回 snake_case，必须映射到表单 camelCase，否则保存会清空港口/费率
+const handleEdit = (row: TruckingPortRecord | Record<string, unknown>) => {
   dialogMode.value = 'edit'
   dialogTitle.value = '编辑映射'
-  Object.assign(formData, { ...row })
+  const mapped = snakeToCamel(row) as TruckingPortRecord
+  Object.assign(formData, {
+    id: mapped.id,
+    country: mapped.country ?? '',
+    truckingCompanyId: mapped.truckingCompanyId ?? '',
+    truckingCompanyName: mapped.truckingCompanyName ?? '',
+    portCode: mapped.portCode ?? '',
+    portName: mapped.portName ?? '',
+    yardCapacity: Number(mapped.yardCapacity ?? 0),
+    standardRate: Number(mapped.standardRate ?? 0),
+    unit: mapped.unit ?? '',
+    yardOperationFee: Number(mapped.yardOperationFee ?? 0),
+    mappingType: mapped.mappingType || 'DEFAULT',
+    isDefault: Boolean(mapped.isDefault),
+    isActive: mapped.isActive !== false,
+    remarks: mapped.remarks ?? '',
+  })
   dialogVisible.value = true
 }
+
+const buildSavePayload = () => ({
+  country: formData.country,
+  truckingCompanyId: formData.truckingCompanyId,
+  truckingCompanyName: formData.truckingCompanyName,
+  portCode: formData.portCode,
+  portName: formData.portName,
+  yardCapacity: formData.yardCapacity,
+  standardRate: formData.standardRate,
+  unit: formData.unit,
+  yardOperationFee: formData.yardOperationFee,
+  mappingType: formData.mappingType,
+  isDefault: formData.isDefault,
+  isActive: formData.isActive,
+  remarks: formData.remarks,
+})
 
 // 保存
 const handleSave = async () => {
   try {
+    const payload = buildSavePayload()
     if (dialogMode.value === 'create') {
-      await axios.post(`${BASE_URL}/trucking-port-mapping`, formData)
+      await axios.post(`${BASE_URL}/trucking-port-mapping`, payload)
       ElMessage.success('创建成功')
     } else {
-      await axios.put(`${BASE_URL}/trucking-port-mapping/${formData.id}`, formData)
+      await axios.put(`${BASE_URL}/trucking-port-mapping/${formData.id}`, payload)
       ElMessage.success('更新成功')
     }
     dialogVisible.value = false
     loadData()
   } catch (error: any) {
-    ElMessage.error(error?.message || '操作失败')
+    ElMessage.error(error?.response?.data?.error || error?.message || '操作失败')
   }
 }
 

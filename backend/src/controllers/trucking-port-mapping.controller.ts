@@ -6,6 +6,12 @@
 import { Request, Response } from 'express';
 import { AppDataSource } from '../database';
 import { logger } from '../utils/logger';
+import {
+  firstMissingRequiredBodyString,
+  pickBodyBoolean,
+  pickBodyNumber,
+  pickBodyString
+} from '../utils/pickBodyField';
 
 export class TruckingPortMappingController {
   /**
@@ -89,21 +95,15 @@ export class TruckingPortMappingController {
    */
   create = async (req: Request, res: Response): Promise<void> => {
     try {
-      const {
-        country,
-        truckingCompanyId,
-        truckingCompanyName,
-        portCode,
-        portName,
-        yardCapacity,
-        standardRate,
-        unit,
-        yardOperationFee,
-        mappingType,
-        isDefault,
-        isActive,
-        remarks
-      } = req.body;
+      const missing = firstMissingRequiredBodyString(req.body, [
+        'country',
+        'truckingCompanyId',
+        'portCode'
+      ]);
+      if (missing) {
+        res.status(400).json({ error: `${missing} 不能为空` });
+        return;
+      }
 
       const result = await AppDataSource.query(
         `INSERT INTO dict_trucking_port_mapping 
@@ -113,19 +113,19 @@ export class TruckingPortMappingController {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
          RETURNING *`,
         [
-          country,
-          truckingCompanyId,
-          truckingCompanyName,
-          portCode,
-          portName,
-          yardCapacity || 0,
-          standardRate || 0,
-          unit || '',
-          yardOperationFee || 0,
-          mappingType || 'DEFAULT',
-          isDefault || false,
-          isActive !== false,
-          remarks || ''
+          pickBodyString(req.body, 'country')!,
+          pickBodyString(req.body, 'truckingCompanyId')!,
+          pickBodyString(req.body, 'truckingCompanyName') || '',
+          pickBodyString(req.body, 'portCode')!,
+          pickBodyString(req.body, 'portName') || '',
+          pickBodyNumber(req.body, 'yardCapacity', 0),
+          pickBodyNumber(req.body, 'standardRate', 0),
+          pickBodyString(req.body, 'unit') || '',
+          pickBodyNumber(req.body, 'yardOperationFee', 0),
+          pickBodyString(req.body, 'mappingType') || 'DEFAULT',
+          pickBodyBoolean(req.body, 'isDefault', false),
+          pickBodyBoolean(req.body, 'isActive', true),
+          pickBodyString(req.body, 'remarks') || ''
         ]
       );
 
@@ -142,21 +142,17 @@ export class TruckingPortMappingController {
   update = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const {
-        country,
-        truckingCompanyId,
-        truckingCompanyName,
-        portCode,
-        portName,
-        yardCapacity,
-        standardRate,
-        unit,
-        yardOperationFee,
-        mappingType,
-        isDefault,
-        isActive,
-        remarks
-      } = req.body;
+      const missing = firstMissingRequiredBodyString(req.body, [
+        'country',
+        'truckingCompanyId',
+        'portCode'
+      ]);
+      if (missing) {
+        res.status(400).json({
+          error: `${missing} 不能为空（拒绝用空值覆盖映射，避免堆场费率被清空）`
+        });
+        return;
+      }
 
       const result = await AppDataSource.query(
         `UPDATE dict_trucking_port_mapping 
@@ -167,19 +163,19 @@ export class TruckingPortMappingController {
          WHERE id = $14
          RETURNING *`,
         [
-          country,
-          truckingCompanyId,
-          truckingCompanyName,
-          portCode,
-          portName,
-          yardCapacity,
-          standardRate,
-          unit,
-          yardOperationFee,
-          mappingType,
-          isDefault,
-          isActive,
-          remarks,
+          pickBodyString(req.body, 'country')!,
+          pickBodyString(req.body, 'truckingCompanyId')!,
+          pickBodyString(req.body, 'truckingCompanyName') || '',
+          pickBodyString(req.body, 'portCode')!,
+          pickBodyString(req.body, 'portName') || '',
+          pickBodyNumber(req.body, 'yardCapacity', 0),
+          pickBodyNumber(req.body, 'standardRate', 0),
+          pickBodyString(req.body, 'unit') || '',
+          pickBodyNumber(req.body, 'yardOperationFee', 0),
+          pickBodyString(req.body, 'mappingType') || 'DEFAULT',
+          pickBodyBoolean(req.body, 'isDefault', false),
+          pickBodyBoolean(req.body, 'isActive', true),
+          pickBodyString(req.body, 'remarks') || '',
           id
         ]
       );

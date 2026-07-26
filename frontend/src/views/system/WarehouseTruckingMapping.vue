@@ -4,6 +4,7 @@ import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { onMounted, reactive, ref } from 'vue'
 import * as XLSX from 'xlsx'
+import { snakeToCamel } from '@/utils/snakeToCamel'
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3001/api/v1'
 
@@ -157,28 +158,55 @@ const handleCreate = () => {
   dialogVisible.value = true
 }
 
-// 编辑
-const handleEdit = (row: WarehouseTruckingRecord) => {
+// 编辑：后端 SELECT * 返回 snake_case，必须映射到表单 camelCase，否则保存会用空值覆盖库字段
+const handleEdit = (row: WarehouseTruckingRecord | Record<string, unknown>) => {
   dialogMode.value = 'edit'
   dialogTitle.value = '编辑映射'
-  Object.assign(formData, { ...row })
+  const mapped = snakeToCamel(row) as WarehouseTruckingRecord
+  Object.assign(formData, {
+    id: mapped.id,
+    country: mapped.country ?? '',
+    warehouseCode: mapped.warehouseCode ?? '',
+    warehouseName: mapped.warehouseName ?? '',
+    truckingCompanyId: mapped.truckingCompanyId ?? '',
+    truckingCompanyName: mapped.truckingCompanyName ?? '',
+    mappingType: mapped.mappingType || 'DEFAULT',
+    isDefault: Boolean(mapped.isDefault),
+    isActive: mapped.isActive !== false,
+    transportFee: Number(mapped.transportFee ?? 0),
+    remarks: mapped.remarks ?? '',
+  })
   dialogVisible.value = true
 }
+
+const buildSavePayload = () => ({
+  country: formData.country,
+  warehouseCode: formData.warehouseCode,
+  warehouseName: formData.warehouseName,
+  truckingCompanyId: formData.truckingCompanyId,
+  truckingCompanyName: formData.truckingCompanyName,
+  mappingType: formData.mappingType,
+  isDefault: formData.isDefault,
+  isActive: formData.isActive,
+  transportFee: formData.transportFee,
+  remarks: formData.remarks,
+})
 
 // 保存
 const handleSave = async () => {
   try {
+    const payload = buildSavePayload()
     if (dialogMode.value === 'create') {
-      await axios.post(`${BASE_URL}/warehouse-trucking-mapping`, formData)
+      await axios.post(`${BASE_URL}/warehouse-trucking-mapping`, payload)
       ElMessage.success('创建成功')
     } else {
-      await axios.put(`${BASE_URL}/warehouse-trucking-mapping/${formData.id}`, formData)
+      await axios.put(`${BASE_URL}/warehouse-trucking-mapping/${formData.id}`, payload)
       ElMessage.success('更新成功')
     }
     dialogVisible.value = false
     loadData()
   } catch (error: any) {
-    ElMessage.error(error?.message || '操作失败')
+    ElMessage.error(error?.response?.data?.error || error?.message || '操作失败')
   }
 }
 

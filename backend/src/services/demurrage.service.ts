@@ -26,6 +26,7 @@ import { TruckingTransport } from '../entities/TruckingTransport';
 import { Warehouse } from '../entities/Warehouse';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
+import { resolveLastFreeDate } from '../utils/demurrageFreePeriod';
 import { logger } from '../utils/logger';
 import {
   calculateLogisticsStatus,
@@ -187,18 +188,6 @@ function isWeekend(d: Date): boolean {
   return dow === 0 || dow === 6;
 }
 
-/** 从起算日起加 N 个工作日（周六、周日不计入） */
-function addWorkingDays(start: Date, n: number): Date {
-  if (n <= 0) return new Date(start.getTime());
-  const result = new Date(start.getTime());
-  let count = 0;
-  while (count < n) {
-    if (!isWeekend(result)) count++;
-    if (count < n) result.setUTCDate(result.getUTCDate() + 1);
-  }
-  return result;
-}
-
 /** 两日期间的工作日数（含起止，周六、周日不计入） */
 function workingDaysBetween(start: Date, end: Date): number {
   let count = 0;
@@ -321,10 +310,8 @@ function calculateSingleDemurrage(
     subtotal: number;
   }>;
 } {
-  const n = Math.max(0, freeDays - 1);
-  const lastFreeDate = freePeriodUsesWorkingDays(freeDaysBasis)
-    ? addWorkingDays(startDate, n)
-    : addDays(startDate, n);
+  // freeDays<=0：无免费期，从起算日计费；工作日用含首日的 freeDays 个工作日（勿再减 1）
+  const lastFreeDate = resolveLastFreeDate(startDate, freeDays, freeDaysBasis);
 
   if (endDate <= lastFreeDate) {
     return {
@@ -1609,10 +1596,7 @@ export class DemurrageService {
     const lastFreeDateMode: 'actual' | 'forecast' = calculationMode;
     if (lfdStd && lfdStart.date) {
       const freeDays = Math.max(0, lfdStd.freeDays ?? 0);
-      const n = freeDays - 1;
-      computedLastFreeDate = freePeriodUsesWorkingDays(lfdStd.freeDaysBasis)
-        ? addWorkingDays(lfdStart.date, n)
-        : addDays(lfdStart.date, n);
+      computedLastFreeDate = resolveLastFreeDate(lfdStart.date, freeDays, lfdStd.freeDaysBasis);
     }
 
     // LRD：Combined(D&D) 为到港→还箱整段；否则沿用 Detention 的提柜起算
@@ -1648,10 +1632,11 @@ export class DemurrageService {
     let computedLastReturnDate: Date | null = null;
     if (lrdStd && pickupBasisForDetention) {
       const freeDays = Math.max(0, lrdStd.freeDays ?? 0);
-      const n = freeDays - 1;
-      computedLastReturnDate = freePeriodUsesWorkingDays(lrdStd.freeDaysBasis)
-        ? addWorkingDays(pickupBasisForDetention, n)
-        : addDays(pickupBasisForDetention, n);
+      computedLastReturnDate = resolveLastFreeDate(
+        pickupBasisForDetention,
+        freeDays,
+        lrdStd.freeDaysBasis
+      );
     }
 
     // 2. 最晚提柜日：优先用本次计算值（与基础日期一致）
@@ -3198,10 +3183,11 @@ export class DemurrageService {
 
     // 计算免费期截止日
     const freeDays = Math.max(0, firstDemurrageStd.freeDays ?? 0);
-    const n = freeDays - 1;
-    const lastFreeDate = freePeriodUsesWorkingDays(firstDemurrageStd.freeDaysBasis)
-      ? addWorkingDays(demurrageStartDate, n)
-      : addDays(demurrageStartDate, n);
+    const lastFreeDate = resolveLastFreeDate(
+      demurrageStartDate,
+      freeDays,
+      firstDemurrageStd.freeDaysBasis
+    );
 
     // 计算计费天数（从免费期次日到拟议卸柜日）
     const chargeStart = addDays(lastFreeDate, 1);
@@ -3319,10 +3305,11 @@ export class DemurrageService {
 
     // 计算免费期截止日（从实际提柜日起算）
     const freeDays = Math.max(0, firstDetentionStd.freeDays ?? 0);
-    const n = freeDays - 1;
-    const lastFreeDate = freePeriodUsesWorkingDays(firstDetentionStd.freeDaysBasis)
-      ? addWorkingDays(actualPickup, n)
-      : addDays(actualPickup, n);
+    const lastFreeDate = resolveLastFreeDate(
+      actualPickup,
+      freeDays,
+      firstDetentionStd.freeDaysBasis
+    );
 
     // 计算计费天数（从免费期次日到拟议还箱日）
     const chargeStart = addDays(lastFreeDate, 1);

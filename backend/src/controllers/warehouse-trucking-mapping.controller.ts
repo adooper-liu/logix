@@ -6,6 +6,12 @@
 import { Request, Response } from 'express';
 import { AppDataSource } from '../database';
 import { logger } from '../utils/logger';
+import {
+  firstMissingRequiredBodyString,
+  pickBodyBoolean,
+  pickBodyNumber,
+  pickBodyString
+} from '../utils/pickBodyField';
 import { getScopedCountryCode } from '../utils/requestContext';
 
 export class WarehouseTruckingMappingController {
@@ -235,18 +241,15 @@ export class WarehouseTruckingMappingController {
    */
   create = async (req: Request, res: Response): Promise<void> => {
     try {
-      const {
-        country,
-        warehouseCode,
-        warehouseName,
-        truckingCompanyId,
-        truckingCompanyName,
-        mappingType,
-        isDefault,
-        isActive,
-        transportFee,
-        remarks
-      } = req.body;
+      const missing = firstMissingRequiredBodyString(req.body, [
+        'country',
+        'warehouseCode',
+        'truckingCompanyId'
+      ]);
+      if (missing) {
+        res.status(400).json({ error: `${missing} 不能为空` });
+        return;
+      }
 
       const result = await AppDataSource.query(
         `INSERT INTO dict_warehouse_trucking_mapping 
@@ -254,16 +257,16 @@ export class WarehouseTruckingMappingController {
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
          RETURNING *`,
         [
-          country,
-          warehouseCode,
-          warehouseName,
-          truckingCompanyId,
-          truckingCompanyName,
-          mappingType || 'DEFAULT',
-          isDefault || false,
-          isActive !== false,
-          transportFee || 0,
-          remarks || ''
+          pickBodyString(req.body, 'country')!,
+          pickBodyString(req.body, 'warehouseCode')!,
+          pickBodyString(req.body, 'warehouseName') || '',
+          pickBodyString(req.body, 'truckingCompanyId')!,
+          pickBodyString(req.body, 'truckingCompanyName') || '',
+          pickBodyString(req.body, 'mappingType') || 'DEFAULT',
+          pickBodyBoolean(req.body, 'isDefault', false),
+          pickBodyBoolean(req.body, 'isActive', true),
+          pickBodyNumber(req.body, 'transportFee', 0),
+          pickBodyString(req.body, 'remarks') || ''
         ]
       );
 
@@ -280,18 +283,17 @@ export class WarehouseTruckingMappingController {
   update = async (req: Request, res: Response): Promise<void> => {
     try {
       const { id } = req.params;
-      const {
-        country,
-        warehouseCode,
-        warehouseName,
-        truckingCompanyId,
-        truckingCompanyName,
-        mappingType,
-        isDefault,
-        isActive,
-        transportFee,
-        remarks
-      } = req.body;
+      const missing = firstMissingRequiredBodyString(req.body, [
+        'country',
+        'warehouseCode',
+        'truckingCompanyId'
+      ]);
+      if (missing) {
+        res.status(400).json({
+          error: `${missing} 不能为空（拒绝用空值覆盖映射，避免拖卡费/仓库绑定被清空）`
+        });
+        return;
+      }
 
       const result = await AppDataSource.query(
         `UPDATE dict_warehouse_trucking_mapping 
@@ -301,16 +303,16 @@ export class WarehouseTruckingMappingController {
          WHERE id = $11
          RETURNING *`,
         [
-          country,
-          warehouseCode,
-          warehouseName,
-          truckingCompanyId,
-          truckingCompanyName,
-          mappingType,
-          isDefault,
-          isActive,
-          transportFee || 0,
-          remarks,
+          pickBodyString(req.body, 'country')!,
+          pickBodyString(req.body, 'warehouseCode')!,
+          pickBodyString(req.body, 'warehouseName') || '',
+          pickBodyString(req.body, 'truckingCompanyId')!,
+          pickBodyString(req.body, 'truckingCompanyName') || '',
+          pickBodyString(req.body, 'mappingType') || 'DEFAULT',
+          pickBodyBoolean(req.body, 'isDefault', false),
+          pickBodyBoolean(req.body, 'isActive', true),
+          pickBodyNumber(req.body, 'transportFee', 0),
+          pickBodyString(req.body, 'remarks') || '',
           id
         ]
       );

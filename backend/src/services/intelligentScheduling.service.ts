@@ -1507,6 +1507,7 @@ export class IntelligentSchedulingService {
 
       // 12. 更新数据库（dryRun 模式下跳过）
       const plannedData = {
+        containerNumber: container.containerNumber,
         plannedCustomsDate: plannedCustomsDate.toISOString().split('T')[0],
         plannedPickupDate: plannedPickupDate.toISOString().split('T')[0],
         plannedDeliveryDate: plannedDeliveryDate.toISOString().split('T')[0],
@@ -1518,6 +1519,7 @@ export class IntelligentSchedulingService {
         warehouseName: warehouse.warehouseName || warehouse.warehouseCode,
         warehouseCountry: warehouse.country || countryCode, // ✅ 添加仓库国家信息，用于前端货币格式化
         unloadModePlan: unloadMode, // ✅ 与数据库字段 unload_mode_plan 一致
+        unloadMode, // alias for confirm/save paths that read unloadMode
         customsBrokerCode,
         lastFreeDate: destPo.lastFreeDate
           ? new Date(destPo.lastFreeDate).toISOString().split('T')[0]
@@ -1908,7 +1910,7 @@ export class IntelligentSchedulingService {
             plannedPickupDate: plannedData.plannedPickupDate,
             plannedDeliveryDate: plannedData.plannedDeliveryDate,
             truckingCompanyId: plannedData.truckingCompanyId,
-            unloadModePlan: plannedData.unloadMode, // 数据库字段是 unload_mode_plan
+            unloadModePlan: plannedData.unloadModePlan || plannedData.unloadMode,
             scheduleStatus: 'issued'
           }
         );
@@ -1919,7 +1921,7 @@ export class IntelligentSchedulingService {
           plannedPickupDate: plannedData.plannedPickupDate,
           plannedDeliveryDate: plannedData.plannedDeliveryDate,
           truckingCompanyId: plannedData.truckingCompanyId,
-          unloadModePlan: plannedData.unloadMode, // 数据库字段是 unload_mode_plan
+          unloadModePlan: plannedData.unloadModePlan || plannedData.unloadMode,
           scheduleStatus: 'issued'
         });
         await queryRunner.manager.save(TruckingTransport, truckingTransport);
