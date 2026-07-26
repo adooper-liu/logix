@@ -2253,6 +2253,9 @@ export class SchedulingController {
       let successCount = 0;
 
       for (const preview of previewResults) {
+        // Per-item savepoint: failed items must not leave partial writes in the shared TX
+        const savepoint = `sp_${successCount}_${results.length}`;
+        await queryRunner.query(`SAVEPOINT ${savepoint}`);
         try {
           // 1. 验证数据完整性
           if (!this.validatePreviewResult(preview)) {
@@ -2279,22 +2282,28 @@ export class SchedulingController {
           container.scheduleStatus = 'issued';
           await queryRunner.manager.save(container);
 
-          // ✅ 新增：保存计划日期到数据库
-          await this.savePlannedDates(preview.plannedData, queryRunner.manager);
+          // plannedData from dry-run does not include containerNumber (sibling field on preview)
+          const plannedData = {
+            ...preview.plannedData,
+            containerNumber: preview.containerNumber,
+            unloadMode: this.resolveUnloadMode(preview)
+          };
 
-          // ✅ 新增：扣减资源档期
-          await this.occupyCapacity(preview.plannedData, queryRunner.manager);
+          await this.savePlannedDates(plannedData, queryRunner.manager);
+          await this.occupyCapacity(plannedData, queryRunner.manager);
 
-          // ✅ 新增：保存排产历史记录
-          // 从 preview 中提取完整信息用于历史记录
-          const historyData = this.buildHistoryDataFromPreview(preview);
+          const historyData = this.buildHistoryDataFromPreview({
+            ...preview,
+            plannedData
+          });
           await this.saveSchedulingHistory(
             preview.containerNumber,
             historyData,
-            'SYSTEM', // 或从认证信息获取：req.user?.username
+            'SYSTEM',
             queryRunner.manager
           );
 
+          await queryRunner.query(`RELEASE SAVEPOINT ${savepoint}`);
           results.push({
             containerNumber: preview.containerNumber,
             success: true,
@@ -2302,6 +2311,7 @@ export class SchedulingController {
           });
           successCount++;
         } catch (error: any) {
+          await queryRunner.query(`ROLLBACK TO SAVEPOINT ${savepoint}`);
           logger.error(
             `[Scheduling] Failed to save preview for ${preview.containerNumber}:`,
             error
@@ -2328,6 +2338,18 @@ export class SchedulingController {
     } finally {
       await queryRunner.release();
     }
+  }
+
+  /** Resolve unload mode from plannedData or preview top-level (frontend uses unloadModePlan). */
+  private resolveUnloadMode(previewOrPlanned: any): string | undefined {
+    const planned = previewOrPlanned?.plannedData || previewOrPlanned;
+    const mode =
+      planned?.unloadMode ||
+      planned?.unloadModePlan ||
+      previewOrPlanned?.unloadMode ||
+      previewOrPlanned?.unloadModePlan;
+    if (!mode || mode === '-') return undefined;
+    return mode;
   }
 
   /**
@@ -2366,11 +2388,16 @@ export class SchedulingController {
     try {
       const { plannedData } = preview;
       const manager = queryRunner?.manager;
+      const unloadMode = this.resolveUnloadMode(preview);
 
       // 1. 检查仓库是否存在
-      const warehouse = await (manager || this.warehouseRepo).findOne(Warehouse, {
-        where: { warehouseCode: plannedData.warehouseId }
-      });
+      const warehouse = manager
+        ? await manager.findOne(Warehouse, {
+            where: { warehouseCode: plannedData.warehouseId }
+          })
+        : await this.warehouseRepo.findOne({
+            where: { warehouseCode: plannedData.warehouseId }
+          });
 
       if (!warehouse) {
         logger.warn(`[Scheduling] Warehouse ${plannedData.warehouseId} not found`);
@@ -2378,15 +2405,19 @@ export class SchedulingController {
       }
 
       // 2. 查询仓库当日产能占用记录
-      const occupancy = await (manager || this.warehouseOccupancyRepo).findOne(
-        ExtWarehouseDailyOccupancy,
-        {
-          where: {
-            warehouseCode: plannedData.warehouseId,
-            date: plannedData.plannedUnloadDate
-          }
-        }
-      );
+      const occupancy = manager
+        ? await manager.findOne(ExtWarehouseDailyOccupancy, {
+            where: {
+              warehouseCode: plannedData.warehouseId,
+              date: plannedData.plannedUnloadDate
+            }
+          })
+        : await this.warehouseOccupancyRepo.findOne({
+            where: {
+              warehouseCode: plannedData.warehouseId,
+              date: plannedData.plannedUnloadDate
+            }
+          });
 
       // 3. 如果没有记录，说明该日期尚未排产，默认可用
       if (!occupancy) {
@@ -2394,8 +2425,12 @@ export class SchedulingController {
           `[Scheduling] No occupancy record for ${plannedData.warehouseId} on ${plannedData.plannedUnloadDate}, assuming available`
         );
       } else {
-        // 4. 检查剩余产能
-        if (occupancy.remaining <= 0 || occupancy.plannedCount >= occupancy.capacity) {
+        // Prefer plannedCount vs capacity (remaining may be stale if prior writes skipped it)
+        const remaining =
+          typeof occupancy.remaining === 'number'
+            ? occupancy.remaining
+            : occupancy.capacity - occupancy.plannedCount;
+        if (remaining <= 0 || occupancy.plannedCount >= occupancy.capacity) {
           logger.warn(
             `[Scheduling] Warehouse ${plannedData.warehouseId} is full on ${plannedData.plannedUnloadDate}: ` +
               `capacity=${occupancy.capacity}, planned=${occupancy.plannedCount}, remaining=${occupancy.remaining}`
@@ -2409,27 +2444,37 @@ export class SchedulingController {
       }
 
       // 5. 如果是 Drop off 模式，检查车队还箱档期
-      if (plannedData.unloadMode === 'Drop off' && plannedData.plannedReturnDate) {
-        const truckingCompany = await (manager || this.truckingCompanyRepo).findOne(
-          TruckingCompany,
-          {
-            where: { truckingCompanyId: plannedData.truckingCompanyId }
-          }
-        );
+      if (unloadMode === 'Drop off' && plannedData.plannedReturnDate) {
+        // TruckingCompany PK is companyCode (not truckingCompanyId)
+        const truckingCompany = manager
+          ? await manager.findOne(TruckingCompany, {
+              where: { companyCode: plannedData.truckingCompanyId }
+            })
+          : await this.truckingCompanyRepo.findOne({
+              where: { companyCode: plannedData.truckingCompanyId }
+            });
 
         // 只有有堆场的车队才需要检查还箱档期
         if (truckingCompany && truckingCompany.hasYard) {
-          const returnOccupancy = await (manager || this.truckingReturnOccupancyRepo).findOne(
-            ExtTruckingReturnSlotOccupancy,
-            {
-              where: {
-                truckingCompanyId: plannedData.truckingCompanyId,
-                slotDate: plannedData.plannedReturnDate
-              }
-            }
-          );
+          const returnOccupancy = manager
+            ? await manager.findOne(ExtTruckingReturnSlotOccupancy, {
+                where: {
+                  truckingCompanyId: plannedData.truckingCompanyId,
+                  slotDate: plannedData.plannedReturnDate
+                }
+              })
+            : await this.truckingReturnOccupancyRepo.findOne({
+                where: {
+                  truckingCompanyId: plannedData.truckingCompanyId,
+                  slotDate: plannedData.plannedReturnDate
+                }
+              });
 
-          if (returnOccupancy && returnOccupancy.remaining <= 0) {
+          if (
+            returnOccupancy &&
+            (returnOccupancy.remaining <= 0 ||
+              returnOccupancy.plannedCount >= returnOccupancy.capacity)
+          ) {
             logger.warn(
               `[Scheduling] Trucking ${plannedData.truckingCompanyId} return capacity is full on ${plannedData.plannedReturnDate}`
             );
@@ -2450,12 +2495,18 @@ export class SchedulingController {
    */
   private async savePlannedDates(plannedData: any, manager: any): Promise<void> {
     const { containerNumber, warehouseId, truckingCompanyId } = plannedData;
+    const unloadMode = this.resolveUnloadMode(plannedData);
+
+    if (!containerNumber) {
+      throw new Error('plannedData.containerNumber is required');
+    }
 
     logger.info(`[Scheduling] savePlannedDates for ${containerNumber}:`, {
       plannedPickupDate: plannedData.plannedPickupDate,
       plannedDeliveryDate: plannedData.plannedDeliveryDate,
       plannedUnloadDate: plannedData.plannedUnloadDate,
-      plannedReturnDate: plannedData.plannedReturnDate
+      plannedReturnDate: plannedData.plannedReturnDate,
+      unloadMode
     });
 
     // 1. 保存仓库操作（WarehouseOperation）
@@ -2470,7 +2521,9 @@ export class SchedulingController {
 
     warehouseOp.warehouseId = warehouseId;
     warehouseOp.plannedUnloadDate = new Date(plannedData.plannedUnloadDate);
-    warehouseOp.unloadModeActual = plannedData.unloadMode;
+    if (unloadMode) {
+      warehouseOp.unloadModeActual = unloadMode;
+    }
 
     await manager.save(warehouseOp);
 
@@ -2488,17 +2541,21 @@ export class SchedulingController {
       truckingCompanyId,
       plannedPickupDate: plannedData.plannedPickupDate,
       plannedDeliveryDate: plannedData.plannedDeliveryDate,
-      plannedReturnDate: plannedData.plannedReturnDate
+      plannedReturnDate: plannedData.plannedReturnDate,
+      unloadMode
     });
 
     trucking.truckingCompanyId = truckingCompanyId;
     trucking.plannedPickupDate = new Date(plannedData.plannedPickupDate);
     trucking.plannedDeliveryDate = new Date(plannedData.plannedDeliveryDate);
-    trucking.plannedReturnDate = new Date(plannedData.plannedReturnDate);
+    trucking.scheduleStatus = 'issued';
+    if (unloadMode) {
+      trucking.unloadModePlan = unloadMode;
+    }
 
     await manager.save(trucking);
 
-    // 3. 保存还空箱（EmptyReturn）
+    // 3. 保存还空箱（EmptyReturn）— planned return lives here, not on TruckingTransport
     let emptyReturn = await manager.findOne(EmptyReturn, {
       where: { containerNumber }
     });
@@ -2509,6 +2566,12 @@ export class SchedulingController {
     }
 
     emptyReturn.plannedReturnDate = new Date(plannedData.plannedReturnDate);
+    if (plannedData.returnTerminalCode) {
+      emptyReturn.returnTerminalCode = plannedData.returnTerminalCode;
+    }
+    if (plannedData.returnTerminalName) {
+      emptyReturn.returnTerminalName = plannedData.returnTerminalName;
+    }
 
     await manager.save(emptyReturn);
 
@@ -2519,11 +2582,11 @@ export class SchedulingController {
    * ✅ 新增：扣减资源档期
    */
   private async occupyCapacity(plannedData: any, manager: any): Promise<void> {
-    const { warehouseId, truckingCompanyId, plannedUnloadDate, plannedReturnDate, unloadMode } =
-      plannedData;
+    const { warehouseId, truckingCompanyId, plannedUnloadDate, plannedReturnDate } = plannedData;
+    const unloadMode = this.resolveUnloadMode(plannedData);
 
-    // 1. 扣减仓库档期（增加 plannedCount）
-    const warehouseOccupancy = await manager.findOne(ExtWarehouseDailyOccupancy, {
+    // 1. 扣减仓库档期（plannedCount + 1，并同步 remaining）
+    let warehouseOccupancy = await manager.findOne(ExtWarehouseDailyOccupancy, {
       where: {
         warehouseCode: warehouseId,
         date: plannedUnloadDate
@@ -2531,35 +2594,69 @@ export class SchedulingController {
     });
 
     if (warehouseOccupancy) {
-      warehouseOccupancy.plannedCount += 1; // ✅ 使用正确的字段名
+      warehouseOccupancy.plannedCount += 1;
+      warehouseOccupancy.remaining = Math.max(
+        0,
+        (warehouseOccupancy.capacity ?? 0) - warehouseOccupancy.plannedCount
+      );
       await manager.save(warehouseOccupancy);
       logger.debug(
         `[Scheduling] Warehouse capacity occupied: ${warehouseId} on ${plannedUnloadDate}`
       );
     } else {
-      logger.warn(
-        `[Scheduling] Warehouse occupancy record not found: ${warehouseId} on ${plannedUnloadDate}`
+      const warehouse = await manager.findOne(Warehouse, {
+        where: { warehouseCode: warehouseId }
+      });
+      const capacity = warehouse?.dailyUnloadCapacity ?? 10;
+      warehouseOccupancy = manager.create(ExtWarehouseDailyOccupancy, {
+        warehouseCode: warehouseId,
+        date: plannedUnloadDate,
+        plannedCount: 1,
+        capacity,
+        remaining: Math.max(0, capacity - 1)
+      });
+      await manager.save(warehouseOccupancy);
+      logger.debug(
+        `[Scheduling] Warehouse occupancy created and occupied: ${warehouseId} on ${plannedUnloadDate}`
       );
     }
 
-    // 2. 扣减车队档期（Drop off 模式，增加 plannedTrips）
-    if (unloadMode === 'Drop off') {
-      const truckingOccupancy = await manager.findOne(ExtTruckingSlotOccupancy, {
+    // 2. Drop off：扣减还箱档期表（与 checkResourceAvailability 同一张表）
+    if (unloadMode === 'Drop off' && plannedReturnDate) {
+      let returnOccupancy = await manager.findOne(ExtTruckingReturnSlotOccupancy, {
         where: {
           truckingCompanyId,
-          date: plannedReturnDate
+          slotDate: plannedReturnDate
         }
       });
 
-      if (truckingOccupancy) {
-        truckingOccupancy.plannedTrips += 1; // ✅ 使用正确的字段名
-        await manager.save(truckingOccupancy);
+      if (returnOccupancy) {
+        returnOccupancy.plannedCount += 1;
+        returnOccupancy.remaining = Math.max(
+          0,
+          (returnOccupancy.capacity ?? 0) - returnOccupancy.plannedCount
+        );
+        await manager.save(returnOccupancy);
         logger.debug(
-          `[Scheduling] Trucking capacity occupied: ${truckingCompanyId} on ${plannedReturnDate}`
+          `[Scheduling] Trucking return capacity occupied: ${truckingCompanyId} on ${plannedReturnDate}`
         );
       } else {
-        logger.warn(
-          `[Scheduling] Trucking occupancy record not found: ${truckingCompanyId} on ${plannedReturnDate}`
+        const trucking = await manager.findOne(TruckingCompany, {
+          where: { companyCode: truckingCompanyId },
+          select: ['dailyReturnCapacity', 'dailyCapacity']
+        });
+        const capacity =
+          trucking?.dailyReturnCapacity ?? trucking?.dailyCapacity ?? 10;
+        returnOccupancy = manager.create(ExtTruckingReturnSlotOccupancy, {
+          truckingCompanyId,
+          slotDate: plannedReturnDate,
+          plannedCount: 1,
+          capacity,
+          remaining: Math.max(0, capacity - 1)
+        });
+        await manager.save(returnOccupancy);
+        logger.debug(
+          `[Scheduling] Trucking return occupancy created and occupied: ${truckingCompanyId} on ${plannedReturnDate}`
         );
       }
     }
@@ -2681,9 +2778,9 @@ export class SchedulingController {
       warehouseName: preview.warehouseName,
       truckingCompanyCode: plannedData.truckingCompanyId || preview.truckingCompanyCode,
       truckingCompanyName: preview.truckingCompanyName,
-      // ✅ 兼容前端字段名：truckingCompany 和 unloadMode
+      // ✅ 兼容前端字段名：truckingCompany / unloadMode / unloadModePlan
       truckingCompany: preview.truckingCompanyName || '',
-      unloadMode: plannedData.unloadMode || preview.unloadMode,
+      unloadMode: this.resolveUnloadMode({ ...preview, plannedData }),
 
       // 费用信息（从 costBreakdown 读取）
       costBreakdown: preview.costBreakdown || preview.cost || null,

@@ -94,14 +94,16 @@ export class OccupancyCalculator {
       });
 
       if (occupancy) {
-        // 已存在记录，plannedCount + 1
+        // 已存在记录，plannedCount + 1，并同步 remaining（confirm 路径按 remaining 防超卖）
         occupancy.plannedCount += 1;
+        occupancy.remaining = Math.max(0, (occupancy.capacity ?? 0) - occupancy.plannedCount);
         await this.warehouseOccupancyRepo.save(occupancy);
 
         logger.debug('[OccupancyCalculator] 仓库档期扣减成功（更新）', {
           warehouseCode,
           plannedCount: occupancy.plannedCount,
-          capacity: occupancy.capacity
+          capacity: occupancy.capacity,
+          remaining: occupancy.remaining
         });
       } else {
         // 不存在记录，创建新记录
@@ -116,7 +118,8 @@ export class OccupancyCalculator {
           warehouseCode,
           date,
           plannedCount: 1,
-          capacity
+          capacity,
+          remaining: Math.max(0, capacity - 1)
         });
 
         logger.debug('[OccupancyCalculator] 仓库档期扣减成功（新建）', {
@@ -168,14 +171,16 @@ export class OccupancyCalculator {
       });
 
       if (occupancy) {
-        // 已存在记录，plannedTrips + 1
+        // 已存在记录，plannedTrips + 1，并同步 remaining
         occupancy.plannedTrips += 1;
+        occupancy.remaining = Math.max(0, (occupancy.capacity ?? 0) - occupancy.plannedTrips);
         await this.truckingOccupancyRepo.save(occupancy);
 
         logger.debug('[OccupancyCalculator] 拖车档期扣减成功（更新）', {
           truckingCompanyId: options.truckingCompanyId,
           plannedTrips: occupancy.plannedTrips,
-          capacity: occupancy.capacity
+          capacity: occupancy.capacity,
+          remaining: occupancy.remaining
         });
       } else {
         // 不存在记录，创建新记录
@@ -193,7 +198,8 @@ export class OccupancyCalculator {
           portCode: options.portCode ?? undefined,
           warehouseCode: options.warehouseCode,
           plannedTrips: 1,
-          capacity
+          capacity,
+          remaining: Math.max(0, capacity - 1)
         });
 
         logger.debug('[OccupancyCalculator] 拖车档期扣减成功（新建）', {
@@ -242,14 +248,16 @@ export class OccupancyCalculator {
       });
 
       if (occupancy) {
-        // 已存在记录，plannedTrips + 1（复用运输档期字段）
+        // 已存在记录，plannedTrips + 1（复用运输档期字段），并同步 remaining
         occupancy.plannedTrips += 1;
+        occupancy.remaining = Math.max(0, (occupancy.capacity ?? 0) - occupancy.plannedTrips);
         await this.truckingOccupancyRepo.save(occupancy);
 
         logger.debug('[OccupancyCalculator] 还箱档期扣减成功（更新）', {
           truckingCompanyId,
           plannedTrips: occupancy.plannedTrips,
-          capacity: occupancy.capacity
+          capacity: occupancy.capacity,
+          remaining: occupancy.remaining
         });
       } else {
         // 不存在记录，创建新记录
@@ -266,7 +274,8 @@ export class OccupancyCalculator {
           date: returnDate,
           warehouseCode,
           plannedTrips: 1,
-          capacity
+          capacity,
+          remaining: Math.max(0, capacity - 1)
         });
 
         logger.debug('[OccupancyCalculator] 还箱档期扣减成功（新建）', {

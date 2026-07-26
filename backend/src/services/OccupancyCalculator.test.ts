@@ -95,7 +95,8 @@ describe('OccupancyCalculator', () => {
       expect(mockWarehouseOccupancyRepo.save).toHaveBeenCalledTimes(1);
       expect(mockWarehouseOccupancyRepo.save).toHaveBeenCalledWith({
         ...existingOccupancy,
-        plannedCount: 6
+        plannedCount: 6,
+        remaining: 4
       });
     });
 
@@ -123,7 +124,8 @@ describe('OccupancyCalculator', () => {
         warehouseCode,
         date,
         plannedCount: 1,
-        capacity: 15
+        capacity: 15,
+        remaining: 14
       });
     });
 
@@ -149,7 +151,8 @@ describe('OccupancyCalculator', () => {
         warehouseCode,
         date,
         plannedCount: 1,
-        capacity: 10 // 使用默认值
+        capacity: 10, // 使用默认值
+        remaining: 9
       });
     });
   });
@@ -182,7 +185,8 @@ describe('OccupancyCalculator', () => {
       expect(mockTruckingOccupancyRepo.save).toHaveBeenCalledTimes(1);
       expect(mockTruckingOccupancyRepo.save).toHaveBeenCalledWith({
         ...existingOccupancy,
-        plannedTrips: 4
+        plannedTrips: 4,
+        remaining: 6
       });
     });
 
@@ -214,7 +218,8 @@ describe('OccupancyCalculator', () => {
         portCode: options.portCode,
         warehouseCode: undefined,
         plannedTrips: 1,
-        capacity: 12
+        capacity: 12,
+        remaining: 11
       });
     });
 
@@ -270,7 +275,8 @@ describe('OccupancyCalculator', () => {
       expect(mockTruckingOccupancyRepo.save).toHaveBeenCalledTimes(1);
       expect(mockTruckingOccupancyRepo.save).toHaveBeenCalledWith({
         ...existingOccupancy,
-        plannedTrips: 3
+        plannedTrips: 3,
+        remaining: 7
       });
     });
 
@@ -298,7 +304,8 @@ describe('OccupancyCalculator', () => {
         truckingCompanyId,
         date: returnDate,
         plannedTrips: 1,
-        capacity: 15
+        capacity: 15,
+        remaining: 14
       });
     });
 
