@@ -177,9 +177,9 @@ describe('DemurrageDateCalculator', () => {
       const monday = new Date('2026-03-09');
       const result = calculator.calculateLastFreeDate(monday, 7, '工作日', 'forecast');
 
-      // n = 7-1 = 6 个工作日
-      // Mon(1), Tue(2), Wed(3), Thu(4), Fri(5), skip Sat/Sun, Mon(6) -> 2026-03-16
-      expect(result.lastFreeDate.toISOString()).toBe('2026-03-16T00:00:00.000Z');
+      // 含首日共 7 个工作日：
+      // Mon(1), Tue(2), Wed(3), Thu(4), Fri(5), skip Sat/Sun, Mon(6), Tue(7) -> 2026-03-17
+      expect(result.lastFreeDate.toISOString()).toBe('2026-03-17T00:00:00.000Z');
       expect(result.lastFreeDateMode).toBe('forecast');
     });
 
@@ -187,8 +187,8 @@ describe('DemurrageDateCalculator', () => {
       const startDate = new Date('2026-03-01');
       const result = calculator.calculateLastFreeDate(startDate, 0, '自然日');
 
-      // n = max(0, 0-1) = 0, so lastFreeDate = startDate
-      expect(result.lastFreeDate.toISOString()).toBe('2026-03-01T00:00:00.000Z');
+      // 无免费期：LFD = 起算日前一天，计费从起算日开始
+      expect(result.lastFreeDate.toISOString()).toBe('2026-02-28T00:00:00.000Z');
     });
   });
 

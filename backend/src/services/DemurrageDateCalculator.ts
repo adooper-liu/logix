@@ -217,11 +217,16 @@ export class DemurrageDateCalculator {
     freeDaysBasis?: string | null,
     mode: 'actual' | 'forecast' = 'forecast'
   ): FreePeriodResult {
-    const n = Math.max(0, freeDays - 1);
-
-    const lastFreeDate = this.freePeriodUsesWorkingDays(freeDaysBasis)
-      ? this.addWorkingDays(startDate, n)
-      : this.addDays(startDate, n);
+    // 与 demurrage.service / resolveLastFreeDate 对齐：
+    // - freeDays<=0 → 起算日前一天（无免费期）
+    // - 工作日 → 含首日共 freeDays 个工作日（勿对 addWorkingDays 再减 1）
+    // - 自然日 → start + (freeDays - 1)
+    const lastFreeDate =
+      freeDays <= 0
+        ? this.addDays(startDate, -1)
+        : this.freePeriodUsesWorkingDays(freeDaysBasis)
+          ? this.addWorkingDays(startDate, freeDays)
+          : this.addDays(startDate, freeDays - 1);
 
     logger.debug(`[DemurrageDate] Last free date calculation:`, {
       startDate,

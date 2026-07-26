@@ -57,6 +57,7 @@ export interface CostBreakdown {
   demurrageCost: number; // 滞港费
   detentionCost: number; // 滞箱费
   storageCost: number; // 港口存储费
+  ddCombinedCost: number; // D&D 合并费（Combined Demurrage & Detention）
   yardStorageCost: number; // 外部堆场堆存费（Drop off 模式专属）
   transportationCost: number; // 运输费
   handlingCost: number; // 操作费（加急费等）
@@ -455,6 +456,7 @@ export class SchedulingCostOptimizerService {
       demurrageCost: 0,
       detentionCost: 0,
       storageCost: 0,
+      ddCombinedCost: 0,
       yardStorageCost: 0,
       transportationCost: 0,
       handlingCost: 0,
@@ -528,6 +530,7 @@ export class SchedulingCostOptimizerService {
         demurrageCost: totalCostResult.demurrageCost,
         detentionCost: totalCostResult.detentionCost,
         storageCost: totalCostResult.storageCost,
+        ddCombinedCost: totalCostResult.ddCombinedCost,
         transportationCost: totalCostResult.transportationCost,
         totalCost: totalCostResult.totalCost
       });
@@ -535,6 +538,7 @@ export class SchedulingCostOptimizerService {
       breakdown.demurrageCost = totalCostResult.demurrageCost;
       breakdown.detentionCost = totalCostResult.detentionCost;
       breakdown.storageCost = totalCostResult.storageCost; // 港口存储费
+      breakdown.ddCombinedCost = Number(totalCostResult.ddCombinedCost) || 0;
       breakdown.transportationCost = totalCostResult.transportationCost;
       breakdown.yardStorageCost = 0;
       // ✅ 新增：传递滞港费标准数据
@@ -606,12 +610,13 @@ export class SchedulingCostOptimizerService {
         breakdown.handlingCost = await this.getConfigNumber('expedited_handling_fee', 50);
       }
 
-      // 总成本（包含外部堆场堆存费，确保是数字类型）
+      // 总成本（含 D&D 合并费与外部堆场堆存费，确保是数字类型）
       breakdown.totalCost =
         Number(
           breakdown.demurrageCost +
             breakdown.detentionCost +
             breakdown.storageCost +
+            breakdown.ddCombinedCost +
             breakdown.transportationCost +
             breakdown.yardStorageCost +
             breakdown.handlingCost
