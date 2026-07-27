@@ -26,6 +26,11 @@ import { TruckingTransport } from '../entities/TruckingTransport';
 import { Warehouse } from '../entities/Warehouse';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
+import {
+  resolveDetentionIntervalForCalculation,
+  resolvePickupBasisForDetention,
+  resolveStorageActualRangeEnd
+} from '../utils/demurrageWhatIfDates';
 import { logger } from '../utils/logger';
 import {
   calculateLogisticsStatus,
@@ -1403,6 +1408,11 @@ export class DemurrageService {
     options?: {
       freeDateWriteMode?: 'batch' | 'none';
       paramsOverride?: any; // ContainerMatchParams 类型
+      /**
+       * 成本优化 what-if：柜已到港走 actual 时，若尚无实际提柜/还箱，
+       * 用 plannedDates 覆盖的计划日计算 detention/storage/combined 区间。
+       */
+      preferPlannedDates?: boolean;
     }
   ): Promise<{
     result: DemurrageCalculationResult | null;
@@ -1422,6 +1432,7 @@ export class DemurrageService {
     await this.normalizeOrphanLastFreeDateSource(containerNumber);
     // ✅ 关键修复：如果传入了 paramsOverride，使用覆盖的参数，否则从数据库获取
     const params = options?.paramsOverride || (await this.getContainerMatchParams(containerNumber));
+    const preferPlannedDates = options?.preferPlannedDates === true;
 
     // 第一步：状态机判定是否到达目的港（或提柜/卸柜/还箱），再决定 actual vs forecast（计划逻辑）
     const logisticsSnapshot = await this.getLogisticsStatusSnapshot(containerNumber);
@@ -1626,23 +1637,14 @@ export class DemurrageService {
       // Combined D&D: 从到港日起算
       pickupBasisForDetention = lrdArrivalStart.date;
     } else {
-      // 普通滞箱费：三种场景
-      if (calculationMode === 'actual') {
-        // ③ actual 模式：使用实际提柜日
-        pickupBasisForDetention = params.calculationDates.pickupDateActual ?? null;
-      } else {
-        // forecast 模式
-        if (params.calculationDates.plannedPickupDate) {
-          // ② 有计划提柜日：使用计划提柜日
-          pickupBasisForDetention = params.calculationDates.plannedPickupDate;
-        } else if (computedLastFreeDate) {
-          // ① 无计划提柜日：使用 LFD 作为 fallback
-          pickupBasisForDetention = computedLastFreeDate;
-        } else {
-          // 都没有：无法计算
-          pickupBasisForDetention = null;
-        }
-      }
+      // 普通滞箱费：actual 缺实际提柜时，成本 what-if 回退计划提柜
+      pickupBasisForDetention = resolvePickupBasisForDetention({
+        calculationMode,
+        preferPlannedDates,
+        pickupDateActual: params.calculationDates.pickupDateActual ?? null,
+        plannedPickupDate: params.calculationDates.plannedPickupDate ?? null,
+        computedLastFreeDate
+      });
     }
 
     let computedLastReturnDate: Date | null = null;
@@ -1658,35 +1660,20 @@ export class DemurrageService {
     const pickupDate = computedLastFreeDate ?? params.calculationDates.lastPickupDate;
     const lastReturnDate = params.calculationDates.lastReturnDate ?? computedLastReturnDate ?? null;
 
-    // 滞箱费（Detention）截止日：
-    // ① forecast（未到港/无 ATA、无卸船）：max(今天, 计划还箱日)；无计划还箱日则用今天
-    // ② actual（已到港或已卸船）：有实际还箱日用还箱日；无则用今天
-    let detentionEndDate: Date;
-    let detentionEndDateSource: string;
-    let detentionStartDate: Date | null;
-    let detentionStartDateSource: string | null;
-    if (calculationMode === 'forecast') {
-      const plannedReturnDate = params.calculationDates.plannedReturnDate;
-      detentionEndDate = plannedReturnDate ? maxDate(today, plannedReturnDate) : today;
-      detentionEndDateSource = plannedReturnDate
-        ? 'max(当前日期, process_empty_return.planned_return_date)'
-        : '当前日期';
-      // forecast模式：起算日 = 计划提柜日
-      detentionStartDate = params.calculationDates.plannedPickupDate ?? null;
-      detentionStartDateSource = params.calculationDates.plannedPickupDate
-        ? 'process_trucking_transport.planned_pickup_date'
-        : null;
-    } else {
-      // actual模式：起算日 = 实际提柜日，截止日 = 实际还箱日 或今天
-      detentionEndDate = params.calculationDates.returnTime ?? today;
-      detentionEndDateSource = params.calculationDates.returnTime
-        ? 'process_empty_return.return_time'
-        : '当前日期';
-      detentionStartDate = params.calculationDates.pickupDateActual ?? null;
-      detentionStartDateSource = params.calculationDates.pickupDateActual
-        ? 'process_trucking_transport.pickup_date'
-        : null;
-    }
+    // 滞箱费（Detention）截止日：forecast / what-if 用计划还箱；actual 用实际还箱或今天
+    const detentionInterval = resolveDetentionIntervalForCalculation({
+      calculationMode,
+      preferPlannedDates,
+      today,
+      pickupDateActual: params.calculationDates.pickupDateActual ?? null,
+      returnTime: params.calculationDates.returnTime ?? null,
+      plannedPickupDate: params.calculationDates.plannedPickupDate ?? null,
+      plannedReturnDate: params.calculationDates.plannedReturnDate ?? null
+    });
+    const detentionEndDate = detentionInterval.end;
+    const detentionEndDateSource = detentionInterval.endSource;
+    const detentionStartDate = detentionInterval.start;
+    const detentionStartDateSource = detentionInterval.startSource;
 
     // 3. 更新 params 用于后续计算（lastReturnDate 优先级：DB > 计算）
     // 滞港费截止日见 demurragePortEndDate（forecast：max(今天,计划提柜)；actual：实际提柜或今天）
@@ -1719,6 +1706,12 @@ export class DemurrageService {
     let currency = defaultCurrency;
 
     const pickupDateActual = pickupDateActualEarly;
+    const storageRangeEnd = resolveStorageActualRangeEnd({
+      pickupDateActual: pickupDateActual ?? null,
+      plannedPickupDate: plannedPickupDate ?? null,
+      today: toDateOnly(today),
+      preferPlannedDates
+    });
     for (const std of standards) {
       const isDetention = isDetentionCharge(std);
       const isCombined = isCombinedDemurrageDetention(std);
@@ -1734,9 +1727,9 @@ export class DemurrageService {
         storageUsesActualInterval =
           calculationMode === 'actual' || (calculationMode === 'forecast' && hasStorageActualStart);
       }
-      // 滞箱费：actual 需实际提柜；forecast 需计划提柜
+      // 滞箱费：actual 需实际提柜（what-if 可用计划提柜）；forecast 需计划提柜
       if (isDetention) {
-        if (calculationMode === 'actual' && !pickupDateActual) {
+        if (detentionInterval.skipMissingActualPickup) {
           skippedItems.push({
             standardId: std.id,
             chargeName: std.chargeName ?? 'Detention',
@@ -1746,7 +1739,7 @@ export class DemurrageService {
           });
           continue;
         }
-        if (calculationMode === 'forecast' && !plannedPickupDate) {
+        if (detentionInterval.skipMissingPlannedPickup) {
           skippedItems.push({
             standardId: std.id,
             chargeName: std.chargeName ?? 'Detention',
@@ -1963,8 +1956,8 @@ export class DemurrageService {
                 ? (params.calculationDates.dischargeDateSource ?? 'discharged_time')
                 : null;
           }
-          rangeEnd = pickupDateActual ? toDateOnly(pickupDateActual) : toDateOnly(today);
-          itemEndSource = pickupDateActual ? 'process_trucking_transport.pickup_date' : '当前日期';
+          rangeEnd = storageRangeEnd.end;
+          itemEndSource = storageRangeEnd.endSource;
         } else {
           rangeStart =
             params.calculationDates.revisedEtaDestPort ??
@@ -3837,10 +3830,12 @@ export class DemurrageService {
         newReturn: params.calculationDates.plannedReturnDate
       });
 
-      // 3. ✅ 关键修复：调用 calculateForContainer 时传入覆盖后的 params
+      // 3. ✅ 关键修复：调用 calculateForContainer 时传入覆盖后的 params + what-if 标记
+      // 柜已到港时仍为 actual，但缺实际提柜/还箱时用 plannedDates 估 detention/storage/combined
       const demurrageResult = await this.calculateForContainer(containerNumber, {
         freeDateWriteMode: 'none',
-        paramsOverride: params // 传入覆盖后的参数
+        paramsOverride: params, // 传入覆盖后的参数
+        preferPlannedDates: true
       });
 
       // 4. 恢复原始日期（防御性编程）
