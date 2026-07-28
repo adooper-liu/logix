@@ -3,6 +3,8 @@
  * recalculation yields totalAmount === 0 (previously skipped and left old positives).
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any, max-lines-per-function */
+
 import { DemurrageService } from './demurrage.service';
 
 describe('DemurrageService.batchComputeAndSaveRecords zero clear', () => {
