@@ -620,6 +620,8 @@ export class SchedulingCostOptimizerService {
       log.info(`[CostOptimizer] Final breakdown for ${option.containerNumber}:`, breakdown);
     } catch (error) {
       log.error(`[CostOptimizer] Cost evaluation failed for ${option.containerNumber}:`, error);
+      // Fail closed: a zero breakdown would win min-cost / prioritizeZeroCost selection.
+      throw error;
     }
 
     return breakdown;
@@ -638,13 +640,29 @@ export class SchedulingCostOptimizerService {
       throw new Error('No feasible options available');
     }
 
-    // 评估所有方案的成本
-    const evaluatedOptions = await Promise.all(
-      options.map(async (option) => ({
-        option,
-        costBreakdown: await this.evaluateTotalCost(option)
-      }))
-    );
+    // 评估所有方案的成本；单方案失败不拖垮其余方案，但不可当作 $0
+    const evaluatedOptions = (
+      await Promise.all(
+        options.map(async (option) => {
+          try {
+            return {
+              option,
+              costBreakdown: await this.evaluateTotalCost(option)
+            };
+          } catch (error) {
+            log.error(
+              `[CostOptimizer] Skipping option after cost evaluation failure for ${option.containerNumber}:`,
+              error
+            );
+            return null;
+          }
+        })
+      )
+    ).filter((item): item is { option: UnloadOption; costBreakdown: CostBreakdown } => item !== null);
+
+    if (evaluatedOptions.length === 0) {
+      throw new Error('All cost evaluations failed');
+    }
 
     // 填充 totalCost
     evaluatedOptions.forEach((item) => {
@@ -1072,7 +1090,16 @@ export class SchedulingCostOptimizerService {
             isWithinFreePeriod: candidateDate <= effectiveLastFreeDate
           };
 
-          const breakdown = await this.evaluateTotalCost(option);
+          let breakdown: CostBreakdown;
+          try {
+            breakdown = await this.evaluateTotalCost(option);
+          } catch (error) {
+            log.warn(
+              `[CostOptimizer] Skipping ${candidateDateStr} ${strat} after cost evaluation failure:`,
+              error
+            );
+            continue;
+          }
 
           // ✅ 关键调试：输出每个方案的费用明细
           log.info(`[CostOptimizer] Cost breakdown for ${candidateDateStr} ${strat}:`, {

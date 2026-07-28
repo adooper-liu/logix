@@ -18,6 +18,9 @@ export function buildOptimalSolutionUpdateData(
   if (suggestedStrategy === 'Direct' || suggestedStrategy === 'Expedited') {
     updateData.plannedDeliveryDate = suggestedPickupDate
     updateData.plannedUnloadDate = suggestedPickupDate
+    // Persist mode with dates — otherwise Drop-off containers keep unloadModePlan=Drop off
+    // while dates become Live-load-shaped, breaking later sync/capacity/cost paths.
+    updateData.unloadModePlan = 'Live load'
     return { updateData, effectiveUnloadMode: 'Live load' }
   }
 
@@ -30,5 +33,6 @@ export function buildOptimalSolutionUpdateData(
     updateData.plannedUnloadDate = suggestedPickupDate
   }
 
+  updateData.unloadModePlan = 'Drop off'
   return { updateData, effectiveUnloadMode: 'Drop off' }
 }

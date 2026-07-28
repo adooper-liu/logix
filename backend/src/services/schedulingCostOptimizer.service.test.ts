@@ -19,17 +19,12 @@ jest.mock('./demurrage.service', () => {
   return {
     DemurrageService: jest.fn().mockImplementation(() => ({
       calculateTotalCost: jest.fn().mockResolvedValue({
-        demurrageDays: 0,
-        detentionDays: 0,
-        storageDays: 0,
+        demurrageCost: 0,
+        detentionCost: 0,
+        storageCost: 0,
+        transportationCost: 0,
         totalCost: 0,
-        costBreakdown: {
-          demurrageCost: 0,
-          detentionCost: 0,
-          storageCost: 0,
-          transportationCost: 0,
-          handlingCost: 0
-        }
+        matchedStandards: []
       }),
       getContainerMatchParams: jest.fn().mockResolvedValue({
         container: {},
@@ -113,6 +108,20 @@ describe('SchedulingCostOptimizerService', () => {
     (AppDataSource.getRepository as jest.Mock).mockReturnValue(mockRepo);
 
     service = new SchedulingCostOptimizerService();
+
+    // Ensure demurrage mock shape matches evaluateTotalCost expectations
+    const demurrageService = (service as any).demurrageService;
+    if (!demurrageService.calculateTotalCost || typeof demurrageService.calculateTotalCost !== 'function') {
+      demurrageService.calculateTotalCost = jest.fn();
+    }
+    demurrageService.calculateTotalCost.mockResolvedValue({
+      demurrageCost: 0,
+      detentionCost: 0,
+      storageCost: 0,
+      transportationCost: 0,
+      totalCost: 0,
+      matchedStandards: []
+    });
   });
 
   afterEach(() => {
@@ -251,6 +260,61 @@ describe('SchedulingCostOptimizerService', () => {
     it('should throw error when no options provided', async () => {
       await expect(service.selectBestOption([])).rejects.toThrow('No feasible options available');
     });
+
+    it('should not treat failed cost evaluation as $0 cheapest option', async () => {
+      const demurrageService = (service as any).demurrageService;
+      demurrageService.calculateTotalCost = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('db timeout'))
+        .mockResolvedValueOnce({
+          demurrageCost: 100,
+          detentionCost: 50,
+          storageCost: 0,
+          transportationCost: 20,
+          totalCost: 170,
+          matchedStandards: []
+        });
+
+      const options: UnloadOption[] = [
+        {
+          containerNumber: 'TEST1234567',
+          warehouse: mockWarehouse,
+          plannedPickupDate: pickupDate,
+          strategy: 'Direct',
+          isWithinFreePeriod: true
+        },
+        {
+          containerNumber: 'TEST1234567',
+          warehouse: mockWarehouse,
+          plannedPickupDate: new Date(pickupDate.getTime() + 86400000),
+          strategy: 'Drop off',
+          isWithinFreePeriod: false
+        }
+      ];
+
+      const result = await service.selectBestOption(options);
+      expect(result.option.strategy).toBe('Drop off');
+      expect(result.costBreakdown.totalCost).toBeGreaterThan(0);
+    });
+
+    it('should throw when every cost evaluation fails', async () => {
+      const demurrageService = (service as any).demurrageService;
+      demurrageService.calculateTotalCost = jest
+        .fn()
+        .mockRejectedValue(new Error('db timeout'));
+
+      await expect(
+        service.selectBestOption([
+          {
+            containerNumber: 'TEST1234567',
+            warehouse: mockWarehouse,
+            plannedPickupDate: pickupDate,
+            strategy: 'Direct',
+            isWithinFreePeriod: true
+          }
+        ])
+      ).rejects.toThrow('All cost evaluations failed');
+    });
   });
 
   describe('generateDropOffOptions', () => {
@@ -326,7 +390,27 @@ describe('SchedulingCostOptimizerService Performance', () => {
   let service: SchedulingCostOptimizerService;
 
   beforeEach(() => {
+    (AppDataSource.getRepository as jest.Mock).mockReturnValue({
+      find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn().mockResolvedValue(null),
+      createQueryBuilder: jest.fn().mockReturnValue({
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+        getOne: jest.fn().mockResolvedValue(null)
+      })
+    });
     service = new SchedulingCostOptimizerService();
+    const demurrageService = (service as any).demurrageService;
+    demurrageService.calculateTotalCost = jest.fn().mockResolvedValue({
+      demurrageCost: 0,
+      detentionCost: 0,
+      storageCost: 0,
+      transportationCost: 0,
+      totalCost: 0,
+      matchedStandards: []
+    });
   });
 
   it('should generate options within 1 second', async () => {
@@ -371,7 +455,27 @@ describe('SchedulingCostOptimizerService Integration', () => {
   let service: SchedulingCostOptimizerService;
 
   beforeEach(() => {
+    (AppDataSource.getRepository as jest.Mock).mockReturnValue({
+      find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn().mockResolvedValue(null),
+      createQueryBuilder: jest.fn().mockReturnValue({
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+        getOne: jest.fn().mockResolvedValue(null)
+      })
+    });
     service = new SchedulingCostOptimizerService();
+    const demurrageService = (service as any).demurrageService;
+    demurrageService.calculateTotalCost = jest.fn().mockResolvedValue({
+      demurrageCost: 0,
+      detentionCost: 0,
+      storageCost: 0,
+      transportationCost: 0,
+      totalCost: 0,
+      matchedStandards: []
+    });
   });
 
   it('should complete full workflow', async () => {
