@@ -306,6 +306,7 @@ describe('Apply Optimal Solution', () => {
       plannedPickupDate: '2026-04-10',
       plannedDeliveryDate: '2026-04-10',
       plannedUnloadDate: '2026-04-10',
+      unloadModePlan: 'Live load',
     })
     expect(effectiveUnloadMode).toBe('Live load')
   })
@@ -320,6 +321,7 @@ describe('Apply Optimal Solution', () => {
     expect(updateData.plannedPickupDate).toBe('2026-04-10')
     expect(updateData.plannedDeliveryDate).toBeUndefined()
     expect(updateData.plannedUnloadDate).toBeUndefined()
+    expect(updateData.unloadModePlan).toBe('Drop off')
     expect(effectiveUnloadMode).toBe('Drop off')
   })
 
@@ -334,7 +336,19 @@ describe('Apply Optimal Solution', () => {
       plannedPickupDate: '2026-04-12',
       plannedDeliveryDate: '2026-04-12',
       plannedUnloadDate: '2026-04-12',
+      unloadModePlan: 'Drop off',
     })
+  })
+
+  it('should persist Live load mode when applying Direct over Drop off container', () => {
+    const { updateData, effectiveUnloadMode } = buildOptimalSolutionUpdateData(
+      { warehouseOperations: [{ plannedUnloadDate: '2026-04-15' }] },
+      '2026-04-10',
+      'Expedited'
+    )
+
+    expect(updateData.unloadModePlan).toBe('Live load')
+    expect(effectiveUnloadMode).toBe('Live load')
   })
 
   it('should handle user cancel', async () => {

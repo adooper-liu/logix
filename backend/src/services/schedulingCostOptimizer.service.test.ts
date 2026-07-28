@@ -251,6 +251,61 @@ describe('SchedulingCostOptimizerService', () => {
     it('should throw error when no options provided', async () => {
       await expect(service.selectBestOption([])).rejects.toThrow('No feasible options available');
     });
+
+    it('should not treat failed cost evaluation as $0 cheapest option', async () => {
+      const demurrageService = (service as any).demurrageService;
+      demurrageService.calculateTotalCost = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('db timeout'))
+        .mockResolvedValueOnce({
+          demurrageCost: 100,
+          detentionCost: 50,
+          storageCost: 0,
+          transportationCost: 20,
+          totalCost: 170,
+          matchedStandards: []
+        });
+
+      const options: UnloadOption[] = [
+        {
+          containerNumber: 'TEST1234567',
+          warehouse: mockWarehouse,
+          plannedPickupDate: pickupDate,
+          strategy: 'Direct',
+          isWithinFreePeriod: true
+        },
+        {
+          containerNumber: 'TEST1234567',
+          warehouse: mockWarehouse,
+          plannedPickupDate: new Date(pickupDate.getTime() + 86400000),
+          strategy: 'Drop off',
+          isWithinFreePeriod: false
+        }
+      ];
+
+      const result = await service.selectBestOption(options);
+      expect(result.option.strategy).toBe('Drop off');
+      expect(result.costBreakdown.totalCost).toBeGreaterThan(0);
+    });
+
+    it('should throw when every cost evaluation fails', async () => {
+      const demurrageService = (service as any).demurrageService;
+      demurrageService.calculateTotalCost = jest
+        .fn()
+        .mockRejectedValue(new Error('db timeout'));
+
+      await expect(
+        service.selectBestOption([
+          {
+            containerNumber: 'TEST1234567',
+            warehouse: mockWarehouse,
+            plannedPickupDate: pickupDate,
+            strategy: 'Direct',
+            isWithinFreePeriod: true
+          }
+        ])
+      ).rejects.toThrow('All cost evaluations failed');
+    });
   });
 
   describe('generateDropOffOptions', () => {

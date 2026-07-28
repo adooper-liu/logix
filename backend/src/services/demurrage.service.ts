@@ -2366,7 +2366,16 @@ export class DemurrageService {
     for (const cn of toProcess) {
       try {
         const { result } = await this.calculateForContainer(cn);
-        if (!result || result.totalAmount === 0) continue;
+        if (!result) continue;
+
+        // Recalc to zero must clear stale cached charges; skipping left old positive
+        // rows in ext_demurrage_records and inflated list/dashboard totals forever.
+        if (result.totalAmount === 0) {
+          if (this.recordRepo) {
+            await this.recordRepo.delete({ containerNumber: cn });
+          }
+          continue;
+        }
 
         const container = await this.containerRepo.findOne({ where: { containerNumber: cn } });
         const isReturnedEmpty = container?.logisticsStatus === 'returned_empty';
