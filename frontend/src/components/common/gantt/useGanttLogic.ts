@@ -6,6 +6,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useGanttCostOptimization } from './useGanttCostOptimization'
+import { resolveGanttDateSaveAction } from './ganttDateSaveUtils'
 
 /** 按计划卸柜日与卸柜模式计算计划还箱日（与 useGanttDragOptimization / 后端 Drop off 规则一致） */
 function computePlannedReturnFromUnload(
@@ -1706,14 +1707,43 @@ export function useGanttLogic() {
   const handleDateSave = async (data: any) => {
     try {
       console.log('Save date:', data)
-
-      // 准备更新数据
-      const updateData: any = {
-        [data.field]: data.value,
+      const field = data?.field as string
+      const value = data?.value
+      const containerNumber = data?.containerNumber as string
+      if (!containerNumber || !field || value == null || value === '') {
+        ElMessage.error('请选择日期类型并填写新日期')
+        return
       }
 
-      // 调用API更新货柜日期
-      await containerService.updateContainer(data.containerNumber, updateData)
+      const action = resolveGanttDateSaveAction({
+        field,
+        value: String(value),
+        containerNumber,
+        reason: data.reason,
+      })
+
+      if (action.kind === 'unsupported') {
+        ElMessage.error(action.message)
+        return
+      }
+
+      let result: { success: boolean; message?: string }
+      if (action.kind === 'updateSchedule') {
+        result = await containerService.updateSchedule(action.containerNumber, {
+          plannedPickupDate: action.plannedPickupDate,
+        })
+      } else {
+        result = await containerService.setManualLastFreeDate(
+          action.containerNumber,
+          action.lastFreeDate,
+          action.remark
+        )
+      }
+
+      if (!result?.success) {
+        ElMessage.error(result?.message || '日期保存失败')
+        return
+      }
 
       ElMessage.success('日期保存成功')
       showDateEditDialog.value = false
