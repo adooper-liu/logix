@@ -28,6 +28,7 @@ import { auditLogService } from '../services/auditLog.service';
 import { feituoImportService } from '../services/feituoImport.service';
 import { resolveDemurrageFreeDays } from '../utils/demurrageTiers';
 import { logger } from '../utils/logger';
+import { omitNullish } from '../utils/omitNullish';
 
 export class ImportController {
   // 导入记录数上限
@@ -647,18 +648,6 @@ export class ImportController {
             );
           }
 
-          // 重要：actual_loading_date 有 NOT NULL 约束，如果未提供则使用当前日期作为默认值
-          // 原因：该字段是 hypertable 的分区键，必须有值
-          // 场景：虽然实际装船时间可能还不知道，但需要一个占位值
-          if (!seaFreightData.actualLoadingDate) {
-            // 优先级：actualLoadingDate > shipmentDate > 当前日期
-            seaFreightData.actualLoadingDate = seaFreightData.shipmentDate || new Date();
-            logger.info(
-              '[Import] actual_loading_date 为空，使用默认值:',
-              seaFreightData.actualLoadingDate
-            );
-          }
-
           let existingSeaFreight;
           if (seaFreightData.billOfLadingNumber) {
             existingSeaFreight = await queryRunner.manager.findOne(SeaFreight, {
@@ -667,9 +656,18 @@ export class ImportController {
           }
 
           if (existingSeaFreight) {
-            Object.assign(existingSeaFreight, seaFreightData);
+            // Partial Excel payloads emit null for unmapped fields — do not wipe existing columns.
+            Object.assign(existingSeaFreight, omitNullish(seaFreightData));
             await queryRunner.manager.save(existingSeaFreight);
           } else {
+            // actual_loading_date is NOT NULL (hypertable partition key); default only on create.
+            if (!seaFreightData.actualLoadingDate) {
+              seaFreightData.actualLoadingDate = seaFreightData.shipmentDate || new Date();
+              logger.info(
+                '[Import] actual_loading_date 为空，使用默认值:',
+                seaFreightData.actualLoadingDate
+              );
+            }
             const seaFreight = queryRunner.manager.create(SeaFreight, seaFreightData);
             await queryRunner.manager.save(seaFreight);
           }
@@ -687,19 +685,31 @@ export class ImportController {
           });
           containerExisted = !!existingContainer;
 
-          const containerTypeCode = await this.validateAndNormalizeContainerType(
-            containerData.containerTypeCode || '40HQ'
-          );
-          const logisticsStatus = this.validateLogisticsStatus(containerData.logisticsStatus || '');
-
           if (existingContainer) {
-            Object.assign(existingContainer, {
-              ...containerData,
-              containerTypeCode,
-              logisticsStatus
-            });
+            const patch: Record<string, unknown> = omitNullish(containerData);
+            if (
+              containerData.containerTypeCode != null &&
+              String(containerData.containerTypeCode).trim() !== ''
+            ) {
+              patch.containerTypeCode = await this.validateAndNormalizeContainerType(
+                containerData.containerTypeCode
+              );
+            }
+            if (
+              containerData.logisticsStatus != null &&
+              String(containerData.logisticsStatus).trim() !== ''
+            ) {
+              patch.logisticsStatus = this.validateLogisticsStatus(containerData.logisticsStatus);
+            }
+            Object.assign(existingContainer, patch);
             await queryRunner.manager.save(existingContainer);
           } else {
+            const containerTypeCode = await this.validateAndNormalizeContainerType(
+              containerData.containerTypeCode || '40HQ'
+            );
+            const logisticsStatus = this.validateLogisticsStatus(
+              containerData.logisticsStatus || ''
+            );
             const container = queryRunner.manager.create(Container, {
               ...containerData,
               orderNumber: containerData.orderNumber,
@@ -735,7 +745,7 @@ export class ImportController {
           });
 
           if (existingOrder) {
-            Object.assign(existingOrder, orderData);
+            Object.assign(existingOrder, omitNullish(orderData));
             await queryRunner.manager.save(existingOrder);
           } else {
             const order = queryRunner.manager.create(ReplenishmentOrder, orderData);
@@ -782,7 +792,7 @@ export class ImportController {
             });
 
             if (existingPort) {
-              Object.assign(existingPort, port);
+              Object.assign(existingPort, omitNullish(port));
               await queryRunner.manager.save(existingPort);
               logger.info(
                 `[Import] 更新港口操作: ${port.containerNumber}-${port.portType}-${port.portSequence}`
@@ -819,7 +829,7 @@ export class ImportController {
           });
 
           if (existingTrucking) {
-            Object.assign(existingTrucking, truckingData);
+            Object.assign(existingTrucking, omitNullish(truckingData));
             if (truckingData.pickupDate != null && truckingData.pickupDate !== undefined) {
               existingTrucking.pickupDateSource = PICKUP_DATE_SOURCE.BUSINESS;
             }
@@ -842,7 +852,7 @@ export class ImportController {
           });
 
           if (existingWarehouse) {
-            Object.assign(existingWarehouse, warehouseData);
+            Object.assign(existingWarehouse, omitNullish(warehouseData));
             await queryRunner.manager.save(existingWarehouse);
           } else {
             const warehouse = queryRunner.manager.create(WarehouseOperation, warehouseData);
@@ -860,7 +870,7 @@ export class ImportController {
           });
 
           if (existingReturn) {
-            Object.assign(existingReturn, returnData);
+            Object.assign(existingReturn, omitNullish(returnData));
             await queryRunner.manager.save(existingReturn);
             logger.info('[Import] 更新还空箱记录:', returnData.containerNumber);
           } else {
@@ -1146,7 +1156,7 @@ export class ImportController {
             }
 
             if (existingSeaFreight) {
-              Object.assign(existingSeaFreight, seaFreightData);
+              Object.assign(existingSeaFreight, omitNullish(seaFreightData));
               await queryRunner.manager.save(existingSeaFreight);
             } else {
               const seaFreight = queryRunner.manager.create(SeaFreight, seaFreightData);
@@ -1165,21 +1175,31 @@ export class ImportController {
             });
             batchContainerExisted = !!existingContainer;
 
-            const containerTypeCode = await this.validateAndNormalizeContainerType(
-              containerData.containerTypeCode || '40HQ'
-            );
-            const logisticsStatus = this.validateLogisticsStatus(
-              containerData.logisticsStatus || ''
-            );
-
             if (existingContainer) {
-              Object.assign(existingContainer, {
-                ...containerData,
-                containerTypeCode,
-                logisticsStatus
-              });
+              const patch: Record<string, unknown> = omitNullish(containerData);
+              if (
+                containerData.containerTypeCode != null &&
+                String(containerData.containerTypeCode).trim() !== ''
+              ) {
+                patch.containerTypeCode = await this.validateAndNormalizeContainerType(
+                  containerData.containerTypeCode
+                );
+              }
+              if (
+                containerData.logisticsStatus != null &&
+                String(containerData.logisticsStatus).trim() !== ''
+              ) {
+                patch.logisticsStatus = this.validateLogisticsStatus(containerData.logisticsStatus);
+              }
+              Object.assign(existingContainer, patch);
               await queryRunner.manager.save(existingContainer);
             } else {
+              const containerTypeCode = await this.validateAndNormalizeContainerType(
+                containerData.containerTypeCode || '40HQ'
+              );
+              const logisticsStatus = this.validateLogisticsStatus(
+                containerData.logisticsStatus || ''
+              );
               const container = queryRunner.manager.create(Container, {
                 ...containerData,
                 orderNumber: containerData.orderNumber,
@@ -1212,7 +1232,7 @@ export class ImportController {
             });
 
             if (existingOrder) {
-              Object.assign(existingOrder, orderData);
+              Object.assign(existingOrder, omitNullish(orderData));
               await queryRunner.manager.save(existingOrder);
               logger.info(`[Import] 第${i + 1}行: 更新备货单成功`);
             } else {
@@ -1256,7 +1276,7 @@ export class ImportController {
               });
 
               if (existingPort) {
-                Object.assign(existingPort, port);
+                Object.assign(existingPort, omitNullish(port));
                 await queryRunner.manager.save(existingPort);
               } else {
                 const portOperation = queryRunner.manager.create(PortOperation, {
@@ -1285,7 +1305,7 @@ export class ImportController {
             });
 
             if (existingTrucking) {
-              Object.assign(existingTrucking, truckingData);
+              Object.assign(existingTrucking, omitNullish(truckingData));
               if (truckingData.pickupDate != null && truckingData.pickupDate !== undefined) {
                 existingTrucking.pickupDateSource = PICKUP_DATE_SOURCE.BUSINESS;
               }
@@ -1306,7 +1326,7 @@ export class ImportController {
             });
 
             if (existingWarehouse) {
-              Object.assign(existingWarehouse, warehouseData);
+              Object.assign(existingWarehouse, omitNullish(warehouseData));
               await queryRunner.manager.save(existingWarehouse);
             } else {
               const warehouse = queryRunner.manager.create(WarehouseOperation, warehouseData);
@@ -1321,7 +1341,7 @@ export class ImportController {
             });
 
             if (existingReturn) {
-              Object.assign(existingReturn, returnData);
+              Object.assign(existingReturn, omitNullish(returnData));
               await queryRunner.manager.save(existingReturn);
             } else {
               const emptyReturn = queryRunner.manager.create(EmptyReturn, returnData);
