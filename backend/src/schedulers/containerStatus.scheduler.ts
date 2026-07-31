@@ -12,9 +12,11 @@ export class ContainerStatusScheduler {
   private statusService: ContainerStatusService;
   private intervalId: NodeJS.Timeout | null = null;
   private currentExecution: Promise<void> | null = null;
+  /** 轮转分页游标：跨次调度推进，避免永远只刷新物理首页 */
+  private nextOffset = 0;
 
-  constructor() {
-    this.statusService = new ContainerStatusService();
+  constructor(statusService?: ContainerStatusService) {
+    this.statusService = statusService ?? new ContainerStatusService();
   }
 
   /**
@@ -98,11 +100,13 @@ export class ContainerStatusScheduler {
 
         try {
           const batchSize = parseInt(process.env.STATUS_BATCH_SIZE || '200', 10);
-          const updatedCount = await this.statusService.batchUpdateStatuses(batchSize);
+          const result = await this.runRotatingBatch(batchSize);
           const duration = Date.now() - startTime;
 
           logger.info('[ContainerStatusScheduler] Batch status update completed', {
-            updatedCount,
+            updatedCount: result.updatedCount,
+            processedCount: result.processedCount,
+            nextOffset: this.nextOffset,
             duration: `${duration}ms`
           });
         } catch (error) {
@@ -124,7 +128,37 @@ export class ContainerStatusScheduler {
   async triggerManualUpdate(): Promise<number> {
     logger.info('[ContainerStatusScheduler] Manual update triggered');
     const batchSize = parseInt(process.env.STATUS_BATCH_SIZE || '200', 10);
-    return this.statusService.batchUpdateStatuses(batchSize);
+    const result = await this.runRotatingBatch(batchSize);
+    return result.updatedCount;
+  }
+
+  /**
+   * 按 containerNumber ASC 取一页并推进游标；末页或空页后回到 0。
+   */
+  private async runRotatingBatch(
+    batchSize: number
+  ): Promise<{ updatedCount: number; processedCount: number }> {
+    let offset = this.nextOffset;
+    let result = await this.statusService.batchUpdateStatuses(batchSize, offset);
+
+    // offset 超出表尾（例如货柜被删除）时，本轮从 0 重试一次，避免空转
+    if (result.processedCount === 0 && offset > 0) {
+      offset = 0;
+      result = await this.statusService.batchUpdateStatuses(batchSize, 0);
+    }
+
+    if (result.processedCount < batchSize) {
+      this.nextOffset = 0;
+    } else {
+      this.nextOffset = offset + result.processedCount;
+    }
+
+    return result;
+  }
+
+  /** 测试/诊断用：当前轮转 offset */
+  getNextOffset(): number {
+    return this.nextOffset;
   }
 
   /**

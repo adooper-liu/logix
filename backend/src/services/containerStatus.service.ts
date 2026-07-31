@@ -177,15 +177,26 @@ export class ContainerStatusService {
 
   /**
    * 批量更新状态（优化版本 - 批量查询减少数据库往返）
+   * 必须带稳定排序 + offset，否则定时任务每次 take(N) 会反复打到同一物理页，>N 的货柜永远饿死。
    * @param limit 每次更新的数量限制
-   * @returns 更新的数量
+   * @param offset 跳过条数（与 containerNumber ASC 配合做轮转分页）
+   * @returns updatedCount / processedCount（processed 用于调度器推进游标）
    */
-  async batchUpdateStatuses(limit: number = 1000): Promise<number> {
-    logger.info(`[StatusUpdate] 开始批量更新状态（优化版本），限制 ${limit} 条`);
+  async batchUpdateStatuses(
+    limit: number = 1000,
+    offset: number = 0
+  ): Promise<{ updatedCount: number; processedCount: number }> {
+    const safeLimit = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 1000;
+    const safeOffset = Number.isFinite(offset) && offset > 0 ? Math.floor(offset) : 0;
+    logger.info(
+      `[StatusUpdate] 开始批量更新状态（优化版本），限制 ${safeLimit} 条，offset ${safeOffset}`
+    );
 
     try {
       const containers = await this.containerRepository.find({
-        take: limit,
+        take: safeLimit,
+        skip: safeOffset,
+        order: { containerNumber: 'ASC' },
         relations: ['seaFreight']
       });
 
@@ -193,7 +204,7 @@ export class ContainerStatusService {
 
       if (containerNumbers.length === 0) {
         logger.info('[StatusUpdate] 批量更新完成，无货柜需处理');
-        return 0;
+        return { updatedCount: 0, processedCount: 0 };
       }
 
       // 批量查询所有相关数据（减少数据库往返次数）
@@ -289,11 +300,14 @@ export class ContainerStatusService {
       const updateResults = await Promise.all(updatePromises);
       const updatedCount = updateResults.filter(Boolean).length;
 
-      logger.info(`[StatusUpdate] 批量更新完成，更新了 ${updatedCount} 条记录`);
-      return updatedCount;
+      logger.info(
+        `[StatusUpdate] 批量更新完成，处理 ${containerNumbers.length} 条，` +
+          `更新了 ${updatedCount} 条记录`
+      );
+      return { updatedCount, processedCount: containerNumbers.length };
     } catch (error) {
       logger.error('[StatusUpdate] 批量更新失败', error);
-      return 0;
+      return { updatedCount: 0, processedCount: 0 };
     }
   }
 
