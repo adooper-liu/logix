@@ -1058,11 +1058,13 @@ export class ContainerController {
         updatedCount =
           await this.containerStatusService.updateStatusesForContainers(containerNumbers);
       } else if (limit) {
-        // 批量更新指定数量的货柜
-        updatedCount = await this.containerStatusService.batchUpdateStatuses(limit);
+        // 批量更新指定数量的货柜（稳定排序首页；完整轮转由定时任务负责）
+        const result = await this.containerStatusService.batchUpdateStatuses(limit, 0);
+        updatedCount = result.updatedCount;
       } else {
-        // 默认批量更新所有货柜
-        updatedCount = await this.containerStatusService.batchUpdateStatuses(1000);
+        // 默认批量更新一页货柜（稳定排序）
+        const result = await this.containerStatusService.batchUpdateStatuses(1000, 0);
+        updatedCount = result.updatedCount;
       }
 
       res.json({
