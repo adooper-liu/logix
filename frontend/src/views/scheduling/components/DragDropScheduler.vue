@@ -372,12 +372,24 @@ const selectDate = (container: Container, dateStr: string) => {
 // 保存和撤销
 const saveChanges = async () => {
   try {
-    await api.post('/scheduling/save', {
+    // api 拦截器已返回 response.data
+    const payload = (await api.post('/scheduling/save', {
       schedulingId: props.schedulingId,
       containers: containers.value,
-    })
+    })) as {
+      success?: boolean
+      message?: string
+      data?: { savedCount?: number; skipped?: unknown[] }
+    }
+    const savedCount = payload?.data?.savedCount ?? 0
+    if (!payload?.success || savedCount <= 0) {
+      throw new Error(payload?.message || '没有可保存的排产日期变更')
+    }
 
-    ElMessage.success('保存成功')
+    const skipped = payload?.data?.skipped?.length ?? 0
+    ElMessage.success(
+      skipped > 0 ? `部分保存成功（${savedCount} 个），${skipped} 个被跳过` : '保存成功'
+    )
     emit('save', containers.value)
 
     // 重置原始日期标记
@@ -387,7 +399,7 @@ const saveChanges = async () => {
       })
     })
   } catch (error: any) {
-    ElMessage.error('保存失败：' + error.message)
+    ElMessage.error('保存失败：' + (error.response?.data?.message || error.message))
   }
 }
 

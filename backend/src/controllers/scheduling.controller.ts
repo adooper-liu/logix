@@ -2957,7 +2957,7 @@ export class SchedulingController {
 
   /**
    * ✅ Phase 3: POST /api/v1/scheduling/save
-   * 保存修改后的排产计划
+   * 保存修改后的排产计划（写入业务计划表，不只写 SchedulingHistory）
    */
   saveSchedule = async (req: Request, res: Response): Promise<void> => {
     try {
@@ -2973,51 +2973,118 @@ export class SchedulingController {
 
       logger.info(`[Scheduling] Save schedule for ${containers.length} containers`);
 
-      // 使用事务保存所有修改
       const queryRunner = AppDataSource.createQueryRunner();
       await queryRunner.connect();
       await queryRunner.startTransaction();
 
       try {
+        let savedCount = 0;
+        const skipped: Array<{ containerNumber: string; reason: string }> = [];
+
         for (const container of containers) {
-          // 更新排产历史记录
+          const containerNumber = container?.containerNumber;
+          if (!containerNumber || typeof containerNumber !== 'string') {
+            skipped.push({
+              containerNumber: String(containerNumber ?? ''),
+              reason: '缺少货柜号'
+            });
+            continue;
+          }
+
+          const dates = this.extractPlannedDatesFromNodes(container.nodes);
+          if (!dates.hasAny) {
+            skipped.push({ containerNumber, reason: '无可保存的日期节点' });
+            continue;
+          }
+
+          // 1) 业务真相源：process_trucking_transport / warehouse_operations / empty_return
+          if (dates.plannedPickupDate || dates.plannedDeliveryDate) {
+            let trucking = await queryRunner.manager.findOne(TruckingTransport, {
+              where: { containerNumber }
+            });
+            if (!trucking) {
+              trucking = new TruckingTransport();
+              trucking.containerNumber = containerNumber;
+            }
+            if (dates.plannedPickupDate) {
+              trucking.plannedPickupDate = dates.plannedPickupDate;
+            }
+            if (dates.plannedDeliveryDate) {
+              trucking.plannedDeliveryDate = dates.plannedDeliveryDate;
+            }
+            trucking.scheduleStatus = 'adjusted';
+            await queryRunner.manager.save(trucking);
+          }
+
+          if (dates.plannedUnloadDate) {
+            let warehouseOp = await queryRunner.manager.findOne(WarehouseOperation, {
+              where: { containerNumber }
+            });
+            if (!warehouseOp) {
+              warehouseOp = new WarehouseOperation();
+              warehouseOp.containerNumber = containerNumber;
+            }
+            warehouseOp.plannedUnloadDate = dates.plannedUnloadDate;
+            await queryRunner.manager.save(warehouseOp);
+          }
+
+          if (dates.plannedReturnDate) {
+            let emptyReturn = await queryRunner.manager.findOne(EmptyReturn, {
+              where: { containerNumber }
+            });
+            if (!emptyReturn) {
+              emptyReturn = new EmptyReturn();
+              emptyReturn.containerNumber = containerNumber;
+            }
+            emptyReturn.plannedReturnDate = dates.plannedReturnDate;
+            await queryRunner.manager.save(emptyReturn);
+          }
+
+          // 2) 审计副本：有历史则同步更新；无历史不阻断业务表写入
           const latestHistory = await queryRunner.manager.findOne(SchedulingHistory, {
-            where: { containerNumber: container.containerNumber },
+            where: { containerNumber },
             order: { createdAt: 'DESC' }
           });
-
           if (latestHistory) {
-            // 更新日期字段
-            if (container.nodes) {
-              for (const node of container.nodes) {
-                if (node.type === 'pickup') {
-                  latestHistory.plannedPickupDate = new Date(node.date);
-                } else if (node.type === 'delivery') {
-                  latestHistory.plannedDeliveryDate = new Date(node.date);
-                } else if (node.type === 'unload') {
-                  latestHistory.plannedUnloadDate = new Date(node.date);
-                } else if (node.type === 'return') {
-                  latestHistory.plannedReturnDate = new Date(node.date);
-                }
-              }
+            if (dates.plannedPickupDate) {
+              latestHistory.plannedPickupDate = dates.plannedPickupDate;
             }
-
-            // 更新操作信息
+            if (dates.plannedDeliveryDate) {
+              latestHistory.plannedDeliveryDate = dates.plannedDeliveryDate;
+            }
+            if (dates.plannedUnloadDate) {
+              latestHistory.plannedUnloadDate = dates.plannedUnloadDate;
+            }
+            if (dates.plannedReturnDate) {
+              latestHistory.plannedReturnDate = dates.plannedReturnDate;
+            }
             latestHistory.operatedBy = 'USER';
             latestHistory.operationType = 'UPDATE';
             latestHistory.updatedAt = new Date();
-
             await queryRunner.manager.save(latestHistory);
           }
+
+          savedCount++;
+        }
+
+        if (savedCount === 0) {
+          await queryRunner.rollbackTransaction();
+          res.status(400).json({
+            success: false,
+            message: '没有可保存的排产日期变更',
+            data: { savedCount: 0, skipped }
+          });
+          return;
         }
 
         await queryRunner.commitTransaction();
 
         res.json({
           success: true,
-          message: '保存成功',
+          message: skipped.length > 0 ? '部分保存成功' : '保存成功',
           data: {
-            savedCount: containers.length
+            savedCount,
+            skipped
           }
         });
       } catch (error) {
@@ -3034,6 +3101,50 @@ export class SchedulingController {
       });
     }
   };
+
+  /** 从拖拽节点数组解析计划日期 */
+  private extractPlannedDatesFromNodes(nodes: unknown): {
+    plannedPickupDate?: Date;
+    plannedDeliveryDate?: Date;
+    plannedUnloadDate?: Date;
+    plannedReturnDate?: Date;
+    hasAny: boolean;
+  } {
+    const result: {
+      plannedPickupDate?: Date;
+      plannedDeliveryDate?: Date;
+      plannedUnloadDate?: Date;
+      plannedReturnDate?: Date;
+      hasAny: boolean;
+    } = { hasAny: false };
+
+    if (!Array.isArray(nodes)) return result;
+
+    for (const node of nodes) {
+      if (!node || typeof node !== 'object') continue;
+      const type = (node as { type?: unknown }).type;
+      const dateRaw = (node as { date?: unknown }).date;
+      if (typeof type !== 'string' || dateRaw == null || dateRaw === '') continue;
+      const date = new Date(String(dateRaw));
+      if (Number.isNaN(date.getTime())) continue;
+
+      if (type === 'pickup') {
+        result.plannedPickupDate = date;
+        result.hasAny = true;
+      } else if (type === 'delivery') {
+        result.plannedDeliveryDate = date;
+        result.hasAny = true;
+      } else if (type === 'unload') {
+        result.plannedUnloadDate = date;
+        result.hasAny = true;
+      } else if (type === 'return') {
+        result.plannedReturnDate = date;
+        result.hasAny = true;
+      }
+    }
+
+    return result;
+  }
 
   /**
    * ✅ Phase 3: GET /api/v1/scheduling/optimizations

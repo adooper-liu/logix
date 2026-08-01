@@ -6,7 +6,10 @@
 import { Request, Response } from 'express';
 import { SchedulingController } from './scheduling.controller';
 import { AppDataSource } from '../database';
+import { EmptyReturn } from '../entities/EmptyReturn';
 import { SchedulingHistory } from '../entities/SchedulingHistory';
+import { TruckingTransport } from '../entities/TruckingTransport';
+import { WarehouseOperation } from '../entities/WarehouseOperation';
 
 // Mock TypeORM Repository
 const mockSchedulingHistoryRepo = {
@@ -187,7 +190,7 @@ describe('SchedulingController - Phase 3', () => {
   });
 
   describe('saveSchedule()', () => {
-    it('should save schedule changes successfully', async () => {
+    it('should persist dates to operational tables, not only history', async () => {
       // Arrange
       mockReq.body = {
         schedulingId: 'SCH-20260401-001',
@@ -196,25 +199,124 @@ describe('SchedulingController - Phase 3', () => {
             containerNumber: 'HMMU6232153',
             nodes: [
               { type: 'pickup', date: '2026-04-06' },
-              { type: 'delivery', date: '2026-04-07' }
+              { type: 'delivery', date: '2026-04-07' },
+              { type: 'unload', date: '2026-04-08' },
+              { type: 'return', date: '2026-04-12' }
             ]
           }
         ]
       };
 
-      mockQueryRunner.manager.findOne.mockResolvedValue({
+      const existingTrucking = {
         containerNumber: 'HMMU6232153',
         plannedPickupDate: new Date('2026-04-05'),
-        plannedDeliveryDate: new Date('2026-04-06')
+        plannedDeliveryDate: new Date('2026-04-06'),
+        scheduleStatus: 'issued'
+      };
+      const existingWarehouse = {
+        containerNumber: 'HMMU6232153',
+        plannedUnloadDate: new Date('2026-04-07')
+      };
+      const existingEmptyReturn = {
+        containerNumber: 'HMMU6232153',
+        plannedReturnDate: new Date('2026-04-11')
+      };
+      const existingHistory = {
+        containerNumber: 'HMMU6232153',
+        plannedPickupDate: new Date('2026-04-05'),
+        plannedDeliveryDate: new Date('2026-04-06'),
+        plannedUnloadDate: new Date('2026-04-07'),
+        plannedReturnDate: new Date('2026-04-11')
+      };
+
+      mockQueryRunner.manager.findOne.mockImplementation((entity: any) => {
+        if (entity === TruckingTransport) return Promise.resolve(existingTrucking);
+        if (entity === WarehouseOperation) return Promise.resolve(existingWarehouse);
+        if (entity === EmptyReturn) return Promise.resolve(existingEmptyReturn);
+        if (entity === SchedulingHistory) return Promise.resolve(existingHistory);
+        return Promise.resolve(null);
       });
 
       // Act
       await controller.saveSchedule(mockReq as Request, mockRes as Response);
 
       // Assert
+      expect(mockQueryRunner.manager.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          containerNumber: 'HMMU6232153',
+          plannedPickupDate: new Date('2026-04-06'),
+          plannedDeliveryDate: new Date('2026-04-07'),
+          scheduleStatus: 'adjusted'
+        })
+      );
+      expect(mockQueryRunner.manager.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          containerNumber: 'HMMU6232153',
+          plannedUnloadDate: new Date('2026-04-08')
+        })
+      );
+      expect(mockQueryRunner.manager.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          containerNumber: 'HMMU6232153',
+          plannedReturnDate: new Date('2026-04-12')
+        })
+      );
       expect(jsonMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          success: true
+          success: true,
+          data: expect.objectContaining({
+            savedCount: 1,
+            skipped: []
+          })
+        })
+      );
+      expect(mockQueryRunner.commitTransaction).toHaveBeenCalled();
+    });
+
+    it('should still save operational dates when scheduling history is missing', async () => {
+      mockReq.body = {
+        schedulingId: 'SCH-20260401-001',
+        containers: [
+          {
+            containerNumber: 'HMMU6232153',
+            nodes: [{ type: 'pickup', date: '2026-04-06' }]
+          }
+        ]
+      };
+
+      mockQueryRunner.manager.findOne.mockResolvedValue(null);
+
+      await controller.saveSchedule(mockReq as Request, mockRes as Response);
+
+      expect(mockQueryRunner.manager.save).toHaveBeenCalledWith(
+        expect.objectContaining({
+          containerNumber: 'HMMU6232153',
+          plannedPickupDate: new Date('2026-04-06'),
+          scheduleStatus: 'adjusted'
+        })
+      );
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+          data: expect.objectContaining({ savedCount: 1 })
+        })
+      );
+    });
+
+    it('should not report success when no date nodes can be saved', async () => {
+      mockReq.body = {
+        schedulingId: 'SCH-20260401-001',
+        containers: [{ containerNumber: 'HMMU6232153', nodes: [] }]
+      };
+
+      await controller.saveSchedule(mockReq as Request, mockRes as Response);
+
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          data: expect.objectContaining({ savedCount: 0 })
         })
       );
     });
@@ -239,7 +341,13 @@ describe('SchedulingController - Phase 3', () => {
       await controller.saveSchedule(mockReq as Request, mockRes as Response);
 
       // Assert
-      expect(jsonMock).toHaveBeenCalled();
+      expect(mockQueryRunner.rollbackTransaction).toHaveBeenCalled();
+      expect(jsonMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: false,
+          message: 'Database error'
+        })
+      );
     });
 
     it('should return error when missing required parameters', async () => {
