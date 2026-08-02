@@ -63,38 +63,41 @@ export class DemurrageRecordWriter {
     const now = new Date();
 
     try {
-      // 1. 删除旧记录（覆盖写入）
-      await this.recordRepo.delete({ containerNumber });
+      // Delete + insert in one transaction so a mid-write failure cannot erase
+      // prior charges without replacement (and concurrent writers cannot interleave).
+      const count = await this.recordRepo.manager.transaction(async (manager) => {
+        await manager.delete(ExtDemurrageRecord, { containerNumber });
 
-      // 2. 创建并保存新记录
-      let count = 0;
-      for (const item of result.items) {
-        const rec = this.recordRepo.create({
-          containerNumber,
-          destinationPort: destinationPort ?? undefined,
-          logisticsStatus: logisticsStatus ?? undefined,
-          chargeType: item.chargeTypeCode,
-          chargeName: item.chargeName,
-          freeDays: item.freeDays,
-          freeDaysBasis: item.freeDaysBasis ?? undefined,
-          calculationBasis: item.calculationBasis ?? undefined,
-          calculationMode: item.calculationMode,
-          startDateMode: item.startDateMode,
-          endDateMode: item.endDateMode,
-          lastFreeDateMode: item.lastFreeDateMode,
-          chargeStartDate: item.startDate,
-          chargeEndDate: item.endDate,
-          chargeDays: item.chargeDays,
-          chargeAmount: item.amount,
-          currency: item.currency,
-          chargeStatus: isFinal ? 'FINAL' : 'TEMP',
-          isFinal,
-          computedAt: now
-        });
+        let saved = 0;
+        for (const item of result.items) {
+          const rec = manager.create(ExtDemurrageRecord, {
+            containerNumber,
+            destinationPort: destinationPort ?? undefined,
+            logisticsStatus: logisticsStatus ?? undefined,
+            chargeType: item.chargeTypeCode,
+            chargeName: item.chargeName,
+            freeDays: item.freeDays,
+            freeDaysBasis: item.freeDaysBasis ?? undefined,
+            calculationBasis: item.calculationBasis ?? undefined,
+            calculationMode: item.calculationMode,
+            startDateMode: item.startDateMode,
+            endDateMode: item.endDateMode,
+            lastFreeDateMode: item.lastFreeDateMode,
+            chargeStartDate: item.startDate,
+            chargeEndDate: item.endDate,
+            chargeDays: item.chargeDays,
+            chargeAmount: item.amount,
+            currency: item.currency,
+            chargeStatus: isFinal ? 'FINAL' : 'TEMP',
+            isFinal,
+            computedAt: now
+          });
 
-        await this.recordRepo.save(rec);
-        count++;
-      }
+          await manager.save(rec);
+          saved++;
+        }
+        return saved;
+      });
 
       logger.debug(`[DemurrageRecord] Saved ${count} records for ${containerNumber}`, {
         isFinal,
