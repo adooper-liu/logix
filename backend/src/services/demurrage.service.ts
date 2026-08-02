@@ -2308,54 +2308,62 @@ export class DemurrageService {
     const containerNumber = result.containerNumber;
     const now = new Date();
 
-    await this.recordRepo.delete({ containerNumber });
+    // Delete + insert must be atomic: a crash between them would drop prior charges
+    // with nothing to replace them, and concurrent writers can interleave duplicates.
+    return this.recordRepo.manager.transaction(async (manager) => {
+      await manager.delete(ExtDemurrageRecord, { containerNumber });
 
-    let count = 0;
-    for (const item of result.items) {
-      const rec = this.recordRepo.create({
-        containerNumber,
-        destinationPort: destinationPort ?? undefined,
-        logisticsStatus: logisticsStatus ?? undefined,
-        chargeType: item.chargeTypeCode,
-        chargeName: item.chargeName,
-        freeDays: item.freeDays,
-        freeDaysBasis: item.freeDaysBasis ?? undefined,
-        calculationBasis: item.calculationBasis ?? undefined,
-        calculationMode: item.calculationMode,
-        startDateMode: item.startDateMode,
-        endDateMode: item.endDateMode,
-        lastFreeDateMode: item.lastFreeDateMode,
-        chargeStartDate: item.startDate,
-        chargeEndDate: item.endDate,
-        chargeDays: item.chargeDays,
-        chargeAmount: item.amount,
-        currency: item.currency,
-        chargeStatus: isFinal ? 'FINAL' : 'TEMP',
-        isFinal,
-        computedAt: now
-      });
-      await this.recordRepo.save(rec);
-      count++;
-    }
-    return count;
+      let count = 0;
+      for (const item of result.items) {
+        const rec = manager.create(ExtDemurrageRecord, {
+          containerNumber,
+          destinationPort: destinationPort ?? undefined,
+          logisticsStatus: logisticsStatus ?? undefined,
+          chargeType: item.chargeTypeCode,
+          chargeName: item.chargeName,
+          freeDays: item.freeDays,
+          freeDaysBasis: item.freeDaysBasis ?? undefined,
+          calculationBasis: item.calculationBasis ?? undefined,
+          calculationMode: item.calculationMode,
+          startDateMode: item.startDateMode,
+          endDateMode: item.endDateMode,
+          lastFreeDateMode: item.lastFreeDateMode,
+          chargeStartDate: item.startDate,
+          chargeEndDate: item.endDate,
+          chargeDays: item.chargeDays,
+          chargeAmount: item.amount,
+          currency: item.currency,
+          chargeStatus: isFinal ? 'FINAL' : 'TEMP',
+          isFinal,
+          computedAt: now
+        });
+        await manager.save(rec);
+        count++;
+      }
+      return count;
+    });
   }
 
   /**
    * 批量预计算并写入记录表（每日定时任务）
    * 未还箱：临时数据（is_final=false），每次覆盖
    * 已还箱：永久数据（is_final=true），计算一次后不再更新
+   *
+   * 使用稳定排序 + offset 分页，供调度器跨次轮转，避免永远只刷新物理首页。
    */
   async batchComputeAndSaveRecords(options?: {
     shipmentStartDate?: string;
     shipmentEndDate?: string;
     limit?: number;
-  }): Promise<{ computed: number; saved: number; finalized: number }> {
+    offset?: number;
+  }): Promise<{ computed: number; saved: number; finalized: number; processedCount: number }> {
     const containerNumbers = await this.getContainerNumbersInDateRange(
       options?.shipmentStartDate,
       options?.shipmentEndDate
     );
     const limit = options?.limit ?? 1000;
-    const toProcess = containerNumbers.slice(0, limit);
+    const offset = Math.max(0, options?.offset ?? 0);
+    const toProcess = containerNumbers.slice(offset, offset + limit);
 
     let saved = 0;
     let finalized = 0;
@@ -2388,7 +2396,12 @@ export class DemurrageService {
       }
     }
 
-    return { computed: toProcess.length, saved, finalized };
+    return {
+      computed: toProcess.length,
+      saved,
+      finalized,
+      processedCount: toProcess.length
+    };
   }
 
   /**
@@ -2821,7 +2834,7 @@ export class DemurrageService {
   ): Promise<string[]> {
     if (!startDate || !endDate) {
       const rows = await this.containerRepo.query(
-        'SELECT DISTINCT container_number FROM biz_containers'
+        'SELECT DISTINCT container_number FROM biz_containers ORDER BY container_number ASC'
       );
       return (rows || [])
         .map((r: { container_number: string }) => r.container_number)
@@ -2829,9 +2842,12 @@ export class DemurrageService {
     }
     const { sql, params } = getDateRangeSubqueryRaw(startDate, endDate);
     const rows = await this.containerRepo.query(sql, params);
-    return (rows || [])
+    const numbers = (rows || [])
       .map((r: { container_number: string }) => r.container_number)
       .filter(Boolean);
+    // Date-range subquery may not guarantee order; stabilize for batch offset rotation.
+    numbers.sort((a: string, b: string) => a.localeCompare(b));
+    return numbers;
   }
 
   /**
