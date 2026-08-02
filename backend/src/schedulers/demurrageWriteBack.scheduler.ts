@@ -57,18 +57,19 @@ export class DemurrageWriteBackScheduler {
     }
 
     logger.info(
-      `[DemurrageWriteBackScheduler] Starting scheduler with ${intervalMinutes} minute interval, first execution delayed ${delaySeconds}s`
+      `[DemurrageWriteBackScheduler] Starting scheduler with ${intervalMinutes} minute interval, ` +
+        `first execution delayed ${delaySeconds}s`
     );
 
     const intervalMs = intervalMinutes * 60 * 1000;
     this.intervalId = setInterval(() => {
-      this.executeTask();
+      void this.executeTask();
     }, intervalMs);
 
     // 延迟首次执行（启动优化）
     const delayMs = delaySeconds * 1000;
     setTimeout(() => {
-      this.executeTask();
+      void this.executeTask();
       logger.info('[DemurrageWriteBackScheduler] First execution completed after initial delay');
     }, delayMs);
 
@@ -114,49 +115,13 @@ export class DemurrageWriteBackScheduler {
     }
 
     const lockKey = generateSchedulerLockKey('demurrage-writeback');
-
     const task = (async () => {
       const lockedResult = await DistributedLock.executeWithLock(
         lockKey,
-        async () => {
-          const startTime = Date.now();
-          logger.info('[DemurrageWriteBackScheduler] Starting batch tasks');
-
-          const batchSize = parseInt(process.env.DEMURRAGE_BATCH_SIZE || '200', 10);
-
-          const sixMonthsAgo = new Date();
-          sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-          const today = new Date();
-          const shipmentStart = sixMonthsAgo.toISOString().slice(0, 10);
-          const shipmentEnd = today.toISOString().slice(0, 10);
-
-          const computeResult = await this.runRotatingComputeBatch(
-            batchSize,
-            shipmentStart,
-            shipmentEnd
-          );
-          logger.info('[DemurrageWriteBackScheduler] Batch compute records completed', {
-            ...computeResult,
-            nextOffset: this.nextOffset
-          });
-
-          const writeBackResult = await this.demurrageService.runScheduledFreeDateUpdate({
-            limitLastFree: Math.floor(batchSize / 2),
-            limitLastReturn: Math.floor(batchSize / 2)
-          });
-          const duration = Date.now() - startTime;
-
-          logger.info('[DemurrageWriteBackScheduler] Batch write-back completed', {
-            ...writeBackResult,
-            computeRecords: computeResult,
-            nextOffset: this.nextOffset,
-            duration: `${duration}ms`
-          });
-        },
+        () => this.runBatchTasks(),
         1800,
         true
       );
-
       if (lockedResult === null) {
         logger.info('[DemurrageWriteBackScheduler] Task skipped (lock held)');
       }
@@ -168,6 +133,39 @@ export class DemurrageWriteBackScheduler {
     } finally {
       this.currentExecution = null;
     }
+  }
+
+  private async runBatchTasks(): Promise<void> {
+    const startTime = Date.now();
+    logger.info('[DemurrageWriteBackScheduler] Starting batch tasks');
+
+    const batchSize = parseInt(process.env.DEMURRAGE_BATCH_SIZE || '200', 10);
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const shipmentStart = sixMonthsAgo.toISOString().slice(0, 10);
+    const shipmentEnd = new Date().toISOString().slice(0, 10);
+
+    const computeResult = await this.runRotatingComputeBatch(
+      batchSize,
+      shipmentStart,
+      shipmentEnd
+    );
+    logger.info('[DemurrageWriteBackScheduler] Batch compute records completed', {
+      ...computeResult,
+      nextOffset: this.nextOffset
+    });
+
+    const writeBackResult = await this.demurrageService.runScheduledFreeDateUpdate({
+      limitLastFree: Math.floor(batchSize / 2),
+      limitLastReturn: Math.floor(batchSize / 2)
+    });
+
+    logger.info('[DemurrageWriteBackScheduler] Batch write-back completed', {
+      ...writeBackResult,
+      computeRecords: computeResult,
+      nextOffset: this.nextOffset,
+      duration: `${Date.now() - startTime}ms`
+    });
   }
 
   /**

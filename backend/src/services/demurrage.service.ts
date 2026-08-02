@@ -2373,24 +2373,9 @@ export class DemurrageService {
 
     for (const cn of toProcess) {
       try {
-        const { result } = await this.calculateForContainer(cn);
-        if (!result || result.totalAmount === 0) continue;
-
-        const container = await this.containerRepo.findOne({ where: { containerNumber: cn } });
-        const isReturnedEmpty = container?.logisticsStatus === 'returned_empty';
-
-        if (this.recordRepo) {
-          const destinationPort = portMap.get(cn) ?? undefined;
-          const logisticsStatus = container?.logisticsStatus ?? undefined;
-          const n = await this.saveCalculationToRecords(
-            result,
-            isReturnedEmpty,
-            destinationPort,
-            logisticsStatus
-          );
-          saved += n;
-          if (isReturnedEmpty) finalized++;
-        }
+        const outcome = await this.computeAndSaveOneRecord(cn, portMap);
+        saved += outcome.saved;
+        finalized += outcome.finalized;
       } catch (e) {
         logger.warn(`[Demurrage] batchComputeAndSaveRecords failed for ${cn}:`, e);
       }
@@ -2402,6 +2387,27 @@ export class DemurrageService {
       finalized,
       processedCount: toProcess.length
     };
+  }
+
+  /** 单柜预计算写回；totalAmount===0 时跳过（与既有行为一致） */
+  private async computeAndSaveOneRecord(
+    cn: string,
+    portMap: Map<string, string>
+  ): Promise<{ saved: number; finalized: number }> {
+    const { result } = await this.calculateForContainer(cn);
+    if (!result || result.totalAmount === 0 || !this.recordRepo) {
+      return { saved: 0, finalized: 0 };
+    }
+
+    const container = await this.containerRepo.findOne({ where: { containerNumber: cn } });
+    const isReturnedEmpty = container?.logisticsStatus === 'returned_empty';
+    const n = await this.saveCalculationToRecords(
+      result,
+      isReturnedEmpty,
+      portMap.get(cn) ?? undefined,
+      container?.logisticsStatus ?? undefined
+    );
+    return { saved: n, finalized: isReturnedEmpty ? 1 : 0 };
   }
 
   /**

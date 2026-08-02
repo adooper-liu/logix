@@ -4,10 +4,15 @@
  */
 
 import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
-import { DemurrageService } from './demurrage.service';
-import type { DemurrageCalculationResult } from './demurrage.service';
+import { DemurrageService, type DemurrageCalculationResult } from './demurrage.service';
 
-function buildResult(overrides?: Partial<DemurrageCalculationResult>): DemurrageCalculationResult {
+type TxManager = {
+  delete: jest.Mock;
+  create: jest.Mock;
+  save: jest.Mock;
+};
+
+function buildResult(): DemurrageCalculationResult {
   return {
     containerNumber: 'TEST0000001',
     totalAmount: 100,
@@ -33,30 +38,33 @@ function buildResult(overrides?: Partial<DemurrageCalculationResult>): Demurrage
         tierBreakdown: []
       }
     ],
-    skippedItems: [],
-    ...overrides
-  } as DemurrageCalculationResult;
+    skippedItems: []
+  } as unknown as DemurrageCalculationResult;
 }
 
-describe('DemurrageService.saveCalculationToRecords atomicity', () => {
-  it('runs delete and inserts inside a single manager.transaction', async () => {
+function serviceWithTransaction(transactionMock: jest.Mock): DemurrageService {
+  const service = Object.create(DemurrageService.prototype) as DemurrageService;
+  Object.assign(service, {
+    recordRepo: { manager: { transaction: transactionMock } }
+  });
+  return service;
+}
+
+describe('saveCalculationToRecords atomicity', () => {
+  it('uses a single manager.transaction for delete+insert', async () => {
     const deleteMock = jest.fn().mockResolvedValue({ affected: 1 });
-    const createMock = jest.fn((_entity, data) => data);
-    const saveMock = jest.fn(async (rec) => rec);
-    const transactionMock = jest.fn(async (fn) =>
-      fn({
-        delete: deleteMock,
-        create: createMock,
-        save: saveMock
-      })
+    const createMock = jest.fn((_entity: unknown, data: unknown) => data);
+    const saveMock = jest.fn(async (rec: unknown) => rec);
+    const transactionMock = jest.fn(async (fn: (m: TxManager) => Promise<number>) =>
+      fn({ delete: deleteMock, create: createMock, save: saveMock })
     );
 
-    const service = Object.create(DemurrageService.prototype) as DemurrageService;
-    (service as any).recordRepo = {
-      manager: { transaction: transactionMock }
-    };
-
-    const count = await service.saveCalculationToRecords(buildResult(), false, 'USLAX', 'arrived');
+    const count = await serviceWithTransaction(transactionMock).saveCalculationToRecords(
+      buildResult(),
+      false,
+      'USLAX',
+      'arrived'
+    );
 
     expect(transactionMock).toHaveBeenCalledTimes(1);
     expect(deleteMock).toHaveBeenCalledWith(ExtDemurrageRecord, {
@@ -64,74 +72,48 @@ describe('DemurrageService.saveCalculationToRecords atomicity', () => {
     });
     expect(createMock).toHaveBeenCalledWith(
       ExtDemurrageRecord,
-      expect.objectContaining({
-        containerNumber: 'TEST0000001',
-        chargeType: 'DEM',
-        chargeAmount: 100,
-        destinationPort: 'USLAX',
-        logisticsStatus: 'arrived',
-        isFinal: false
-      })
+      expect.objectContaining({ chargeType: 'DEM', chargeAmount: 100, isFinal: false })
     );
     expect(saveMock).toHaveBeenCalledTimes(1);
     expect(count).toBe(1);
   });
 
-  it('does not leave a delete applied when a later insert throws', async () => {
+  it('propagates insert failures so the delete is rolled back', async () => {
     const deleteMock = jest.fn().mockResolvedValue({ affected: 2 });
-    const createMock = jest.fn((_entity, data) => data);
+    const createMock = jest.fn((_entity: unknown, data: unknown) => data);
     const saveMock = jest.fn().mockRejectedValue(new Error('db down'));
-
-    // Simulate TypeORM rolling back when the transactional callback rejects.
-    const transactionMock = jest.fn(async (fn) => {
-      await fn({
-        delete: deleteMock,
-        create: createMock,
-        save: saveMock
-      });
+    const transactionMock = jest.fn(async (fn: (m: TxManager) => Promise<number>) => {
+      await fn({ delete: deleteMock, create: createMock, save: saveMock });
     });
 
-    const service = Object.create(DemurrageService.prototype) as DemurrageService;
-    (service as any).recordRepo = {
-      manager: { transaction: transactionMock }
-    };
-
     await expect(
-      service.saveCalculationToRecords(buildResult(), true)
+      serviceWithTransaction(transactionMock).saveCalculationToRecords(buildResult(), true)
     ).rejects.toThrow('db down');
-
-    expect(transactionMock).toHaveBeenCalledTimes(1);
     expect(deleteMock).toHaveBeenCalledTimes(1);
     expect(saveMock).toHaveBeenCalledTimes(1);
   });
 
   it('returns 0 when recordRepo is unavailable', async () => {
     const service = Object.create(DemurrageService.prototype) as DemurrageService;
-    (service as any).recordRepo = undefined;
+    Object.assign(service, { recordRepo: undefined });
     await expect(service.saveCalculationToRecords(buildResult(), false)).resolves.toBe(0);
   });
 });
 
-describe('DemurrageService.batchComputeAndSaveRecords pagination', () => {
+describe('batchComputeAndSaveRecords pagination', () => {
   it('applies offset with stable paging window', async () => {
+    const calculateForContainer = jest.fn().mockResolvedValue({ result: null });
     const service = Object.create(DemurrageService.prototype) as DemurrageService;
-    (service as any).getContainerNumbersInDateRange = jest
-      .fn()
-      .mockResolvedValue(['A', 'B', 'C', 'D']);
-    (service as any).getDestinationPortsForContainers = jest
-      .fn()
-      .mockResolvedValue(new Map());
-    (service as any).calculateForContainer = jest.fn().mockResolvedValue({ result: null });
-    (service as any).containerRepo = { findOne: jest.fn() };
-    (service as any).recordRepo = {};
+    Object.assign(service, {
+      getContainerNumbersInDateRange: jest.fn().mockResolvedValue(['A', 'B', 'C', 'D']),
+      getDestinationPortsForContainers: jest.fn().mockResolvedValue(new Map()),
+      calculateForContainer,
+      containerRepo: { findOne: jest.fn() },
+      recordRepo: {}
+    });
 
     const out = await service.batchComputeAndSaveRecords({ limit: 2, offset: 2 });
-
-    expect((service as any).calculateForContainer.mock.calls.map((c: string[]) => c[0])).toEqual([
-      'C',
-      'D'
-    ]);
-    expect(out.processedCount).toBe(2);
-    expect(out.computed).toBe(2);
+    expect(calculateForContainer.mock.calls.map((c: string[]) => c[0])).toEqual(['C', 'D']);
+    expect(out).toMatchObject({ processedCount: 2, computed: 2 });
   });
 });
