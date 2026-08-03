@@ -247,7 +247,7 @@ describe('SchedulingController confirm-save correctness', () => {
   });
 
   describe('savePreviewResults savepoints', () => {
-    it('rolls back failed item without committing partial issued state for that item', async () => {
+    it('rolls back failed item when atomic occupy loses the capacity race', async () => {
       mockManager.findOne.mockImplementation(async (Entity: any) => {
         if (Entity === Container) {
           return { containerNumber: 'MSKU1234567', scheduleStatus: 'initial' };
@@ -258,16 +258,10 @@ describe('SchedulingController confirm-save correctness', () => {
         }
         return null;
       });
-      // Fail history save after planned dates — savepoint should rollback the item
-      let saveCount = 0;
-      mockManager.save.mockImplementation(async (entity: any) => {
-        saveCount++;
-        // After container + warehouse + trucking + emptyReturn, fail on next (history)
-        if (saveCount > 4) {
-          throw new Error('history write failed');
-        }
-        return entity;
-      });
+      // Warehouse INSERT ok, conditional UPDATE returns 0 rows → capacity race loser
+      mockManager.query
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce([]);
 
       const result = await (controller as any).savePreviewResults([
         {
@@ -285,6 +279,7 @@ describe('SchedulingController confirm-save correctness', () => {
       ]);
 
       expect(result.successCount).toBe(0);
+      expect(result.results[0].message).toMatch(/资源不足/);
       expect(mockQueryRunner.query).toHaveBeenCalledWith(expect.stringMatching(/^SAVEPOINT /));
       expect(mockQueryRunner.query).toHaveBeenCalledWith(
         expect.stringMatching(/^ROLLBACK TO SAVEPOINT /)
