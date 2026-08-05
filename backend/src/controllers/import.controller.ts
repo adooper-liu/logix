@@ -26,6 +26,12 @@ import { TruckingTransport } from '../entities/TruckingTransport';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { auditLogService } from '../services/auditLog.service';
 import { feituoImportService } from '../services/feituoImport.service';
+import { SchedulingCacheKeys } from '../constants/SchedulingCacheStrategy';
+import { CacheService } from '../services/CacheService';
+import {
+  buildDemurrageStandardIdentity,
+  findDemurrageStandardsByIdentity
+} from '../utils/demurrageStandardIdentity';
 import { resolveDemurrageFreeDays } from '../utils/demurrageTiers';
 import { logger } from '../utils/logger';
 
@@ -1661,6 +1667,10 @@ export class ImportController {
       countryCurrencyCache.set(country.code, country.currency);
     }
 
+    let updatedCount = 0;
+    let createdCount = 0;
+    let duplicatesRemoved = 0;
+
     for (let i = 0; i < records.length; i++) {
       const row = records[i];
       const rowNum = i + 1;
@@ -1702,17 +1712,47 @@ export class ImportController {
         // 最终回退到 USD
         currency = currency || 'USD';
 
-        const entity = this.demurrageStandardRepository.create({
-          foreignCompanyCode: String(resolvedRow.foreign_company_code ?? ''),
+        const foreignCompanyCode = String(resolvedRow.foreign_company_code ?? '');
+        const destinationPortCode = String(resolvedRow.destination_port_code ?? '');
+        const shippingCompanyCode = String(resolvedRow.shipping_company_code ?? '');
+        const originForwarderCode = String(resolvedRow.origin_forwarder_code ?? '');
+        const effectiveDate = resolvedRow.effective_date
+          ? new Date(resolvedRow.effective_date)
+          : null;
+        const freeDays = resolveDemurrageFreeDays(
+          resolvedRow.free_days,
+          (resolvedRow.tiers as Record<string, unknown> | null | undefined) ?? null
+        );
+
+        const identity = buildDemurrageStandardIdentity({
+          foreignCompanyCode,
+          destinationPortCode,
+          shippingCompanyCode,
+          originForwarderCode,
+          chargeTypeCode: resolvedRow.charge_type_code ?? null,
+          chargeName: resolvedRow.charge_name ?? null,
+          sequenceNumber: resolvedRow.sequence_number ?? null,
+          terminal: resolvedRow.terminal ?? null,
+          transportModeCode: resolvedRow.transport_mode_code ?? null,
+          effectiveDate
+        });
+
+        const existingRows = await findDemurrageStandardsByIdentity(
+          this.demurrageStandardRepository,
+          identity
+        );
+
+        const payload = {
+          foreignCompanyCode,
           foreignCompanyName: resolvedRow.foreign_company_name ?? null,
-          effectiveDate: resolvedRow.effective_date ? new Date(resolvedRow.effective_date) : null,
+          effectiveDate,
           expiryDate: resolvedRow.expiry_date ? new Date(resolvedRow.expiry_date) : null,
-          destinationPortCode: String(resolvedRow.destination_port_code ?? ''),
+          destinationPortCode,
           destinationPortName: resolvedRow.destination_port_name ?? null,
-          shippingCompanyCode: String(resolvedRow.shipping_company_code ?? ''),
+          shippingCompanyCode,
           shippingCompanyName: resolvedRow.shipping_company_name ?? null,
           terminal: resolvedRow.terminal ?? null,
-          originForwarderCode: String(resolvedRow.origin_forwarder_code ?? ''),
+          originForwarderCode,
           originForwarderName: resolvedRow.origin_forwarder_name ?? null,
           transportModeCode: resolvedRow.transport_mode_code ?? null,
           transportModeName: resolvedRow.transport_mode_name ?? null,
@@ -1722,18 +1762,33 @@ export class ImportController {
           sequenceNumber: resolvedRow.sequence_number ?? null,
           portCondition: resolvedRow.port_condition ?? null,
           freeDaysBasis: resolvedRow.free_days_basis ?? '自然日',
-          freeDays: resolveDemurrageFreeDays(
-            resolvedRow.free_days,
-            (resolvedRow.tiers as Record<string, unknown> | null | undefined) ?? null
-          ),
+          freeDays,
           calculationBasis: resolvedRow.calculation_basis ?? '按卸船',
           ratePerDay: resolvedRow.rate_per_day ?? null,
           tiers: (resolvedRow.tiers as Record<string, unknown>) ?? null,
-          currency, // ✅ 使用自动填充的货币
+          currency,
           processStatus: resolvedRow.process_status ?? null
-        } as any);
+        };
 
-        await this.demurrageStandardRepository.save(entity);
+        if (existingRows.length > 0) {
+          const [keeper, ...dupes] = existingRows;
+          Object.assign(keeper, payload);
+          await this.demurrageStandardRepository.save(keeper);
+          updatedCount++;
+
+          if (dupes.length > 0) {
+            await this.demurrageStandardRepository.remove(dupes);
+            duplicatesRemoved += dupes.length;
+            logger.warn(
+              `[Import] 滞港费标准第 ${rowNum} 行清理 ${dupes.length} 条重复标准（保留 id=${keeper.id}）`
+            );
+          }
+        } else {
+          const entity = this.demurrageStandardRepository.create(payload as any);
+          await this.demurrageStandardRepository.save(entity);
+          createdCount++;
+        }
+
         successCount++;
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
@@ -1742,9 +1797,22 @@ export class ImportController {
       }
     }
 
+    if (successCount > 0) {
+      try {
+        const cacheService = new CacheService();
+        await cacheService.invalidate(SchedulingCacheKeys.DEMURRAGE_ALL_STANDARDS);
+        await cacheService.invalidate(`${SchedulingCacheKeys.DEMURRAGE_STANDARDS}*`);
+      } catch (cacheErr) {
+        logger.warn('[Import] 滞港费标准缓存失效失败:', cacheErr);
+      }
+    }
+
     res.json({
       success: successCount,
       failed: records.length - successCount,
+      created: createdCount,
+      updated: updatedCount,
+      duplicatesRemoved,
       errors: errors.length > 0 ? errors : undefined
     });
   }
