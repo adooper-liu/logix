@@ -11,6 +11,7 @@
 
 import { containerService } from '@/services/container'
 import type { ScheduleResult } from '@/services/ai'
+import { summarizeConfirmScheduleResult } from '@/utils/confirmScheduleResult'
 import { ref } from 'vue'
 
 export interface UseSchedulingFlowOptions {
@@ -142,19 +143,26 @@ export function useSchedulingFlow(options: UseSchedulingFlowOptions) {
         previewResults,
       })
 
-      if (result.success) {
-        onLog(`成功保存 ${result.savedCount} 个货柜`, 'success')
+      const outcome = summarizeConfirmScheduleResult(result, containerNumbers)
+      onLog(outcome.logMessage, outcome.logLevel)
 
-        return {
-          success: true,
-          savedCount: result.savedCount,
-        }
-      } else {
-        onLog('保存失败', 'error')
+      if (outcome.kind === 'all_failed') {
         return {
           success: false,
-          error: '保存失败',
+          savedCount: 0,
+          failedCount: outcome.failedCount,
+          failedItems: outcome.failedItems,
+          error: outcome.toastMessage,
         }
+      }
+
+      return {
+        success: outcome.kind === 'all_succeeded',
+        partial: outcome.kind === 'partial',
+        savedCount: outcome.savedCount,
+        failedCount: outcome.failedCount,
+        failedItems: outcome.failedItems,
+        results: result.results,
       }
     } catch (error: any) {
       const errorMessage = error.message || '保存失败'
