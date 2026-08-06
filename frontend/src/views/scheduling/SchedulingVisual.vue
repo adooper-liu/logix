@@ -923,6 +923,10 @@ import { containerService } from '@/services/container'
 import { useAppStore } from '@/store/app'
 import { isCanceledRequestError, notifyErrorUnlessCanceled } from './requestError'
 import {
+  retainFailedPreviewResults,
+  summarizeConfirmScheduleResult,
+} from '@/utils/confirmScheduleResult'
+import {
   ArrowLeft,
   Box,
   Check,
@@ -1977,31 +1981,64 @@ const handleConfirmSave = async () => {
       previewResults: selectedResults, // ✅ 传递预览数据
     })
 
-    if (result.success) {
-      ElMessage.success(`成功保存 ${result.savedCount} 个货柜`)
-      addLog(`确认保存完成：成功 ${result.savedCount} 个`, 'success')
+    // Backend may return success:true with per-item failures (capacity etc.)
+    const outcome = summarizeConfirmScheduleResult(result, selectedPreviewContainers.value)
+    const toast = outcome.toastType === 'success' ? ElMessage.success : outcome.toastType === 'warning' ? ElMessage.warning : ElMessage.error
+    toast(outcome.toastMessage)
+    addLog(outcome.logMessage, outcome.logLevel)
 
-      // ✅ 关键修复：设置 scheduleResult，让排产结果区域显示已保存的数据
-      scheduleResult.value = {
-        total: result.savedCount,
-        successCount: result.savedCount,
-        failedCount: 0,
-        results: selectedResults.filter((r: any) => r.success),
+    const succeededSet = new Set(outcome.succeededNumbers)
+    const resultRows = selectedResults.map((row: any) => {
+      const apiItem = (result.results || []).find(
+        (r: any) => r.containerNumber === row.containerNumber
+      )
+      if (!apiItem) {
+        return succeededSet.has(row.containerNumber)
+          ? row
+          : { ...row, success: false, message: '未返回保存结果' }
       }
+      return {
+        ...row,
+        success: apiItem.success,
+        message: apiItem.message || row.message,
+      }
+    })
 
-      // ✅ 新增：保存后刷新档期数据
+    scheduleResult.value = {
+      total: outcome.total,
+      successCount: outcome.savedCount,
+      failedCount: outcome.failedCount,
+      results: resultRows,
+    }
+
+    if (outcome.savedCount > 0) {
       await refreshCapacityData()
+      await loadOverview()
+    }
 
-      // 清空预览状态
+    if (outcome.clearPreview) {
       isPreviewMode.value = false
       previewResults.value = []
       selectedPreviewContainers.value = []
-
-      // ✅ 新增：刷新待排产数量统计
-      await loadOverview()
     } else {
-      ElMessage.error('保存失败')
-      addLog(`确认保存失败`, 'error')
+      // Keep failed containers in preview so operators can retry
+      const remaining = retainFailedPreviewResults(selectedResults, outcome)
+      const remainingNumbers = new Set(remaining.map((r: any) => r.containerNumber))
+      previewResults.value = [
+        ...previewResults.value.filter(
+          (r: any) =>
+            !selectedPreviewContainers.value.includes(r.containerNumber) &&
+            !succeededSet.has(r.containerNumber)
+        ),
+        ...remaining,
+      ]
+      selectedPreviewContainers.value = selectedPreviewContainers.value.filter((n: string) =>
+        remainingNumbers.has(n)
+      )
+      isPreviewMode.value = previewResults.value.length > 0
+      if (outcome.failedCount > 0) {
+        resultTab.value = 'failed'
+      }
     }
   } catch (error: any) {
     if (isCanceledRequestError(error)) return
@@ -2721,30 +2758,69 @@ const handleBatchSaveOptimizations = async () => {
       previewResults: optimizedDataList,
     })
 
-    if (result.success) {
-      ElMessage.success(`成功保存 ${result.savedCount} 个优化方案`)
-      addLog(`批量保存完成：成功 ${result.savedCount} 个`, 'success')
+    const outcome = summarizeConfirmScheduleResult(result, containersToSave)
+    const toast =
+      outcome.toastType === 'success'
+        ? ElMessage.success
+        : outcome.toastType === 'warning'
+          ? ElMessage.warning
+          : ElMessage.error
+    toast(
+      outcome.kind === 'all_succeeded'
+        ? `成功保存 ${outcome.savedCount} 个优化方案`
+        : outcome.toastMessage.replace('货柜', '优化方案')
+    )
+    addLog(
+      outcome.kind === 'all_succeeded'
+        ? `批量保存完成：成功 ${outcome.savedCount} 个`
+        : outcome.logMessage.replace('确认保存', '批量保存优化方案'),
+      outcome.logLevel
+    )
 
-      // 3. 清空优化列表
-      optimizedContainers.value.clear()
-      saving.value = false
+    const succeededSet = new Set(outcome.succeededNumbers)
+    for (const containerNumber of outcome.succeededNumbers) {
+      optimizedContainers.value.delete(containerNumber)
+    }
 
-      // 4. 刷新概览数据
+    scheduleResult.value = {
+      total: outcome.total,
+      successCount: outcome.savedCount,
+      failedCount: outcome.failedCount,
+      results: optimizedDataList.map((row: any) => {
+        const apiItem = (result.results || []).find(
+          (r: any) => r.containerNumber === row.containerNumber
+        )
+        if (!apiItem) {
+          return succeededSet.has(row.containerNumber)
+            ? row
+            : { ...row, success: false, message: '未返回保存结果' }
+        }
+        return {
+          ...row,
+          success: apiItem.success,
+          message: apiItem.message || row.message,
+        }
+      }),
+    }
+
+    if (outcome.savedCount > 0) {
       await loadOverview()
+    }
 
-      // 5. 退出预览模式，显示正式排产结果
+    if (outcome.clearPreview) {
       isPreviewMode.value = false
       previewResults.value = []
       selectedPreviewContainers.value = []
-
-      // 6. 重新执行预览排产（获取最新的 initial 货柜）
-      // await handlePreviewSchedule()  ← 已移除，不需要自动重新预览
-
-      ElMessage.success('所有优化方案已保存')
       addLog('所有优化方案已保存，请刷新页面查看最新排产结果', 'success')
     } else {
-      ElMessage.error('保存失败：' + (result as any).message)
-      addLog('保存失败：' + (result as any).message, 'error')
+      previewResults.value = retainFailedPreviewResults(previewResults.value, outcome)
+      selectedPreviewContainers.value = selectedPreviewContainers.value.filter((n: string) =>
+        outcome.failedItems.some(item => item.containerNumber === n)
+      )
+      isPreviewMode.value = previewResults.value.length > 0
+      if (outcome.failedCount > 0) {
+        resultTab.value = 'failed'
+      }
     }
   } catch (error: any) {
     if (isCanceledRequestError(error)) return

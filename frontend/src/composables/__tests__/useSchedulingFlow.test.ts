@@ -267,7 +267,38 @@ describe('useSchedulingFlow', () => {
       // Assert
       expect(result.success).toBe(true)
       expect(result.savedCount).toBe(2)
-      expect(mockOnLog).toHaveBeenCalledWith('成功保存 2 个货柜', 'success')
+      expect(result.failedCount).toBe(0)
+      expect(mockOnLog).toHaveBeenCalledWith('确认保存完成：成功 2 个', 'success')
+    })
+
+    it('should surface partial failures from confirm API', async () => {
+      vi.mocked(containerService.confirmSchedule).mockResolvedValue({
+        success: true,
+        savedCount: 1,
+        total: 2,
+        results: [
+          { containerNumber: 'TEST1', success: true, message: '保存成功' },
+          { containerNumber: 'TEST2', success: false, message: '仓库或车队资源不足' },
+        ],
+      })
+
+      const { handleConfirmSave } = useSchedulingFlow({
+        onLog: mockOnLog,
+      })
+
+      const result = await handleConfirmSave(['TEST1', 'TEST2'], [])
+
+      expect(result.success).toBe(false)
+      expect(result.partial).toBe(true)
+      expect(result.savedCount).toBe(1)
+      expect(result.failedCount).toBe(1)
+      expect(result.failedItems).toEqual([
+        { containerNumber: 'TEST2', success: false, message: '仓库或车队资源不足' },
+      ])
+      expect(mockOnLog).toHaveBeenCalledWith(
+        expect.stringContaining('确认保存部分成功'),
+        'warning'
+      )
     })
 
     it('should handle save error', async () => {
