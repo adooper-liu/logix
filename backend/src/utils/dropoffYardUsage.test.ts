@@ -28,8 +28,8 @@ describe('evaluateYardUsageFromDates', () => {
   });
 });
 
-describe('resolveDropoffYardUsage', () => {
-  it('what-if：计划提<卸时判定使用堆场（即使无实际提柜）', () => {
+describe('resolveDropoffYardUsage what-if', () => {
+  it('计划提<卸时判定使用堆场（即使无实际提柜）', () => {
     expect(
       resolveDropoffYardUsage({
         preferPlannedDates: true,
@@ -41,7 +41,7 @@ describe('resolveDropoffYardUsage', () => {
     ).toBe(true);
   });
 
-  it('what-if：计划提=卸时判定直送', () => {
+  it('计划提=卸时判定直送', () => {
     expect(
       resolveDropoffYardUsage({
         preferPlannedDates: true,
@@ -52,7 +52,21 @@ describe('resolveDropoffYardUsage', () => {
     ).toBe(false);
   });
 
-  it('非 what-if：无实际提柜保持历史行为 false', () => {
+  it('计划日不足时回退实际日', () => {
+    expect(
+      resolveDropoffYardUsage({
+        preferPlannedDates: true,
+        plannedPickupDate: null,
+        plannedDeliveryDate: null,
+        actualPickupDate: '2026-04-08',
+        actualDeliveryDate: '2026-04-09'
+      })
+    ).toBe(true);
+  });
+});
+
+describe('resolveDropoffYardUsage actual path', () => {
+  it('无实际提柜保持历史行为 false', () => {
     expect(
       resolveDropoffYardUsage({
         preferPlannedDates: false,
@@ -63,23 +77,11 @@ describe('resolveDropoffYardUsage', () => {
     ).toBe(false);
   });
 
-  it('非 what-if：实际提送不同日判定使用堆场', () => {
+  it('实际提送不同日判定使用堆场', () => {
     expect(
       resolveDropoffYardUsage({
         actualPickupDate: '2026-04-08',
         actualDeliveryDate: '2026-04-11'
-      })
-    ).toBe(true);
-  });
-
-  it('what-if：计划日不足时回退实际日', () => {
-    expect(
-      resolveDropoffYardUsage({
-        preferPlannedDates: true,
-        plannedPickupDate: null,
-        plannedDeliveryDate: null,
-        actualPickupDate: '2026-04-08',
-        actualDeliveryDate: '2026-04-09'
       })
     ).toBe(true);
   });
