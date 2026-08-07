@@ -26,6 +26,7 @@ import { TruckingTransport } from '../entities/TruckingTransport';
 import { Warehouse } from '../entities/Warehouse';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
+import { resolveDropoffYardUsage } from '../utils/dropoffYardUsage';
 import { logger } from '../utils/logger';
 import {
   calculateLogisticsStatus,
@@ -3914,13 +3915,18 @@ export class DemurrageService {
       }
 
       // 5. 计算运输费（如果需要）
+      // what-if 必须传入计划提/卸日，否则未提柜时 Drop off 堆场判定失败，运费少计一倍
       if (options?.includeTransport && options.warehouse && options.truckingCompany) {
         try {
           costs.transportationCost = await this.calculateTransportationCostInternal(
             containerNumber,
             options.warehouse,
             options.truckingCompany,
-            options.unloadMode || 'Live load'
+            options.unloadMode || 'Live load',
+            {
+              plannedPickupDate: options.plannedDates.plannedPickupDate,
+              plannedUnloadDate: options.plannedDates.plannedUnloadDate
+            }
           );
         } catch (error) {
           logger.warn(`[Demurrage] Transportation cost calculation failed:`, error);
@@ -3957,13 +3963,18 @@ export class DemurrageService {
     containerNumber: string,
     warehouse: Warehouse,
     truckingCompany: TruckingCompany,
-    unloadMode: string
+    unloadMode: string,
+    plannedDates?: {
+      plannedPickupDate: Date;
+      plannedUnloadDate: Date;
+    }
   ): Promise<number> {
     try {
       logger.info(`[Demurrage] Calculating transport cost for ${containerNumber}:`, {
         warehouse: { code: warehouse.warehouseCode, country: warehouse.country },
         trucking: { code: truckingCompany.companyCode, name: truckingCompany.companyName },
-        unloadMode
+        unloadMode,
+        preferPlannedDates: !!plannedDates
       });
 
       // 从 dict_warehouse_trucking_mapping 获取基础运费
@@ -4000,13 +4011,19 @@ export class DemurrageService {
         unloadMode
       });
 
-      // ✅ 关键修复：Drop off 模式下，只有实际使用了堆场（提 < 送）才翻倍
+      // Drop off：提≠送才翻倍。what-if 必须用计划提/卸日，不能只读实际表
       if (unloadMode === 'Drop off') {
-        // 需要获取实际的提柜日和送仓日来判断是否使用了堆场
         const actuallyUsedYard = await this.checkIfActuallyUsedYard(
           containerNumber,
           warehouse,
-          truckingCompany
+          truckingCompany,
+          plannedDates
+            ? {
+                preferPlannedDates: true,
+                plannedPickupDate: plannedDates.plannedPickupDate,
+                plannedDeliveryDate: plannedDates.plannedUnloadDate
+              }
+            : undefined
         );
 
         if (actuallyUsedYard) {
@@ -4051,17 +4068,22 @@ export class DemurrageService {
   }
 
   /**
-   * 检查 Drop off 模式下是否实际使用了堆场
-   * 判断标准：提柜日 < 送仓日
-   * @returns true=实际使用了堆场，false=直接送仓
+   * 检查 Drop off 模式下是否使用了堆场（提柜日 ≠ 送仓日）
+   * what-if 传入 preferPlannedDates 时优先用计划提/送（送=卸）日
+   * @returns true=使用了堆场，false=直接送仓
    */
   private async checkIfActuallyUsedYard(
     containerNumber: string,
-    warehouse: Warehouse,
-    truckingCompany: TruckingCompany
+    _warehouse: Warehouse,
+    truckingCompany: TruckingCompany,
+    plannedOverride?: {
+      preferPlannedDates: boolean;
+      plannedPickupDate: Date;
+      plannedDeliveryDate: Date;
+    }
   ): Promise<boolean> {
     try {
-      // 从 TruckingTransport 表获取提柜日和送仓日
+      // 从 TruckingTransport 表获取实际提柜日和送仓日
       const truckingTransportRepo = this.containerRepo.manager.getRepository(TruckingTransport);
       const truckingTransport = await truckingTransportRepo.findOne({
         where: {
@@ -4071,23 +4093,13 @@ export class DemurrageService {
         order: { createdAt: 'DESC' } // 获取最新的记录
       });
 
-      if (!truckingTransport || !truckingTransport.pickupDate) {
-        return false;
-      }
-
-      const pickupDate = truckingTransport.pickupDate;
-      const deliveryDate = truckingTransport.deliveryDate;
-
-      if (!deliveryDate) {
-        // 还没有送仓，假设会使用堆场（保守估计）
-        return true;
-      }
-
-      // 判断提柜日是否早于送仓日
-      const pickupDayStr = pickupDate.toISOString().split('T')[0];
-      const deliveryDayStr = deliveryDate.toISOString().split('T')[0];
-
-      return pickupDayStr !== deliveryDayStr; // 提 < 送 = 使用了堆场
+      return resolveDropoffYardUsage({
+        preferPlannedDates: plannedOverride?.preferPlannedDates,
+        plannedPickupDate: plannedOverride?.plannedPickupDate,
+        plannedDeliveryDate: plannedOverride?.plannedDeliveryDate,
+        actualPickupDate: truckingTransport?.pickupDate ?? null,
+        actualDeliveryDate: truckingTransport?.deliveryDate ?? null
+      });
     } catch (error) {
       logger.warn('[Demurrage] checkIfActuallyUsedYard error:', error);
       return false; // 出错时假设未使用堆场
