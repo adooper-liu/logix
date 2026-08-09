@@ -26,6 +26,10 @@ import { TruckingTransport } from '../entities/TruckingTransport';
 import { Warehouse } from '../entities/Warehouse';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { WarehouseTruckingMapping } from '../entities/WarehouseTruckingMapping';
+import {
+  aggregateMoneyByCurrency,
+  pickLargestCurrencyBucket
+} from '../utils/currencyAggregate';
 import { logger } from '../utils/logger';
 import {
   calculateLogisticsStatus,
@@ -139,8 +143,12 @@ export interface DemurrageCalculationResult {
   }>;
   items: DemurrageItemResult[];
   skippedItems?: DemurrageSkippedItem[];
+  /** 单一币种合计；混币时为 0（fail-closed，见 mixedCurrency / amountsByCurrency） */
   totalAmount: number;
   currency: string;
+  /** 匹配费用项含多种币种时为 true，此时勿把 totalAmount 当可比较金额 */
+  mixedCurrency?: boolean;
+  amountsByCurrency?: Record<string, number>;
   /** 与物流状态机顺序不一致时的提示（不阻断计算，供前端展示） */
   dateOrderWarnings?: string[];
   /** 滞港费 actual/forecast 第一步：状态机快照（calculateLogisticsStatus） */
@@ -1713,10 +1721,8 @@ export class DemurrageService {
 
     const items: DemurrageItemResult[] = [];
     const skippedItems: DemurrageSkippedItem[] = [];
-    let totalAmount = 0;
     // 获取销往国家对应的货币（默认值）
     const defaultCurrency = (await this.getContainerCurrency(containerNumber)) || 'USD';
-    let currency = defaultCurrency;
 
     const pickupDateActual = pickupDateActualEarly;
     for (const std of standards) {
@@ -2002,7 +2008,6 @@ export class DemurrageService {
       // 货币优先级：滞港费标准配置的货币 > 销往国家货币 > USD 兜底
       const standardCurrency = std.currency ?? null;
       const curr = standardCurrency || defaultCurrency || 'USD';
-      currency = curr;
 
       const {
         lastFreeDate,
@@ -2098,8 +2103,14 @@ export class DemurrageService {
         destinationPortCode: params.matchParams?.destinationPortCode ?? undefined,
         tierBreakdown
       });
-      totalAmount += amount;
     }
+
+    const feeAggregate = aggregateMoneyByCurrency(
+      items.map((item) => ({ amount: item.amount, currency: item.currency })),
+      { emptyCurrency: defaultCurrency }
+    );
+    const totalAmount = feeAggregate.totalAmount;
+    const currency = feeAggregate.currency;
 
     if (items.length === 0) {
       // 仅有 ETA 无 ATA/卸船，且标准需卸船日 → 视为未到港
@@ -2255,6 +2266,8 @@ export class DemurrageService {
       skippedItems,
       totalAmount,
       currency,
+      mixedCurrency: feeAggregate.mixedCurrency,
+      amountsByCurrency: feeAggregate.amountsByCurrency,
       dateOrderWarnings: dateOrderWarnings.length > 0 ? dateOrderWarnings : undefined,
       logisticsStatusSnapshot: logisticsSnapshot
         ? {
@@ -2366,7 +2379,9 @@ export class DemurrageService {
     for (const cn of toProcess) {
       try {
         const { result } = await this.calculateForContainer(cn);
-        if (!result || result.totalAmount === 0) continue;
+        // 混币时 totalAmount fail-closed 为 0，但仍需按 items 写回各币种明细
+        const hasChargeItems = !!result?.items?.some((item) => Number(item.amount) > 0);
+        if (!result || !hasChargeItems) continue;
 
         const container = await this.containerRepo.findOne({ where: { containerNumber: cn } });
         const isReturnedEmpty = container?.logisticsStatus === 'returned_empty';
@@ -2410,6 +2425,8 @@ export class DemurrageService {
     partialResults?: boolean;
     totalContainersInRange?: number;
     fromCache?: boolean;
+    mixedCurrency?: boolean;
+    amountsByCurrency?: Record<string, number>;
     byPort?: Array<{ port: string; totalAmount: number; containerCount: number }>;
   }> {
     const containerNumbers = await this.getContainerNumbersInDateRange(startDate, endDate);
@@ -2427,29 +2444,35 @@ export class DemurrageService {
     const toProcess = containerNumbers.slice(0, limit);
     const partialResults = totalInRange > limit;
 
-    let totalAmount = 0;
+    const moneyEntries: Array<{ amount: number; currency: string }> = [];
     let containerCountWithCharge = 0;
-    let currency = 'USD';
 
     for (const cn of toProcess) {
       try {
         const { result } = await this.calculateForContainer(cn);
-        if (result && result.totalAmount > 0) {
-          totalAmount += result.totalAmount;
-          containerCountWithCharge++;
-          currency = result.currency ?? currency;
+        if (!result?.items?.length) continue;
+        const positiveItems = result.items.filter((item) => Number(item.amount) > 0);
+        if (positiveItems.length === 0) continue;
+        containerCountWithCharge++;
+        for (const item of positiveItems) {
+          moneyEntries.push({ amount: Number(item.amount), currency: item.currency });
         }
       } catch (e) {
         logger.warn(`[Demurrage] getSummary failed for ${cn}:`, e);
       }
     }
 
+    const aggregate = aggregateMoneyByCurrency(moneyEntries);
     const avgPerContainer =
-      containerCountWithCharge > 0 ? totalAmount / containerCountWithCharge : 0;
+      !aggregate.mixedCurrency && containerCountWithCharge > 0
+        ? aggregate.totalAmount / containerCountWithCharge
+        : 0;
 
     return {
-      totalAmount,
-      currency,
+      totalAmount: aggregate.totalAmount,
+      currency: aggregate.currency,
+      mixedCurrency: aggregate.mixedCurrency,
+      amountsByCurrency: aggregate.amountsByCurrency,
       containerCount: toProcess.length,
       containerCountWithCharge,
       avgPerContainer: Math.round(avgPerContainer * 100) / 100,
@@ -2457,7 +2480,8 @@ export class DemurrageService {
         partialResults: true,
         totalContainersInRange: totalInRange
       }),
-      byPort: [] // 实时计算路径暂无按港口分组，仅缓存路径有
+      // 混币时按港口合计也会跨币种失真，故不返回
+      byPort: aggregate.mixedCurrency ? undefined : []
     };
   }
 
@@ -2472,42 +2496,53 @@ export class DemurrageService {
     containerCountWithCharge: number;
     avgPerContainer: number;
     fromCache: boolean;
+    mixedCurrency?: boolean;
+    amountsByCurrency?: Record<string, number>;
     byPort?: Array<{ port: string; totalAmount: number; containerCount: number }>;
   } | null> {
     if (!this.recordRepo || containerNumbers.length === 0) return null;
 
+    // 按币种聚合，避免 SUM 跨 USD/CNY 后用 MAX(currency) 贴错标签
     const rows = await this.recordRepo
       .createQueryBuilder('r')
-      .select('r.container_number', 'containerNumber')
+      .select('r.currency', 'currency')
       .addSelect('SUM(r.charge_amount)', 'total')
-      .addSelect('MAX(r.currency)', 'currency')
       .where('r.container_number IN (:...containerNumbers)', { containerNumbers })
-      .groupBy('r.container_number')
+      .andWhere('r.charge_amount > 0')
+      .groupBy('r.currency')
       .getRawMany();
 
     if (rows.length === 0) return null;
 
-    let totalAmount = 0;
-    let containerCountWithCharge = 0;
-    let currency = 'USD';
+    const chargedCountRow = await this.recordRepo
+      .createQueryBuilder('r')
+      .select('COUNT(DISTINCT r.container_number)', 'cnt')
+      .where('r.container_number IN (:...containerNumbers)', { containerNumbers })
+      .andWhere('r.charge_amount > 0')
+      .getRawOne();
+    const containerCountWithCharge = Number(chargedCountRow?.cnt ?? 0);
 
-    for (const r of rows) {
-      const total = Number(r.total ?? 0);
-      if (total > 0) {
-        totalAmount += total;
-        containerCountWithCharge++;
-        currency = r.currency ?? currency;
-      }
-    }
+    const aggregate = aggregateMoneyByCurrency(
+      rows.map((r) => ({
+        amount: Number(r.total ?? 0),
+        currency: String(r.currency ?? 'USD')
+      }))
+    );
 
     const avgPerContainer =
-      containerCountWithCharge > 0 ? totalAmount / containerCountWithCharge : 0;
+      !aggregate.mixedCurrency && containerCountWithCharge > 0
+        ? aggregate.totalAmount / containerCountWithCharge
+        : 0;
 
-    const byPort = await this.getSummaryByPortFromRecords(containerNumbers);
+    const byPort = aggregate.mixedCurrency
+      ? []
+      : await this.getSummaryByPortFromRecords(containerNumbers);
 
     return {
-      totalAmount,
-      currency,
+      totalAmount: aggregate.totalAmount,
+      currency: aggregate.currency,
+      mixedCurrency: aggregate.mixedCurrency,
+      amountsByCurrency: aggregate.amountsByCurrency,
       containerCount: containerNumbers.length,
       containerCountWithCharge,
       avgPerContainer: Math.round(avgPerContainer * 100) / 100,
@@ -2609,12 +2644,18 @@ export class DemurrageService {
         batch.map(async (cn) => {
           try {
             const { result } = await this.calculateForContainer(cn);
-            if (result && result.totalAmount > 0) {
-              const chargeDays = result.items.reduce((sum, it) => sum + it.chargeDays, 0);
+            const positiveItems = result?.items?.filter((it) => Number(it.amount) > 0) ?? [];
+            if (result && positiveItems.length > 0) {
+              const perContainer = aggregateMoneyByCurrency(
+                positiveItems.map((it) => ({ amount: it.amount, currency: it.currency }))
+              );
+              // 混币柜：排序只用最大单币种桶，禁止 USD+CNY 加总
+              const ranked = pickLargestCurrencyBucket(perContainer);
+              const chargeDays = positiveItems.reduce((sum, it) => sum + it.chargeDays, 0);
               return {
                 containerNumber: result.containerNumber,
-                totalAmount: result.totalAmount,
-                currency: result.currency ?? 'USD',
+                totalAmount: ranked.totalAmount,
+                currency: ranked.currency,
                 chargeDays,
                 lastFreeDate: result.calculationDates?.lastPickupDate ?? null,
                 destinationPort: undefined as string | undefined,
@@ -2747,62 +2788,102 @@ export class DemurrageService {
     if (!this.recordRepo || containerNumbers.length === 0) return null;
 
     try {
+      // 先按柜+币种聚合，再在内存中折叠，避免跨币种 SUM + MAX(currency)
       const rows = await this.recordRepo
         .createQueryBuilder('r')
         .select('r.container_number', 'containerNumber')
+        .addSelect('r.currency', 'currency')
         .addSelect('SUM(r.charge_amount)', 'totalAmount')
         .addSelect('COALESCE(SUM(r.charge_days), 0)', 'chargeDays')
-        .addSelect('MAX(r.currency)', 'currency')
         .addSelect('MAX(r.charge_end_date)', 'chargeEndDate')
         .addSelect('MAX(r.destination_port)', 'destinationPort')
         .addSelect('MAX(r.logistics_status)', 'logisticsStatus')
         .where('r.container_number IN (:...containerNumbers)', { containerNumbers })
+        .andWhere('r.charge_amount > 0')
         .groupBy('r.container_number')
-        .having('SUM(r.charge_amount) > 0')
-        .orderBy('SUM(r.charge_amount)', 'DESC')
-        .limit(topN)
+        .addGroupBy('r.currency')
         .getRawMany();
 
       if (rows.length === 0) return null;
 
-      const cns = rows.map((r: Record<string, unknown>) =>
-        String(r.containerNumber ?? r.container_number ?? '')
-      );
+      type Acc = {
+        amounts: Array<{ amount: number; currency: string }>;
+        chargeDays: number;
+        chargeEndDate: string | null;
+        destinationPort?: string;
+        logisticsStatus?: string;
+      };
+      const byContainer = new Map<string, Acc>();
+      for (const r of rows as Array<Record<string, unknown>>) {
+        const cn = String(r.containerNumber ?? r.container_number ?? '');
+        if (!cn) continue;
+        const amount = Number(r.totalAmount ?? r.total_amount ?? r.totalamount ?? 0);
+        const currency = String(r.currency ?? 'USD');
+        const days = Number(r.chargeDays ?? r.charge_days ?? r.chargedays ?? 0);
+        const endRaw = r.chargeEndDate ?? r.charge_end_date;
+        const existing = byContainer.get(cn) ?? {
+          amounts: [],
+          chargeDays: 0,
+          chargeEndDate: null as string | null,
+          destinationPort: undefined as string | undefined,
+          logisticsStatus: undefined as string | undefined
+        };
+        existing.amounts.push({ amount, currency });
+        existing.chargeDays += days;
+        if (endRaw) {
+          const endStr = String(endRaw).slice(0, 10);
+          if (!existing.chargeEndDate || endStr > existing.chargeEndDate) {
+            existing.chargeEndDate = endStr;
+          }
+        }
+        const fromRecord = r.destinationPort ?? r.destination_port;
+        const fromRecordStatus = r.logisticsStatus ?? r.logistics_status;
+        if (fromRecord) existing.destinationPort = String(fromRecord);
+        if (fromRecordStatus) existing.logisticsStatus = String(fromRecordStatus);
+        byContainer.set(cn, existing);
+      }
+
+      const rankedAll = Array.from(byContainer.entries())
+        .map(([cn, acc]) => {
+          const aggregate = aggregateMoneyByCurrency(acc.amounts);
+          const ranked = pickLargestCurrencyBucket(aggregate);
+          return {
+            containerNumber: cn,
+            totalAmount: ranked.totalAmount,
+            currency: ranked.currency,
+            chargeDays: acc.chargeDays,
+            lastFreeDate: acc.chargeEndDate,
+            destinationPort: acc.destinationPort,
+            logisticsStatus: acc.logisticsStatus
+          };
+        })
+        .filter((it) => it.totalAmount > 0)
+        .sort((a, b) => b.totalAmount - a.totalAmount)
+        .slice(0, topN);
+
+      if (rankedAll.length === 0) return null;
+
+      const cns = rankedAll.map((it) => it.containerNumber);
       const missingPortCns = cns.filter(
-        (cn, i) => !(rows[i]?.destinationPort ?? rows[i]?.destination_port)
+        (cn, i) => !rankedAll[i]?.destinationPort
       );
       const portMap =
         missingPortCns.length > 0
           ? await this.getDestinationPortsForContainers(missingPortCns)
           : new Map<string, string>();
       const missingStatusCns = cns.filter(
-        (cn, i) => !(rows[i]?.logisticsStatus ?? rows[i]?.logistics_status)
+        (cn, i) => !rankedAll[i]?.logisticsStatus
       );
       const statusMap =
         missingStatusCns.length > 0
           ? await this.getLogisticsStatusForContainers(missingStatusCns)
           : new Map<string, string>();
 
-      const items = rows.map((r: Record<string, unknown>, _i: number) => {
-        const total = r.totalAmount ?? r.total_amount ?? r.totalamount ?? 0;
-        const days = r.chargeDays ?? r.charge_days ?? r.chargedays ?? 0;
-        const cn = String(r.containerNumber ?? r.container_number ?? '');
-        const fromRecord = r.destinationPort ?? r.destination_port;
-        const fromRecordStatus = r.logisticsStatus ?? r.logistics_status;
-        return {
-          containerNumber: cn,
-          totalAmount: Number(total),
-          currency: String(r.currency ?? 'USD'),
-          chargeDays: Number(days),
-          lastFreeDate:
-            (r.chargeEndDate ?? r.charge_end_date)
-              ? String(r.chargeEndDate ?? r.charge_end_date).slice(0, 10)
-              : null,
-          destinationPort: (fromRecord ? String(fromRecord) : portMap.get(cn)) ?? undefined,
-          logisticsStatus:
-            (fromRecordStatus ? String(fromRecordStatus) : statusMap.get(cn)) ?? undefined
-        };
-      });
+      const items = rankedAll.map((it) => ({
+        ...it,
+        destinationPort: it.destinationPort ?? portMap.get(it.containerNumber) ?? undefined,
+        logisticsStatus: it.logisticsStatus ?? statusMap.get(it.containerNumber) ?? undefined
+      }));
 
       return { items, fromCache: true };
     } catch (e) {
@@ -3715,21 +3796,28 @@ export class DemurrageService {
         // ✅ 新增：返回滞港费标准数据
         costs.matchedStandards = demurrageResult.result.matchedStandards;
 
-        // 3. 分类汇总各项费用
-        demurrageResult.result.items.forEach((item) => {
-          if (isDemurrageCharge(item)) {
-            costs.demurrageCost += Number(item.amount) || 0;
-          }
-          if (isDetentionCharge(item)) {
-            costs.detentionCost += Number(item.amount) || 0;
-          }
-          if (isStorageCharge(item)) {
-            costs.storageCost += Number(item.amount) || 0;
-          }
-          if (isCombinedDemurrageDetention(item)) {
-            costs.ddCombinedCost += Number(item.amount) || 0;
-          }
-        });
+        // 3. 分类汇总各项费用（混币时禁止跨币种累加，避免优化器误选）
+        if (!demurrageResult.result.mixedCurrency) {
+          demurrageResult.result.items.forEach((item) => {
+            if (isDemurrageCharge(item)) {
+              costs.demurrageCost += Number(item.amount) || 0;
+            }
+            if (isDetentionCharge(item)) {
+              costs.detentionCost += Number(item.amount) || 0;
+            }
+            if (isStorageCharge(item)) {
+              costs.storageCost += Number(item.amount) || 0;
+            }
+            if (isCombinedDemurrageDetention(item)) {
+              costs.ddCombinedCost += Number(item.amount) || 0;
+            }
+          });
+        } else {
+          logger.warn(
+            `[Demurrage] Mixed currencies for ${containerNumber}; refusing single-currency cost total`,
+            demurrageResult.result.amountsByCurrency
+          );
+        }
       }
 
       // 4. 计算运输费（如果需要）
@@ -3747,15 +3835,19 @@ export class DemurrageService {
         }
       }
 
-      // 5. 总计（确保是数字类型）
-      costs.totalCost =
-        Number(
-          costs.demurrageCost +
-            costs.detentionCost +
-            costs.storageCost +
-            costs.ddCombinedCost +
-            costs.transportationCost
-        ) || 0;
+      // 5. 总计：混币 fail-closed，返回极大值避免被当成最低成本
+      if (demurrageResult.result?.mixedCurrency) {
+        costs.totalCost = Number.MAX_SAFE_INTEGER;
+      } else {
+        costs.totalCost =
+          Number(
+            costs.demurrageCost +
+              costs.detentionCost +
+              costs.storageCost +
+              costs.ddCombinedCost +
+              costs.transportationCost
+          ) || 0;
+      }
 
       return costs;
     } catch (error) {
@@ -3896,21 +3988,28 @@ export class DemurrageService {
         // ✅ 新增：返回滞港费标准数据
         costs.matchedStandards = demurrageResult.result.matchedStandards;
 
-        // 分类汇总各项费用
-        demurrageResult.result.items.forEach((item) => {
-          if (isDemurrageCharge(item)) {
-            costs.demurrageCost += Number(item.amount) || 0;
-          }
-          if (isDetentionCharge(item)) {
-            costs.detentionCost += Number(item.amount) || 0;
-          }
-          if (isStorageCharge(item)) {
-            costs.storageCost += Number(item.amount) || 0;
-          }
-          if (isCombinedDemurrageDetention(item)) {
-            costs.ddCombinedCost += Number(item.amount) || 0;
-          }
-        });
+        // 分类汇总各项费用（混币时禁止跨币种累加）
+        if (!demurrageResult.result.mixedCurrency) {
+          demurrageResult.result.items.forEach((item) => {
+            if (isDemurrageCharge(item)) {
+              costs.demurrageCost += Number(item.amount) || 0;
+            }
+            if (isDetentionCharge(item)) {
+              costs.detentionCost += Number(item.amount) || 0;
+            }
+            if (isStorageCharge(item)) {
+              costs.storageCost += Number(item.amount) || 0;
+            }
+            if (isCombinedDemurrageDetention(item)) {
+              costs.ddCombinedCost += Number(item.amount) || 0;
+            }
+          });
+        } else {
+          logger.warn(
+            `[Demurrage] Mixed currencies for ${containerNumber} (plannedDates); refusing single-currency cost total`,
+            demurrageResult.result.amountsByCurrency
+          );
+        }
       }
 
       // 5. 计算运输费（如果需要）
@@ -3928,15 +4027,19 @@ export class DemurrageService {
         }
       }
 
-      // 6. 总计（确保是数字类型）
-      costs.totalCost =
-        Number(
-          costs.demurrageCost +
-            costs.detentionCost +
-            costs.storageCost +
-            costs.ddCombinedCost +
-            costs.transportationCost
-        ) || 0;
+      // 6. 总计：混币 fail-closed
+      if (demurrageResult.result?.mixedCurrency) {
+        costs.totalCost = Number.MAX_SAFE_INTEGER;
+      } else {
+        costs.totalCost =
+          Number(
+            costs.demurrageCost +
+              costs.detentionCost +
+              costs.storageCost +
+              costs.ddCombinedCost +
+              costs.transportationCost
+          ) || 0;
+      }
 
       logger.info(
         `[Demurrage] Calculated cost for ${containerNumber} with pickup date ${options.plannedDates.plannedPickupDate.toISOString().split('T')[0]}: $${costs.totalCost.toFixed(2)}`

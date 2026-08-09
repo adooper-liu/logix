@@ -452,7 +452,12 @@ export class RiskService {
       if (storageChargeDays > 0) {
         parts.push(`堆存计费约 ${Math.round(storageChargeDays)} 天`);
       }
-      if (result.totalAmount > 0) {
+      if (result.mixedCurrency && result.amountsByCurrency) {
+        const mixedParts = Object.entries(result.amountsByCurrency)
+          .map(([curr, amount]) => `${curr} ${Number(amount).toFixed(2)}`)
+          .join(' + ');
+        parts.push(`预计费用（多币种，未合并） ${mixedParts}`);
+      } else if (result.totalAmount > 0) {
         parts.push(`预计费用合计 ${result.currency} ${Number(result.totalAmount).toFixed(2)}`);
       }
 

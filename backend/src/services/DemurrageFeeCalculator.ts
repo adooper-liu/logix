@@ -11,6 +11,7 @@
  * @since 2026-03-30 (从 DemurrageService 拆分)
  */
 
+import { aggregateMoneyByCurrency } from '../utils/currencyAggregate';
 import { logger } from '../utils/logger';
 import type { DemurrageDateCalculator } from './DemurrageDateCalculator';
 
@@ -69,8 +70,11 @@ export interface DemurrageSkippedItem {
 export interface FeeCalculationResult {
   items: DemurrageItemResult[];
   skippedItems: DemurrageSkippedItem[];
+  /** 单一币种合计；混币时为 0（fail-closed） */
   totalAmount: number;
   currency: string;
+  mixedCurrency?: boolean;
+  amountsByCurrency?: Record<string, number>;
 }
 
 export class DemurrageFeeCalculator {
@@ -481,23 +485,26 @@ export class DemurrageFeeCalculator {
     items: DemurrageItemResult[],
     skippedItems: DemurrageSkippedItem[] = []
   ): FeeCalculationResult {
-    const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
-
-    // 假设所有项使用相同货币（第一项的货币）
-    const currency = items.length > 0 ? items[0].currency : 'USD';
+    const aggregate = aggregateMoneyByCurrency(
+      items.map((item) => ({ amount: item.amount, currency: item.currency }))
+    );
 
     logger.info(`[DemurrageFee] Fee summary:`, {
       itemCount: items.length,
       skippedCount: skippedItems.length,
-      totalAmount,
-      currency
+      totalAmount: aggregate.totalAmount,
+      currency: aggregate.currency,
+      mixedCurrency: aggregate.mixedCurrency,
+      amountsByCurrency: aggregate.amountsByCurrency
     });
 
     return {
       items,
       skippedItems,
-      totalAmount,
-      currency
+      totalAmount: aggregate.totalAmount,
+      currency: aggregate.currency,
+      mixedCurrency: aggregate.mixedCurrency,
+      amountsByCurrency: aggregate.amountsByCurrency
     };
   }
 }

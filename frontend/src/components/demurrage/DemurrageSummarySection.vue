@@ -28,6 +28,8 @@ const summary = ref<{
   avgPerContainer: number
   partialResults?: boolean
   totalContainersInRange?: number
+  mixedCurrency?: boolean
+  amountsByCurrency?: Record<string, number>
   byPort?: Array<{ port: string; totalAmount: number; containerCount: number }>
 } | null>(null)
 const topContainers = ref<
@@ -172,6 +174,17 @@ defineExpose({ reload: loadData })
           <div class="by-port-meta">{{ row.containerCount }} 柜</div>
         </div>
       </div>
+    </div>
+
+    <div v-if="summary?.mixedCurrency && summary.amountsByCurrency" class="partial-hint">
+      <el-alert type="warning" :closable="false" show-icon>
+        范围内存在多种币种费用，已禁止跨币种合并合计：
+        {{
+          Object.entries(summary.amountsByCurrency)
+            .map(([currency, amount]) => formatAmount(amount, currency))
+            .join('；')
+        }}
+      </el-alert>
     </div>
 
     <div v-if="summary?.partialResults" class="partial-hint">
