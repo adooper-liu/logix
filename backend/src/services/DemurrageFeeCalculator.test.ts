@@ -306,5 +306,55 @@ describe('DemurrageFeeCalculator', () => {
       expect(result.totalAmount).toBe(0);
       expect(result.currency).toBe('USD');
     });
+
+    it('混币时 fail-closed：不跨币种求和', () => {
+      const items: any[] = [
+        {
+          standardId: 1,
+          chargeName: 'Demurrage',
+          chargeTypeCode: 'DEMURRAGE',
+          freeDays: 7,
+          calculationMode: 'actual' as const,
+          startDate: new Date('2026-03-01'),
+          endDate: new Date('2026-03-15'),
+          startDateSource: 'ATA',
+          endDateSource: 'ACTUAL_PICKUP',
+          startDateMode: 'actual' as const,
+          endDateMode: 'actual' as const,
+          lastFreeDate: new Date('2026-03-07'),
+          lastFreeDateMode: 'actual' as const,
+          chargeDays: 8,
+          amount: 500,
+          currency: 'USD',
+          tierBreakdown: []
+        },
+        {
+          standardId: 2,
+          chargeName: 'Detention',
+          chargeTypeCode: 'DETENTION',
+          freeDays: 3,
+          calculationMode: 'actual' as const,
+          startDate: new Date('2026-03-10'),
+          endDate: new Date('2026-03-20'),
+          startDateSource: 'ACTUAL_PICKUP',
+          endDateSource: 'ACTUAL_RETURN',
+          startDateMode: 'actual' as const,
+          endDateMode: 'actual' as const,
+          lastFreeDate: new Date('2026-03-13'),
+          lastFreeDateMode: 'actual' as const,
+          chargeDays: 7,
+          amount: 1000,
+          currency: 'CNY',
+          tierBreakdown: []
+        }
+      ];
+
+      const result = feeCalculator.summarizeFees(items);
+
+      expect(result.mixedCurrency).toBe(true);
+      expect(result.currency).toBe('MIXED');
+      expect(result.totalAmount).toBe(0);
+      expect(result.amountsByCurrency).toEqual({ USD: 500, CNY: 1000 });
+    });
   });
 });

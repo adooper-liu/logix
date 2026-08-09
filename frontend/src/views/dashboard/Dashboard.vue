@@ -38,6 +38,8 @@ const demurrageSummary = ref<{
   currency: string
   containerCountWithCharge: number
   avgPerContainer: number
+  mixedCurrency?: boolean
+  amountsByCurrency?: Record<string, number>
 } | null>(null)
 const showDemurrageSection = ref(false)
 
@@ -72,6 +74,8 @@ type DashboardCache = {
     currency: string
     containerCountWithCharge: number
     avgPerContainer: number
+    mixedCurrency?: boolean
+    amountsByCurrency?: Record<string, number>
   } | null
   stats: {
     totalContainers: number
@@ -147,6 +151,8 @@ const loadData = async () => {
             currency: summaryRes.data.currency ?? 'USD',
             containerCountWithCharge: summaryRes.data.containerCountWithCharge ?? 0,
             avgPerContainer: summaryRes.data.avgPerContainer ?? 0,
+            mixedCurrency: summaryRes.data.mixedCurrency,
+            amountsByCurrency: summaryRes.data.amountsByCurrency,
           }
           dataCache.value.demurrageSummary = demurrageSummary.value
         }
@@ -270,6 +276,29 @@ const handleRefresh = () => {
   demurrageSummaryRef.value?.reload?.()
 }
 
+const formatDemurrageSummaryDisplay = () => {
+  const summary = demurrageSummary.value
+  if (!summary) return '暂无数'
+  if (summary.mixedCurrency && summary.amountsByCurrency) {
+    return Object.entries(summary.amountsByCurrency)
+      .map(([currency, amount]) =>
+        formatCurrency(amount, currency, {
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+          showSymbol: false,
+          showCode: true,
+        })
+      )
+      .join(' + ')
+  }
+  return formatCurrency(summary.totalAmount, summary.currency, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+    showSymbol: false,
+    showCode: true,
+  })
+}
+
 const formatDemurrageAmount = (amount: number, currency: string) =>
   formatCurrency(amount, currency, {
     minimumFractionDigits: 2,
@@ -351,21 +380,23 @@ onMounted(() => {
           type="completed"
           :icon="Money"
           :value="demurrageSummary?.totalAmount ?? 0"
-          :display-value="
-            demurrageSummary
-              ? formatDemurrageAmount(demurrageSummary.totalAmount, demurrageSummary.currency)
-              : '暂无数'
-          "
+          :display-value="formatDemurrageSummaryDisplay()"
           label="滞港费合计"
           :demurrage-details="
             demurrageSummary
               ? {
                   containerCount: demurrageSummary.containerCountWithCharge,
-                  avgPerContainer: formatDemurrageAmount(
-                    demurrageSummary.avgPerContainer,
-                    demurrageSummary.currency
-                  ),
-                  alertStatus: demurrageSummary.containerCountWithCharge > 0 ? '需关注' : '正常',
+                  avgPerContainer: demurrageSummary.mixedCurrency
+                    ? '多币种'
+                    : formatDemurrageAmount(
+                        demurrageSummary.avgPerContainer,
+                        demurrageSummary.currency
+                      ),
+                  alertStatus: demurrageSummary.mixedCurrency
+                    ? '多币种未合并'
+                    : demurrageSummary.containerCountWithCharge > 0
+                      ? '需关注'
+                      : '正常',
                 }
               : undefined
           "

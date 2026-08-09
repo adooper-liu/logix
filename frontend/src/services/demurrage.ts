@@ -303,6 +303,8 @@ class DemurrageService {
       avgPerContainer: number
       partialResults?: boolean
       totalContainersInRange?: number
+      mixedCurrency?: boolean
+      amountsByCurrency?: Record<string, number>
       byPort?: Array<{ port: string; totalAmount: number; containerCount: number }>
     }
   }> {
