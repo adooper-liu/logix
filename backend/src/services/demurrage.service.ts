@@ -2392,10 +2392,11 @@ export class DemurrageService {
   }
 
   /**
-   * 滞港费汇总统计：优先从 ext_demurrage_records 读取，无记录时回退实时计算
+   * 滞港费汇总统计：优先从 ext_demurrage_records 读取；
+   * 缓存未覆盖全部货柜时，合并缓存结果并为缺失柜实时补算（避免把部分预计算当成全量）。
    * @param startDate 出运开始日期
    * @param endDate 出运结束日期
-   * @param limit 最大计算柜数（默认 500，避免超时）
+   * @param limit 对「缓存未覆盖柜」的最大实时计算数（默认 500，避免超时）
    */
   async getSummary(
     startDate?: string,
@@ -2415,21 +2416,46 @@ export class DemurrageService {
     const containerNumbers = await this.getContainerNumbersInDateRange(startDate, endDate);
     const totalInRange = containerNumbers.length;
 
+    let cachedRows: Array<{ containerNumber?: string; total?: unknown; currency?: string }> = [];
     if (this.recordRepo && containerNumbers.length > 0) {
       try {
-        const fromCache = await this.getSummaryFromRecords(containerNumbers);
-        if (fromCache) return fromCache;
+        cachedRows = await this.loadSummaryRowsFromRecords(containerNumbers);
       } catch (e) {
-        logger.warn('[Demurrage] getSummaryFromRecords failed, fallback to real-time:', e);
+        logger.warn('[Demurrage] loadSummaryRowsFromRecords failed, fallback to real-time:', e);
+        cachedRows = [];
       }
     }
 
-    const toProcess = containerNumbers.slice(0, limit);
-    const partialResults = totalInRange > limit;
+    const cachedByCn = new Map<string, { total: number; currency?: string }>();
+    for (const r of cachedRows) {
+      const cn = String(r.containerNumber ?? '');
+      if (!cn) continue;
+      cachedByCn.set(cn, { total: Number(r.total ?? 0), currency: r.currency });
+    }
+
+    const missing = containerNumbers.filter((cn) => !cachedByCn.has(cn));
+
+    // 完整覆盖时才信任纯缓存路径（含 byPort）
+    if (cachedByCn.size > 0 && missing.length === 0) {
+      const fromCache = await this.getSummaryFromRecords(containerNumbers, cachedRows);
+      if (fromCache) return fromCache;
+    }
 
     let totalAmount = 0;
     let containerCountWithCharge = 0;
     let currency = 'USD';
+
+    for (const row of cachedByCn.values()) {
+      if (row.total > 0) {
+        totalAmount += row.total;
+        containerCountWithCharge++;
+        currency = row.currency ?? currency;
+      }
+    }
+
+    // 仅对缓存未覆盖的柜实时计算，避免把「前 N 柜预计算」误当成全量
+    const toProcess = missing.slice(0, limit);
+    const partialResults = missing.length > limit;
 
     for (const cn of toProcess) {
       try {
@@ -2444,28 +2470,50 @@ export class DemurrageService {
       }
     }
 
+    const coveredCount = cachedByCn.size + toProcess.length;
     const avgPerContainer =
       containerCountWithCharge > 0 ? totalAmount / containerCountWithCharge : 0;
 
     return {
       totalAmount,
       currency,
-      containerCount: toProcess.length,
+      containerCount: coveredCount,
       containerCountWithCharge,
       avgPerContainer: Math.round(avgPerContainer * 100) / 100,
       ...(partialResults && {
         partialResults: true,
         totalContainersInRange: totalInRange
       }),
-      byPort: [] // 实时计算路径暂无按港口分组，仅缓存路径有
+      byPort: [] // 混合/实时路径暂无按港口分组，仅完整缓存路径有
     };
   }
 
   /**
-   * 从 ext_demurrage_records 读取汇总（每柜仅保留 final 或 temp 一种，不会重复）
-   * 含按港口子分组（byPort）
+   * 按柜聚合 ext_demurrage_records 费用行
    */
-  private async getSummaryFromRecords(containerNumbers: string[]): Promise<{
+  private async loadSummaryRowsFromRecords(
+    containerNumbers: string[]
+  ): Promise<Array<{ containerNumber?: string; total?: unknown; currency?: string }>> {
+    if (!this.recordRepo || containerNumbers.length === 0) return [];
+    return this.recordRepo
+      .createQueryBuilder('r')
+      .select('r.container_number', 'containerNumber')
+      .addSelect('SUM(r.charge_amount)', 'total')
+      .addSelect('MAX(r.currency)', 'currency')
+      .where('r.container_number IN (:...containerNumbers)', { containerNumbers })
+      .groupBy('r.container_number')
+      .getRawMany();
+  }
+
+  /**
+   * 从 ext_demurrage_records 读取汇总（每柜仅保留 final 或 temp 一种，不会重复）
+   * 含按港口子分组（byPort）。
+   * 仅在记录覆盖全部请求柜时返回；否则返回 null，由 getSummary 做混合补算。
+   */
+  private async getSummaryFromRecords(
+    containerNumbers: string[],
+    preloadedRows?: Array<{ containerNumber?: string; total?: unknown; currency?: string }>
+  ): Promise<{
     totalAmount: number;
     currency: string;
     containerCount: number;
@@ -2476,16 +2524,14 @@ export class DemurrageService {
   } | null> {
     if (!this.recordRepo || containerNumbers.length === 0) return null;
 
-    const rows = await this.recordRepo
-      .createQueryBuilder('r')
-      .select('r.container_number', 'containerNumber')
-      .addSelect('SUM(r.charge_amount)', 'total')
-      .addSelect('MAX(r.currency)', 'currency')
-      .where('r.container_number IN (:...containerNumbers)', { containerNumbers })
-      .groupBy('r.container_number')
-      .getRawMany();
+    const rows = preloadedRows ?? (await this.loadSummaryRowsFromRecords(containerNumbers));
 
     if (rows.length === 0) return null;
+
+    // 不完整预计算不得冒充全量汇总（调度 DEMURRAGE_BATCH_SIZE 默认只写前 N 柜）
+    if (rows.length < containerNumbers.length) {
+      return null;
+    }
 
     let totalAmount = 0;
     let containerCountWithCharge = 0;
@@ -2727,7 +2773,8 @@ export class DemurrageService {
   }
 
   /**
-   * 从 ext_demurrage_records 读取 Top N 高费用货柜
+   * 从 ext_demurrage_records 读取 Top N 高费用货柜。
+   * 仅在记录覆盖全部请求柜时使用缓存；否则返回 null，避免部分预计算漏掉真实高费用柜。
    */
   private async getTopContainersFromRecords(
     containerNumbers: string[],
@@ -2747,6 +2794,16 @@ export class DemurrageService {
     if (!this.recordRepo || containerNumbers.length === 0) return null;
 
     try {
+      const coverage = await this.recordRepo
+        .createQueryBuilder('r')
+        .select('COUNT(DISTINCT r.container_number)', 'cnt')
+        .where('r.container_number IN (:...containerNumbers)', { containerNumbers })
+        .getRawOne();
+      const coveredCount = Number(coverage?.cnt ?? 0);
+      // 与 getSummary 一致：不完整预计算不得当作权威 TopN
+      if (coveredCount === 0) return null;
+      if (coveredCount < containerNumbers.length) return null;
+
       const rows = await this.recordRepo
         .createQueryBuilder('r')
         .select('r.container_number', 'containerNumber')
