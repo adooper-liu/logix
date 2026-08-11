@@ -1813,8 +1813,11 @@ export class ImportController {
         Array.isArray(headers) && headers.length > 0 ? headers : undefined
       );
 
+      // Staging-only success used to report success:true even when core merge failed.
+      // Require at least one fully successful row; keep 200 so clients can read failure details.
+      const importOk = result.success > 0;
       res.json({
-        success: true,
+        success: importOk,
         message: `导入完成：成功 ${result.success} 条，失败 ${result.failed} 条`,
         data: result
       });

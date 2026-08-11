@@ -479,11 +479,57 @@ export function parseDate(val: unknown): Date | null {
     const sec = m[6] !== undefined ? parseInt(m[6], 10) : 0;
     const msRaw = m[7];
     const ms = msRaw !== undefined ? parseInt(msRaw.padEnd(3, '0').slice(0, 3), 10) : 0;
+    // Reject overflowed calendar dates (e.g. 2026-02-31 → Mar 3) instead of silently normalizing.
+    if (month < 0 || month > 11 || day < 1 || day > 31 || h > 23 || min > 59 || sec > 59) {
+      return null;
+    }
     const d = new Date(Date.UTC(year, month, day, h, min, sec, ms));
-    return isNaN(d.getTime()) ? null : d;
+    if (
+      isNaN(d.getTime()) ||
+      d.getUTCFullYear() !== year ||
+      d.getUTCMonth() !== month ||
+      d.getUTCDate() !== day ||
+      d.getUTCHours() !== h ||
+      d.getUTCMinutes() !== min ||
+      d.getUTCSeconds() !== sec
+    ) {
+      return null;
+    }
+    return d;
   }
   const d = new Date(s);
   return isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Record core-table merge failures so import results do not report false success
+ * after staging/status writes succeeded but mergeTable*ToCore failed.
+ */
+export function recordFeituoCoreMergeFailure(options: {
+  errors: { row: number; error: string }[];
+  items: Array<{ excelIndex: number; row: FeituoRowData }>;
+  key: string;
+  err: unknown;
+  /** Mutable success counter from the staging phase; decremented for affected rows. */
+  successRef: { value: number };
+}): void {
+  const msg = options.err instanceof Error ? options.err.message : String(options.err);
+  const matched = options.items.filter((item) => feituoBaselineKey(item.row) === options.key);
+  if (matched.length === 0) {
+    options.errors.push({
+      row: 0,
+      error: `核心表合并失败 (${options.key}): ${msg}`
+    });
+    options.successRef.value = Math.max(0, options.successRef.value - 1);
+    return;
+  }
+  for (const item of matched) {
+    options.errors.push({
+      row: item.excelIndex + 1,
+      error: `核心表合并失败: ${msg}`
+    });
+    options.successRef.value = Math.max(0, options.successRef.value - 1);
+  }
 }
 
 /** 解析布尔 */
@@ -789,7 +835,7 @@ export class FeituoImportService {
     const { enrichByMblPort: rowsBySubset2Key, placesListByMbl: subset2PlacesListByMbl } =
       buildSubset2MblPortMaps(items, resolveMblTable1);
 
-    let success = 0;
+    const successRef = { value: 0 };
     for (const item of items) {
       try {
         await this.persistTable1Staging(batchId, item.row, item.rawData, item.rawDataByGroup, repo);
@@ -797,7 +843,7 @@ export class FeituoImportService {
         if (!containerNumber) throw new Error('缺少集装箱号');
         const mblNumber = getMblFromRow(item.row) || `FEITUO_${containerNumber}`;
         await this.saveStatusEventsSubset(batchId, item.row, mblNumber, containerNumber);
-        success++;
+        successRef.value++;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         errors.push({ row: item.excelIndex + 1, error: msg });
@@ -850,10 +896,17 @@ export class FeituoImportService {
         await this.mergeTable1ToCore(canonical);
       } catch (err) {
         logger.warn(`[FeituoImport] 基准行合并后写入失败 (key=${key}):`, err);
+        recordFeituoCoreMergeFailure({
+          errors,
+          items,
+          key,
+          err,
+          successRef
+        });
       }
     }
 
-    return success;
+    return successRef.value;
   }
 
   private async persistTable1Staging(
@@ -915,7 +968,7 @@ export class FeituoImportService {
     const { enrichByMblPort: rowsBySubset2Key, placesListByMbl: subset2PlacesListByMbl } =
       buildSubset2MblPortMaps(items, resolveMblTable2);
 
-    let success = 0;
+    const successRef = { value: 0 };
     for (const item of items) {
       try {
         await this.persistTable2Staging(batchId, item.row, item.rawData, item.rawDataByGroup, repo);
@@ -931,7 +984,7 @@ export class FeituoImportService {
         const mblFromRow = getMblFromRow(item.row);
         const mainBillForSubset = mblFromRow || billNumber || `FEITUO_${containerNumber}`;
         await this.saveStatusEventsSubset(batchId, item.row, mainBillForSubset, containerNumber);
-        success++;
+        successRef.value++;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         errors.push({ row: item.excelIndex + 1, error: msg });
@@ -990,10 +1043,17 @@ export class FeituoImportService {
         await this.mergeTable2ToCore(canonical);
       } catch (err) {
         logger.warn(`[FeituoImport] 表二基准行合并后写入失败 (key=${key}):`, err);
+        recordFeituoCoreMergeFailure({
+          errors,
+          items,
+          key,
+          err,
+          successRef
+        });
       }
     }
 
-    return success;
+    return successRef.value;
   }
 
   private async persistTable2Staging(
