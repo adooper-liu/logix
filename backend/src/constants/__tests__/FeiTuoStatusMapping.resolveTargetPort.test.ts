@@ -8,71 +8,53 @@ function po(partial: Partial<PortOperation>): PortOperation {
   return partial as PortOperation;
 }
 
-describe('resolveTargetPortOperationForFeituoEvent', () => {
-  const origin = po({
-    id: 'po-origin',
-    containerNumber: 'MSKU1',
-    portType: 'origin',
-    portCode: 'CNSHA',
-    portName: 'Shanghai',
-    portSequence: 1
-  });
-  const transit = po({
-    id: 'po-transit',
-    containerNumber: 'MSKU1',
-    portType: 'transit',
-    portCode: 'KRPUS',
-    portName: 'Busan',
-    portSequence: 2
-  });
-  const destination = po({
-    id: 'po-dest',
-    containerNumber: 'MSKU1',
-    portType: 'destination',
-    portCode: 'USLAX',
-    portName: 'Los Angeles',
-    portSequence: 3
-  });
+const origin = po({
+  id: 'po-origin',
+  containerNumber: 'MSKU1',
+  portType: 'origin',
+  portCode: 'CNSHA',
+  portName: 'Shanghai',
+  portSequence: 1
+});
+const transit = po({
+  id: 'po-transit',
+  containerNumber: 'MSKU1',
+  portType: 'transit',
+  portCode: 'KRPUS',
+  portName: 'Busan',
+  portSequence: 2
+});
+const destination = po({
+  id: 'po-dest',
+  containerNumber: 'MSKU1',
+  portType: 'destination',
+  portCode: 'USLAX',
+  portName: 'Los Angeles',
+  portSequence: 3
+});
 
-  it('maps FDBA to transit (core field transit_arrival_date must not lack port type)', () => {
+describe('getPortTypeForStatusCode', () => {
+  it('maps FDBA to transit so feeder arrival is not untyped', () => {
     expect(getPortTypeForStatusCode('FDBA')).toBe('transit');
   });
+});
 
+describe('resolveTargetPortOperationForFeituoEvent matching', () => {
   it('matches destination ATA by location onto destination port', () => {
-    const target = resolveTargetPortOperationForFeituoEvent(
-      [origin, destination],
-      'BDAR',
-      { locationCode: 'USLAX', locationName: 'Los Angeles' }
-    );
+    const target = resolveTargetPortOperationForFeituoEvent([origin, destination], 'BDAR', {
+      locationCode: 'USLAX',
+      locationName: 'Los Angeles'
+    });
     expect(target?.id).toBe('po-dest');
   });
 
   it('falls back to same portType when location mismatches, never to [0]', () => {
-    // destination event with unknown location — still prefer destination row
-    const target = resolveTargetPortOperationForFeituoEvent(
-      [origin, destination],
-      'BDAR',
-      { locationCode: 'UNKNOWN', locationName: 'Somewhere Else' }
-    );
+    const target = resolveTargetPortOperationForFeituoEvent([origin, destination], 'BDAR', {
+      locationCode: 'UNKNOWN',
+      locationName: 'Somewhere Else'
+    });
     expect(target?.id).toBe('po-dest');
     expect(target?.id).not.toBe('po-origin');
-  });
-
-  it('returns null for destination event when only origin exists (no silent [0] write)', () => {
-    const target = resolveTargetPortOperationForFeituoEvent([origin], 'BDAR', {
-      locationCode: 'USLAX',
-      locationName: 'Los Angeles'
-    });
-    expect(target).toBeNull();
-  });
-
-  it('returns null for transit event when no transit port exists', () => {
-    const target = resolveTargetPortOperationForFeituoEvent(
-      [origin, destination],
-      'TSBA',
-      { locationCode: 'KRPUS', locationName: 'Busan' }
-    );
-    expect(target).toBeNull();
   });
 
   it('routes FDBA onto transit port when present', () => {
@@ -82,15 +64,6 @@ describe('resolveTargetPortOperationForFeituoEvent', () => {
       { locationCode: 'KRPUS', locationName: 'Busan' }
     );
     expect(target?.id).toBe('po-transit');
-  });
-
-  it('returns null for unknown status codes without inventing a port', () => {
-    const target = resolveTargetPortOperationForFeituoEvent(
-      [origin, destination],
-      'NOT_A_REAL_CODE',
-      { locationCode: 'CNSHA' }
-    );
-    expect(target).toBeNull();
   });
 
   it('prefers highest port_sequence among same-type matches', () => {
@@ -116,5 +89,30 @@ describe('resolveTargetPortOperationForFeituoEvent', () => {
       { locationCode: 'USLAX' }
     );
     expect(target?.id).toBe('po-dest-new');
+  });
+});
+
+describe('resolveTargetPortOperationForFeituoEvent null safety', () => {
+  it('returns null for destination event when only origin exists', () => {
+    const target = resolveTargetPortOperationForFeituoEvent([origin], 'BDAR', {
+      locationCode: 'USLAX',
+      locationName: 'Los Angeles'
+    });
+    expect(target).toBeNull();
+  });
+
+  it('returns null for transit event when no transit port exists', () => {
+    const target = resolveTargetPortOperationForFeituoEvent([origin, destination], 'TSBA', {
+      locationCode: 'KRPUS',
+      locationName: 'Busan'
+    });
+    expect(target).toBeNull();
+  });
+
+  it('returns null for unknown status codes without inventing a port', () => {
+    const target = resolveTargetPortOperationForFeituoEvent([origin, destination], 'NOT_A_REAL_CODE', {
+      locationCode: 'CNSHA'
+    });
+    expect(target).toBeNull();
   });
 });
