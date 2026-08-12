@@ -9,13 +9,14 @@ import axios, { AxiosInstance } from 'axios';
 import { config } from '../config/index';
 import {
   getCoreFieldName,
-  getPortTypeForStatusCode,
   resolvePortOperationTimeKeyFromCoreField,
+  resolveTargetPortOperationForFeituoEvent,
   shouldUpdateCoreField
 } from '../constants/FeiTuoStatusMapping';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
 import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
+import { Country } from '../entities/Country';
 import { EmptyReturn } from '../entities/EmptyReturn';
 import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
 import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
@@ -155,6 +156,7 @@ export class ExternalDataService {
     AppDataSource.getRepository(TruckingTransport),
     AppDataSource.getRepository(EmptyReturn),
     AppDataSource.getRepository(ReplenishmentOrder),
+    AppDataSource.getRepository(Country),
     AppDataSource.getRepository(ExtDemurrageRecord)
   );
 
@@ -1201,46 +1203,22 @@ export class ExternalDataService {
           }
         }
 
-        // 获取港口类型
-        const portType = getPortTypeForStatusCode(event.statusCode);
+        // 查找对应的港口操作记录（禁止回退到 portOperations[0]）
+        const targetPortOperation = resolveTargetPortOperationForFeituoEvent(
+          portOperations,
+          event.statusCode,
+          event
+        );
 
-        // 查找对应的港口操作记录
-        let targetPortOperation: PortOperation | null = null;
-
-        if (portType) {
-          // 根据港口类型和地点代码查找匹配的记录
-          const matchedByLocation = portOperations.filter(
-            (po) =>
-              po.portType === portType &&
-              (po.portCode === event.locationCode ||
-                po.portName === event.locationName ||
-                po.portName === event.locationNameEn ||
-                po.portName === event.locationNameCn)
-          );
-
-          if (matchedByLocation.length > 0) {
-            // 如果有多个匹配，选择 port_sequence 最大的（最新的）
-            targetPortOperation = matchedByLocation.reduce((latest, current) =>
-              (current.portSequence ?? 0) > (latest.portSequence ?? 0) ? current : latest
-            );
-          } else {
-            // 如果没有匹配的港口，按港口类型选择 port_sequence 最大的记录
-            const sameTypePorts = portOperations.filter((po) => po.portType === portType);
-            if (sameTypePorts.length > 0) {
-              targetPortOperation = sameTypePorts.reduce((latest, current) =>
-                (current.portSequence ?? 0) > (latest.portSequence ?? 0) ? current : latest
-              );
+        if (!targetPortOperation) {
+          logger.warn(
+            `[ExternalDataService] 无法匹配货柜 ${containerNumber} 状态码 ${event.statusCode} 的港口操作记录，跳过核心字段更新`,
+            {
+              locationCode: event.locationCode,
+              locationName: event.locationName,
+              coreFieldName
             }
-          }
-        }
-
-        if (!targetPortOperation) {
-          // 如果仍然找不到，使用第一个记录（兜底）
-          targetPortOperation = portOperations[0];
-        }
-
-        if (!targetPortOperation) {
-          logger.warn(`[ExternalDataService] 无法找到货柜 ${containerNumber} 的港口操作记录`);
+          );
           continue;
         }
 
