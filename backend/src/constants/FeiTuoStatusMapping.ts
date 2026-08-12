@@ -165,6 +165,7 @@ export const FEITUO_STATUS_TO_PORT_TYPE_MAP: Record<string, 'origin' | 'transit'
     // 驳船相关（新增）
     FDDP: 'origin', // 驳船离港 - 起始地操作
     FDLB: 'origin', // 驳船装船 - 起始地操作
+    FDBA: 'transit', // 驳船抵达 - 与 transit_arrival_date 对齐（不可缺省，否则会落到错误港口）
     STSP: 'origin', // 提空箱 - 起始地操作
 
     // ===== P0 - 装箱/拆箱 =====
@@ -518,6 +519,60 @@ export const getPortTypeForStatusCode = (
   return FEITUO_STATUS_TO_PORT_TYPE_MAP[statusCode] || null;
 };
 
+/** 飞驼事件地点字段（用于匹配 PortOperation） */
+export interface FeituoEventLocationHint {
+  locationCode?: string | null;
+  locationName?: string | null;
+  locationNameEn?: string | null;
+  locationNameCn?: string | null;
+}
+
+/**
+ * 为飞驼核心时间字段选择目标港口操作记录。
+ *
+ * 匹配顺序：地点精确匹配（同 portType）→ 同 portType 最新序列。
+ * 找不到匹配时返回 null —— 禁止回退到 portOperations[0]，否则会把目的港 ATA / 提柜 GATE_OUT
+ * 等关键时间写到起运港（或任意首条记录），造成静默数据错乱。
+ */
+export function resolveTargetPortOperationForFeituoEvent(
+  portOperations: PortOperation[],
+  statusCode: string,
+  event: FeituoEventLocationHint
+): PortOperation | null {
+  if (!portOperations.length) {
+    return null;
+  }
+
+  const portType = getPortTypeForStatusCode(statusCode);
+  if (!portType) {
+    return null;
+  }
+
+  const matchedByLocation = portOperations.filter(
+    (po) =>
+      po.portType === portType &&
+      (po.portCode === event.locationCode ||
+        po.portName === event.locationName ||
+        po.portName === event.locationNameEn ||
+        po.portName === event.locationNameCn)
+  );
+
+  if (matchedByLocation.length > 0) {
+    return matchedByLocation.reduce((latest, current) =>
+      (current.portSequence ?? 0) > (latest.portSequence ?? 0) ? current : latest
+    );
+  }
+
+  const sameTypePorts = portOperations.filter((po) => po.portType === portType);
+  if (sameTypePorts.length > 0) {
+    return sameTypePorts.reduce((latest, current) =>
+      (current.portSequence ?? 0) > (latest.portSequence ?? 0) ? current : latest
+    );
+  }
+
+  return null;
+}
+
 /**
  * 获取飞驼状态代码对应的状态类型
  * Get status type for FeiTuo status code
@@ -576,6 +631,7 @@ export default {
   getCoreFieldName,
   resolvePortOperationTimeKeyFromCoreField,
   getPortTypeForStatusCode,
+  resolveTargetPortOperationForFeituoEvent,
   getStatusTypeForStatusCode,
   isEstimatedStatus,
   isActualStatus,

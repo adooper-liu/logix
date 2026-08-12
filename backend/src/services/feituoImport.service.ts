@@ -15,6 +15,7 @@ import { Container } from '../entities/Container';
 import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
 import { ContainerType } from '../entities/ContainerType';
 import { EmptyReturn } from '../entities/EmptyReturn';
+import { ExtDemurrageRecord } from '../entities/ExtDemurrageRecord';
 import { ExtDemurrageStandard } from '../entities/ExtDemurrageStandard';
 import { ExtFeituoImportBatch } from '../entities/ExtFeituoImportBatch';
 import { ExtFeituoImportTable1 } from '../entities/ExtFeituoImportTable1';
@@ -24,8 +25,10 @@ import { ExtFeituoStatusEvent } from '../entities/ExtFeituoStatusEvent';
 import { ExtFeituoVessel } from '../entities/ExtFeituoVessel';
 import { InspectionEvent } from '../entities/InspectionEvent';
 import { InspectionRecord } from '../entities/InspectionRecord';
+import { Country } from '../entities/Country';
 import { Port } from '../entities/Port';
 import { PortOperation } from '../entities/PortOperation';
+import { ReplenishmentOrder } from '../entities/ReplenishmentOrder';
 import { SeaFreight } from '../entities/SeaFreight';
 import { ShippingCompany } from '../entities/ShippingCompany';
 import { TruckingTransport } from '../entities/TruckingTransport';
@@ -551,7 +554,9 @@ export class FeituoImportService {
     AppDataSource.getRepository(SeaFreight),
     AppDataSource.getRepository(TruckingTransport),
     AppDataSource.getRepository(EmptyReturn),
-    AppDataSource.getRepository(InspectionRecord)
+    AppDataSource.getRepository(ReplenishmentOrder),
+    AppDataSource.getRepository(Country),
+    AppDataSource.getRepository(ExtDemurrageRecord)
   );
 
   /**
