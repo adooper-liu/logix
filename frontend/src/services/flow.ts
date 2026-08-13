@@ -1,5 +1,10 @@
 import { api } from './api'
 
+// 注意：api.ts 已设置 baseURL: '/api/v1'，此处只需写相对路径 /ai/flow...
+// 不要再加 /v1 前缀，否则会请求 /api/v1/v1/ai/flow 导致 404。
+
+export const FLOW_API_BASE = '/ai/flow'
+
 // 流程节点类型
 export enum FlowNodeType {
   // 基础节点
@@ -76,7 +81,7 @@ export const flowService = {
       success: boolean
       data?: FlowDefinition
       error?: string
-    }>('/v1/ai/flow', flow)
+    }>(FLOW_API_BASE, flow)
   },
 
   // 获取所有流程定义
@@ -85,7 +90,7 @@ export const flowService = {
       success: boolean
       data?: FlowDefinition[]
       error?: string
-    }>('/v1/ai/flow')
+    }>(FLOW_API_BASE)
   },
 
   // 获取流程定义详情
@@ -94,7 +99,7 @@ export const flowService = {
       success: boolean
       data?: FlowDefinition
       error?: string
-    }>(`/v1/ai/flow/${id}`)
+    }>(`${FLOW_API_BASE}/${id}`)
   },
 
   // 更新流程定义
@@ -103,7 +108,7 @@ export const flowService = {
       success: boolean
       data?: FlowDefinition
       error?: string
-    }>(`/v1/ai/flow/${id}`, updates)
+    }>(`${FLOW_API_BASE}/${id}`, updates)
   },
 
   // 删除流程定义
@@ -112,7 +117,7 @@ export const flowService = {
       success: boolean
       message?: string
       error?: string
-    }>(`/v1/ai/flow/${id}`)
+    }>(`${FLOW_API_BASE}/${id}`)
   },
 
   // 执行流程
@@ -121,7 +126,7 @@ export const flowService = {
       success: boolean
       data?: FlowExecutionResult
       error?: string
-    }>('/v1/ai/flow/execute', { flowId, variables })
+    }>(`${FLOW_API_BASE}/execute`, { flowId, variables })
   },
 
   // 执行流程定义（直接执行，不保存）
@@ -130,7 +135,7 @@ export const flowService = {
       success: boolean
       data?: FlowExecutionResult
       error?: string
-    }>('/v1/ai/flow/execute-definition', { flow, variables })
+    }>(`${FLOW_API_BASE}/execute-definition`, { flow, variables })
   },
 }
 
