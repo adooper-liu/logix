@@ -16,8 +16,8 @@ describe('parseDate', () => {
   })
 
   it('converts Excel serial numbers using UTC midnight', () => {
-    // 45922 = 2026-08-18 (days since 1899-12-30)
-    expect(parseDate(45922)).toBe('2026-08-18')
+    const serial = Date.UTC(2026, 7, 18) / 86400000 + 25569
+    expect(parseDate(serial)).toBe('2026-08-18')
   })
 
   it('converts Date objects from SheetJS cellDates instead of dropping them', () => {
