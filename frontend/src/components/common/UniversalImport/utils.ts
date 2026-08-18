@@ -30,15 +30,31 @@ export function getCellValue(row: Record<string, any>, mapping: FieldMapping): a
 }
 
 /**
+ * 将 Date 格式化为 UTC 日历日 YYYY-MM-DD。
+ * SheetJS `cellDates: true` 与 Excel 序列号都会落到 UTC 午夜，必须用 UTC 而非本地时区。
+ */
+function toUtcDateOnly(date: Date): string | null {
+  if (Number.isNaN(date.getTime())) return null
+  return date.toISOString().slice(0, 10)
+}
+
+/**
  * 解析日期
+ *
+ * 通用导入使用 `XLSX.read(..., { cellDates: true })`，Excel 日期单元格会变成 Date。
+ * 若不处理 Date，`String(date)` 无法匹配 YYYY-MM-DD，日期会变成 null：
+ * 首次导入丢 ETA/ATA/LFD 等；再导入时后端 Object.assign 会把已有日期擦成空。
  */
 export function parseDate(value: unknown): string | null {
   if (value === null || value === undefined || value === '') return null
 
+  if (value instanceof Date) {
+    return toUtcDateOnly(value)
+  }
+
   // Excel 序列号（数字）
   if (typeof value === 'number') {
-    const date = new Date((value - 25569) * 86400 * 1000)
-    return isNaN(date.getTime()) ? null : date.toISOString().slice(0, 10)
+    return toUtcDateOnly(new Date((value - 25569) * 86400 * 1000))
   }
 
   // 字符串处理
