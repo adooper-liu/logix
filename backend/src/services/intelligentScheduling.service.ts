@@ -2796,6 +2796,17 @@ export class IntelligentSchedulingService {
           totalCost: cb.totalCost ?? 0,
           currency: cb.currency ?? 'USD'
         };
+      } else {
+        // 前端「手工指定仓库」传 dryRun:false 表示直接保存；此前只返回 plannedData 导致假成功。
+        await this.saveScheduleToDatabase(
+          container,
+          warehouse,
+          truckingCompany,
+          plannedCustomsDate,
+          plannedPickupDate,
+          effectiveUnloadDate,
+          unloadMode
+        );
       }
 
       // 9. 构建结果
