@@ -1345,10 +1345,12 @@ export class ExternalDataService {
       // 动态导入状态机模块,避免循环依赖
       const { calculateLogisticsStatus } = await import('../utils/logisticsStatusMachine');
 
-      // 获取货柜
+      // process_sea_freight 无 container_number（主键为提单号）。
+      // 必须经 Container.seaFreight 关联加载；findOne({ containerNumber }) 会抛 EntityPropertyNotFoundError，
+      // 被下方 catch 吞掉后 logistics_status / gantt_derived 不会更新。
       const container = await this.containerRepository.findOne({
         where: { containerNumber },
-        relations: []
+        relations: ['seaFreight']
       });
 
       if (!container) {
@@ -1363,14 +1365,13 @@ export class ExternalDataService {
         .orderBy('po.portSequence', 'DESC')
         .getMany();
 
-      // 获取其他相关数据 (用于状态机计算)
       // 必须完整查询这些关联数据，否则 picked_up / unloaded / returned_empty 状态无法正确计算
-      const [seaFreight, truckingTransport, warehouseOperation, emptyReturn] = await Promise.all([
-        this.seaFreightRepository.findOne({ where: { containerNumber } }),
+      const [truckingTransport, warehouseOperation, emptyReturn] = await Promise.all([
         this.truckingTransportRepository.findOne({ where: { containerNumber } }),
         this.warehouseOperationRepository.findOne({ where: { containerNumber } }),
         this.emptyReturnRepository.findOne({ where: { containerNumber } })
       ]);
+      const seaFreight = container.seaFreight ?? undefined;
 
       // 计算新的物流状态
       const result = calculateLogisticsStatus(
