@@ -370,24 +370,18 @@ export class IntelligentSchedulingService {
       const truckingTransportMap = new Map(truckingTransports.map((t) => [t.containerNumber, t]));
       const emptyReturnMap = new Map(emptyReturns.map((e) => [e.containerNumber, e]));
 
-      // 5. 并行排产（使用 CONCURRENCY 控制并发数）
-      const scheduleResults: Promise<ScheduleResult>[] = [];
-      for (const container of toProcess) {
-        const truckingTransport = truckingTransportMap.get(container.containerNumber);
-        const emptyReturn = emptyReturnMap.get(container.containerNumber);
-        scheduleResults.push(
+      // 5. 分批排产。必须在切片内才创建 Promise，否则 CONCURRENCY 无法限制实际并行。
+      // 正式落库串行：findEarliestAvailableDay 读占用后再扣减，并行会把多柜排到同一天超卖。
+      const scheduleConcurrency = request.dryRun ? CONCURRENCY : 1;
+      for (let i = 0; i < toProcess.length; i += scheduleConcurrency) {
+        const batch = toProcess.slice(i, i + scheduleConcurrency).map((container) =>
           this.scheduleSingleContainerWithCache(
             container,
             request,
-            truckingTransport || null,
-            emptyReturn || null
+            truckingTransportMap.get(container.containerNumber) || null,
+            emptyReturnMap.get(container.containerNumber) || null
           )
         );
-      }
-
-      // 分批并发执行，避免一次性创建过多 Promise
-      for (let i = 0; i < scheduleResults.length; i += CONCURRENCY) {
-        const batch = scheduleResults.slice(i, i + CONCURRENCY);
         const settled = await Promise.allSettled(batch);
         for (const s of settled) {
           if (s.status === 'fulfilled') {
@@ -917,7 +911,8 @@ export class IntelligentSchedulingService {
   }
 
   /**
-   * 保存排产到数据库
+   * 保存排产到数据库（正式一键排产 / 非 dryRun）。
+   * 必须与预览路径写入同一套计划日期，并扣减仓库/车队/还箱档期。
    */
   private async saveScheduleToDatabase(
     container: Container,
@@ -928,25 +923,98 @@ export class IntelligentSchedulingService {
     plannedUnloadDate: Date,
     unloadMode: 'Drop off' | 'Live load'
   ): Promise<ScheduleResult> {
-    // 保存拖卡运输记录
+    const destPo =
+      container.portOperations?.find((po: any) => po.portType === 'destination') ||
+      (await this.portOperationRepo.findOne({
+        where: { containerNumber: container.containerNumber, portType: 'destination' }
+      }));
+
+    const plannedDeliveryDate = this.dateCalculator.calculatePlannedDeliveryDate(
+      plannedPickupDate,
+      unloadMode,
+      plannedUnloadDate
+    );
+
+    let lastReturnDateHint: Date | undefined;
+    const existingEmptyReturn = await this.emptyReturnRepo.findOne({
+      where: { containerNumber: container.containerNumber }
+    });
+    if (existingEmptyReturn?.lastReturnDate) {
+      lastReturnDateHint = new Date(existingEmptyReturn.lastReturnDate);
+    } else if (destPo?.lastFreeDate) {
+      lastReturnDateHint = new Date(destPo.lastFreeDate);
+      lastReturnDateHint.setDate(lastReturnDateHint.getDate() + 7);
+    }
+
+    const returnDateResult = await this.dateCalculator.calculatePlannedReturnDate(
+      plannedUnloadDate,
+      unloadMode,
+      truckingCompany.companyCode,
+      lastReturnDateHint,
+      plannedPickupDate
+    );
+    const effectiveUnloadDate = returnDateResult.adjustedUnloadDate ?? plannedUnloadDate;
+    const plannedReturnDate = returnDateResult.returnDate;
+
     await this.saveTruckingTransport(
       container,
       truckingCompany,
       plannedPickupDate,
-      plannedCustomsDate,
-      unloadMode // ✅ 传入卸柜模式
+      plannedDeliveryDate,
+      unloadMode
     );
-
-    // 保存仓库操作记录
-    await this.saveWarehouseOperation(container, warehouse, plannedUnloadDate);
-
-    // 更新货柜状态
+    await this.saveWarehouseOperation(container, warehouse, effectiveUnloadDate);
+    await this.saveDestinationCustomsPlan(container, plannedCustomsDate, destPo);
+    await this.saveEmptyReturnPlan(container, plannedReturnDate, warehouse);
     await this.updateContainerStatus(container, warehouse);
 
+    try {
+      await this.containerStatusService.updateStatus(container.containerNumber);
+    } catch (syncErr) {
+      logger.warn(
+        `[IntelligentScheduling] updateStatus after schedule failed for ${container.containerNumber}:`,
+        syncErr
+      );
+    }
+
+    await this.occupancyCalculator.decrementWarehouseOccupancy(
+      warehouse.warehouseCode,
+      effectiveUnloadDate
+    );
+    await this.occupancyCalculator.decrementTruckingOccupancy({
+      truckingCompanyId: truckingCompany.companyCode,
+      date: plannedPickupDate,
+      portCode: destPo?.portCode,
+      warehouseCode: warehouse.warehouseCode
+    });
+    if (unloadMode === 'Drop off') {
+      await this.decrementFleetReturnOccupancy(
+        truckingCompany.companyCode,
+        plannedReturnDate,
+        warehouse.warehouseCode,
+        destPo?.portCode
+      );
+    }
+
+    const toDateStr = (d: Date) => d.toISOString().split('T')[0];
     return {
       containerNumber: container.containerNumber,
       success: true,
-      message: '排产成功'
+      message: '排产成功',
+      plannedData: {
+        containerNumber: container.containerNumber,
+        plannedCustomsDate: toDateStr(plannedCustomsDate),
+        plannedPickupDate: toDateStr(plannedPickupDate),
+        plannedDeliveryDate: toDateStr(plannedDeliveryDate),
+        plannedUnloadDate: toDateStr(effectiveUnloadDate),
+        plannedReturnDate: toDateStr(plannedReturnDate),
+        truckingCompanyId: truckingCompany.companyCode,
+        truckingCompany: truckingCompany.companyName,
+        warehouseId: warehouse.warehouseCode,
+        warehouseName: warehouse.warehouseName,
+        warehouseCountry: warehouse.country,
+        unloadModePlan: unloadMode
+      }
     };
   }
 
@@ -954,7 +1022,7 @@ export class IntelligentSchedulingService {
     container: Container,
     truckingCompany: any,
     plannedPickupDate: Date,
-    plannedCustomsDate: Date,
+    plannedDeliveryDate: Date,
     unloadMode?: 'Drop off' | 'Live load'
   ): Promise<void> {
     let trucking = await this.truckingTransportRepo.findOne({
@@ -966,13 +1034,47 @@ export class IntelligentSchedulingService {
     }
     trucking.truckingCompanyId = truckingCompany.companyCode;
     trucking.plannedPickupDate = plannedPickupDate;
-    trucking.plannedDeliveryDate = plannedPickupDate;
-    // ✅ 保存卸柜模式到数据库
+    trucking.plannedDeliveryDate = plannedDeliveryDate;
     if (unloadMode) {
       trucking.unloadModePlan = unloadMode;
     }
-    trucking.scheduleStatus = 'issued'; // 使用正确的枚举值
+    trucking.scheduleStatus = 'issued';
     await this.truckingTransportRepo.save(trucking);
+  }
+
+  private async saveDestinationCustomsPlan(
+    container: Container,
+    plannedCustomsDate: Date,
+    destPo?: PortOperation | null
+  ): Promise<void> {
+    const portOp =
+      destPo ||
+      (await this.portOperationRepo.findOne({
+        where: { containerNumber: container.containerNumber, portType: 'destination' }
+      }));
+    if (!portOp) return;
+    portOp.plannedCustomsDate = plannedCustomsDate;
+    await this.portOperationRepo.save(portOp);
+  }
+
+  private async saveEmptyReturnPlan(
+    container: Container,
+    plannedReturnDate: Date,
+    warehouse: any
+  ): Promise<void> {
+    let emptyReturn = await this.emptyReturnRepo.findOne({
+      where: { containerNumber: container.containerNumber }
+    });
+    if (!emptyReturn) {
+      emptyReturn = new EmptyReturn();
+      emptyReturn.containerNumber = container.containerNumber;
+    }
+    emptyReturn.plannedReturnDate = plannedReturnDate;
+    if (warehouse?.warehouseCode) {
+      emptyReturn.returnTerminalCode = warehouse.warehouseCode;
+      emptyReturn.returnTerminalName = warehouse.warehouseName || warehouse.warehouseCode;
+    }
+    await this.emptyReturnRepo.save(emptyReturn);
   }
 
   private async saveWarehouseOperation(
