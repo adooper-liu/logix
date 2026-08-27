@@ -9,7 +9,11 @@
 import type { Repository } from 'typeorm';
 import { getGroupForColumn } from '../constants/FeituoFieldGroupMapping';
 import { getCoreFieldName } from '../constants/FeiTuoStatusMapping';
-import { canFeituoOverwritePickupDate, PICKUP_DATE_SOURCE } from '../constants/pickupDateSource';
+import {
+  applyFeituoSourcedPickupDate,
+  canFeituoOverwritePickupDate,
+  PICKUP_DATE_SOURCE
+} from '../constants/pickupDateSource';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
 import { ContainerStatusEvent } from '../entities/ContainerStatusEvent';
@@ -1465,8 +1469,11 @@ export class FeituoImportService {
       if (!tt) {
         tt = truckRepo.create({ containerNumber });
       }
-      tt.pickupDate = pickupDate;
-      tt.pickupDateSource = PICKUP_DATE_SOURCE.BUSINESS;
+      if (!applyFeituoSourcedPickupDate(tt, pickupDate)) {
+        logger.warn(
+          `[FeituoImport] 提柜日期来源为 ${tt.pickupDateSource}，飞驼 Excel 表一无法覆盖 pickup_date。柜号=${containerNumber}`
+        );
+      }
       tt.plannedPickupDate = parseDate(getVal(row, '计划提柜日期')) || tt.plannedPickupDate;
       tt.lastPickupDate = parseDate(getVal(row, '最晚提柜日期')) || tt.lastPickupDate;
       await truckRepo.save(tt);
@@ -1708,8 +1715,11 @@ export class FeituoImportService {
     if (pickupDate) {
       let tt = await truckRepo.findOne({ where: { containerNumber } });
       if (!tt) tt = truckRepo.create({ containerNumber });
-      tt.pickupDate = pickupDate;
-      tt.pickupDateSource = PICKUP_DATE_SOURCE.BUSINESS;
+      if (!applyFeituoSourcedPickupDate(tt, pickupDate)) {
+        logger.warn(
+          `[FeituoImport] 提柜日期来源为 ${tt.pickupDateSource}，飞驼 Excel 表二无法覆盖 pickup_date。柜号=${containerNumber}`
+        );
+      }
       tt.plannedPickupDate = parseDate(getVal(row, '卡车预约提柜时间')) || tt.plannedPickupDate;
       await truckRepo.save(tt);
     }
