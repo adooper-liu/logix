@@ -506,6 +506,23 @@ export const resolvePortOperationTimeKeyFromCoreField = (
 };
 
 /**
+ * 把飞驼核心时间写到 PortOperation 的真实实体字段。
+ * 不可使用 ataDestPort / etaDestPort / atdTransit 等历史别名：TypeORM save 会静默丢弃。
+ */
+export function applyCoreFieldTimeToPortOperation(
+  po: PortOperation,
+  coreFieldName: string,
+  occurredAt: Date
+): keyof PortOperation | null {
+  const key = resolvePortOperationTimeKeyFromCoreField(coreFieldName);
+  if (!key) {
+    return null;
+  }
+  (po as unknown as Record<string, unknown>)[key as string] = occurredAt;
+  return key;
+}
+
+/**
  * 获取飞驼状态代码对应的港口类型
  * Get port type for FeiTuo status code
  *
@@ -575,6 +592,7 @@ export default {
   shouldUpdateCoreField,
   getCoreFieldName,
   resolvePortOperationTimeKeyFromCoreField,
+  applyCoreFieldTimeToPortOperation,
   getPortTypeForStatusCode,
   getStatusTypeForStatusCode,
   isEstimatedStatus,

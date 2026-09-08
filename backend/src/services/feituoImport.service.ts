@@ -8,7 +8,10 @@
 
 import type { Repository } from 'typeorm';
 import { getGroupForColumn } from '../constants/FeituoFieldGroupMapping';
-import { getCoreFieldName } from '../constants/FeiTuoStatusMapping';
+import {
+  applyCoreFieldTimeToPortOperation,
+  getCoreFieldName
+} from '../constants/FeiTuoStatusMapping';
 import { canFeituoOverwritePickupDate, PICKUP_DATE_SOURCE } from '../constants/pickupDateSource';
 import { AppDataSource } from '../database';
 import { Container } from '../entities/Container';
@@ -2040,9 +2043,9 @@ export class FeituoImportService {
           }
         }
       } else if (portType === 'transit') {
-        // 中转港
+        // 中转港（必须写实体列 atd；atdTransit 不是 TypeORM 字段，save 不会落库）
         portOp.transitArrivalDate = place.ata || place.eta;
-        portOp.atdTransit = place.atd || place.etd;
+        portOp.atd = place.atd || place.etd;
       } else if (portType === 'destination') {
         // 目的港
         portOp.eta = place.eta;
@@ -2222,6 +2225,7 @@ export class FeituoImportService {
       // 场景：STCS/GTOT 等目的港事件发生时，可能 process_port_operations 只有 origin 记录
       if (!po) {
         po = poRepo.create({
+          id: `feituo_${containerNumber}_${portType}_${Date.now()}`,
           containerNumber,
           portType,
           portSequence: portType === 'origin' ? 1 : 2 // 默认序列：起运港=1, 目的港=2
@@ -2231,19 +2235,8 @@ export class FeituoImportService {
         );
       }
 
-      const map: Record<string, keyof PortOperation> = {
-        ata: 'ataDestPort',
-        eta: 'etaDestPort',
-        gate_in_time: 'gateInTime',
-        gate_out_time: 'gateOutTime',
-        dest_port_unload_date: 'destPortUnloadDate',
-        available_time: 'availableTime',
-        transit_arrival_date: 'transitArrivalDate',
-        atd: 'atdTransit'
-      };
-      const col = map[fieldName];
+      const col = applyCoreFieldTimeToPortOperation(po, fieldName, occurredAt);
       if (col) {
-        (po as any)[col] = occurredAt;
         await poRepo.save(po);
         logger.info(
           `[FeituoImport] 更新核心字段：${containerNumber} ${fieldName}=${occurredAt.toISOString()}`
