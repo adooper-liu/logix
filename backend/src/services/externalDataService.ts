@@ -29,6 +29,7 @@ import { SeaFreight } from '../entities/SeaFreight';
 import { TruckingTransport } from '../entities/TruckingTransport';
 import { WarehouseOperation } from '../entities/WarehouseOperation';
 import { logger } from '../utils/logger';
+import { planFeituoApiSync } from '../utils/feituoApiSyncPlan';
 import { tryApplyFeituoPickupFromGateOutEvent } from '../utils/truckingPickupFromFeituo';
 import { auditLogService } from './auditLog.service';
 import { DemurrageService } from './demurrage.service';
@@ -716,84 +717,28 @@ export class ExternalDataService {
       const feituoData = externalData[0];
       let savedEvents: ContainerStatusEvent[] = [];
       let updatedAtaFields: string[] = [];
+      const syncPlan = planFeituoApiSync(feituoData);
 
-      // 【增强功能】优先处理 places 数据（如果存在）
-      // places 数据结构更完整，优先于 trackingEvents 使用
-      if (feituoData.places && feituoData.places.length > 0) {
-        logger.info(
-          `[ExternalDataService] 检测到 places 数据，优先处理 ${feituoData.places.length} 个地点`
-        );
-
-        // 【新增】先保存 places 原始数据到 ext_feituo_places
-        const syncRequestId = `API_${containerNumber}_${Date.now()}`;
-        await this.savePlacesRawData(
+      if (syncPlan.runPlacesProcessor && feituoData.places) {
+        const fromPlaces = await this.enrichFromFeituoPlaces(
           containerNumber,
           feituoData.billNo,
-          feituoData.places,
-          syncRequestId
-        );
-
-        if (feituoData.trackingEvents && feituoData.trackingEvents.length > 0) {
-          await this.saveStatusRawData(
-            containerNumber,
-            feituoData.billNo,
-            this.normalizeStatusesForExtRaw(feituoData.trackingEvents) as unknown[],
-            syncRequestId
-          );
-        }
-
-        // 动态导入 places 处理器（避免循环依赖）
-        const { feituoPlacesProcessor } = await import('./feituoPlaces.processor');
-
-        // 处理 places 数据
-        const placesResult = await feituoPlacesProcessor.processPlaces(
-          containerNumber,
-          feituoData.places,
-          feituoData.billNo
-        );
-
-        // 从 places 生成状态事件
-        const placeEvents = await this.convertPlacesToStatusEvents(
-          containerNumber,
           feituoData.places,
           dataSource
         );
-
-        // 保存 places 生成的事件
-        if (placeEvents.length > 0) {
-          savedEvents = await this.saveStatusEvents(placeEvents);
-        }
-
-        // 更新ATA相关字段（用于触发滞港费重算）
-        updatedAtaFields = await this.updatePortOperationFromPlaces(
-          containerNumber,
-          feituoData.places
-        );
-
-        logger.info(`[ExternalDataService] places 数据处理完成`, {
-          containerNumber,
-          placesProcessed: placesResult.successCount,
-          eventsGenerated: placeEvents.length
-        });
-      } else {
-        logger.info(`[ExternalDataService] 未检测到 places 数据，使用 trackingEvents`);
-        const branch = await this.processTrackingEventsBranch(
-          containerNumber,
-          feituoData.billNo,
-          feituoData.trackingEvents || [],
-          dataSource,
-          { persistRawToExt: true }
-        );
-        savedEvents = branch.savedEvents;
-        updatedAtaFields = branch.updatedAtaFields;
+        savedEvents = fromPlaces.savedEvents;
+        updatedAtaFields = fromPlaces.updatedAtaFields;
       }
 
-      await this.finalizeTrackingSyncTail(
+      const tracking = await this.applyTrackingCoreFieldsIfNeeded(
         containerNumber,
-        feituoData.trackingEvents || [],
-        updatedAtaFields,
-        { includeRecalculate: true }
+        feituoData,
+        dataSource,
+        savedEvents,
+        updatedAtaFields
       );
+      savedEvents = tracking.savedEvents;
+      updatedAtaFields = tracking.updatedAtaFields;
 
       logger.info(
         `[ExternalDataService] 成功同步货柜 ${containerNumber} 的 ${savedEvents.length} 个状态事件`
@@ -803,6 +748,67 @@ export class ExternalDataService {
       logger.error(`[ExternalDataService] 同步货柜 ${containerNumber} 失败:`, error);
       throw error;
     }
+  }
+
+  /** status[] 写核；无论是否有 places 都要 finalize（滞港费/状态机）。 */
+  private async applyTrackingCoreFieldsIfNeeded(
+    containerNumber: string,
+    feituoData: FeituoTrackingData,
+    dataSource: DataSource,
+    savedEvents: ContainerStatusEvent[],
+    updatedAtaFields: string[]
+  ): Promise<{ savedEvents: ContainerStatusEvent[]; updatedAtaFields: string[] }> {
+    const plan = planFeituoApiSync(feituoData);
+    if (plan.runTrackingCoreFieldUpdate) {
+      const branch = await this.processTrackingEventsBranch(
+        containerNumber,
+        feituoData.billNo,
+        feituoData.trackingEvents || [],
+        dataSource,
+        { persistRawToExt: true }
+      );
+      if (branch.savedEvents.length > 0) savedEvents = branch.savedEvents;
+      updatedAtaFields = [...new Set([...updatedAtaFields, ...branch.updatedAtaFields])];
+    }
+    await this.finalizeTrackingSyncTail(
+      containerNumber,
+      feituoData.trackingEvents || [],
+      updatedAtaFields,
+      { includeRecalculate: true }
+    );
+    return { savedEvents, updatedAtaFields };
+  }
+
+  /**
+   * 保存 places 原始数据并尽力 enrich。不能替代 status[] 写核。
+   */
+  private async enrichFromFeituoPlaces(
+    containerNumber: string,
+    billNo: string | undefined,
+    places: any[],
+    dataSource: DataSource
+  ): Promise<{ savedEvents: ContainerStatusEvent[]; updatedAtaFields: string[] }> {
+    logger.info(
+      `[ExternalDataService] 检测到 places 数据，保存原始地点 ${places.length} 个（不替代 status 写核）`
+    );
+
+    const syncRequestId = `API_${containerNumber}_${Date.now()}`;
+    await this.savePlacesRawData(containerNumber, billNo, places, syncRequestId);
+
+    const { feituoPlacesProcessor } = await import('./feituoPlaces.processor');
+    const placesResult = await feituoPlacesProcessor.processPlaces(containerNumber, places, billNo);
+
+    const placeEvents = await this.convertPlacesToStatusEvents(containerNumber, places, dataSource);
+    const savedEvents = placeEvents.length > 0 ? await this.saveStatusEvents(placeEvents) : [];
+    const updatedAtaFields = await this.updatePortOperationFromPlaces(containerNumber, places);
+
+    logger.info(`[ExternalDataService] places 数据处理完成`, {
+      containerNumber,
+      placesProcessed: placesResult.successCount,
+      eventsGenerated: placeEvents.length
+    });
+
+    return { savedEvents, updatedAtaFields };
   }
 
   /**
